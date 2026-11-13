@@ -102,8 +102,28 @@ describe("pint answer telemetry", () => {
     await act(async () => {
       root?.render(createElement(NearMeNow, { venues, initialLocation: { lat: 51.5136, lng: -0.1365 }, titledByHost: true }));
     });
-    expect(host.textContent).toContain("Pint Venue");
-    expect(host.textContent).not.toContain("Bottle Venue");
+    // The bottle price never enters the pint list. The pub itself may still be
+    // the nearest listed pub, which shows no price.
+    const list = host.querySelector(".nmnList")?.textContent ?? "";
+    expect(list).toContain("Pint Venue");
+    expect(list).not.toContain("Bottle Venue");
+    expect(host.textContent).not.toContain("£2.49");
+    expect(boundary.slim).not.toHaveBeenCalled();
+  });
+
+  it("does not re-answer the same supplied venue list on a host render", async () => {
+    const venues = [...pints];
+    const initialLocation = { lat: 51.5136, lng: -0.1365 };
+    for (let pass = 0; pass < 2; pass += 1) {
+      await act(async () => {
+        root?.render(createElement(NearMeNow, { venues, initialLocation, showPriceTrust: true }));
+      });
+      expect(host.querySelector(".nmnList")?.textContent).toContain("Test Pub");
+      expect(boundary.track.mock.calls).toEqual([
+        ["near_answer_ready", { source: "location", resultBand: "1-3" }],
+      ]);
+    }
+    expect(geolocate).not.toHaveBeenCalled();
     expect(boundary.slim).not.toHaveBeenCalled();
   });
 

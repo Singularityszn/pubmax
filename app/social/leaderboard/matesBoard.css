@@ -1,0 +1,48 @@
+/* The mates' board (app/social/leaderboard). Launch tokens only
+   (docs/DESIGN_SYSTEM.md "Launch tokens"). Rows come from the RowList
+   primitive. No coral: the board has no action, and a figure is neutral ink
+   set in the data face. The reader's own row says "(You)" in its title. */
+
+.matesBoardShell {
+  margin: 0 auto;
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.matesBoard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  max-width: 46rem;
+}
+
+.matesBoardNote {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+}
+
+.matesBoardPlace,
+.matesBoardFigure {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.matesBoardPlace {
+  display: inline-block;
+  min-inline-size: 2ch;
+  text-align: end;
+}
+
+.matesBoardPoints {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.matesBoardFigure {
+  font-weight: 700;
+}

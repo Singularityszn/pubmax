@@ -9,7 +9,7 @@ Author: Fable 5 (architect/reviewer — no inline execution). For Sol's review. 
 3. **Launch headline**: London-only THE LOCAL loop. Wave 2 nine-city and Wave 4 Pub Pal voice deferred.
 4. **Growth**: crew-invite universal links (eng priority) + Pint Index press launch + owner clears SEO blockers. Paid UA budget confirmed exists.
 5. **Store accounts**: none existed; Apple enrollment deferred by owner ("mobile site version first"). Play's 14-day new-account closed-test rule likely pushes Android production past the month.
-6. **Convex**: NOT migrating. Supabase is certified production (RLS, ledger, Wave 0 write-surface certification); `convex/` stays dormant. Post-launch decision.
+6. **Convex**: See the Master PRD's [persistence decision](../MASTER_PRD.md#persistence) for the ruling that supersedes the dormant-scaffold decision.
 7. **Process**: Fable plans/reviews only; implementation delegated to model-tiered subagents (haiku=mechanical, sonnet=standard, opus=hard). Fable never merges — Sol reviews + merges in the owner's Codex environment. Fable's work never overwrites owner/GPT plans (sol2.md, PRDs).
 
 ## Ground-truth audit (start of session)

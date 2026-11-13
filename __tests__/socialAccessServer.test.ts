@@ -99,6 +99,26 @@ describe("server Social access resolution", () => {
       available: true,
       state: "age_verification_required",
       adultPrompt: false,
+      gate: "onboarding_required",
+    });
+  });
+
+  it.each([
+    { profile: null, dateOfBirth: null, gate: "onboarding_required" },
+    { profile: { id: "profile-1", handle: "alice" }, dateOfBirth: null, gate: "adult_check_required" },
+    { profile: { id: "profile-1", handle: "alice" }, dateOfBirth: "2012-01-01", gate: "adult_check_failed" },
+  ])("identifies the $gate recovery without granting access", async ({ profile, dateOfBirth, gate }) => {
+    await expect(requireVerifiedSocialActor(undefined, dependencies({
+      readFriendsLaunchAccess: async () => ({
+        account: { id: "account-1", ownershipState: "active" },
+        profile,
+        dateOfBirth,
+      }),
+    }))).resolves.toMatchObject({
+      ok: false,
+      status: 403,
+      code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+      gate,
     });
   });
 

@@ -42,6 +42,15 @@
   },
   "routes": [
     {
+      "path": "/tools",
+      "readySelector": "main.pubToolsPage",
+      "why": "The public comparison form loads no map or voice SDK. Initial ceilings match the existing planner family. These are provisional ceilings pending the first isolated production measurement, not measured results.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1170,
+      "requests": 48,
+      "lcpMs": 400
+    },
+    {
       "path": "/",
       "readySelector": "main",
       "why": "The landing every shared link and every search result opens.",
@@ -391,6 +400,15 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 960,
       "requests": 43,
+      "lcpMs": 400
+    },
+    {
+      "path": "/guides",
+      "readySelector": "main.guidesMain",
+      "why": "Pub of the week, short crawl guides and London's famous pubs, a page the Pubs and pints lane and the desktop More menu send people to. Added 12 November 2026 before any sweep had measured it: the ceilings are the /historic row's, the nearest page in shape (the same bundled cited history file under SiteNav and one Screen, with no client island of its own). The macOS CI sweep is the oracle and brings these down to its figure at the next one.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 970,
+      "requests": 44,
       "lcpMs": 400
     },
     {

@@ -14,6 +14,49 @@ describe("invite return navigation", () => {
   const planId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
   it.each([
+    "/map?sel=venue-a&table=8",
+    "/map/manchester?sel=venue-mcr-1lwo5lo&table=8",
+    "/map/glasgow?sel=venue-glw-1&table=12",
+  ])("keeps a valid table ask through account claim: %s", (target) => {
+    const url = `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(target)}`;
+    expect(accountClaimReturnToFromUrl(url)).toBe(target);
+    expect(defaultEmailAuthNext(url)).toBe(`/u/you?returnTo=${encodeURIComponent(target)}`);
+    for (const unsafe of [
+      "//evil.test/map?sel=a&table=8", "/map?sel=a&table=2",
+      "/map?table=8", "/map?sel=a&table=8&next=https://evil.test",
+      "/map?sel=a&table=8#other", "/map?sel=a&table=8&table=10",
+      "/map/unknown?sel=a&table=8", "/map/manchester/extra?sel=a&table=8",
+      "/map/../map?sel=a&table=8", "/map//evil.test?sel=a&table=8",
+    ]) {
+      expect(accountClaimReturnToFromUrl(
+        `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(unsafe)}`,
+      )).toBeNull();
+    }
+  });
+
+  it.each([
+    "/map?sel=venue-12ino21&log=1",
+    "/map?sel=venue-12ino21&log=1&price=5.20",
+    "/map/manchester?sel=venue-mcr-1lwo5lo&log=1&price=4.85",
+  ])("keeps a Pint Drop composer door through account claim: %s", (target) => {
+    const url = `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(target)}`;
+    expect(accountClaimReturnToFromUrl(url)).toBe(target);
+    expect(defaultEmailAuthNext(url)).toBe(`/u/you?returnTo=${encodeURIComponent(target)}`);
+    for (const unsafe of [
+      "//evil.test/map?sel=a&log=1", "/map?sel=a", "/map?log=1",
+      "/map?sel=a&log=2", "/map?sel=a&log=1&next=https://evil.test",
+      "/map?sel=a&log=1#other", "/map?sel=a&log=1&log=1",
+      "/map?sel=a&log=1&price=-1", "/map?sel=a&log=1&price=abc",
+      "/map/unknown?sel=a&log=1", "/map/manchester/extra?sel=a&log=1",
+      "/map/../map?sel=a&log=1", "/map//evil.test?sel=a&log=1",
+    ]) {
+      expect(accountClaimReturnToFromUrl(
+        `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(unsafe)}`,
+      )).toBeNull();
+    }
+  });
+
+  it.each([
     "https://example.com/add/karan",
     "//example.com/add/karan",
     "javascript:alert(1)",

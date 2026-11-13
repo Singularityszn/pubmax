@@ -52,7 +52,7 @@ RESCOPED 2026-07-18 after spec review: most of the push pipeline ALREADY EXISTS 
 ### Lane C: concierge chat surface /pal (Opus, UI + seam)
 
 - Chat skin over the EXISTING engine: user asks, intent parse, deterministic rank over our rows, answer cards ARE the facts with their provenance labels; model narration behind `narrate` flag, OFF until key funded; refuse honestly at zero rows (house empty-state voice).
-- Provider seam stays single (`OPENROUTER_MODEL` env); multi-model later, never week one.
+- Provider configuration follows [Pub Pal setup](PUB_PAL_SETUP.md).
 - Web-search grounding (owner decision 3): behind a second flag, Exa/Firecrawl at query time, answers marked as web-sourced, OFF by default until spend limiter proven.
 - Sol dependency: durable spend limiter on the concierge route before any model/web flag flips in prod.
 
@@ -83,12 +83,12 @@ Day 7: buffer. It will be needed.
 
 1. GitHub Actions billing cap (freshness for brief + push + ingest; the habit dies without it).
 2. Apple Developer + Play enrollment (#390); TICKETMASTER_API_KEY (#385).
-3. Fund/refresh Exa + Firecrawl credits as lanes consume them; provision VAPID keypair for web push; fund OpenRouter when ready to flip narration.
+3. Fund/refresh Exa + Firecrawl credits as lanes consume them; provision VAPID keypair for web push; use [Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) for model configuration.
 4. Choose positioning line (candidate above) for stores/landing.
 
 ## Verification bar (every lane)
 
-Vitest green locally AND on Vercel (ci runs tests inside builds); tsc clean; no em dashes in product copy; provenance label on every sourced claim; hermetic tests only (fixed dates, no real clock, env stripped); no destructive migrations; write-surface certification updated for any new mutating route; screenshots both themes for UI lanes before merge request.
+Follow the [root verification policy](../AGENTS.md#verifying) for local checks and merge requirements. Other requirements: tsc clean; no em dashes in product copy; provenance label on every sourced claim; hermetic tests only (fixed dates, no real clock, env stripped); no destructive migrations; write-surface certification updated for any new mutating route; screenshots both themes for UI lanes before merge request.
 
 ## STATE OF THE BUILD (2026-07-20, through main 8f20c87f — Sol reads this before touching anything)
 
@@ -119,8 +119,8 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 
 ### Ops incidents Sol must internalize
 
-- **Semantic-collision class (twice this week):** two individually-green PRs broke main only combined (#424+#425 → fixed by #428; docs push 4f35de82 → fixed by #436). Vercel runs vitest INSIDE builds: main-red = prod deploys dead. Therefore: run FULL local vitest at latest main before opening a PR, and after any merge race re-verify.
-- **Migrations:** additive only, ever. Owner applies; nothing auto-applies. Pin `search_path` on functions (e6dfa164 convention).
+- **Integration checks:** Recheck the combined change after a rebase or merge race, under the [root verification policy](../AGENTS.md#verifying).
+- **Migrations:** additive only, ever. Nothing auto-applies. Follow the [migration apply policy](../supabase/AGENTS.md#traps). Pin `search_path` on functions (e6dfa164 convention).
 - **GNHF CLI is not trusted** (0-token run); native lanes + watcher loops are the proven machine.
 
 ## TASTE DOCTRINE (owner-forged, binding on every lane)

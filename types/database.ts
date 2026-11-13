@@ -332,6 +332,32 @@ export type Database = {
         };
         Relationships: [];
       };
+      conversation_deletions: {
+        Row: {
+          conversation_id: string;
+          handle: string;
+          deleted_at: string;
+        };
+        Insert: {
+          conversation_id: string;
+          handle: string;
+          deleted_at?: string;
+        };
+        Update: {
+          conversation_id?: string;
+          handle?: string;
+          deleted_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "conversation_deletions_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       conversation_members: {
         Row: {
           conversation_id: string;
@@ -901,6 +927,81 @@ export type Database = {
         };
         Relationships: [];
       };
+      message_flag_evidence_audit: {
+        Row: {
+          id: string;
+          message_id: string | null;
+          staff_role_id: string | null;
+          staff_display_name: string;
+          attachment_kind: string;
+          viewed_at: string;
+        };
+        Insert: {
+          id?: string;
+          message_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name: string;
+          attachment_kind: string;
+          viewed_at?: string;
+        };
+        Update: {
+          id?: string;
+          message_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string;
+          attachment_kind?: string;
+          viewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_flag_evidence_audit_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_flag_evidence_audit_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      message_flag_reviews: {
+        Row: {
+          message_id: string;
+          staff_role_id: string | null;
+          reviewed_at: string;
+        };
+        Insert: {
+          message_id: string;
+          staff_role_id?: string | null;
+          reviewed_at?: string;
+        };
+        Update: {
+          message_id?: string;
+          staff_role_id?: string | null;
+          reviewed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_flag_reviews_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: true;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_flag_reviews_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       message_poll_votes: {
         Row: {
           message_id: string;
@@ -955,6 +1056,7 @@ export type Database = {
           attachment_plan_id: string | null;
           attachment_poll_question: string | null;
           attachment_poll_options: Json | null;
+          unsent_at: string | null;
         };
         Insert: {
           id?: string;
@@ -977,6 +1079,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Update: {
           id?: string;
@@ -999,6 +1102,7 @@ export type Database = {
           attachment_plan_id?: string | null;
           attachment_poll_question?: string | null;
           attachment_poll_options?: Json | null;
+          unsent_at?: string | null;
         };
         Relationships: [
           {
@@ -1937,6 +2041,7 @@ export type Database = {
           author_retired_at: string | null;
           receipt_photo_key: string | null;
           price_evidence: string | null;
+          rating: number | null;
         };
         Insert: {
           id?: string;
@@ -1972,6 +2077,7 @@ export type Database = {
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
           price_evidence?: string | null;
+          rating?: number | null;
         };
         Update: {
           id?: string;
@@ -2007,6 +2113,7 @@ export type Database = {
           author_retired_at?: string | null;
           receipt_photo_key?: string | null;
           price_evidence?: string | null;
+          rating?: number | null;
         };
         Relationships: [];
       };
@@ -2410,6 +2517,87 @@ export type Database = {
           },
           {
             foreignKeyName: "plan_invites_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_live_location_stops: {
+        Row: {
+          plan_id: string;
+          member_id: string;
+          stopped_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          plan_id: string;
+          member_id: string;
+          stopped_at: string;
+          expires_at: string;
+        };
+        Update: {
+          plan_id?: string;
+          member_id?: string;
+          stopped_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_live_location_stops_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_crew_members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_live_location_stops_plan_id_fkey";
+            columns: ["plan_id"];
+            isOneToOne: false;
+            referencedRelation: "plans";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      plan_live_locations: {
+        Row: {
+          plan_id: string;
+          member_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m: number | null;
+          updated_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          plan_id: string;
+          member_id: string;
+          latitude: number;
+          longitude: number;
+          accuracy_m?: number | null;
+          updated_at: string;
+          expires_at: string;
+        };
+        Update: {
+          plan_id?: string;
+          member_id?: string;
+          latitude?: number;
+          longitude?: number;
+          accuracy_m?: number | null;
+          updated_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "plan_live_locations_member_id_fkey";
+            columns: ["member_id"];
+            isOneToOne: false;
+            referencedRelation: "plan_crew_members";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "plan_live_locations_plan_id_fkey";
             columns: ["plan_id"];
             isOneToOne: false;
             referencedRelation: "plans";
@@ -2962,6 +3150,69 @@ export type Database = {
             columns: ["social_owner_account_id"];
             isOneToOne: false;
             referencedRelation: "private_social_accounts";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      price_bill_checks: {
+        Row: {
+          id: string;
+          pint_drop_id: string | null;
+          community_price_id: string | null;
+          community_price_submitted_at: string | null;
+          bill_hash: string;
+          community_price_round_source: Json | null;
+          venue_id: string;
+          price_pennies: number;
+          result: string;
+          lines: Json;
+          checked_at: string;
+          reviewed_at: string | null;
+          review_decision: string | null;
+        };
+        Insert: {
+          id?: string;
+          pint_drop_id?: string | null;
+          community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash: string;
+          community_price_round_source?: Json | null;
+          venue_id: string;
+          price_pennies: number;
+          result: string;
+          lines?: Json;
+          checked_at?: string;
+          reviewed_at?: string | null;
+          review_decision?: string | null;
+        };
+        Update: {
+          id?: string;
+          pint_drop_id?: string | null;
+          community_price_id?: string | null;
+          community_price_submitted_at?: string | null;
+          bill_hash?: string;
+          community_price_round_source?: Json | null;
+          venue_id?: string;
+          price_pennies?: number;
+          result?: string;
+          lines?: Json;
+          checked_at?: string;
+          reviewed_at?: string | null;
+          review_decision?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "price_bill_checks_community_price_id_fkey";
+            columns: ["community_price_id"];
+            isOneToOne: false;
+            referencedRelation: "community_prices";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "price_bill_checks_pint_drop_id_fkey";
+            columns: ["pint_drop_id"];
+            isOneToOne: false;
+            referencedRelation: "pint_drops";
             referencedColumns: ["id"];
           },
         ];
@@ -4423,6 +4674,57 @@ export type Database = {
           },
         ];
       };
+      social_account_moderation_audit: {
+        Row: {
+          id: string;
+          social_account_id: string;
+          profile_handle: string;
+          action: string;
+          reason: string;
+          staff_role_id: string | null;
+          staff_display_name: string;
+          report_id: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          social_account_id: string;
+          profile_handle: string;
+          action: string;
+          reason: string;
+          staff_role_id?: string | null;
+          staff_display_name: string;
+          report_id?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          social_account_id?: string;
+          profile_handle?: string;
+          action?: string;
+          reason?: string;
+          staff_role_id?: string | null;
+          staff_display_name?: string;
+          report_id?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_account_moderation_audit_report_id_fkey";
+            columns: ["report_id"];
+            isOneToOne: false;
+            referencedRelation: "social_content_reports";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_account_moderation_audit_staff_role_id_fkey";
+            columns: ["staff_role_id"];
+            isOneToOne: false;
+            referencedRelation: "private_social_staff_roles";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_blocks: {
         Row: {
           blocker_profile_id: string;
@@ -4879,6 +5181,7 @@ export type Database = {
           last_error_code: string | null;
           created_at: string;
           updated_at: string;
+          lease_token: string | null;
         };
         Insert: {
           content_kind: string;
@@ -4891,6 +5194,7 @@ export type Database = {
           last_error_code?: string | null;
           created_at?: string;
           updated_at?: string;
+          lease_token?: string | null;
         };
         Update: {
           content_kind?: string;
@@ -4903,6 +5207,7 @@ export type Database = {
           last_error_code?: string | null;
           created_at?: string;
           updated_at?: string;
+          lease_token?: string | null;
         };
         Relationships: [];
       };
@@ -5932,6 +6237,36 @@ export type Database = {
             referencedColumns: ["id"];
           },
         ];
+      };
+      social_report_evidence_audit: {
+        Row: {
+          id: string;
+          report_id: string;
+          content_kind: string;
+          content_id: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          viewed_at: string;
+        };
+        Insert: {
+          id?: string;
+          report_id: string;
+          content_kind: string;
+          content_id: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          viewed_at?: string;
+        };
+        Update: {
+          id?: string;
+          report_id?: string;
+          content_kind?: string;
+          content_id?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          viewed_at?: string;
+        };
+        Relationships: [];
       };
       social_reposts: {
         Row: {
@@ -7370,6 +7705,18 @@ export type Database = {
           attempts: number;
         }[];
       };
+      claim_social_interaction_moderation_leases: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
+          lease_token: string;
+        }[];
+      };
       claim_social_post_media_cleanup_batch: {
         Args: {
           p_limit?: number | null;
@@ -7481,10 +7828,22 @@ export type Database = {
         };
         Returns: boolean;
       };
-      complete_social_interaction_moderation_job: {
+      complete_social_interaction_moderation_job:
+        | {
         Args: {
           p_kind: string | null;
           p_content_id: string | null;
+          p_decision: string | null;
+          p_error_code: string | null;
+          p_retry_at: string | null;
+        };
+        Returns: boolean;
+      }
+        | {
+        Args: {
+          p_kind: string | null;
+          p_content_id: string | null;
+          p_lease_token: string | null;
           p_decision: string | null;
           p_error_code: string | null;
           p_retry_at: string | null;
@@ -7532,6 +7891,18 @@ export type Database = {
         Args: {
           p_nonce_hash: string | null;
           p_provider: string | null;
+        };
+        Returns: Json;
+      };
+      create_one_tap_price_pair_atomic: {
+        Args: {
+          p_venue_id: string | null;
+          p_drink_category: string | null;
+          p_price_pennies: number | null;
+          p_actor: string | null;
+          p_contributor_handle: string | null;
+          p_submitted_at: string | null;
+          p_drop: Json;
         };
         Returns: Json;
       };
@@ -7789,6 +8160,14 @@ export type Database = {
           object_key: string;
         }[];
       };
+      decide_operator_proposal: {
+        Args: {
+          p_id: string | null;
+          p_status: string | null;
+          p_note?: string | null;
+        };
+        Returns: Json;
+      };
       decide_plan_route_proposal_atomic: {
         Args: {
           p_plan_id: string | null;
@@ -7810,6 +8189,14 @@ export type Database = {
           p_payload_digest: string | null;
         };
         Returns: Json;
+      };
+      delete_conversation_for_viewer: {
+        Args: {
+          p_conversation_id: string | null;
+          p_handle: string | null;
+          p_deleted_at: string | null;
+        };
+        Returns: string;
       };
       edit_social_post: {
         Args: {
@@ -7962,6 +8349,19 @@ export type Database = {
           p_request_hash: string | null;
         };
         Returns: string;
+      };
+      lease_social_interaction_moderation_jobs: {
+        Args: {
+          p_limit: number | null;
+          p_with_token: boolean | null;
+        };
+        Returns: {
+          content_kind: string;
+          content_id: string;
+          moderation_claim: string;
+          attempts: number;
+          lease_token: string;
+        }[];
       };
       leave_social_crew_atomic: {
         Args: {
@@ -8126,6 +8526,25 @@ export type Database = {
           rank_key: number;
         }[];
       };
+      plan_live_location: {
+        Args: {
+          p_plan_id: string | null;
+          p_token_hash: string | null;
+          p_social_account_id: string | null;
+          p_operation: string | null;
+          p_latitude?: number | null;
+          p_longitude?: number | null;
+          p_accuracy_m?: number | null;
+          p_start_at?: string | null;
+        };
+        Returns: Json;
+      };
+      plan_live_location_ends_at: {
+        Args: {
+          p_start: string | null;
+        };
+        Returns: string;
+      };
       plan_presentation: {
         Args: {
           p_plan_id: string | null;
@@ -8207,6 +8626,20 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_flagged_message_evidence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_message_id: string | null;
+        };
+        Returns: Json;
+      };
+      read_flagged_messages_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       read_held_social_post_videos: {
         Args: {
           p_limit: number | null;
@@ -8268,6 +8701,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_reported_content_evidence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_report_id: string | null;
+        };
+        Returns: Json;
+      };
       read_social_cheers: {
         Args: {
           p_viewer: string | null;
@@ -8323,6 +8763,12 @@ export type Database = {
         Returns: Json;
       };
       read_social_crew_public_preview: {
+        Args: {
+          p_crew_id: string | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_share_card: {
         Args: {
           p_crew_id: string | null;
         };
@@ -8615,6 +9061,13 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      read_social_report_queue_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
       };
       read_social_saves: {
         Args: {
@@ -8981,6 +9434,20 @@ export type Database = {
         };
         Returns: boolean;
       };
+      resolve_social_report_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_report_id: string | null;
+        };
+        Returns: boolean;
+      };
+      review_flagged_message_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_message_id: string | null;
+        };
+        Returns: boolean;
+      };
       review_social_post_video: {
         Args: {
           p_post_id: string | null;
@@ -9003,6 +9470,26 @@ export type Database = {
           p_invitation_id: string | null;
           p_idempotency_key: string | null;
           p_payload_digest: string | null;
+        };
+        Returns: Json;
+      };
+      set_crew_status: {
+        Args: {
+          p_plan_id: string | null;
+          p_status: string | null;
+          p_token_hash?: string | null;
+          p_seat_id?: string | null;
+          p_account_id?: string | null;
+        };
+        Returns: string;
+      };
+      set_social_account_suspension_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_profile_id: string | null;
+          p_action: string | null;
+          p_reason: string | null;
+          p_report_id: string | null;
         };
         Returns: Json;
       };

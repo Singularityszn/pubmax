@@ -19,6 +19,7 @@
 // anyone who knows it can read + (as a member) build the Round. Writes are
 // rate-limited per handle + IP.
 
+import { billReaderKeyed, scheduleBillChecks, type BillCheckObservation } from "@/lib/billCheck.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -57,6 +58,7 @@ import { isRoundsReadLimited } from "@/lib/roundsReadRateLimit";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { FUNCTION_REQUEST_BODY_LIMIT_BYTES } from "@/lib/uploadBodyLimit";
+import { downloadUploadedImageObject } from "@/lib/uploadedImage.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -182,11 +184,22 @@ async function promoteReadyRoundPrices(input: {
   stored: RoundSpendDTO;
   contributor: ResolvedContributor;
   request: Request;
+  receipt: File | null;
 }): Promise<Response> {
   const ready = input.stored.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.promotionStatus === "ready");
   let completed = 0;
+  const observations: BillCheckObservation[] = [];
+  let receipt: File | null = null;
+  if (ready.length > 0 && billReaderKeyed()) {
+    const saved = input.stored.receiptPhotoKey
+      ? await downloadUploadedImageObject(input.stored.receiptPhotoKey)
+      : null;
+    receipt = saved
+      ? new File([new Uint8Array(saved.bytes)], "bill.jpg", { type: saved.contentType })
+      : input.receipt;
+  }
   const recordedAt = Date.parse(input.stored.recordedAt);
   for (const { item, index } of ready) {
     const write = await submitCommunityPrice(
@@ -206,8 +219,21 @@ async function promoteReadyRoundPrices(input: {
       typeof write.sourceBecameOwner === "boolean"
     ) {
       completed += 1;
+      if (write.sourceBecameOwner && receipt && billReaderKeyed()) {
+        observations.push({
+          venueId: input.stored.venueId,
+          priceGbp: item.pricePence / 100,
+          drink: item.drinkName,
+          ...(item.drinkCategory === "beer" ? { measure: "pint" as const } : {}),
+          communityPriceId: write.price.id,
+          communityPriceSubmittedAt: write.price.submittedAt,
+          roundSource: { spendId: input.stored.id, lineIndex: index },
+        });
+      }
     }
   }
+
+  if (receipt && observations.length > 0) scheduleBillChecks(receipt, observations);
 
   if (completed !== ready.length) {
     return publicApiError("Your round is kept, but some prices need another try.", "UNAVAILABLE", 503, { retryable: true });
@@ -228,6 +254,12 @@ function billedPromotionOwner(
   const unbilled =
     !receipt && observed.some((item) => priceNeedsReceipt(item.pricePence / 100));
   return unbilled ? null : contributor.actor;
+}
+
+function promotionErrorResponse(error: RoundWriteError): Response {
+  return error === "forbidden"
+    ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
+    : errorResponse(error);
 }
 
 // One immutable buying turn, plus the price submissions its drink lines earn.
@@ -308,9 +340,7 @@ async function recordSpend(
     promotionOwner,
   );
   if (!owner.ok) {
-    return owner.error === "forbidden"
-      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
-      : errorResponse(owner.error);
+    return promotionErrorResponse(owner.error);
   }
   const reconciled = await store.reconcilePromotionKeys(
     code,
@@ -318,9 +348,7 @@ async function recordSpend(
     promotionOwner,
   );
   if (!reconciled.ok) {
-    return reconciled.error === "forbidden"
-      ? publicApiError("This saved round belongs to another account.", "FORBIDDEN", 403)
-      : errorResponse(reconciled.error);
+    return promotionErrorResponse(reconciled.error);
   }
 
   const prepared = await preparePendingRoundPrices({
@@ -338,6 +366,7 @@ async function recordSpend(
     stored: prepared.stored,
     contributor,
     request,
+    receipt: result.created ? result.receipt ?? null : null,
   });
 }
 

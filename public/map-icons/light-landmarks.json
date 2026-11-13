@@ -1,0 +1,93 @@
+{
+  "lm:clock-tower": {
+    "x": 0,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:dome": {
+    "x": 62,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:twin-towers": {
+    "x": 124,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:shard": {
+    "x": 186,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:wheel": {
+    "x": 248,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:gherkin": {
+    "x": 310,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:column": {
+    "x": 372,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:civic": {
+    "x": 434,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:keep": {
+    "x": 496,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:market": {
+    "x": 558,
+    "y": 0,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:canal": {
+    "x": 0,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:ship": {
+    "x": 62,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  },
+  "lm:chimneys": {
+    "x": 124,
+    "y": 62,
+    "width": 60,
+    "height": 60,
+    "pixelRatio": 2
+  }
+}

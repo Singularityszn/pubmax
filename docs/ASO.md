@@ -84,7 +84,7 @@ Lead with the positioning line, then the job, then the honesty bar. Keep it unde
 >   default, nothing public unless you share it.
 > - Heritage worth the walk: one sourced fact per historic pub, never invented.
 >
-> What we stand for: the pub as a third place, not a leaderboard. A great night
+> What we stand for: the pub as a third place. A great night
 > is measured by the life around the drink, never by how much you drank. No ads,
 > no paywalls, honest data always.
 
@@ -92,7 +92,7 @@ Lead with the positioning line, then the job, then the honesty bar. Keep it unde
 
 ## Screenshot shot-list
 
-Maps to the Gate Z mobile set under `docs/screenshots/` (390 wide, both themes;
+Maps to the Gate Z mobile set produced by [`npm run shots`](../README.md) (390 wide, both themes;
 lead the store with dark, keep light as the alternate). Rubric: one clear idea per
 shot, provenance visible where a card is scraped, a caption with no em dash.
 Ship six; shots 7 and 8 are the overflow slots for stores that allow more.

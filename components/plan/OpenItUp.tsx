@@ -7,6 +7,7 @@ import { useEffect, useId, useState, useSyncExternalStore, type FormEvent } from
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import {
   OPEN_CRAWL_CAPACITY_DEFAULT,
   OPEN_CRAWL_CAPACITY_MAX,
@@ -116,6 +117,7 @@ export default function OpenItUp({ planId, state }: { planId: string; state: Pla
         setProblem("Couldn't open this plan up.");
         return;
       }
+      trackHostLoopStep("open", outcome);
       // The crew now holds the plan, and every seat token was rotated with it.
       clearPlanCapability(planId);
       window.location.assign(crewPath(outcome.crewId));

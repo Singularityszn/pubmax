@@ -65,6 +65,12 @@ describe("searchHasSelection", () => {
 });
 
 describe("cleanMapUrl", () => {
+  it("does not carry pub A's table ask through Back and selection of pub B", () => {
+    const back = new URL(cleanMapUrl("/map", "?sel=pub-a&table=8&food=1"), "https://pubmaxxing.com");
+    expect(back.pathname + back.search).toBe("/map?food=1");
+    expect(browseSelectionUrl(back.pathname, back.search, "pub-b")).toBe("/map?food=1&sel=pub-b");
+  });
+
   it("strips sel/accept/src but preserves owned passthrough params", () => {
     expect(cleanMapUrl("/map", "?sel=v1&accept=1&src=near&pubs=a,b&plan=1")).toBe(
       "/map?pubs=a%2Cb&plan=1",
@@ -82,6 +88,22 @@ describe("cleanMapUrl", () => {
 });
 
 describe("browseSelectionUrl", () => {
+  it("drops the previous pub's table ask on a direct selection change", () => {
+    expect(browseSelectionUrl("/map", "?sel=pub-a&table=8&food=1", "pub-b"))
+      .toBe("/map?sel=pub-b&food=1");
+  });
+
+  it("drops the previous pub's summon time on a direct selection change", () => {
+    expect(browseSelectionUrl("/map", "?sel=pub-a&meet=20%3A00&food=1", "pub-b"))
+      .toBe("/map?sel=pub-b&food=1");
+    expect(cleanMapUrl("/map", "?sel=pub-a&meet=20%3A00&food=1")).toBe("/map?food=1");
+  });
+
+  it("keeps the table ask while refreshing the same selection", () => {
+    expect(refreshSelectionUrl("/map", "?sel=pub-a&table=8", "pub-a"))
+      .toBe("/map?sel=pub-a&table=8");
+  });
+
   it("sets sel and drops acceptance markers while keeping owned params", () => {
     // Switching to a browse pin from an accepted arrival must not carry accept/src.
     expect(browseSelectionUrl("/map", "?sel=v1&accept=1&src=near&food=1", "v2")).toBe(

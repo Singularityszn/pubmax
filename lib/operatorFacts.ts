@@ -1,10 +1,9 @@
 // Operator facts (launch plan 1 Nov 2026, section 7 item 1; launch review G1).
 //
-// A verified pub operator proposes an event, an offer, a correction or a
-// response (lib/operatorProposals.ts). A moderator accepts it, and the accept
-// branch of app/api/operator-proposals/route.ts publishes ONE operator fact
-// (lib/operatorFactsStore.ts). This module is the pure half: the shape, the
-// public projection, the words a reader sees and the reading rules. No IO.
+// Moderation and publication follow the operator proposal contract:
+// docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
+// This module owns the shape, public projection, display words and reading
+// rules. No IO.
 //
 // WHAT A FACT IS. The pub's own dated word, labelled "From the pub", in its own
 // block. It is never a price, never hours on record, never a ranking signal and
@@ -21,6 +20,7 @@
 
 import type { OperatorProposal, OperatorProposalType } from "@/lib/operatorProposals";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
+import { londonDayKey } from "@/lib/londonHour";
 
 export type OperatorFactKind = OperatorProposalType;
 
@@ -131,21 +131,12 @@ export function toPublicOperatorFact(fact: OperatorFact): PublicOperatorFact {
   };
 }
 
-function londonYmd(ms: number): string {
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(new Date(ms));
-}
-
 /**
  * Tonight's London service day, YYYY-MM-DD: the evening that started at 16:00,
  * which is still yesterday's until 04:00 (lib/nightServiceHours.ts).
  */
 export function operatorServiceDay(now: number): string {
-  return londonYmd(Date.parse(londonServiceDayBounds(now).start));
+  return londonDayKey(Date.parse(londonServiceDayBounds(now).start));
 }
 
 function byNewest(left: { publishedAt: string }, right: { publishedAt: string }): number {

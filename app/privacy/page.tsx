@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "6 November 2026";
+const LAST_UPDATED = "9 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -166,9 +166,8 @@ export default function PrivacyPage() {
           Your public profile may also contain a display name, home city and
           short bio. A profile picture is an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
-          hotlinked URL), strip embedded metadata before it is saved, and send
-          a short-lived signed copy to OpenAI for an advisory omni moderation
-          check before the picture is publicly addressable. If the check
+          hotlinked URL), strip embedded metadata before it is saved, and scan
+          a short-lived signed copy before the picture is publicly addressable. If the check
           refuses the picture, we refuse the upload and keep your previous
           picture (or none). If the check cannot run or gives no usable
           decision, the upload can proceed without scan approval. Readers may
@@ -180,6 +179,11 @@ export default function PrivacyPage() {
           file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
           provider tokens encrypted at rest.
+        </p>
+        <p className="legalBody">
+          Profile pictures, primary and gallery covers, private-message photos,
+          venue photos and drink-wall photos use an advisory OpenAI moderation check.
+          When OpenAI is not set up, an AI model performs the check.
         </p>
 
         <h3 className="legalH3">If you use an invite link</h3>
@@ -225,8 +229,16 @@ export default function PrivacyPage() {
           routes, presence taps (&ldquo;I&rsquo;m here tonight&rdquo;), ratings,
           messages to other people, Visit Reports, Recommendations, and your
           memories. We keep these because they are the product. A price with no
-          date and no source is worth nothing. Presence is always a deliberate
-          tap; the app never tracks your location in the background.
+          date and no source is worth nothing.
+        </p>
+        <p id="presence" className="legalBody">
+          An &ldquo;I&rsquo;m here&rdquo; tap records your handle, selected pub
+          and time. A check-in stops appearing after two hours.
+          Readers must be signed in, have a claimed handle and pass the adult
+          check. They can see their own check-ins and those of mutual follows,
+          where both people follow each other. A block in either direction
+          hides the other person&rsquo;s check-ins. The app never tracks your
+          location in the background.
         </p>
         <p className="legalBody">
           We store Social post text in a private moderation queue, then send
@@ -398,7 +410,8 @@ export default function PrivacyPage() {
         <p className="legalBody">
           &ldquo;Find my pint&rdquo; asks your browser for your location and
           ranks nearby pubs there, so those coordinates never leave your
-          device. Viewer coordinates never leave your device at full precision.
+          device. Viewer coordinates never leave your device at full precision,
+          except when you share your live location with your crew.
           Other location features work like this:
         </p>
         <ul className="legalList">
@@ -433,6 +446,25 @@ export default function PrivacyPage() {
             that pub location, not your location, to Transport for
             London&rsquo;s public StopPoint API to find nearby stops and live
             departures.
+          </li>
+          <li>
+            <strong>Sharing where you are with your crew:</strong>{" "}this is
+            off until you turn it on for one night, in a Plan or an Open Crew you
+            are part of. Your browser asks for your location when you tap to
+            share, never before. While the app is open, it sends your exact
+            position to our <code>/api/plans/[id]/live-location</code> route
+            about every 20 seconds while you move, and about once a minute while
+            you stand still. We keep only your latest position, never a trail.
+            The other current members of that night see it as a dot with your
+            name on their map. Nobody else can see it, and a person who leaves
+            or is removed sees nothing more. Sharing stops when you tap Stop
+            sharing, when the Plan ends, or at 6am London time, whichever comes
+            first. A confirmed Stop stops uploads from every tab and device
+            for that night. Only a new tap after Stop can start sharing again,
+            even if you leave and rejoin. Reloading does not resume uploads.
+            If your phone loses its signal, your crew sees where you
+            were last, with the time. The app does not send your location while
+            it is closed or in the background.
           </li>
           <li>
             <strong>Remembered areas:</strong>{" "}Tonight can turn an area choice
@@ -541,9 +573,15 @@ export default function PrivacyPage() {
           phase, area, start time and their own Join Request state. That preview
           does not show the roster or Crew-bound Plan details. A block in either
           direction closes the read. While a plan is open, anyone can see its
-          title, the pub or place it starts at, its start time, how many people
-          are in it, and your handle as host. Close the plan and it drops out of
-          the public list.
+          title, your handle as host, its meeting pub or place, and its start
+          day and time. Its page and shared link previews can also show the
+          meeting area, places left and a listed pint price range. Unavailable
+          details are omitted. The price range is per pint, not a total for the
+          night. It shows the oldest observation date across the priced stops
+          and labels the source as listed prices. It never names a publisher
+          or a remaining stop. Public discovery can also show how many people
+          are in the plan. The roster and remaining stops stay behind the member read.
+          Close the plan and it drops out of the public list.
         </p>
         <p className="legalBody">
           Each invitation records its sender member, recipient account, expiry
@@ -699,11 +737,12 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. Normalised Social photos and
-              profile pictures go to OpenAI through short-lived signed links for
-              the same moderation decision. A profile picture is scanned before
-              it is publicly addressable; a Social post stays held until a
-              usable decision returns.
+              handle, area or venue with that text. Normalised Social photos go
+              to OpenAI through short-lived signed links for the same moderation
+              decision. Profile pictures, primary and gallery covers, private-message
+              photos, venue photos and drink-wall photos use an advisory OpenAI
+              moderation check. When OpenAI is not set up, an AI model performs
+              that check. A Social post stays held until a usable decision returns.
             </dd>
           </div>
           <div className="legalRow">
@@ -769,7 +808,7 @@ export default function PrivacyPage() {
             <dt>Imported pub lists</dt>
             <dd>
               We match the pub names in a caption, note or message you paste.
-              Short prose may go to OpenRouter, using providers that do not retain it.
+              Short prose you paste may be read by an AI model.
               We discard the pasted text after matching and exclude it from logs and analytics.
               If you save the list, we keep its matched pub IDs, your optional source link,
               its creator handle when the link names one, and the save date in a private night draft.
@@ -780,21 +819,30 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Board photos</dt>
             <dd>
-              If you photograph a pub&rsquo;s price board, we strip the photo&rsquo;s metadata and send it to
-              OpenRouter, using providers that do not retain it, so the Pal can read the prices.
+              Photos you send for a board price check are read by an AI model.
               We do not keep the photo from that read. Each price you then confirm is logged like any
               other price you log, with the photo as its bill.
             </dd>
           </div>
           <div className="legalRow">
+            <dt>Bill photos</dt>
+            <dd>
+              Photos you send for a bill check are read by an AI model.
+              We keep only the result and the item lines and prices the check needs.
+              We do not keep names, card numbers or the date read from the bill.
+            </dd>
+          </div>
+          <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask The Landlord about a pub, or talk to Pub Pal by typing
-              or by voice, the text or audio of that request goes to the model
-              provider that answers it (OpenRouter; Anthropic at{" "}
-              <code>api.anthropic.com</code> when Pub Pal typed chat runs on
-              Claude; and ElevenLabs at <code>api.elevenlabs.io</code> for Pub
-              Pal voice, and for typed chat when Claude is not configured). With Pub Pal, the memories you confirmed for your
+              If you ask the map a question, or talk to Pub Pal by typing or by
+              voice, the text or audio of that request goes to the model
+              provider that answers it. Anthropic at{" "}
+              <code>api.anthropic.com</code> answers map questions and Pub Pal
+              typed chat when Claude is configured. The Landlord answers from
+              the facts on record and sends your question to no model.
+              ElevenLabs at <code>api.elevenlabs.io</code> answers Pub Pal
+              voice, and typed chat when Claude is not configured. With Pub Pal, the memories you confirmed for your
               Pal go with each chat or voice call too, so it can use them:
               every one of those short preferences, such as a drink you like or
               an access need, up to forty, with the ones about what you just
@@ -838,9 +886,8 @@ export default function PrivacyPage() {
               deployment, every model call our server makes sends Arize the
               model name, the token counts, how long the call took, and a fixed
               tag naming the feature, together with the text of the request and
-              the model&rsquo;s reply. That includes what you type into The
-              Landlord, Pub Pal, a question about a pub&rsquo;s history, and the
-              free text a planning ask carries. Traces go to{" "}
+              the model&rsquo;s reply. That includes what you type into Pub Pal
+              and the free text a planning ask carries. Traces go to{" "}
               <code>otlp.arize.com</code> in the United States. Email addresses
               and @handles are replaced before a trace leaves our server;
               nothing else in the text is. The moderation calls named above
@@ -853,7 +900,12 @@ export default function PrivacyPage() {
             <dt>Email and push</dt>
             <dd>
               Supabase sends account magic links and stores an optional contact
-              address when you ask PUBMAXX to cover an area. There is no
+              address when you ask PUBMAXX to cover an area. When somebody asks
+              to join a crawl, PUBMAXX emails the host through Resend. When a
+              host lets them in, PUBMAXX emails the guest through Resend. Each
+              email uses the recipient&rsquo;s account email address, the handle
+              of the person who acted, the crawl title and a link to the crawl.
+              We only send these emails when email delivery is set up. There is no
               marketing list or email digest. If you turn notifications on,
               PUBMAXX stores your browser&rsquo;s push subscription, the endpoint
               plus its keys, so it can send you the notification; the
@@ -921,6 +973,16 @@ export default function PrivacyPage() {
             voice are stored against your account for two minutes after your
             last line, then deleted by a clean-up that runs every minute. We
             do not keep the audio.
+          </li>
+          <li>
+            <strong>Live location shared with your crew:</strong>{" "}only your
+            latest position, and only until you stop sharing, the Plan ends or
+            6am London time, whichever is first. A confirmed Stop, leaving the
+            night or the host ending the night deletes it at once. When you
+            sign out or switch accounts, we try to delete it before changing
+            accounts. If Stop cannot be confirmed, your last position may
+            remain visible until the night ends. Expired positions are hidden
+            at once and deleted by the next clean-up or live location request.
           </li>
           <li>
             <strong>After you delete your account:</strong>{" "}the prices and

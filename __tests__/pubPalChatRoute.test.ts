@@ -31,7 +31,8 @@ vi.mock("@/lib/authServer", () => ({
 
 const tasteState = vi.hoisted(() => ({ taste: null as unknown }));
 
-vi.mock("@/lib/palTaste.server", () => ({
+vi.mock("@/lib/palTaste.server", async (original) => ({
+  ...await original<typeof import("@/lib/palTaste.server")>(),
   readPalTaste: vi.fn(async () => tasteState.taste),
 }));
 
@@ -357,6 +358,45 @@ describe("POST /api/pub-pal/chat", () => {
     expect(body.answer).not.toContain("not prices for that item");
   });
 
+  it("keeps a novelty ask when the next line only answers the area question", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "in Soho",
+        cityId: "london",
+        turns: [
+          { role: "user", content: "Find pubs somewhere new" },
+          { role: "assistant", content: "Which area should I look in?" },
+        ],
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.cards.length).toBeGreaterThan(0);
+    expect(body.answer).toContain("I don't know where you've been yet.");
+  });
+
+  it("explains missing visit history for signed-out keyless novelty picks", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", offlineFetch);
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        query: "Find four pubs in Soho with pints under £8 somewhere new",
+        cityId: "london",
+      }),
+    }));
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.toolsUsed).toEqual(["search_venues"]);
+    expect(body.cards).toHaveLength(4);
+    expect(body.answer).toContain("I don't know where you've been yet.");
+  });
+
   it.each(VIBE_CHIPS)("accepts the actual $label starter question keylessly", async (chip) => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
@@ -520,7 +560,8 @@ describe("POST /api/pub-pal/chat", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it.each(["where should I go", "Food tonight at 1am"])("keeps main's keyless discovery behaviour for %s", async (query) => {
+  it("keeps main's keyless discovery behaviour for where should I go", async () => {
+    const query = "where should I go";
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
@@ -548,27 +589,27 @@ describe("POST /api/pub-pal/chat", () => {
     );
     expect(response.status).toBe(200);
     const body = await response.json();
-    if (query === "where should I go") {
-      expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
-    } else {
-      expect(body.answer).toBe("4 picks from the listed pubs, each with its source.");
-      expect(body.cards.every((card: { venueId: string }) => card.venueId.startsWith("venue-"))).toBe(true);
-    }
+    expect(body.answer).toMatch(/^Going off Soho, your usual patch, the quiet pints you log and about what you usually pay\./);
     expect(body.cards.length).toBeGreaterThan(0);
     expect(body.toolsUsed).toContain("search_venues");
   });
 
   it.each([
-    { query: "01:00", previous: "Food after midnight near Soho", clarification: true },
-    { query: "Tonight", previous: "Food after midnight near Soho", clarification: true },
-    { query: "Food in Soho tonight", previous: "", clarification: true },
-    { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: false },
-  ])("preserves a food answer before the keyless taste fallback: $query", async ({ query, previous, clarification }) => {
+    { query: "01:00", previous: "Food after midnight near Soho", clarification: "Which night and time" },
+    { query: "Tonight", previous: "Food after midnight near Soho", clarification: null },
+    { query: "Food in Soho tonight", previous: "", clarification: "Which night and time" },
+    { query: "Food in Soho tonight at 1am. Find Chinese close to the tube.", previous: "", clarification: "Chinese" },
+    { query: "Food tonight at 1am", previous: "", clarification: "Which area" },
+    { query: "1am", previous: "Food in Soho at 06:00 on 2026-10-23", clarification: null },
+    { query: "2am", previous: "Food in Soho tonight and tomorrow at 1am", clarification: "Which night and time" },
+    { query: "Food tonight at 1am", previous: "Find quiet pubs in Soho", unrelated: "Hi", clarification: "Which area" },
+    { query: "Food tonight at 1am", previous: "Find quiet pubs in Soho", unrelated: "Thanks", clarification: "Which area" },
+    { query: "Find food tonight at 1am", previous: "Find quiet pubs in Soho", clarification: "Which area" },
+  ])("preserves a food answer before the keyless taste fallback: $query", async ({ query, previous, unrelated, clarification }) => {
     vi.useFakeTimers({ toFake: ["Date"] });
     vi.setSystemTime(new Date("2026-10-22T18:00:00.000Z"));
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     vi.stubEnv("TYPESAFE_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "");
     vi.stubGlobal("fetch", offlineFetch);
     authState.userId = "11111111-1111-4111-8111-111111111111";
     tasteState.taste = {
@@ -578,14 +619,14 @@ describe("POST /api/pub-pal/chat", () => {
     };
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
       method: "POST", headers: { "content-type": "application/json" },
-      body: JSON.stringify({ query, cityId: "london", turns: previous ? [{ role: "user", content: previous }] : [] }),
+      body: JSON.stringify({ query, cityId: "london", turns: [previous, unrelated].filter(Boolean).map((content) => ({ role: "user", content })) }),
     }));
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.proposals).toEqual([]);
     expect(body.answer).not.toContain("Going off Soho");
     if (clarification) {
-      expect(body.answer).toContain("Which night and time");
+      expect(body.answer).toContain(clarification);
       expect(body.cards).toEqual([]);
       expect(body.sources).toEqual([]);
     } else {

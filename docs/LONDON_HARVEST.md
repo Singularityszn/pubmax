@@ -34,7 +34,8 @@ results without writing files. The durable pass produces files for review.
 
 | Question | File |
 |---|---|
-| Registered sources, estate hosts, and permission evidence | `lib/harvest/sourceRegistry.ts` |
+| Registered sources and permission evidence | `lib/harvest/sourceRegistry.ts` |
+| Stonegate and Fuller's additional refused estate hosts | `lib/harvest/termsRefusedEstateHosts.ts` |
 | Source lookup and URL permission checks | `lib/harvest/sourcePolicy.ts` |
 | Key, retries, and the per-run request budget | `lib/harvest/firecrawl.ts` |
 | What makes a chain offer a deal day | `lib/harvest/chainDeals.ts` |
@@ -89,6 +90,8 @@ no further attempt was made.
 Which sources the lane may read is `contextDevEventSources()`, and the bar is
 FIRST PARTY: an extract call hands a whole page to a model, so it cannot honour
 the narrow `nonFirstPartyException` an allowed listings source carries.
+The [source permission rule](rules/scripts-harvest-and-source-permission.md)
+also applies to these reads.
 
 Proof (captain): with the key in `.env.local`:
 

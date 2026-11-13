@@ -8,14 +8,8 @@
 // person chooses. One validator (lib/tableRequests.ts) answers here and at the
 // route, so the form never claims a request the server would refuse.
 //
-// TWO ENDINGS, AND THE PERSON IS TOLD WHICH ONE RAN:
-//   - Sent: PUBMAXX emailed the pub's verified operator. The pub replies to
-//     the person, not to us, and a reply is not promised.
-//   - Not sent: PUBMAXX sent nothing. The dialog hands the person a prefilled
-//     email to the pub's own published address, or its phone, from the venue
-//     record, and says plainly that PUBMAXX did not send it. A deployment
-//     with no sign-in lands here without asking the server, because the
-//     server can only ever answer the same.
+// Delivery and contact fallback follow the table request rules in
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md.
 //
 // IT NEVER CHARGES ANYTHING and it is never a booking: no fee, no deposit, no
 // card (ADR 0011 keeps a fee per seated group for later). Nothing here changes
@@ -29,6 +23,7 @@ import { ContributionGateDialog } from "@/components/identity/ContributionGateDi
 import { Button } from "@/components/ui/button";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { trackEvent } from "@/lib/analytics";
 import {
   readContributionGateStatus,
   type ContributionGateStatus,
@@ -46,6 +41,7 @@ import {
   tableRequestDateBounds,
   tableRequestLines,
   tableRequestMailtoHref,
+  parseTableRequestPartySize,
   validateTableRequest,
   type TableRequestContactKind,
   type TableRequestField,
@@ -120,9 +116,13 @@ function NotSent({ venue, request }: { venue: Venue; request: TableRequestFields
 export default function TableRequestDialog({
   venue,
   onClose,
+  initialPartySize,
+  source = "sheet",
 }: {
   venue: Venue;
   onClose: () => void;
+  initialPartySize?: number;
+  source?: "pal" | "sheet";
 }) {
   const { configured, user } = useAuth();
   const titleId = useId();
@@ -131,7 +131,7 @@ export default function TableRequestDialog({
   const bounds = tableRequestDateBounds();
   const [draft, setDraft] = useState<Draft>(() => ({
     name: "",
-    partySize: String(TABLE_REQUEST_MIN_PARTY),
+    partySize: String(parseTableRequestPartySize(initialPartySize) ?? TABLE_REQUEST_MIN_PARTY),
     date: bounds.min,
     time: "19:00",
     note: "",
@@ -141,6 +141,8 @@ export default function TableRequestDialog({
   const [stage, setStage] = useState<Stage>({ kind: "form" });
   const [error, setError] = useState<{ field: TableRequestField | null; text: string } | null>(null);
   const [gate, setGate] = useState<ContributionGateStatus | null>(null);
+  // One key per request payload: a retry of the same words reuses it, an edit mints a new one.
+  const attemptRef = useRef<{ key: string; payload: string } | null>(null);
 
   useDismissOnEscape(gate === null, onClose);
   useFocusTrap(gate === null, dialogRef, "strict-modal");
@@ -170,35 +172,51 @@ export default function TableRequestDialog({
     setError(null);
     // No sign-in on this deployment: the server could only answer "not sent".
     if (!configured) {
+      trackEvent("table_request_sent", { source, outcome: "not_sent" });
       setStage({ kind: "not_sent", request: validation.fields });
       return;
     }
     setStage({ kind: "sending" });
+    const payload = {
+      venueId: venue.id,
+      name: validation.fields.name,
+      partySize: validation.fields.partySize,
+      date: validation.fields.date,
+      time: validation.fields.time,
+      note: validation.fields.note ?? "",
+      contact: { kind: validation.fields.contactKind, value: validation.fields.contactValue },
+    };
+    const payloadText = JSON.stringify(payload);
+    if (attemptRef.current?.payload !== payloadText) {
+      const key = globalThis.crypto?.randomUUID?.() ?? `table-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      attemptRef.current = { key, payload: payloadText };
+    }
+    const requestKey = attemptRef.current.key;
     try {
       const response = await authedActionFetch(
         "/api/table-requests",
         {
           method: "POST",
           headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            venueId: venue.id,
-            name: validation.fields.name,
-            partySize: validation.fields.partySize,
-            date: validation.fields.date,
-            time: validation.fields.time,
-            note: validation.fields.note ?? "",
-            contact: { kind: validation.fields.contactKind, value: validation.fields.contactValue },
-          }),
+          body: JSON.stringify({ ...payload, requestKey }),
         },
         { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (response.ok && body?.outcome === "sent") {
+        trackEvent("table_request_sent", { source, outcome: "sent" });
         setStage({ kind: "sent" });
         return;
       }
-      if (response.ok) {
+      if (response.ok && body?.outcome === "not_sent") {
+        trackEvent("table_request_sent", { source, outcome: "not_sent" });
         setStage({ kind: "not_sent", request: validation.fields });
+        return;
+      }
+      // The pub may already have the email, so only a retry under this key can tell.
+      if (response.ok) {
+        setStage({ kind: "form" });
+        setError({ field: null, text: "We could not confirm that request. Sending it again will not ask the pub twice." });
         return;
       }
       const status = readContributionGateStatus(body?.status);

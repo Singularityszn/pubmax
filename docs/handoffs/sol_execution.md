@@ -31,7 +31,6 @@ Implemented, reviewed, verified, and still open:
 
 - Replay-safe core-loop analytics, PR #456
 - Guarded VAPID web push, PR #457
-- Push identity join and revocation model, PR #459
 - Grounded Plan generation and hard-constraint fences, PR #462
 
 Nothing was applied to production during this execution:
@@ -50,9 +49,8 @@ Review in this order because the dependencies are meaningful:
 1. PR #462: grounded generation and constraint fences
 2. PR #456: replay-safe analytics
 3. PR #457: VAPID web push
-4. PR #459: push identity join, stacked on PR #457
-5. PR #460: passwordless authentication, already merged
-6. PR #461: progressive intake, already merged
+4. PR #460: passwordless authentication, already merged
+5. PR #461: progressive intake, already merged
 
 Pull requests:
 
@@ -60,7 +58,7 @@ Pull requests:
 |---|---|---|---|---|
 | [#456](https://github.com/karanmrn/pubmax/pull/456) | Open | `codex/wave0-loop-analytics` | `main` | Replay-safe loop analytics |
 | [#457](https://github.com/karanmrn/pubmax/pull/457) | Open | `codex/wave1-web-push` | `main` | Guarded VAPID web push |
-| [#459](https://github.com/karanmrn/pubmax/pull/459) | Open | `codex/wave1-push-identity` | `codex/wave1-web-push` | Account/session push identity join |
+| [#459](https://github.com/karanmrn/pubmax/pull/459) | Never reached main | `codex/wave1-push-identity` | `codex/wave1-web-push` | Account/session push identity join |
 | [#460](https://github.com/karanmrn/pubmax/pull/460) | Merged | `codex/wave2-passwordless-auth` | `main` | Passwordless email authentication |
 | [#461](https://github.com/karanmrn/pubmax/pull/461) | Merged | `codex/wave2-progressive-intake` | `main` | Progressive resumable intake |
 | [#462](https://github.com/karanmrn/pubmax/pull/462) | Open | `codex/wave2-grounded-generation` | `main` | Grounded generation and executable hard fences |
@@ -68,7 +66,7 @@ Pull requests:
 Important branch state:
 
 - PR #456 and PR #457 were fully green at their reviewed heads, but `main` has advanced. Rebase and refreshed gates are required before merge.
-- PR #459 is intentionally stacked on PR #457. It must not merge independently.
+- PR #459 is not pending. See [the corrected handoff](FABLE_HANDOFF.md#2026-07-23-merge-everything-close-out-sol-stack--backlog-landed).
 - PR #462 was rebased after PR #461 merged. Its Git tree was byte-identical before and after the rebase.
 - PR #462 passed both Vercel preview builds after the rebase. Cursor skipped the identical-tree rerun after previously passing. CodeRabbit is currently rate-limited; that is an external quota condition, not a code finding.
 
@@ -214,68 +212,9 @@ Production gate:
 
 ## Wave 1.4: push identity join, PR #459
 
-Branch:
-
-- `codex/wave1-push-identity`
-- Head: `f6d65d80b8ee760521b6d55fdf4a1e1fb93a92a1`
-- Base: PR #457 / `codex/wave1-web-push`
-
-Purpose:
-
-- Pre-auth push subscriptions previously carried no trusted account or Plan identity
-- Targeted account/Plan push was prohibited until an identity join existed
-- Installation IDs remain identifiers, not authorization
-
-Implemented:
-
-- Verified account/session identity joins
-- Plan-scoped identity seams without enabling targeted sends prematurely
-- Monotonic account, Plan, installation, and session mutation watermarks
-- Durable account/session revocation tombstones
-- Thirty-day tombstone cleanup contract
-- Delete-before-POST and delayed-link fencing
-- Account-wide logout atomicity
-- Supabase local-scope sign-out behavior
-- AbortController and service-worker timeouts
-- Response deadline spanning headers and body
-- Streaming 64 KiB response limit with early cancel/abort
-- Memory and SQL behavior parity
-- Flat wrong-owner/nonexistent responses to reduce enumeration
-
-Adversarial findings fixed across review iterations:
-
-- Wrong-owner installation unlink could poison another account's watermark
-- Old-session unlink could clear a newer session link
-- Logout body parsing could hang after response headers
-- `{ all: true }` could partially commit
-- Memory and SQL missing-token tombstones diverged
-- Mixed-owner installations could falsely report logout success
-- Account-wide unlink could race a delayed link from another installation
-- Anonymous `MAX_SAFE_INTEGER` watermarks could block another account's logout
-- Response-size enforcement buffered an oversized body before rejecting it
-- Memory deletion did not mirror SQL cascade semantics
-
-Final verification:
-
-- Independent adversarial review: safe
-- `npm run verify` passed
-- 457 test files passed
-- 4,285 tests passed
-- Zero high-severity audit vulnerabilities
-- Both Vercel projects and Cursor security passed
-
-Known validation limitation:
-
-- Migration 0047 was contract-tested and statically reviewed
-- No local Supabase CLI or `psql` was available for a real concurrent PostgreSQL race test
-- This limitation must be addressed in preview/staging before production
-
-Production gate:
-
-- Requires migration `20260720170000_0047_push_identity_join.sql`
-- Migration order is 0045, then 0046, then 0047
-- PR #457 must land before PR #459
-- Targeted sending must remain dormant until the identity contract and production migration are live
+This proposal never reached main. The [corrected handoff](FABLE_HANDOFF.md#2026-07-23-merge-everything-close-out-sol-stack--backlog-landed) records what happened.
+The [push runbook](../WEB_PUSH.md) owns the current contract and activation steps.
+The unshipped implementation and its review results remain in this file's git history.
 
 ## Wave 1.5: governed restaurants and attractions ingest, PR #458
 
@@ -520,32 +459,11 @@ These worktrees remain available for review and follow-up:
 
 Pre-existing user/Claude worktrees were treated as protected. No cleanup or deletion was performed.
 
-## Production sequence that remains blocked
+## Production activation
 
-The required database order is:
-
-1. `20260720150000_0045_analytics_event_receipts.sql`
-2. `20260720160000_0046_web_push_subscriptions.sql`
-3. `20260720170000_0047_push_identity_join.sql`
-
-Required secrets/configuration:
-
-- `PLAN_IDEMPOTENCY_SECRET` or `RATE_LIMIT_SALT`, at least 32 bytes
-- `NEXT_PUBLIC_VAPID_PUBLIC_KEY`
-- `VAPID_PRIVATE_KEY`
-
-Required pre-production process:
-
-1. Rebase PR #456 and PR #457 on current `main`
-2. Rebase the PR #459 stack on the refreshed PR #457
-3. Run full verification again
-4. Execute 0045, 0046, and 0047 in preview/staging with ledger checks
-5. Run live PostgreSQL concurrency probes for the 0047 RPCs
-6. Provision secrets in both Vercel projects
-7. Verify key rotation/recovery documentation
-8. Apply the sequence to production only with explicit owner authorization
-
-Owner authorization has not been provided, so none of this production sequence has started.
+Use [the deployment runbook](../DEPLOYMENT.md) and [the push runbook](../WEB_PUSH.md) for current migration and configuration requirements.
+The former identity-join sequence was an unshipped proposal. It is not an activation checklist.
+Only the captain authorises production changes.
 
 ## Other owner and infrastructure blockers
 

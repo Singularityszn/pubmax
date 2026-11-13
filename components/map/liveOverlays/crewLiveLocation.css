@@ -1,0 +1,44 @@
+.crewLive {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+.crewLive__mate {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  /* The dot's centre sits on the position; the name hangs below it. */
+  margin: -15px 0 0 -60px;
+  width: 120px;
+  pointer-events: none;
+}
+.crewLive__dot {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 2.5px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1;
+}
+.crewLive__name {
+  max-width: 100%;
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crewLive__mate--stale { opacity: 0.6; }

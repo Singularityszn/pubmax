@@ -1,0 +1,63 @@
+/* "Summon mates" (SummonMatesDialog.tsx). The dialog wears the table form's
+   panel (tableRequest.css); this file owns only the list of mates: one tick
+   per mate, each row a full tap target, the list scrolling inside the panel
+   when a big lot would push the send out of view. */
+
+.summonMates {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.summonMates legend {
+  padding: 0;
+  margin-bottom: 0.3rem;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.summonMatesList {
+  display: grid;
+  max-height: min(16rem, 40dvh);
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  list-style: none;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius);
+  background: var(--panel);
+}
+
+.summonMatesList > li + li {
+  border-top: 1px solid var(--line);
+}
+
+.summonMate {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  font-size: var(--text-base);
+  cursor: pointer;
+}
+
+.summonMate input {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  accent-color: var(--ink);
+}
+
+.summonMate span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.summonMate:has(input:disabled) {
+  color: var(--ink-soft);
+  cursor: default;
+}

@@ -8,6 +8,8 @@ import type {
 import type { NightContext } from "@/lib/nightPlanning";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 import type { OpenCrawlDetails } from "@/lib/openCrawl";
+import type { OpenCrawlShareArea, OpenCrawlShareSpendBand } from "@/lib/openCrawlShareCard";
+import { PLAN_STOP_MAX } from "@/lib/plan";
 
 const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
@@ -136,13 +138,14 @@ export type SocialCrewPageDTO = {
    * on a crew that is not open, null on an open crew that carries none.
    */
   openCrawl?: OpenCrawlDetails | null;
+  arrival?: { open: boolean; here: boolean; refreshAt: number | null };
 };
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
 
 /**
- * Service-only source row for anonymous Open Crew reads. Stop 1 is resolved
- * against the current venue and POI indexes before this reaches a browser.
+ * Legacy 0115 public source used by the share-card fallback to check visibility.
+ * SocialCrewShareCardSource below owns the fallback's meeting-point rules.
  */
 export type SocialCrewPublicPreviewSource = {
   crewId: string;
@@ -154,8 +157,8 @@ export type SocialCrewPublicPreviewSource = {
 };
 
 /**
- * Account-free Open Crew contract. This is intentionally smaller than the
- * authenticated preview and never carries member, request, or plan fields.
+ * Account-free Open Crew contract. Member identities, join requests and the
+ * full plan remain behind the authenticated read.
  */
 export type SocialCrewPublicPreviewDTO = {
   kind: "public";
@@ -164,6 +167,12 @@ export type SocialCrewPublicPreviewDTO = {
   hostHandle: string;
   startsAt: string;
   meetingPoint: OutOpenPlanMeetingPoint;
+  /** The area the meeting pub sits in or near, or null when it is in none we curate. */
+  area: OpenCrawlShareArea | null;
+  /** Places left, or null when capacity or active seat count is unavailable. Never a member count. */
+  placesLeft: number | null;
+  /** Min-max listed pint price over the stops, or null. Never the stops themselves. */
+  spendBand: OpenCrawlShareSpendBand | null;
 };
 
 export type SocialCrewListItemDTO = Pick<
@@ -282,6 +291,88 @@ export function parseSocialCrewPublicPreviewSource(
   };
 }
 
+/**
+ * Service-only source for an open crawl's link preview (0225). The stop ids
+ * are read on the server for a price band and never reach a browser. A null
+ * capacity is an open crew with no open crawl facts. The fallback uses 0115
+ * for public visibility and 0208 for the host's meeting pub and capacity.
+ * It uses Stop 1 only when 0208 returns no open crawl facts. A failed 0208
+ * read refuses the card. The fallback has no seat count or stop list, so it
+ * supports neither places left nor a price band.
+ */
+export type SocialCrewShareCardSource = {
+  crewId: string;
+  title: string;
+  hostHandle: string;
+  startsAt: string;
+  capacity: number | null;
+  memberCount: number | null;
+  meetingVenueId: string;
+  meetingVenueName: string;
+  stopVenueIds: string[] | null;
+};
+
+const SOCIAL_CREW_SHARE_CARD_KEYS = [
+  "crewId",
+  "title",
+  "hostHandle",
+  "startsAt",
+  "capacity",
+  "memberCount",
+  "meetingVenueId",
+  "meetingVenueName",
+  "stopVenueIds",
+] as const;
+
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+/** Parse 0225 service output before the link preview can use it. */
+export function parseSocialCrewShareCardSource(
+  value: unknown,
+): SocialCrewShareCardSource | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!exactKeys(row, SOCIAL_CREW_SHARE_CARD_KEYS)) return null;
+  if (
+    typeof row.crewId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row.crewId) ||
+    !nonEmptyString(row.title) ||
+    !nonEmptyString(row.hostHandle) ||
+    !nonEmptyString(row.meetingVenueId) ||
+    !nonEmptyString(row.meetingVenueName)
+  ) {
+    return null;
+  }
+  const startsAt = publicIsoTimestamp(row.startsAt);
+  if (!startsAt) return null;
+  const capacity = row.capacity;
+  if (capacity !== null && (!Number.isInteger(capacity) || Number(capacity) < 1)) return null;
+  const memberCount = row.memberCount;
+  if (!Number.isInteger(memberCount) || Number(memberCount) < 0) return null;
+  const stops = row.stopVenueIds;
+  if (
+    !Array.isArray(stops) ||
+    stops.length === 0 ||
+    stops.length > PLAN_STOP_MAX ||
+    !stops.every(nonEmptyString)
+  ) {
+    return null;
+  }
+  return {
+    crewId: row.crewId,
+    title: row.title,
+    hostHandle: row.hostHandle,
+    startsAt,
+    capacity: capacity === null ? null : Number(capacity),
+    memberCount: Number(memberCount),
+    meetingVenueId: row.meetingVenueId,
+    meetingVenueName: row.meetingVenueName,
+    stopVenueIds: [...stops],
+  };
+}
+
 export function socialCrewPhase(status: PlannedNightStatus): SocialCrewPhase {
   switch (status) {
     case "draft":
@@ -293,5 +384,9 @@ export function socialCrewPhase(status: PlannedNightStatus): SocialCrewPhase {
     case "completed":
     case "abandoned":
       return "ended";
+    default: {
+      const unreachable: never = status;
+      return unreachable;
+    }
   }
 }

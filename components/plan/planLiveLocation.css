@@ -1,0 +1,32 @@
+.liveLocation {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-block-start: 1px solid var(--line-soft);
+  color: var(--color-text);
+}
+.liveLocation h3,
+.liveLocation p { margin: 0; }
+.liveLocation__muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.liveLocation__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.liveLocation__people {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-5);
+  overflow-wrap: anywhere;
+}
+.liveLocation__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--color-text);
+  text-decoration: underline;
+}

@@ -70,6 +70,11 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = vi.fn(() => {
     scrolls += 1;
   });
+  // jsdom lays nothing out. These stand-ins model a sheet whose price step is
+  // in layout, so the step answers the waiting reveal as it mounts.
+  vi.spyOn(Element.prototype, "getClientRects").mockReturnValue(
+    Object.assign([new DOMRect(0, 0, 300, 200)], { item: () => null }) as unknown as DOMRectList,
+  );
   host = document.createElement("div");
   document.body.appendChild(host);
   root = null;
@@ -80,6 +85,7 @@ afterEach(() => {
   host.remove();
   cancelLogIntentReveal();
   delete (Element.prototype as Partial<Element>).scrollIntoView;
+  vi.restoreAllMocks();
 });
 
 describe("the map scopes a waiting reveal to itself", () => {

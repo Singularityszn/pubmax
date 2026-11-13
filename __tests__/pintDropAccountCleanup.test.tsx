@@ -23,6 +23,10 @@ import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { publishAuthActionState } from "@/lib/authedFetch";
 import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/components/map/usePintDrops";
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
+import PintDropComposer from "@/components/map/PintDropComposer";
+import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { readPintDropDraft } from "@/lib/pintDropDraft";
+import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
 type PriceRequest = {
@@ -59,10 +63,12 @@ const otherPending: DropWithPhotos = {
   },
 };
 
-function Probe() {
+function Probe({ composer = false, venueId = "venue-1" }: { composer?: boolean | "when-open"; venueId?: string }) {
   const state = usePintDrops();
   useEffect(() => { drops = state; }, [state]);
-  return createElement("p", { role: "status" }, state.dropMsg?.text);
+  return composer && (composer === true || state.composerOpen)
+    ? createElement(PintDropComposer, { venueId, state })
+    : createElement("p", { role: "status" }, state.dropMsg?.text);
 }
 
 function photo(name: string): File {
@@ -154,7 +160,9 @@ it.each([false, true])("disposes the abandoned account's pending price after a r
   expect(defined(requests[0]).signal.aborted).toBe(false);
   expect(defined(requests[0]).body.has("receipt_photo")).toBe(withBill);
   expect(optimistic.optimistic?.state).toBe("uploading");
-  expect(optimistic.priceEvidence).toBe(withBill ? "receipt" : "unchecked");
+  // A bill photo is not a bill read: the price waits unchecked until the
+  // background bill check matches it (captain 5 Nov 2026).
+  expect(optimistic.priceEvidence).toBe("unchecked");
   expect(storedIds()).toContain(optimistic.id);
   expect(container.textContent).toBe("Cheers. Saving your Pint Drop…");
   expect(revoked()).toEqual([]);
@@ -270,4 +278,182 @@ it("keeps a same-account transport failure retryable without retrying automatica
   expect(drops.dropMsg?.text).toBe("Network or storage error. Try again.");
   expect(revoked()).toEqual([]);
   expect(requests).toHaveLength(1);
+});
+
+it.each(["owner-change", "tab-departure", "sign-out"])(
+  "discards a mounted typed baseline and late dictation on %s",
+  async (transition) => {
+    const recognitions: SpeechRecognitionLike[] = [];
+    const stop = vi.fn();
+    vi.stubGlobal("SpeechRecognition", class implements SpeechRecognitionLike {
+      lang = "";
+      interimResults = false;
+      continuous = false;
+      onresult: SpeechRecognitionLike["onresult"] = null;
+      onerror: SpeechRecognitionLike["onerror"] = null;
+      onend: SpeechRecognitionLike["onend"] = null;
+      start() {}
+      stop = stop;
+      constructor() { recognitions.push(this); }
+    });
+    localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+    await act(async () => { root.render(createElement(Probe, { composer: true })); });
+    await act(async () => {
+      drops.setDropForm((form) => ({ ...form, note: "A's private typed note" }));
+    });
+    await act(async () => {
+      defined(container.querySelector<HTMLButtonElement>(".spillExtrasToggle") ?? undefined).click();
+    });
+    await act(async () => {
+      defined(container.querySelector<HTMLButtonElement>('[aria-label="Add note by voice"]') ?? undefined).click();
+    });
+    const deliver = defined(defined(recognitions[0]).onresult ?? undefined);
+    const speech = { resultIndex: 0, results: [{ 0: { transcript: "A's dictated words" }, isFinal: true }] };
+    await act(async () => { deliver(speech); });
+    expect(drops.dropForm.note).toBe("A's private typed note A's dictated words");
+    expect(readPintDropDraft(sessionStorage, "venue-1")?.form.note).toBe("A's private typed note");
+
+    await act(async () => {
+      if (transition === "owner-change") {
+        switchAccount("pending-account-b", "bob");
+        bindDeviceAccountOwner(auth.id, localStorage, sessionStorage);
+      } else if (transition === "tab-departure") {
+        clearDeviceAccountSessionArtifacts(sessionStorage);
+      } else {
+        releaseDeviceAccountOwner(localStorage, sessionStorage);
+      }
+      deliver(speech);
+    });
+    expect(stop).toHaveBeenCalledTimes(1);
+    expect(drops.dropForm.note).toBe("");
+    expect(readPintDropDraft(sessionStorage, "venue-1")).toBeNull();
+    await act(async () => {
+      drops.setDropForm((form) => ({ ...form, note: "B's new note" }));
+    });
+    expect(readPintDropDraft(sessionStorage, "venue-1")?.form.note).toBe("B's new note");
+    await act(async () => { root.render(createElement(Probe)); });
+    await act(async () => { root.render(createElement(Probe, { composer: true })); });
+    expect(drops.dropForm.note).toBe("B's new note");
+  },
+);
+
+it.each(["schema lag", "network failure"])("keeps rated submissions open and retries the same request after %s", async (failure) => {
+  await act(async () => {
+    root.render(createElement(Probe, { composer: "when-open" }));
+    drops.setComposerOpen(true);
+  });
+  await act(async () => { drops.setRating(4); });
+  const { pending } = await startPrice(false, false);
+  expect(drops.composerOpen).toBe(true);
+  expect(drops.submitting).toBe(true);
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toBe("4 out of 5 stars");
+  const first = defined(requests[0]);
+  await act(async () => {
+    if (failure === "schema lag") {
+      first.resolve(new Response(JSON.stringify({ drop: serverDrop("rated-drop"), ratingSaved: false }), { status: 201 }));
+    } else {
+      first.reject(new Error("offline"));
+    }
+    await pending;
+  });
+  expect(drops.composerOpen).toBe(true);
+  expect(drops.submitting).toBe(false);
+  expect(drops.rating).toBe(4);
+  expect(drops.dropForm).toMatchObject({ price: "5.50", drink: "Pale ale" });
+  expect(drops.dropMsg?.ok).toBe(false);
+  const retry = defined(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Retry"));
+  await act(async () => { retry.click(); });
+  const second = defined(requests[1]);
+  expect(second.body.get("clientRequestId")).toBe(first.body.get("clientRequestId"));
+  expect(second.body.get("rating")).toBe("4");
+  expect(second.body.get("priceGbp")).toBe("5.50");
+  await act(async () => {
+    second.resolve(new Response(JSON.stringify({ drop: { ...serverDrop("rated-drop"), rating: 4 }, ratingSaved: true }), { status: 201 }));
+  });
+  expect(drops.composerOpen).toBe(false);
+  expect(drops.rating).toBeNull();
+  expect(drops.dropMsg?.ok).toBe(true);
+  expect(mapIds()?.filter((id) => id === "rated-drop")).toHaveLength(1);
+});
+
+it("does not clear another pub's composer when a rated request finishes", async () => {
+  await act(async () => { root.render(createElement(Probe, { composer: true })); });
+  await act(async () => { drops.setRating(4); });
+  const { pending } = await startPrice(false, false);
+  await act(async () => { root.render(createElement(Probe, { composer: true, venueId: "venue-2" })); });
+  await act(async () => {
+    drops.setRating(2);
+    drops.setDropForm((form) => ({ ...form, drink: "Porter", price: "6.00" }));
+  });
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: { ...serverDrop("rated-drop"), rating: 4 }, ratingSaved: true }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.rating).toBe(2);
+  expect(drops.dropForm).toMatchObject({ drink: "Porter", price: "6.00" });
+});
+
+it("clears both the saved rating and an uncommitted keyboard preview", async () => {
+  await act(async () => { root.render(createElement(Probe, { composer: true })); });
+  await act(async () => { drops.setRating(4); });
+  await act(async () => {
+    defined(container.querySelector('[role="slider"]') ?? undefined)
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowUp", bubbles: true }));
+  });
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toContain("5 out of 5 stars");
+  await act(async () => {
+    defined(Array.from(container.querySelectorAll("button")).find((button) => button.textContent === "Clear")).click();
+  });
+  expect(drops.rating).toBeNull();
+  expect(container.querySelector('[role="slider"]')?.getAttribute("aria-valuetext")).toContain("Not rated yet");
+  await act(async () => {
+    defined(container.querySelector('[role="slider"]') ?? undefined)
+      .dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
+  });
+  expect(drops.rating).toBeNull();
+});
+
+it("today: the composer never reads submitting while the price POST is in flight (W1)", async () => {
+  const { pending } = await startPrice(false);
+  expect(requests).toHaveLength(1);
+  expect(drops.submitting).toBe(false);
+  expect(drops.composerOpen).toBe(false);
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ drop: serverDrop("server-saved-w1") }), { status: 201 }));
+    await pending;
+  });
+  expect(drops.submitting).toBe(false);
+});
+
+it("marks the same request failed and retryable with the server's message on a refused POST", async () => {
+  const { pending, optimistic } = await startPrice(false);
+  await act(async () => {
+    defined(requests[0]).resolve(new Response(JSON.stringify({ error: "That price looks off." }), { status: 422 }));
+    await pending;
+  });
+  expect(drops.dropsByVenueId.get("venue-1")?.[0]).toMatchObject({
+    id: optimistic.id,
+    optimistic: {
+      state: "failed", message: "That price looks off.", canRetry: true,
+      clientRequestId: optimistic.optimistic?.clientRequestId,
+    },
+  });
+  expect(defined(readOptimisticSpills(localStorage)[0]).drop).toMatchObject({
+    id: optimistic.id, optimistic: { state: "failed", canRetry: true },
+  });
+  expect(drops.dropMsg).toMatchObject({ ok: false, text: "That price looks off." });
+  expect(requests).toHaveLength(1);
+});
+
+it("stores the measure and the bill in the retry payload of a pending price (R2, fixed by G1)", async () => {
+  await act(async () => {
+    drops.setDropForm((form) => ({ ...form, measure: "half", measureLabel: "" }));
+  });
+  const { optimistic } = await startPrice(true);
+  const body = defined(requests[0]).body;
+  expect(body.get("measure")).toBe("half");
+  expect(body.has("receipt_photo")).toBe(true);
+  const entry = readOptimisticSpills(localStorage).find(({ drop }) => drop.id === optimistic.id);
+  expect(entry?.retry).toMatchObject({ measure: "half", measureLabel: "", priceGbp: "5.50" });
+  expect(entry?.retry?.receiptPhotoUrl).toMatch(/^blob:pending-preview-/);
 });

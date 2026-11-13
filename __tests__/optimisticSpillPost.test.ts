@@ -1,14 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   buildOptimisticSpillRetryFormData,
   buildOptimisticSpillRetryPayload,
   buildOptimisticSpillDrop,
+  createOptimisticSpillPhotoPreview,
   failOptimisticSpill,
   markOptimisticSpillRetrying,
   mergeOptimisticSpillDrops,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  revokeOptimisticSpillPhotoPreview,
   upsertOptimisticSpill,
   writeOptimisticSpills,
   type StoredOptimisticSpill,
@@ -140,6 +142,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: [],
       pintPhotoUrl: null,
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     });
     const stored: StoredOptimisticSpill[] = [{ clientRequestId: "client-1", drop: draft, retry }];
@@ -176,6 +181,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: ["proper"],
       pintPhotoUrl: "blob:http://localhost/pint",
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     };
     const draft = buildOptimisticSpillDrop(input);
@@ -185,6 +193,7 @@ describe("optimistic Spill posting", () => {
         clientRequestId: "client-1",
         drop: draft,
         retry: {
+          clientRequestId: "client-1",
           venueId: "venue-1",
           venueName: "The Crown",
           handle: "karan",
@@ -196,41 +205,51 @@ describe("optimistic Spill posting", () => {
           vibeTags: ["proper"],
           pintPhotoUrl: "blob:http://localhost/pint",
           venuePhotoUrl: null,
+          receiptPhotoUrl: null,
+          measure: "pint",
+          measureLabel: "",
         },
       },
     ]);
   });
 
   it("rebuilds multipart retry data from the stored payload and local blob previews", async () => {
-    const payload = buildOptimisticSpillRetryPayload({
-      clientRequestId: "client-1",
-      venueId: "venue-1",
-      handle: "karan",
-      priceGbp: "5.8",
-      drink: "Pale ale",
-      passedDownNote: "By the dartboard",
-      era: "",
-      visibility: "public",
-      vibeTags: ["proper", "riverside"],
-      pintPhotoUrl: "blob:http://localhost/pint",
-      venuePhotoUrl: null,
-      createdAt: "2026-07-07T21:00:00.000Z",
-    });
+    const preview = createOptimisticSpillPhotoPreview(new Blob(["photo"], { type: "image/png" }));
+    try {
+      const payload = buildOptimisticSpillRetryPayload({
+        clientRequestId: "client-1",
+        venueId: "venue-1",
+        handle: "karan",
+        priceGbp: "5.8",
+        drink: "Pale ale",
+        passedDownNote: "By the dartboard",
+        era: "",
+        visibility: "public",
+        vibeTags: ["proper", "riverside"],
+        pintPhotoUrl: preview,
+        venuePhotoUrl: null,
+        receiptPhotoUrl: null,
+        measure: "pint" as const,
+        measureLabel: "",
+        createdAt: "2026-07-07T21:00:00.000Z",
+      });
 
-    const form = await buildOptimisticSpillRetryFormData(payload, async (url) => {
-      expect(url).toBe("blob:http://localhost/pint");
-      return new Blob(["photo"], { type: "image/png" });
-    });
+      const form = await buildOptimisticSpillRetryFormData(payload);
 
-    expect(form.get("venueId")).toBe("venue-1");
-    expect(form.get("handle")).toBe("karan");
-    expect(form.get("priceGbp")).toBe("5.8");
-    expect(form.get("visibility")).toBe("public");
-    expect(form.getAll("vibe_tags")).toEqual(["proper", "riverside"]);
-    expect(form.get("pint_photo")).toBeInstanceOf(Blob);
+      expect(form.get("clientRequestId")).toBe("client-1");
+      expect(form.get("venueId")).toBe("venue-1");
+      expect(form.get("handle")).toBe("karan");
+      expect(form.get("priceGbp")).toBe("5.8");
+      expect(form.get("visibility")).toBe("public");
+      expect(form.getAll("vibe_tags")).toEqual(["proper", "riverside"]);
+      expect(form.get("pint_photo")).toBeInstanceOf(Blob);
+      expect(await (form.get("pint_photo") as Blob).text()).toBe("photo");
+    } finally {
+      revokeOptimisticSpillPhotoPreview(preview);
+    }
   });
 
-  it("never persists a blob: preview, and a retry refuses rather than dropping the photo", async () => {
+  it("never persists a blob: preview, and refuses the photo retry after reload", async () => {
     const input = {
       clientRequestId: "client-1",
       venueId: "venue-1",
@@ -243,6 +262,9 @@ describe("optimistic Spill posting", () => {
       vibeTags: [],
       pintPhotoUrl: "blob:http://localhost/pint",
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-07-07T21:00:00.000Z",
     };
     const memory = new Map<string, string>();
@@ -256,7 +278,9 @@ describe("optimistic Spill posting", () => {
       upsertOptimisticSpill([], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input)),
     );
     expect([...memory.values()].join("")).not.toContain("blob:");
-    const stored = readOptimisticSpills(storage)[0]!;
+    vi.resetModules();
+    const reloaded = await import("@/lib/optimisticSpillPost");
+    const stored = reloaded.readOptimisticSpills(storage)[0]!;
     expect(stored.drop.pintPhotoUrl).toBeNull();
     expect(stored.retry).toMatchObject({ pintPhotoUrl: null, photoNotKept: true });
     await expect(buildOptimisticSpillRetryFormData(stored.retry!)).rejects.toThrow(
@@ -335,5 +359,145 @@ describe("optimistic Spill posting", () => {
       "server-1",
       "optimistic-client-2",
     ]);
+  });
+
+  describe("a retry posts exactly what the drinker submitted", () => {
+    const memoryStorage = () => {
+      const memory = new Map<string, string>();
+      return {
+        memory,
+        getItem: (key: string) => memory.get(key) ?? null,
+        setItem: (key: string, value: string) => void memory.set(key, value),
+        removeItem: (key: string) => void memory.delete(key),
+      };
+    };
+    const halfWithNoPhotos = {
+      clientRequestId: "client-1",
+      venueId: "venue-1",
+      handle: "owl",
+      priceGbp: "3.40",
+      drink: "Guinness",
+      passedDownNote: "",
+      era: "",
+      visibility: "public" as const,
+      vibeTags: [],
+      pintPhotoUrl: null,
+      venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "half" as const,
+      measureLabel: "",
+      createdAt: "2026-07-07T21:00:00.000Z",
+    };
+
+    it("sends a half as a half after the payload goes through storage", async () => {
+      const storage = memoryStorage();
+      writeOptimisticSpills(
+        storage,
+        upsertOptimisticSpill(
+          [],
+          buildOptimisticSpillDrop(halfWithNoPhotos),
+          buildOptimisticSpillRetryPayload(halfWithNoPhotos),
+        ),
+      );
+      const form = await buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!);
+
+      expect(form.get("measure")).toBe("half");
+      expect(form.get("measureLabel")).toBe("");
+      expect(form.get("priceGbp")).toBe("3.40");
+    });
+
+    it.each(["public", "anonymous"] as const)("keeps %s stars through failure, storage and retry", async (visibility) => {
+      const input = { ...halfWithNoPhotos, visibility, rating: 4 as const };
+      const storage = memoryStorage();
+      writeOptimisticSpills(storage, upsertOptimisticSpill(
+        [], buildOptimisticSpillDrop(input), buildOptimisticSpillRetryPayload(input),
+      ));
+      writeOptimisticSpills(storage, failOptimisticSpill(readOptimisticSpills(storage), "client-1", "Offline"));
+      const freshStorage = memoryStorage();
+      freshStorage.setItem("pubmax:optimistic-spill-posts:v1", storage.getItem("pubmax:optimistic-spill-posts:v1")!);
+      const [restored] = readOptimisticSpills(freshStorage);
+      expect(restored?.drop).toMatchObject({ rating: 4, handle: visibility === "anonymous" ? "a PUBMAXXER" : "owl" });
+      const form = await buildOptimisticSpillRetryFormData(restored!.retry!);
+      expect(form.get("rating")).toBe("4");
+      expect(form.get("visibility")).toBe(visibility);
+      expect(form.get("measure")).toBe("half");
+    });
+
+    it("keeps the label of an other measure", async () => {
+      const form = await buildOptimisticSpillRetryFormData(
+        buildOptimisticSpillRetryPayload({ ...halfWithNoPhotos, measure: "other", measureLabel: "175ml" }),
+      );
+
+      expect(form.get("measure")).toBe("other");
+      expect(form.get("measureLabel")).toBe("175ml");
+    });
+
+    it.each([
+      ["pintPhotoUrl", "pint_photo"],
+      ["venuePhotoUrl", "venue_photo"],
+      ["receiptPhotoUrl", "receipt_photo"],
+    ] as const)("keeps a live %s through storage and refuses it after release", async (slot, field) => {
+      const preview = createOptimisticSpillPhotoPreview(new Blob(["attached evidence"], { type: "image/jpeg" }));
+      const withPhoto = { ...halfWithNoPhotos, [slot]: preview };
+      const storage = memoryStorage();
+      try {
+        writeOptimisticSpills(
+          storage,
+          upsertOptimisticSpill([], buildOptimisticSpillDrop(withPhoto), buildOptimisticSpillRetryPayload(withPhoto)),
+        );
+        writeOptimisticSpills(storage, failOptimisticSpill(readOptimisticSpills(storage), "client-1", "Offline"));
+        writeOptimisticSpills(storage, markOptimisticSpillRetrying(readOptimisticSpills(storage), "client-1"));
+        expect([...storage.memory.values()].join("")).not.toContain("blob:");
+        const form = await buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!);
+        expect(form.get("measure")).toBe("half");
+        expect(form.get("priceGbp")).toBe("3.40");
+        expect(await (form.get(field) as Blob).text()).toBe("attached evidence");
+
+        revokeOptimisticSpillPhotoPreview(preview);
+        await expect(
+          buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!),
+        ).rejects.toThrow("Photo preview is no longer available.");
+      } finally {
+        revokeOptimisticSpillPhotoPreview(preview);
+      }
+    });
+
+    it("refuses a bill retry after reload loses the live handoff", async () => {
+      const preview = createOptimisticSpillPhotoPreview(new Blob(["bill"], { type: "image/jpeg" }));
+      const withBill = { ...halfWithNoPhotos, receiptPhotoUrl: preview };
+      const storage = memoryStorage();
+      try {
+        writeOptimisticSpills(
+          storage,
+          upsertOptimisticSpill([], buildOptimisticSpillDrop(withBill), buildOptimisticSpillRetryPayload(withBill)),
+        );
+        vi.resetModules();
+        const reloaded = await import("@/lib/optimisticSpillPost");
+        await expect(
+          reloaded.buildOptimisticSpillRetryFormData(reloaded.readOptimisticSpills(storage)[0]!.retry!),
+        ).rejects.toThrow("Photo preview is no longer available.");
+      } finally {
+        revokeOptimisticSpillPhotoPreview(preview);
+      }
+    });
+
+    it("refuses an entry stored before the measure was kept, never posting it as a pint", async () => {
+      const storage = memoryStorage();
+      const legacyRetry: Partial<ReturnType<typeof buildOptimisticSpillRetryPayload>> =
+        buildOptimisticSpillRetryPayload(halfWithNoPhotos);
+      delete legacyRetry.measure;
+      delete legacyRetry.measureLabel;
+      delete legacyRetry.receiptPhotoUrl;
+      storage.setItem(
+        "pubmax:optimistic-spill-posts:v1",
+        JSON.stringify([
+          { clientRequestId: "client-1", drop: buildOptimisticSpillDrop(halfWithNoPhotos), retry: legacyRetry },
+        ]),
+      );
+
+      await expect(
+        buildOptimisticSpillRetryFormData(readOptimisticSpills(storage)[0]!.retry!),
+      ).rejects.toThrow("Open the map and post it again.");
+    });
   });
 });

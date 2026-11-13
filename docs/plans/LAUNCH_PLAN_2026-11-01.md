@@ -91,7 +91,7 @@ The loop to prove in the beta: a crew plans, goes out, gets a recap, and plans a
 | OpenTable | Book a table, reminder, change or cancel | Booking deep links only | "Ask the pub for a table" for crews of 6 or more |
 | Partiful | Day-of reminders on the invite | No reminders | Email reminder |
 
-Already built or refused: see the Beli parity ledger in [`WEEK1_HYGIENE_BUILD_2026-10-30.md`](WEEK1_HYGIENE_BUILD_2026-10-30.md) section 2. Streaks, match scores, consumption leaderboards and invite unlocks stay refused.
+Already built or refused: see the Beli parity ledger in [`WEEK1_HYGIENE_BUILD_2026-10-30.md`](WEEK1_HYGIENE_BUILD_2026-10-30.md) section 2. Streaks, match scores and invite unlocks stay refused. The current mates board is described in [README features](../../README.md#features).
 
 Desktop: the split view first, then a top bar of about 8 controls (it holds about 12), Messages as two panes, and a smaller consent bar.
 

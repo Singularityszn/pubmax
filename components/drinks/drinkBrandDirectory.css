@@ -22,6 +22,25 @@
   margin: 0 auto;
 }
 
+/* The comparison pointer under the directory keeps the directory's column. */
+.drinkBrandDirectory__context {
+  box-sizing: border-box;
+  width: min(100%, 920px);
+  margin: 0 auto var(--space-8);
+  padding-inline: var(--page-gutter);
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.drinkBrandDirectory__context a,
+.drinkBrandDirectory__estimate a {
+  color: var(--ink);
+  font-weight: 650;
+  text-decoration-color: currentColor;
+  text-underline-offset: 3px;
+}
+
 /* Inside the Screen's lede the immediate answer keeps its size and drops the
    margin the standalone paragraph carried. */
 .drinkBrandDirectory__screen .drinkBrandDirectory__from {
@@ -108,7 +127,8 @@
   }
 }
 
-.drinkBrandDirectory__summary {
+.drinkBrandDirectory__summary,
+.drinkBrandDirectory__estimate {
   max-width: 55ch;
   margin: 10px 0 0;
   color: var(--ink-soft);
@@ -269,6 +289,20 @@
    sibling's column. Scoped above the collapse breakpoint, because the
    single-column grid below it would grow implicit tracks. */
 @media (min-width: 641px) {
+  .drinkBrandDirectory__details:not(.drinkBrandDirectory__details--withAction) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: center;
+    column-gap: 12px;
+  }
+
+  .drinkBrandDirectory__borough {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+
   .drinkBrandDirectory__details--withAction .drinkBrandDirectory__contribution {
     grid-column: 5;
   }
@@ -383,7 +417,8 @@
     font-size: clamp(2.25rem, 13vw, 3.45rem);
   }
 
-  .drinkBrandDirectory__summary {
+  .drinkBrandDirectory__summary,
+  .drinkBrandDirectory__estimate {
     font-size: var(--text-sm);
   }
 

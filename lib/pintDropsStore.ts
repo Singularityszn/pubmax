@@ -7,9 +7,15 @@ import "server-only";
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
 
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import sharp from "sharp";
 
+import { cheapestBeenCardDrop, type BeenCardDrop } from "@/lib/beenCard";
+import { demoContentEnabled } from "@/lib/demoContent";
+import { oneTapPriceDropId } from "@/lib/oneTapPriceDropId";
+import { duplicateOneTapDrop } from "@/lib/oneTapDuplicate";
+import { submitMemoryCommunityPrice, resetCommunityPriceCategoryIndexMemo } from "@/lib/communityPriceStore";
+import type { CommunityPrice } from "@/lib/communityPrice";
 import { COMMUNITY_PRICE_MAX_AGE_MS, isWithinMaxAge } from "@/lib/communityPrice";
 import { cleanVenueId } from "@/lib/cleanVenueId";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
@@ -31,7 +37,7 @@ import {
 } from "@/lib/identityHandleStore";
 import { log } from "@/lib/log";
 import { loadVenueAliasResolver, storedVenueIds } from "@/lib/venueAliases";
-import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
+import { demoDropsFor, demoPintDrops, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
   confirmationIsLive,
   isPintDropConfirmationBasis,
@@ -53,11 +59,14 @@ import {
   cleanVibeTags,
   cleanVisibility,
   dropMatchesCityScope,
+  findPintDropsByIds,
+  grantPintDropReceipt,
   hasPricedDropToday as hasPricedDropTodayMemory,
   hasCurrentPricedPintDrop,
   keepHiddenPintDrop,
   listReportedPintDrops,
   listAllVisiblePintDrops,
+  listAllStoredPintDrops,
   listByStatus,
   listLegacyPintDropsForVenue,
   listVisiblePintDrops,
@@ -89,6 +98,16 @@ import { proveUploadedImageWrite, readUploadedImageObject, uploadUploadedImageOb
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
+import { isPintDropRating } from "@/lib/pintDropRating";
+
+import {
+  PintDropDailyCapError,
+  PintDropReplayConflictError,
+  replayBeforeCap,
+  sameCreatedDrop,
+} from "@/lib/pintDropReplay";
+
+export { PintDropDailyCapError, PintDropReplayConflictError } from "@/lib/pintDropReplay";
 
 const TABLE = PINT_DROPS_TABLE;
 
@@ -102,9 +121,6 @@ export const MAX_INDEX_CONFIRMED_DROPS = 5000;
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
 
-// The create path attaches uploaded Storage keys here before persisting. Kept
-// off the core PintDrop type in lib/pintDrops.ts (photos are a Supabase-only
-// concern); the in-memory store ignores them entirely.
 export type PersistableDrop = PintDrop & {
   pintPhotoKey?: string;
   venuePhotoKey?: string;
@@ -128,6 +144,8 @@ export type PintDropDTO = Omit<
   receiptPhotoUrl: string | null;
   reportCount?: number;
 };
+
+export type VisibleDropHistory = { drops: PintDropDTO[]; complete: boolean };
 
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
 // evidence they are judging, so photos resolve even on hidden rows and the
@@ -157,7 +175,15 @@ export type PintDropPhotos = {
  */
 type PintDropCreateOptions = {
   readonly underDailyPriceCap?: boolean;
+  readonly communityPrice?: { actor: string; submittedAt: number };
 };
+
+type OwnDropContribution = Pick<PintDrop, "venueId" | "createdAt" | "priceGbp" | "priceEvidence" | "confirmation">;
+
+function ownDropContribution(drop: PintDrop): OwnDropContribution {
+  const { venueId, createdAt, priceGbp, priceEvidence, confirmation } = drop;
+  return { venueId, createdAt, priceGbp, priceEvidence, confirmation };
+}
 
 /** The one seam the API route talks to. Both implementations below. */
 export type PintDropStore = {
@@ -170,7 +196,12 @@ export type PintDropStore = {
     drop: PintDrop,
     photos: PintDropPhotos,
     options?: PintDropCreateOptions,
-  ): Promise<PintDropDTO>;
+  ): Promise<PintDropDTO & { created: boolean; communityPrice?: CommunityPrice }>;
+  /**
+   * The drop a keyed create already wrote under `drop.id`, answered as
+   * `create` would answer it. "conflict" when that id holds another drop.
+   */
+  findCreated(drop: PintDrop, photos: PintDropPhotos): Promise<PintDropDTO | "conflict" | null>;
   /**
    * Public read: visible drops + demo seeds, newest-first, capped at
    * MAX_PUBLIC_DROPS, with per-drop VISIBILITY applied server-side (issue #29).
@@ -199,6 +230,12 @@ export type PintDropStore = {
     /** Scopes unscoped reads (no venueId) so Manchester demo seeds stay off London feeds. */
     cityId?: CityId | null,
   ): Promise<PintDropDTO[]>;
+  listVisibleHistory(
+    venueId?: string,
+    viewer?: ViewerContext,
+    authorHandle?: string,
+    cityId?: CityId | null,
+  ): Promise<VisibleDropHistory>;
   /** Complete venue identities for an attributed author's visible passport geography.
    * The timeline remains capped. This read applies the same viewer and withdrawal rules.
    */
@@ -208,6 +245,13 @@ export type PintDropStore = {
     cityId?: CityId | null,
     venueId?: string,
   ): Promise<string[]>;
+  /**
+   * Every venue the author has a visible drop at, their anonymous drops
+   * included. The author's own read only, for "somewhere new".
+   */
+  listOwnVenueIds(authorHandle: string, cityId?: CityId | null): Promise<string[]>;
+  cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
+  listOwnContributions(authorHandle: string): Promise<OwnDropContribution[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -219,6 +263,17 @@ export type PintDropStore = {
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
   listForReview(status: PintDropReviewStatus): Promise<ModeratorDrop[]>;
+  /**
+   * The moderator shape of the named drops, photos resolved, for a queue that
+   * names drops by id (the bill check's mismatches). Unknown ids are left out.
+   */
+  listForModerationByIds(ids: readonly string[]): Promise<ModeratorDrop[]>;
+  /**
+   * The bill check found this drop's price on its bill (captain 5 Nov 2026):
+   * move its evidence from `unchecked` to `receipt`. Only a priced drop that
+   * is still `unchecked` moves. True means this call WROTE.
+   */
+  grantBillMatch(id: string): Promise<boolean>;
   /**
    * Public report: every server-derived identity records metadata. Only distinct
    * verified accounts advance the atomic auto-hide threshold; anonymous IP
@@ -344,6 +399,7 @@ function toRow(drop: PersistableDrop, capDay: string | null = null) {
     venue_id: drop.venueId,
     handle: drop.handle,
     drink: drop.drink,
+    ...(drop.rating !== undefined ? { rating: drop.rating } : {}),
     // The SERVING the price is about (migration 0147). Written explicitly on
     // every create rather than left to the column default, so a row always
     // states its own lane instead of inheriting one.
@@ -444,6 +500,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     venueId: String(row.venue_id),
     handle: String(row.handle),
     drink: String(row.drink ?? ""),
+    ...(isPintDropRating(row.rating) ? { rating: row.rating } : {}),
     // Coerce on the way out too (defence in depth): a row written before 0147,
     // or a hand-edited value, collapses to `pint` - the lane it already had.
     measure: cleanDrinkMeasure(row.measure),
@@ -621,6 +678,7 @@ export function toDTO(
     venueId: drop.venueId,
     handle,
     drink: drop.drink,
+    ...(drop.rating !== undefined ? { rating: drop.rating } : {}),
     // PUBLIC, and it has to be: the browser's own drop lanes (lib/venues.ts)
     // hold a non-pint row out of the pint lane, and a DTO that withheld the
     // measure would leave every reader defaulting a half back to a pint.
@@ -807,16 +865,84 @@ async function attributedAuthorVenueIds(
   rows: PersistableDrop[],
   authorIdentity: AuthorIdentity,
   viewer?: ViewerContext,
+  ownRead = false,
 ): Promise<string[]> {
   const author = authorIdentity.current;
   const permitted = asAuthorDrops(rows, authorIdentity).filter(
     (drop) =>
-      matchesAttributedAuthor(drop, author) &&
+      (ownRead ? matchesAuthorFilter(drop, author, viewer) : matchesAttributedAuthor(drop, author)) &&
       visibilityOf(drop) !== "legacy" &&
       canViewOnPublicSurface(drop, viewer),
   );
   const published = await dropWithdrawnFromViewer(permitted, viewer);
   return [...new Set(published.map((drop) => drop.venueId))].sort();
+}
+
+async function cheapestPublicAuthorPint(
+  rows: PersistableDrop[],
+  author: AuthorIdentity,
+): Promise<BeenCardDrop | null> {
+  const attributed = asAuthorDrops(rows, author)
+    .filter((drop) => matchesAttributedAuthor(drop, author.current))
+    .map((drop) => ({ ...drop, visibility: visibilityOf(drop) }));
+  const cheapest = cheapestBeenCardDrop(attributed, author.current);
+  if (!cheapest) return null;
+  const published = await dropWithdrawnAuthors([cheapest], (drop) => drop.handle);
+  return published[0] ?? null;
+}
+
+async function durableCreatedDrop(id: string): Promise<PersistableDrop | undefined> {
+  const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+  if (error) throw new Error(error.message);
+  return data ? fromRow(data) : undefined;
+}
+
+export class OneTapPriceSupersededError extends Error {
+  constructor() {
+    super("A newer price observation is already stored.");
+    this.name = "OneTapPriceSupersededError";
+  }
+}
+
+function createMemoryPairedDrop(
+  drop: PintDrop,
+  pairing: NonNullable<PintDropCreateOptions["communityPrice"]>,
+): PintDropDTO & { created: boolean; communityPrice: CommunityPrice } {
+  let saved: PintDrop | null = null;
+  let created = false;
+  const result = submitMemoryCommunityPrice({
+    venueId: drop.venueId,
+    drinkCategory: "beer",
+    priceGbp: drop.priceGbp!,
+    actor: pairing.actor,
+    contributorHandle: drop.handle,
+  }, pairing.submittedAt, (price, previous) => {
+    drop.id = oneTapPriceDropId(price.id!, pairing.submittedAt, drop.priceGbp!);
+    const replay = findPintDropsByIds([drop.id]).get(drop.id);
+    if (replay) {
+      if (replay.venueId !== drop.venueId || replay.handle !== drop.handle
+        || replay.priceGbp !== drop.priceGbp || replay.measure !== drop.measure) {
+        throw new Error("Pint Drop id already exists.");
+      }
+      saved = replay;
+    } else if (previous?.id && previous.priceGbp === drop.priceGbp) {
+      const id = oneTapPriceDropId(previous.id, previous.submittedAt, previous.priceGbp);
+      const existing = findPintDropsByIds([id]).get(id);
+      if (existing && duplicateOneTapDrop([existing], drop, pairing.submittedAt)) {
+        saved = existing;
+      }
+    }
+    if (saved) {
+      return { ...price, priceGbp: saved.priceGbp!, submittedAt: Date.parse(saved.createdAt) };
+    }
+    addPintDrop(drop);
+    saved = drop;
+    created = true;
+    return null;
+  });
+  if (!saved || !result.price) throw new OneTapPriceSupersededError();
+  resetCommunityPriceCategoryIndexMemo();
+  return { ...toDTO(saved), created, communityPrice: result.price };
 }
 
 export const memoryPintDropStore: PintDropStore = {
@@ -832,27 +958,39 @@ export const memoryPintDropStore: PintDropStore = {
     return covered;
   },
   async create(input, photos, options) {
-    // The evidence is EARNED here, from what arrived, exactly as the Supabase
-    // backend earns it: a priced drop with no bill is `unchecked`, whatever the
-    // caller's object said (lib/pintDropReceipt.ts, captain decision 9).
-    const drop = withEarnedEvidence(input, photos);
-    // The same hard guard the Supabase backend gets from
-    // pint_drops_priced_day_unique_idx (0141), over the same writes: the route's
-    // pre-check and this create sit either side of an await, so two in-flight
-    // requests can both read "no price yet" here exactly as they could against
-    // Postgres. Asked against the drop's OWN day, so the row and the rule agree.
-    if (
-      dailyCapDay(drop, options) !== null &&
-      (await hasPricedDropTodayAcrossIds(drop.venueId, drop.handle, new Date(drop.createdAt)))
-    ) {
-      throw new PintDropDailyCapError();
+    // The evidence is STAMPED here exactly as the Supabase backend stamps it:
+    // a priced drop is `unchecked`, whatever the caller's object said, until
+    // the bill check reads its bill (lib/pintDropReceipt.ts).
+    const drop = withEarnedEvidence(input);
+    if (options?.communityPrice) {
+      return createMemoryPairedDrop(drop, options.communityPrice);
     }
-    // Photos are not stored: there is no Storage without Supabase. Only the
-    // FACT that a bill arrived is kept, as the drop's evidence above.
-    addPintDrop(drop);
-    return toDTO(drop);
+    const cappedVenueIds = dailyCapDay(drop, options) !== null ? await storedVenueIds(drop.venueId) : [];
+    const existing = replayBeforeCap(
+      findPintDropsByIds([drop.id]).get(drop.id),
+      drop,
+      photos,
+      cappedVenueIds.some((id) => hasPricedDropTodayMemory(id, drop.handle, new Date(drop.createdAt))),
+    );
+    if (existing) return { ...toDTO(existing), created: false };
+    const persistable: PersistableDrop = {
+      ...drop,
+      pintPhotoKey: photos.pint ? `memory/${drop.id}/pint` : undefined,
+      venuePhotoKey: photos.venue ? `memory/${drop.id}/venue` : undefined,
+      receiptPhotoKey: photos.receipt ? `memory/${drop.id}/receipt` : undefined,
+    };
+    addPintDrop(persistable);
+    return { ...toDTO(drop), created: true };
+  },
+  async findCreated(input, photos) {
+    const existing = findPintDropsByIds([input.id]).get(input.id);
+    if (!existing) return null;
+    return sameCreatedDrop(existing, input, photos) ? toDTO(existing) : "conflict";
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
+    return (await memoryPintDropStore.listVisibleHistory(venueId, viewer, authorHandle, cityId)).drops;
+  },
+  async listVisibleHistory(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
@@ -870,7 +1008,10 @@ export const memoryPintDropStore: PintDropStore = {
         (!author || matchesAuthorFilter(d, author.current, viewer)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
-    return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
+    return {
+      drops: newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d))),
+      complete: rows.length < MAX_PUBLIC_DROPS,
+    };
   },
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -879,6 +1020,24 @@ export const memoryPintDropStore: PintDropStore = {
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
     return attributedAuthorVenueIds(rows, author, viewer);
+  },
+  async listOwnContributions(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return [];
+    return asAuthorDrops(listAllStoredPintDrops(), author)
+      .filter((drop) => drop.status === "visible" && visibilityOf(drop) !== "legacy")
+      .map(ownDropContribution);
+  },
+  async listOwnVenueIds(authorHandle, cityId) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return [];
+    return attributedAuthorVenueIds(listAllVisiblePintDrops(cityId ?? null), author, { handle: author.current }, true);
+  },
+  async cheapestOwnPublicPint(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const rows = listAllStoredPintDrops().concat(demoContentEnabled() ? demoPintDrops : []);
+    return cheapestPublicAuthorPint(rows, author);
   },
   async listLegacyForVenue(venueId) {
     const published = await dropWithdrawnAuthors(
@@ -899,6 +1058,16 @@ export const memoryPintDropStore: PintDropStore = {
     return rows
       .slice(0, MAX_PUBLIC_DROPS)
       .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+  },
+  async listForModerationByIds(ids) {
+    const found = findPintDropsByIds(ids);
+    return ids.flatMap((id) => {
+      const hit = found.get(id);
+      return hit ? [toModeratorDTO(withVerifiedReportCount(hit))] : [];
+    });
+  },
+  async grantBillMatch(id) {
+    return grantPintDropReceipt(id);
   },
   async listConfirmationCandidates(venueId) {
     return newestFirstCapped(
@@ -1054,40 +1223,22 @@ function dailyCapDay(
   return londonDayKey(drop.createdAt) || null;
 }
 
-/**
- * The daily cap, refused by the DATABASE rather than by the pre-check in front
- * of it (migration 0141, pentest F-1). A concurrent burst is exactly the case
- * the pre-check cannot see: every request reads "no price yet" before any row
- * lands. `pint_drops_priced_day_unique_idx` is what actually holds the rule, so
- * one of those inserts wins and the rest arrive here.
- *
- * It is a REFUSAL, not a fault: the route answers it with the same 409 and the
- * same sentence the pre-check gives, so a drinker cannot tell which enforcer
- * turned them away.
- */
-export class PintDropDailyCapError extends Error {
-  readonly code = "PINT_DROP_DAILY_PRICE_CAP";
-  constructor() {
-    super("A priced Pint Drop for this venue, handle and London day already exists.");
-    this.name = "PintDropDailyCapError";
-  }
-}
-
 /** The one question a caller asks about that refusal. */
 export function isPintDropDailyCapError(error: unknown): error is PintDropDailyCapError {
   return error instanceof PintDropDailyCapError;
 }
 
 /**
- * The drop as a create path stores it: its evidence EARNED from what arrived
+ * The drop as a create path stores it: its evidence stamped by the rule
  * (lib/pintDropReceipt.ts `priceEvidenceFor`), never carried in. Both backends
- * ask this, so a caller's object, a client body or a seed cannot claim a bill
- * that was not sent, and a priced drop with no bill is `unchecked` everywhere.
+ * ask this, so a caller's object, a client body or a seed cannot claim a bill.
+ * Every priced drop lands `unchecked`, bill or not: a photo attached is not a
+ * bill read, and only the bill check's match earns `receipt` (`grantBillMatch`).
  */
-function withEarnedEvidence(drop: PintDrop, photos: PintDropPhotos): PintDrop {
+function withEarnedEvidence(drop: PintDrop): PintDrop {
   const { priceEvidence: _claimed, ...rest } = drop;
   void _claimed;
-  const earned = priceEvidenceFor(drop.priceGbp, Boolean(photos.receipt));
+  const earned = priceEvidenceFor(drop.priceGbp);
   return earned ? { ...rest, priceEvidence: earned } : rest;
 }
 
@@ -1179,11 +1330,9 @@ function isUnknownMeasureCheckError(
 /**
  * Additive-rollout guard for the receipt column (migration 0153).
  *
- * The RULE is the write door's (lib/pintDropReceipt.ts) and it reads no column,
- * so a deploy that lands before the captain applies 0153 still refuses a price
- * with no bill. What it must not do is refuse the price because it cannot store
- * the key: the drop is saved without it, and a photo is lost where a price
- * would have been.
+ * lib/pintDropReceipt.ts owns the write rule independently of this column.
+ * A missing receipt key column must not prevent the drop from saving.
+ * The separate price-evidence guard still applies.
  */
 export function isMissingReceiptColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -1195,10 +1344,10 @@ export function isMissingReceiptColumnError(error: { code?: string; message?: st
 /**
  * Additive-rollout guard for the evidence column (migration 0218).
  *
- * A BILLED price retries without the column, because an absent evidence reads
- * exactly as a billed row always has. An UNCHECKED price is refused instead
- * (`UncheckedPriceNotStorableError`): stored without its word it would read as
- * billed and mark the pin, which is the measure guard's reasoning about a half.
+ * Every new priced drop starts unchecked under lib/pintDropReceipt.ts.
+ * Without this column, it would read as legacy receipt evidence and mark the
+ * pin. Creation therefore throws UncheckedPriceNotStorableError even with an
+ * attached bill. An unpriced drop can retry without the column.
  */
 function isMissingPriceEvidenceColumnError(
   error: { code?: string; message?: string } | null,
@@ -1207,6 +1356,11 @@ function isMissingPriceEvidenceColumnError(
   const code = error.code ?? "";
   const message = (error.message ?? "").toLowerCase();
   return (code === "42703" || code === "PGRST204") && message.includes("price_evidence");
+}
+
+function isMissingRatingColumnError(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(error && (error.code === "42703" || error.code === "PGRST204") &&
+    /\brating\b/i.test(error.message ?? ""));
 }
 
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
@@ -1219,7 +1373,122 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
+async function durableReplayBeforeCap(
+  drop: PintDrop,
+  photos: PintDropPhotos,
+  options?: PintDropCreateOptions,
+): Promise<PersistableDrop | undefined> {
+  if (dailyCapDay(drop, options) === null) return undefined;
+  let capped = false;
+  try {
+    capped = await supabasePintDropStore.hasPricedDropToday(drop.venueId, drop.handle, Date.parse(drop.createdAt));
+  } catch (err) {
+    log("warn", "pint_drops.dedupe_check_failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  return capped ? replayBeforeCap(await durableCreatedDrop(drop.id), drop, photos, true) : undefined;
+}
+
+async function createPairedDrop(
+  drop: PersistableDrop,
+  pairing: NonNullable<PintDropCreateOptions["communityPrice"]>,
+  uploaded: string[],
+): Promise<PintDropDTO & { created: boolean; communityPrice: CommunityPrice }> {
+  const { data, error } = await admin().rpc("create_one_tap_price_pair_atomic", {
+    p_venue_id: drop.venueId,
+    p_drink_category: "beer",
+    p_price_pennies: Math.round(drop.priceGbp! * 100),
+    p_actor: pairing.actor,
+    p_contributor_handle: drop.handle,
+    p_submitted_at: new Date(pairing.submittedAt).toISOString(),
+    p_drop: toRow(drop),
+  });
+  if (error) throw new Error(error.message);
+  if (data?.status === "superseded") throw new OneTapPriceSupersededError();
+  if (data?.status !== "saved" || !data.drop || !data.price || typeof data.created !== "boolean") {
+    throw new Error("Could not save the price and Pint Drop.");
+  }
+  if (!data.created) await deletePhotos(uploaded);
+  resetCommunityPriceCategoryIndexMemo();
+  return {
+    ...await toDTOWithPhotos(fromRow(data.drop)),
+    created: data.created,
+    communityPrice: data.price as CommunityPrice,
+  };
+}
+
+function logDropCreateFailure(err: unknown, drop: PintDrop, uploadedCount: number): void {
+  if (err instanceof PintDropReplayConflictError) return;
+  const fields = { dropId: drop.id, venueId: drop.venueId, uploadedCount };
+  if (isPintDropDailyCapError(err)) {
+    log("warn", "pint_drops.daily_cap_conflict", fields);
+    return;
+  }
+  if (isUncheckedPriceNotStorableError(err)) {
+    log("warn", "pint_drops.unchecked_price_needs_0218", fields);
+    return;
+  }
+  log("error", "pint_drops.create_failed", {
+    ...fields,
+    error: err instanceof Error ? err.message : String(err),
+  });
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
+/** Every venue an author has a visible durable drop at, paged so no cap applies. */
+async function durableAuthorVenueIds(
+  authorHandle: string,
+  viewer: ViewerContext | undefined,
+  cityId: CityId | null | undefined,
+  venueId: string | undefined,
+  ownRead: boolean,
+): Promise<string[]> {
+  const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+  if (!author) return [];
+  const authorHandles = wornHandleList(author);
+  const venueIds = venueId ? await storedVenueIds(venueId) : [];
+  const visited = new Set<string>();
+  let afterId: string | undefined;
+  // Unique IDs give every page a stable boundary, including equal timestamps.
+  // Only venue identities survive each page. Photos and the timeline stay bounded.
+  for (;;) {
+    const base = () => {
+      let query = admin()
+        .from(TABLE)
+        .select("*")
+        .eq("status", "visible")
+        .in("handle", authorHandles)
+        .order("id", { ascending: true })
+        .limit(MAX_PUBLIC_DROPS);
+      if (afterId) query = query.gt("id", afterId);
+      if (venueIds.length === 1) query = query.eq("venue_id", venueIds[0]);
+      else if (venueIds.length > 1) query = query.in("venue_id", venueIds);
+      return query;
+    };
+    let { data, error } = await base().neq("visibility", "legacy");
+    if (error && isMissingVisibilityColumnError(error)) {
+      ({ data, error } = await base());
+    }
+    if (error) throw new Error(error.message);
+    const page = data ?? [];
+    const rows = page.map(fromRow)
+      .filter((drop) => venueId || dropMatchesCityScope(drop.venueId, cityId));
+    for (const id of await attributedAuthorVenueIds(rows, author, ownRead ? { handle: author.current } : viewer, ownRead)) visited.add(id);
+    if (page.length < MAX_PUBLIC_DROPS) break;
+    const nextId = page[page.length - 1]?.id;
+    if (typeof nextId !== "string" || (afterId && nextId <= afterId)) {
+      throw new Error("Pint Drop geography pagination did not advance.");
+    }
+    afterId = nextId;
+  }
+  const seeds = venueId
+    ? venueIds.flatMap((id) => demoDropsFor(id))
+    : demoPintDropsForCity(cityId);
+  for (const id of await attributedAuthorVenueIds(seeds, author, ownRead ? { handle: author.current } : viewer, ownRead)) visited.add(id);
+  return [...visited].sort();
+}
+
 export const supabasePintDropStore: PintDropStore = {
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const currentOf = new Map(storedIdGroups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)));
@@ -1254,13 +1523,17 @@ export const supabasePintDropStore: PintDropStore = {
     return covered;
   },
   async create(input, photos, options) {
-    // The evidence is EARNED from what arrived (lib/pintDropReceipt.ts). It
-    // follows the REQUEST, not the upload: a bill Storage failed to keep below
-    // was still sent, and the rule beside that branch is that our outage may
-    // not cost the drinker anything, including the standing they earned.
-    const drop = withEarnedEvidence(input, photos);
+    // The evidence is STAMPED by the rule (lib/pintDropReceipt.ts): every
+    // priced drop lands `unchecked`. The bill check reads the bytes that
+    // arrived, not the upload, so a bill Storage failed to keep below can
+    // still earn `receipt`: our outage may not cost the drinker the standing
+    // their bill shows.
+    const drop = withEarnedEvidence(input);
+    const replay = await durableReplayBeforeCap(drop, photos, options);
+    if (replay) return { ...await toDTOWithPhotos(replay), created: false };
     const persistable: PersistableDrop = { ...drop };
     const uploaded: string[] = [];
+    const creation: { existing?: PersistableDrop } = {};
     try {
       // Photos upload BEFORE the insert — a bad file throws before anything
       // persists; a failed insert leaves exact keys to clean up.
@@ -1296,13 +1569,29 @@ export const supabasePintDropStore: PintDropStore = {
           });
         }
       }
+      if (options?.communityPrice) {
+        return await createPairedDrop(persistable, options.communityPrice, uploaded);
+      }
       let row = toRow(persistable, dailyCapDay(drop, options));
-      // EVERY insert attempt goes through here, because the daily cap is now a
-      // unique index (0141) and a retry can hit it just as the first attempt
-      // can. A cap violation leaves the try immediately: it is the rule working,
-      // not a storage fault, and the catch below tells the two apart.
+      // Every insert, including schema fallbacks, can race with the first save.
+      // Resolve its replay before treating a unique violation as a daily cap.
       const insert = async (candidate: typeof row) => {
-        const { error: insertError } = await admin().from(TABLE).insert(candidate);
+        let { error: insertError } = await admin().from(TABLE).insert(candidate);
+        if (isMissingRatingColumnError(insertError)) {
+          log("warn", "pint_drops.rating_column_missing", { dropId: drop.id });
+          delete candidate.rating;
+          delete persistable.rating;
+          ({ error: insertError } = await admin().from(TABLE).insert(candidate));
+        }
+        if (insertError?.code === "23505") {
+          const existing = replayBeforeCap(
+            await durableCreatedDrop(drop.id), drop, photos, isDailyPriceCapViolation(insertError),
+          );
+          if (existing) {
+            creation.existing = existing;
+            return null;
+          }
+        }
         if (isDailyPriceCapViolation(insertError)) throw new PintDropDailyCapError();
         return insertError;
       };
@@ -1375,8 +1664,6 @@ export const supabasePintDropStore: PintDropStore = {
       }
       if (error && isMissingPriceEvidenceColumnError(error)) {
         if (persistable.priceEvidence === "unchecked") {
-          // The one retry this rung refuses. Without its word an unchecked
-          // price reads as billed and would mark the pin (decision 9 reversed).
           throw new UncheckedPriceNotStorableError();
         }
         console.warn(
@@ -1443,48 +1730,30 @@ export const supabasePintDropStore: PintDropStore = {
         if (retryError) throw new Error(retryError.message);
       }
     } catch (err) {
-      // A cap refusal is the rule holding, not an outage, so it may not be
-      // logged as one: an error line per refused duplicate would read as a
-      // storage failure in every dashboard. It still cleans up its photos and
-      // still rethrows, and the route answers the ordinary 409.
-      if (isPintDropDailyCapError(err)) {
-        log("warn", "pint_drops.daily_cap_conflict", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // A pending migration, not an outage: warned once per refusal, the
-      // photos cleaned up, and the route answers with the bill rule.
-      if (isUncheckedPriceNotStorableError(err)) {
-        log("warn", "pint_drops.unchecked_price_needs_0218", {
-          dropId: drop.id,
-          venueId: drop.venueId,
-          uploadedCount: uploaded.length,
-        });
-        await deletePhotos(uploaded);
-        throw err;
-      }
-      // Log the storage/insert failure (safe fields only — no buffers, no keys)
-      // before cleaning up and re-throwing. The route still maps this to the
-      // same 503/400 for the user; logging is purely additive observability.
-      log("error", "pint_drops.create_failed", {
-        dropId: drop.id,
-        venueId: drop.venueId,
-        uploadedCount: uploaded.length,
-        error: err instanceof Error ? err.message : String(err),
-      });
+      logDropCreateFailure(err, drop, uploaded.length);
       await deletePhotos(uploaded); // no orphans on any failure after an upload
       throw err;
     }
-    return toDTOWithPhotos(persistable);
+    const existing = creation.existing;
+    if (existing) {
+      await deletePhotos(uploaded);
+      return { ...await toDTOWithPhotos(existing), created: false };
+    }
+    return { ...await toDTOWithPhotos(persistable), created: true };
+  },
+
+  async findCreated(input, photos) {
+    const stored = await durableCreatedDrop(input.id);
+    if (!stored) return null;
+    return sameCreatedDrop(stored, input, photos) ? toDTOWithPhotos(stored) : "conflict";
   },
 
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
+    return (await supabasePintDropStore.listVisibleHistory(venueId, viewer, authorHandle, cityId)).drops;
+  },
+  async listVisibleHistory(venueId, viewer, authorHandle, cityId) {
     const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     const authorHandles = author ? wornHandleList(author) : [];
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
@@ -1535,53 +1804,60 @@ export const supabasePintDropStore: PintDropStore = {
       .filter((d) => !author || matchesAuthorFilter(d, author.current, viewer));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
-    return toDTOsWithBatchedPhotos(capped);
+    return {
+      drops: await toDTOsWithBatchedPhotos(capped),
+      complete: data !== null && data.length < MAX_PUBLIC_DROPS && published.length <= MAX_PUBLIC_DROPS,
+    };
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
+    return durableAuthorVenueIds(authorHandle, viewer, cityId, venueId, false);
+  },
+  async listOwnContributions(authorHandle) {
     const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     if (!author) return [];
-    const authorHandles = wornHandleList(author);
-    const venueIds = venueId ? await storedVenueIds(venueId) : [];
-    const visited = new Set<string>();
+    const records: OwnDropContribution[] = [];
     let afterId: string | undefined;
-    // Unique IDs give every page a stable boundary, including equal timestamps.
-    // Only venue identities survive each page. Photos and the timeline stay bounded.
     for (;;) {
-      const base = () => {
-        let query = admin()
-          .from(TABLE)
-          .select("*")
-          .eq("status", "visible")
-          .in("handle", authorHandles)
-          .order("id", { ascending: true })
-          .limit(MAX_PUBLIC_DROPS);
-        if (afterId) query = query.gt("id", afterId);
-        if (venueIds.length === 1) query = query.eq("venue_id", venueIds[0]);
-        else if (venueIds.length > 1) query = query.in("venue_id", venueIds);
-        return query;
-      };
-      let { data, error } = await base().neq("visibility", "legacy");
-      if (error && isMissingVisibilityColumnError(error)) {
-        ({ data, error } = await base());
-      }
+      let query = admin().from(TABLE).select("*")
+        .eq("status", "visible")
+        .in("handle", wornHandleList(author))
+        .order("id", { ascending: true }).limit(MAX_PUBLIC_DROPS);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error } = await query;
       if (error) throw new Error(error.message);
-      const page = data ?? [];
-      const rows = page.map(fromRow)
-        .filter((drop) => venueId || dropMatchesCityScope(drop.venueId, cityId));
-      for (const id of await attributedAuthorVenueIds(rows, author, viewer)) visited.add(id);
-      if (page.length < MAX_PUBLIC_DROPS) break;
-      const nextId = page[page.length - 1]?.id;
-      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) {
-        throw new Error("Pint Drop geography pagination did not advance.");
-      }
+      if (!data?.length) break;
+      records.push(...data.map(fromRow)
+        .filter((drop) => visibilityOf(drop) !== "legacy")
+        .map(ownDropContribution));
+      const nextId = data[data.length - 1]!.id;
+      if (!nextId || (afterId && nextId <= afterId)) throw new Error("Owner drop read did not advance");
       afterId = nextId;
     }
-    const seeds = venueId
-      ? venueIds.flatMap((id) => demoDropsFor(id))
-      : demoPintDropsForCity(cityId);
-    for (const id of await attributedAuthorVenueIds(seeds, author, viewer)) visited.add(id);
-    return [...visited].sort();
+    return records;
+  },
+  async listOwnVenueIds(authorHandle, cityId) {
+    return durableAuthorVenueIds(authorHandle, undefined, cityId ?? null, undefined, true);
+  },
+
+  async cheapestOwnPublicPint(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("id,handle,price_gbp,measure,visibility,status,created_at,author_retired_at")
+      .in("handle", wornHandleList(author))
+      .eq("status", "visible")
+      .eq("visibility", "public")
+      .eq("measure", "pint")
+      .is("author_retired_at", null)
+      .gt("price_gbp", 0)
+      .order("price_gbp", { ascending: true })
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const rows = (data ?? []).map(fromRow).concat(demoContentEnabled() ? demoPintDrops : []);
+    return cheapestPublicAuthorPint(rows, author);
   },
 
   /** The LEGACY lane for one venue (ledger-only capability for issue #27).
@@ -1638,6 +1914,43 @@ export const supabasePintDropStore: PintDropStore = {
     const { data, error } = await reviewQuery();
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
+  },
+
+  async listForModerationByIds(ids) {
+    if (ids.length === 0) return [];
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .in("id", [...ids])
+      .limit(MAX_PUBLIC_DROPS);
+    if (error) throw new Error(error.message);
+    const byId = new Map((data ?? []).map((row) => [String(row.id), fromRow(row)]));
+    return toModeratorDTOsWithBatchedPhotos(
+      ids.flatMap((id) => {
+        const hit = byId.get(id);
+        return hit ? [hit] : [];
+      }),
+    );
+  },
+
+  /**
+   * One guarded update changes only a priced drop still `unchecked`.
+   * A repeated grant writes nothing. A cluster without 0218 has no column
+   * to change and answers false. This update does not change moderation status.
+   */
+  async grantBillMatch(id) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({ price_evidence: "receipt" })
+      .eq("id", id)
+      .eq("price_evidence", "unchecked")
+      .not("price_gbp", "is", null)
+      .select("id");
+    if (error) {
+      if (isMissingPriceEvidenceColumnError(error)) return false;
+      throw new Error(error.message);
+    }
+    return (data ?? []).length > 0;
   },
 
   /** The venue's publicly readable priced drops, newest-first. The window,
@@ -1827,14 +2140,6 @@ async function normalizeImage(input: Uint8Array): Promise<Buffer> {
 }
 
 /**
- * Validate + normalize + upload one photo (pint or venue) to Storage. Returns
- * the object key to stash on the drop. Keys are deterministic
- * (`${venueId}/${dropId}/${slot}.${ext}`) so a failed insert has an exact key
- * to clean up — no orphan hunt. Throws a user-safe Error on an invalid file
- * (trust boundary — the client is untrusted, so type/size are checked here, not
- * just in the browser).
- */
-/**
  * A refusal ABOUT THE FILE, as against a failure about US.
  *
  * The two used to be one `Error`, told apart by the route only by the fact that
@@ -1856,13 +2161,13 @@ export class PhotoRefusalError extends Error {}
 export const UNREADABLE_PHOTO_REFUSAL =
   "That photo could not be read. Choose a different image.";
 
-export async function uploadPhoto(
+export async function preparePhoto(
   slot: "pint" | "venue" | "receipt",
   venueId: string,
   dropId: string,
   file: File,
   maxBytes = MAX_PHOTO_BYTES,
-): Promise<string> {
+): Promise<Buffer> {
   const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new PhotoRefusalError(invalid);
 
@@ -1922,7 +2227,26 @@ export async function uploadPhoto(
     throw new PhotoRefusalError(UNREADABLE_PHOTO_REFUSAL);
   }
 
-  const key = `${venueId}/${dropId}/${slot}.${NORMALIZED_EXT}`;
+  return processed;
+}
+
+export async function uploadPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  file: File,
+  maxBytes = MAX_PHOTO_BYTES,
+): Promise<string> {
+  return uploadPreparedPhoto(slot, venueId, dropId, await preparePhoto(slot, venueId, dropId, file, maxBytes));
+}
+
+export async function uploadPreparedPhoto(
+  slot: "pint" | "venue" | "receipt",
+  venueId: string,
+  dropId: string,
+  processed: Buffer,
+): Promise<string> {
+  const key = `${venueId}/${dropId}/${slot}-${randomUUID()}.${NORMALIZED_EXT}`;
 
   const error = await uploadUploadedImageObject(key, processed, NORMALIZED_CONTENT_TYPE, { upsert: false });
   if (error) {

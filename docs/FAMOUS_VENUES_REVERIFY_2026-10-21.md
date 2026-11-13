@@ -104,7 +104,7 @@ Revision-only builder changes were removed after semantic comparison.
 The original two suites reproduced three failures before the repair.
 Installed Chrome then measured the actual MapLibre 6.14.0 engine at 390 by 844 pixels through the existing painted-pin probe.
 The camera did not move before measurement.
-The [engine receipt](proof/map-opening-20261021/engine-phone-frame.json) records all six painted clusters and their centres.
+The [engine receipt](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/map-opening-20261021/engine-phone-frame.json) records all six painted clusters and their centres.
 The fixture now uses those independent engine measurements and retains every centre and projection assertion.
 The first browser attempt failed because the temporary driver's transpiler helper was absent from its injected script.
 Correcting that driver setup produced the recorded measurement.

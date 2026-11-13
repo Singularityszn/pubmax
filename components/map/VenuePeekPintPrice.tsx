@@ -48,7 +48,9 @@ export default function VenuePeekPintPrice({
   detailLoading: boolean;
   priceReadStatus: VenuePriceReadStatus;
   dropReadStatus: VenueDropReadStatus;
-  onLog: () => void;
+  /** Opens the composer from "No price yet". Absent when the card's coral is
+   *  already "Log what you paid" (lib/venuePlanDoor.ts), so the cell only says. */
+  onLog?: () => void;
   /** The date the Overview prints beside this lane's figure
    *  (lib/venueActionCard.ts), so the action card says how old the price is. */
   dated?: string | null;
@@ -87,10 +89,19 @@ export default function VenuePeekPintPrice({
       </span>
     );
   }
-  return isPub ? (
+  if (!isPub) return null;
+  if (!onLog) {
+    return (
+      <span>
+        <strong>No price yet.</strong>
+        <small>Be the first to log one</small>
+      </span>
+    );
+  }
+  return (
     <button type="button" className="mobileVenuePeekDrop" onClick={onLog}>
       <strong>No price yet.</strong>
       <small>Be the first →</small>
     </button>
-  ) : null;
+  );
 }

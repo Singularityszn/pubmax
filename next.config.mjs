@@ -10,8 +10,9 @@ import {
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
 import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS, PAL_MASCOT_TALK } from "./lib/palMascotAssets.mjs";
-import { cdnEdgeHeaderRules } from "./lib/cdnDocumentEdge.mjs";
+import { cdnEdgeHeaderRules, ISR_EXPIRE_SECONDS } from "./lib/cdnDocumentEdge.mjs";
 import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mjs";
+import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
@@ -156,9 +157,9 @@ const securityHeaders = [
   { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
 ];
 
-// Every public asset has a fixed URL. Give it a modest browser window and a
-// year at the edge, which Vercel purges on every deploy, so a changed asset
-// cannot stay pinned in a browser no deploy can reach.
+// Public assets without a content version need a modest browser window and a
+// year at the edge, which Vercel purges on every deploy. A changed asset must
+// not stay pinned in a browser that no deploy can reach.
 const UNHASHED_PUBLIC_ASSET_CACHE_CONTROL =
   "public, max-age=3600, s-maxage=31536000, stale-while-revalidate=604800";
 
@@ -220,7 +221,7 @@ const nextConfig = {
   // up to 60 more (65 in all); the hourly routes get a 5-minute stale window.
   // These are the windows the header asks for, not a promise about age: a
   // regeneration that fails can leave older content in place for longer.
-  expireTime: 3900,
+  expireTime: ISR_EXPIRE_SECONDS,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   images: {
     qualities: [75, 78],
@@ -280,6 +281,8 @@ const nextConfig = {
   env: {
     // See swVersion above — SW cache-busting build id.
     NEXT_PUBLIC_SW_VERSION: swVersion,
+    // Names the MapLibre worker directory (lib/maplibreWorkerAssets.ts).
+    NEXT_PUBLIC_MAPLIBRE_VERSION: MAPLIBRE_VERSION,
     // Inlined at build time and read back by app/api/version. Next replaces a
     // STATIC `process.env.NAME` member expression with the literal, so the
     // route must read these by name and never through a variable key.
@@ -356,6 +359,8 @@ const nextConfig = {
       { source: "/crews", destination: "/social", permanent: false },
       { source: "/coffee", destination: "/map?drink=coffee", permanent: false },
       { source: "/gardens", destination: "/map?garden=1", permanent: false },
+      // Reuse the Pal's year instead of adding a separate public page.
+      { source: "/year-in-pints", destination: "/pal#year-in-pints", permanent: false },
     ];
   },
   async headers() {
@@ -468,6 +473,23 @@ const nextConfig = {
       // them at fixed URLs, and the canvas asks with a ?v= of the PNG's own
       // hash, so a redrawn atlas is a new URL to every browser.
       cacheRule("/map-icons/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      // A URL that names its own content never changes, so the browser keeps
+      // it for a year. The MapLibre worker directory names the MapLibre
+      // version (lib/maplibreVendor.mjs). The canvas asks for an icon atlas,
+      // and the map document for its opening picture, with ?v= set to a hash
+      // of the file's bytes. The same path without ?v= keeps the hour above.
+      cacheRule(
+        "/vendor/maplibre/:version(\\d+\\.\\d+\\.\\d+[^/]*)/:file*",
+        HASHED_STATIC_CACHE_CONTROL,
+      ),
+      {
+        ...cacheRule("/map-icons/:path*", HASHED_STATIC_CACHE_CONTROL),
+        has: [{ type: "query", key: "v" }],
+      },
+      {
+        ...cacheRule("/landing/map-opening/:path*", HASHED_STATIC_CACHE_CONTROL),
+        has: [{ type: "query", key: "v" }],
+      },
       cacheRule(
         "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,

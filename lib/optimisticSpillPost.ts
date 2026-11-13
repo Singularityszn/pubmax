@@ -1,7 +1,8 @@
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
+import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { PintDropDTO } from "@/lib/feed";
 import type { Visibility } from "@/lib/spill";
 import type { LastPintDecisionKind } from "@/lib/tfl";
-import { discardBody } from "@/lib/responseBody";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 export const OPTIMISTIC_SPILL_STORAGE_KEY = "pubmax:optimistic-spill-posts:v1";
@@ -20,6 +21,7 @@ export type OptimisticSpillInput = {
   handle: string;
   priceGbp: string;
   drink: string;
+  rating?: PintDropRating | null;
   passedDownNote: string;
   era: string;
   visibility: Visibility;
@@ -37,18 +39,34 @@ export type OptimisticSpillInput = {
   withHandles?: string[];
 };
 
+/** A retry posts exactly what the drinker submitted, so it needs these too. */
+export type OptimisticSpillRetryInput = OptimisticSpillInput & {
+  receiptPhotoUrl: string | null;
+  measure: DrinkMeasure;
+  measureLabel: string;
+};
+
 export type OptimisticSpillRetryPayload = {
+  /**
+   * The current wire key. Conflict recovery can change it without changing
+   * the stored entry's identity. Absent on entries stored before retries carried it.
+   */
+  clientRequestId?: string;
   venueId: string;
   venueName?: string;
   handle: string;
   priceGbp: string;
   drink: string;
+  rating?: PintDropRating | null;
   passedDownNote: string;
   era: string;
   visibility: Visibility;
   vibeTags: string[];
   pintPhotoUrl: string | null;
   venuePhotoUrl: string | null;
+  receiptPhotoUrl: string | null;
+  measure: DrinkMeasure;
+  measureLabel: string;
   /**
    * True when a photo was attached but its local preview could not be kept:
    * a `blob:` URL is never written to storage (it dies with the document), so
@@ -63,7 +81,19 @@ export type OptimisticSpillRetryPayload = {
 };
 
 type StorageLike = Pick<Storage, "getItem" | "setItem" | "removeItem">;
-type ResolvePhotoPreview = (url: string) => Promise<Blob>;
+const liveRetries = new WeakMap<StorageLike, Map<string, OptimisticSpillRetryPayload>>();
+const livePhotoPreviews = new Map<string, Blob>();
+
+export function createOptimisticSpillPhotoPreview(photo: Blob): string {
+  const url = URL.createObjectURL(photo);
+  livePhotoPreviews.set(url, photo);
+  return url;
+}
+
+export function revokeOptimisticSpillPhotoPreview(url: string): void {
+  if (!livePhotoPreviews.delete(url)) return;
+  URL.revokeObjectURL(url);
+}
 
 function parsePrice(value: string): number | null {
   const trimmed = value.trim();
@@ -98,6 +128,7 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
     handle,
     priceGbp,
     drink: cleanString(input.drink),
+    ...(isPintDropRating(input.rating) ? { rating: input.rating } : {}),
     passedDownNote: cleanString(input.passedDownNote),
     era: cleanString(input.era),
     provenance: priceGbp === null ? "anecdote" : "contributor",
@@ -121,20 +152,25 @@ export function buildOptimisticSpillDrop(input: OptimisticSpillInput): PintDropD
 }
 
 export function buildOptimisticSpillRetryPayload(
-  input: OptimisticSpillInput,
+  input: OptimisticSpillRetryInput,
 ): OptimisticSpillRetryPayload {
   return {
+    clientRequestId: input.clientRequestId,
     venueId: input.venueId,
     venueName: input.venueName,
     handle: input.handle,
     priceGbp: input.priceGbp,
     drink: input.drink,
+    ...(isPintDropRating(input.rating) ? { rating: input.rating } : {}),
     passedDownNote: input.passedDownNote,
     era: input.era,
     visibility: input.visibility,
     vibeTags: input.vibeTags,
     pintPhotoUrl: input.pintPhotoUrl,
     venuePhotoUrl: input.venuePhotoUrl,
+    receiptPhotoUrl: input.receiptPhotoUrl,
+    measure: input.measure,
+    measureLabel: input.measureLabel,
     ...(input.leaveByIso ? { leaveByIso: input.leaveByIso } : {}),
     ...(input.lastTrainDecision ? { lastTrainDecision: input.lastTrainDecision } : {}),
     ...(input.withHandles && input.withHandles.length > 0 ? { withHandles: [...input.withHandles] } : {}),
@@ -184,6 +220,23 @@ export function failOptimisticSpill(
   });
 }
 
+/**
+ * The server refused the retry key because it already saved other details
+ * under it. The entry keeps its identity and its photos, and its next retry
+ * sends the drop under the new key.
+ */
+export function rotateOptimisticSpillRetryKey(
+  stored: StoredOptimisticSpill[],
+  clientRequestId: string,
+  nextKey: string,
+): StoredOptimisticSpill[] {
+  return stored.map((entry) =>
+    entry.clientRequestId === clientRequestId && entry.retry
+      ? { ...entry, retry: { ...entry.retry, clientRequestId: nextKey } }
+      : entry,
+  );
+}
+
 export function markOptimisticSpillRetrying(
   stored: StoredOptimisticSpill[],
   clientRequestId: string,
@@ -209,39 +262,41 @@ export function markOptimisticSpillRetrying(
 
 const PHOTO_PREVIEW_GONE =
   "Photo preview is no longer available. Open the composer and attach it again.";
+export const RETRY_DETAILS_GONE =
+  "Retry details are no longer available. Open the map and post it again.";
 
-async function resolveBlobPreview(url: string): Promise<Blob> {
-  const response = await fetch(url);
-  if (!response.ok) {
-    discardBody(response);
-    throw new Error(PHOTO_PREVIEW_GONE);
-  }
-  return response.blob();
-}
-
-async function appendRetryPhoto(
+function appendRetryPhoto(
   body: FormData,
-  field: "pint_photo" | "venue_photo",
+  field: "pint_photo" | "venue_photo" | "receipt_photo",
   url: string | null,
-  resolvePhotoPreview: ResolvePhotoPreview,
 ) {
   if (!url) return;
   if (!url.startsWith("blob:")) return;
-  const blob = await resolvePhotoPreview(url);
+  // CSP allows blob images but not blob fetches. Keep the original bytes
+  // while the composer or a stored retry owns the preview.
+  const blob = livePhotoPreviews.get(url);
+  if (!blob) throw new Error(PHOTO_PREVIEW_GONE);
   const extension = blob.type === "image/webp" ? "webp" : blob.type === "image/png" ? "png" : "jpg";
   body.set(field, blob, `${field}.${extension}`);
 }
 
 export async function buildOptimisticSpillRetryFormData(
   payload: OptimisticSpillRetryPayload,
-  resolvePhotoPreview: ResolvePhotoPreview = resolveBlobPreview,
 ): Promise<FormData> {
   // A photo the drinker attached is never silently dropped from a retry.
   if (payload.photoNotKept) throw new Error(PHOTO_PREVIEW_GONE);
+  // The server reads a missing measure as a pint, so an entry stored before
+  // the measure was kept cannot be retried honestly.
+  const measure = statedDrinkMeasure(payload.measure);
+  if (!measure) throw new Error(RETRY_DETAILS_GONE);
   const body = new FormData();
+  if (payload.clientRequestId) body.set("clientRequestId", payload.clientRequestId);
   body.set("venueId", payload.venueId);
   body.set("handle", payload.handle);
   body.set("drink", payload.drink);
+  if (payload.rating != null) body.set("rating", String(payload.rating));
+  body.set("measure", measure);
+  body.set("measureLabel", measure === "other" ? (payload.measureLabel ?? "") : "");
   body.set("priceGbp", payload.priceGbp);
   body.set("passedDownNote", payload.passedDownNote);
   body.set("era", payload.era);
@@ -249,8 +304,9 @@ export async function buildOptimisticSpillRetryFormData(
   for (const tag of payload.vibeTags) body.append("vibe_tags", tag);
   if (payload.leaveByIso) body.set("leaveByIso", payload.leaveByIso);
   if (payload.lastTrainDecision) body.set("lastTrainDecision", payload.lastTrainDecision);
-  await appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl, resolvePhotoPreview);
-  await appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl, resolvePhotoPreview);
+  appendRetryPhoto(body, "pint_photo", payload.pintPhotoUrl);
+  appendRetryPhoto(body, "venue_photo", payload.venuePhotoUrl);
+  appendRetryPhoto(body, "receipt_photo", payload.receiptPhotoUrl);
   return body;
 }
 
@@ -283,11 +339,9 @@ function isStoredOptimisticSpill(value: unknown): value is StoredOptimisticSpill
   );
 }
 
-// A LOCAL PREVIEW NEVER REACHES STORAGE. A `blob:` URL belongs to the document
-// that minted it and to the hook that revokes it, so a copy in localStorage is
-// a broken image after a reload (or after the map revokes it). Both doors strip
-// it: the write so nothing new lands, the read so an entry written before this
-// rule cannot render one.
+// Blob URLs and photo bytes stay out of localStorage because previews expire
+// on reload or release. Reads strip persisted previews before restoring retry
+// metadata from this document's in-memory payload. Display rows stay stripped.
 function isBlobUrl(value: unknown): value is string {
   return typeof value === "string" && value.startsWith("blob:");
 }
@@ -307,6 +361,10 @@ function withoutBlobPreviews(entry: StoredOptimisticSpill): StoredOptimisticSpil
     retry.venuePhotoUrl = null;
     retry.photoNotKept = true;
   }
+  if (isBlobUrl(retry.receiptPhotoUrl)) {
+    retry.receiptPhotoUrl = null;
+    retry.photoNotKept = true;
+  }
   return { ...entry, drop, retry };
 }
 
@@ -316,7 +374,11 @@ export function readOptimisticSpills(storage: StorageLike): StoredOptimisticSpil
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     return Array.isArray(parsed)
-      ? parsed.filter(isStoredOptimisticSpill).map(withoutBlobPreviews)
+      ? parsed.filter(isStoredOptimisticSpill).map((entry) => {
+          const stored = withoutBlobPreviews(entry);
+          const retry = liveRetries.get(storage)?.get(entry.clientRequestId);
+          return stored.retry && retry ? { ...stored, retry: { ...retry } } : stored;
+        })
       : [];
   } catch {
     return [];
@@ -327,12 +389,26 @@ export function writeOptimisticSpills(
   storage: StorageLike,
   entries: StoredOptimisticSpill[],
 ): void {
+  const retained = entries.slice(0, 10);
+  const retries = new Map<string, OptimisticSpillRetryPayload>();
+  for (const entry of retained) {
+    if (entry.retry) retries.set(entry.clientRequestId, { ...entry.retry });
+  }
+  const retainedPhotos = new Set([...retries.values()].flatMap((retry) =>
+    [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl],
+  ));
+  for (const retry of liveRetries.get(storage)?.values() ?? []) {
+    for (const url of [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl]) {
+      if (url && !retainedPhotos.has(url)) revokeOptimisticSpillPhotoPreview(url);
+    }
+  }
+  liveRetries.set(storage, retries);
   try {
     if (entries.length === 0) {
       storage.removeItem(OPTIMISTIC_SPILL_STORAGE_KEY);
       return;
     }
-    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(entries.slice(0, 10).map(withoutBlobPreviews)));
+    storage.setItem(OPTIMISTIC_SPILL_STORAGE_KEY, JSON.stringify(retained.map(withoutBlobPreviews)));
   } catch {
     // Storage can be full or disabled; the in-memory submit path still proceeds.
   }

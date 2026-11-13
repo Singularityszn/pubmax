@@ -18,6 +18,7 @@ import BoroughIndexPage from "@/app/borough/page";
 import BoroughPage from "@/app/borough/[slug]/page";
 import { resetBoroughIndexForTests } from "@/lib/boroughIndex.server";
 import { listBoroughs, pubsInBorough } from "@/lib/boroughs";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 function price(overrides: Partial<VenuePrice> = {}): VenuePrice {
   return {
@@ -140,7 +141,7 @@ describe("borough price evidence", () => {
     expect(bottle.textContent).toContain("£9.00");
     expect(bottle.textContent).toContain("Bottled Beer");
     expect(bottle.textContent).toContain("Pint Prices");
-    expect(bottle.querySelector("time")?.textContent).toBe("2 October 2026");
+    expect(bottle.querySelector("time")?.textContent).toBe(bundledReadDay("app_price_001873").words);
     expect(bottle.querySelector(".priceBadge")?.className).not.toMatch(/(?:^|\s)priceBand-/);
     expect(pubRows[0]!.querySelector(".priceBadge")?.className).toMatch(/(?:^|\s)priceBand-/);
   });

@@ -291,14 +291,21 @@ export const supabaseSavedPubsStore: SavedPubsStore = {
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, handle ?? "");
       if (!profileId) return { status: "ready", rows: [] };
-      const { data, error } = await admin()
-        .from(TABLE)
-        .select("venue_id, list_type, note, created_at")
-        .eq("profile_id", profileId);
-      if (error) throw new Error(error.message);
-      const rows = (data ?? [])
-        .map((r) => rowFrom(r as Record<string, unknown>))
-        .filter((r): r is SavedRow => r !== null);
+      const rows: SavedRow[] = [];
+      let afterId: string | undefined;
+      for (;;) {
+        let query = admin().from(TABLE).select("id, venue_id, list_type, note, created_at")
+          .eq("profile_id", profileId).order("id", { ascending: true }).limit(500);
+        if (afterId) query = query.gt("id", afterId);
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
+        if (!data?.length) break;
+        rows.push(...data.map((r) => rowFrom(r as Record<string, unknown>))
+          .filter((r): r is SavedRow => r !== null));
+        const nextId = data[data.length - 1]!.id;
+        if (!nextId || (afterId && nextId <= afterId)) throw new Error("Owner saved list read did not advance");
+        afterId = nextId;
+      }
       return { status: "ready", rows: await enrich(rows) };
     } catch {
       return { status: "unavailable" };

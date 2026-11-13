@@ -12,6 +12,7 @@ vi.mock("@/lib/useSocialFriendsLaunch", () => ({
 }));
 
 import CommandPalette from "@/components/command/CommandPalette";
+import { storedThemePreference } from "@/lib/themePreference";
 
 const container = document.createElement("div");
 const root = createRoot(container);
@@ -35,4 +36,11 @@ it("updates the social command when its live surface name changes", async () => 
   socialLabel.current = "Social preview";
   await act(async () => root.render(createElement(CommandPalette, { onClose: vi.fn() })));
   expect(container.querySelector("[id$='-nav-social']")?.textContent).toContain("Social preview");
+});
+
+it("saves the palette's theme toggle where the theme reader looks", async () => {
+  document.documentElement.dataset.theme = "light";
+  await act(async () => root.render(createElement(CommandPalette, { onClose: vi.fn() })));
+  await act(async () => container.querySelector<HTMLElement>("[id$='-action-toggle-theme']")?.click());
+  expect(storedThemePreference(window.localStorage)).toBe("dark");
 });

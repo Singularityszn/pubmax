@@ -71,12 +71,12 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    name resolution. `__tests__/pubPalChatHours.test.ts` covers the keyless chat
    response and combined transit questions.
    `runAsk` checks `lib/ask/lateFoodAnswer.server.ts` before normal tool routing
-   and the OpenRouter loop. It returns accepted late-food results as
+   and the model loop. It returns accepted late-food results as
    `search_venues`, without pub IDs, prices or plan proposals.
    The handler reads the existing [food-terminal evidence contract](../API_CONTRACTS_THE_LOCAL.md#10-get-apilate-food--crawl-ending-food-terminals).
    `lib/ask/lateFoodQuestion.ts` owns question parsing and follow-up resolution.
-   It merges field replies only from an accepted earlier user question and
-   validates each corrected question. Rejected questions retain general Ask routing.
+   It collects supported field replies from an accepted earlier user question and
+   validates the final merged question as a whole. Questions outside this parser retain general Ask routing.
    Keyless typed chat preserves late-food results, including clarification,
    before its taste-based discovery fallback.
    `invokePubPalAskTool` uses the same handler for tools other than independent
@@ -95,7 +95,7 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    a proposal the client applies only after an explicit Confirm.
    A person's explicit generic map command uses client-owned navigation without requiring a server proposal or invented venue cards.
    On the server, `isGenericMapAsk` (`lib/ask/routingPolicy.ts`) keeps any pub name out of such a command, so neither its leftover words nor a model's guess become a venue.
-   Assistant suggestions still require confirmation.
+   Typed-chat suggestions still require confirmation. The live voice exception is below.
    `propose_plan` returns a draft the client carries to `/plan` behind one "Open in Plan" link
    (`planPalRouteHandoffHref` in `lib/planOccasion.ts`), which prefills the same
    ask there and saves nothing until the drinker acts on it; a Confirm button
@@ -128,25 +128,34 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    any shortage of suitable pubs (`palDraftRouteLines`).
    Nothing is saved until the drinker locks it in. Pins: `__tests__/palPlanDraft.test.ts`,
    `__tests__/palPlanHandoff.test.ts`, `e2e/pal-plan-keeps-draft.spec.ts`.
-4. **Keyless path (map Ask)** - without `OPENROUTER_API_KEY`, `POST /api/ask`
+   **Amended 10 Nov 2026 (captain, D2): a live voice call moves the view.**
+   In a voice call the person started, the Pal may apply view moves with no
+   Confirm: the camera, numbered picks, the highlight and the browse-only venue
+   sheet (`?sel=`). Every pick comes from the call's newest grounded venue-search
+   result (`lib/palMapCommands.ts`), so a model's guess never becomes a pin.
+   The [camera contract](../rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass)
+   owns framing and gesture priority. Writes still need a tap: a save, a plan, a crowd report or a
+   memory. Typed chat keeps its Confirm buttons. Pins:
+   `__tests__/palMapCommands.test.ts`, `__tests__/mapGestureGuard.test.ts`,
+   `e2e/pal-voice-transcript.spec.ts`.
+4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.
-5. **Bounded model loop (map Ask)** — with OpenRouter, tool-calling on
-   `POST /api/ask` is allowlisted, low temperature, capped rounds and tokens.
+5. **Bounded model loop (map Ask)** - with Claude when `ANTHROPIC_API_KEY` is set,
+   tool-calling on `POST /api/ask` is allowlisted. No other provider is tried.
+   It uses low effort, with capped rounds and tokens.
    The safety check below precedes this loop. The model selects tools only.
    For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
-6. **Pal typed chat and voice (ElevenLabs when configured)** — without
-   `ELEVENLABS_API_KEY` and `ELEVENLABS_PUB_PAL_AGENT_ID`, typed chat on
-   `POST /api/pub-pal/chat` uses the same keyless `runAsk` tool path as map Ask
-   (`skipModel: true`). With both values set, typed chat and voice share one
-   ElevenLabs agent, subject to the menu and price routing in decision 2.
-   [Pub Pal setup](../PUB_PAL_SETUP.md) owns the session transport details. Server
+6. **Pal typed chat and voice.** [Pub Pal setup](../PUB_PAL_SETUP.md) owns provider selection and session transport.
+   After the menu and price routing in decision 2, typed chat uses the configured provider.
+   Without a typed-chat provider, `POST /api/pub-pal/chat` uses the keyless `runAsk` tools with `skipModel: true`.
+   Voice uses the ElevenLabs agent. Server
    webhook tools at `POST /api/pub-pal/tools/{name}` invoke the same ADR 0014
    handlers as `/api/ask`. Tool-turn correlation uses `pub_pal_tool_turns`
    (`lib/pubPalToolTurnStore.ts`): webhook bodies may carry only a short query
    fragment, so the server prefers the correlated full ask and merges routed
-   args before invoking handlers. Setup: `docs/PUB_PAL_SETUP.md`.
+   args before invoking handlers.
 7. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 
@@ -159,19 +168,18 @@ the route was ever found in `app`,
 `lib/concierge/venues.server.ts` are imported by `/api/ask` and
 `/api/plans/generate`. Only the orphaned HTTP wrapper was removed.
 `parseConciergeIntent` is TypeSafe when keyed (`lib/ai/typesafe.server.ts`)
-and the mood/area/group/budget regex table when not. It no longer calls
-OpenRouter.
+and the mood/area/group/budget regex table when not. It calls no other model.
 
 ### Sobriety and getting-home routing
 
 The [Pub Pal feature guide](../../README.md#features) owns the user-facing safety response.
 `runAsk` checks the current query and user history through `lib/pubPalLlmFence.ts`
-before deterministic tools, the OpenRouter loop or fallback routing can answer.
+before deterministic tools, the model loop or fallback routing can answer.
 Assistant history does not trigger the check.
 `skipModel` and deterministic menu, price and hours paths use `regexFenceIntent` without a model provider.
 Other paths use `resolvePubPalFenceIntent`, which uses TypeSafe when available and retains the regex fallback.
 A matched turn runs only deterministically selected `journey` and `city_status` tools.
-It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the OpenRouter loop.
+It composes the shared response through `pubPalGetHomeRegisterAnswer` and returns before the model loop.
 Regression coverage: `__tests__/askSobrietyParity.test.ts`.
 
 ## Consequences

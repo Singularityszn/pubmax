@@ -1,6 +1,6 @@
 // GET /api/harvest-overlay?venueId= — lazy website, menu, and cited lore
-// for one OSM-identified venue, with its Google Places record and its OSM
-// facts (lib/osmPubFacts.ts) beside it. Never rides in pin or slim payloads.
+// for one OSM-identified venue, with its Google Places record, its OSM
+// facts (lib/osmPubFacts.ts) and its listed bundle pint beside it. Never rides in pin or slim payloads.
 // A miss is unknown, not "no history". A failed read is degraded.
 
 import { publicApiError } from "@/lib/apiError";
@@ -12,6 +12,8 @@ import { isLimited } from "@/lib/pintDrops";
 import { osmFactsForOsmIds } from "@/lib/osmPubFacts.server";
 import { placesRecordForVenue } from "@/lib/placesEnrichment.server";
 import { clientIp, hashIp } from "@/lib/supabase";
+import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 
 export async function GET(request: Request): Promise<Response> {
   // Per address only. A read route has no global budget: a shared 1,200 a
@@ -31,8 +33,18 @@ export async function GET(request: Request): Promise<Response> {
   try {
     const resolution = await resolveHarvestOverlayVenue(venueId);
     const osmIds = resolution.status === "resolved" ? resolution.venueIds : [];
-    const [placesContent, osmFacts] = await Promise.all([placesRecordForVenue(venueId, osmIds), osmFactsForOsmIds(osmIds)]);
-    const sources = { ...(placesContent ? { placesContent } : {}), ...(osmFacts ? { osmFacts } : {}) };
+    const [placesContent, osmFacts, bundle] = await Promise.all([
+      placesRecordForVenue(venueId, osmIds),
+      osmFactsForOsmIds(osmIds),
+      ukPriceBundleRowsFor(venueId),
+    ]);
+    const listedPrice = bundlePricesForCategory(bundle.rows, BUNDLE_DEFAULT_CATEGORY).listed;
+    const sources = {
+      listedPriceStatus: bundle.status,
+      ...(placesContent ? { placesContent } : {}),
+      ...(osmFacts ? { osmFacts } : {}),
+      ...(listedPrice ? { listedPrice } : {}),
+    };
     if (resolution.status === "unavailable") {
       return jsonNoStore({ status: "degraded", overlay: null, ...sources }, { status: 200 });
     }
@@ -44,7 +56,7 @@ export async function GET(request: Request): Promise<Response> {
             ),
           )
         : [{ status: "ready" as const, overlay: null }];
-    if (reads.some((read) => read.status === "degraded")) {
+    if (bundle.status === "unavailable" || reads.some((read) => read.status === "degraded")) {
       return jsonNoStore({ status: "degraded", overlay: null, ...sources }, { status: 200 });
     }
     const publicOverlays = reads.flatMap((read) =>

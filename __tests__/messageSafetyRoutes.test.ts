@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // DMs respect blocks and the adult gate (launch review 2026-10-30, item 8).
 // Same house pattern as messagesRoute: the in-memory stores, pinned at the
@@ -17,6 +17,7 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 import { POST as POST_INBOX } from "@/app/api/messages/route";
 import { POST as POST_THREAD } from "@/app/api/messages/[id]/route";
+import * as accountPublicAccess from "@/lib/accountPublicAccess.server";
 import {
   __resetMemoryAdultSelfAssertions,
   memoryAdultSelfAssertionStore,
@@ -85,6 +86,7 @@ beforeEach(async () => {
   __resetPintDrops();
   __resetMemoryAdultSelfAssertions();
   __resetMemoryPrivateIdentities();
+  accountPublicAccess.__resetMemoryProfileWithdrawals();
   clearSocialMemoryBlocks();
   __resetMemoryFollows();
   for (const handle of PEOPLE) {
@@ -98,6 +100,52 @@ beforeEach(async () => {
       if (from !== to) await memoryFollowStore.follow(from, to);
     }
   }
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe("suspension closes every message write", () => {
+  it.each(["open", "send", "open-group"])("refuses %s without creating a conversation", async (action) => {
+    accountPublicAccess.__setMemoryProfileWithdrawn(await profileId("ken"), true);
+    asUser("ken");
+    const response = await postInbox({ action, handle: "ken", other: "sam", participants: ["sam", "max"], body: "Pint?" });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "ACCOUNT_SUSPENDED", retryable: false });
+    expect((await memoryMessagesStore.listConversations("ken")).conversations).toEqual([]);
+  });
+
+  it.each(["open", "send", "open-group"])("refuses %s when suspension storage is unavailable", async (action) => {
+    vi.spyOn(accountPublicAccess, "isHandleAccountWithdrawn").mockRejectedValue(new Error("unavailable"));
+    asUser("ken");
+    const response = await postInbox({ action, handle: "ken", other: "sam", participants: ["sam", "max"], body: "Pint?" });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect((await memoryMessagesStore.listConversations("ken")).conversations).toEqual([]);
+  });
+
+  it.each(["direct", "group"])("refuses an existing %s thread send without writing a message", async (kind) => {
+    asUser("ken");
+    const opened = await postInbox(kind === "direct"
+      ? { action: "open", handle: "ken", other: "sam" }
+      : { action: "open-group", handle: "ken", participants: ["sam", "max"] });
+    expect(opened.status).toBe(kind === "direct" ? 200 : 201);
+    const { conversationId } = await opened.json();
+    accountPublicAccess.__setMemoryProfileWithdrawn(await profileId("ken"), true);
+    const refused = await postThread(conversationId, { action: "send", handle: "ken", body: "Pint?" });
+    expect(refused.status).toBe(403);
+    expect(await refused.json()).toMatchObject({ code: "ACCOUNT_SUSPENDED" });
+    const withdrawal = vi.spyOn(accountPublicAccess, "isHandleAccountWithdrawn").mockRejectedValue(new Error("unavailable"));
+    const unavailable = await postThread(conversationId, { action: "send", handle: "ken", body: "Pint?" });
+    expect(unavailable.status).toBe(503);
+    expect(await unavailable.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    expect(await memoryMessagesStore.listMessages(conversationId, "ken")).toEqual([]);
+    withdrawal.mockRestore();
+    accountPublicAccess.__setMemoryProfileWithdrawn(await profileId("ken"), false);
+    expect((await postThread(conversationId, { action: "send", handle: "ken", body: "Pint?" })).status).toBe(201);
+    expect(await memoryMessagesStore.listMessages(conversationId, "ken")).toHaveLength(1);
+  });
 });
 
 describe("a block closes DMs both ways and names nobody", () => {

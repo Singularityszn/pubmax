@@ -86,7 +86,7 @@ node scripts/local-refresh/scheduler.mjs render-launchd --output-dir .local-refr
 plutil -lint .local-refresh-launchd/*.plist
 ```
 
-Target-account lint, load, list, unload, and cleanup output is recorded in [`docs/proof/local-refresh-scheduler/launchd-validation-2026-08-05.md`](./proof/local-refresh-scheduler/launchd-validation-2026-08-05.md).
+Target-account lint, load, list, unload, and cleanup output is recorded in [`docs/proof/local-refresh-scheduler/launchd-validation-2026-08-05.md`](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/local-refresh-scheduler/launchd-validation-2026-08-05.md).
 
 Do not run `install` from a disposable task worktree. Its absolute path disappears when worktree is removed.
 

@@ -19,7 +19,7 @@ drinker could sit in. This lane asks each restaurant's own website instead.
    `scripts/lib/parallelVenueDiscovery.mjs`) and whose text states this
    restaurant's postcode or its house number and street. Delivery, booking,
    review, listing, social and link-in-bio hosts are never a restaurant's own
-   site, and every URL must pass `isHarvestableOperatorUrl`.
+   site. Every URL selected for a new read must pass `isHarvestableOperatorUrl`.
 3. robots.txt permits the read. A missing file publishes no restriction; a
    disallow, a 401 or a 403 refuses it; an unreachable file is asked twice more
    and then skipped. Robots is never assumed to allow.
@@ -64,6 +64,12 @@ line, the time it was read and the robots answer with its check time.
 as `restaurant` rows of `public/data/london_venues/`. The shard row is the same
 `[osmRef, name, address, lat, lng, kind]` tuple, so no price, band or opening
 claim rides on it.
+
+Stored evidence keeps its provenance when a later policy decision refuses another read.
+`validateRestaurantDrinksPack` uses `attributableEvidenceUrl` to check stored URLs independently of current harvest permission.
+Each URL must still identify the restaurant's own public HTTP or HTTPS site without credentials.
+Private network addresses, listing hosts, social hosts, and shop pages remain invalid evidence.
+The recorded robots permission, quote, and read date remain required.
 
 The map draws every `restaurant` row of `london_venues` from zoom 12 as an
 unpriced fork pin. It reads them from one file,

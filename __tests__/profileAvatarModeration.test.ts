@@ -3,25 +3,17 @@ import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  ClaudeAvatarModerationAdapter,
   createProfileAvatarModerationAdapter,
-  extractModerationJsonObject,
   OpenAIProfileAvatarModerationAdapter,
-  OpenRouterAvatarModerationAdapter,
 } from "@/lib/profileAvatarModeration";
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
+import { CLAUDE_MESSAGES_URL, claudeJsonResponse, sentClaudeBody, sentClaudeUrl } from "@/__tests__/helpers/claudeWire";
 
-function openRouterResponse(content: string): Response {
-  return new Response(
-    JSON.stringify({
-      choices: [{ message: { content } }],
-    }),
-    { status: 200, headers: { "Content-Type": "application/json" } },
-  );
-}
+const CLAUDE_ENV = { ANTHROPIC_API_KEY: "test-key" };
 
 describe.each([
   ["OpenAI", OpenAIProfileAvatarModerationAdapter],
-  ["OpenRouter", OpenRouterAvatarModerationAdapter],
 ] as const)("%s moderation response deadline", (provider, Adapter) => {
   it("lets the upload scan recover when headers arrive but the HTTP body stalls", async () => {
     const server = createServer((_request, response) => {
@@ -30,10 +22,10 @@ describe.each([
     });
     await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
     const address = server.address() as AddressInfo;
-    let receivedHeaders = false;
+    let receivedHeaders = Promise.withResolvers<void>();
     let requestSignal: AbortSignal | null | undefined;
-    let watchdog: ReturnType<typeof setTimeout> | undefined;
 
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     try {
       const scanner = new Adapter({
         apiKey: "test-key",
@@ -41,30 +33,30 @@ describe.each([
         fetcher: async (_url, init) => {
           requestSignal = init?.signal;
           const response = await fetch(`http://127.0.0.1:${address.port}/moderation`, init);
-          receivedHeaders = true;
+          receivedHeaders.resolve();
           return response;
         },
       });
-      const outcome = await Promise.race([
-        scanUploadedImage({
-          surface: "profile-avatar",
-          signedUrl: "https://storage.test/signed-avatar",
-          adapter: () => scanner,
-        }),
-        new Promise<"deadline_missed">((resolve) => {
-          watchdog = setTimeout(() => resolve("deadline_missed"), 2_000);
-        }),
-      ]);
+      const outcome = scanUploadedImage({
+        surface: "profile-avatar",
+        signedUrl: "https://storage.test/signed-avatar",
+        adapter: () => scanner,
+      });
+      await receivedHeaders.promise;
+      await vi.advanceTimersByTimeAsync(500);
 
-      expect(receivedHeaders).toBe(true);
-      expect(outcome).toEqual({ verdict: "skipped", reason: "scan_failed" });
+      expect(await outcome).toEqual({ verdict: "skipped", reason: "scan_failed" });
       expect(requestSignal?.aborted).toBe(true);
-      await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+      receivedHeaders = Promise.withResolvers<void>();
+      const failure = expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
         message: `${provider} moderation request failed.`,
         retryable: true,
       });
+      await receivedHeaders.promise;
+      await vi.advanceTimersByTimeAsync(500);
+      await failure;
     } finally {
-      clearTimeout(watchdog);
+      vi.useRealTimers();
       server.closeAllConnections();
       await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
     }
@@ -247,150 +239,104 @@ describe("OpenAI profile avatar moderation adapter", () => {
   });
 });
 
-describe("OpenRouter profile avatar moderation adapter", () => {
-  afterEach(() => vi.unstubAllEnvs());
-
-  it("posts a vision chat completion with image-only user content", async () => {
-    let sentInit: RequestInit | undefined;
-    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      sentInit = init;
-      return openRouterResponse('{"flagged": false}');
-    });
-    const adapter = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      model: "openai/gpt-5.2",
-      fetcher,
-    });
+describe("Claude profile avatar moderation adapter", () => {
+  it("sends the signed URL as the only image, with a strict one-field schema", async () => {
+    const fetcher = vi.fn(async () => claudeJsonResponse({ flagged: false }));
+    const adapter = new ClaudeAvatarModerationAdapter({ env: CLAUDE_ENV, fetcher });
 
     await expect(adapter.moderate("https://storage.test/signed-avatar"))
       .resolves.toEqual({ decision: "approved" });
 
-    expect(fetcher).toHaveBeenCalledWith(
-      "https://openrouter.ai/api/v1/chat/completions",
-      expect.objectContaining({ method: "POST" }),
-    );
-    const body = JSON.parse(String(sentInit?.body));
-    expect(body.model).toBe("openai/gpt-5.2");
-    expect(body.messages).toHaveLength(1);
-    const parts = body.messages[0].content;
-    expect(parts).toHaveLength(2);
-    expect(parts[0].type).toBe("text");
-    expect(parts[1]).toEqual({
-      type: "image_url",
-      image_url: { url: "https://storage.test/signed-avatar" },
+    expect(sentClaudeUrl(fetcher.mock.calls[0])).toBe(CLAUDE_MESSAGES_URL);
+    const body = sentClaudeBody(fetcher.mock.calls[0]);
+    expect(body.messages).toEqual([{
+      role: "user",
+      content: [{ type: "image", source: { type: "url", url: "https://storage.test/signed-avatar" } }],
+    }]);
+    expect(body.output_config.format.schema).toMatchObject({
+      type: "object", required: ["flagged"], properties: { flagged: { type: "boolean" } },
     });
   });
 
   it("never sends a handle, profile id, or account identifier in the request body", async () => {
-    let sentInit: RequestInit | undefined;
-    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      sentInit = init;
-      return openRouterResponse('{"flagged": false}');
-    });
-    const adapter = new OpenRouterAvatarModerationAdapter({ apiKey: "or-key", fetcher });
+    const fetcher = vi.fn(async () => claudeJsonResponse({ flagged: false }));
+    const adapter = new ClaudeAvatarModerationAdapter({ env: CLAUDE_ENV, fetcher });
 
     await adapter.moderate("https://storage.test/avatars/signed");
 
-    const raw = String(sentInit?.body);
+    const raw = JSON.stringify(sentClaudeBody(fetcher.mock.calls[0]));
     expect(raw).not.toContain("profile-");
     expect(raw).not.toContain("@alice");
     expect(raw).not.toContain("user-1");
     expect(raw).not.toContain("mem-profile");
-    const body = JSON.parse(raw);
-    const imageParts = body.messages[0].content.filter(
-      (part: { type?: string }) => part.type === "image_url",
-    );
-    expect(imageParts).toHaveLength(1);
   });
 
   it("returns needs-review for flagged content", async () => {
-    const adapter = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      fetcher: async () => openRouterResponse('{"flagged": true}'),
+    const adapter = new ClaudeAvatarModerationAdapter({
+      env: CLAUDE_ENV,
+      fetcher: async () => claudeJsonResponse({ flagged: true }),
     });
     await expect(adapter.moderate("https://storage.test/bad"))
       .resolves.toEqual({ decision: "needs_review" });
   });
 
-  it("parses JSON from fenced model replies", async () => {
-    const adapter = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      fetcher: async () => openRouterResponse('```json\n{"flagged": false}\n```'),
+  it.each([
+    ["a refusal", () => claudeJsonResponse({ flagged: false }, "refusal"), false],
+    ["text that is not JSON", () => claudeJsonResponse("I cannot classify that image."), false],
+    ["an outage", () => new Response("offline", { status: 503 }), true],
+  ])("throws on %s, retryable only for an outage", async (_name, response, retryable) => {
+    const adapter = new ClaudeAvatarModerationAdapter({ env: CLAUDE_ENV, fetcher: async () => response() });
+    await expect(adapter.moderate("https://storage.test/held")).rejects.toMatchObject({
+      message: "Claude moderation request failed.",
+      retryable,
     });
-    await expect(adapter.moderate("https://storage.test/clean"))
-      .resolves.toEqual({ decision: "approved" });
   });
 
-  it("throws on refusal text, malformed JSON, outage, and missing boolean", async () => {
-    const refusal = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      fetcher: async () => openRouterResponse("I cannot classify that image."),
+  it("throws when the answer has no boolean decision", async () => {
+    const adapter = new ClaudeAvatarModerationAdapter({
+      env: CLAUDE_ENV,
+      fetcher: async () => claudeJsonResponse({ decision: "ok" }),
     });
-    await expect(refusal.moderate("https://storage.test/held")).rejects.toThrow(/no decision/i);
-
-    const malformed = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      fetcher: async () => openRouterResponse('{"decision":"ok"}'),
-    });
-    await expect(malformed.moderate("https://storage.test/held")).rejects.toThrow(/no decision/i);
-
-    const outage = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      fetcher: async () => new Response("offline", { status: 503 }),
-    });
-    await expect(outage.moderate("https://storage.test/held")).rejects.toThrow();
+    await expect(adapter.moderate("https://storage.test/held")).rejects.toThrow(/no decision/i);
   });
 
-  it("fails closed when OPENROUTER_API_KEY is missing", () => {
-    expect(() => new OpenRouterAvatarModerationAdapter({ apiKey: "" }))
+  it("fails closed when ANTHROPIC_API_KEY is missing", () => {
+    expect(() => new ClaudeAvatarModerationAdapter({ env: { ANTHROPIC_API_KEY: " " } }))
       .toThrow(/not configured/i);
   });
 
-  it("aborts a moderation request after its bounded timeout", async () => {
-    const observedSignals: AbortSignal[] = [];
-    const adapter = new OpenRouterAvatarModerationAdapter({
-      apiKey: "or-key",
-      timeoutMs: 5,
-      fetcher: (_url, init) => new Promise<Response>((_resolve, reject) => {
-        const signal = init?.signal as AbortSignal;
-        observedSignals.push(signal);
-        signal.addEventListener(
-          "abort",
-          () => reject(Object.assign(new Error("aborted"), { name: "AbortError" })),
-          { once: true },
-        );
-      }),
+  it("lets the upload scan recover when headers arrive but the HTTP body stalls", async () => {
+    const server = createServer((_request, response) => {
+      response.writeHead(200, { "Content-Type": "application/json" });
+      response.write('{"unfinished":');
     });
+    await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+    const address = server.address() as AddressInfo;
+    const signals: Array<AbortSignal | null | undefined> = [];
+    try {
+      const scanner = new ClaudeAvatarModerationAdapter({
+        env: CLAUDE_ENV,
+        timeoutMs: 100,
+        fetcher: async (_url, init) => {
+          signals.push(init?.signal);
+          return fetch(`http://127.0.0.1:${address.port}/v1/messages`, init);
+        },
+      });
 
-    const outcome = await Promise.race([
-      adapter.moderate("https://storage.test/held")
-        .then(() => "approved", (error: unknown) =>
-          error && typeof error === "object" && "retryable" in error ? "retryable" : "failed"),
-      new Promise<string>((resolve) => setTimeout(() => resolve("not_aborted"), 100)),
-    ]);
-
-    expect(outcome).toBe("retryable");
-    expect(observedSignals.at(0)?.aborted).toBe(true);
-  });
-
-  it("reads OPENROUTER_MODERATION_MODEL from the environment", async () => {
-    vi.stubEnv("OPENROUTER_MODERATION_MODEL", "google/gemini-2.5-flash");
-    let sentInit: RequestInit | undefined;
-    const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
-      sentInit = init;
-      return openRouterResponse('{"flagged": false}');
-    });
-    const adapter = new OpenRouterAvatarModerationAdapter({ apiKey: "or-key", fetcher });
-    await adapter.moderate("https://storage.test/signed");
-    expect(JSON.parse(String(sentInit?.body)).model).toBe("google/gemini-2.5-flash");
-  });
-});
-
-describe("extractModerationJsonObject", () => {
-  it("accepts bare JSON and fenced blocks", () => {
-    expect(extractModerationJsonObject('{"flagged":true}')).toEqual({ flagged: true });
-    expect(extractModerationJsonObject('Here:\n```json\n{"flagged": false}\n```'))
-      .toEqual({ flagged: false });
+      expect(await scanUploadedImage({
+        surface: "profile-avatar",
+        signedUrl: "https://storage.test/signed-avatar",
+        adapter: () => scanner,
+      })).toEqual({ verdict: "skipped", reason: "scan_failed" });
+      expect(signals[0]?.aborted).toBe(true);
+      await expect(scanner.moderate("https://storage.test/signed-avatar")).rejects.toMatchObject({
+        message: "Claude moderation request failed.",
+        retryable: true,
+      });
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+    }
   });
 });
 
@@ -399,19 +345,20 @@ describe("profile avatar moderation provider selection", () => {
 
   it("prefers OpenAI when both keys are present", () => {
     vi.stubEnv("OPENAI_API_KEY", "openai-key");
-    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "anthropic-key");
     expect(createProfileAvatarModerationAdapter()).toBeInstanceOf(OpenAIProfileAvatarModerationAdapter);
   });
 
-  it("uses OpenRouter when only OPENROUTER_API_KEY is set", () => {
+  it("uses Claude when only ANTHROPIC_API_KEY is set", () => {
     vi.stubEnv("OPENAI_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
-    expect(createProfileAvatarModerationAdapter()).toBeInstanceOf(OpenRouterAvatarModerationAdapter);
+    vi.stubEnv("ANTHROPIC_API_KEY", "anthropic-key");
+    expect(createProfileAvatarModerationAdapter()).toBeInstanceOf(ClaudeAvatarModerationAdapter);
   });
 
-  it("throws when neither moderation key is configured", () => {
+  it("throws when neither moderation key is configured, even with a leftover OpenRouter key", () => {
     vi.stubEnv("OPENAI_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
+    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
     expect(() => createProfileAvatarModerationAdapter()).toThrow(/not configured/i);
   });
 });

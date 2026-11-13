@@ -13,7 +13,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 test.skip(!process.env.PW_W1_SHOTS, "explicit W1 screenshot run only");
 
-const DOCS_DIR = "docs/screenshots";
+const DOCS_DIR = "artifacts/screenshots";
 const ARNOS_ARMS_ID = "venue-xjf3n0";
 
 function tonightRows() {

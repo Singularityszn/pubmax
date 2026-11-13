@@ -186,7 +186,7 @@ When the owner enrolls (the longest pole, per `docs/prd/fable-implement-prd.md` 
 
 **Risks**
 
-- **Remote-URL shell still depends on production.** The bundled `offline.html` prevents a raw WebView failure and offers retry, but it is not an offline product copy. Product features remain unavailable while production is unreachable.
+- **Remote-URL shell still depends on production.** The [Capacitor wrap guide](CAPACITOR_WRAP.md#native-entry) owns native outage fallback and retry rules. The [README](../README.md#features) owns offline feature availability and limits.
 - **iOS WKWebView quirks worth a dedicated QA pass:** safe-area insets on notch devices, momentum/rubber-band scroll vs. the map's own gestures, the one-shot geolocation permission prompt (near-me), file-input vs. native-camera handoff, `100vh` keyboard behaviour, and pull-to-refresh. None are blockers; all deserve a device pass.
 - **Version skew between shell and site.** The shell is a fixed binary; the site deploys continuously. A site change that assumes `window.Capacitor` semantics, or that breaks the `isNativeApp()` branches, ships to shell users instantly with no app update. Keep the seam contract (§2.2) as a review gate.
 - **Push delivery still needs owner proof** (§4 step 4) - source transport exists, but APNs credentials, entitlement, signed build, and physical receipt remain required.

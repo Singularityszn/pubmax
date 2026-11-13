@@ -15,15 +15,14 @@
 import type { CrawlEnding, PlanMemberRole } from "@/lib/plan";
 import { isPlanId } from "@/lib/planId";
 import { DAY_MS } from "@/lib/dayMs";
+import { ACTIVE_PLAN_POST_MS, ACTIVE_PLAN_PRE_MS } from "@/lib/nightWindows";
 
 export const ACTIVE_PLAN_KEY = "pubmax_active_plan";
 const ACTIVE_PLAN_VERSION = 1 as const;
 
-// The plan is only "on tonight" for a bounded window around its start time, so
-// the card never haunts the shell days later off a stale pointer. Generous on
-// both sides: crews gather before the first pint and a proper crawl runs long.
-export const ACTIVE_PLAN_PRE_MS = 3 * 60 * 60 * 1000; // 3h before the first pint
-export const ACTIVE_PLAN_POST_MS = 8 * 60 * 60 * 1000; // 8h after (last-train o'clock)
+// The plan is only "on tonight" for a bounded window around its start time
+// (lib/nightWindows), so the card never haunts the shell days later off a
+// stale pointer.
 
 // After the active window closes, a night can still have an unsaved private
 // recap stranded on the device. The Night Mode card is the only surface that
@@ -248,23 +247,6 @@ export function setActivePlanPalContext(palContext: ActivePlanRef["palContext"],
   const current = readOwnedActivePlan(accountId);
   if (!current) return;
   writeActivePlan({ ...current, palContext: palContext ?? null });
-}
-
-/**
- * Clear the active-plan pointer. When `onlyIfId` is set, only clears if the
- * stored pointer still names that plan (another tab may have moved on).
- */
-export function clearActivePlan(onlyIfId?: string): void {
-  if (!hasLocal()) return;
-  try {
-    const current = parseActivePlan(window.localStorage.getItem(ACTIVE_PLAN_KEY));
-    if (!current) return;
-    if (onlyIfId != null && current.id !== onlyIfId) return;
-    window.localStorage.removeItem(ACTIVE_PLAN_KEY);
-    notify(CHANGE_EVENT);
-  } catch {
-    // ignore
-  }
 }
 
 /** Subscribe to active-plan changes (same-tab writes + cross-tab storage + focus). */

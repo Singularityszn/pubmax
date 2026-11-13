@@ -301,8 +301,15 @@ export function resolveSheetSnap({
  *  641–768px inline drawer's drag (components/map/useSheetDrag.ts) and PubMap's
  *  inline drawer transforms. The rebuilt phone portal sheet no longer uses a
  *  translateY snap model — see the height resolver below. */
-export function sheetTranslateY(snap: SheetSnap, viewportHeight: number): number {
-  return snapToY(snap, viewportHeight);
+export function sheetTranslateY(snap: SheetSnap, viewportHeight: number, minimumY = 0): number {
+  return Math.max(snapToY(snap, viewportHeight), minimumY);
+}
+
+export function sheetTopReserveY(drawer: HTMLElement | null): number {
+  if (!drawer) return 0;
+  const style = window.getComputedStyle(drawer);
+  const reserve = Number.parseFloat(style.getPropertyValue("--sheet-top-reserve")) || 0;
+  return reserve > 0 ? reserve + (Number.parseFloat(style.bottom) || 0) : 0;
 }
 
 export function sheetClosedTranslateY(
@@ -330,20 +337,21 @@ export function sheetClosedTranslateY(
 export type SheetSnapCaps = Record<SheetSnap, number>;
 
 /**
- * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half are
- * the plain `<fraction>dvh` used in mobileMapShell.css, raised to `chromePx`
- * (the sheet's header, footer and body padding) so neither clips the sheet's
- * own controls. `dockPx` is how far the sheet's bottom edge sits above the
- * viewport bottom (the portal stops above the primary dock), and only full
- * gives it up: its top edge stays where a bottom:0 full sheet would put it, so
- * the strip of map above it never closes.
+ * Per-snap cap heights (px) for the bottom-anchored sheet. Peek and half use
+ * viewport fractions, raised to `chromePx` for the header, footer and body
+ * padding. Every snap is limited to the full cap, even when chrome cannot fit.
+ * `dockPx` is the distance from the sheet's bottom edge to the viewport bottom.
+ * Full subtracts this distance to preserve its usual top edge above the dock.
+ * `topReservePx` reserves a viewport band above the sheet and can reduce full
+ * further. Peek and half also shrink when they exceed that reduced cap.
  */
-export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0): SheetSnapCaps {
-  const cap = (snap: SheetSnap) => Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx);
+export function sheetSnapCaps(viewportHeight: number, dockPx: number, chromePx = 0, topReservePx = 0): SheetSnapCaps {
+  const full = Math.max(0, Math.min(viewportHeight * SHEET_SNAP_FRACTIONS.full, viewportHeight - topReservePx) - dockPx);
+  const cap = (snap: SheetSnap) => Math.min(full, Math.max(viewportHeight * SHEET_SNAP_FRACTIONS[snap], chromePx));
   return {
     peek: cap("peek"),
     half: cap("half"),
-    full: Math.max(0, viewportHeight * SHEET_SNAP_FRACTIONS.full - dockPx),
+    full,
   };
 }
 
@@ -355,8 +363,7 @@ export type ResolveHeightSnapInput = {
   /**
    * Rendered box height (px) at grab — the START snap's true resting height
    * (content-hugged when short, cap when tall). Used as the START snap's
-   * reference so a short content-hugged half stays half instead of mis-snapping
-   * to peek merely because its px height sits in peek's band.
+   * reference, limited by its current cap, so short content can keep its snap.
    */
   startHeightPx: number;
   /** Presented box height (px) at release. */
@@ -374,8 +381,10 @@ export type ResolveHeightSnapInput = {
  * Resolve a height-drag release to a snap. Mirrors resolveSheetSnap:
  *  • A flick (|velocity| ≥ threshold) projects a deceleration endpoint, so
  *    strong intent may cross more than one detent.
- *  • Otherwise nearest-neighbour on the released height, where the START snap's
- *    reference is its rendered start height and every other snap uses its cap.
+ *  • Otherwise nearest-neighbour on the released height. The start reference
+ *    is its rendered start height limited by its current cap. Other snaps use
+ *    their current caps. Ties retain the start snap, and snaps whose caps match
+ *    the start cap cannot replace it, including after a reserve change.
  *  • A physical collapse below half of the viewport-relative peek dismisses.
  * Pure; exported for tests.
  */
@@ -403,11 +412,11 @@ export function resolveSheetHeightSnap({
     return { snap: "peek", dismissed: true };
   }
 
-  const ref = (snap: SheetSnap) => (snap === startSnap ? startHeightPx : caps[snap]);
-  let nearest: SheetSnap = SHEET_SNAP_ORDER[0];
-  let nearestDist = Infinity;
+  let nearest: SheetSnap = startSnap;
+  let nearestDist = Math.abs(Math.min(startHeightPx, caps[startSnap]) - projectedHeight);
   for (const snap of SHEET_SNAP_ORDER) {
-    const dist = Math.abs(ref(snap) - projectedHeight);
+    if (caps[snap] === caps[startSnap]) continue;
+    const dist = Math.abs(caps[snap] - projectedHeight);
     if (dist < nearestDist) {
       nearestDist = dist;
       nearest = snap;

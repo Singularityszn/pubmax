@@ -305,7 +305,7 @@ body:has(.palExperience) {
 .palReview > div { min-height: 4.6rem; padding: .9rem 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); display: grid; gap: .2rem; }
 .palReview span { color: var(--pal-soft); font-size: var(--text-2xs); }
 .palReview strong { text-transform: capitalize; }
-.palError { margin-top: 1rem !important; color: #ffadb9 !important; }
+.palError { margin-top: 1rem !important; color: var(--color-negative) !important; }
 
 .palOnboardingActions { margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 .palOnboardingActions > button:not(.palPrimary) { min-height: 2.75rem; padding: 0; border: 0; background: transparent; color: var(--pal-soft); cursor: pointer; }
@@ -349,6 +349,7 @@ body:has(.palExperience) {
 .palMemoryList .palSecondary { background: transparent; color: var(--pal-paper); }
 .palMemoryEmpty { min-height: 6rem; padding: 1rem; border: 1px dashed var(--pal-line); border-radius: var(--radius-lg); display: flex; align-items: center; gap: .75rem; color: var(--pal-soft); }
 .palMemoryEmpty p { margin: 0; }
+.palVoiceSlot { display: contents; }
 .palVoice { margin-top: 1rem; padding: 1rem; border: 1px solid var(--pal-line); border-radius: var(--radius-lg); background: var(--panel-raised); }
 .palVoiceStatus, .palVoiceHint, .palVoicePrivacy, .palVoiceError { color: var(--pal-soft); font-size: var(--text-xs); line-height: 1.45; }
 .palVoiceActions { margin: .75rem 0; display: grid; gap: .6rem; }
@@ -506,6 +507,10 @@ body:has(.analyticsConsentPrompt) .palPrintRow { display: none; }
 @media (prefers-reduced-motion: no-preference) {
   .palPortrait:not(.isCompact) .palPortraitCore { animation: palBreathe 4.8s ease-in-out infinite; }
 }
+
+/* Onboarding is a focused flow: the floating "Tonight" pill would cover its
+   rows, and the plan stays one tap away once the steps are done. */
+body:has(.palOnboarding) .nightPill { display: none; }
 
 @media (max-width: 900px) {
   body:has(.palOnboarding) .mobileTabBar { display: none; }

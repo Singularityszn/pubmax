@@ -2,6 +2,7 @@
 
 import VenueImage from "@/components/media/VenueImage";
 import PintDropWithLine from "@/components/map/composer/PintDropWithLine";
+import StarRating from "@/components/ratings/StarRating";
 import { useWithSummaries, type WithSummaryMap } from "@/components/map/composer/useWithSummaries";
 import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import { ProvenanceChip } from "@/components/map/venueInspectorBits";
@@ -31,10 +32,9 @@ function nonPintMeasureName(drop: DropWithPhotos): string {
 }
 
 /**
- * The drop's own dated line when its price was typed with NO BILL (captain
- * decision 9, 1 Nov 2026): "Logged by @handle, not checked · 1 Nov". Null on
- * every other drop. The day is London's, printed the way the trust pill prints
- * one, so two surfaces never date one report two ways.
+ * The dated line for evidence identified by `isUncheckedPrice`:
+ * "Logged by @handle, not checked · 1 Nov". Null on every other drop.
+ * The date uses London's time zone and the trust pill's date format.
  */
 function uncheckedDropLine(drop: DropWithPhotos): { label: string; day: string } | null {
   if (drop.priceGbp === null || !isUncheckedPrice(drop)) return null;
@@ -74,7 +74,7 @@ export default function PintDropsList({
         // live Getting-home session for older rows that never stored them.
         // See lib/lastTrainBadge.ts — no live kind / leave-by → no badge.
         const withSummary = summaries.get(drop.id);
-        const unchecked = uncheckedDropLine(drop);
+        const unchecked = drop.optimistic ? null : uncheckedDropLine(drop);
         const trainBadge = lastTrainBadge(
           drop.createdAt,
           drop.leaveByIso ?? lastTrainDecision?.leaveByIso,
@@ -94,14 +94,20 @@ export default function PintDropsList({
                     never trust, and a figure nobody has checked is not given
                     one (captain decision 9). Its weakness is said in words,
                     on the line below. */}
-                {drop.priceGbp === null ? null : measureIsPint(drop.measure) && !unchecked ? (
+                {drop.priceGbp === null ? null : measureIsPint(drop.measure) && !unchecked && !drop.optimistic ? (
                   <PintPriceBadge priceGbp={drop.priceGbp} venueId={venue.id} />
                 ) : (
                   <PriceBadge>{formatPrice(drop.priceGbp)}</PriceBadge>
                 )}
-                <ProvenanceChip provenance={drop.provenance} />
+                {drop.optimistic ? null : <ProvenanceChip provenance={drop.provenance} />}
               </span>
             </div>
+            {drop.optimistic ? (
+              <p className="dropCaption" role={drop.optimistic.state === "failed" ? "alert" : "status"}>
+                {drop.optimistic.state === "failed" ? "Not saved. " : "Saving. "}
+                {drop.optimistic.message}
+              </p>
+            ) : null}
             {unchecked ? (
               <p className="dropCaption" data-price-check="unchecked">
                 <small>
@@ -182,6 +188,14 @@ export default function PintDropsList({
             ) : null}
             <div className="dropFoot">
               <small>
+                {drop.rating !== undefined ? (
+                  <StarRating
+                    value={drop.rating}
+                    label={`${drop.handle} rated it`}
+                    size="sm"
+                    className="dropStars"
+                  />
+                ) : null}
                 {[nonPintMeasureName(drop), drop.drink, drop.era]
                   .filter(Boolean)
                   .join(" · ") || "Visit report"}
@@ -191,7 +205,7 @@ export default function PintDropsList({
                   </span>
                 ) : null}
               </small>
-              {drop.provenance !== "demo" ? (
+              {drop.provenance !== "demo" && !drop.optimistic ? (
                 <button
                   type="button"
                   className="reportBtn"

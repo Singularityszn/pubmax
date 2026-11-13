@@ -1,8 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { saveVenueDetail } from "@/lib/savedVenueDetails";
 import {
   __resetWarmVenueDetail,
   getWarmedVenue,
+  rememberOpenedVenue,
+  savedVenueCopyAt,
   warmVenueDetail,
 } from "@/lib/warmVenueDetail";
 
@@ -126,4 +129,200 @@ describe("warmVenueDetail", () => {
     expect(getWarmedVenue("venue-alias")).toEqual(rebuilt);
     expect(getWarmedVenue("venue-canonical")).toEqual(rebuilt);
   });
+
+  it("reopens a pub the reader opened before from its dated device copy when the network is gone", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-10T20:15:00.000Z"));
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = {
+      id: "venue-saved",
+      name: "The Saved Arms",
+      prices: [{ price_gbp: 5.2, source: "Menu", observed_at: "2026-11-01" }],
+    };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-saved");
+    rememberOpenedVenue("venue-saved");
+    vi.useRealTimers();
+
+    // A fresh session with no signal.
+    __resetWarmVenueDetail();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    const savedResult = await warmVenueDetail("venue-saved");
+    expect(savedResult).toEqual({
+      status: "found",
+      venue: { ...venue, ...UNKNOWN_AMENITIES },
+      savedAt: "2026-11-10T20:15:00.000Z",
+    });
+    if (savedResult.status !== "found") throw new Error("Expected the saved venue");
+    expect(savedVenueCopyAt(savedResult.venue)).toBe("2026-11-10T20:15:00.000Z");
+    // The copy is never a session hit, so the next open asks the network again.
+    expect(getWarmedVenue("venue-saved")).toBeNull();
+
+    fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    const liveResult = await warmVenueDetail("venue-saved");
+    expect(liveResult).toEqual({
+      status: "found",
+      venue: { ...venue, ...UNKNOWN_AMENITIES },
+    });
+    if (liveResult.status !== "found") throw new Error("Expected the live venue");
+    expect(savedVenueCopyAt(liveResult.venue)).toBeNull();
+    expect(savedVenueCopyAt(savedResult.venue)).toBe("2026-11-10T20:15:00.000Z");
+  });
+
+  it("answers only a failed lookup offline for a pub the reader never opened, or a server error", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-opened", name: "The Opened", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-opened");
+    rememberOpenedVenue("venue-opened");
+    __resetWarmVenueDetail();
+
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+    expect(await warmVenueDetail("venue-never-opened")).toEqual({ status: "failed" });
+    // A server that answers is not a lost signal, so it never reads as offline.
+    fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    expect(await warmVenueDetail("venue-opened")).toEqual({ status: "failed" });
+  });
+
+  it("reopens both the requested alias and canonical pub offline", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-canonical", name: "The Alias Arms", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-alias");
+    rememberOpenedVenue("venue-alias");
+    rememberOpenedVenue("venue-canonical");
+    __resetWarmVenueDetail();
+    fetchMock.mockRejectedValue(new TypeError("Failed to fetch"));
+
+    for (const id of ["venue-alias", "venue-canonical"]) {
+      expect(await warmVenueDetail(id)).toMatchObject({
+        status: "found",
+        venue: { id: "venue-canonical", name: "The Alias Arms" },
+        savedAt: expect.any(String),
+      });
+    }
+  });
+
+  it("uses a saved copy after a body read fails but preserves HTTP errors", async () => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const venue = { id: "venue-body", name: "The Body Arms", prices: [] };
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    vi.stubGlobal("fetch", fetchMock);
+    await warmVenueDetail("venue-body");
+    rememberOpenedVenue("venue-body");
+    __resetWarmVenueDetail();
+
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: async () => { throw new TypeError("Connection lost during body read"); },
+    });
+    expect(await warmVenueDetail("venue-body")).toMatchObject({
+      status: "found",
+      venue: { id: "venue-body", name: "The Body Arms" },
+      savedAt: expect.any(String),
+    });
+    expect(getWarmedVenue("venue-body")).toBeNull();
+    expect(await warmVenueDetail("venue-never-opened")).toEqual({ status: "failed" });
+    for (const [status, expected] of [[404, "missing"], [503, "failed"]] as const) {
+      fetchMock.mockResolvedValue({ ok: false, status });
+      expect(await warmVenueDetail("venue-body")).toEqual({ status: expected });
+    }
+    fetchMock.mockResolvedValue({ ok: true, json: async () => ({ venue }) });
+    expect(await warmVenueDetail("venue-body")).toMatchObject({ status: "found", venue });
+  });
+
+  it.each(["fetch", "body"] as const)("refreshes a saved result when reconnection precedes %s rejection", async (failure) => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    const connection = { onLine: false };
+    vi.stubGlobal("navigator", connection);
+    const saved = { id: "venue-canonical", name: "Saved Arms", prices: [] };
+    const live = { ...saved, name: "Live Arms" };
+    saveVenueDetail("venue-alias", saved, new Date("2026-11-10T20:00:00.000Z"));
+    let rejectInterrupted!: (reason: Error) => void;
+    const interrupted = new Promise<never>((_, reject) => { rejectInterrupted = reject; });
+    let startBodyRead!: () => void;
+    const bodyReadStarted = new Promise<void>((resolve) => { startBodyRead = resolve; });
+    const fetchMock = vi.fn()
+      .mockImplementationOnce(() => failure === "fetch" ? interrupted : Promise.resolve({
+        ok: true,
+        json: () => {
+          startBodyRead();
+          return interrupted;
+        },
+      }))
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ venue: live }) });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const selected = warmVenueDetail("venue-alias");
+    const hydration = warmVenueDetail("venue-alias");
+    if (failure === "body") await bodyReadStarted;
+    connection.onLine = true;
+    rejectInterrupted(new TypeError("Connection lost"));
+
+    for (const result of await Promise.all([selected, hydration])) {
+      expect(result).toEqual({ status: "found", venue: { ...live, ...UNKNOWN_AMENITIES } });
+    }
+    expect(getWarmedVenue("venue-alias")).toEqual({ ...live, ...UNKNOWN_AMENITIES });
+    expect(getWarmedVenue("venue-canonical")).toEqual({ ...live, ...UNKNOWN_AMENITIES });
+    expect(savedVenueCopyAt(getWarmedVenue("venue-alias")!)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["fetch", "body"] as const)("answers missing when the online retry confirms 404 after %s rejection", async (failure) => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.stubGlobal("navigator", { onLine: true });
+    const venue = { id: "venue-canonical", name: "Saved Arms", prices: [] };
+    saveVenueDetail("venue-alias", venue, new Date("2026-11-10T20:00:00.000Z"));
+    const fetchMock = vi.fn();
+    if (failure === "fetch") {
+      fetchMock.mockRejectedValueOnce(new TypeError("Connection lost"));
+    } else {
+      fetchMock.mockResolvedValueOnce({ ok: true, json: async () => { throw new TypeError("Body interrupted"); } });
+    }
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 404 });
+    vi.stubGlobal("fetch", fetchMock);
+
+    expect(await warmVenueDetail("venue-alias")).toEqual({ status: "missing" });
+    expect(getWarmedVenue("venue-alias")).toBeNull();
+    expect(getWarmedVenue(venue.id)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["fetch", "body", "server"] as const)("keeps the dated copy when the single online retry fails at %s", async (failure) => {
+    vi.stubGlobal("localStorage", memoryStorage());
+    vi.stubGlobal("navigator", { onLine: true });
+    const venue = { id: "venue-saved", name: "Saved Arms", prices: [] };
+    const savedAt = "2026-11-10T20:00:00.000Z";
+    saveVenueDetail(venue.id, venue, new Date(savedAt));
+    const fetchMock = vi.fn().mockRejectedValueOnce(new TypeError("Connection lost"));
+    if (failure === "fetch") {
+      fetchMock.mockRejectedValue(new TypeError("Still unavailable"));
+    } else if (failure === "body") {
+      fetchMock.mockResolvedValue({ ok: true, json: async () => { throw new TypeError("Body interrupted"); } });
+    } else {
+      fetchMock.mockResolvedValue({ ok: false, status: 503 });
+    }
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await warmVenueDetail(venue.id);
+    expect(result).toEqual({ status: "found", venue: { ...venue, ...UNKNOWN_AMENITIES }, savedAt });
+    if (result.status !== "found") throw new Error("Expected saved detail");
+    expect(savedVenueCopyAt(result.venue)).toBe(savedAt);
+    expect(getWarmedVenue(venue.id)).toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
+
+function memoryStorage(): Pick<Storage, "getItem" | "setItem"> {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key) => values.get(key) ?? null,
+    setItem: (key, value) => {
+      values.set(key, value);
+    },
+  };
+}

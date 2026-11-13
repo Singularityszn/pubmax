@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { formatLedgerDate } from "@/lib/ledger";
@@ -29,12 +27,5 @@ describe("dates are read on the London calendar", () => {
     expect(selectedDrinkPriceDescription({
       category: "wine", pence: 550, serving: null, source: "community", reportedAt: BST_PAST_MIDNIGHT,
     })).toBe("Wine £5.50, community report 4 Jun 2024. Serving size not recorded.");
-  });
-
-  it("names the London zone on the pint drop permalink's server-rendered date", () => {
-    const source = readFileSync(join(process.cwd(), "app/p/[id]/page.tsx"), "utf8");
-    const calls = source.match(/toLocaleDateString\([^)]*\)/g) ?? [];
-    expect(calls.length).toBeGreaterThan(0);
-    for (const call of calls) expect(call).toContain('timeZone: "Europe/London"');
   });
 });

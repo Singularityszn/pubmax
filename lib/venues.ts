@@ -17,6 +17,7 @@ import {
 import { measureIsPint, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { isUncheckedPrice, type PriceEvidence } from "@/lib/pintDropReceipt";
 import { formatGbp } from "@/lib/formatGbp";
+import type { OptimisticSpillState } from "@/lib/feed";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
@@ -172,6 +173,7 @@ export type Venue = {
   visibleBoroughs: string[];
   prices: VenuePrice[];
   cheapestPrice: number | null;
+  hasRecordedPrice?: boolean;
   cheapestPint: string;
   measure?: string;
   averagePrice: number | null;
@@ -734,6 +736,7 @@ export function groupVenuePrices(rows: VenuePrice[]): Venue[] {
 
 // The minimal drop shape mergeVenueDrops needs — the client DTO satisfies it.
 export type SummaryDrop = {
+  optimistic?: OptimisticSpillState;
   drink: string;
   /**
    * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
@@ -768,10 +771,9 @@ export type SummaryDrop = {
   // re-derived: lib/pintDropConfirm.server.ts is the one writer and it works
   // over the stored rows, where every authority key is present.
   confirmation?: PintDropConfirmation | null;
-  // What stands behind the figure (lib/pintDropReceipt.ts). `unchecked` is a
-  // typed price with no bill (captain decision 9, 1 Nov 2026): it still counts
-  // as one independent drinker in a corroboration or a confirmation, and on
-  // its own it reaches the sheet alone, never the pin's mark or band.
+  // What stands behind the figure (lib/pintDropReceipt.ts). An unchecked
+  // price still counts as one independent drinker in a corroboration or
+  // a confirmation. On its own it reaches the sheet, never the pin's mark or band.
   priceEvidence?: PriceEvidence;
 };
 
@@ -860,6 +862,7 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
 // paid under the word of the drinker who paid the other one.
 function isPintPricedDrop(drop: SummaryDrop): boolean {
   return (
+    !drop.optimistic &&
     drop.provenance !== "demo" &&
     typeof drop.priceGbp === "number" &&
     Number.isFinite(drop.priceGbp) &&
@@ -965,7 +968,7 @@ export function authoritativePriceDrop<D extends SummaryDrop>(
 // over carries a null key, because it came through the unlinked-handle door.
 //
 // AN UNCHECKED PRICE IS NOT ONE OF THESE (captain decision 9, 1 Nov 2026). A
-// typed price with no bill lands in `uncheckedPriceDrop` below instead, and
+// price with unchecked evidence lands in `uncheckedPriceDrop` below instead, and
 // because this lane is what feeds the pin's provisional MARK
 // (`provisionalPintDropVenueIds`), leaving it out here is the whole of why an
 // unchecked price alone never marks the pin. It still counts in the two
@@ -1039,10 +1042,9 @@ export function disputedPintPrices<D extends SummaryDrop>(
   return { split, drops: group, observedAtMs: Date.parse(lead.createdAt) };
 }
 
-// THE IN-WINDOW PRICE NOBODY HAS CHECKED, or null. Captain decision 9 (1 Nov
-// 2026): a typed price with no bill saves and shows on the pub's own sheet as
-// "Logged by @handle, not checked", dated, and does not colour the pin until a
-// second, independent drinker agrees with it.
+// The in-window price with unchecked evidence, or null. lib/pintDropReceipt.ts
+// owns that evidence state. The sheet shows it as "Logged by @handle, not checked"
+// with its date, and this lane paints nothing on the pin.
 //
 // The weakest in-window read, below `provisionalPriceDrop`, and it answers null
 // whenever a stronger lane speaks, so one pub never offers two figures. What it
@@ -1052,7 +1054,7 @@ export function disputedPintPrices<D extends SummaryDrop>(
 // Index citation: nothing that paints asks this lane, and
 // `provisionalPintDropVenueIds` is derived from the lane above, not this one.
 //
-// A second drinker is the way out of it. Their agreeing report, billed or not,
+// A second drinker can establish authority. Their agreeing report, billed or not,
 // is the second authority key `corroboratedPriceDrop` counts and the peer the
 // confirmation producer mints over, so this lane then answers null because an
 // authoritative one is speaking.
@@ -1132,7 +1134,7 @@ export function agedPriceDrop<D extends SummaryDrop>(
 //
 // Derived from `provisionalPriceDrop` rather than restating its predicates, so
 // the pin's mark and the sheet's figure can never disagree about which pubs
-// hold a pending report. An UNCHECKED price (no bill, captain decision 9) is
+// hold a pending report. An unchecked price (lib/pintDropReceipt.ts) is
 // not in that lane, so on its own it earns no mark: the sheet prints it, and
 // the map waits for a second drinker.
 export function provisionalPintDropVenueIds<D extends SummaryDrop>(

@@ -22,7 +22,7 @@
 4. Do not start Wave 2 until Wave 1 leftover bugs that users will hit on the undeployed set are green, or the captain names a different first feature.
 5. Wave 2 unblocks Wave 3 identity surfaces. Do not build the Instagram-shaped profile on a public-always follow graph.
 6. One worker at a time. `NODE_OPTIONS=--max-old-space-size=2048`. One Playwright worker.
-7. GitHub Actions stay off. Local `npm run verify` (or the named targeted suite) is the green bar. Do not wait on the 168h CI monitor.
+7. Follow the [root verification policy](../../AGENTS.md#verifying).
 8. Deploy only when the captain names deploying or Vercel. One deploy per day.
 9. Verify at 390x844 and desktop before calling a visual task done.
 10. Load `apple-design` and `emil-design-eng` on every visual ship. State in the PR body which skill changed a decision.
@@ -37,20 +37,12 @@
 - `git checkout -- next-env.d.ts tsconfig.json` before any wt3 screenshot checkout if those files dirty.
 - Use `chrome-devtools-axi` for required device emulation and screenshots. Use Playwright for scripted end-to-end checks.
 - Capture screenshots under `/tmp`, then move them. Verify the file exists.
-- Do not treat a red GitHub check as a merge blocker. Local verify is the gate.
+- Use the [root verification policy](../../AGENTS.md#verifying) for merge requirements.
 - Fable / first mate reviews the PR before merge.
 
 ### Commands that prove green
 
-```bash
-# Targeted (preferred while one lane is live)
-npx vitest run __tests__/<named>.test.ts
-
-# Full local bar (only when the machine has headroom; never two at once)
-NODE_OPTIONS=--max-old-space-size=2048 npm run verify
-```
-
-Expected: named suite PASS, or verify completes with lint + typecheck + coverage + resilient-audit green.
+Use the checks required by the [root verification policy](../../AGENTS.md#verifying). The [common command reference](../../README.md#quick-start) describes each command.
 
 ---
 
@@ -131,7 +123,7 @@ This wave is captain + first mate. A coding worker does not start Wave 1 until 0
 **Files:**
 - `supabase/migrations/20260819200000_0111_cheap_pint_ping_prefs.sql`
 
-**Step 1:** Captain applies the SQL in the Supabase SQL editor, or re-auths the connector and asks first mate to apply it.
+**Step 1:** Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
 
 **Step 2:** Confirm the prefs table/columns exist. Cheap-pint prompt write then read-back on a real account.
 
@@ -606,7 +598,7 @@ Keep these queued. Do not start because they are exciting.
 | R-022 | Store screenshots per MODE | after R-006 |
 | R-023 | Public store release | 100 accounts |
 | R-024+ | Occupancy L3, B2B prices, D2C Plus, daytime crews, Manchester, bookings deep-link, Flat White Index, FTS search | later horizons |
-| `convex-migration-eval` | Convex vs Supabase | scout only. Not a rewrite. |
+| `convex-migration-eval` | Convex vs Supabase | Superseded by the [persistence decision](../MASTER_PRD.md#persistence). |
 | `og-cards-generative` | Data-driven OG cards | ties to leftover GNHF worktree. Do not discard that copy. |
 | `design-blueprint-texture` | Landing micro-texture | taste, after identity wave |
 | `openwiki-pubmax` | Agent docs | blocked on captain API key |
@@ -670,7 +662,7 @@ After both Wave 0 tasks are complete and verified:
 9. Wave 4.1 map-key same revision  
 10. Wave 5.1 Deal Radar  
 
-Capacitor stays parked until store enrolment. Convex stays a scout. Monetization stays frozen.
+Capacitor stays parked until store enrolment. The [persistence decision](../MASTER_PRD.md#persistence) supersedes the Convex scout. Monetization stays frozen.
 
 ---
 

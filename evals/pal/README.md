@@ -1,9 +1,9 @@
 # Pal evals
 
 Graded regression suite for the shared Night OS Ask tool registry via `runAsk`
-(map Ask keyless path and the keyless `/api/pub-pal/chat` fallback). Production
-Pal voice and the hosted-LLM typed path use the ElevenLabs agent
-(`docs/PUB_PAL_SETUP.md`); this harness does not HTTP-drive `/api/pub-pal/chat`.
+(map Ask keyless path and the keyless `/api/pub-pal/chat` fallback).
+[Pub Pal setup](../../docs/PUB_PAL_SETUP.md) owns provider selection for typed chat and voice.
+This harness does not send HTTP requests to `/api/pub-pal/chat`.
 
 ## What a right answer means here
 
@@ -25,8 +25,11 @@ before it runs the real keyless `runAsk` path. Global network access fails the t
 
 The `priceAnswer` expectation checks prices in the answer and card text as well
 as structured card prices. Unknown prices require a complete absence statement
-about the requested price. Known prices require the recorded value and publisher
-on the same card.
+about the requested price. When `estimateGbp` is supplied, an unknown price may
+quote that fare-zone figure within the configured tolerance. Each monetary claim
+needs its own `Estimate` prefix, optionally followed by a colon.
+Structured card prices must remain null. Known prices require the recorded
+value and publisher on the same card.
 Replay tests insert invented prices, remove sources, and omit the known value.
 Run this subset with `npx vitest run __tests__/palFailClosedPrices.test.ts`.
 
@@ -107,8 +110,8 @@ remembers about the person it is talking to (`npm run eval:pal:memory`).
 ## Commands
 
 - `npm run eval:pal` — deterministic gate (`skipModel: true`), fast enough for CI via vitest. CityMCP is the offline stub in `offlineFetch.ts`, `TYPESAFE_API_KEY` is cleared for the run, and every case runs at the `now` pinned in `answer-key.json` (an evening the bundled What's On fixtures cover).
-- `__tests__/askModelLoopMock.test.ts` (part of `npm run test`) — the keyed tool loop without a key or a bill. A local [aimock](https://github.com/CopilotKit/aimock) server answers OpenRouter's chat-completions wire from `__tests__/fixtures/aimock/ask-model-loop.json`, `OPENROUTER_BASE_URL` points `lib/ask/modelLoop.ts` at it, and `runAsk` runs the real tool handlers at this suite's pinned `now`. It pins the allowlist, the rejection of arguments that are not a JSON object, the three-round and three-calls-a-round caps, and the deterministic fallback on a missed deadline. The fixtures are hand-written in aimock's file format, not recorded tapes, so they prove the loop's contract and not a model's choices.
-- `npm run eval:pal:live` — requires `OPENROUTER_API_KEY` (refuses to run without it); exercises the optional OpenRouter tool loop on `runAsk` (map Ask parity), not the ElevenLabs Pal agent. Only OpenRouter goes to the network; every other source stays on the offline stub. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
+- `__tests__/askModelLoopMock.test.ts` (part of `npm run test`) — the keyed tool loop without a key or a bill. A local [aimock](https://github.com/CopilotKit/aimock) server answers the Claude Messages wire from `__tests__/fixtures/aimock/ask-model-loop.json`, the test hands `runAsk` an Anthropic SDK client pointed at it, and `runAsk` runs the real tool handlers at this suite's pinned `now`. It pins the allowlist, the three-round and three-calls-a-round caps, and the deterministic fallback on a missed deadline. The fixtures are hand-written in aimock's file format, not recorded tapes, so they prove the loop's contract and not a model's choices.
+- `npm run eval:pal:live` — requires `ANTHROPIC_API_KEY` (refuses to run without it); exercises the optional Claude tool loop on `runAsk` (map Ask parity), not the ElevenLabs Pal agent. Only the Claude API goes to the network; every other source stays on the offline stub. Cost comes from the token counts and the rates in `captureUsage.ts`, and a model with no recorded rate fails the run. Adds a `model_ran` check per case that fails when the model made no tool call, and writes `scoreboard/latest.json` and `latest.md`.
 
 Accepted late-food questions bypass the model loop under [ADR 0014](../../docs/adr/0014-night-os-ask-agent.md).
 The live suite therefore fails `model_ran` for `food-midnight-covent`, even when its recorded answer is correct.

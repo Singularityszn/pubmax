@@ -9,6 +9,11 @@
   border-radius: var(--radius-lg);
   background: var(--panel-raised);
   color: var(--ink);
+  /* /year-in-pints lands here (useYearDoor.ts): keep clear of the top edge. */
+  scroll-margin-top: var(--space-6);
+}
+.palYearHead h2:focus {
+  outline: none;
 }
 .palYearHead {
   display: flex;
@@ -38,8 +43,34 @@
   background: transparent;
   fill: var(--ink);
 }
+/* The pint glass of days sits beside the lines from a tablet up, and above
+   them, smaller, on a phone. */
+.palYearBody {
+  margin-top: 16px;
+  display: grid;
+  gap: 16px;
+}
+.palYearBody .yipGlass {
+  margin: 0;
+}
+.palYearBody .yipGlass svg {
+  width: 96px;
+}
+.palYearRead {
+  min-width: 0;
+}
+@media (min-width: 641px) {
+  .palYearBody {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: 32px;
+  }
+  .palYearBody .yipGlass svg {
+    width: 136px;
+  }
+}
 .palYearLines {
-  margin: 16px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
   display: grid;
@@ -53,7 +84,7 @@
   line-height: 1.4;
 }
 .palYearEmpty {
-  margin: 16px 0 0;
+  margin: 0;
   font-size: var(--text-md);
 }
 .palYearNote {
@@ -129,6 +160,44 @@
   .palYearLines li:nth-child(4) { animation-delay: 270ms; }
   .palYearLines li:nth-child(5) { animation-delay: 360ms; }
   .palYearLines li:nth-child(6) { animation-delay: 450ms; }
+}
+/* The glass fills from the foot, once, as the year is read back. */
+@media (prefers-reduced-motion: no-preference) {
+  .palYearBody .yipGlass svg {
+    animation: palYearPour 900ms var(--ease-out-strong) both;
+  }
+}
+@keyframes palYearPour {
+  from {
+    clip-path: inset(100% 0 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+/* Arriving by /year-in-pints: an ink edge marks the section the page settled
+   on, then fades. Opacity only, so it stays with reduced motion too. */
+.palYear[data-arrived] {
+  position: relative;
+}
+.palYear[data-arrived]::after {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border: 2px solid var(--ink);
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  animation: palYearArrive 1800ms var(--ease-out-strong) 300ms both;
+}
+@keyframes palYearArrive {
+  0%,
+  35% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
 }
 @keyframes palYearLine {
   from {

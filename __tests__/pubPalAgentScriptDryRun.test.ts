@@ -86,10 +86,19 @@ describe("pubpal:agent dry run", () => {
     const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
     const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
     // The provider default ("normal") took the turn at a mid-sentence pause.
+    // A 7 s turn timeout nagged a person looking at the map; a 45 s backstop cut the goodbye.
     expect(body.conversation_config.turn).toEqual({
       turn_eagerness: "patient",
       transcribe_on_disabled_interruptions: true,
+      turn_timeout: 20,
+      silence_end_call_timeout: 60,
     });
+    expect(body.conversation_config.vad).toEqual({ background_voice_detection: true });
+    // The agent says goodbye and hangs up itself.
+    expect(body.conversation_config.agent.prompt.built_in_tools.end_call).toMatchObject({
+      type: "system", name: "end_call", params: { system_tool_type: "end_call" },
+    });
+    expect(body.conversation_config.agent.prompt.built_in_tools.end_call.description).not.toMatch(/!/);
     // The confirm tools disable talk-over for their whole turn, which is why
     // speech in that turn must still be transcribed.
     const confirmTools = body.webhook_tools.filter(
@@ -103,13 +112,25 @@ describe("pubpal:agent dry run", () => {
     expect(keywords.length).toBeLessThanOrEqual(50);
   });
 
+  it("gives voice the map client tools, which the agent waits for but does not speak before", () => {
+    const printed = dryRun().stdout.split("\nDefault voice resolved:")[0] ?? "";
+    const body = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1));
+    const tools = body.client_tools as { name: string; type: string; expects_response: boolean; pre_tool_speech: string; parameters: { required: string[] } }[];
+    expect(tools.map((tool) => tool.name)).toEqual(["map_open", "map_focus_pick", "map_open_pick_sheet", "map_fly_to_area", "map_clear"]);
+    // Without the browser's answer the agent said a refused pick was on the map.
+    for (const tool of tools) expect(tool).toMatchObject({ type: "client", expects_response: true, response_timeout_secs: 5, pre_tool_speech: "off" });
+    expect(tools.find((tool) => tool.name === "map_focus_pick")?.parameters.required).toEqual(["number"]);
+    expect(body.conversation_config.conversation.client_events).toContain("client_tool_call");
+    expect(body.conversation_config.agent.prompt.tool_ids).toEqual(expect.arrayContaining(["dry-run-tool:map_focus_pick", "dry-run-tool:search_venues"]));
+  });
+
   it("prints the agent it would write without printing the shared secret", () => {
     const result = dryRun();
     expect(result.status).toBe(0);
     const output = `${result.stdout}${result.stderr}`;
     expect(output).not.toContain(SECRET);
     expect(output).toContain("https://pubmaxxing.com/api/pub-pal/tools/search_venues");
-    expect(output).toContain("gemini-2.5-flash-lite");
+    expect(output).toContain("gemini-2.5-flash");
   });
 
   it("still describes the agent it would write", () => {
@@ -118,7 +139,7 @@ describe("pubpal:agent dry run", () => {
     const end = printed.lastIndexOf("}");
     const body = JSON.parse(printed.slice(start, end + 1)) as {
       conversation_config: {
-        agent: { prompt: { prompt: string; llm: string; reasoning_effort: null; tool_ids: string[] } };
+        agent: { prompt: { prompt: string; llm: string; thinking_budget: number; reasoning_effort: null; tool_ids: string[] } };
       };
       webhook_tools: Array<{
         api_schema: {
@@ -142,8 +163,10 @@ describe("pubpal:agent dry run", () => {
         };
       };
     };
-    expect(body.llm).toBe("gemini-2.5-flash-lite");
-    expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash-lite");
+    // Flash Lite ended its turn silently after every tool. Thinking on made the answer 2 s late.
+    expect(body.llm).toBe("gemini-2.5-flash");
+    expect(body.conversation_config.agent.prompt.llm).toBe("gemini-2.5-flash");
+    expect(body.conversation_config.agent.prompt.thinking_budget).toBe(0);
     expect(body.conversation_config.agent.prompt.reasoning_effort).toBeNull();
     expect(body.webhook_tools.map((tool) => tool.api_schema.url)).toContain(
       "https://pubmaxxing.com/api/pub-pal/tools/search_venues",

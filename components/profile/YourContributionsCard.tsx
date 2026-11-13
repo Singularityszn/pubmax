@@ -26,8 +26,8 @@ import "./yourContributionsCard.css";
 // The card is deliberately self-contained (its own fetch by handle) so it can
 // drop into the owner-only block of app/u/[handle]/page.tsx without threading
 // stats through the whole page. Duty of care: every string here is about
-// MAPPING prices, never about drinking — the reward is visible impact, not a
-// points economy.
+// MAPPING prices, never about drinking. Points live on their own card
+// (components/profile/PointsCard.tsx).
 
 type Props = {
   /** The owner's handle (already known — this only renders on your own profile). */
@@ -125,8 +125,8 @@ export default function YourContributionsCard({ handle, claimNudge = false }: Pr
 
       {!hasContributed ? (
         <p className="contribEmpty">
-          Log a price at a pub and your first drop lands here. That&apos;s a real
-          data point on the London map, not a point in a game.
+          Log a price at a pub and your first drop lands here, on the London
+          map.
         </p>
       ) : (
         <>

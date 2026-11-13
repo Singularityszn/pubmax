@@ -17,7 +17,7 @@ Absolute copy is kept only when a named code or data invariant enforces it. Othe
 | “No account needed to look”; “Free to browse”; “Browsing doesn’t need an account” | About, privacy, terms | Public map, venue, Today, Tonight, Near, crawl, historic, and Pint Index routes have no authentication gate. Contribution routes apply the account gate separately. |
 | “Night Memories and private plans aren’t public unless you choose to share them” | Privacy | Memory and plan stores use private actor or member-token reads. Public exposure requires an explicit share artifact or share link. |
 | “Choose a handle in your account first”; “Your public handle appears on every contribution”; account and profile contribution prompts | Check-ins, identity gates, activity, profile, We Are Out | `lib/contributionIdentity.server.ts` resolves the authenticated account, claimed handle, and completed private profile before current attributed contributions are accepted. |
-| “Sign in and choose a handle to see follows, cheers, comments and crawl saves here” | Activity | `lib/notifications.ts` defines those four inbox event kinds. Copy describes what the inbox can show without promising that every best-effort notification write succeeds. |
+| “Sign in and choose a handle to see follows, cheers, comments and crawl saves here” | Activity | [`lib/notifications.ts`](../lib/notifications.ts) owns the supported inbox event kinds. Copy describes what the inbox can show without promising that every best-effort notification write succeeds. |
 | “Email sign-in works even when Google, Apple and Microsoft are unavailable” | Contribution gate | Email is an independent sign-in provider in the account flow; Google, Apple and Microsoft availability does not remove that route. |
 | “Logging tonight’s price needs a signed-in account, a claimed handle and completed private profile” | Privacy, terms, contribution surfaces | `app/api/price-submit/route.ts` calls the shared contribution identity resolver before writing a current community price. |
 | “one account can replace its own earlier entry”; “can’t confirm itself by changing devices or handles” | Privacy | `lib/communityPriceStore.ts` keys current contributor ownership to the stable profile actor, supersedes the actor’s earlier same-key row, and derives corroboration from independent actors. |
@@ -62,7 +62,7 @@ Absolute copy is kept only when a named code or data invariant enforces it. Othe
 | Analytics off by default, remembered choice, one-tap Allow or No thanks | Privacy, terms, account hub | Consent state defaults unset; analytics load only after allow; the same preference store powers the prompt and account setting. |
 | Analytics identifier, allow-listed events, proxy, and retention statements | Privacy, terms | Analytics client and server validation define the identifier and event schema; proxy route forwarding defines request metadata; configured processor retention values supply the stated periods. |
 | No advertising or cross-site tracking cookies | Privacy | No ad network integration or advertising-cookie writer exists in the application; optional analytics is separately consent-gated. |
-| Named processors and stored-data descriptions | Privacy | Supabase, Vercel, PostHog, Open-Meteo, TfL, MapTiler, and OpenRouter are the processors called by the named code paths; each description is limited to data sent on that path. |
+| Named processors and stored-data descriptions | Privacy | The [privacy page](../app/privacy/page.tsx) owns the current processor disclosures. The request checks in `__tests__/promptRecipientDisclosure.test.ts` and `__tests__/legalPages.test.ts` cover model recipients. |
 | “Every current price names where it came from”; people-logged dates and dataset source date | Terms | Community rows carry their own `createdAt` and contributor attribution, and bundled rows share the freshness-registry date. A bundled row names a publisher only when its own `pub_url` carries one. The blanket named-source claim is not guaranteed; [`docs/VOICE.md`](./VOICE.md) owns the required publisher-not-recorded state. Historical rows remain separately labelled and excluded from current-price authority. |
 | “The app comes as it is”; availability not promised | Terms | This is the legal service boundary, not a factual claim about current availability. |
 | Pint Index includes only prices with public source and date | Live and archived Pint Index pages, metadata, JSON-LD | `lib/pintIndex.ts` eligibility requires source URL and observation date before an observation enters the live snapshot, CSV, or JSON-LD. |
@@ -80,12 +80,12 @@ Absolute copy is kept only when a named code or data invariant enforces it. Othe
 | Pal adult confirmation saves time, never date of birth | Pal setup | Pal setup persists the 18+ confirmation timestamp and has no date-of-birth field in that record. |
 | Pal memories can be inspected, corrected, and deleted; fixed controls cannot be disabled | Pal setup | Memory management exposes those operations for approved memories; safety and factuality controls are fixed configuration rather than user toggles. |
 | Weather fallback says no fresh read | Today | The fallback branch runs only when the weather request returns no fresh reading. |
-| “No change from the earlier price” | Then-and-now cards and venue price story | The equality branch compares current and baseline GBP values before rendering this line. |
+| “No change from the earlier price” | Then-and-now cards and venue price story | Discover uses the equality branch. The venue story follows the [venue price story rules](../README.md#features). |
 | Recap completion, stop, spend, and logged-pint copy | Recap and share helpers | `lib/recapView.ts` and `lib/shareArtifacts.ts` derive each phrase from recorded completion state, stops, finite spend totals, handle, venue, and price fields. |
 
 ## Indirect-source inventory
 
-This branch is a partial voice pass. It does not establish that every user-facing string has been audited. Each total below comes from current source using the shown command. “Inspected” records files read during this pass. “Not inspected” names the remaining conservative candidates; some broad candidates may contain no rendered copy, but none is silently treated as reviewed.
+This branch is a partial voice pass. It does not establish that every user-facing string has been audited. The totals and paths below record the source tree when this audit ran, using the shown commands. They are not a current file inventory. “Inspected” records files read during this pass. “Not inspected” identifies candidates from that snapshot, without a claim that they contain rendered copy or received a review.
 
 The following 25 changed candidates were inspected during this pass but were previously misclassified as not inspected. They are now counted as inspected in each inventory where they qualify:
 
@@ -880,7 +880,7 @@ Not inspected:
 
 ## Outstanding audit scope
 
-The files above remain for the follow-up audit. In particular, this pass did not audit `app/page.tsx` (its own metadata is canonical-URL only; title and description inherit the already-inspected root layout defaults), or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
+The inventory above records the follow-up scope at the time of this audit. Check current source before you assign follow-up work. In particular, this pass did not audit `app/page.tsx` (its own metadata is canonical-URL only; title and description inherit the already-inspected root layout defaults), or most unchanged API routes and shared helpers. Review findings on those files should be recorded against that follow-up rather than used to widen this branch.
 
 No additional product-character judgement call was decided during this closeout. The branch applies rule-bound fixes only.
 

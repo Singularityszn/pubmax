@@ -51,9 +51,11 @@ import PalNightQuestion from "./PalNightQuestion";
 import PalQuestStamps from "./PalQuestStamps";
 import PalYear from "./PalYear";
 import PalPrint from "./PalPrint";
+import { useYearDoor } from "./useYearDoor";
 import { palGenomeFor } from "@/lib/palGenome";
 import { createPalVoiceSignal } from "@/lib/palVoiceSignal";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
+import { revokePalVoiceCall } from "@/lib/palVoiceHost";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { setActivePlanPalContext } from "@/lib/activePlan";
@@ -235,7 +237,8 @@ function PalTasteToggle({
  * the server rather than holding it behind the ready flag. Home and onboarding
  * still wait for that flag, because they name the Pal or the viewer. The
  * portrait rides beside the head on a desktop and under it on a phone, the
- * way the landing sets its pub card.
+ * way the landing sets its pub card. A visitor who came by /year-in-pints
+ * reads where their year lives once the browser has the address.
  */
 export function PalMeetingScreen({
   appearance,
@@ -247,6 +250,7 @@ export function PalMeetingScreen({
   pending?: boolean;
 }) {
   const clientReady = useClientReady();
+  const yearDoor = useYearDoor();
   return (
     <main id="main" className="palExperience palMeeting">
       <Screen
@@ -255,7 +259,9 @@ export function PalMeetingScreen({
         kicker="Your Pub Pal"
         title="Plan your night with Pub Pal"
         titleId="pal-meeting-title"
-        lede="Find a pub or plan a route. You choose its look, voice and what it can remember."
+        lede={yearDoor
+          ? "Your Year in Pints lives here. Your Pal reads back the nights you kept, the stops you walked and the prices you mapped. Free, always."
+          : "Find a pub or plan a route. You choose its look, voice and what it can remember."}
         primary={
           <>
           <button type="button" onClick={onMeet} disabled={!clientReady || pending} aria-busy={pending || undefined}>
@@ -270,7 +276,7 @@ export function PalMeetingScreen({
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
               px square against a 288 px heading block. */}
           <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" priority />
-          <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
+          <p className="palSpeech" aria-live="polite">{yearDoor ? "There you are. Shall we read your year back?" : "There you are. What kind of night are we making?"}</p>
         </div>
       </Screen>
     </main>
@@ -706,9 +712,9 @@ export default function PalExperience() {
       setSaving(false);
       controlSavingRef.current = null;
       setControlSaving(false);
-      setReady(!user);
+      setReady(!ownerId);
     });
-    if (!user) return () => controller.abort();
+    if (!ownerId) return () => controller.abort();
 
     void authedActionFetch("/api/pub-pal", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
@@ -729,7 +735,7 @@ export default function PalExperience() {
           });
           setPrivacy((current) => ({ ...current, proposeMemories: next.proposalPreferences?.memories === true, visible: !next.hidden, muted: next.muted }));
           setMode("home");
-          const storedPrivacy = readStored(`${PRIVACY_KEY}:${user.id}`);
+          const storedPrivacy = readStored(`${PRIVACY_KEY}:${ownerId}`);
           if (storedPrivacy) {
             try {
               const parsed = JSON.parse(storedPrivacy) as { proposeMemories?: unknown };
@@ -763,7 +769,7 @@ export default function PalExperience() {
         setReady(true);
       });
     return () => controller.abort();
-  }, [user, getCurrentUserId]);
+  }, [user?.id, getCurrentUserId]);
 
   // Creating the Pal swaps the whole screen. The page kept the scroll position
   // the person had reached at the foot of setup, so it landed on "You stay in
@@ -1031,6 +1037,7 @@ export default function PalExperience() {
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "We couldn't delete your Pal."));
       if (activeOwnerRef.current !== ownerId) return;
+      revokePalVoiceCall();
       removeStored(LOCAL_PAL_KEY);
       removeStored(`${PRIVACY_KEY}:${ownerId}`);
       setActivePlanPalContext(null, getCurrentUserId());

@@ -3,10 +3,10 @@
 //   POST { handle, venueId }        → { ok: true }   (marks the viewer present)
 //   GET  ?venueId=<id>  (or none)   → { presence: PresenceDTO[] }  (recent, live)
 //
-// The actor is derived server-side (hashActor of the hashed client IP) — the
-// body is never trusted for identity, and no raw IP or actor id is stored. Writes
-// are rate-limited (isLimited) exactly like the other write paths. Presence is
-// opt-in (a deliberate tap) — there is NO auto-tracking and NO GPS.
+// GET requires a verified Social actor from the Authorization bearer for real
+// rows. Cookies cannot authorise this read or refresh a session here.
+// lib/presenceAudience.server.ts owns the audience rule. Without an authorised
+// audience, only enabled keyless demo rows can remain.
 //
 // The reader NEVER 500s: a GET failure falls through to 200 { presence: [] } so
 // the "Live tonight" strip degrades to nothing rather than a broken band.
@@ -16,14 +16,19 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { projectPublicAuthors } from "@/lib/avatarResolve";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
+import { presenceHandlesForViewer } from "@/lib/presenceAudience.server";
 import { markPresence, recentPresenceWithAmbient } from "@/lib/presenceStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { fulfilWantedsForHandleAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedFulfilledLine } from "@/lib/wanted";
 
 assertServerEnv();
+
+// The answer depends on who asks, so no shared cache may keep it.
+const PRIVATE_NO_STORE = { "Cache-Control": "private, no-store" };
 
 function readString(value: unknown): string {
   return typeof value === "string" ? value : "";
@@ -47,11 +52,10 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
 
-  // Identity is server-derived from the hashed client IP — never the body. The
-  // raw IP is hashed (hashIp) then folded into a stable actor hash (hashActor),
-  // so the actor_hash column can't be correlated back to a device or address.
   const ipHash = hashIp(clientIp(request));
-  const actorHash = hashActor(`presence:${ownership.handle.toLowerCase()}:${ipHash}`);
+  const actorHash = hashActor(ownership.callerUserId
+    ? `presence:user:${ownership.callerUserId}`
+    : `presence:handle:${ownership.handle}`);
 
   // Rate-limit the tap: durable key = handle + hashed IP; in-memory backstop
   // keyed on handle alone (same shape as the pint-drops write path).
@@ -60,9 +64,13 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many check-ins, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // markPresence is fail-soft (never throws) — a presence hiccup must not fail
-  // the tap. Cleaning/capping happens inside the store.
-  await markPresence({ handle: ownership.handle, venueId, actorHash });
+  // Cleaning/capping happens inside the store. A write that did not land is
+  // an honest 503, never an "ok" for a tap nobody can see.
+  try {
+    await markPresence({ handle: ownership.handle, venueId, actorHash });
+  } catch {
+    return publicApiError("Could not mark you here. Try again.", "UNAVAILABLE", 503, { retryable: true });
+  }
   // Quiet Wanted fulfilment: landing at a saved place closes the Wanted.
   const fulfilled = await fulfilWantedsForHandleAtVenue(ownership.handle, venueId);
   const wantedNote =
@@ -83,12 +91,17 @@ export async function GET(request: Request): Promise<Response> {
   // recentPresenceWithAmbient is itself fail-soft (returns [] on any error) and
   // appends the deterministic demo layer ONLY when Supabase is absent, so the
   // reader never 500s — but keep a belt-and-braces guard so a surprise 200s empty.
+  // Any failure past the read, the audience check included, answers nothing:
+  // this list fails closed.
   try {
-    const presence = await projectPublicAuthors(
-      await recentPresenceWithAmbient(venueId || undefined),
-    );
-    return jsonNoStore({ presence }, { status: 200 });
+    const headers = new Headers(request.headers);
+    headers.delete("cookie");
+    const access = await requireVerifiedSocialActor(new Request(request.url, { headers }));
+    const handles = access.ok ? await presenceHandlesForViewer(access.actor) : [];
+    const rows = await recentPresenceWithAmbient(venueId || undefined, Date.now(), handles);
+    const presence = await projectPublicAuthors(rows);
+    return jsonNoStore({ presence }, { status: 200, headers: PRIVATE_NO_STORE });
   } catch {
-    return jsonNoStore({ presence: [] }, { status: 200 });
+    return jsonNoStore({ presence: [] }, { status: 200, headers: PRIVATE_NO_STORE });
   }
 }

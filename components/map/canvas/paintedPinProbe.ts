@@ -72,6 +72,7 @@ type ProbeWindow = Window & {
   [PAINTED_MAP_PROBE_KEY]?: (() => PaintedMapTapPoint[]) & {
     trace?: typeof pubHitTrace;
     state?: () => PaintedMapLoadingState;
+    frame?: () => PaintedMapTapPoint[];
   };
   [PAINTED_LONDON_PLACE_PROBE_KEY]?: () => PaintedMapTapPoint[];
 };
@@ -127,6 +128,7 @@ export function paintedMapTapPoints(
   map: maplibregl.Map,
   pinLayerIds: readonly string[] = PIN_LAYERS,
   clusterLayerIds: readonly string[] = [CLUSTER_LAYER],
+  requireLoaded = true,
 ): PaintedMapTapPoint[] {
   const pinLayers = pinLayerIds.filter((id) => Boolean(map.getLayer(id)));
   const clusterLayers = clusterLayerIds.filter((id) => Boolean(map.getLayer(id)));
@@ -140,7 +142,7 @@ export function paintedMapTapPoints(
   beginPubHitProbeTrace();
   // Pending source/style updates can replace collision winners between the
   // probe and the physical click even while the camera is stationary.
-  if (!map.loaded()) {
+  if (requireLoaded && !map.loaded()) {
     finishPubHitProbeTrace();
     return [];
   }
@@ -235,7 +237,13 @@ export function installPaintedPinProbe(map: maplibregl.Map): () => void {
   const probeWindow = window as ProbeWindow;
   probeWindow[PAINTED_MAP_PROBE_KEY] = Object.assign(
     () => paintedMapTapPoints(map),
-    { trace: pubHitTrace, state: () => paintedMapLoadingState(map) },
+    {
+      trace: pubHitTrace,
+      state: () => paintedMapLoadingState(map),
+      // The handoff observer needs this painted frame, even when a queued
+      // style update makes loaded() false. Click journeys keep the stable gate.
+      frame: () => paintedMapTapPoints(map, PIN_LAYERS, [CLUSTER_LAYER], false),
+    },
   );
   probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY] = () => paintedLondonPlaceTapPoints(map);
   return () => {

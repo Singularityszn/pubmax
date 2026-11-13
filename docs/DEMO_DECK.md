@@ -30,7 +30,7 @@ London pub discovery is split three ways: price lists, generic map directories, 
 
 Built and running today:
 
-- **3-D pitched view on load** with a stable reading surface. Camera motion follows an explicit place, route, cluster, city, or reader gesture.
+- **3-D pitched view on load** with a stable reading surface. The [camera contract](rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass) defines move ownership and live voice framing.
 - **3-D buildings, sky and fog** — the City and Canary Wharf read as skyline, not as a chart.
 - **Price-aware venues** as custom price-coloured pins — brass stroke for story pubs, a halo where there are Pint Drops, clustered at low zoom.
 - **Cinematic fly-to** on selection with a brass ring; crawl routes draw as an animated brass line between stops.

@@ -30,7 +30,7 @@ const canonicalPriceTest = test.extend({
   baseURL: async ({ baseURL: harnessURL }, provide, testInfo) => {
     const server = fork(resolve("scripts/e2e/canonical-price-server.ts"), [], {
       execArgv: ["--import", "tsx"],
-      env: { ...process.env, ...E2E_SERVER_ENV, OPENROUTER_API_KEY: "", NODE_ENV: "production" },
+      env: { ...process.env, ...E2E_SERVER_ENV, ANTHROPIC_API_KEY: "", NODE_ENV: "production" },
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     });
     const exited = once(server, "exit");
@@ -73,8 +73,8 @@ async function expectTouchTarget(locator: Locator): Promise<void> {
 
 async function saveShot(page: Page, name: string): Promise<void> {
   if (!process.env.PUBMAX_RESET_SHOTS) return;
-  await mkdir("docs/screenshots/onboarding", { recursive: true });
-  await writeFile(`docs/screenshots/onboarding/${name}.png`, await page.screenshot({ fullPage: false }));
+  await mkdir("artifacts/screenshots/onboarding", { recursive: true });
+  await writeFile(`artifacts/screenshots/onboarding/${name}.png`, await page.screenshot({ fullPage: false }));
 }
 
 function heroPrimary(page: Page): Locator {

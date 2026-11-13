@@ -1,20 +1,20 @@
 # Pub Pal setup: text now, voice when you switch it on
 
-Pub Pal typed chat answers keylessly via `/api/pub-pal/chat` (the same grounded
-`runAsk` tools as map Ask, no OpenRouter). Voice and the hosted-LLM typed path
-share one ElevenLabs agent when the four values below are set and the agent
-script has run. [ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic
-menu and price routing that precedes provider selection.
-Map Ask still answers keylessly via `/api/ask`.
+Pub Pal typed chat and map Ask both work without provider keys.
+Typed chat uses `/api/pub-pal/chat`. Map Ask uses `/api/ask`.
+Both use grounded `runAsk` tools on the keyless path.
+[ADR 0014](adr/0014-night-os-ask-agent.md) owns the deterministic menu and price routing that precedes provider selection.
 
 ## Typed chat on Claude
 
 Typed chat can run on Claude instead of the ElevenLabs agent. Voice stays on
 ElevenLabs.
 
-1. Make an API key in the Claude Console. Set a monthly spend limit there.
+1. Create a Claude Platform API key in the account that holds the intended credits.
 2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
-3. Optional: set `PUB_PAL_CLAUDE_MODEL`. The default is `claude-haiku-5-5`.
+3. Optional: set `PUB_PAL_CLAUDE_MODEL` for every Claude call. The default is `claude-haiku-5-5`.
+
+Set a monthly spend limit in the Claude Console.
 
 When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
 (`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
@@ -22,12 +22,23 @@ same `pub-pal-chat` ceiling. The safety fence, the answers from records, the
 memories and the taste read run before Claude is asked, as they do for
 ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
 same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
-server runs each tool itself, so no webhook is involved. To go back to
-ElevenLabs for typed chat, remove the key.
+server runs each tool itself, so no webhook is involved.
 
-Nothing here changes what the Pal may SAY. Text and voice run the same
-source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
-(ADR 0006).
+The same key also runs map Ask's model loop (`/api/ask`) on Claude. Both
+paths use the shared client, model setting and prompt cache markers
+(`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
+
+The key and model also serve Board Reader, bill checks, pub-list imports and the owned-image moderation fallback.
+[Model-call controls](../.agents/skills/pubmax-ai-sdk/SKILL.md#controls-today) own the budgets and fallbacks for these paths.
+
+Without a Claude key, typed chat uses the configured ElevenLabs agent, or the keyless tools when ElevenLabs is not configured.
+Map Ask uses the keyless tools.
+A failed Claude request does not switch to another paid provider.
+Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
+
+Text and voice share the source-backed server tool registry.
+Voice also has browser map tools, described under [Creating the agent](#creating-the-agent).
+[ADR 0014, decision 3](adr/0014-night-os-ask-agent.md#decision) owns action confirmation, including the live voice exception for view moves.
 
 ---
 
@@ -35,11 +46,11 @@ source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
 
 | Surface | Keyless | Notes |
 |---|---|---|
-| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. Provider selection follows ADR 0014 |
+| `/pal/chat` text ask | Yes | `/api/pub-pal/chat`. The provider rules above apply when keys are set |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model tool selection | Keyless regex | With ElevenLabs, the hosted LLM on the agent picks webhook tools; neither path calls OpenRouter |
-| Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
+| Model tool selection | Keyless regex | The provider rules above apply when keys are set |
+| Reader wording | Yes | Keyless replies and map Ask use returned rows and hints. Provider-backed Pal chat uses the shared prompt rules |
 | Voice | No | Needs the four ElevenLabs values below |
 
 With voice off, `/pal` says so in the Pal's own words and offers the writing
@@ -163,8 +174,10 @@ tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
 patches that agent, and without one it looks for an agent named
 `PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
 
-It reads `scripts/pubpal/pub-pal-agent-config.json` (model, tool allowlist)
-and PATCHes the agent plus workspace webhook tools. Each tool calls
+It reads `scripts/pubpal/pub-pal-agent-config.json` (model, server tool allowlist)
+and registers the browser tools from [`lib/palMapClientTools.mjs`](../lib/palMapClientTools.mjs).
+Without `--branch-id`, it PATCHes the agent and its workspace tools.
+Each webhook calls
 `<base-url>/api/pub-pal/tools/{name}` with `ELEVENLABS_LLM_SHARED_SECRET`
 (stored in the workspace vault as `PUBMAXX_PUB_PAL_LLM_SECRET`), waits up to
 28 seconds for a response (`response_timeout_secs` in the script; the route
@@ -174,26 +187,51 @@ agent that already exists. The captain re-runs
 `npm run pubpal:agent -- --base-url https://pubmaxxing.com` after those
 changes. Do not run that command from an agent session.
 
+The map tools run in the voice browser through `client_tool_call`.
+They set `expects_response: true` and `pre_tool_speech: "off"`, so the agent waits for the browser's answer but announces no tool check.
+[`lib/palMapClientToolCall.ts`](../lib/palMapClientToolCall.ts) owns pick and area validation.
+The agent receives a refusal as the tool result before it describes the map.
+These tools are absent from the typed server tool catalog.
+The ElevenLabs typed fallback still uses the shared agent.
+If it receives a client tool call, it returns an error that asks the agent to answer in words.
+
 Update and `--check` resolve each tool by the same identity rule. The script
 first reads the existing agent and its attached tool IDs. It keeps the unique
-attached webhook for each name when `--base-url` changes, including moves to
-a tunnel and back to production. Update writes the requested endpoint to that
-same tool ID. Check reports a different URL as drift without writing.
+attached tool for each name. Without `--branch-id`, an update writes a changed
+webhook endpoint to that same tool ID. Check reports a different URL as drift without writing.
 Same-name workspace duplicates cannot replace that attachment.
 
 Without an attached match, the script reuses one compatible workspace webhook.
 Its URL must exactly match `<base-url>/api/pub-pal/tools/{name}`.
-If none exists, update creates a webhook and check reports it as missing.
+Without an attached client tool, update creates one. It never reuses an unattached same-name client tool.
+If no compatible tool exists, update creates one and check reports it as missing.
 Multiple attached matches or multiple compatible workspace matches cause a
 refusal. An incompatible attached type, an unknown attached ID, or an incomplete
 workspace tool list also causes a refusal. Update resolves all identities before
 writing a secret, a tool, or the agent. Other tool settings remain part of the
 normal update and drift check.
 
-The [tool identity CLI proof](proof/2026-10-08-pubpal-tool-identity/README.md)
+The [tool identity CLI proof](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/2026-10-08-pubpal-tool-identity/README.md)
 records the regression fixture, captured results, and proof limits.
 
-Provider-backed typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
+For branch proof, use an existing non-Main branch ID after the captain authorises the provider operation.
+The update refuses Main or a branch whose returned identity differs from the requested ID.
+
+```bash
+npm run pubpal:agent -- --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+npm run pubpal:agent -- --check --branch-id BRANCH_ID --base-url https://your-test-tunnel.example
+```
+
+A branch update preserves Main's attached tools and the workspace secret.
+If a Main webhook differs only within `api_schema`, the branch gets a new tool ID.
+This includes URL and argument schema changes.
+Other drift in a Main-attached tool stops the update before any write.
+Tools absent from Main can be updated in place. Their IDs can still be shared with other branches.
+The agent name and `platform_settings`, including auth and privacy, are agent-wide.
+A branch update neither sends nor checks those fields.
+These commands configure and check a branch. They do not select a branch for the app's signed session URL.
+
+ElevenLabs typed chat uses the agent in text-only mode via `/api/pub-pal/chat`.
 The server opens its WebSocket. Voice opens a browser WebSocket from the signed URL.
 Live proof after a real run: `node scripts/pubpal/prove-pal-text-tool.mjs --base-url https://pubmaxxing.com`.
 
@@ -206,7 +244,7 @@ It never converts reported expenditure into a pint budget.
 Voice uses the same opening builder in its first-message override.
 [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns confirmed-memory access.
 
-1. **Hosted LLM** (`gemini-2.5-flash-lite` by default) on the ElevenLabs plan.
+1. **Hosted LLM** on the ElevenLabs plan. The [agent configuration](../scripts/pubpal/pub-pal-agent-config.json) owns the model and thinking budget.
 2. **Webhook tools** for the ADR 0014 allowlist (same handlers as `/api/ask`).
    Each tool sets `pre_tool_speech: "force"` and `execution_mode: "immediate"`,
    so the Pal says one short checking line while the tool runs instead of
@@ -218,6 +256,9 @@ Voice uses the same opening builder in its first-message override.
    A later tool event invalidates the earlier reply, except for a duplicate response to a completed observed request.
    That exception requires a nonempty call ID and no reopened request for that ID.
    First responses, unknown IDs, missing IDs and reopened requests still require a later reply.
+   An `end_call` request or successful response preserves the latest eligible reply.
+   If the provider then closes the socket, typed chat returns that reply.
+   A failed `end_call`, a missing reply or an unfinished data tool still produces a provider failure on closure.
    `__tests__/palElevenLabsChat.server.test.ts` checks these sequences with simulated provider events.
    These tests do not establish the live provider sequence or resolution of a production timeout.
    The script adds the tool events
@@ -230,8 +271,16 @@ Voice uses the same opening builder in its first-message override.
    as the answer. `npm run pubpal:agent -- --check` reports whether the live
    agent matches this config.
    Voice also needs `agent_tool_response_full_payload` to show the actual
-   returned pub cards, their fitted map and memory-confirmation cards. The
-   browser uses the tool result, never pub names or prices parsed from speech.
+   returned pub cards, their fitted map and memory-confirmation cards.
+   The browser uses the tool result for pub identities, coordinates and prices.
+   `onAudioAlignmentPlayback` supplies character timing when each audio chunk starts and skips interrupted chunks.
+   `lib/palPickSpeech.ts` matches that played text against existing pick names, without creating new picks or price facts.
+   The [Pub Pal feature guide](../README.md#features) owns the visible pick and price-card behaviour.
+   For `search_venues` and `cheapest_pint_near`, the webhook forwards `result.data`.
+   Returned pub coordinates use `venues` records with `id`, `lat` and `lng`.
+   This includes the named-pub opening-hours variant of `search_venues`, even when current hours are unknown.
+   Main-map picks use those coordinates without waiting for a separate browser venue index.
+   `lib/palVoiceToolAnswer.ts` joins the coordinates to returned cards by venue ID.
    Requests for one to six pubs pass a result count to `search_venues`.
    An upper pint-price limit filters eligible records before ranking.
    The script also sets how the agent hears a person in a pub. Turn-taking is
@@ -247,13 +296,13 @@ Voice uses the same opening builder in its first-message override.
    `final` line carrying the same body the JSON path returns, cards and
    proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
-   One more webhook, `recall_memories`, is Pal-only. It returns the memories the
-   person confirmed or corrected (never `completed_plan` rows) for the account
-   that opened the conversation, read from the server-side conversation binding
-   and never from the request body. Typed chat puts the same lines ahead of the
-   ask on the server, or one line saying nothing is confirmed, so it does not
-   need the tool. [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md) owns
-   confirmed-memory access, past-night reports and the confirmation rule.
+   One more webhook, `recall_memories`, is Pal-only.
+   [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns
+   confirmed-memory access, selection completeness, recall requirements and confirmation.
+   The voice-token grant returns server-built memory and taste text in `context`.
+   `PubPalVoiceSession` sends this text once with `sendContextualUpdate` when the call connects.
+   A failed memory read omits memory text but can still supply taste text.
+   The field is `null` when neither read supplies text.
    A second Pal-only webhook, `propose_memory`, adds a memory card
    to a typed or voice chat for the bound account, only when that Pal has memory
    proposals on. They are on for a new Pal; a Pal saved with them off keeps
@@ -282,9 +331,12 @@ Voice uses the same opening builder in its first-message override.
    Both paths also carry a **taste read** (`lib/palTaste.ts`, read by
    `lib/palTaste.server.ts`) from the verified owner's declared favourite drink
    and their own records: diary visits and ratings, pint drops (drink, pint
-   price, vibe tags) and saved pubs. Typed chat puts it after the
-   memories, in the person's voice; voice gets it inside the `recall_memories`
-   answer. It runs beside the signed-URL request with a 900 ms budget and a
+   price, vibe tags) and saved pubs. The "Saved but not tried yet" wishlist
+   excludes pubs in the diary, pint drops or the "Been here" saved list.
+   This exclusion applies even when another saved list contains the pub. "Been here" adds no
+   dated visits or inferred visit patterns. Typed chat puts it after the
+   memories, in the person's voice; voice gets it in the connect update and
+   inside the `recall_memories` answer. It runs beside the signed-URL request with a 900 ms budget and a
    two-minute in-process cache, so a turn does not wait on it, and a slow or
    empty read sends no lines, which the prompt reads as "ask, do not guess".
    It is opt-out: the "Taste read" toggle on the Pal's page writes
@@ -292,7 +344,14 @@ Voice uses the same opening builder in its first-message override.
    a missing key is on). The setting is read fresh before every read, so
    turning it off stops the next turn reading the favourite drink or logs, past the cache, and a
    Pal that cannot be read fails closed.
-   Without ElevenLabs keys, a signed-in ask with no area, mood or budget runs
+   New-place searches use `search_venues.onlyNew` from the shared tool catalog in typed and voice chat.
+   `lib/pubPalToolInvoke.server.ts` resolves the owner through the conversation binding established by `bindPubPalToolTurn`.
+   Deterministic typed answers use the authenticated owner and the same `palOnlyNewScope` helper.
+   This separate exclusion read checks `palTasteAllowed` before reading history and does not use the taste summary's cache or 900 ms budget.
+   `readPalVisitedVenues` resolves stored venue aliases and reads complete Pint Drop venue identities, including the owner's anonymous drops.
+   The exclusion set stays on the server. ElevenLabs receives the filtered results and any fallback hint.
+   The [Pub Pal usage guide](../README.md#pub-pal-new-picks) owns the request phrases and fallback messages.
+   Without a typed-chat provider, a signed-in ask with no area, mood or budget runs
    `search_venues` off the read's patch, vibe and usual price instead of
    asking for one.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
@@ -301,6 +360,7 @@ Voice uses the same opening builder in its first-message override.
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only
    when the captain re-runs `npm run pubpal:agent`.
+   [`lib/palVoicePrompt.mjs`](../lib/palVoicePrompt.mjs) owns the voice-only short-answer, map-tool, silence and goodbye rules.
 5. **Signed-URL authentication** (`platform_settings.auth.enable_auth`): a
    conversation starts only from a signed URL the app issued, after sign-in,
    the voice cap and the spend ceiling. The agent id alone is refused.
@@ -370,22 +430,194 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 
 Then open `/pal`, create a Pal, and press Start voice chat. The status line
 reads "Pal is listening" once the socket is up.
+The [map chip guide](../README.md#pub-pal-map-chip) explains how to start voice from the map.
 
-On the first tap, the browser asks for microphone access before the server
-issues a metered voice grant. A denied request keeps the writing door open and
+On every start attempt, the app checks microphone access before requesting a
+metered voice grant. The browser can show a permission prompt on the first tap.
+A denied request keeps the writing door open and
 can be retried. Repeated taps while voice starts use the same attempt.
+
+When the voice session mounts on `/pal`, it preloads the two same-origin
+worklets through `lib/elevenlabsWorkletAssets.ts`. The resampler still loads only
+when the device needs it.
+
+The SDK delay override in `lib/pubPalVoiceSession.ts` removes the default
+Android audio-mode wait. Microphone access, the grant request and the SDK
+connection still take time. Android audio routing needs
+[real-phone verification](https://github.com/Singularityszn/pubmax/issues/2741).
+
+### Voice audio cues and routing
+
+Each voice start tap plays a short chime before microphone permission or a voice
+grant arrives. This includes **Start voice chat**, **Carry on**, and the map's
+[talk chip](../README.md#pub-pal-map-chip). The map chip plays its chime before the session
+module downloads. The session takes ownership of that chime without playing it
+again.
+
+A replacement map tap stops the previous chime. A cancelled request or failed
+session download also stops the chime. The app stops any remaining start chime
+before the SDK connection begins, so the cue cannot overlap the greeting.
+Cancelling or ending the startup attempt also stops the chime.
+
+A live call has separate cues when the line closes and when the map is on its way.
+A typed map request without a live call is silent. Unmounting does not play a cue.
+The cues use same-origin ElevenLabs sound effects, trimmed and levelled in
+`public/sounds/pal/`. If playback fails, the call can still continue.
+
+The app passes `preferHeadphonesForIosDevices: true` to the ElevenLabs SDK.
+On iOS, the SDK requests a detected headphone microphone as its preferred input.
+Without a matching device, it uses the default microphone constraints.
+This preference does not guarantee physical audio routing.
+An iPhone check with AirPods remains pending in
+[issue 2741](https://github.com/Singularityszn/pubmax/issues/2741).
+
+### Voice interruptions
+
+Client navigation between `/pal` and `/map`, including `/map/` subroutes, keeps
+the same call and socket open. `PalVoiceHost` holds the session in the root
+shell. On the map, `PalVoiceBar` shows the call status and newest transcript line.
+**End** stops a live call. **Cancel** stops a pending startup attempt,
+and stops its microphone at once (see SDK startup below). Returning to `/pal` restores the full transcript panel
+without starting another call. A cold `/map` loads no ElevenLabs SDK until you tap to talk.
+
+At phone widths and 641-768 px tablet widths, an open map sheet positions the
+voice bar above its top edge. The sheet's maximum height leaves space for the
+bar. This space adjusts when the bar's height changes, including during a drag.
+On phones at most 480 px tall, the pick and caption scroll inside the bar while
+**End** stays outside that scroll area. The desktop layout stays unchanged.
+The [sheet scrolling rules](rules/components-sheets-chrome-and-navigation.md#a-sheet-says-how-much-of-itself-is-off-screen-once-and-the-shell-cannot-be-scrol)
+describe the fallback when the sheet's header and footer exceed its height.
+
+Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
+changing accounts, hiding the page, or `pagehide` cancels the pending request.
+Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
+
+A connected call ends when you navigate outside these routes, reload or close
+the page, lock the screen, hide the browser tab, or background the native app.
+Muting or deleting the Pal, signing out, or switching accounts also ends the call.
+Ending a call requests [voice-grant settlement](#voice-grants). A user-ended call,
+dropped line or error clears its main-map picks and grounding.
+It also clears the last voice camera request and cancels pending voice navigation.
+The voice prompt asks the agent to check in once after silence.
+If silence continues, the prompt asks for one short goodbye followed by `end_call`.
+The [agent configuration](../scripts/pubpal/pub-pal-agent-config.json) owns `turn_timeout` and the provider backstop, `silence_end_call_timeout`.
+The 180-second call cap remains. These settings reach an existing agent only after the captain runs the configuration command.
+
+Thirty seconds before the cap, the app tells the agent to finish in one short
+sentence and shows a countdown (`lib/palVoiceCall.ts`). A call that hits the cap,
+that the agent hangs up, or that a background interruption ends keeps its
+transcript and main-map picks, and offers **Carry on**.
+**Close voice chat** dismisses the stopped map bar and clears the picks.
+
+When usage is known, the browser shows "At least N minutes of voice left this
+month" before the **Carry on** tap. On the map, the allowance appears below
+the transcript.
+The grant reports the month's prepaid charge (`usedMinutes`) for both keyless
+and Supabase runs. The minimum is the monthly allowance minus that charge,
+with a floor of zero. Unknown usage produces no figure.
+
+Each new grant refreshes the figure, even if startup fails or is cancelled.
+The server decides whether another call can start. A zero figure does not
+disable **Carry on**.
+
+**Carry on** starts a new call that keeps the picks and cards. When an earlier-asks
+summary is available, the call uses a short resume greeting and sends the summary
+as one contextual update (`palSessionAsksSummaryTurn` in `lib/palSessionSummary.ts`).
+If there are no earlier asks or the summary module fails to load, the call uses
+the normal opening greeting and sends no resume update.
+If startup fails or is cancelled, the ended call, picks and cards remain available
+for another attempt. A successful connection clears the previous ended status.
+Returning does not restart the microphone automatically.
+
+The first microphone permission prompt does not cancel startup while the native
+app remains in the foreground. A hidden page or native background transition
+cancels the startup attempt while microphone permission is pending. If permission
+then arrives, the app stops the returned stream without requesting a voice grant.
+
+The pinned ElevenLabs SDK cannot cancel startup once its connection is in
+progress. The app keeps a microphone guard installed for the life of the page.
+Each SDK microphone request uses the startup token that is current when the
+request begins. Cancelling that token stops its held streams at once.
+The guard refuses requests with a cancelled token. It also stops streams that
+resolve after cancellation or while the page is hidden. SDK status changes do
+not remove this guard. The app's own permission probe bypasses the guard.
+
+If you start again, the app waits until the previous SDK startup reports
+connected or disconnected. The startup timeout also limits this wait.
+If an attempt claims its token but stops before the SDK starts, the app marks
+that startup as finished. Later attempts do not wait for an SDK status change
+from that attempt.
+A new SDK startup becomes the current token. The SDK can still finish an old
+connection. The app then closes the late session.
+
+`components/pubpal/usePageLeft.ts` detects document hiding, `pagehide`, and native
+`pause`. It ignores native foreground inactivity, which can include permission
+prompts. `__tests__/pubPalVoice.test.tsx` covers these transitions with doubles.
+These checks do not establish physical-device acceptance.
+
+### Voice grants
 
 `GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
 configuration and reads no account, which is the whole reason the Pal can
-explain itself before the tap. `POST` still needs a signed-in caller and prepays
-a three-minute grant (`lib/palVoiceMetering.ts`). The server settles that grant
-from the call length ElevenLabs records, never from a duration the browser
-sends. When the browser releases a session, the server asks ElevenLabs for up
-to five seconds until it reports the call ended. If the call is still running
-then, the grant stays charged at three minutes until the same account next
-asks for voice: that request settles it before the allowance check. A call
-ElevenLabs never reports as ended stays charged at three minutes. Migration
-`0176` must be applied before the deploy that calls it.
+explain itself before the tap. Issuing a voice token follows the
+[account age requirements](../README.md#pub-pal-age-requirements) before quota or provider allocation.
+An accepted request prepays a three-minute grant (`lib/palVoiceMetering.ts`).
+`prepay_pub_pal_voice_grant` checks the monthly allowance and charges the grant
+atomically. Admission requires usage below `PAL_VOICE_MONTHLY_MINUTES`, rather
+than room for the whole grant. Concurrent requests cannot bypass that check.
+
+The browser's `durationSeconds` never changes the meter. A release names only
+the issued `conversationId`. The server checks ownership with
+`owns_issued_pub_pal_voice_conversation` before it asks ElevenLabs about the call.
+An invented or already settled conversation causes no provider request.
+
+`lib/pubPalVoiceProviderDuration.server.ts` accepts a final duration only for
+provider states `processing`, `done`, or `failed`. During release, it asks
+ElevenLabs again once a second for up to five seconds. If the provider cannot
+confirm the call ended, the grant stays issued and charged in full.
+
+An ordinary voice start does not wait for earlier calls to settle.
+After a successful response, Next.js `after()` settles the owner's issued
+grants for that month, excluding the new conversation. If prepayment initially
+refuses admission, the request attempts settlement first, then retries prepayment
+once regardless of the settlement result. This retry uses the database's
+current usage even when a settlement reply was lost or another request settled
+the grant. A provider timeout leaves the unsettled grant charged in full.
+No cron or webhook settles voice grants.
+
+`settle_pub_pal_voice_conversation` replaces the prepayment with the provider's
+recorded duration, rounded up to started minutes. Zero seconds costs nothing.
+A call beyond the cap charges the difference. Settlement applies once under
+the caller's own grant. A repeated settlement cannot change the meter again.
+
+A grant settles only from a final duration that ElevenLabs reports. An HTTP
+404 does not settle the grant, however old the grant is. The agent runs in zero
+retention mode, so a 404 can also come from a finished call whose record is
+gone. A browser cancellation cannot prove that the signed URL was not used. A
+running call, an unreadable provider response, or a missing final duration
+also leaves the grant charged in full.
+
+`refund_pub_pal_voice_grant` handles server failures before the server hands out
+a signed URL. It accepts reserved or issued grants, including a link that
+committed before its reply was lost. It rejects settled or already refunded
+grants. An ambiguous prepayment result also triggers a refund, because the
+database may already have committed the charge. Once the session is linked
+and allocated, a failure to schedule `after()` does not refund that grant.
+
+Migration `0176` restricts these operations to the service role and closes
+`consume_pub_pal_voice_trial`, `release_pub_pal_voice_trial`, and
+`record_pub_pal_voice_minutes` to that role. An older application therefore
+cannot use the browser-trusted meter. The keyless in-memory meter prepays and
+refunds grants but does not settle them.
+
+The captain must apply `0176` before deploying code that calls it. A deployment
+without the migration returns 503 and offers text. Roll back the application
+before the migration, because its rollback reopens the browser-trusted meter.
+This settlement change needs no new migration.
+
+Regression coverage lives in `__tests__/pubPalVoiceTokenRoute.test.ts` and
+`__tests__/pubPalVoiceGrantsMigrationEffective.test.ts`. The latter exercises
+the route, concurrency, permissions, and rollback against PostgreSQL 16.
 
 ---
 

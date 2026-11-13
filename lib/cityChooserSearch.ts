@@ -5,7 +5,7 @@ import {
   type CityId,
 } from "@/lib/cities";
 import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import {
   normaliseUkPlaceQuery,
   searchUkPlaces,

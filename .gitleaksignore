@@ -55,3 +55,10 @@ c7354856c41b28f43636502474a1092bad3717ed:__tests__/rateLimitRefusalsUnchargedMig
 # Per-build Next.js server-action key from a QA build. Production sets no
 # NEXT_SERVER_ACTIONS_ENCRYPTION_KEY, so this key never protected a live deploy.
 9f895647b247688ed56ee6485998ea18a927e9a3:.plan-entry-auth-combined-v15-retry1/server/server-reference-manifest.json:generic-api-key:267
+
+# table request route test: requestKey fixture strings, not credentials
+22848d0b1b6366e55a4a957f965c7176df12c6f4:__tests__/tableRequestsRoute.test.ts:generic-api-key:375
+22848d0b1b6366e55a4a957f965c7176df12c6f4:__tests__/tableRequestsRoute.test.ts:generic-api-key:407
+562e9590470157620d7b7de0ed0b95bbdc22dc29:__tests__/tableRequestsRoute.test.ts:generic-api-key:401
+97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:484
+97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:514

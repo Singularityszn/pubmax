@@ -35,7 +35,7 @@ const response: AskResponseBody = {
 };
 
 beforeEach(() => {
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(() => {
     throw new Error("The hours evaluator must stay offline.");
@@ -363,9 +363,11 @@ describe("Pal fail-closed hours eval", () => {
     "What are the opening hours of The Bird & Barrel?",
     "What are the opening hours at a pub called The Bird & Barrel?",
   ])("answers recorded hours without a model call even when providers are configured: %s", async (query) => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-not-a-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-not-a-key");
     vi.stubEnv("TYPESAFE_API_KEY", "test-not-a-key");
     const transport = vi.fn(offlineFetch);
+    // The Claude SDK sends on the global fetch, so a model call would count here too.
+    vi.stubGlobal("fetch", transport);
     const body = await runAsk({ query, fetchImpl: transport });
     expect(gradePalCase(body, reference, index).pass).toBe(true);
     expect(transport).not.toHaveBeenCalled();

@@ -2,8 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+const lifecycle = vi.hoisted(() => ({ after: vi.fn<(task: () => Promise<void>) => void>() }));
+
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: lifecycle.after,
+}));
+
 import { SOCIAL_CREW_HOST_CAPABILITY_HEADER, type SocialCrewPageDTO } from "@/lib/socialCrew";
 import type { SocialPostActor } from "@/lib/socialPostStore";
+import { __resetMemoryNotifications, memoryNotificationsStore } from "@/lib/notificationsStore";
 
 const ALICE_ACCOUNT_ID = "10000000-0000-4000-8000-000000000001";
 const ALICE_PROFILE_ID = "20000000-0000-4000-8000-000000000001";
@@ -81,7 +89,9 @@ const state = vi.hoisted(() => ({
 }));
 
 const store = vi.hoisted(() => ({
+  markArrival: vi.fn(),
   read: vi.fn(),
+  readPublicPreview: vi.fn(),
   create: vi.fn(),
   invite: vi.fn(),
   acceptInvitation: vi.fn(),
@@ -110,6 +120,8 @@ vi.mock("@/lib/pintDrops", () => ({
 
 vi.mock("@/lib/supabase", () => ({
   hashActor: (value: string) => `hashed-${value}`,
+  isSupabaseConfigured: () => false,
+  requiresSupabaseStore: () => false,
 }));
 
 import { isLimited } from "@/lib/pintDrops";
@@ -126,6 +138,7 @@ import {
   DELETE as cancelJoinRequest,
 } from "@/app/api/social/crews/[crewId]/join-requests/route";
 import { POST as leaveCrew } from "@/app/api/social/crews/[crewId]/leave/route";
+import { POST as markArrival } from "@/app/api/social/crews/[crewId]/arrival/route";
 import {
   PATCH as changeMember,
   DELETE as removeMember,
@@ -164,9 +177,11 @@ function expectPrivate(response: Response): void {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  __resetMemoryNotifications();
   state.access = { ok: true, actor };
   state.limited = false;
   store.read.mockResolvedValue(crew);
+  store.markArrival.mockResolvedValue({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
   store.create.mockResolvedValue({
     code: "created",
     replayed: false,
@@ -190,6 +205,23 @@ beforeEach(() => {
 });
 
 describe("Social Crew route authority and HTTP policy", () => {
+  it("marks the verified actor's arrival and returns only status and receipts", async () => {
+    const response = await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", { here: true }), context({ crewId: CREW_ID }));
+    expect(response.status).toBe(200);
+    expectPrivate(response);
+    expect(await response.json()).toEqual({ here: true, crewArrived: [{ deliveryToken: "signed", guestsArrived: "1" }] });
+    expect(store.markArrival).toHaveBeenCalledWith(actor, { crewId: CREW_ID, here: true });
+  });
+
+  it("refuses injected seat authority, malformed status and rate-limited arrivals", async () => {
+    for (const body of [{ here: true, memberId: BOB_MEMBER_ID }, { here: "true" }, { here: false }, {}, { here: null }]) {
+      expect((await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", body), context({ crewId: CREW_ID }))).status).toBe(422);
+    }
+    state.limited = true;
+    expect((await markArrival(mutationRequest(`http://localhost/api/social/crews/${CREW_ID}/arrival`, "POST", { here: true }), context({ crewId: CREW_ID }))).status).toBe(429);
+    expect(store.markArrival).not.toHaveBeenCalled();
+  });
+
   it.each([
     ["Crew creation", (request: Request) => createCrew(request)],
     ["Crew read", readCrew],
@@ -203,6 +235,7 @@ describe("Social Crew route authority and HTTP policy", () => {
     ["member change", changeMember],
     ["member removal", removeMember],
     ["leave", leaveCrew],
+    ["arrival", markArrival],
   ] as const)("resolves actor before request data for %s", async (_label, invoke) => {
     state.access = {
       ok: false,
@@ -548,6 +581,38 @@ describe("Social Crew membership routes", () => {
       crewId: CREW_ID,
       invitationId: INVITATION_ID,
       idempotencyKey: IDEMPOTENCY_KEY,
+    });
+  });
+
+  it("notifies the host after a repeat request when the private crew read is denied", async () => {
+    store.read.mockRejectedValue(new SocialCrewStoreError("NOT_FOUND", 404, "Not found"));
+    store.readPublicPreview.mockResolvedValue({
+      crewId: CREW_ID,
+      title: "Open Friday",
+      hostHandle: "soho_host",
+      startsAt: "2026-11-12T19:00:00.000Z",
+      stopVenueId: "venue-a",
+      stopVenueName: "The First",
+    });
+
+    const privateRead = await readCrew(request(
+      `http://localhost/api/social/crews/${CREW_ID}`, "GET",
+    ), context({ crewId: CREW_ID }));
+    expect(privateRead.status).toBe(404);
+
+    const requested = await requestJoin(mutationRequest(
+      `http://localhost/api/social/crews/${CREW_ID}/join-requests`, "POST",
+    ), context({ crewId: CREW_ID }));
+    expect(requested.status).toBe(201);
+    await lifecycle.after.mock.calls[0]![0]();
+
+    const inbox = await memoryNotificationsStore.list("soho_host");
+    expect(inbox.unread).toBe(1);
+    expect(inbox.notifications[0]).toMatchObject({
+      kind: "crew_join_request",
+      actorHandle: "alice",
+      subjectRef: CREW_ID,
+      subjectLabel: "Open Friday",
     });
   });
 

@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
+import { isPlanTerminal } from "@/lib/planTerminal";
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
@@ -477,7 +478,7 @@ const memoryStore: PlanCollaborationStore = {
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
     if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
-    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    if (isPlanTerminal(planLookup.plan.plan.status)) return { ok: false, error: "invalid" };
     const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
     if (!checked.ok) return checked;
     const idem = idempotencyKey(planId, identity.memberId, "proposal:create", input.idempotencyKey);
@@ -790,14 +791,14 @@ const supabaseStore: PlanCollaborationStore = {
     if (!planLookup.ok) return { ok: false, error: "error" };
     if (!planLookup.plan) return { ok: false, error: "not_found" };
     if (Number(planLookup.plan.plan.routeRevision ?? 1) !== input.expectedRouteRevision) return { ok: false, error: "conflict" };
-    if (["completed", "abandoned"].includes(planLookup.plan.plan.status ?? "draft")) return { ok: false, error: "invalid" };
+    if (isPlanTerminal(planLookup.plan.plan.status)) return { ok: false, error: "invalid" };
     const checked = checkProposalGrounding(planLookup.plan, input.stops, input.groundingProof, input.operationKey, (input.now ?? new Date()).getTime());
     if (!checked.ok) return checked;
     const admin = requireSupabaseAdmin();
     const key = input.idempotencyKey.trim();
     const constraints = await admin.from(CONSTRAINTS).select("id,priority,resolved_at").eq("plan_id", planId);
     if (constraints.error) return { ok: false, error: "error" };
-    const rows = (constraints.data ?? []) as Array<{ id: string; priority: string; resolved_at: string | null }>;
+    const rows = (constraints.data ?? []) as Array<{ id: string; priority: PlanConstraint["priority"]; resolved_at: string | null }>;
     const resolved: string[] = [];
     const unresolved = rows.filter((item) => item.priority === "required" && !resolved.includes(String(item.id))).map((item) => String(item.id));
     const pricedStops = await resolvePlanSelectedDrinkPriceEvidence(input.stops, input.stops, planLookup.plan.context);

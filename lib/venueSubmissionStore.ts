@@ -58,9 +58,11 @@ type VenueSubmissionListResult = {
 type NewVenueSubmissionFile = Omit<VenueSubmissionFile, "createdAt">;
 
 export type VenueSubmissionStore = {
+  countAcceptedForOwner(ownerUserId: string): Promise<number>;
   create(fields: VenueSubmissionFields, now?: number): Promise<VenueSubmissionCreateResult>;
   /** The owner's own submissions, newest first. Fail-soft (degraded, []). */
   listForOwner(ownerUserId: string): Promise<VenueSubmissionListResult>;
+  listAcceptedForOwner(ownerUserId: string): Promise<VenueSubmissionListResult>;
   /** One of the owner's own pending submissions, or null. Another account's reads as null. */
   getPendingForOwner(ownerUserId: string, id: string): Promise<VenueSubmission | null>;
   /** Record a stored menu file. Refuses past the per-submission cap. THROWS on hard failure. */
@@ -92,6 +94,9 @@ function copy(row: VenueSubmission): VenueSubmission {
 }
 
 export const memoryVenueSubmissionStore: VenueSubmissionStore = {
+  async countAcceptedForOwner(ownerUserId) {
+    return [...byId.values()].filter((row) => row.ownerUserId === ownerUserId && row.status === "accepted").length;
+  },
   async create(fields, now = Date.now()) {
     const pending = [...byId.values()].filter(
       (row) => row.ownerUserId === fields.ownerUserId && row.status === "pending",
@@ -117,6 +122,14 @@ export const memoryVenueSubmissionStore: VenueSubmissionStore = {
       .filter((row) => row.ownerUserId === ownerUserId)
       .sort(byNewest)
       .slice(0, MAX_OWNER_ROWS)
+      .map(copy);
+    return { status: "ready", submissions };
+  },
+
+  async listAcceptedForOwner(ownerUserId) {
+    const submissions = [...byId.values()]
+      .filter((row) => row.ownerUserId === ownerUserId && row.status === "accepted" && row.reviewedAt !== null)
+      .sort((left, right) => (right.reviewedAt ?? "").localeCompare(left.reviewedAt ?? "") || left.id.localeCompare(right.id))
       .map(copy);
     return { status: "ready", submissions };
   },
@@ -299,6 +312,17 @@ const supabaseVenueSubmissionStore: VenueSubmissionStore = {
     });
   },
 
+  async countAcceptedForOwner(ownerUserId) {
+    const { count, error } = await admin()
+      .from(TABLE)
+      .select("id", { count: "exact", head: true })
+      .eq("owner_user_id", ownerUserId)
+      .eq("status", "accepted");
+    if (error) throw new Error(error.message);
+    if (count === null) throw new Error("Owner contribution count unavailable");
+    return count;
+  },
+
   async listForOwner(ownerUserId) {
     return guard({
       context: "list-owner",
@@ -314,6 +338,28 @@ const supabaseVenueSubmissionStore: VenueSubmissionStore = {
           .limit(MAX_OWNER_ROWS);
         if (error) throw new Error(error.message);
         return { status: "ready" as const, submissions: rows(data) };
+      },
+    });
+  },
+
+  async listAcceptedForOwner(ownerUserId) {
+    return guard({
+      context: "list-outcomes-owner",
+      onSchemaMiss: async () => ({ status: "degraded" as const, submissions: [] }),
+      onError: async () => ({ status: "degraded" as const, submissions: [] }),
+      message: "owner outcomes failed",
+      run: async () => {
+        const { data, error, count } = await admin()
+          .from(TABLE)
+          .select(SELECT_WITH_FILES, { count: "exact" })
+          .eq("owner_user_id", ownerUserId)
+          .eq("status", "accepted")
+          .not("reviewed_at", "is", null)
+          .order("reviewed_at", { ascending: false })
+          .order("id", { ascending: true });
+        if (error) throw new Error(error.message);
+        const submissions = rows(data);
+        return { status: count !== null && submissions.length === count ? "ready" as const : "degraded" as const, submissions };
       },
     });
   },

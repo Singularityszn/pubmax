@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CLAUDE_MESSAGES_URL, claudeJsonResponse } from "@/__tests__/helpers/claudeWire";
+
 const boundary = vi.hoisted(() => ({
   getUser: vi.fn(),
   rpc: vi.fn(),
@@ -209,14 +211,12 @@ describe("pub list import HTTP entry point", () => {
     expect(log).not.toHaveBeenCalled();
   });
 
-  it("matches signed-in prose through OpenRouter without fetching the source link", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+  it("matches signed-in prose through Claude without fetching the source link", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     vi.stubEnv("PUBMAX_ALERT_WEBHOOK_URL", "");
-    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(Response.json({
-      choices: [{ message: { content: JSON.stringify({ items: [
-        { name: "The Harp", areaHint: "" }, { name: "The Blue Bell", areaHint: "" },
-      ] }) } }],
-    }));
+    const fetch = vi.spyOn(globalThis, "fetch").mockResolvedValue(claudeJsonResponse({ items: [
+      { name: "The Harp", areaHint: "" }, { name: "The Blue Bell", areaHint: "" },
+    ] }));
     const { POST } = await import("@/app/api/pub-list-import/route");
 
     const response = await POST(request({
@@ -232,14 +232,14 @@ describe("pub list import HTTP entry point", () => {
       ],
     });
     expect(fetch).toHaveBeenCalledTimes(1);
-    expect(fetch.mock.calls[0]?.[0]).toBe("https://openrouter.ai/api/v1/chat/completions");
+    expect(String(fetch.mock.calls[0]?.[0])).toBe(CLAUDE_MESSAGES_URL);
     expect(boundary.rpc.mock.calls[2]?.[1]).toMatchObject({
       p_key: "paid-spend:pub-list-import", p_limit: 1000, p_window_ms: 86_400_000,
     });
   });
 
   it("keeps deterministic matches when the durable model budget cannot answer", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     vi.spyOn(console, "error").mockImplementation(() => {});
     const fetch = vi.spyOn(globalThis, "fetch").mockRejectedValue(new Error("No network allowed."));
     boundary.rpc.mockImplementation((_name, args) => ({

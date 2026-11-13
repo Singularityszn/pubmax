@@ -15,6 +15,7 @@
 //
 // Pure leaf: no I/O, no Date.now(). The server reader is lib/palTaste.server.ts.
 
+import { BEEN_HERE_LIST } from "@/lib/beenHere";
 import { CONCIERGE_MOODS, type ConciergeMood } from "@/lib/concierge/rank";
 import { cleanText } from "@/lib/textClean";
 
@@ -36,7 +37,7 @@ export type PalTasteDropInput = {
   day: string;
 };
 
-type PalTasteSavedInput = { venueId: string; venueName: string };
+type PalTasteSavedInput = { venueId: string; venueName: string; listType: string };
 
 /** What the venue index knows about a pub: its reader name and its patch. */
 export type PalTastePlace = { name: string; patch: string | null };
@@ -192,7 +193,30 @@ function dropSignals(drops: readonly PalTasteDropInput[]) {
   };
 }
 
-function wishlistOf(input: PalTasteInput, visited: ReadonlySet<string>, nameOf: NameOf): string[] {
+/** "Somewhere new", "places I have not or never been or tried" or "surprise me": the ask for picks they have not tried. */
+export function asksForSomewhereNew(text: string): boolean {
+  const plain = text.replace(/[\u2018\u2019\u02bc]/g, "'");
+  return /\bsomewhere new\b|\b(haven'?t|have not|never)\s+(been|tried)\b|\bsurprise me\b/i.test(plain);
+}
+
+/**
+ * Every pub the person has been to: a diary visit, a price they logged, or a
+ * pub on their Been here list. "Somewhere new" leaves these out.
+ */
+export function palVisitedVenueIds(input: {
+  diary: readonly { venueId: string }[];
+  drops: readonly { venueId: string }[];
+  saved: readonly { venueId: string; listType: string }[];
+}): Set<string> {
+  const visited = new Set<string>();
+  for (const entry of input.diary) if (entry.venueId) visited.add(entry.venueId);
+  for (const drop of input.drops) if (drop.venueId) visited.add(drop.venueId);
+  for (const save of input.saved) if (save.listType === BEEN_HERE_LIST && save.venueId) visited.add(save.venueId);
+  return visited;
+}
+
+function wishlistOf(input: PalTasteInput, nameOf: NameOf): string[] {
+  const visited = palVisitedVenueIds(input);
   const wishlist: string[] = [];
   for (const save of input.saved) {
     if (wishlist.length >= MAX_LIST) break;
@@ -232,7 +256,7 @@ export function buildPalTaste(input: PalTasteInput): PalTaste | null {
     ...dropSignals(input.drops),
     style: styleOf(visits, pubs.size),
     favouriteNight: favouriteNightOf(weekdays, visits),
-    wishlist: wishlistOf(input, new Set(visitDays.map((visit) => visit.venueId)), nameOf),
+    wishlist: wishlistOf(input, nameOf),
   };
   const empty =
     !taste.declaredDrink && taste.visits === 0 && taste.drinks.length === 0 && taste.vibes.length === 0 && taste.wishlist.length === 0;

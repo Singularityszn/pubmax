@@ -75,9 +75,7 @@ const config: KnipConfig = {
     // The sidecar half of every `.mjs` + `.d.mts` pair; see declaredMjsPairs.
     "**/*.d.mts",
 
-    // Evidence scripts kept beside the proof they produced. A proof README
-    // names its script as the way to reproduce the run.
-    "docs/proof/**",
+    // Browser evidence entry points run manually for PR captures.
     "scripts/clerk-auth-firefox-proof.mjs",
     "scripts/venue-truth-shots.mjs",
     // Refreshes TypeSafe fixture probabilities for Pub Pal fence tests.

@@ -441,9 +441,8 @@ empty; search finds a handle and follow works from it.
 
 ## Deploy notes
 
-- **Migrations ship as SQL only.** Agents and Cursor commit migration files;
-  firstmate applies them. Never run a migration against production from a
-  work branch.
+- Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
+  Never run a migration against production from a work branch.
 - **`OPENAI_API_KEY`:** already listed in `.env.example`; the captain adds
   it to Vercel env for Social post moderation. Owned-image uploads remain
   available without a scanner, with one logged scan skip; a real negative

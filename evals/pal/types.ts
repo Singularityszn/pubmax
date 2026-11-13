@@ -18,7 +18,9 @@ export type PalEvalAnswerExpectations = {
   topPrice?: number;
   priceTolerance?: number;
   priceAnswer?: { venueId: string } & (
-    | { value: null }
+    // `estimateGbp` is the venue's zone estimate (lib/zonePriceEstimate.ts).
+    // When given, the answer may quote that figure and no other, named as an estimate.
+    | { value: null; estimateGbp?: number }
     | { value: number; source: string }
   );
   heritageAnswer?: {

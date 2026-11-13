@@ -102,6 +102,13 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 // the whole run. The nudge itself is pinned in pintDropsBroadcast.test.ts.
 const signalPintDropLanded = vi.hoisted(() => vi.fn());
 vi.mock("@/lib/pintDropsBroadcast.server", () => ({ signalPintDropLanded }));
+// The bill check runs AFTER the answer (lib/billCheck.server.ts), so the route
+// is pinned on what it hands over and what it says, never on a model call.
+const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
+vi.mock("@/lib/billCheck.server", () => ({
+  billReaderKeyed: () => billChecks.keyed,
+  scheduleBillCheck: billChecks.schedule,
+}));
 vi.mock("@/lib/venueAliases", () => {
   const aliases: Record<string, string> = {
     "legacy-pub": "canonical-pub",
@@ -114,6 +121,7 @@ vi.mock("@/lib/venueAliases", () => {
     ...Object.keys(aliases).filter((from) => aliases[from] === canonical(id)),
   ];
   return {
+    lookupCanonicalVenueId: async (id: string) => ({ status: "resolved", venueId: canonical(id) }),
     resolveCanonicalVenueId: async (id: string) => canonical(id),
     storedVenueIds: async (id: string) => storedIds(id),
     loadVenueAliasResolver: async () => ({
@@ -665,7 +673,6 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(201);
     const { drop, confirmationOutcome } = await res.json();
     expect(drop.priceGbp).toBe(4.5);
-    expect(drop.priceEvidence).toBe("unchecked");
     expect(drop.receiptPhotoUrl).toBeNull();
     // Still a verified account's price, so a second drinker can agree with it.
     expect(drop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
@@ -686,13 +693,54 @@ describe("POST /api/pint-drops (create)", () => {
     expect((await (await get(VENUE)).json()).drops).toEqual([]);
   });
 
-  it("stamps a price that came with the bill as receipt, exactly as before", async () => {
+  // Captain 5 Nov 2026: a photo attached is not a bill read. The price lands
+  // unchecked, the answer goes at once, and the bill is read after it.
+  it.each([
+    { measure: "pint", measureLabel: undefined },
+    { measure: "other", measureLabel: "330ml" },
+  ])("lands a $measure price unchecked and hands its serving to the bill check", async ({ measure, measureLabel }) => {
+    billChecks.schedule.mockClear();
+    billChecks.keyed = true;
     reportAuth.userId = "account-billed";
     await memoryProfileStore.createOwned("billed_drinker", reportAuth.userId);
     await memoryAdultSelfAssertionStore.record(reportAuth.userId);
-    const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5 });
+    const res = await post({ venueId: VENUE, handle: "billed_drinker", priceGbp: 4.5, measure, measureLabel });
     expect(res.status).toBe(201);
-    expect((await res.json()).drop.priceEvidence).toBe("receipt");
+    const body = await res.json();
+    expect(body.drop.priceEvidence).toBe("unchecked");
+    expect(body.billCheck).toBe("reading");
+    expect(billChecks.schedule).toHaveBeenCalledTimes(1);
+    const [run] = billChecks.schedule.mock.calls[0] as [Record<string, unknown>];
+    expect(run).toMatchObject({ venueId: VENUE, priceGbp: 4.5, drink: body.drop.drink, measure, measureLabel, pintDropId: body.drop.id });
+    expect(run.photo).toBeInstanceOf(File);
+  });
+
+  it("says nothing about reading a bill on a keyless deployment, and reads nothing", async () => {
+    billChecks.schedule.mockClear();
+    billChecks.keyed = false;
+    reportAuth.userId = "account-keyless";
+    await memoryProfileStore.createOwned("keyless_drinker", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const res = await post({ venueId: VENUE, handle: "keyless_drinker", priceGbp: 4.5 });
+    billChecks.keyed = true;
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.drop.priceEvidence).toBe("unchecked");
+    expect(body).not.toHaveProperty("billCheck");
+    expect(billChecks.schedule).not.toHaveBeenCalled();
+  });
+
+  it("hands nothing to the bill check for a price with no bill or a note", async () => {
+    billChecks.schedule.mockClear();
+    reportAuth.userId = "account-nobill";
+    await memoryProfileStore.createOwned("no_bill", reportAuth.userId);
+    await memoryAdultSelfAssertionStore.record(reportAuth.userId);
+    const typed = await postWithoutBill({ venueId: VENUE, handle: "no_bill", priceGbp: 4.5 });
+    expect(typed.status).toBe(201);
+    expect(await typed.json()).not.toHaveProperty("billCheck");
+    const note = await postWithoutBill({ venueId: "venue-eltcmh", handle: "no_bill", passedDownNote: "Old local." });
+    expect(note.status).toBe(201);
+    expect(billChecks.schedule).not.toHaveBeenCalled();
   });
 
   it("never lets a body claim a bill it did not send", async () => {
@@ -1085,34 +1133,150 @@ describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", 
     const note = await post({ venueId: "note-pub", handle: "reg", passedDownNote: "my old local" });
     expect(note.status).toBe(201);
   });
+});
 
-  it("answers the SAME refusal when the pre-check misses and the store refuses (0141)", async () => {
-    expect((await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.5 })).status).toBe(201);
+describe("POST /api/pint-drops — a retry resends its first clientRequestId", () => {
+  const KEY = "client-request-0001";
 
-    const soft = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.6 });
-    expect(soft.status).toBe(409);
-    const softBody = await soft.json();
-
-    // The pre-check is fail-open by design, and that is the hole a concurrent
-    // burst walks through: every request in flight reads "no price yet" before
-    // any row lands. Make the lookup fail and the HARD guard has to answer -
-    // the unique index on the Supabase backend, its mirror here - and it has to
-    // answer with the same sentence and the same status, because the drinker
-    // did the same thing either way.
-    const precheck = vi
-      .spyOn(memoryPintDropStore, "hasPricedDropToday")
-      .mockRejectedValue(new Error("lookup unavailable"));
+  it("replays when the first save lands after the replay lookup misses", async () => {
+    const body = { venueId: "racing-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
     try {
-      const hard = await post({ venueId: "burst-pub", handle: "reg", priceGbp: 4.7 });
-      expect(hard.status).toBe(409);
-      expect(await hard.json()).toEqual(softBody);
+      const retry = await post(body);
+      expect(retry.status).toBe(200);
+      expect((await retry.json()).drop.id).toBe(saved.id);
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
     } finally {
-      precheck.mockRestore();
+      lookup.mockRestore();
     }
+  });
 
-    // And the refusal kept the first observation rather than stacking a second.
-    const drops = (await (await get("burst-pub")).json()).drops as Array<{ priceGbp: number }>;
-    expect(drops.map((row) => row.priceGbp)).toEqual([4.5]);
+  it("returns a retryable 503 for a keyed request without trusted signing", async () => {
+    const originalSecret = process.env.PLAN_IDEMPOTENCY_SECRET;
+    process.env.PLAN_IDEMPOTENCY_SECRET = "short";
+    try {
+      const body = { venueId: "unsigned-retry-pub", handle: "reg", passedDownNote: "Old local" };
+      const keyed = await post({ ...body, clientRequestId: KEY });
+      expect(keyed.status).toBe(503);
+      expect(await keyed.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+      expect((await (await get(body.venueId)).json()).drops).toHaveLength(0);
+      expect((await post(body)).status).toBe(201);
+    } finally {
+      if (originalSecret === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalSecret;
+    }
+  });
+
+  it("answers a priced retry with the drop it already saved, not the daily cap", async () => {
+    const first = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+
+    const retry = await post({ venueId: "retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(retry.status).toBe(200);
+    expect(((await retry.json()).drop as { id: string }).id).toBe(saved.id);
+
+    const drops = (await (await get("retry-pub")).json()).drops as Array<{ id: string }>;
+    expect(drops.map((row) => row.id)).toEqual([saved.id]);
+  });
+
+  it("replays the account's saved price after its handle changes", async () => {
+    const body = { venueId: "rename-retry-pub", handle: "reg", priceGbp: 4.5, clientRequestId: KEY };
+    const first = await post(body);
+    expect(first.status).toBe(201);
+    const saved = (await first.json()).drop as { id: string };
+    const retry = await post({ ...body, handle: "renamed" });
+    expect(retry.status).toBe(200);
+    expect((await retry.json()).drop.id).toBe(saved.id);
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+  });
+
+  it("caps a new keyed price after a different key already saved one", async () => {
+    const body = { venueId: "keyed-cap-pub", handle: "reg", priceGbp: 4.5 };
+    expect((await post({ ...body, clientRequestId: KEY })).status).toBe(201);
+    const next = await post({ ...body, clientRequestId: "client-request-0002" });
+    expect(next.status).toBe(409);
+    expect((await next.json()).code).toBe("CONFLICT");
+    expect((await (await get(body.venueId)).json()).drops).toHaveLength(1);
+  });
+
+  it("stores a retried note once", async () => {
+    const note = { venueId: "retry-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    expect((await post(note)).status).toBe(200);
+    expect((await (await get("retry-note-pub")).json()).drops).toHaveLength(1);
+  });
+
+  it("refuses changed note text on the early replay path and after a missed lookup", async () => {
+    const note = { venueId: "changed-note-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+    expect((await post(note)).status).toBe(201);
+    const changed = { ...note, passedDownNote: "a different memory" };
+    const early = await post(changed);
+    expect(early.status).toBe(409);
+    expect((await early.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+    try {
+      const late = await post(changed);
+      expect(late.status).toBe(409);
+      expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const saved = (await (await get(note.venueId)).json()).drops;
+      expect(saved).toHaveLength(1);
+      expect(saved[0].passedDownNote).toBe(note.passedDownNote);
+    } finally {
+      lookup.mockRestore();
+    }
+  });
+
+  it.each(["pint_photo", "venue_photo", "receipt_photo"])(
+    "refuses added or removed %s on early and late replay paths", async (slot) => {
+      const note = { venueId: "photo-retry-pub", handle: "reg", passedDownNote: "my old local", clientRequestId: KEY };
+      const submit = (attached: boolean) => {
+        const form = new FormData();
+        for (const [key, value] of Object.entries(note)) form.set(key, value);
+        if (attached) form.set(slot, jpegFile("photo.jpg"));
+        return POST(new Request(URL_BASE, { method: "POST", body: form }));
+      };
+      expect((await submit(false)).status).toBe(201);
+      const added = await submit(true);
+      expect(added.status).toBe(409);
+      expect((await added.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      const lookup = vi.spyOn(memoryPintDropStore, "findCreated").mockResolvedValueOnce(null);
+      try {
+        const late = await submit(true);
+        expect(late.status).toBe(409);
+        expect((await late.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      } finally {
+        lookup.mockRestore();
+      }
+      note.clientRequestId = "client-request-0002";
+      expect((await submit(true)).status).toBe(201);
+      expect((await submit(true)).status).toBe(200);
+      const removed = await submit(false);
+      expect(removed.status).toBe(409);
+      expect((await removed.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+      expect((await (await get(note.venueId)).json()).drops).toHaveLength(2);
+    },
+  );
+
+  it("refuses a key resent for a different pub", async () => {
+    expect((await post({ venueId: "retry-pub-a", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    const moved = await post({ venueId: "retry-pub-b", handle: "reg", priceGbp: 4.5, clientRequestId: KEY });
+    expect(moved.status).toBe(409);
+    expect((await moved.json()).code).toBe("IDEMPOTENCY_CONFLICT");
+    expect((await (await get("retry-pub-b")).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps two accounts' equal keys apart", async () => {
+    await memoryAdultSelfAssertionStore.record("account-reg");
+    await memoryAdultSelfAssertionStore.record("account-other");
+    gateActor.userId = "account-reg";
+    expect((await post({ venueId: "retry-shared", handle: "reg", priceGbp: 4.5, clientRequestId: KEY })).status).toBe(201);
+    gateActor.userId = "account-other";
+    expect((await post({ venueId: "retry-shared", handle: "other", priceGbp: 4.6, clientRequestId: KEY })).status).toBe(201);
+    expect((await (await get("retry-shared")).json()).drops).toHaveLength(2);
   });
 });
 
@@ -1695,6 +1859,7 @@ describe("durable rate limiting (Supabase configured)", () => {
     storeCreate.mockReset();
     storeCreate.mockImplementation(async (drop) => ({
       ...(drop as Record<string, unknown>),
+      created: true,
       pintPhotoUrl: null,
       venuePhotoUrl: null,
     }));
@@ -1844,5 +2009,101 @@ describe("an unchecked price before migration 0218 is applied", () => {
       code: "RECEIPT_REQUIRED",
       retryable: false,
     });
+  });
+});
+
+describe("Pint Drop stars", () => {
+  async function listed(id: string) {
+    const body = await (await get(VENUE)).json();
+    return (body.drops as Array<{ id: string; handle: string; rating?: number }>).find((drop) => drop.id === id);
+  }
+
+  it("saves and lists the stars on their own drop", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2, drink: "Guinness", rating: "4" });
+    expect(res.status).toBe(201);
+    const { drop, ratingSaved } = await res.json();
+    expect(ratingSaved).toBe(true);
+    expect(drop.rating).toBe(4);
+    expect((await listed(drop.id))?.rating).toBe(4);
+    expect(drop.priceEvidence).toBe("unchecked");
+  });
+
+  it("never rewrites an earlier drink log or gives an unrated log stars", async () => {
+    const { drop: first } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "First pint.", rating: 2 })).json();
+    const { drop: second } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Better tonight.", rating: 5 })).json();
+    const { drop: unrated } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Old local." })).json();
+    expect((await listed(first.id))?.rating).toBe(2);
+    expect((await listed(second.id))?.rating).toBe(5);
+    expect((await listed(unrated.id))?.rating).toBeUndefined();
+  });
+
+  it.each([0, 6, 2.5, true, [4]])("refuses invalid whole stars %j and saves nothing", async (rating) => {
+    const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "Odd one.", rating });
+    expect(res.status).toBe(400);
+    expect((await res.json()).error).toBe("Pick 1 to 5 stars.");
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+  });
+
+  it("keeps anonymous stars and withholds only the author", async () => {
+    const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "Old local.", visibility: "anonymous", rating: 4 });
+    expect(res.status).toBe(201);
+    const { drop } = await res.json();
+    expect(drop).toMatchObject({ handle: "a PUBMAXXER", rating: 4 });
+    expect(await listed(drop.id)).toMatchObject({ handle: "a PUBMAXXER", rating: 4 });
+  });
+
+  it.each(["friends", "legacy"])("keeps %s stars off every public drop read", async (visibility) => {
+    const { drop: publicDrop } = await (await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Public pint.", rating: 2 })).json();
+    const res = await post({ venueId: VENUE, handle: "ale", drink: "Guinness", passedDownNote: "Private pint.", visibility, rating: 5 });
+    expect(res.status).toBe(201);
+    const { drop: privateDrop } = await res.json();
+    expect(privateDrop.rating).toBe(5);
+    for (const query of [`?venueId=${VENUE}`, "", "?author=ale"]) {
+      const response = await GET(new Request(`${URL_BASE}${query}`));
+      expect(response.status).toBe(200);
+      const body = await response.json();
+      expect(JSON.stringify(body)).not.toContain(privateDrop.id);
+      const rows = body.drops as Array<{ id: string; rating?: number }>;
+      expect(rows.find((row) => row.id === publicDrop.id)?.rating).toBe(2);
+    }
+  });
+
+  it("keeps stars when a submitted venue alias resolves to the canonical pub", async () => {
+    const res = await post({ venueId: "legacy-pub", handle: "ale", passedDownNote: "Old local.", rating: 3 });
+    const { drop } = await res.json();
+    expect(res.status).toBe(201);
+    expect(drop).toMatchObject({ venueId: "canonical-pub", rating: 3 });
+    const body = await (await get("canonical-pub")).json();
+    expect(body.drops.find((row: { id: string }) => row.id === drop.id)?.rating).toBe(3);
+  });
+
+  it("returns the stored stars when a keyed request is replayed", async () => {
+    const input = { venueId: VENUE, handle: "ale", passedDownNote: "Old local.", rating: 4, clientRequestId: "rated-client-request-0001" };
+    const first = await (await post(input)).json();
+    const replay = await post(input);
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({ drop: { id: first.drop.id, rating: 4 }, ratingSaved: true });
+  });
+
+  it("saves without stars during schema lag and explicitly reports their loss", async () => {
+    supaGuard.configured = true;
+    const rows: Record<string, unknown>[] = [];
+    adminRef.client = {
+      from: () => ({ insert: async (row: Record<string, unknown>) => {
+        if ("rating" in row) return { error: { code: "PGRST204", message: "Could not find the 'rating' column of 'pint_drops' in the schema cache" } };
+        rows.push(structuredClone(row));
+        return { error: null };
+      } }),
+    };
+    const actual = await vi.importActual<typeof import("@/lib/pintDropsStore")>("@/lib/pintDropsStore");
+    storeCreate.mockImplementation((...args) => actual.supabasePintDropStore.create(...args as Parameters<typeof actual.supabasePintDropStore.create>));
+    const res = await postWithoutBill({ venueId: VENUE, handle: "ale", passedDownNote: "Old local.", rating: 4 });
+    expect(res.status).toBe(201);
+    const body = await res.json();
+    expect(body.ratingSaved).toBe(false);
+    expect(body.drop.rating).toBeUndefined();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({ id: body.drop.id, passed_down_note: "Old local." });
+    expect(rows[0]).not.toHaveProperty("rating");
   });
 });

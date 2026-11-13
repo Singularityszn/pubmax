@@ -132,7 +132,7 @@ Brand read: PUBMAXX·ING + coral is strong; hero photography reads stock; trust 
 
 ## 4. Waves
 
-This order records original dependencies and parallel-safety reasoning. Agents take current work, branch names and ownership only from the Firstmate backlog. Gate every implementation merge with `npm run verify` and UI evidence where noted.
+This order records original dependencies and parallel-safety reasoning. Agents take current work, branch names and ownership only from the Firstmate backlog. Use the [root verification policy](../AGENTS.md#verifying) and the UI evidence requirements noted below.
 
 ```text
 Wave 0  ✅ Complete in #656
@@ -218,7 +218,7 @@ contracts.
 | W3.2 | Pin `maplibre-gl@6.0.0` (stable `latest`) | Lockfile regenerated; no prerelease pin |
 | W3.3 | Resolve `buildings-3d` paint intentionally | Native `fill-extrusion-vertical-gradient` for 6.x; drop obsolete 5.24 M6i double massing |
 | W3.4 | Re-check `map.style._loaded` private-field call sites | Both sites safe on 6.x |
-| W3.5 | Gates | `npm run verify`; isolated `NEXT_DIST_DIR=.next-prod` build/start; `e2e/map-gl`, `map-console-health`, `map-fallback`; 390px pin → sheet → Tonight |
+| W3.5 | Gates | [Root verification policy](../AGENTS.md#verifying); isolated `NEXT_DIST_DIR=.next-prod` build/start; `e2e/map-gl`, `map-console-health`, `map-fallback`; 390px pin → sheet → Tonight |
 | W3.6 | Smoke recent merges keyless | Visit Reports, bus departures, weather recs, drink lens, provisional base marks, rounds spend, city search; hotfix branches only for real regressions |
 
 ---
@@ -270,7 +270,7 @@ contracts.
 
 ## 5. Acceptance rules for derived backlog items
 
-1. `npm run verify` green on the branch tip.
+1. Follow the [root verification policy](../AGENTS.md#verifying).
 2. No tooling churn commits (`next-env.d.ts` route-types rewrite, `allowScripts` noise).
 3. Product copy: British spelling, no em dashes, jokes only on low-stakes surfaces ([`docs/VOICE.md`](./VOICE.md)).
 4. Any new mutating API route updates [`docs/WRITE_SURFACE_CERTIFICATION.md`](./WRITE_SURFACE_CERTIFICATION.md) in the same commit.

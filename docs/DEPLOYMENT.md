@@ -9,11 +9,11 @@ The app runs **keyless** locally (in-memory Pint Drops + structured Landlord fal
 `vercel.json` owns the default London placement for Vercel Functions. Measured
 launch latency, the bounded route-trace reduction, and remaining production
 verification live in the
-[cold-start bundle evidence](evidence/cold-start-bundle.md). Production
+[cold-start bundle evidence](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/cold-start-bundle.md). Production
 cold-start effect remains unverified until deployment.
 
 HTML cacheability remains a security decision, not a deployment toggle. The
-[CSP and caching decision brief](evidence/csp-vs-caching.md) owns the options
+[CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md) owns the options
 and pending captain decision.
 
 ## Environment variables
@@ -41,16 +41,16 @@ Changing `ADMIN_TOKEN` invalidates existing sessions.
 The signed format replaces the old static token digest, so existing moderators must sign in again after this update.
 The `x-admin-token` header remains available for scripts.
 
-### Optional — The Landlord (heritage Q&A)
+The Landlord (`/api/heritage`) needs no key: it reads back the stored, cited heritage facts and calls no model.
 
-| Var | Purpose |
-|---|---|
-| `OPENROUTER_API_KEY` | Enables narrated LLM answers via OpenRouter. Without it, `/api/heritage` returns the grounded, structured-only fallback (reads the facts back, never invents). |
-| `OPENROUTER_MODEL` | Model id. Defaults to `anthropic/claude-sonnet-4-5`. Also used by the optional OpenRouter tool loop on `POST /api/ask` (map Ask). Pal typed chat and voice do not use OpenRouter. |
+### Optional user chat on Claude
+
+[Claude setup](PUB_PAL_SETUP.md#typed-chat-on-claude) owns `ANTHROPIC_API_KEY`, spend limits, and the shared `PUB_PAL_CLAUDE_MODEL` setting. The same key backs Pub Pal typed chat, map Ask, Board Reader, [background bill checks](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price), pub-list imports and, without `OPENAI_API_KEY`, owned-avatar moderation.
 
 ### Pub Pal voice and hosted typed chat (ElevenLabs)
 
-Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs (`/api/pub-pal/chat` falls back to the same grounded `runAsk` tools). Voice and the hosted-LLM typed path need the agent values below. Full runbook: `docs/PUB_PAL_SETUP.md`.
+For provider selection and keyless behaviour, see [Pub Pal setup](PUB_PAL_SETUP.md).
+Voice and the ElevenLabs typed path need the agent values below.
 
 | Var | Purpose |
 |---|---|
@@ -69,7 +69,7 @@ Map Ask on `/api/ask` and `/pal/chat` typed asks stay keyless without ElevenLabs
 
 | Var | Purpose |
 |---|---|
-| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
+| `PLAN_IDEMPOTENCY_SECRET` | Trusted signing configuration and consumers are defined in [`.env.example`](../.env.example). |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (docs/plans/sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
@@ -92,7 +92,7 @@ storage backend; it never relaxes signing. `playwright.config.ts` injects a fres
 production-style browser-test run, keeping it out of the command and argv.
 Plan generation, creation, and completion return retryable
 `PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
-misconfigured.
+misconfigured. Keyed Pint Drop and Round creation follow the [API retry contract](rules/app-api-contract-and-rate-limits.md#keyed-pint-drop-and-round-creation).
 
 ### Vercel-injected (do not set by hand)
 
@@ -104,7 +104,7 @@ misconfigured.
 
 ### 1. Run the migrations, in order
 
-Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (each builds on the last). Do not stop at `0004`; the social demo depends on the later migrations through `0020`.
+Migrations in `supabase/migrations/` run **in filename timestamp order** (each builds on the last). Do not stop at `0004`; the social demo depends on the later migrations through `0020`.
 
 | File | What it creates |
 |---|---|
@@ -116,7 +116,7 @@ Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (
 | `0019_messages.sql` | Durable conversations/messages with RLS denying raw public table access. |
 | `0020_ratings.sql` | Durable drink ratings and venue-summary compatibility rows with raw row access denied; public reads go through aggregate API responses. The retired venue panel and top-rated-pub list are not part of the deployed surface. |
 
-Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
+Follow the [migration apply policy](../supabase/AGENTS.md#traps) for authorisation, the apply path, and independent verification.
 
 Production migration history already contains
 `20260806035204_0070_v1_release_security.sql`. Migrations `0071` and `0072` have
@@ -127,8 +127,7 @@ Current production migration state and source-ledger reconciliation are owned by
 the [soft-launch runbook](SOFT_LAUNCH_RUNBOOK.md#13-migrations). Check the live
 ledger there before applying any migration, including the `0127`-`0132`
 reconciliation entries and the `0133`-`0136` Plan account-claim follow-up
-entries, all with their matching rollback files. Captain applies migrations;
-agents do not apply them.
+entries, all with their matching rollback files.
 
 Supabase installs the pgcrypto extension in the `extensions` schema, not
 `public`. Local test Postgres installs it in `public`, which hides the
@@ -221,8 +220,8 @@ These controls solve different problems:
   custom production domain public while protecting deployment URLs and
   previews. Configure it in Vercel Project Settings under Deployment
   Protection. Signed-in team members can still open protected URLs. Other
-  reviewers need a temporary share link, and automated checks need an
-  automation bypass secret.
+  reviewers need a temporary share link. Automated checks against protected
+  URLs need an automation bypass secret.
 - A permanent host redirect is canonicalisation, not access control. Redirecting
   Vercel's generated production aliases to the apex stops them serving an
   independent copy. `proxy.ts` evaluates the incoming host on every request, so
@@ -383,10 +382,11 @@ This is the way to ship to production. It runs these steps in order and stops at
 
 1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
 2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
-3. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
-4. It reads `/api/version` on the new deployment, then runs `vercel promote`.
-5. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
-6. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
+3. It runs the freshness gate, the same two commands as `.github/workflows/freshness.yml`, and refuses when a dataset is past its age budget. The [CI runbook](CI_RUNBOOK.md#the-freshness-gate) says why the gate runs here and not on every pull request.
+4. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
+5. It reads `/api/version` on the new deployment, then runs `vercel promote`.
+6. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
+7. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
 
 The command selects the newest run that meets all these conditions:
 
@@ -628,7 +628,7 @@ product code:
 
 | Check source | What it means | Fix path |
 |---|---|---|
-| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. Push browser checks do not include the full scheduled suite. | Read failed job logs. Keep skipped checks separate from successful checks. |
+| First-party CI | GitHub Actions workflows under `.github/workflows/`. A successful run proves only the jobs that ran at that commit. The [CI runbook](CI_RUNBOOK.md#the-nightly-full-suite) owns full browser coverage and exclusions. | Read failed job logs. Keep skipped checks separate from successful checks. |
 | `Vercel` | The `chengdu` project's Ignored Build Step can cancel a deployment while GitHub reports success with the description `Canceled by Ignored Build Step`. Production and preview outcomes can differ. | Check each deployment's state, source, target and commit. Require `READY`, then verify the SHA and deployment ID through `/api/version`. A cancelled build proves neither compilation nor deployment. The captain approves any build-policy change. |
 | `Supabase Preview` | Supabase GitHub integration. | If it says `Remote migration versions not found in local migrations directory`, sync migration history: pull/export the missing remote migrations or repair the Supabase migration table so remote and `supabase/migrations/` agree. Do not delete local migrations to make this pass. |
 | GitHub Actions `startup_failure` | GitHub failed before allocating a job. GitHub shows no jobs and no logs. | Investigate the runner or account. Do not infer a product failure or a Vercel build result. Run `npm run ci` locally for the full local gate. |
@@ -639,7 +639,7 @@ The publication gates are in [the build methodology](agents/build-methodology.md
 The daily browser and performance workflows already build and measure the app.
 Their schedules do not create a Vercel preview.
 
-The [25 October deployment audit](proof/git-preview-audit-20261025/README.md)
+The [25 October deployment audit](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/git-preview-audit-20261025/README.md)
 records READY Git production builds alongside cancelled Git previews. That
 record does not establish the current policy or guarantee the next build.
 

@@ -12,10 +12,10 @@ import { planMemberCookieName } from "@/lib/planMemberCapability";
 //
 //   npm run shots
 //
-// Primary deliverables land in docs/screenshots/ (committed reference PNGs).
+// Primary deliverables land in artifacts/screenshots/ (gitignored; upload them to the PR).
 // A mirror also writes to e2e/screenshots/ (gitignored local artifacts).
 
-const DOCS_DIR = process.env.SHOTS_DOCS_DIR ?? "docs/screenshots";
+const DOCS_DIR = process.env.SHOTS_DOCS_DIR ?? "artifacts/screenshots";
 const OUT_DIR = process.env.SHOTS_OUT_DIR ?? "e2e/screenshots";
 
 type PaintedMapTapPoint = {

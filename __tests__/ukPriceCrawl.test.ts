@@ -263,6 +263,17 @@ describe("what a page states", () => {
     expect(text).toBe("Madri pint £6.20");
   });
 
+  it("reads a one-digit pence price whole and keeps its pence out of the next label", () => {
+    const reading = readVenueDrinkPrices(
+      "DRAUGHT\nROTHAUS PILSNER £6.5 5.1% GERMANY\nCAMDEN HELLS £6.50 4.6% UK\nLUCKY SAINT £5.8 0.5% UK",
+    );
+    expect(cheapestPerCategory(reading)).toEqual([
+      { category: "alcohol-free", priceGbp: 5.8, drinkLabel: "LUCKY SAINT" },
+      { category: "beer", priceGbp: 6.5, drinkLabel: "CAMDEN HELLS" },
+      { category: "beer", priceGbp: 6.5, drinkLabel: "ROTHAUS PILSNER" },
+    ]);
+  });
+
   it("keeps a stated price per drink and names its category", () => {
     const reading = readVenueDrinkPrices(drinksList);
     expect(cheapestPerCategory(reading)).toEqual([

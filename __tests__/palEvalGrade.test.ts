@@ -1,8 +1,10 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import type Anthropic from "@anthropic-ai/sdk";
+import { describe, expect, it } from "vitest";
 
 import { createUsageCapture } from "@/evals/pal/captureUsage";
 import { gradePalCase } from "@/evals/pal/grade";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
+import type { ClaudeClient } from "@/lib/claudeClient.server";
 import type { AskResponseBody } from "@/lib/ask/types";
 
 describe.each([
@@ -107,78 +109,68 @@ describe("Pal eval graders", () => {
 });
 
 describe("Pal eval usage capture", () => {
-  afterEach(() => {
-    vi.unstubAllGlobals();
-  });
-
-  function openRouterReply(usage: Record<string, number>, toolNames: string[] = []): Response {
-    const message = {
-      content: toolNames.length ? null : "hi",
-      ...(toolNames.length
-        ? {
-            tool_calls: toolNames.map((name, i) => ({
-              id: `call-${i}`,
-              type: "function",
-              function: { name, arguments: "{}" },
-            })),
-          }
-        : {}),
-    };
-    return new Response(JSON.stringify({ choices: [{ message }], usage }), {
-      status: 200,
-      headers: { "Content-Type": "application/json" },
-    });
+  function claudeRound(usage: Partial<Anthropic.Usage>, toolNames: string[] = []): Anthropic.Message {
+    return {
+      id: "msg-test",
+      type: "message",
+      role: "assistant",
+      model: "claude-haiku-5-5",
+      content: toolNames.length
+        ? toolNames.map((name, i) => ({ type: "tool_use", id: `call-${i}`, name, input: {} }))
+        : [{ type: "text", text: "hi" }],
+      stop_reason: toolNames.length ? "tool_use" : "end_turn",
+      stop_sequence: null,
+      usage: { input_tokens: 0, output_tokens: 0, ...usage },
+    } as unknown as Anthropic.Message;
   }
 
-  it("prices a conversation from the cost OpenRouter reports", async () => {
-    vi.stubGlobal("fetch", async () =>
-      openRouterReply({ prompt_tokens: 100, completion_tokens: 20, total_tokens: 120, cost: 0.0042 }),
-    );
-    const capture = createUsageCapture();
-    await capture.fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST" });
-    await capture.fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST" });
+  /** A Claude client that answers every round with `message`. */
+  function claudeAnswering(message: Anthropic.Message): ClaudeClient {
+    return { stream: () => ({ on: () => undefined, finalMessage: async () => message }) };
+  }
 
-    expect(capture.take()).toEqual({
+  async function round(capture: ReturnType<typeof createUsageCapture>): Promise<void> {
+    await capture.claude
+      .stream({ model: "claude-haiku-5-5", max_tokens: 1, messages: [] }, { signal: new AbortController().signal })
+      .finalMessage();
+  }
+
+  it("prices a conversation from the token counts Claude reports", async () => {
+    const capture = createUsageCapture(
+      claudeAnswering(claudeRound({ input_tokens: 100, cache_read_input_tokens: 1_000, output_tokens: 20 })),
+      "claude-haiku-5-5",
+    );
+    await round(capture);
+    await round(capture);
+
+    const taken = capture.take();
+    expect(taken).toMatchObject({
       modelCalls: 2,
       modelToolCalls: 0,
-      promptTokens: 200,
+      promptTokens: 2_200,
       completionTokens: 40,
-      totalTokens: 240,
-      costUsd: 0.0084,
+      totalTokens: 2_240,
     });
+    // Per round: (100 + 1,000 x 0.1) input at $0.10/M and 20 output at $0.50/M.
+    expect(taken.costUsd).toBeCloseTo(2 * (200 * 0.1 + 20 * 0.5) / 1_000_000, 12);
     expect(capture.take().modelCalls).toBe(0);
   });
 
-  it("refuses to report a conversation OpenRouter did not price", async () => {
-    vi.stubGlobal("fetch", async () =>
-      openRouterReply({ prompt_tokens: 100, completion_tokens: 20, total_tokens: 120 }),
-    );
-    const capture = createUsageCapture();
-    await capture.fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST" });
+  it("refuses to report a conversation on a model it has no rate for", async () => {
+    const capture = createUsageCapture(claudeAnswering(claudeRound({ input_tokens: 100 })), "claude-unpriced");
+    await round(capture);
 
-    expect(() => capture.take()).toThrow(/usage\.cost/);
+    expect(() => capture.take()).toThrow(/cannot price/);
   });
 
   it("counts only allowlisted Ask tool calls the model asked for", async () => {
-    vi.stubGlobal("fetch", async () =>
-      openRouterReply({ cost: 0.001 }, ["city_status", "not_a_tool"]),
+    const capture = createUsageCapture(
+      claudeAnswering(claudeRound({ input_tokens: 1 }, ["city_status", "not_a_tool"])),
+      "claude-haiku-5-5",
     );
-    const capture = createUsageCapture();
-    await capture.fetchImpl("https://openrouter.ai/api/v1/chat/completions", { method: "POST" });
+    await round(capture);
 
     expect(capture.take()).toMatchObject({ modelCalls: 1, modelToolCalls: 1 });
-  });
-
-  it("keeps every other service offline so live runs grade against the offline key", async () => {
-    const globalFetch = vi.fn(async () => openRouterReply({ cost: 1 }));
-    vi.stubGlobal("fetch", globalFetch);
-    const capture = createUsageCapture();
-
-    await expect(
-      capture.fetchImpl("https://citymcp.com/london/mcp", { method: "POST" }),
-    ).rejects.toThrow(/offline/i);
-    expect(globalFetch).not.toHaveBeenCalled();
-    expect(capture.take().modelCalls).toBe(0);
   });
 });
 

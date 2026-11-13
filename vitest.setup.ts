@@ -141,3 +141,10 @@ delete process.env.SEARCH_GATEWAY_MAX_CALLS;
 // key-present path only inside Vercel builds. Key-present behaviour is proven
 // with an explicit apiKey / vi.stubEnv.
 delete process.env.ORS_API_KEY;
+
+// Same trap for the Claude lane (Pal chat, Ask, the board reader, the bill
+// check, the pub list import and the avatar check): with ANTHROPIC_API_KEY in a
+// developer's shell, a route that reads a bill after its answer calls Next's
+// `after()` outside a request scope, and keyless tests take the keyed path.
+// Keyed behaviour is proven with an explicit env argument or vi.stubEnv.
+delete process.env.ANTHROPIC_API_KEY;

@@ -1,12 +1,20 @@
 import "server-only";
 
-// Public read of one approved owned image, byte-for-byte out of the private
-// bucket. Shared by /api/avatar/[profileId]/[generation] and
+// Read of one approved owned image, byte-for-byte out of the private bucket.
+// Shared by /api/avatar/[profileId]/[generation] and
 // /api/cover/[profileId]/[generation]: an unclaimed, tombstoned, pending,
 // flagged, or hidden image is a 404, never a stale serve.
 //
+// THE AVATAR IS PUBLIC AND THE COVER FOLLOWS THE CARD. A private account keeps
+// its face public, so a friend can recognise the person they came to add
+// (`LIMITED_PROFILE_CARD_FIELDS`). Its cover is withheld from strangers, so the
+// cover bytes ask the same seam the card asks (`resolveProfileProjection`) and
+// answer only the full projection: the owner, a mate, or anybody when the
+// account is public. A cover URL is stable while its visibility can change, so
+// no cover response may sit in a shared cache.
+//
 // Every refusal here answers the reader the SAME "Photo not found.", which is
-// the right answer and a useless finding: nine different gates wear it. So a
+// the right answer and a useless finding: several different gates wear it. So a
 // refusal also names itself once in the log (`profile_image.serve_refused`),
 // the way an advisory scan skip does. The reader is told nothing extra.
 
@@ -25,12 +33,33 @@ import {
   profileStore,
   type ProfileRecord,
 } from "@/lib/profileStore";
+import { resolveProfileProjection } from "@/lib/profileVisibilityBoundary.server";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 
 const UUID =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 export const PROFILE_IMAGE_SERVE_CACHE_CONTROL = "public, max-age=300, s-maxage=3600";
+
+/**
+ * Every cover answer, 200 or not. A cover URL survives its profile going
+ * private, so a copy in a CDN or a browser cache would keep serving a stranger
+ * after the card stopped naming it.
+ */
+const PROFILE_COVER_SERVE_CACHE_CONTROL = "private, no-store";
+
+/** Why a cover read was refused before the bytes were looked up. */
+export type CoverReadRefusal = "profile_private" | "not_in_review_queue";
+
+/**
+ * Who may read a cover generation. Asked before the row, the rotation or
+ * storage, so no retained generation can get round it.
+ */
+type CoverReadGate = (
+  request: Request,
+  profile: ProfileRecord,
+  generation: string,
+) => Promise<CoverReadRefusal | null>;
 
 export type ProfileImageServeDeps = {
   getProfileById: (id: string) => Promise<ProfileRecord | null>;
@@ -43,7 +72,26 @@ export type ProfileImageServeDeps = {
    * as final as a refusal from the row.
    */
   extraServingKey?: (profileId: string, generation: string) => Promise<string | null>;
+  /**
+   * The cover's read gate. Absent means the reader rule
+   * ({@link readerCoverRefusal}), so a deps object that forgets it fails
+   * closed. Only the moderator preview route supplies another one.
+   */
+  coverReadRefusal?: CoverReadGate;
 };
+
+/**
+ * The reader rule: the full card or nothing. A public account answers without
+ * verifying anybody, and every failure on the private lane answers the limited
+ * card, which refuses here.
+ */
+async function readerCoverRefusal(
+  request: Request,
+  profile: ProfileRecord,
+): Promise<CoverReadRefusal | null> {
+  const projection = await resolveProfileProjection({ request, profile });
+  return projection.projection === "full" ? null : "profile_private";
+}
 
 export const defaultProfileImageServeDeps: ProfileImageServeDeps = {
   getProfileById: (id) => profileStore().getById(id),
@@ -58,6 +106,7 @@ export const defaultProfileImageServeDeps: ProfileImageServeDeps = {
  * nothing branches on it, and the reader is told nothing new.
  */
 type ProfileImageServeRefusal =
+  | CoverReadRefusal
   | "storage_unconfigured"
   | "malformed_request"
   | "profile_missing"
@@ -160,6 +209,12 @@ export async function handleProfileImageServe(
   const profile = await deps.getProfileById(id);
   if (!profile) return notFound(slot, "profile_missing", { profileId: id, generation: gen });
 
+  if (slot === "cover") {
+    const gate = deps.coverReadRefusal ?? readerCoverRefusal;
+    const refusal = await gate(request, profile, gen);
+    if (refusal) return notFound(slot, refusal, { profileId: id, generation: gen });
+  }
+
   const resolved = await servingKey(profile, slot, gen);
   let objectKey = "objectKey" in resolved ? resolved.objectKey : null;
   // The row holds ONE generation, and a cover rotation holds up to five. So a
@@ -193,7 +248,8 @@ export async function handleProfileImageServe(
     status: 200,
     headers: {
       "Content-Type": downloaded.contentType,
-      "Cache-Control": PROFILE_IMAGE_SERVE_CACHE_CONTROL,
+      "Cache-Control":
+        slot === "cover" ? PROFILE_COVER_SERVE_CACHE_CONTROL : PROFILE_IMAGE_SERVE_CACHE_CONTROL,
     },
   });
 }

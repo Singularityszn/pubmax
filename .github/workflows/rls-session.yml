@@ -1,13 +1,16 @@
 # Effective RLS session tests against real PostgreSQL 16 and PostgREST 14.
 #
 # The main `npm run ci` gate skips these tests loudly when local database
-# binaries are absent. This job is the push and pull-request proof.
+# binaries are absent. This job proves policies on pushes, pull requests and merge groups.
 name: RLS session tests
 
 on:
   push:
     branches: [main]
   pull_request:
+  # The merge queue tests the exact commit that will land on main
+  # (docs/CI_RUNBOOK.md, "The required checks and the merge queue").
+  merge_group:
   workflow_dispatch:
 
 permissions:
@@ -22,9 +25,45 @@ concurrency:
 
 
 jobs:
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   rls-session:
     name: Effective RLS (Postgres 16 + PostgREST 14)
-    runs-on: ubuntu-latest
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
+    # ubuntu-26.04 has no postgresql-16 package. LINUX_PINNED_JOBS in
+    # __tests__/ciRunnerIsolation.test.ts owns this pin.
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -77,29 +116,41 @@ jobs:
           npm run deps:install-scripts
 
       # The harness starts its own cluster with initdb, so it needs the
-      # PostgreSQL 16 binaries, not a service container. PostgREST 14 is the
-      # HTTP boundary. Both land on PATH for the test step.
-      - name: Install PostgreSQL 16 and PostgREST 14
+      # PostgreSQL 16 binaries, not a service container.
+      - name: Install PostgreSQL 16
         if: steps.scope.outputs.scope == 'code'
         run: |
           set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y postgresql-16
+          sudo apt-get -o Acquire::Retries=5 update
+          sudo apt-get -o Acquire::Retries=5 install -y postgresql-16
           echo "/usr/lib/postgresql/16/bin" >> "$GITHUB_PATH"
           export PATH="/usr/lib/postgresql/16/bin:$PATH"
-          curl --fail --location --silent --show-error \
-            --output "$RUNNER_TEMP/postgrest.tar.xz" \
-            https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
-          echo "36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6  $RUNNER_TEMP/postgrest.tar.xz" \
-            | sha256sum --check
-          tar --extract --xz --file "$RUNNER_TEMP/postgrest.tar.xz" --directory "$RUNNER_TEMP"
-          chmod +x "$RUNNER_TEMP/postgrest"
-          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
-          export PATH="$RUNNER_TEMP:$PATH"
           initdb --version
           postgres --version
           psql --version
-          "$RUNNER_TEMP/postgrest" --version
+
+      - name: Restore the pinned PostgREST download
+        if: steps.scope.outputs.scope == 'code'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/pubmax-tools/postgrest-14.16-36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6
+          key: pubmax-tool-postgrest-14.16-36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6
+
+      - name: Install PostgREST 14
+        if: steps.scope.outputs.scope == 'code'
+        env:
+          TOOL_NAME: postgrest
+          TOOL_VERSION: '14.16'
+          TOOL_URL: https://github.com/PostgREST/postgrest/releases/download/v14.16/postgrest-v14.16-linux-static-x86-64.tar.xz
+          TOOL_SHA256: 36b8ae140f188cfcd6003494805bf35a41e895f88c12be9183d60f91782145c6
+          TOOL_ARCHIVE: tar.xz
+          TOOL_FALLBACK: docker
+          TOOL_IMAGE: postgrest/postgrest@sha256:bea1c76a856fa39d1e542d25911cf95d02fe2bf971992d033044ff209f1504b8
+          TOOL_IMAGE_PATH: /bin/postgrest
+          TOOL_BINARY_SHA256: 9d363ab48d45a2d02d8ab82f8e9c6b541eca87c86be76bad5a3ff090ae03f3cc
+        run: |
+          scripts/ci/install-pinned-tool.sh
+          postgrest --version
 
       - name: Run effective RLS session tests
         if: steps.scope.outputs.scope == 'code'
@@ -109,3 +160,22 @@ jobs:
           # Vitest still reports intentional skips only when binaries are missing;
           # with postgresql-16 on PATH they must all run and pass.
           CI: true
+
+  check:
+    name: RLS session check
+    if: ${{ always() }}
+    needs: [queue-proof, rls-session]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi

@@ -9,4 +9,4 @@ Concurrent ambient-banner placement is owned by
 The deterministic browser regression lives in
 [`e2e/map-near-me.spec.ts`](../../../e2e/map-near-me.spec.ts). Reproduction,
 counterfactual, and measured historical results live in the
-[`map-near-me-control evidence`](../../evidence/map-near-me-control/README.md).
+[`map-near-me-control evidence`](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/map-near-me-control/README.md).

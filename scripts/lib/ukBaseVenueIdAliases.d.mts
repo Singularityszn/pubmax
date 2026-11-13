@@ -6,6 +6,7 @@ export function ukBaseIdDepartures(
   previousRows: ReadonlyArray<ReadonlyArray<unknown>>,
   nextRows: ReadonlyArray<ReadonlyArray<unknown>>,
   liveCuratedIds: ReadonlySet<string>,
+  twins?: ReadonlyMap<string, string>,
 ): Array<{
   pub: {
     osmId: string;
@@ -24,6 +25,7 @@ export function planUkBaseVenueIdAliases(
   previousRows: ReadonlyArray<ReadonlyArray<unknown>>,
   nextRows: ReadonlyArray<ReadonlyArray<unknown>>,
   liveCuratedIds: ReadonlySet<string>,
+  twins?: ReadonlyMap<string, string>,
 ): Promise<{
   superseded: UkBaseIdSuccession[];
   retired: RetiredUkBaseVenue[];

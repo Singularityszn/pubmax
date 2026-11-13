@@ -51,6 +51,15 @@ test.describe("completed public discovery documents without JavaScript", () => {
     expect(response.headers().location).toBe("/");
   });
 
+  test("an unknown venue or city answers 404 in the status line, not only in its words", async ({ request }) => {
+    for (const path of ["/ledger/venue-nope", "/bar-tab/venue-nope", "/board/venue-nope", "/map/atlantis"]) {
+      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(404);
+    }
+    for (const path of ["/ledger/venue-xjf3n0", "/bar-tab/venue-xjf3n0", "/map/manchester"]) {
+      expect((await request.get(path, { maxRedirects: 0 })).status(), path).toBe(200);
+    }
+  });
+
   test("homepage explains planning and price sources in completed HTML", async ({ page }) => {
     expect((await page.goto("/"))?.status()).toBe(200);
     await expect(page).toHaveTitle("London pint prices and pub crawls with friends | PUBMAXX");

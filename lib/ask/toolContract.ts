@@ -54,4 +54,9 @@ export type AskToolContext = {
   fetchImpl?: typeof fetch;
   /** Injected clock, so a "what is on right now" answer is testable. */
   now?: number;
+  /**
+   * Server-owned visit exclusions for discovery, including search_venues
+   * requests redirected to cheapest_pint_near. A model cannot supply this set.
+   */
+  excludeVenueIds?: ReadonlySet<string>;
 };

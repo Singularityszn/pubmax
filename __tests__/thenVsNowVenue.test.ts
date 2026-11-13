@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
 
 import VenuePriceStory from "@/components/map/VenuePriceStory";
 import {
@@ -11,14 +12,15 @@ import {
   INFLATION_TODAY_YEAR,
   type VenuePriceStoryDrop,
 } from "@/lib/thenVsNow";
-import type { Venue } from "@/lib/venues";
+import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { Provenance } from "@/lib/curation";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-15T12:00:00.000Z");
 
-// computeVenuePriceStory only reads id/name/cheapestPrice/curation, so a partial
-// cast keeps fixtures readable without spelling out every Venue field.
+// Each fixture provides the selected price and the evidence relevant to that
+// scenario, without unrelated map and amenity fields.
 function v(
   over: Partial<Venue> & { id: string; name: string; cheapestPrice: number | null },
 ): Venue {
@@ -41,6 +43,24 @@ function drop(
     handle: "someone",
     ...over,
   };
+}
+
+function listedVenue(row: Partial<VenuePrice> = {}): Venue {
+  return v({
+    id: "v1", name: "The Anchor", cheapestPrice: 4,
+    prices: [{
+      pint_name: "Guinness", measure: "pint", price_gbp: 4,
+      pub_url: "https://pint-prices.com/pub/anchor", scraped_at_values: "2026-10-02T12:00:00Z",
+      ...row,
+    } as VenuePrice],
+  });
+}
+
+function pricedReport(over: Partial<VenuePriceStoryDrop> = {}): VenuePriceStoryDrop {
+  return drop({
+    venueId: "v1", priceGbp: 5, drink: "Guinness", measure: "pint", provenance: "contributor",
+    handle: "@reporter", createdAt: "2026-10-14T12:00:00Z", ...over,
+  });
 }
 
 describe("parseEraYear", () => {
@@ -115,7 +135,268 @@ describe("inflateToToday", () => {
 });
 
 describe("computeVenuePriceStory", () => {
-  it("resolves baseline, now, delta and inflation together", () => {
+  it.each([
+    { measure: "pint", reportMeasure: "pint" as const },
+    { measure: "175ml", reportMeasure: "175ml" as const },
+  ])("compares dated records of the same named drink and $measure serving", ({ measure, reportMeasure }) => {
+    const venue = listedVenue({ measure });
+    const report = pricedReport({ measure: reportMeasure });
+    const story = computeVenuePriceStory(venue, [report], NOW);
+    expect(story.deltaGbp).toBe(1);
+    expect(story.pct).toBe(25);
+    const clock = vi.spyOn(Date, "now").mockReturnValue(NOW);
+    try {
+      const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+      expect(markup).toContain("vs earlier price");
+      expect(markup).not.toContain("Price comparison unavailable");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each([3, 4, 5])("withholds every change claim for a stale £%s Guinness pint report", (priceGbp) => {
+    const now = Date.parse("2026-11-07T12:00:00Z");
+    const venue = listedVenue({ scraped_at_values: "2026-09-01T12:00:00Z" });
+    const report = pricedReport({ priceGbp, createdAt: "2026-09-15T12:00:00Z" });
+    const story = computeVenuePriceStory(venue, [report], now);
+    expect(story.baseline?.gbp).toBe(4);
+    expect(story.now?.gbp).toBe(priceGbp);
+    expect(story.now?.isFresh).toBe(false);
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+
+    const clock = vi.spyOn(Date, "now").mockReturnValue(now);
+    try {
+      const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+      expect(markup).toContain("£4.00");
+      expect(markup).toContain(`£${priceGbp.toFixed(2)}`);
+      expect(markup).toContain("Logged");
+      expect(markup).toContain("15 September 2026");
+      expect(markup).toContain("Price comparison unavailable. These records do not establish a change for the same drink and serving.");
+      expect(markup).not.toContain("vpsArrow");
+      expect(markup).not.toContain("vpsBars");
+      expect(markup).not.toContain("vpsDelta");
+      expect(markup).not.toContain("%");
+      expect(markup).not.toContain("vs earlier price");
+      expect(markup).not.toContain("No change from the earlier price");
+      expect(markup).not.toContain("The community price matches");
+      expect(markup).not.toContain("community-reported.");
+    } finally {
+      clock.mockRestore();
+    }
+  });
+
+  it.each([
+    { name: "different drink at the same price", report: { drink: "Guinness 0.0", priceGbp: 4 } },
+    { name: "half instead of pint", report: { measure: "half" as const } },
+    { name: "wine glass instead of pint", report: { measure: "175ml" as const } },
+    { name: "different other serving", row: { measure: "330 ml can" }, report: { measure: "other" as const, measureLabel: "500 ml can" } },
+    { name: "unnamed other serving", report: { measure: "other" as const, measureLabel: "" } },
+    { name: "unknown drink", report: { drink: null } },
+    { name: "unknown serving", report: { measure: null } },
+    { name: "missing publisher", row: { pub_url: "" }, report: {} },
+    { name: "missing read date", row: { scraped_at_values: "" }, report: {} },
+    { name: "older report", report: { createdAt: "2026-10-01T12:00:00Z" } },
+    { name: "future report", report: { createdAt: "2026-10-16T12:00:00Z" } },
+  ])("does not claim a historical change for $name", ({ row, report }) => {
+    const story = computeVenuePriceStory(listedVenue(row), [pricedReport(report)], NOW);
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+  });
+
+  it("does not fill missing evidence from a newer tied or more expensive row", () => {
+    const venue = listedVenue({ pint_name: "", pub_url: "", scraped_at_values: "" });
+    venue.prices.push({
+      ...venue.prices[0]!, pint_name: "Newer tied beer", pub_url: "https://newer.example/menu",
+      scraped_at_values: "2026-10-14T12:00:00Z",
+    });
+    venue.prices.push({ ...venue.prices[1]!, pint_name: "Dearer beer", price_gbp: 7 });
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
+    expect(markup).toContain("£4.00");
+    expect(markup).toContain("Drink not recorded");
+    expect(markup).toContain("Publisher not recorded");
+    expect(markup).toContain("Source read date unknown");
+    expect(markup).not.toContain("Newer tied beer");
+    expect(markup).not.toContain("newer.example");
+    expect(markup).not.toContain("14 October 2026");
+  });
+
+  it("ignores another venue's reports and keeps public-safe attribution", () => {
+    const venue = listedVenue();
+    expect(computeVenuePriceStory(venue, [pricedReport({ venueId: "another-pub" })], NOW).now).toBeNull();
+    const report = pricedReport({ handle: "a PUBMAXXER" });
+    expect(computeVenuePriceStory(venue, [report], NOW).now?.evidence.publisher).toBe("Reported by a PUBMAXXER");
+  });
+
+  it("does not describe an unknown report date as fresh or over 30 days old", () => {
+    const story = computeVenuePriceStory(listedVenue(), [pricedReport({ createdAt: "" })], NOW);
+    expect(story.now?.evidence.recordedAt).toBeNull();
+    expect(story.now?.label).toContain("date unknown");
+    expect(story.now?.label).not.toContain("tonight");
+    expect(story.now?.label).not.toContain("Over 30 days old");
+  });
+
+  it.each(["1985", "Old memory", "Family story", "Told since the 1960s"])(
+    "keeps the log date but withholds price freshness and movement for %s",
+    (era) => {
+      const venue = listedVenue();
+      const report = pricedReport({ era });
+      const story = computeVenuePriceStory(venue, [report], NOW);
+      expect(story.now?.isFresh).toBe(false);
+      expect(story.now?.evidence.recordedAt).toBe("2026-10-14T12:00:00.000Z");
+      expect(story.deltaGbp).toBeNull();
+      expect(story.inflation).toBeNull();
+      const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+      expect(markup).toContain("14 October 2026");
+      expect(markup).toContain("When this price was seen is not recorded.");
+      expect(markup).not.toContain("vs earlier price");
+      expect(markup).not.toContain("A pint here was");
+    },
+  );
+
+  it("retains the explicit Tonight price-log preset", () => {
+    const story = computeVenuePriceStory(listedVenue(), [pricedReport({ era: "Tonight" })], NOW);
+    expect(story.now?.isFresh).toBe(true);
+    expect(story.deltaGbp).toBe(1);
+  });
+
+  it("does not choose an attribution between indistinguishable merged reports", () => {
+    const venue = listedVenue();
+    venue.latestContributorPrice = 4;
+    venue.latestContributorAt = "2026-10-14T12:00:00Z";
+    venue.cheapestPint = "Guinness";
+    const reports = [pricedReport({ priceGbp: 4 }), pricedReport({ priceGbp: 4, handle: "@another" })];
+    expect(computeVenuePriceStory(venue, reports, NOW).baseline?.evidence.publisher).toBeNull();
+  });
+
+  it("retains an update publisher as text when its link is unsafe and its date is unknown", () => {
+    const venue = listedVenue();
+    Object.assign(venue, { sourcedPrice: {
+      provenance: "sourced", sourceLabel: "The Anchor menu", sourceUrl: "javascript:alert(1)", observedAt: "",
+    } });
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
+    expect(markup).toContain("The Anchor menu");
+    expect(markup).toContain("Link unavailable");
+    expect(markup).toContain("Source read date unknown");
+    expect(markup).not.toContain("javascript:");
+  });
+
+  it("shows the Blackfriar baseline with the drink, serving and that price's publisher and read day", () => {
+    const rows = JSON.parse(readFileSync(
+      new URL("../public/data/pint_prices_app_dataset.json", import.meta.url),
+      "utf8",
+    )) as VenuePrice[];
+    const venue = groupVenuePrices(rows.filter((row) => row.pub_name === "The Blackfriar"))[0]!;
+    expect(venue.id).toBe("venue-eltcmh");
+    expect(venue.cheapestPrice).toBe(6.5);
+
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
+    expect(markup).toContain("£6.50");
+    expect(markup).toContain("Pravha · pint");
+    expect(markup).toContain("pint");
+    expect(markup).toContain("Pint Prices");
+    expect(markup).toContain(bundledReadDay("app_price_000264").words);
+    expect(markup).toContain('href="https://www.pint-prices.com/');
+  });
+
+  it("does not invent a pint serving for the committed TânVân bottled-beer record", () => {
+    const rows = JSON.parse(readFileSync(
+      new URL("../public/data/pint_prices_app_dataset.json", import.meta.url), "utf8",
+    )) as VenuePrice[];
+    const venue = groupVenuePrices(rows.filter((row) => row.app_price_id === "app_price_001013"))[0]!;
+    expect(venue.id).toBe("venue-16crofi");
+    expect(venue.cheapestPrice).toBe(5);
+    const story = computeVenuePriceStory(venue, [], NOW);
+    expect(story.baseline?.evidence.drink).toBe("BOTTLED BEER");
+    expect(story.baseline?.evidence.serving).toBeNull();
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
+    expect(markup).toContain("Bottled Beer");
+    expect(markup).toContain("Serving size not recorded");
+  });
+
+  it("shows a different drink and serving as a separate report, not a historical price change", () => {
+    const venue = v({
+      id: "v1", name: "The Anchor", cheapestPrice: 4,
+      prices: [{
+        pint_name: "PRAVHA", measure: "pint", price_gbp: 4,
+        pub_url: "https://pint-prices.com/pub/anchor", scraped_at_values: "2026-10-02T12:00:00Z",
+      } as VenuePrice],
+    });
+    const report = drop({
+      venueId: "v1", priceGbp: 3, drink: "Guinness", measure: "half",
+      provenance: "contributor", handle: "@reporter", createdAt: "2026-10-14T12:00:00Z",
+    });
+    const story = computeVenuePriceStory(venue, [report], NOW);
+    expect(story.now?.evidence).toMatchObject({ drink: "Guinness", serving: "half" });
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+    expect(markup).toContain("Guinness");
+    expect(markup).toContain("half");
+    expect(markup).toContain("@reporter");
+    expect(markup).toContain("14 October 2026");
+    expect(markup).toContain("Price comparison unavailable");
+    expect(markup).not.toContain("vs earlier price");
+    expect(markup).not.toContain("No change from the earlier price");
+  });
+
+  it("does not borrow an older row's drink or publisher for a selected sourced update at the same amount", () => {
+    const venue = Object.assign(v({
+      id: "v1", name: "The Anchor", cheapestPrice: 4, cheapestPint: "PRAVHA",
+      prices: [{
+        pint_name: "PRAVHA", measure: "pint", price_gbp: 4,
+        pub_url: "https://pint-prices.com/pub/anchor", scraped_at_values: "2026-10-02T12:00:00Z",
+      } as VenuePrice],
+    }), {
+      sourcedPrice: {
+        provenance: "sourced", sourceLabel: "The Anchor menu", sourceUrl: "https://anchor.example/menu",
+        observedAt: "2026-10-14T12:00:00Z",
+      },
+    });
+    const story = computeVenuePriceStory(venue, [], NOW);
+    expect(story.baseline?.gbp).toBe(4);
+    expect(story.baseline?.evidence).toMatchObject({
+      drink: null, serving: null, publisher: "The Anchor menu", sourceUrl: "https://anchor.example/menu",
+    });
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [] }));
+    expect(markup).toContain("The Anchor menu");
+    expect(markup).toContain("14 October 2026");
+    expect(markup).toContain("Drink not recorded");
+    expect(markup).toContain("Serving size not recorded");
+    expect(markup).not.toMatch(/pravha/i);
+    expect(markup).not.toContain("Pint Prices");
+  });
+
+  it("keeps a merged community amount with its own report instead of the old dataset row", () => {
+    const report = drop({
+      venueId: "v1", priceGbp: 3, drink: "Guinness", measure: "pint", provenance: "contributor",
+      handle: "@reporter", createdAt: "2026-10-14T12:00:00Z",
+    });
+    const venue = v({
+      id: "v1", name: "The Anchor", cheapestPrice: 3, cheapestPint: "Guinness",
+      latestContributorPrice: 3, latestContributorAt: report.createdAt,
+      prices: [{
+        pint_name: "PRAVHA", measure: "pint", price_gbp: 4,
+        pub_url: "https://pint-prices.com/pub/anchor", scraped_at_values: "2026-10-02T12:00:00Z",
+      } as VenuePrice],
+    });
+    const story = computeVenuePriceStory(venue, [report], NOW);
+    expect(story.baseline).toBeNull();
+    expect(story.now).toMatchObject({
+      gbp: 3, provenance: "contributor",
+      evidence: { drink: "Guinness", serving: "pint", publisher: "Reported by @reporter" },
+    });
+    expect(story.deltaGbp).toBeNull();
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops: [report] }));
+    expect(markup).not.toContain("Baseline on record");
+    expect(markup).not.toMatch(/pravha/i);
+    expect(markup).not.toContain("Pint Prices");
+    expect(markup.match(/£3\.00/g)).toHaveLength(1);
+    expect(markup.match(/Reported by @reporter/g)).toHaveLength(1);
+    expect(markup).not.toContain("Price comparison unavailable");
+  });
+
+  it("resolves separate price records without dating a price from a memory's era", () => {
     const venue = v({ id: "v1", name: "The Anchor", cheapestPrice: 4 });
     const drops = [
       drop({
@@ -140,31 +421,35 @@ describe("computeVenuePriceStory", () => {
       gbp: 4,
       provenance: "sourced",
       label: "Baseline on record",
+      evidence: {
+        drink: null,
+        serving: null,
+        publisher: null,
+        sourceUrl: null,
+        recordedAt: null,
+        dateKind: "read",
+      },
     });
     // "now" is the newest priced drop (the £6 contributor).
     expect(story.now?.gbp).toBe(6);
     expect(story.now?.provenance).toBe("contributor");
-    expect(story.deltaGbp).toBe(2);
-    expect(story.pct).toBe(50);
+    // The two amounts have no matching drink/serving evidence.
+    expect(story.deltaGbp).toBeNull();
+    expect(story.pct).toBeNull();
 
-    // Inflation anchor is the dated 1985 anecdote, revalued up into today.
-    expect(story.inflation?.year).toBe(1985);
-    expect(story.inflation?.thenGbp).toBe(1.2);
-    expect(story.inflation?.todayGbp as number).toBeGreaterThan(1.2);
-    expect(story.inflation?.provenance).toBe("anecdote");
-    expect(story.inflation?.handle).toBe("@ken");
-    expect(story.inflation?.todayYear).toBe(INFLATION_TODAY_YEAR);
+    expect(story.inflation).toBeNull();
+    const markup = renderToStaticMarkup(createElement(VenuePriceStory, { venue, drops }));
+    expect(markup).not.toContain("A pint here was");
   });
 
-  it("picks the OLDEST dated priced drop as the inflation anchor", () => {
+  it("does not treat the oldest memory era as a price observation", () => {
     const venue = v({ id: "v2", name: "Old Bell", cheapestPrice: 5 });
     const drops = [
       drop({ venueId: "v2", priceGbp: 2, era: "1990s", provenance: "anecdote" }),
       drop({ venueId: "v2", priceGbp: 0.5, era: "1960s", provenance: "anecdote" }),
     ];
     const story = computeVenuePriceStory(venue, drops);
-    expect(story.inflation?.year).toBe(1965); // 1960s midpoint — the deepest look back
-    expect(story.inflation?.thenGbp).toBe(0.5);
+    expect(story.inflation).toBeNull();
   });
 
   it("carries a demo drop's provenance through without flattening it", () => {
@@ -173,7 +458,7 @@ describe("computeVenuePriceStory", () => {
       drop({ venueId: "v3", priceGbp: 1, era: "1980s", provenance: "demo" }),
     ];
     const story = computeVenuePriceStory(venue, drops);
-    expect(story.inflation?.provenance).toBe("demo");
+    expect(story.inflation).toBeNull();
     expect(story.now?.provenance).toBe("demo");
   });
 

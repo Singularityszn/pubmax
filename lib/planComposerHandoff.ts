@@ -339,16 +339,13 @@ export function seedProvisionalStop1(input: {
 /**
  * Locking maps the L09 server outcomes to honest recovery copy. 422 means the
  * V2 grounding proof was missing, tampered, route-mismatched, or expired; 409
- * means the same operation key was replayed with a changed payload.
+ * means the same operation key was replayed with a changed payload. The proof
+ * is bound to that key, so either way only a refreshed route can lock.
  */
 export function composerLockErrorFromResponse(status: number): string | null {
-  if (status === 422) {
-    return "Your route needs a refresh before you can lock it in. Rebuild the route and try again.";
-  }
-  if (status === 409) {
-    return "This plan was already locked in from another tab. Reload it to keep going.";
-  }
-  return null;
+  return status === 422 || status === 409
+    ? "Your route needs a refresh before you can lock it in. Rebuild the route and try again."
+    : null;
 }
 
 export type AppliedTemplate = {

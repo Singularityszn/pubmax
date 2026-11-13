@@ -6,8 +6,6 @@
 // loads, so the wait has the answer's size, and none of them asks the server
 // for a sample page on the way.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,8 +63,6 @@ import FeedCard from "@/components/feed/FeedCard";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileTimeline from "@/components/profile/ProfileTimeline";
 import { normalizePintDrop } from "@/lib/feed";
-
-const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 let host: HTMLDivElement;
 let root: Root;
@@ -162,21 +158,6 @@ describe("the profile timeline", () => {
     for (const link of links) expect(link.getAttribute("data-prefetch")).toBe("undefined");
   });
 
-  it("is what the profile page draws while the drops are read, in the answer's own place", () => {
-    const page = read("app/u/[handle]/ProfilePageClient.tsx");
-    // ONE lazy component from the wait to the answer, at the same slot, so the
-    // swap is a single commit: a second lazy wrapper would suspend for a frame
-    // between the sample and the cards.
-    expect(page).toMatch(
-      /state === "loading" \? \(\s*<ProfileTimeline drops=\{\[\]\} loading \/>\s*\) : drops\.length === 0 \? \([\s\S]{0,200}?\) : \(\s*<ProfileTimeline drops=/,
-    );
-    expect(page).toMatch(
-      /const ProfileTimeline = dynamic\(\s*\(\) => import\("@\/components\/profile\/ProfileTimeline"\),\s*\{ ssr: false \},\s*\);/,
-    );
-    // The hand-drawn copy is gone: it needed feed.css, which no first paint loads.
-    expect(page).not.toContain("feedCardSkeleton");
-  });
-
   it("draws the wait and the answer from the same timeline component", async () => {
     await mount(createElement(ProfileTimeline, { drops: [], loading: true }));
     expect(host.querySelector("[data-sample-skeleton]")).not.toBeNull();
@@ -219,7 +200,9 @@ describe("the profile header while the viewer is unresolved", () => {
     expect(card?.querySelector(".profileCover")?.hasAttribute("data-sample-block")).toBe(true);
     expect(card?.querySelector("img.profileAvatar")).not.toBeNull();
     expect(card?.querySelectorAll(".profileStat")).toHaveLength(6);
-    expectNoSamplePrefetch(sample);
+    // The server HTML carries the sample, and a crawler followed its tiles to
+    // /u/handle/people/followers. A sample tile links nowhere.
+    expect(sample?.querySelectorAll("a")).toHaveLength(0);
 
     // Nothing of the viewer leaks into the wait.
     const text = host.textContent ?? "";

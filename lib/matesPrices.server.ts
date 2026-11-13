@@ -7,8 +7,8 @@ import "server-only";
 // alone, never a stranger. What counts is a priced, visible, PUBLIC Pint Drop:
 // a mate's friends-only or anonymous drop never shows here, because this line
 // names the person beside the figure and they did not post it for that.
-// A block either way removes the mate, through the same pair check the Social
-// graph writes use (lib/crewFriendEdges.ts). Nothing is added across people
+// A block either way removes the mate, through the one live-mate check
+// (lib/socialMutual.server.ts). Nothing is added across people
 // (ADR 0017); each fact is one person's one price on one day.
 
 import { followStore } from "@/lib/followStore";
@@ -16,13 +16,10 @@ import { MATES_PRICES_LIMIT, type MatesPrice } from "@/lib/matesPrices";
 import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
-import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
-import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { isLiveMutual, type MutualViewer } from "@/lib/socialMutual.server";
 
 /** The verified Social account asking. */
-export type MatesPricesViewer = { profileId: string; handle: string };
+export type MatesPricesViewer = MutualViewer;
 
 export type MatesPricesDependencies = {
   listMutuals(handle: string): Promise<string[]>;
@@ -32,22 +29,10 @@ export type MatesPricesDependencies = {
   stillMutual(viewer: MatesPricesViewer, mateHandle: string): Promise<boolean>;
 };
 
-async function stillMutual(viewer: MatesPricesViewer, mateHandle: string): Promise<boolean> {
-  const mate = await profileStore().getByHandle(mateHandle);
-  if (!mate || !mate.userId || isProfileTombstoned(mate)) return false;
-  if (mate.id === viewer.profileId) return false;
-  if (socialMemoryBlocked(viewer.profileId, mate.id)) return false;
-  // Keyless dev has no relationship RPC; the memory block set above is its
-  // whole block list, and the follow graph already said mutual.
-  if (!isSupabaseConfigured()) return true;
-  // Fails closed: an unavailable answer is not a mutual.
-  return (await socialRelationshipBetweenProfiles(viewer.profileId, mate.id)) === "mutual";
-}
-
 const defaultDependencies = (): MatesPricesDependencies => ({
   listMutuals: (handle) => followStore().listMutuals(handle),
   listVenueDrops: (venueId) => pintDropsStore().listVisible(venueId),
-  stillMutual,
+  stillMutual: isLiveMutual,
 });
 
 /** A drop a mate may be named beside: priced, visible, public and organic. */

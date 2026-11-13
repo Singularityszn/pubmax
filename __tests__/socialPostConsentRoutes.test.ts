@@ -49,10 +49,6 @@ vi.mock("@/lib/socialPostConsentStore", () => {
         }
         return { posts: [], nextCursor: null };
       },
-      heldQueue: async () => [],
-      moderateHeld: async (...args: unknown[]) => {
-        state.calls.push({ name: "moderateHeld", args });
-      },
       heldQueueForAdmin: async () => {
         if (state.adminQueueThrows) throw new Error("migration missing");
         return state.adminQueueRows;

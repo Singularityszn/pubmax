@@ -6,7 +6,8 @@
 //     counts and nothing about where or when (lib/yearInPints.ts), so the glass
 //     is a tally and never a map or a calendar. It is drawn only when the
 //     "nights" line was ticked, and it reads that count and the month the year
-//     was read to, nothing else.
+//     was read to, nothing else. On the Pal's own year, which only its owner
+//     sees, it reads the same two things from the nights kept on the device.
 //
 // (2) EVERY DOT IS A DAY OF THAT YEAR. The glass holds exactly as many dots as
 //     the year has days. Counting up from the bottom, the first dots are lit,
@@ -21,7 +22,7 @@
 //
 // This module is the layout only, so a page and a share card draw the same
 // glass: the card paints it in lib/yearInPintsDotGlassOg.tsx, the shared page
-// in app/year-in-pints/[year]/YearGlass.tsx. The pint's outline is
+// and the Pal's own year in components/year/YearGlass.tsx. The pint's outline is
 // lib/dotGlass.ts, shared with the empty and spilled glasses.
 
 import { glassCapacity, glassPoints } from "@/lib/dotGlass";

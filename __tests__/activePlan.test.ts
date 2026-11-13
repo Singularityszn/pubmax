@@ -2,11 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   ACTIVE_PLAN_KEY,
-  ACTIVE_PLAN_POST_MS,
-  ACTIVE_PLAN_PRE_MS,
   clampStopIndex,
   cleanStopIndex,
-  clearActivePlan,
   RECAP_GRACE_MS,
   dismissNightMode,
   isNightModeDismissed,
@@ -26,6 +23,7 @@ import {
   setActivePlanStopIndex,
   writeActivePlan,
 } from "@/lib/activePlan";
+import { ACTIVE_PLAN_POST_MS, ACTIVE_PLAN_PRE_MS } from "@/lib/nightWindows";
 
 const PLAN_ID = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
 const OTHER_ID = "11111111-2222-4333-8444-555555555555";
@@ -187,14 +185,6 @@ describe("storage round-trip", () => {
     const later = Date.parse(future);
     markActivePlan(OTHER_ID, future, later);
     expect(readActivePlan()?.id).toBe(OTHER_ID);
-  });
-
-  it("clearActivePlan honours onlyIfId", () => {
-    markActivePlan(PLAN_ID, START);
-    clearActivePlan(OTHER_ID);
-    expect(readActivePlan()?.id).toBe(PLAN_ID);
-    clearActivePlan(PLAN_ID);
-    expect(readActivePlan()).toBeNull();
   });
 
   it("returns null on SSR (no window)", () => {

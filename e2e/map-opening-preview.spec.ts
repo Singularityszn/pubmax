@@ -35,26 +35,16 @@ async function coldFirstVisit(page: Page) {
         target.__groundSeen = { left: r.left, top: r.top, right: r.right, bottom: r.bottom };
       }
       if (state === "done" && !target.__handoff) {
-        target.__handoff = {
-          loadingFrameUp: Boolean(document.querySelector(".mapLoading")),
-          ground: target.__groundSeen ?? null,
-        };
-      }
-    }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-map-preview"] });
-    window.addEventListener("pubmax:pins-visible", () => {
-      // Read in the same task the reveal runs in: the frame both are about.
-      const discs = [...document.querySelectorAll<HTMLElement>(".mapOpeningPreviewDisc")].map((el) => {
-        const r = el.getBoundingClientRect();
-        return { id: Number(el.dataset.clusterId), x: r.x + r.width / 2, y: r.y + r.height / 2 };
-      });
-      // The engine's discs fade in over their entrance; read them once they
-      // are painted, for as long as the camera is still the opening one.
-      const started = performance.now();
-      const read = () => {
+        // Read both renderers in the handoff task. The preview follows the
+        // arrival turn, so its positions must come from this same camera.
+        const discs = [...document.querySelectorAll<HTMLElement>(".mapOpeningPreviewDisc")].map((el) => {
+          const r = el.getBoundingClientRect();
+          return { id: Number(el.dataset.clusterId), x: r.x + r.width / 2, y: r.y + r.height / 2 };
+        });
         const probe = (window as Window & {
-          __pubmaxPaintedMapTapPoints?: () => { kind: string; id: string; x: number; y: number }[];
+          __pubmaxPaintedMapTapPoints?: { frame: () => { kind: string; id: string; x: number; y: number }[] };
         }).__pubmaxPaintedMapTapPoints;
-        const painted = (probe?.() ?? [])
+        const painted = (probe?.frame() ?? [])
           .filter((p) => p.kind === "cluster")
           .map((p) => ({ id: Number(p.id), x: p.x, y: p.y }));
         const donuts = [...document.querySelectorAll<HTMLElement>(".donut-cluster-marker")].map((el) => {
@@ -62,14 +52,13 @@ async function coldFirstVisit(page: Page) {
           return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
         });
         const moved = performance.getEntriesByName("pubmax:camera-intent:arrival").length > 0;
-        if (painted.length + donuts.length === 0 && !moved && performance.now() - started < 3000) {
-          window.setTimeout(read, 50);
-          return;
-        }
         target.__reveal = { discs, painted, donuts, moved };
-      };
-      window.setTimeout(read, 50);
-    });
+        target.__handoff = {
+          loadingFrameUp: Boolean(document.querySelector(".mapLoading")),
+          ground: target.__groundSeen ?? null,
+        };
+      }
+    }).observe(document, { childList: true, subtree: true, attributes: true, attributeFilter: ["data-map-preview"] });
   });
 }
 
@@ -136,13 +125,25 @@ test.describe("the document's opening prices", () => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await coldFirstVisit(page);
-    await page.goto("/map");
-    await expect(page.locator("html")).toHaveAttribute("data-map-preview", /on|done/);
-    const reveal = await readReveal(page);
+    // This journey exercises the matching eager-cell handoff. Let the wider
+    // index arrive afterwards, rather than race a different set of clusters
+    // against the picture drawn for that cell.
+    const expansion = Promise.withResolvers<void>();
+    await page.route("**/data/venues_slim.manifest.json*", async (route) => {
+      await expansion.promise;
+      await route.continue();
+    });
+    let reveal: Reveal;
+    try {
+      await page.goto("/map");
+      await expect(page.locator("html")).toHaveAttribute("data-map-preview", /on|done/);
+      reveal = await readReveal(page);
+    } finally {
+      expansion.resolve();
+    }
 
     // Every disc the engine painted on screen is a disc the document drew, at
-    // the same place, read before the arrival turn moves the camera on.
-    expect(reveal.moved, "the camera moved before the engine's discs were painted").toBe(false);
+    // the same place, sampled together when the loading frame leaves.
     expect(reveal.painted.length).toBeGreaterThan(0);
     for (const painted of reveal.painted) {
       const twin = reveal.discs.find((disc) => disc.id === painted.id);

@@ -21,7 +21,6 @@ any rule is how two pages come to answer one question two ways:
 - `assignVenueToNightArea` - memoised per area catalogue. Unmemoised it ran once
   per venue per (area x brand) pair, roughly 1.5M haversines for one
   `/sitemap.xml` request.
-- `nightAreaPublishesPrices` - see "Area review gate" below.
 - `pricedLandingJsonLd` - one BreadcrumbList plus one ItemList. The root layout
   still supplies the site-wide `WebSite` and `Organization` graph.
 
@@ -90,18 +89,6 @@ Each OG route carries `loadOgFonts()` and `OG_CACHE_HEADERS`, and
 brand-by-area page owns its own card because Next would otherwise serve the
 nearest ancestor's while the page declares `twitter: summary_large_image`.
 
-## Area review gate
-
-`nightAreaPublishesPrices` delegates to `nightAreaHasRouteReadyProof`, without
-applying the dated review window. The [catalogue contract](../../API_CONTRACTS_THE_LOCAL.md#24-nightarea-catalogue)
-owns the evidence policy. Changing review dates cannot create supported proof.
-The [product contract](PRODUCT.md#which-pages-exist) owns which page families require this check.
-
-`__tests__/nightAreaReviewRenewal.test.ts` checks that unsupported review dates
-cannot enable publication. It no longer supplies a renewal alarm.
-Positive downstream price-page tests simulate a review decision through
-`__tests__/helpers/simulatedNightAreaReview.ts`. That adapter does not certify production areas.
-
 ## Tests
 
 | Question | Owner |
@@ -111,5 +98,4 @@ Positive downstream price-page tests simulate a review decision through
 | Route, metadata, 404, destinations, OG card | `__tests__/drinkBrandLandingPage.test.ts`, `__tests__/drinkBrandAreaLandingPage.test.ts` |
 | Exactly the governed URL set, and `/area/{slug}` only for an area on the floor | `__tests__/sitemap.test.ts`, `__tests__/areaLanding.test.tsx` |
 | Dataset reaches every reader function | `__tests__/venueIndexTracing.test.ts` |
-| Unsupported review dates cannot enable publication | `__tests__/nightAreaReviewRenewal.test.ts` |
 | Rendered geometry, focus, both themes, exact hrefs | `e2e/drink-brand-landing.spec.ts`, `e2e/drink-brand-area-landing.spec.ts` |

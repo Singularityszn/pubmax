@@ -9,6 +9,7 @@ import {
   linkifyMentions,
   MAX_MESSAGE_BODY,
   normalizePair,
+  otherHandleFromThreadRead,
   conversationRowHandle,
   conversationRowMatches,
   conversationRowName,
@@ -88,6 +89,38 @@ describe("unreadForViewer — per-viewer unread count", () => {
 });
 
 describe("thread header naming", () => {
+  it("uses direct membership before message senders when naming the other person", () => {
+    expect(
+      otherHandleFromThreadRead(
+        { kind: "direct", members: ["@Karan", "sam"], title: null },
+        [{ senderHandle: "maisie" }],
+        "karan",
+      ),
+    ).toBe("sam");
+  });
+
+  it("keeps a group identity instead of choosing one member as the other person", () => {
+    expect(
+      otherHandleFromThreadRead(
+        { kind: "group", members: ["karan", "sam", "maisie"], title: null },
+        [{ senderHandle: "sam" }],
+        "karan",
+      ),
+    ).toBe("");
+  });
+
+  it("uses the first other sender when the read carries no membership", () => {
+    expect(
+      otherHandleFromThreadRead(
+        null,
+        [{ senderHandle: "@Karan" }, { senderHandle: "sam" }],
+        "karan",
+      ),
+    ).toBe("sam");
+    expect(otherHandleFromThreadRead(null, [{ senderHandle: "karan" }], "karan")).toBe("");
+    expect(otherHandleFromThreadRead(null, [], "karan")).toBe("");
+  });
+
   it("names a direct thread by the other participant", () => {
     expect(
       threadHeaderPrimaryLine(

@@ -38,10 +38,13 @@ import {
   withoutWalkTimes,
   nearMeAnswerHeadline,
   nearSavingLine,
+  nearestListedPub,
   rankBoroughCheapest,
   rankNearMe,
+  type NearMeAnswer,
   type NearMeCard,
   type NearMeScope,
+  type NearestPub,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
 import {
@@ -78,6 +81,7 @@ import SharePintButton from "@/components/share/SharePintButton";
 import { nearTopPintShare } from "@/lib/venuePintShare";
 import { markPriceAnswerMoment } from "@/lib/priceAnswerMoment";
 import Screen from "@/components/ui/screen";
+import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import "./nearMeNow.css";
 
@@ -90,7 +94,8 @@ type SlimReadState = "unknown" | "ready" | "unavailable";
 /** The ask a retry re-runs, recorded by whichever answer path served it. */
 type RetryTarget =
   | { kind: "patch"; patch: NightPatch; reason: PatchReason; source: NearAnswerSource }
-  | { kind: "borough"; name: string; source: NearAnswerSource };
+  | { kind: "borough"; name: string; source: NearAnswerSource }
+  | { kind: "location"; lat: number; lng: number };
 
 export type NearMeNowProps = {
   cityId?: CityId | string;
@@ -105,8 +110,8 @@ export type NearMeNowProps = {
   /** Request geolocation as soon as the surface mounts (landing hero / /near). */
   autoLocate?: boolean;
   /**
-   * Map mode: priced points already in memory (the map's loaded venues),
-   * so the sheet answers without re-fetching the slim index.
+   * Map mode supplies filtered pubs, including those without a price.
+   * A new array refreshes the current answer without fetching the city index.
    */
   venues?: PricedPoint[];
   /**
@@ -336,6 +341,7 @@ export default function NearMeNow({
   // so a missed effect can never leave a permanent locate spinner.
   const [state, setState] = useState<LocateState>(initialLocation ? "requesting" : "idle");
   const [cards, setCards] = useState<NearMeCard[]>([]);
+  const [nearestPub, setNearestPub] = useState<NearestPub | null>(null);
   const [scope, setScope] = useState<NearMeScope>("none");
   // The doorstep pub the saving line compares against. Set only by an answer
   // from the reader's own fix; every new answer clears it (beginAnswer).
@@ -388,8 +394,8 @@ export default function NearMeNow({
   // already in memory, so that read has plainly run.
   const [slimRead, setSlimRead] = useState<SlimReadState>(venues ? "ready" : "unknown");
   // What the reader last asked for, so a retry re-answers THAT rather than
-  // dropping them back on the idle screen. Recorded as the ask itself rather
-  // than as a closure over the answer path, so neither path has to name itself.
+  // dropping them back on the idle screen. Store the target instead of a
+  // callback so the answer paths do not need to reference themselves.
   const retryTargetRef = useRef<RetryTarget | null>(null);
   const answerGenerationRef = useRef(0);
   const mountedRef = useRef(false);
@@ -413,6 +419,7 @@ export default function NearMeNow({
     const generation = ++answerGenerationRef.current;
     setActiveAnswerGeneration(generation);
     setNearest(null);
+    setNearestPub(null);
     return generation;
   }, []);
   const priceTrust = useNearPriceTrust(
@@ -442,8 +449,8 @@ export default function NearMeNow({
 
   const resolvedMapHref = mapHref ?? mapHrefForCity(cityId);
 
-  // Resolve the priced index once and memoise on the instance. In map mode the
-  // caller hands us `venues` already in memory; otherwise fetch the slim index.
+  // Cache the city index on this instance. In map mode, supplied venues replace
+  // that cache when filters change, so each answer uses the current pub list.
   // Never throws to the caller — a miss yields an empty list so the surface
   // degrades to the patch answer rather than a crash.
   const loadSlim = useCallback(async (): Promise<PricedPoint[]> => {
@@ -559,17 +566,6 @@ export default function NearMeNow({
     [beginAnswer, loadSlim, ownsAnswer, setNearDrinks],
   );
 
-  /** Ask the index again, then re-answer the ask the reader last made. */
-  const retrySlim = useCallback(() => {
-    slimRef.current = null;
-    loadingSlimRef.current = null;
-    setSlimRead("unknown");
-    const target = retryTargetRef.current;
-    if (!target) return;
-    if (target.kind === "patch") pickPatch(target.patch, target.reason, target.source);
-    else pickBorough(target.name, target.source);
-  }, [pickBorough, pickPatch]);
-
   // No fix (denied / unavailable / nothing priced in range): answer anyway.
   // Last remembered area first, central London otherwise — the pint before
   // the question, always.
@@ -592,6 +588,77 @@ export default function NearMeNow({
     [pickBorough, pickPatch],
   );
 
+  const answerLocation = useCallback((lat: number, lng: number) => {
+    const generation = ++answerGenerationRef.current;
+    retryTargetRef.current = { kind: "location", lat, lng };
+    void loadSlim().then((slim) => {
+      if (!ownsAnswer(generation)) return;
+      setActiveAnswerGeneration(generation);
+      setNearest(null);
+      setNearestPub(null);
+      const answer = rankNearMe(lat, lng, slim);
+      setNearestPub(nearestListedPub(lat, lng, slim, answerPubIds(answer)));
+      if (answer.scope === "none") {
+        // Located fine, but nothing priced in range — be honest that we do
+        // not cover here yet, name the REAL nearest patch, and let them
+        // register demand, instead of silently pretending central London.
+        const nearest = nearestSupportedPatch(lat, lng);
+        if (nearest) {
+          setCards([]);
+          setNearDrinks(null, []);
+          setBorough(null);
+          setPatch(null);
+          setPatchProfile(null);
+          setPatchReason(null);
+          setOutsideCoverage(nearest);
+          setAnswerContext({ source: "location", generation });
+          setState("ready");
+          return;
+        }
+        // No patch to offer (should not happen) — fall back to an area answer.
+        answerWithoutFix("none");
+        return;
+      }
+      setCards(answer.cards);
+      setNearDrinks({ lat, lng }, slim);
+      setScope(answer.scope);
+      setNearest(answer.nearest);
+      setState("ready");
+      setBorough(null);
+      setPatch(null);
+      setPatchProfile(null);
+      setPatchReason(null);
+      setOutsideCoverage(null);
+      setAnswerContext({ source: "location", generation });
+    });
+  }, [answerWithoutFix, loadSlim, ownsAnswer, setNearDrinks]);
+
+  const refreshAnswer = useCallback(() => {
+    const target = retryTargetRef.current;
+    if (!target) return;
+    if (target.kind === "location") answerLocation(target.lat, target.lng);
+    else if (target.kind === "patch") pickPatch(target.patch, target.reason, target.source);
+    else pickBorough(target.name, target.source);
+  }, [answerLocation, pickBorough, pickPatch]);
+
+  const retrySlim = useCallback(() => {
+    slimRef.current = null;
+    loadingSlimRef.current = null;
+    setSlimRead("unknown");
+    refreshAnswer();
+  }, [refreshAnswer]);
+
+  useEffect(() => {
+    if (!venues || slimRef.current === venues) return;
+    slimRef.current = venues;
+    const generation = answerGenerationRef.current;
+    void loadSlim().then(() => {
+      if (!ownsAnswer(generation)) return;
+      setSlimRead("ready");
+      refreshAnswer();
+    });
+  }, [loadSlim, ownsAnswer, refreshAnswer, venues]);
+
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       setState("unavailable");
@@ -599,52 +666,12 @@ export default function NearMeNow({
       return;
     }
     const generation = beginAnswer();
+    retryTargetRef.current = null;
     setState("requesting");
     navigator.geolocation.getCurrentPosition(
       (position) => {
         if (!ownsAnswer(generation)) return;
-        void loadSlim().then((slim) => {
-          if (!ownsAnswer(generation)) return;
-          const answer = rankNearMe(position.coords.latitude, position.coords.longitude, slim);
-          if (answer.scope === "none") {
-            // Located fine, but nothing priced in range — be honest that we do
-            // not cover here yet, name the REAL nearest patch, and let them
-            // register demand, instead of silently pretending central London.
-            const nearest = nearestSupportedPatch(
-              position.coords.latitude,
-              position.coords.longitude,
-            );
-            if (nearest) {
-              setCards([]);
-              setNearDrinks(null, []);
-              setBorough(null);
-              setPatch(null);
-              setPatchProfile(null);
-              setPatchReason(null);
-              setOutsideCoverage(nearest);
-              setAnswerContext({ source: "location", generation });
-              setState("ready");
-              return;
-            }
-            // No patch to offer (should not happen) — fall back to an area answer.
-            answerWithoutFix("none");
-            return;
-          }
-          setCards(answer.cards);
-          setNearDrinks(
-            { lat: position.coords.latitude, lng: position.coords.longitude },
-            slim,
-          );
-          setScope(answer.scope);
-          setNearest(answer.nearest);
-          setState("ready");
-          setBorough(null);
-          setPatch(null);
-          setPatchProfile(null);
-          setPatchReason(null);
-          setOutsideCoverage(null);
-          setAnswerContext({ source: "location", generation });
-        });
+        answerLocation(position.coords.latitude, position.coords.longitude);
       },
       (error) => {
         if (!ownsAnswer(generation)) return;
@@ -656,7 +683,7 @@ export default function NearMeNow({
       },
       GEO_OPTS,
     );
-  }, [answerWithoutFix, beginAnswer, loadSlim, ownsAnswer, setNearDrinks]);
+  }, [answerLocation, answerWithoutFix, beginAnswer, ownsAnswer]);
 
   useEffect(() => {
     const startAutoLocate = shouldStartNearAutoLocate({
@@ -665,20 +692,8 @@ export default function NearMeNow({
       hasInitialLocation: Boolean(initialLocation),
       bootPatchId: bootPatch?.id ?? null,
     });
-    // Map mode: a location is already resolved — answer immediately, no prompt.
     if (initialLocation) {
-      const generation = beginAnswer();
-      void loadSlim().then((slim) => {
-        if (!ownsAnswer(generation)) return;
-        const answer = rankNearMe(initialLocation.lat, initialLocation.lng, slim);
-        setCards(answer.cards);
-        setNearDrinks({ lat: initialLocation.lat, lng: initialLocation.lng }, slim);
-        setScope(answer.scope);
-        setNearest(answer.nearest);
-        setState("ready");
-        setBorough(null);
-        setAnswerContext({ source: "location", generation });
-      });
+      answerLocation(initialLocation.lat, initialLocation.lng);
       return;
     }
     // Shareable patch entry beats auto-locate so deep links stay honest.
@@ -695,7 +710,6 @@ export default function NearMeNow({
     // asynchronously via the Geolocation API — an external-system sync, the
     // documented exception to the no-setState-in-effect guidance.
     locate();
-    // Mount-only: loadSlim/locate/pickPatch are stable for a given cityId.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoLocate, initialLocation, bootPatch?.id]);
 
@@ -793,6 +807,12 @@ export default function NearMeNow({
         // for the beat the slim index takes to arrive.
         <NearMeFallbackStatus />
       ) : null}
+
+      <NearestPubAnswer
+        pub={nearestPubOnScreen(state, nearestPub, answerContext, activeAnswerGeneration, borough, patch)}
+        onOpen={openVenue}
+        titledByHost={titledByHost}
+      />
 
       {state === "ready" && outsideCoverage ? (
         <NearMeOutsideCoverage
@@ -1002,6 +1022,65 @@ function NearMeOutsideCoverage({
         </ReadyButton>
       </footer>
     </div>
+  );
+}
+
+/**
+ * The nearest pub to show, or null. Only a ready answer from the reader's own
+ * current fix names one: a borough or patch answer has no reader position.
+ */
+function nearestPubOnScreen(
+  state: LocateState,
+  pub: NearestPub | null,
+  context: { source: NearAnswerSource; generation: number } | null,
+  activeGeneration: number,
+  borough: string | null,
+  patch: unknown,
+): NearestPub | null {
+  const current = state === "ready" && !borough && !patch &&
+    context?.source === "location" && context.generation === activeGeneration;
+  return current ? pub : null;
+}
+
+/** The pubs a located answer already names: its cards and its saving line's pub. */
+function answerPubIds(answer: NearMeAnswer): string[] {
+  return [...answer.cards.map((card) => card.id), ...(answer.nearest ? [answer.nearest.id] : [])];
+}
+
+function NearestPubAnswer({
+  pub,
+  onOpen,
+  titledByHost,
+}: {
+  pub: NearestPub | null;
+  onOpen: (id: string) => void;
+  titledByHost: boolean;
+}) {
+  if (!pub) return null;
+  return (
+    <section className="nmnNearest" aria-label="Nearest listed pub">
+      <header className="nmnHead">
+        <AnswerHeadline text="Nearest listed pub" titledByHost={titledByHost} />
+      </header>
+      <ReadyButton type="button" className="nmnCard" onClick={() => onOpen(pub.id)}>
+        <span className="nmnCardMain">
+          <span className="nmnCardName">{pub.name}</span>
+          <span className="nmnCardMeta">
+            <span className="nmnCardBorough">{pub.borough}</span>
+            <span className="nmnCardWalk">
+              <Footprints size={14} aria-hidden="true" />
+              About {pub.walkMinutes} min · {formatNearDistance(pub.distanceKm)}
+            </span>
+          </span>
+        </span>
+        <span className="nmnCardView">
+          {NEAR_ME_VIEW_LABEL}<ChevronRight size={14} aria-hidden="true" />
+        </span>
+      </ReadyButton>
+      <p className="nmnHint">
+        Pub data includes <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap contributors</a>, ODbL. <DataCreditsLink />
+      </p>
+    </section>
   );
 }
 

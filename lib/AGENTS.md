@@ -1,48 +1,25 @@
 # Policy modules, stores and shared leaves
 
-Rules whose subject is a module under `lib/`: the closed vocabularies, the policy leaves and the stores. `lib/harvest/*` is governed by [scripts/AGENTS.md](../scripts/AGENTS.md), because the harvest CLIs and the source policy are one rule.
+Modules under `lib/`: the closed vocabularies, the policy leaves and the stores. `lib/harvest/*` follows [scripts/AGENTS.md](../scripts/AGENTS.md), because the harvest commands and the source policy are one rule. Repo-wide rules are in the root [AGENTS.md](../AGENTS.md).
 
-Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
-Long-form incident history, measured proof and review finding IDs live under [`docs/rules/`](../docs/rules/). Each section below links to the full rule set; every former bullet, pin and test reference is preserved there.
+## Traps
 
-## Identity, accounts and sessions
+- **One owner per rule.** A closed vocabulary lives in one `lib/` module. A policy leaf imports nothing heavy, so a page that needs it does not pull a store behind it.
+- **Dual-backend stores share one interface.** Process memory runs keyless. Supabase is the durable backend. Both go through `lib/storeBackend.ts`.
+- **Price trust is decided in one place.** `lib/pintTrust.ts`, `lib/priceTier.ts` and `lib/venues.ts` decide price lanes. A retired contributor changes a name, never a price's authority.
+- **A bill attachment does not verify a price.** See the [bill check rule](../docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price).
+- **A referral confers recognition only.** Nothing in the product may branch on it. `lib/referrals.ts` owns the rule, and `__tests__/referralMarkLaw.test.ts` fences it.
+- **A flow with three or more states is one machine.** A tagged union and one pure transition in one `lib/` leaf. Effects stay in the hook or the route. See [state machines](../docs/rules/state-machines.md).
+- **Push registration is identity-free by design.** `lib/pushTokenStore.ts` stores no account or plan identity.
 
-Accounts, adult gate, direct-message safety, contribution identity, founding marks, referrals, starter packs, directory, add links, visibility, the signed-out London lane.
+## Detail
 
-Full rules: [`docs/rules/lib-identity-accounts-and-sessions.md`](../docs/rules/lib-identity-accounts-and-sessions.md).
+Read a detail file only for the rule you change. Each holds the full rules, pins and history:
 
-## Images, uploads and photo walls
-
-Profile images, covers, receipt photos, upload limits, moderation, venue photo walls.
-
-Full rules: [`docs/rules/lib-images-uploads-and-photo-walls.md`](../docs/rules/lib-images-uploads-and-photo-walls.md).
-
-## Prices, trust and drinks
-
-Community prices, bands, trust states, confirmations, measures, missions, drink lanes, pint index, the cheapest-pint hunt, spoons value lens, the London counter soft-drink lane.
-
-Full rules: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-prices-trust-and-drinks.md).
-
-## Venues, areas, listings and nights
-
-Venue truth, display names, deals, kinds, near desk, landing imagery, picks, what's on, out listings, plans (the £20 crawl, the dry round, seasonal templates), UK base, night areas, map pack revision skew.
-
-Full rules: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules/lib-venues-areas-listings-and-nights.md).
-
-## Saves, nudges, rounds, reports and Pub Pal
-
-Visit reports, venue corrections, With tags, the profile passport, the first-run Been here card, the rank card and Tell your lot, occupancy, wanted, nudges, community signals, rounds, ask and concierge routing, Pub Pal tools.
-
-Full rules: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md).
-
-## Observability
-
-Arize model-call tracing leaf and registration. PostHog journey event names for dashboards: [`docs/analytics/POSTHOG_EVENT_NAMES.md`](../docs/analytics/POSTHOG_EVENT_NAMES.md); browser SDK features (replay, heatmaps, surveys, identify and flags are off): [`docs/analytics/POSTHOG_SAMPLING.md`](../docs/analytics/POSTHOG_SAMPLING.md).
-
-Full rules: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.md).
-
-## Shared seams: stores, http, freshness, brand
-
-Enrichment cron, freshness spine, Context.dev, brand naming, icons, contact, rate limits, stores, messaging, email delivery, table requests.
-
-Full rules: [`docs/rules/lib-shared-seams-stores-http-freshness-brand.md`](../docs/rules/lib-shared-seams-stores-http-freshness-brand.md).
+- Identity, accounts and sessions: [`docs/rules/lib-identity-accounts-and-sessions.md`](../docs/rules/lib-identity-accounts-and-sessions.md)
+- Images, uploads and photo walls: [`docs/rules/lib-images-uploads-and-photo-walls.md`](../docs/rules/lib-images-uploads-and-photo-walls.md)
+- Prices, trust and drinks: [`docs/rules/lib-prices-trust-and-drinks.md`](../docs/rules/lib-prices-trust-and-drinks.md)
+- Venues, areas, listings and nights: [`docs/rules/lib-venues-areas-listings-and-nights.md`](../docs/rules/lib-venues-areas-listings-and-nights.md)
+- Saves, nudges, rounds, reports and Pub Pal: [`docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md`](../docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md)
+- Observability: [`docs/rules/lib-observability.md`](../docs/rules/lib-observability.md). PostHog event names: [`docs/analytics/POSTHOG_EVENT_NAMES.md`](../docs/analytics/POSTHOG_EVENT_NAMES.md). Browser SDK features: [`docs/analytics/POSTHOG_SAMPLING.md`](../docs/analytics/POSTHOG_SAMPLING.md).
+- Shared seams (stores, http, freshness, brand): [`docs/rules/lib-shared-seams-stores-http-freshness-brand.md`](../docs/rules/lib-shared-seams-stores-http-freshness-brand.md)

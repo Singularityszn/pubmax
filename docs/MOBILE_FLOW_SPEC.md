@@ -61,7 +61,8 @@ rise-in only, with no physics or count-up. Drag, scroll, another selection, or
 Escape interrupts the entrance and settles the sheet. Reduced motion disables
 all new reveal motion. The trust-tier choreography, short-form timing, and
 browser contract live in
-[`docs/proof/venue-reveal/README.md`](proof/venue-reveal/README.md) and
+[`lib/venueReveal.ts`](../lib/venueReveal.ts),
+[`lib/sheetSnap.ts`](../lib/sheetSnap.ts), and
 [`e2e/venue-reveal.spec.ts`](../e2e/venue-reveal.spec.ts).
 
 ## 3. The `/map` URL param contract
@@ -76,10 +77,9 @@ in [README Features](../README.md#features).
 1. **Tab switches never build history.** Tapping a bottom tab replaces, it does not
    push — back must never walk the user backward through tabs they tapped.
 2. **In-tab pushes DO build history** (list→detail, story→venue, plan→join).
-3. **The sheet closes before the tab pops.** With the venue sheet or planner open
-   (`appShell.detail-open` / `.planning-open`), the first back gesture closes the
-   overlay; only a second back leaves the map. Tab-bar visibility and sheet clearance
-   follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
+3. Map sheet Back gestures follow the [surface navigation contract](rules/components-sheets-chrome-and-navigation.md#no-surface-is-a-dead-end-and-the-way-out-is-one-pattern).
+   The [map guide](../README.md#features) owns planner exit and Home destinations.
+   Tab-bar visibility and sheet clearance follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
 4. **Scroll restoration:** returning to Discover / Pubs / Stories restores the prior
    scroll position (Next default scroll restoration); deep-linking into Map does not
    inherit list scroll.

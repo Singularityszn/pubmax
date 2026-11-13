@@ -9,7 +9,7 @@ const AREA_NAME = "Victoria";
 const BRAND_SLUG = "guinness";
 const BRAND_LABEL = "Guinness";
 const LANDING_PATH = `/area/${AREA_SLUG}/drink/${BRAND_SLUG}`;
-const TRACKED_PROOF_DIR = "docs/proof/drink-brand-area-landing";
+const TRACKED_PROOF_DIR = "artifacts/proof/drink-brand-area-landing";
 // Checked browser fixture for Victoria and Guinness (first checked against the
 // 3 July 2026 collection). Unit tests own policy and dataset derivation; this
 // proof owns rendered URLs. The collection day is DERIVED from
@@ -360,6 +360,18 @@ async function assertLandingContract(
     ).toBeGreaterThanOrEqual(prices[index - 1]!);
   }
   await expect(fromPrice).toHaveText(`From ${CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel}`);
+
+  // A pub here with no listed price reads the area estimate: the middle of the
+  // listed prices, every one of them on the page, and never a plain figure.
+  const middle = Math.floor(prices.length / 2);
+  const areaMedian = prices.length % 2 ? prices[middle]! : (prices[middle - 1]! + prices[middle]!) / 2;
+  const estimate = page.locator(".drinkBrandDirectory__estimate");
+  await expect(estimate).toBeVisible();
+  await expect(estimate.locator("strong")).toHaveText(`est. £${areaMedian.toFixed(2)}`);
+  await expect(estimate).toContainText(`the middle of the ${CHECKED_VICTORIA_GUINNESS_FIXTURE.totalPricedVenues} listed prices`);
+  await expect(estimate.getByRole("link", { name: "How we estimate", exact: true }))
+    .toHaveAttribute("href", "/how-we-estimate");
+  await expectHorizontallyInsideViewport(page, estimate, `${viewportName}px ${theme} area estimate`);
 
   const firstRow = rows.first();
   const firstVenue = firstRow.locator(".drinkBrandDirectory__venue");

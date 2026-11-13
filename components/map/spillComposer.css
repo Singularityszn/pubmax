@@ -117,6 +117,13 @@
   gap: 5px;
 }
 
+.spillStarRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
 /* ── Price-first door ─────────────────────────────────────────────────── */
 
 .spillPriceStep {
@@ -310,10 +317,7 @@
   color: var(--state-selected-ink);
 }
 
-/* The measure row's own rules live in components/map/measureChips.css, beside
-   the shared control that renders them (MeasureChips). They used to sit here,
-   and this sheet is imported by the map alone, so the same row mounted on the
-   venue sheet's price door and on /near stood unstyled. */
+/* components/map/measureChips.css owns the shared measure row's styles. */
 
 .priceChip:focus-visible {
   outline: 2px solid var(--brass);
@@ -1054,7 +1058,8 @@ html[data-legacy="1"] .spillPreviewNote {
   font-weight: 700;
 }
 
-.spillReceiptRetake {
+.spillReceiptRetake,
+.spillStarClear {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -1070,13 +1075,15 @@ html[data-legacy="1"] .spillPreviewNote {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .spillReceiptRetake:hover {
+  .spillReceiptRetake:hover,
+  .spillStarClear:hover {
     border-color: var(--hairline-strong);
     color: var(--ink);
   }
 }
 
-.spillReceiptRetake:focus-visible {
+.spillReceiptRetake:focus-visible,
+.spillStarClear:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 1px;
 }

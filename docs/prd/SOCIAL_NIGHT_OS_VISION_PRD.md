@@ -364,7 +364,7 @@ approval of this PRD.
 
 ## Deploy / ops notes
 
-- Migrations SQL-only; firstmate applies.
+- Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
 - New flags register in `lib/trustedHandoffFlags.server.ts` with ownerLane,
   removalCondition, offBehavior.
 - OpenAI moderation key remains captain-owned from Social Launch WP2.

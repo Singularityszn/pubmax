@@ -89,6 +89,19 @@
   color: var(--color-text-muted);
 }
 
+/* Keep the separator and read date together when large text moves them below
+   the source. */
+.tonightAnswerSourceDate {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--space-1);
+}
+
+.tonightAnswerReadDate {
+  white-space: nowrap;
+}
+
 /* The Last train card's one action is the shared secondary Button
    (components/ui/button.css owns its height, padding and radius). It sits at
    the start of the card rather than stretching across it. */
@@ -200,6 +213,17 @@
 
   .tonightAnswer {
     flex: 1 1 0;
+  }
+
+  /* In a narrow column the evidence wraps, so it flows as one sentence. The
+     source keeps its 44 px target without making each line 44 px tall. */
+  .tonightAnswerEvidence {
+    display: block;
+    min-height: 0;
+  }
+
+  .tonightAnswerEvidence .tonightAnswerSource {
+    margin-block: calc((1lh - var(--control-height)) / 2);
   }
 }
 

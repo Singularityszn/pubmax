@@ -39,7 +39,7 @@ export function capturePosthogAiGeneration(report: PosthogAiGenerationReport): v
     distinctId: SERVER_DISTINCT_ID,
     properties: {
       $ai_model: report.model.slice(0, 120),
-      $ai_provider: (report.provider ?? "openrouter").slice(0, 40),
+      $ai_provider: (report.provider ?? "unknown").slice(0, 40),
       $ai_latency: latencySeconds,
       ...(inputTokens !== undefined ? { $ai_input_tokens: inputTokens } : {}),
       ...(outputTokens !== undefined ? { $ai_output_tokens: outputTokens } : {}),

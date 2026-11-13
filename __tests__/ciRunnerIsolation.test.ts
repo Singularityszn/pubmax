@@ -1,7 +1,8 @@
 // MAC RUNNER POLICY AND WORKFLOW DEFENCE IN DEPTH.
 //
 // Every job uses GitHub-hosted ubuntu-latest, except the closed list of
-// Playwright jobs in MACOS_JOBS, which run on the self-hosted pubmax-mac pool.
+// Playwright jobs in MACOS_JOBS, which run on the self-hosted pubmax-mac pool,
+// and the closed list in LINUX_PINNED_JOBS, which run on a fixed Ubuntu image.
 // Runner-up's fork guard controls runner access. The repository also requires
 // approval for all outside collaborators. YAML conditions add defence in depth.
 // These tests check workflow policy, not the external controls.
@@ -12,7 +13,8 @@
 //   2. no pre/post npm hook exists for `ignore-scripts` to skip in silence;
 //   3. every checkout drops its credential, and every remote action is pinned
 //      to a commit;
-//   4. only the jobs in MACOS_JOBS use pubmax-mac, every other job uses
+//   4. only the jobs in MACOS_JOBS use pubmax-mac, only the jobs in
+//      LINUX_PINNED_JOBS use a fixed Ubuntu image, every other job uses
 //      ubuntu-latest, a fork pull request starts no pubmax-mac job, and a
 //      pull request workflow has no secrets.
 
@@ -224,17 +226,27 @@ const MACOS_JOBS: Record<string, string> = {
 // The label runner-up serves this repository's self-hosted Mac places with.
 const MAC_POOL = "pubmax-mac";
 
+// A job pins an Ubuntu image only when ubuntu-latest lacks a package it needs.
+const LINUX_PINNED_JOBS: Record<string, { runner: string; reason: string }> = {
+  "rls-session.yml / rls-session": {
+    runner: "ubuntu-24.04",
+    reason: "installs postgresql-16 from the Ubuntu archive, which ubuntu-26.04 does not carry",
+  },
+};
+
 describe("runners", () => {
-  it("runs every job on ubuntu-latest except the closed macOS list, which runs on the Mac pool", () => {
+  it("runs every job on ubuntu-latest except the closed macOS and pinned Linux lists", () => {
     const seen: string[] = [];
     for (const { file, parsed } of workflows) {
       for (const [jobId, job] of Object.entries(parsed.jobs)) {
         const where = `${file} / ${jobId}`;
-        if (job["runs-on"] === MAC_POOL) seen.push(where);
-        expect(job["runs-on"], where).toBe(where in MACOS_JOBS ? MAC_POOL : "ubuntu-latest");
+        if (job["runs-on"] !== "ubuntu-latest") seen.push(where);
+        const expected =
+          where in MACOS_JOBS ? MAC_POOL : (LINUX_PINNED_JOBS[where]?.runner ?? "ubuntu-latest");
+        expect(job["runs-on"], where).toBe(expected);
       }
     }
-    expect(seen.sort()).toEqual(Object.keys(MACOS_JOBS).sort());
+    expect(seen.sort()).toEqual([...Object.keys(MACOS_JOBS), ...Object.keys(LINUX_PINNED_JOBS)].sort());
   });
 
   // Playwright starts half the machine's cores as workers when CI leaves the
@@ -299,7 +311,7 @@ describe("runners", () => {
       const condition = defined(workflow.jobs[defined(jobId)], where).if;
       for (const result of ["success", "failure", "cancelled", "skipped"]) {
         for (const layout of ["ui", "non-ui"]) {
-          expect(browserJobCondition(condition, { fork: true, result, layout }), where).toBe(false);
+          expect(browserJobCondition(condition, { fork: true, result, layout, labels: ["layout-pins"] }), where).toBe(false);
         }
       }
     }

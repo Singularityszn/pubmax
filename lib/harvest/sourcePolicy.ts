@@ -12,6 +12,7 @@ import {
   type HarvestSource,
   type HarvestSourceKind,
 } from "./sourceRegistry.ts";
+import { FULLERS_ESTATE_HOSTS, STONEGATE_ESTATE_HOSTS } from "./termsRefusedEstateHosts.ts";
 
 export {
   HARVEST_SKIP_REASONS,
@@ -41,19 +42,22 @@ export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] 
   return harvestSourcesOfKind(kind).filter(isHarvestSourceAllowed);
 }
 
+const BUILDER_READ_KINDS: ReadonlySet<HarvestSourceKind> = new Set(["open-data", "price-listing"]);
+
 /**
- * The URL an open-data builder may fetch: `pathAndQuery` resolved against its
- * registered row's own url, or a throw.
+ * The URL an open-data or price-listing builder may fetch: `pathAndQuery`
+ * resolved against its registered row's own url, or a throw.
  *
  * THE TABLE OWNS THE HOST. A builder names its row and the path it wants, so
  * no builder types an origin, a row the table refuses reads nothing, and a
  * path that would resolve anywhere else (`//other.host/`, another scheme) is
  * refused before it is asked. Builders pair this with `redirect: "error"`, so
- * the host they land on is the host this returned.
+ * the host they land on is the host this returned. A path under one of the
+ * row's `disallowedPaths` is refused too, so robots.txt binds in code.
  */
 export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const source = harvestSource(id);
-  if (!source || source.kind !== "open-data") {
+  if (!source || !BUILDER_READ_KINDS.has(source.kind)) {
     throw new Error(`sourcePolicy: no open-data source "${id}"`);
   }
   if (!source.access.allowed) {
@@ -63,6 +67,17 @@ export function openDataSourceUrl(id: string, pathAndQuery: string): URL {
   const url = new URL(pathAndQuery, base);
   if (url.protocol !== "https:" || url.host !== base.host) {
     throw new Error(`sourcePolicy: ${url.href} is not ${source.id}'s ${base.origin}`);
+  }
+  let path: string;
+  try {
+    path = decodeURIComponent(url.pathname).toLowerCase();
+  } catch {
+    throw new Error(`sourcePolicy: ${url.href} has a path that does not decode`);
+  }
+  // A robots.txt rule is a prefix, so `/spoons` also covers `/spoons-map`.
+  const disallowed = (source.disallowedPaths ?? []).find((prefix) => path.startsWith(prefix.toLowerCase()));
+  if (disallowed) {
+    throw new Error(`sourcePolicy: ${source.id}'s robots.txt disallows ${disallowed}`);
   }
   return url;
 }
@@ -183,6 +198,8 @@ const REFUSED_HOSTS = new Set([
     }
   }),
   ...REFUSED_ESTATE_HOSTS,
+  ...STONEGATE_ESTATE_HOSTS,
+  ...FULLERS_ESTATE_HOSTS,
 ]);
 
 /**
@@ -409,7 +426,8 @@ export function harvestRedirectLanding(
   return { outcome: landed === askedUrl ? "same" : "redirected", url: landed };
 }
 
-export function isHarvestableOperatorUrl(value: unknown): value is string {
+/** An attributable public URL. This does not grant permission to fetch it. */
+export function isPublicHttpUrl(value: unknown): value is string {
   if (typeof value !== "string" || value.trim().length === 0) return false;
   let url: URL;
   try {
@@ -422,7 +440,11 @@ export function isHarvestableOperatorUrl(value: unknown): value is string {
   // is somebody else's secret heading for somebody else's host.
   if (url.username || url.password) return false;
   if (namesOurOwnNetwork(url.hostname)) return false;
-  return !underRefusedHost(url.hostname);
+  return true;
+}
+
+export function isHarvestableOperatorUrl(value: unknown): value is string {
+  return isPublicHttpUrl(value) && !underRefusedHost(new URL(value.trim()).hostname);
 }
 
 /**

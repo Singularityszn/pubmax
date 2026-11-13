@@ -164,6 +164,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         }]
       : []),
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
+    // Pub of the week turns each Monday through the same cited history list.
+    { path: "/guides", priority: 0.6, changeFrequency: "weekly", lastModified: historicModified },
     // The pint price time machine. Its own history file dates it: the rows are
     // curated by hand, so the page changes when the file is re-curated.
     {
@@ -210,6 +212,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/press", priority: 0.5, changeFrequency: "monthly", lastModified: now },
     { path: "/pub-crawl-cost", priority: 0.5, changeFrequency: "yearly", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
+    { path: "/tools", priority: 0.6, changeFrequency: "monthly", lastModified: now },
     // The city picker. /choose-city held this row until the picker was made
     // one page: it now 308s to /places (proxy.ts), and the canonical moved in
     // the same commit, so the list keeps its place in the index.

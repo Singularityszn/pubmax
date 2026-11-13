@@ -18,7 +18,7 @@ vi.mock("@/lib/venueIndex", () => ({
 }));
 
 import { __resetDiary, diaryStore } from "@/lib/diaryStore";
-import { readPalTaste } from "@/lib/palTaste.server";
+import { palNoveltyForAsk, readPalTaste, readPalVisitedVenues } from "@/lib/palTaste.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import * as pubPalStore from "@/lib/pubPalStore";
 import type { RatingValue } from "@/lib/ratings";
@@ -62,6 +62,50 @@ describe("readPalTaste", () => {
 
     expect(taste).toMatchObject({ visits: 1, loved: ["The Crown"], notKeen: [], lastVisit: { name: "The Crown" } });
     expect(await readPalTaste("owner-nobody", 1_000)).toBeNull();
+  });
+
+  it("reads where the owner has been only while the taste read is on, and says when it is off", async () => {
+    await logVisit("owner-new", "2026-10-02", 4);
+    expect(await readPalVisitedVenues("owner-new")).toEqual({ kind: "read", venueIds: new Set(["venue-crown"]) });
+    expect(await readPalVisitedVenues("owner-empty")).toEqual({ kind: "read", venueIds: new Set() });
+
+    expect((await pubPalStore.createPubPalResult("owner-new", { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Moss" })).ok).toBe(true);
+    expect((await pubPalStore.updatePubPalResult("owner-new", { proposalPreferences: { taste: false } })).ok).toBe(true);
+    const listForOwner = vi.spyOn(diaryStore(), "listForOwner");
+    expect(await readPalVisitedVenues("owner-new")).toEqual({ kind: "off" });
+    expect(listForOwner).not.toHaveBeenCalled();
+
+    vi.spyOn(pubPalStore, "getPubPalResult").mockRejectedValueOnce(new Error("pal unavailable"));
+    expect(await readPalVisitedVenues("owner-empty")).toEqual({ kind: "off" });
+  });
+
+  it("counts a visit logged under a merged venue's old id as the current venue", async () => {
+    const created = await diaryStore().create({ ownerUserId: "owner-alias", venueId: "venue-1s1ffqx", venueName: "The Three Colts Tavern", visitedOn: "2026-10-02", rating: null, review: "", visibility: "private" });
+    expect(created.status).toBe("created");
+    expect(await readPalVisitedVenues("owner-alias")).toEqual({ kind: "read", venueIds: new Set(["venue-1g0y58p"]) });
+  });
+
+  it("reads no one for an ordinary ask, and tells a novelty ask what it left out or why it could not", async () => {
+    const ownerId = vi.fn(async () => "owner-novel");
+    const ordinary = await palNoveltyForAsk("Find four pubs in Soho", ownerId);
+    const body = { answer: "Four picks." };
+    expect(ordinary.tell(body)).toBe(body);
+    expect(ordinary.excludeVenueIds).toBeUndefined();
+    expect(ownerId).not.toHaveBeenCalled();
+
+    await logVisit("owner-novel", "2026-10-02", 4);
+    const novel = await palNoveltyForAsk("Somewhere new in Soho", ownerId);
+    expect(novel.excludeVenueIds).toEqual(new Set(["venue-crown"]));
+    expect(novel.tell(body)).toEqual(body);
+
+    const signedOut = await palNoveltyForAsk("Surprise me", async () => null);
+    expect(signedOut.excludeVenueIds).toBeUndefined();
+    expect(signedOut.tell(body).answer).toBe("I don't know where you've been yet. Four picks.");
+  });
+
+  it("says the read is unavailable when the diary cannot be read", async () => {
+    vi.spyOn(diaryStore(), "listForOwner").mockResolvedValue({ status: "degraded", entries: [] });
+    expect(await readPalVisitedVenues("owner-down")).toEqual({ kind: "unavailable" });
   });
 
   it("reads nothing for an owner who turned the taste read off, even past a cached read", async () => {

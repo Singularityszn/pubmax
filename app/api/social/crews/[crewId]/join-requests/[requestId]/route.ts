@@ -8,6 +8,8 @@ import {
   socialCrewMutation,
   socialCrewNotFoundResponse,
 } from "@/lib/socialCrewHttp";
+import { crewJoinAcceptedNotice, deferCrewJoinNotice } from "@/lib/crewJoinNotice.server";
+import { siteOrigin } from "@/lib/siteUrl";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
@@ -33,10 +35,22 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
     return socialCrewInvalidResponse();
   }
 
-  return socialCrewMutation(() => store.decideJoin(authority.actor, {
-    crewId,
-    requestId,
-    decision: input.body.decision as "accept" | "decline",
-    idempotencyKey,
-  }));
+  const actor = authority.actor;
+  return socialCrewMutation(async () => {
+    const result = await store.decideJoin(actor, {
+      crewId,
+      requestId,
+      decision: input.body.decision as "accept" | "decline",
+      idempotencyKey,
+    });
+    // P0 item 3: a new acceptance tells the guest. A decline or a replay tells nobody.
+    const memberId = result.memberId;
+    if (result.code === "accepted" && memberId) {
+      deferCrewJoinNotice(
+        () => crewJoinAcceptedNotice(() => store.read(crewId, actor), actor, crewId, memberId, requestId),
+        siteOrigin(request.url) ?? new URL(request.url).origin,
+      );
+    }
+    return result;
+  });
 }

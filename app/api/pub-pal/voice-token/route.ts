@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import { after } from "next/server";
+import { palUnder18Refusal } from "@/lib/adultOnFile.server";
 import { callerUserId } from "@/lib/authServer";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
@@ -14,7 +16,7 @@ import {
   type PalVoiceMeterState,
 } from "@/lib/palVoiceMetering";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
-import { readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
+import { palVoiceConnectContext, readConfirmedPalMemorySelection } from "@/lib/palConfirmedMemories.server";
 import { palTasteAllowed } from "@/lib/pubPal";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { readPalTaste } from "@/lib/palTaste.server";
@@ -119,8 +121,9 @@ async function refundVoiceGrant(
 }
 
 /**
- * Settles one issued grant from the duration ElevenLabs recorded for its
- * conversation, under the caller's own grant. False leaves it charged in full.
+ * Settles one issued grant under its owner using the provider's final duration.
+ * A false result does not prove that the charge stayed unchanged.
+ * The database can commit before its reply is lost.
  */
 async function settleConversation(
   admin: ReturnType<typeof requireSupabaseAdmin>,
@@ -169,15 +172,18 @@ async function ownsIssuedConversation(
 }
 
 /**
- * Settles every grant of the owner's month that a release left issued, from
- * the provider's own durations, so the allowance check sees what the calls
- * really cost. A conversation ElevenLabs still cannot report stays charged.
+ * Settles the grants of the owner's month that a release left issued, from
+ * the provider's own records. An ended call settles at its recorded length.
+ * Anything else stays charged in full, including a call the provider has no
+ * record of: under zero retention mode that can be a finished call whose
+ * record is gone. `skip` names the session just issued.
  */
 async function settleIssuedGrants(
   admin: ReturnType<typeof requireSupabaseAdmin>,
   userId: string,
   usageMonth: string,
   apiKey: string,
+  skip?: string,
 ): Promise<void> {
   let conversationIds: string[];
   try {
@@ -186,7 +192,7 @@ async function settleIssuedGrants(
       p_month: usageMonth,
     });
     if (error || !Array.isArray(data)) return;
-    conversationIds = data.filter(isPubPalConversationId);
+    conversationIds = data.filter((id): id is string => isPubPalConversationId(id) && id !== skip);
   } catch {
     return;
   }
@@ -197,13 +203,63 @@ async function settleIssuedGrants(
 }
 
 /**
+ * The month's charge once this grant's prepay is in, so the browser can say
+ * how many minutes are left when the call ends. Null when it cannot be read:
+ * the call still starts, and the browser shows no figure.
+ */
+async function readUsedMinutes(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  usageMonth: string,
+): Promise<number | null> {
+  try {
+    const { data, error } = await admin
+      .from("pub_pal_voice_usage")
+      .select("used_minutes")
+      .eq("owner_id", userId)
+      .eq("usage_month", usageMonth)
+      .maybeSingle();
+    const used = (data as { used_minutes?: unknown } | null)?.used_minutes;
+    return !error && typeof used === "number" ? used : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Charges one grant against the month. `unknown` covers an error and an
+ * answer that is not a boolean: the database may have committed before the
+ * reply was lost, so the caller refunds it.
+ */
+async function prepayVoiceGrant(
+  admin: ReturnType<typeof requireSupabaseAdmin>,
+  userId: string,
+  usageMonth: string,
+  grantId: string,
+): Promise<"admitted" | "refused" | "unknown"> {
+  try {
+    const { data, error } = await admin.rpc("prepay_pub_pal_voice_grant", {
+      p_owner_id: userId,
+      p_month: usageMonth,
+      p_grant_id: grantId,
+      p_minutes: PAL_VOICE_GRANT_MINUTES,
+      p_limit: PAL_VOICE_MONTHLY_MINUTES,
+    });
+    if (error || (data !== true && data !== false)) return "unknown";
+    return data ? "admitted" : "refused";
+  } catch {
+    return "unknown";
+  }
+}
+
+/**
  * A session ended. The browser's say-so changes nothing: it names a
  * conversation, and the allowance is settled only from the duration ElevenLabs
  * recorded for that conversation, under the caller's own grant. The browser
  * releases as it hangs up, so the provider is asked for a few seconds until it
  * reports the call ended. If it never does, or cannot be read, the grant stays
- * issued and charged in full, and the owner's next voice-token request settles
- * it before the allowance check.
+ * issued and charged in full. The owner's next session settles it after its
+ * response, or at once when the charge would refuse that session.
  */
 async function handleRelease(
   request: Request,
@@ -235,6 +291,8 @@ async function handleRelease(
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {
+  const under18 = await palUnder18Refusal(userId);
+  if (under18) return under18;
   const palResult = await getPubPalResult(userId);
   if (!palResult.ok) {
     return publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, {
@@ -268,7 +326,7 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const supabaseConfigured = isSupabaseConfigured();
   const meter = meterFor(userId, month);
   if (!supabaseConfigured && !canPrepayVoiceGrant(meter)) {
-    return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
+    return publicApiError("You've used this month's voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
       compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
     });
   }
@@ -278,35 +336,23 @@ async function handleIssueToken(userId: string): Promise<Response> {
   const grantId = randomUUID();
   const admin = supabaseConfigured ? requireSupabaseAdmin() : null;
   if (admin) {
-    await settleIssuedGrants(admin, userId, usageMonth, apiKey);
-    try {
-      const { data, error } = await admin.rpc("prepay_pub_pal_voice_grant", {
-        p_owner_id: userId,
-        p_month: usageMonth,
-        p_grant_id: grantId,
-        p_minutes: PAL_VOICE_GRANT_MINUTES,
-        p_limit: PAL_VOICE_MONTHLY_MINUTES,
-      });
-      if (error || (data !== true && data !== false)) {
-        // The database may have committed before the reply was lost, so the
-        // grant is refunded on every ambiguous outcome and never on a plain
-        // false, which confirms nothing was charged.
-        await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
-        return publicApiError("We couldn't check your voice allowance.", "UNAVAILABLE", 503, {
-          retryable: true,
-          compatibilityFields: { fallback: "text" },
-        });
-      }
-      if (data === false) {
-        return publicApiError("You've used this month's trial voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
-          compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
-        });
-      }
-    } catch {
+    // Only a refusal waits for earlier calls. Retry admission even if settlement
+    // reports nothing: a reply can be lost, or another request can settle first.
+    let prepaid = await prepayVoiceGrant(admin, userId, usageMonth, grantId);
+    if (prepaid === "refused") {
+      await settleIssuedGrants(admin, userId, usageMonth, apiKey);
+      prepaid = await prepayVoiceGrant(admin, userId, usageMonth, grantId);
+    }
+    if (prepaid === "unknown") {
       await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
       return publicApiError("We couldn't check your voice allowance.", "UNAVAILABLE", 503, {
         retryable: true,
         compatibilityFields: { fallback: "text" },
+      });
+    }
+    if (prepaid === "refused") {
+      return publicApiError("You've used this month's voice allowance.", "VOICE_ALLOWANCE_USED", 429, {
+        compatibilityFields: { fallback: "text", remaining: 0, remainingMinutes: 0 },
       });
     }
   } else {
@@ -324,14 +370,21 @@ async function handleIssueToken(userId: string): Promise<Response> {
     return budgetRefusal;
   }
 
+  const usedMinutesRead = admin ? readUsedMinutes(admin, userId, usageMonth) : Promise.resolve(meter.usedMinutes);
   let providerAllocated = false;
+  let conversationId: string;
+  let response: Response;
   try {
-    const [session, taste, memories] = await Promise.all([
+    const [session, taste, memorySelection] = await Promise.all([
       fetchPalSignedConversation({ apiKey, agentId }),
       readPalTaste(userId),
-      palTasteAllowed(pal.proposalPreferences) ? readConfirmedPalMemories(userId) : Promise.resolve([]),
+      readConfirmedPalMemorySelection(userId),
     ]);
-    const overrides = buildPalVoiceOverrides(pal, { taste, memories });
+    const overrides = buildPalVoiceOverrides(pal, {
+      taste,
+      memories: palTasteAllowed(pal.proposalPreferences) ? memorySelection?.memories ?? null : [],
+    });
+    const context = palVoiceConnectContext(memorySelection, taste);
     if (!session.ok) {
       if (session.reason === "unreachable") {
         return publicApiError("The voice service didn't answer in time.", "PROVIDER_TIMEOUT", 504, {
@@ -348,7 +401,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
         { retryable: true, compatibilityFields: { fallback: "text" } },
       );
     }
-    const { signedUrl, conversationId } = session;
+    const { signedUrl } = session;
+    conversationId = session.conversationId;
     try {
       await bindPubPalToolTurn(conversationId, userId, DEFAULT_CITY_ID);
     } catch {
@@ -380,14 +434,16 @@ async function handleIssueToken(userId: string): Promise<Response> {
     }
     providerAllocated = true;
     const remainingMinutes = supabaseConfigured ? null : remainingVoiceMinutes(meter);
-    return jsonNoStore({
+    response = jsonNoStore({
       signedUrl,
       conversationId,
       connectionType: "websocket",
       overrides,
+      context,
       maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
       remaining: remainingMinutes,
       remainingMinutes,
+      usedMinutes: await usedMinutesRead,
       retention: "provider_default",
       mutationPolicy: "propose_then_confirm",
     });
@@ -401,6 +457,8 @@ async function handleIssueToken(userId: string): Promise<Response> {
       await refundVoiceGrant(admin, userId, usageMonth, meter, grantId);
     }
   }
+  if (admin) after(() => settleIssuedGrants(admin, userId, usageMonth, apiKey, conversationId));
+  return response;
 }
 
 /**

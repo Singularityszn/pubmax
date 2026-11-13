@@ -18,7 +18,7 @@ import { expectLayoutSettled } from "./helpers/layoutSettled";
 const PHONE = { width: 390, height: 844 };
 const TABLET = { width: 768, height: 1024 };
 const DESKTOP = { width: 1440, height: 900 };
-const PROOF = "docs/proof/map-blocked-fallback";
+const PROOF = "artifacts/proof/map-blocked-fallback";
 
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const MISSING_VENUE_ID = "venue-does-not-exist";

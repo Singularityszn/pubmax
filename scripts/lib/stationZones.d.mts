@@ -2,18 +2,10 @@
 // off, so tsc needs a declaration to typecheck the unit tests that import it).
 // Keep in lockstep with scripts/lib/stationZones.mjs.
 
-export interface StationZone {
-  name: string;
-  lat: number;
-  lng: number;
-  zone: number;
-}
+import type { StationZone } from "../../lib/nearestStationZone.mjs";
 
-export interface NearestStationZone {
-  zone: number;
-  station: string;
-  distanceKm: number;
-}
+export type { NearestStationZone, StationZone } from "../../lib/nearestStationZone.mjs";
+export { nearestStationZone } from "../../lib/nearestStationZone.mjs";
 
 export function haversineKm(
   latA: number,
@@ -21,11 +13,5 @@ export function haversineKm(
   latB: number,
   lngB: number,
 ): number;
-
-export function nearestStationZone(
-  lat: number,
-  lng: number,
-  stations: readonly StationZone[],
-): NearestStationZone | null;
 
 export function loadStationZones(): Promise<StationZone[]>;

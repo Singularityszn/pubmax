@@ -102,7 +102,7 @@ describe("the saving line's comparator evidence on /near", () => {
       root?.render(createElement(NearMeNow, { initialPatchId: "", showPriceTrust: true, autoLocate: true }));
     });
     await settle();
-    expect(host.querySelector(".nmnCardName")?.textContent).toBe("The Coach & Horses (29 greek st)");
+    expect(host.querySelector(".nmnList .nmnCardName")?.textContent).toBe("The Coach & Horses (29 greek st)");
     expect(host.querySelector(".nmnCardPriceValue")?.textContent).toBe("£5.70");
     expect(host.querySelector('[data-testid="near-saving-line"]')?.textContent).toBe(
       "The Coach & Horses (29 greek st) is £0.45 a pint less than Coach & Horses (1 great malborough street), the nearest pub with a listed price (£6.15, right here).",
@@ -118,7 +118,7 @@ describe("the saving line's comparator evidence on /near", () => {
     });
     await settle();
 
-    const cardNames = [...host.querySelectorAll(".nmnCardName")].map((node) => node.textContent);
+    const cardNames = [...host.querySelectorAll(".nmnList .nmnCardName")].map((node) => node.textContent);
     expect(cardNames).toHaveLength(5);
     expect(cardNames).not.toContain("Pub doorstep");
 
@@ -136,7 +136,7 @@ describe("the saving line's comparator evidence on /near", () => {
       root?.render(createElement(NearMeNow, { initialPatchId: "", showPriceTrust: false, autoLocate: true }));
     });
     await settle();
-    expect(host.querySelectorAll(".nmnCardName").length).toBeGreaterThan(0);
+    expect(host.querySelectorAll(".nmnList .nmnCardName").length).toBeGreaterThan(0);
     expect(host.querySelector('[data-testid="near-saving-line"]')).toBeNull();
   });
 });

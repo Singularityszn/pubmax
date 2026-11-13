@@ -5,12 +5,16 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { PAL_MAP_CLIENT_TOOLS } from "@/lib/palMapClientTools.mjs";
+
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const SCRIPT = path.join(ROOT, "scripts", "pubpal", "create-elevenlabs-agent.mjs");
 const SECRET = "0f1e2d3c4b5a69788796a5b4c3d2e1f00f1e2d3c4b5a69788796a5b4c3d2e1f0";
 const BASE_URL = "https://pubmaxxing.com";
 const AGENT_ID = "agent_check";
 const SECRET_ID = "live-secret-id";
+const WEBHOOKS = 16;
+const TOOLS = WEBHOOKS + PAL_MAP_CLIENT_TOOLS.length;
 
 // Stands in for ElevenLabs. It serves the live agent and tools from a fixture
 // file and records every call that is not a GET, which --check must never make.
@@ -51,7 +55,7 @@ globalThis.fetch = async (url, init = {}) => {
     return Response.json({});
   }
   if (text.includes("/agents?")) return Response.json({ agents: live.agent ? [live.agent] : [] });
-  if (text.includes("/convai/agents/")) return Response.json(live.agent);
+  if (text.includes("/convai/agents/")) return Response.json(text.includes("branch_id=") || !live.mainAgent ? live.agent : live.mainAgent);
   if (text.includes("/convai/tools")) return Response.json({ tools: live.tools, has_more: live.hasMore ?? false });
   if (text.includes("/convai/secrets")) return Response.json({ secrets: live.secrets });
   return new Response("unexpected " + text, { status: 404 });
@@ -87,11 +91,20 @@ function run(args: string[], env: Record<string, string> = {}, cwd = scratch()) 
   });
 }
 
+const webhooks = (tools: Json[]) => tools.filter((tool) => tool.tool_config.type === "webhook");
+
+/** The live fixture read through a branch, as the provider names one. */
+function onBranch<T extends { agent: Json }>(live: T, branch = "agtbranch_test"): T {
+  live.agent.branch_id = branch;
+  live.agent.main_branch_id = "agtbranch_main";
+  return live;
+}
+
 /** The agent exactly as the provisioner would write it, shaped as ElevenLabs reads it back. */
 function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets: Json[] } {
   const printed = run(["--dry-run", "--base-url", baseUrl]).stdout.split("\nDefault voice resolved:")[0] ?? "";
   const preview = JSON.parse(printed.slice(printed.indexOf("{"), printed.lastIndexOf("}") + 1)) as Json;
-  const tools = (preview.webhook_tools as Json[]).map((config, index) => ({
+  const tools = [...(preview.webhook_tools as Json[]).map((config, index) => ({
     id: `tool_${index}`,
     tool_config: {
       ...config,
@@ -100,7 +113,7 @@ function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets
         request_headers: { "x-elevenlabs-llm-secret": { secret_id: SECRET_ID } },
       },
     },
-  }));
+  })), ...(preview.client_tools as Json[]).map((config, index) => ({ id: `client_${index}`, tool_config: config }))];
   const agent = {
     agent_id: AGENT_ID,
     name: preview.name,
@@ -117,8 +130,8 @@ function matchingLive(baseUrl = BASE_URL): { agent: Json; tools: Json[]; secrets
   return { agent, tools, secrets };
 }
 
-function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean;
-  reasoningContract?: { llm: "gemini-2.5-flash-lite"; reasoning_effort: null } }, update = false, baseUrl = BASE_URL) {
+function check(live: { agent: Json; mainAgent?: Json; tools: Json[]; secrets: Json[]; allowWrites?: boolean; hasMore?: boolean;
+  reasoningContract?: { llm: "gemini-2.5-flash"; reasoning_effort: null } }, update = false, baseUrl = BASE_URL, extra: string[] = []) {
   const directory = scratch();
   writeFileSync(path.join(directory, "live.json"), JSON.stringify(live));
   writeFileSync(path.join(directory, "mock-fetch.mjs"), MOCK_FETCH);
@@ -126,7 +139,7 @@ function check(live: { agent: Json; tools: Json[]; secrets: Json[]; allowWrites?
   writeFileSync(writes, "");
   const result = spawnSync(
     process.execPath,
-    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, ...(update ? [] : ["--check"]), "--base-url", baseUrl],
+    ["--import", path.join(directory, "mock-fetch.mjs"), SCRIPT, ...(update ? [] : ["--check"]), "--base-url", baseUrl, ...extra],
     {
       cwd: directory,
       encoding: "utf8",
@@ -153,7 +166,7 @@ describe("pubpal:agent --check", () => {
     live.agent.conversation_config.agent.language = "en";
     live.agent.conversation_config.tts = { voice_id: "existing-voice" };
     live.agent.platform_settings.overrides.conversation_config_override.tts.speed = true;
-    const contract = { llm: "gemini-2.5-flash-lite", reasoning_effort: null } as const;
+    const contract = { llm: "gemini-2.5-flash", reasoning_effort: null } as const;
     const drift = check({ ...live, reasoningContract: contract });
     expect(drift.status).toBe(1);
     expect(drift.writes).toBe("");
@@ -161,7 +174,7 @@ describe("pubpal:agent --check", () => {
     expect(updated.status, updated.output).toBe(0);
     expect(drift.output).toContain("conversation_config.agent.prompt.reasoning_effort");
     expect(updated.live.agent.conversation_config.agent.prompt).toMatchObject({ ...contract, tool_ids: toolIds });
-    expect(toolIds).toHaveLength(16);
+    expect(toolIds).toHaveLength(TOOLS);
     expect(updated.live.agent.conversation_config.agent).toMatchObject({ first_message: "Existing greeting", language: "en" });
     expect(updated.live.agent.conversation_config.tts).toEqual({ voice_id: "existing-voice" });
     expect(updated.live.agent.conversation_config.conversation.max_duration_seconds).toBe(180);
@@ -189,14 +202,16 @@ describe("pubpal:agent --check", () => {
     expect(drift.writes).toBe("");
     expect(drift.output).toContain("conversation_config.turn.turn_eagerness: live normal, wanted patient");
     expect(drift.output).toContain("conversation_config.turn.transcribe_on_disabled_interruptions");
+    expect(drift.output).toContain("conversation_config.turn.turn_timeout: live 7, wanted 20");
     expect(drift.output).toContain("conversation_config.asr.keywords");
 
     const updated = check({ ...live, allowWrites: true }, true);
     expect(updated.status, updated.output).toBe(0);
     expect(updated.live.agent.conversation_config.turn).toEqual({
       turn_eagerness: "patient",
-      turn_timeout: 7,
+      turn_timeout: 20,
       transcribe_on_disabled_interruptions: true,
+      silence_end_call_timeout: 60,
     });
     expect(updated.live.agent.conversation_config.asr).toMatchObject({
       quality: "high",
@@ -213,9 +228,9 @@ describe("pubpal:agent --check", () => {
     ["https://pubpal-test.ngrok.app", BASE_URL],
   ])("keeps attached webhook identities when changing base URL from %s to %s", (from, to) => {
     const live = matchingLive(from);
-    const attachedTools = [...live.tools];
-    const attachedIds = attachedTools.map((tool) => tool.id);
-    live.tools.unshift(...matchingLive(to).tools.map((tool) => ({ ...tool, id: `unattached:${tool.id}` })));
+    const attachedTools = webhooks(live.tools);
+    const attachedIds = live.tools.map((tool) => tool.id);
+    live.tools.unshift(...webhooks(matchingLive(to).tools).map((tool) => ({ ...tool, id: `unattached:${tool.id}` })));
 
     const checked = check(live, false, to);
     expect(checked.status).toBe(1);
@@ -230,6 +245,7 @@ describe("pubpal:agent --check", () => {
     const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
     const patches = writes.filter((row) => row.method === "PATCH" && row.url.includes("/tools/"));
     expect(patches.map((row) => row.url.split("/").pop())).toEqual(attachedIds);
+    patches.splice(WEBHOOKS);
     expect(writes.find((row) => row.tool_ids)?.tool_ids).toEqual(attachedIds);
     expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(0);
     for (const [index, tool] of attachedTools.entries()) {
@@ -248,6 +264,7 @@ describe("pubpal:agent --check", () => {
   ])("does not reuse unattached webhooks when changing base URL from %s to %s", (from, to) => {
     const live = matchingLive(from);
     live.agent.conversation_config.agent.prompt.tool_ids = [];
+    live.tools = webhooks(live.tools);
     const checked = check(live, false, to);
     expect(checked.status).toBe(1);
     expect(checked.writes).toBe("");
@@ -259,11 +276,12 @@ describe("pubpal:agent --check", () => {
     const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
     expect(writes.filter((row) => row.method === "PATCH" && row.url.includes("/tools/"))).toHaveLength(0);
     const created = writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"));
-    expect(created.map((row) => row.tool_config.api_schema.url)).toEqual(
+    expect(created.slice(0, WEBHOOKS).map((row) => row.tool_config.api_schema.url)).toEqual(
       live.tools.map((tool) => `${to}/api/pub-pal/tools/${tool.tool_config.name}`),
     );
     expect(writes.find((row) => row.tool_ids)?.tool_ids).toEqual(
-      live.tools.map((tool) => `created:${tool.tool_config.name}`),
+      [...live.tools.map((tool) => tool.tool_config.name), ...PAL_MAP_CLIENT_TOOLS.map((tool) => tool.name)]
+        .map((name) => `created:${name}`),
     );
   });
 
@@ -271,6 +289,7 @@ describe("pubpal:agent --check", () => {
     const live = matchingLive();
     const captured = JSON.parse(readFileSync(path.join(ROOT, "__tests__/fixtures/pubPalToolIdentity.json"), "utf8"));
     const byName = new Map(live.tools.map((tool) => [tool.tool_config.name, tool]));
+    const clients = live.tools.filter((tool) => tool.tool_config.type === "client");
     live.tools = captured.tools.flatMap((collision: Json) => {
       const tool = byName.get(collision.name) as Json;
       tool.id = collision.attached_matches[0].id;
@@ -279,7 +298,8 @@ describe("pubpal:agent --check", () => {
         tool,
       ];
     });
-    const attachedIds = captured.tools.map((collision: Json) => collision.attached_matches[0].id);
+    live.tools.push(...clients);
+    const attachedIds = [...captured.tools.map((collision: Json) => collision.attached_matches[0].id), ...clients.map((tool) => tool.id)];
     live.agent.conversation_config.agent.prompt.tool_ids = attachedIds;
     const checked = check(live);
     const updated = check({ ...live, allowWrites: true }, true);
@@ -322,7 +342,7 @@ describe("pubpal:agent --check", () => {
 
   it.each([false, true])("refuses ambiguous identities before a partial update, attached: %s", (attached) => {
     const live = matchingLive();
-    const last = live.tools[live.tools.length - 1];
+    const last = webhooks(live.tools).at(-1);
     const duplicate = { ...last, id: "ambiguous_last", tool_config: structuredClone(last.tool_config) };
     live.tools.push(duplicate);
     const ids = live.agent.conversation_config.agent.prompt.tool_ids;
@@ -375,8 +395,8 @@ describe("pubpal:agent --check", () => {
 
   it("creates a missing webhook without changing an unrelated same-name client or endpoint", () => {
     const live = matchingLive();
-    const missing = live.tools.pop();
-    live.agent.conversation_config.agent.prompt.tool_ids.pop();
+    const [missing] = live.tools.splice(WEBHOOKS - 1, 1);
+    live.agent.conversation_config.agent.prompt.tool_ids.splice(WEBHOOKS - 1, 1);
     live.tools.push({ id: "unrelated_client", tool_config: { name: missing.tool_config.name, type: "client" } });
     live.tools.push({ ...missing, id: "unrelated_endpoint", tool_config: {
       ...missing.tool_config, api_schema: { ...missing.tool_config.api_schema, url: "https://elsewhere.example/tool" } } });
@@ -402,9 +422,9 @@ describe("pubpal:agent --check", () => {
     expect(result.status).toBe(0);
     expect(result.output).toContain("Created agent agent_created");
     const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
-    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(16);
-    expect(writes.find((row) => row.url.endsWith("/agents/create")).tool_ids).toHaveLength(16);
-    expect(writes.find((row) => row.url.endsWith("/agents/create")).agent_config.conversation_config.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash-lite", reasoning_effort: null });
+    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"))).toHaveLength(TOOLS);
+    expect(writes.find((row) => row.url.endsWith("/agents/create")).tool_ids).toHaveLength(TOOLS);
+    expect(writes.find((row) => row.url.endsWith("/agents/create")).agent_config.conversation_config.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash", thinking_budget: 0, reasoning_effort: null });
     expect(result.output).not.toContain(SECRET);
     expect(result.writes).not.toContain(SECRET);
   });
@@ -517,5 +537,176 @@ describe("pubpal:agent --check", () => {
     const result = check(live);
     expect(result.status).toBe(1);
     expect(result.output).toContain("secrets.PUBMAXX_PUB_PAL_LLM_SECRET: live missing");
+  });
+
+  it("names a map client tool missing from the agent, then creates and attaches it", () => {
+    const live = matchingLive();
+    const focus = live.tools.find((tool) => tool.tool_config.name === "map_focus_pick")!;
+    live.tools = live.tools.filter((tool) => tool !== focus);
+    live.agent.conversation_config.agent.prompt.tool_ids = live.tools.map((tool) => tool.id);
+    const checked = check(live);
+    expect(checked.status).toBe(1);
+    expect(checked.output).toContain("tools.map_focus_pick: live missing, wanted a workspace client tool");
+    const updated = check({ ...live, allowWrites: true }, true);
+    expect(updated.status, updated.output).toBe(0);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    const created = writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"));
+    expect(created.map((row) => row.tool_config)).toEqual([expect.objectContaining({
+      type: "client", name: "map_focus_pick", expects_response: true,
+    })]);
+    expect(writes.find((row) => row.tool_ids).tool_ids).toContain("created:map_focus_pick");
+  });
+
+  it("reads and writes only the named branch, never Main", () => {
+    const live = matchingLive();
+    live.agent.conversation_config.turn = { turn_eagerness: "patient", transcribe_on_disabled_interruptions: true };
+    const checked = check(live, false, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(checked.status).toBe(1);
+    expect(checked.output).toContain(`Checked agent ${AGENT_ID} branch agtbranch_test`);
+    expect(checked.output).toContain("conversation_config.turn.silence_end_call_timeout: live missing, wanted 60");
+    const updated = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(updated.status, updated.output).toBe(0);
+    // Every tool already matches and the secret is shared with Main, so the branch is the only write.
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.map((row) => `${row.method} ${row.url}`)).toEqual([
+      `PATCH https://api.elevenlabs.io/v1/convai/agents/${AGENT_ID}?branch_id=agtbranch_test`,
+    ]);
+    expect(check(live, false, BASE_URL, ["--branch-id", "../main"]).output).toContain("--branch-id is not a branch id");
+  });
+
+  it("gives a branch at another URL its own webhooks and leaves Main's tools and the secret alone", () => {
+    const live = matchingLive();
+    const tunnel = "https://pubpal-test.ngrok.app";
+    const result = check({ ...onBranch(live), allowWrites: true }, true, tunnel, ["--branch-id", "agtbranch_test"]);
+    expect(result.status, result.output).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.url.includes("/tools/") || row.url.includes("/secrets"))).toEqual([]);
+    const created = writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools"));
+    expect(created.map((row) => row.tool_config.api_schema.url)).toEqual(
+      webhooks(live.tools).map((tool) => `${tunnel}/api/pub-pal/tools/${tool.tool_config.name}`),
+    );
+    const branch = writes.find((row) => row.tool_ids);
+    expect(branch.url).toContain("?branch_id=agtbranch_test");
+    expect(branch.tool_ids).toEqual([
+      ...webhooks(live.tools).map((tool) => `created:${tool.tool_config.name}`),
+      ...live.tools.filter((tool) => tool.tool_config.type === "client").map((tool) => tool.id),
+    ]);
+  });
+
+  it("reports an agent on the old model and silence settings, and the update keeps dashboard built-in tools and VAD fields", () => {
+    const live = matchingLive();
+    // Main as it was before the branch test: Flash Lite, a 7 s nag, no backstop, no end_call.
+    const prompt = live.agent.conversation_config.agent.prompt;
+    prompt.llm = "gemini-2.5-flash-lite";
+    delete prompt.thinking_budget;
+    prompt.built_in_tools = { skip_turn: { type: "system", name: "skip_turn", params: { system_tool_type: "skip_turn" } } };
+    live.agent.conversation_config.turn = { ...live.agent.conversation_config.turn, turn_timeout: 7, silence_end_call_timeout: -1 };
+    live.agent.conversation_config.vad = { background_voice_detection: false, dashboard_only: 1 };
+    const focus = live.tools.find((tool) => tool.tool_config.name === "map_focus_pick")!;
+    focus.tool_config.expects_response = false;
+    delete focus.tool_config.response_timeout_secs;
+
+    const drift = check(live);
+    expect(drift.status).toBe(1);
+    expect(drift.writes).toBe("");
+    for (const line of [
+      "conversation_config.agent.prompt.llm: live gemini-2.5-flash-lite, wanted gemini-2.5-flash",
+      "conversation_config.agent.prompt.thinking_budget: live missing, wanted 0",
+      "conversation_config.agent.prompt.built_in_tools.end_call: live missing",
+      "conversation_config.turn.turn_timeout: live 7, wanted 20",
+      "conversation_config.turn.silence_end_call_timeout: live -1, wanted 60",
+      "conversation_config.vad.background_voice_detection: live false, wanted true",
+      "tools.map_focus_pick.expects_response: live false, wanted true",
+      "tools.map_focus_pick.response_timeout_secs: live missing, wanted 5",
+    ]) expect(drift.output).toContain(line);
+
+    const updated = check({ ...live, allowWrites: true }, true);
+    expect(updated.status, updated.output).toBe(0);
+    const writes = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    // The PATCH body itself, since the provider replaces a section it is sent.
+    const sent = writes.find((row) => row.url.includes("/convai/agents/")).agent_config.conversation_config;
+    expect(Object.keys(sent.agent.prompt.built_in_tools).sort()).toEqual(["end_call", "skip_turn"]);
+    expect(sent.vad).toEqual({ background_voice_detection: true, dashboard_only: 1 });
+    expect(sent.agent.prompt).toMatchObject({ llm: "gemini-2.5-flash", thinking_budget: 0 });
+    expect(writes.find((row) => row.url.endsWith(`/tools/${focus.id}`)).tool_config).toMatchObject({ expects_response: true, response_timeout_secs: 5 });
+  });
+
+  it("gives a branch its own copy of a Main webhook whose argument schema changed", () => {
+    const live = matchingLive();
+    // Main's search_venues predates an argument this repo added.
+    const search = live.tools.find((tool) => tool.tool_config.name === "search_venues")!;
+    delete search.tool_config.api_schema.request_body_schema.properties.limit;
+    const result = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(result.status, result.output).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.url.includes("/tools")).map((row) => `${row.method} ${row.tool_config.name}`))
+      .toEqual(["POST search_venues"]);
+    expect(writes.find((row) => row.tool_ids).tool_ids).toEqual(
+      live.agent.conversation_config.agent.prompt.tool_ids.map((id: string) => (id === search.id ? "created:search_venues" : id)),
+    );
+  });
+
+  it("refuses a branch change to a tool Main has attached, before any write", () => {
+    const live = matchingLive();
+    live.tools[0].tool_config.description = "An older description.";
+    const result = check({ ...onBranch(live), allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(`Tool ${live.tools[0].tool_config.name} (${live.tools[0].id}) is attached to Main`);
+    expect(result.writes).toBe("");
+  });
+
+  it("changes a tool only the branch has attached", () => {
+    const live = matchingLive();
+    const focus = live.tools.find((tool) => tool.tool_config.name === "map_focus_pick")!;
+    focus.tool_config.description = "An older description.";
+    const mainAgent = structuredClone(live.agent);
+    mainAgent.conversation_config.agent.prompt.tool_ids = mainAgent.conversation_config.agent.prompt.tool_ids
+      .filter((id: string) => id !== focus.id);
+    const result = check({ ...onBranch(live), mainAgent, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(result.status, result.output).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(writes.filter((row) => row.url.includes("/tools")).map((row) => `${row.method} ${row.url.split("/").pop()}`))
+      .toEqual([`PATCH ${focus.id}`]);
+  });
+
+  it("never adopts an unattached client tool of the same name, which may be another agent's", () => {
+    const live = matchingLive();
+    const open = live.tools.find((tool) => tool.tool_config.name === "map_open")!;
+    live.agent.conversation_config.agent.prompt.tool_ids = live.agent.conversation_config.agent.prompt.tool_ids
+      .filter((id: string) => id !== open.id);
+    const result = check({ ...live, allowWrites: true }, true);
+    expect(result.status, result.output).toBe(0);
+    const writes = result.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(result.writes).not.toContain(`/tools/${open.id}`);
+    expect(writes.filter((row) => row.method === "POST" && row.url.endsWith("/tools")).map((row) => row.tool_config.name))
+      .toEqual(["map_open"]);
+  });
+
+  it.each([
+    ["Main's own branch", "agtbranch_main", "agtbranch_main"],
+    ["a branch the provider does not name", "agtbranch_other", "agtbranch_main"],
+  ])("refuses --branch-id for %s before any write", (_, liveBranch, mainBranch) => {
+    const live = matchingLive();
+    live.agent.branch_id = liveBranch;
+    live.agent.main_branch_id = mainBranch;
+    const requested = liveBranch === mainBranch ? liveBranch : "agtbranch_test";
+    const result = check({ ...live, allowWrites: true }, true, "https://pubpal-test.ngrok.app", ["--branch-id", requested]);
+    expect(result.status).toBe(1);
+    expect(result.output).toContain(`--branch-id ${requested} is not a branch other than Main of this agent`);
+    expect(result.writes).toBe("");
+  });
+
+  it("leaves agent-wide settings to Main: a branch run neither checks nor sends them", () => {
+    const live = onBranch(matchingLive());
+    live.agent.name = "Renamed Pal";
+    live.agent.platform_settings.privacy.retention_days = 7;
+    const checked = check(live, false, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(checked.status, checked.output).toBe(0);
+    const updated = check({ ...live, allowWrites: true }, true, BASE_URL, ["--branch-id", "agtbranch_test"]);
+    expect(updated.status, updated.output).toBe(0);
+    const [patch] = updated.writes.trim().split("\n").map((line) => JSON.parse(line));
+    expect(patch.url).toContain("?branch_id=agtbranch_test");
+    expect(patch.agent_config.platform_settings).toBeUndefined();
+    expect(check(live).output).toContain("platform_settings.privacy.retention_days: live 7, wanted -1");
   });
 });

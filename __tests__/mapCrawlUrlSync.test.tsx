@@ -9,7 +9,8 @@ import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/m
 import { seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl";
 import { curatedCrawlHydrationFromSeed } from "@/lib/mapSeedCrawl";
 import { buildMapSeed } from "@/lib/pubMap";
-import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { readMapSurfaceHistory, stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import { initialFilters, type Filters } from "@/lib/venues";
 
 function mapState(
@@ -54,6 +55,7 @@ function Harness({
 
 let openHistorySurface: ReturnType<typeof useMapSurfaceNavigation>["open"];
 let closeHistorySurfaces: ReturnType<typeof useMapSurfaceNavigation>["home"];
+let leaveHistorySurface: ReturnType<typeof useMapSurfaceNavigation>["leave"];
 
 function HistoryHarness({
   query,
@@ -94,7 +96,8 @@ function HistoryHarness({
   useLayoutEffect(() => {
     openHistorySurface = trail.open;
     closeHistorySurfaces = trail.home;
-  }, [trail.open, trail.home]);
+    leaveHistorySurface = trail.leave;
+  }, [trail.open, trail.home, trail.leave]);
   return null;
 }
 
@@ -279,6 +282,31 @@ describe("crawl identity after Map history traversal", () => {
 });
 
 describe("crawl URL after Map history traversal", () => {
+  it.each([false, true])("returns from the planner to its parent when a venue is open: %s", async (overVenue) => {
+    window.history.replaceState({}, "", "/map?q=Soho");
+    await act(async () => root.render(createElement(HistoryHarness, { query: "Soho" })));
+    const venue = {
+      id: "venue", title: "Pub A",
+      state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a" },
+    };
+    if (overVenue) act(() => openHistorySurface(venue));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    const close = vi.fn();
+
+    vi.useRealTimers();
+    const landed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      leaveHistorySurface("planner", close);
+      await landed;
+    });
+
+    expect(readMapSurfaceHistory(window.history.state)).toEqual(overVenue ? [venue] : []);
+    expect(new URLSearchParams(window.location.search).get("sel")).toBe(overVenue ? "pub-a" : null);
+    expect(close).not.toHaveBeenCalled();
+  });
+
   it.each(["wine", "cocktail"])("keeps %s across reopened sheets, Forward and Home", async (drinkCategory) => {
     window.history.replaceState({ root: true }, "", "/map/manchester");
     await act(async () => {
@@ -442,6 +470,28 @@ describe("crawl URL after Map history traversal", () => {
 
     expect(window.location.pathname).toBe("/map/bristol");
     expect(window.location.search).toBe("?q=Soho&max=6&drink=wine&zone=3");
+  });
+
+  it("lands Home on the root after a parent was reopened over a shorter trail", async () => {
+    window.history.replaceState({ root: true }, "", "/map?q=Soho");
+    await act(async () => {
+      root.render(createElement(HistoryHarness, { query: "Soho" }));
+    });
+    const planner = { id: "planner" as const, title: "Plan", state: EMPTY_MAP_SURFACE_STATE };
+    act(() => openHistorySurface(planner));
+    act(() => openHistorySurface({ id: "filters", title: "Filters", state: EMPTY_MAP_SURFACE_STATE }));
+    act(() => openHistorySurface(planner));
+
+    vi.useRealTimers();
+    const landed = new Promise<void>((resolve) =>
+      window.addEventListener("popstate", () => resolve(), { once: true }),
+    );
+    await act(async () => {
+      closeHistorySurfaces();
+      await landed;
+    });
+
+    expect(readMapSurfaceHistory(window.history.state)).toEqual([]);
   });
 
   it("keeps category and filters when Home unwinds multiple sheets", async () => {
@@ -717,5 +767,41 @@ describe("completed Beer share intent during actual URL synchronization", () => 
     expect(params.get("pubs")).toBe("pub-a,pub-b");
     expect(window.location.hash).toBe("#route");
     expect(window.history.state.root).toBe(true);
+  });
+});
+
+
+describe("issue 2711: the visible surface owns planner URL activation", () => {
+  it.each(["back", "home", "leave"] as const)("keeps an empty heritage build closed after %s and a delayed URL write", async (exit) => {
+    window.history.replaceState({}, "", "/map");
+    const props = { query: "", crawlStyle: "heritage" as const, plan: { mode: "build" as const, builtIds: [] } };
+    await act(async () => root.render(createElement(HistoryHarness, props)));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await traverseHistory(() => {
+      if (exit === "home") closeHistorySurfaces();
+      else if (exit === "leave") leaveHistorySurface("planner", () => {});
+      else window.history.back();
+    });
+    expect(buildMapSeed(window.location.search).filters.crawlStyle).toBe("heritage");
+    await act(async () => root.render(createElement(HistoryHarness, { ...props, maxPrice: 6 })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    const seed = buildMapSeed(window.location.search);
+    expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
+    expect(seed.filters.maxPrice).toBe(6);
+    expect(seed.filters.crawlStyle).toBe("heritage");
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
+  });
+
+  it("keeps a populated plan and its order on the map after Home and reload", async () => {
+    const builtIds = ["pub-b", "pub-a"];
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", crawlStyle: "heritage", plan: { mode: "build", builtIds },
+    })));
+    act(() => openHistorySurface({ id: "planner", title: "Plan", state: EMPTY_MAP_SURFACE_STATE }));
+    await traverseHistory(() => closeHistorySurfaces());
+    const seed = buildMapSeed(window.location.search);
+    expect(seed.builtIds).toEqual(builtIds);
+    expect(shouldOpenPlanningInitially(seed.mode, window.location.search)).toBe(false);
+    expect(new URLSearchParams(window.location.search).has("plan")).toBe(false);
   });
 });

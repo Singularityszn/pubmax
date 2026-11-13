@@ -10,7 +10,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
-import type { BeenVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
+import type { BeenCompare, BeenVenue, ComparedVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";
 
 export type PassportBeenRead = {
   access: "full" | "shared";
@@ -20,10 +20,15 @@ export type PassportBeenRead = {
   wantToTryCount: number | null;
   cover: { patch: string | null } | null;
 };
-export type PassportOverlapRead = { topFive: PassportVenue[]; wantToTry: PassportVenue[] };
+export type PassportOverlapRead = {
+  topFive: PassportVenue[];
+  wantToTry: PassportVenue[];
+  /** Absent from an older server, null when either Been list was short. */
+  been?: BeenCompare<ComparedVenue> | null;
+};
 export type PassportTasteRead = { facts: TasteFact[] };
 
-type Kind = "been" | "overlap" | "taste";
+type Kind = "been" | "overlap" | "taste" | "points";
 
 const inflight = new Map<string, Promise<unknown | null>>();
 
@@ -32,12 +37,19 @@ function wellFormed(kind: Kind, body: unknown): boolean {
   if (!body || typeof body !== "object") return false;
   const record = body as Record<string, unknown>;
   if (kind === "been") return Array.isArray(record.venues) && typeof record.count === "number";
-  if (kind === "overlap") return Array.isArray(record.topFive) && Array.isArray(record.wantToTry);
+  if (kind === "overlap") {
+    const been = record.been as Record<string, unknown> | null | undefined;
+    const beenOk =
+      been == null ||
+      (Array.isArray(been.both) && Array.isArray(been.onlyYou) && Array.isArray(been.onlyThem));
+    return Array.isArray(record.topFive) && Array.isArray(record.wantToTry) && beenOk;
+  }
+  if (kind === "points") return typeof record.total === "number" && Array.isArray(record.lines);
   return Array.isArray(record.facts);
 }
 
-function readOnce<T>(kind: Kind, handle: string, account: string): Promise<T | null> {
-  const key = `${kind}:${handle}:${account}`;
+function readOnce<T>(kind: Kind, handle: string, account: string, revision: number): Promise<T | null> {
+  const key = `${kind}:${handle}:${account}:${revision}`;
   const held = inflight.get(key);
   if (held) return held as Promise<T | null>;
   const read = authedFetch(
@@ -63,19 +75,19 @@ function readOnce<T>(kind: Kind, handle: string, account: string): Promise<T | n
 export function usePassportRead<T>(kind: Kind, handle: string, enabled = true): T | null {
   const { user } = useAuth();
   const account = user?.id ?? "anon";
-  // The Been read asks again when this tab moves the owner's Been here list
-  // (the first-run card's carry), so the count and the list never lag it.
+  // Diary mutations and Been here changes share this revision so the Been
+  // and points reads refresh together.
   // The answer on screen stays while the new one is asked for, and a failed
   // second read keeps it rather than blanking the section.
   const beenHereMoves = useSyncExternalStore(subscribeBeenHere, beenHereRevision, () => 0);
-  const asksAgain = kind === "been" ? beenHereMoves : 0;
+  const asksAgain = kind === "been" || kind === "points" ? beenHereMoves : 0;
   const key = `${kind}:${handle}:${account}`;
   const [state, setState] = useState<{ key: string; body: T | null } | null>(null);
 
   useEffect(() => {
     if (!enabled || !handle || handle === "you") return;
     let live = true;
-    void readOnce<T>(kind, handle, account).then((body) => {
+    void readOnce<T>(kind, handle, account, asksAgain).then((body) => {
       if (!live) return;
       setState((held) => ({ key, body: body ?? (held?.key === key ? held.body : null) }));
     });

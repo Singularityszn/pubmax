@@ -90,13 +90,14 @@
 		</dict>
 		<dict>
 			<!-- Declared precise because three decimal places is about 70 to
-			     110 metres. Full GPS precision stays on the device; lib/geo.ts
-			     is the one egress seam, and the rounded point is used
-			     ephemerally to answer the request that asked for it. -->
+			     110 metres, and because crew live location (0226) sends the
+			     full fix when a member turns it on for a night. Linked, because
+			     an Open Crew seat is bound to an account. lib/geo.ts is the
+			     rounding seam for every other request. -->
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypePreciseLocation</string>
 			<key>NSPrivacyCollectedDataTypeLinked</key>
-			<false/>
+			<true/>
 			<key>NSPrivacyCollectedDataTypeTracking</key>
 			<false/>
 			<key>NSPrivacyCollectedDataTypePurposes</key>

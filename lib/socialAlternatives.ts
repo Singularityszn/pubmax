@@ -1,6 +1,8 @@
 import type { Route } from "next";
 
 import boundaries from "@/data/london_boroughs_simplified.json";
+import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { measureFromServingSize } from "@/lib/drinkMeasure";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
 import { firstHttp } from "@/lib/httpUrl";
 import type { BoroughBoundaryCollection } from "@/lib/londonBoroughClassifier";
@@ -13,6 +15,7 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 import type { Venue } from "@/lib/venues";
+import { londonDayKey } from "@/lib/londonHour";
 
 /** Public menu facts only. No post, account, crew or viewer fields cross here. */
 export type SocialAlternatives = {
@@ -30,15 +33,11 @@ export type SocialAlternatives = {
   priceRead: "ready" | "unavailable";
 };
 
-const LONDON_DAY = new Intl.DateTimeFormat("en-CA", {
-  year: "numeric", month: "2-digit", day: "2-digit", timeZone: "Europe/London",
-});
-
 type SocialAlternativeVenue = Pick<Venue,
   "id" | "name" | "address" | "latitude" | "longitude" | "kind" | "sourceName" | "prices"
 >;
 
-/** Project public London menu observations. Recency is not a cheapest-price claim. */
+/** Project public London pint menu observations. Recency is not a cheapest-price claim. */
 export function buildSocialAlternatives(
   venues: readonly SocialAlternativeVenue[],
   updates: readonly DrinkPriceUpdate[] | null,
@@ -62,7 +61,8 @@ export function buildSocialAlternatives(
     ...updates.filter((update) => update.lane === "publisher" && update.source.licence.trim()).map((update) => ({
       ...update, publisher: update.source.label, sourceUrl: update.source.url,
     })),
-    ...authoritativeBundleRows(bundleRows).filter((row) => row.standing === "listed" && row.lane !== "estimate").map((row) => ({
+    // A third party's price index is not a menu, so the listing-site lane stays out.
+    ...authoritativeBundleRows(bundleRows).filter((row) => row.standing === "listed" && row.lane !== "estimate" && row.lane !== "listing-site").map((row) => ({
       venueKey: row.venueId, drinkName: row.drinkLabel ?? "", servingSize: row.servingSize,
       priceGbp: row.priceGbp, observedAt: row.observedAt, publisher: row.publisher ?? "", sourceUrl: row.sourceUrl,
     })),
@@ -78,7 +78,8 @@ export function buildSocialAlternatives(
     if (!venue || seen.has(venue.id) || !isPublicRankablePub(venue)
       || isVerifiedClosedCuratedVenue(venue.id) || isVerifiedClosedPub(venue.id)
       || !boroughNameForPoint(venue.latitude, venue.longitude, boundaries as BoroughBoundaryCollection)
-      || !serving || !publisher || !sourceUrl || !update.drinkName.trim()
+      || !serving || measureFromServingSize(serving) !== "pint" || !isComparablePintServing({ cheapestPint: update.drinkName })
+      || !publisher || !sourceUrl || !update.drinkName.trim()
       || !Number.isFinite(update.priceGbp) || update.priceGbp <= 0 || !isValidObservedAt(update.observedAt, now)) continue;
     const day = /^(\d{4}-\d{2}-\d{2})(?:T|$)/.exec(update.observedAt)?.[1];
     if (!day || new Date(`${day}T12:00:00Z`).toISOString().slice(0, 10) !== day) continue;
@@ -86,7 +87,7 @@ export function buildSocialAlternatives(
     prices.push({
       venueId: venue.id, name: venue.name, href: venueMapUrl(venue.id), drink: update.drinkName.trim(),
       serving, priceGbp: update.priceGbp, publisher: { label: publisher, url: sourceUrl },
-      observedOn: LONDON_DAY.format(new Date(update.observedAt)),
+      observedOn: londonDayKey(new Date(update.observedAt)),
     });
     if (prices.length === 2) break;
   }

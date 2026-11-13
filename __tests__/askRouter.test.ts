@@ -40,6 +40,25 @@ describe("routeAskDeterministically", () => {
     },
   );
 
+  it.each([
+    "Cheap pints in Soho for four on Friday",
+    "Cheap pints in Soho for 8 of us on Friday night",
+    "Cheap pints in Soho for four this Friday",
+  ])("keeps a pint ask with a group size and a day supported: %s", (query) => {
+    expect(unsupportedPriceComparison(query)).toBeNull();
+    expect(routeAskDeterministically(query).map(({ name }) => name)).toEqual(["search_venues"]);
+  });
+
+  it.each(["Cheapest pint in Soho for 4 on Saturday", "Cheapest pint in Soho for four next Friday"])(
+    "keeps the area clean of a group size and a day: %s", (query) => {
+      expect(routeAskDeterministically(query)).toEqual([{ name: "cheapest_pint_near", args: { area: "Soho" } }]);
+    },
+  );
+
+  it("still refuses an unsupported drink with a group size and a day", () => {
+    expect(unsupportedPriceComparison("Cheapest Negroni in Soho for four on Friday")).not.toBeNull();
+  });
+
   it.each(["Cheapest Negroni near Soho", "Cheapest burger near Soho", "Cheapest wine near Soho"].flatMap(priceMapMetadataRequests))(
     "keeps unsupported comparisons refused beside map price metadata: %s", (query) => {
       expect(unsupportedPriceComparison(query)).not.toBeNull();

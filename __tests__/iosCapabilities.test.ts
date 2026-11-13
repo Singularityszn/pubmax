@@ -92,7 +92,7 @@ describe("the privacy manifest agrees with the answers we publish", () => {
     { type: "NSPrivacyCollectedDataTypeAudioData", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
     { type: "NSPrivacyCollectedDataTypeDeviceID", linked: false, tracking: false, purposes: [APP_FUNCTIONALITY] },
     { type: "NSPrivacyCollectedDataTypeProductInteraction", linked: false, tracking: false, purposes: [ANALYTICS] },
-    { type: "NSPrivacyCollectedDataTypePreciseLocation", linked: false, tracking: false, purposes: [APP_FUNCTIONALITY] },
+    { type: "NSPrivacyCollectedDataTypePreciseLocation", linked: true, tracking: false, purposes: [APP_FUNCTIONALITY] },
   ];
 
   const collected = (manifest.NSPrivacyCollectedDataTypes as Array<Record<string, PlistValue>>).map(

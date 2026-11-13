@@ -20,7 +20,7 @@
     "height": 960
   },
   "marginPx": 24,
-  "pixelRatio": 1.25,
+  "pixelRatio": 1,
   "styles": {
     "light": "https://tiles.openfreemap.org/styles/positron",
     "dark": "https://tiles.openfreemap.org/styles/dark"
@@ -28,20 +28,20 @@
   "images": {
     "light": {
       "path": "/landing/map-opening/london-light.webp",
-      "bytes": 100520,
-      "sha256": "64a167dd7081e829eed0487de0b9918d574679d20ac09c6d0c213d156e137dbb",
-      "width": 805,
-      "height": 1695
+      "bytes": 69006,
+      "sha256": "6f9b6b30ca9ef3e6699fb854a245470dc0fe80e7722fa0f975d44a097543622a",
+      "width": 644,
+      "height": 1356
     },
     "dark": {
       "path": "/landing/map-opening/london-dark.webp",
-      "bytes": 118244,
-      "sha256": "e880784c3d68314114e402456948b8dd55bf1e3b03dd197e9093a78510fab0c1",
-      "width": 805,
-      "height": 1695
+      "bytes": 87072,
+      "sha256": "aff74aeabdd9be50183f97b22aeb1d8ccef02493e52cffc9ffff0b2189304df5",
+      "width": 644,
+      "height": 1356
     }
   },
-  "capturedOn": "2026-11-01",
+  "capturedOn": "2026-11-09",
   "attribution": "OpenFreeMap © OpenMapTiles Data from OpenStreetMap",
   "regenerate": "npm run build:map-opening-snapshot -- --base-url=<a production server of this tree>"
 }

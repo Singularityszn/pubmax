@@ -1,19 +1,30 @@
-import "server-only";
-
-import { createHash } from "node:crypto";
-
 import type { SocialPostDTO, SocialPostVisibility } from "@/lib/socialPosts";
 
 export type SocialDesiredInteraction = "cheer" | "save" | "repost";
 export type SocialFeatureStatus = "submitted" | "planned" | "shipped" | "declined";
-export type SocialReportReason =
-  | "harassment"
-  | "hate"
-  | "threat"
-  | "doxxing"
-  | "spam"
-  | "other";
-export type SocialModerationState = "pending" | "approved" | "needs_review";
+export const SOCIAL_REPORT_REASONS = ["harassment", "hate", "threat", "doxxing", "spam", "other"] as const;
+export type SocialReportReason = (typeof SOCIAL_REPORT_REASONS)[number];
+
+export const SOCIAL_REPORT_REASON_LABELS: Record<SocialReportReason, string> = {
+  harassment: "Harassment",
+  hate: "Hate",
+  threat: "A threat",
+  doxxing: "Shares private details",
+  spam: "Spam",
+  other: "Something else",
+};
+type SocialModerationState = "pending" | "approved";
+
+/**
+ * "needs_review" is the provider's word for a flagged comment or quote. No person reviews one, so a flagged one is
+ * hidden at once instead of waiting in a held state. Migration 0236 holds the same rule in SQL.
+ */
+export function interactionModerationOutcome(decision: "approved" | "needs_review"): {
+  moderationState: "approved";
+  hidden: boolean;
+} {
+  return { moderationState: "approved", hidden: decision !== "approved" };
+}
 
 export type SocialInteractionActor = {
   accountId: string;
@@ -51,7 +62,7 @@ export type SocialDerivativeDTO = {
   body: string | null;
   visibility: SocialPostVisibility;
   author: { handle: string };
-  moderationState: "approved" | SocialModerationState;
+  moderationState: SocialModerationState;
   createdAt: string;
 };
 
@@ -71,9 +82,13 @@ export type SocialFeatureUpdateDTO = {
   createdAt: string;
 };
 
+/** What a report is about. A "profile" report is about a person (0224). */
+export const SOCIAL_REPORT_KINDS = ["post", "comment", "quote", "profile"] as const;
+export type SocialReportKind = (typeof SOCIAL_REPORT_KINDS)[number];
+
 export type SocialContentReportDTO = {
   id: string;
-  kind: "post" | "comment" | "quote";
+  kind: SocialReportKind;
   contentId: string;
   reason: SocialReportReason;
   state: "queued" | "reviewing";
@@ -104,10 +119,6 @@ export function cleanSocialText(value: unknown, cap: number): string | null {
 
 export function validIdempotencyKey(value: unknown): value is string {
   return typeof value === "string" && /^[A-Za-z0-9._:-]{4,128}$/.test(value);
-}
-
-export function payloadDigest(value: unknown): string {
-  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
 }
 
 export function emptyInteractionSummary(): SocialInteractionSummary {

@@ -7,8 +7,8 @@ vi.mock("server-only", () => ({}));
 vi.mock("@/lib/aboutStats", () => ({ loadAboutStats: vi.fn() }));
 vi.mock("next/og", () => ({
   ImageResponse: class {
-    constructor(element: ReactNode) {
-      return new Response(renderToStaticMarkup(element));
+    constructor(element: ReactNode, options?: { headers?: HeadersInit }) {
+      return new Response(renderToStaticMarkup(element), { headers: options?.headers });
     }
   },
 }));
@@ -28,7 +28,7 @@ import {
   homeCardCoverage,
   renderHomeOgCard,
 } from "@/lib/homeOgCard";
-import { MARK_POLYGONS, Wordmark } from "@/lib/ogBrand";
+import { MARK_POLYGONS, OG_CACHE_HEADERS, Wordmark } from "@/lib/ogBrand";
 
 // The homepage share card is the most forwarded surface the product has: a
 // referral link (/r/<code>) 307s to /#referral=…, whose head is the homepage's,
@@ -105,6 +105,18 @@ describe("home card figures are derived, never typed in", () => {
     for (const figure of expected) expect(markup).toContain(figure);
     expect(markup).not.toContain("953 pubs tracked");
     expect(markup).not.toContain("2,788 prices on record");
+    expect(response.headers.get("cache-control")).toBe(OG_CACHE_HEADERS["cache-control"]);
+  });
+
+  it("draws no counts after a failed read, and the card is not held", async () => {
+    vi.mocked(loadAboutStats).mockRejectedValueOnce(new Error("EIO: price read failed"));
+    const response = await renderHomeOgCard();
+    const markup = await response.text();
+    expect(markup).not.toContain("pubs tracked");
+    expect(markup).not.toContain("prices on record");
+    expect(markup).not.toContain("cities");
+    expect(markup).toContain(HOME_CARD_HERO_ACCENT);
+    expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
   it("prints the figures it was handed", () => {

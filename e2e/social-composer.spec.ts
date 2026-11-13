@@ -415,7 +415,7 @@ test("owner outbox pages older posts without duplicates and labels approved visi
     await page.evaluate(() => new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     }));
-    const directory = join(process.cwd(), "docs/proof/social-composer");
+    const directory = join(process.cwd(), "artifacts/proof/social-composer");
     mkdirSync(directory, { recursive: true });
     await page.screenshot({ animations: "disabled", fullPage: false });
     await page.screenshot({
@@ -443,7 +443,7 @@ test("owner outbox pages older posts without duplicates and labels approved visi
     await page.evaluate(() => new Promise<void>((resolve) => {
       requestAnimationFrame(() => requestAnimationFrame(() => resolve()));
     }));
-    const directory = join(process.cwd(), "docs/proof/social-composer");
+    const directory = join(process.cwd(), "artifacts/proof/social-composer");
     mkdirSync(directory, { recursive: true });
     await page.screenshot({ animations: "disabled", fullPage: false });
     await page.screenshot({
@@ -620,7 +620,7 @@ for (const viewport of [{ width: 320, height: 720 }, { width: 390, height: 844 }
       expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(viewport.width);
       const results = await new AxeBuilder({ page }).include(".socialComposer").analyze(); expect(results.violations).toEqual([]);
       if (process.env.PW_SOCIAL_COMPOSER_PROOF === "1") {
-        const directory = join(process.cwd(), "docs/proof/social-composer"); mkdirSync(directory, { recursive: true });
+        const directory = join(process.cwd(), "artifacts/proof/social-composer"); mkdirSync(directory, { recursive: true });
         await page.screenshot({ path: join(directory, `${viewport.width}-${colorScheme}.png`), fullPage: false });
       }
       const focusableCount = await dialog.locator('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href], [tabindex]:not([tabindex="-1"])').count();

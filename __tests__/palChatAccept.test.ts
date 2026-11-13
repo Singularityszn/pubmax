@@ -45,6 +45,20 @@ describe("Pub Pal card acceptance handoff", () => {
     expect(html).not.toContain("accept=1");
   });
 
+  it("offers a table ask for the crew size the question named, and none without one", () => {
+    const asked = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality: null, tablePartySize: 8, tableVenueIds: new Set(["venue-a"]) }));
+    expect(asked).toContain('href="/map?sel=venue-a&amp;table=8"');
+    expect(asked).toContain("Ask for a table");
+    const plain = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality: null }));
+    expect(plain).not.toContain("table=");
+    const unlinked = renderToStaticMarkup(createElement(AnswerCard, { card: card({ venueId: "" }), onOpen: noop, locality: null, tablePartySize: 8 }));
+    expect(unlinked).not.toContain("table=");
+    const ineligible = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality: null, tablePartySize: 8, tableVenueIds: new Set<string>() }));
+    expect(ineligible).not.toContain("table=");
+    const unknown = renderToStaticMarkup(createElement(AnswerCard, { card: card(), onOpen: noop, locality: null, tablePartySize: 8 }));
+    expect(unknown).not.toContain("table=");
+  });
+
   it("keeps the provenance link outside the venue link", () => {
     const html = renderToStaticMarkup(
       createElement(AnswerCard, {

@@ -6,7 +6,7 @@ import { resetJourneyCache } from "@/lib/citymcp/client";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 
 beforeEach(() => {
-  for (const key of ["OPENROUTER_API_KEY", "TYPESAFE_API_KEY", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
+  for (const key of ["ANTHROPIC_API_KEY", "TYPESAFE_API_KEY", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
     vi.stubEnv(key, "");
   }
   resetJourneyCache();
@@ -82,7 +82,7 @@ describe("Ask sobriety parity", () => {
   });
 
   it("does not request model routing for an explicit safety question", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "offline-test-only");
+    vi.stubEnv("ANTHROPIC_API_KEY", "offline-test-only");
     const response = await runAsk({ query: "Should I have one more pint?", cityId: "london", fetchImpl: fetch });
     expect(response.answer).toContain(registerLine);
     expect(response.cards).toEqual([]);

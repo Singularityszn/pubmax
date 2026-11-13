@@ -124,10 +124,10 @@ describe("no reader treats an out-of-band figure as a price", () => {
 describe("the published data answers to the band", () => {
   it("keeps every out-of-band row as what the source said", () => {
     const outOfBand = datasetRows().filter(isOutOfBandPriceRow);
-    // Eleven £1.99 rows and one £13 cocktail filed as a pint, measured on
-    // 17 October 2026. A new one is a source problem to look at, not to absorb.
+    // Seven £1.99 rows and one £13 cocktail filed as a pint, measured on
+    // 9 November 2026. A new one is a source problem to look at, not to absorb.
     expect(outOfBand.map((entry) => entry.price_gbp).sort()).toEqual([
-      ...Array.from({ length: 11 }, () => 1.99),
+      ...Array.from({ length: 7 }, () => 1.99),
       13,
     ]);
   });

@@ -11,7 +11,7 @@ PUBMAX sounds like a Londoner who knows the pub, not a brand that owns one. Dry,
 Say it the way you'd say it to a mate, not the way a startup says it in a deck.
 
 - London pints cost a fortune. We show you what every pub actually charges, so you stop guessing and stop overpaying.
-- Every price says exactly what its own record supports. When the record names a publisher, show its valid label and link it only if the URL is safe. If the URL is refused, keep the label as plain text and say "Link unavailable." Reserve "Publisher not recorded" for a price with no valid recorded publisher label. Never infer one from venue notes, image credits, or unrelated metadata. Drinker reports carry the day the drinker saw the price. Listed prices can show when their source was read. A source read does not confirm the pub's current price. No made-up numbers.
+- Every price says exactly what its own record supports. When the record names a publisher, show its valid label and link it only if the URL is safe. If the URL is refused, keep the label as plain text and say "Link unavailable." Reserve "Publisher not recorded" for a price with no valid recorded publisher label. Never infer one from venue notes, image credits, or unrelated metadata. Drinker reports distinguish log dates from dates when the drinker saw the price. Listed prices can show when their source was read. A source read does not confirm the pub's current price. No made-up numbers.
 - Nobody buys their way to the top. There's a hard wall in the code (`lib/sponsorship.ts`) between paid placements and the prices you see. A sponsored thing says "Sponsored" and sits in its own slot. Prices are never for sale.
 
 Never write the mission as a mission. No "we're on a journey to democratise fair pricing." State the problem, hand the reader a choice, move on.
@@ -109,30 +109,28 @@ Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI 
 | `emoji-bullet` | A line that opens with an emoji standing in for a bullet. The star rating glyph is excepted: a string of nothing but stars IS the rating, not a bullet. | Words. A pint glass icon is not punctuation. |
 | `card-in-card` | A bordered card whose child is another bordered card. | The de-box rule: a heading with controls under it is already a section. One edge at most, and usually none. |
 | `three-column-grid` | `repeat(3, 1fr)` of identical cells, each with an icon, a title and a sentence. | One column that reads top to bottom, the same on a phone and a desktop. |
-| `gamified-level` | Level 3, mastery points, XP, a progress track for being a person. | Nothing. A referral is a mark of honour and a Pal is a companion; neither has a level. |
+| `gamified-level` | XP, mastery points, "level up". | Points and a plain level ("Level 3", "140 points"). See the [Points definition](../CONTEXT.md). A referral is a mark of honour and a Pal is a companion; neither earns points. |
 
 Two things the fence deliberately leaves alone. A comment about a banned phrase is not copy, because the scan reads the AST. And the sheet material over the map keeps its blur, because a movable overlay needs to show what is under it.
 
 ---
 
-## Ten before / after, from the actual codebase
+## Before and after, from the actual codebase
 
 Some of these are lines we already own and should copy the rhythm of. Others are the plumbing-and-clinical copy this sweep replaced.
+
+For current area coverage messages, see [`NightAreaCoverage`](../components/night/NightAreaCoverage.tsx).
 
 | # | Before | After | Where |
 |---|--------|-------|-------|
 | 1 | Areas near you, with the gate visible | Where you can plan a crawl tonight | `NightAreaCoverage` heading |
 | 2 | London capture | Across London | `NightAreaCoverage` eyebrow |
-| 3 | The evidence gate is not complete yet; no route is promised. | Not enough fresh prices here yet to plan a crawl. | `NightAreaCoverage` detail |
-| 4 | Capture has not started; browse-only for now. | Haven't got to this one yet. Have a browse. | `NightAreaCoverage` detail |
-| 5 | The review window expired; browse-only until a fresh snapshot lands. | Prices here have gone stale. Have a browse while we recheck them. | `NightAreaCoverage` detail |
-| 6 | Capture and review are evidence stages, not routes. Only an area with a complete, live gate can produce a Crawl Route. | We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse. | `NightAreaCoverage` intro |
-| 7 | Reviewed nearby food recommendations are not available for this route yet. | No late food worth pointing you to round here yet. | `NightModeCard` |
-| 8 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
-| 9 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
-| 10 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
-| 11 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | Find a pub, check its listed prices and send your mates a plan. | `/about` lede |
-| 12 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
+| 3 | Reviewed nearby food recommendations are not available for this route yet. | No late food worth pointing you to round here yet. | `NightModeCard` |
+| 4 | No grounded nearby extension is available without widening the route. | Nothing close enough to add without dragging the night out. | `NightModeCard` |
+| 5 | Nearest rail signal: {station}. | Nearest station: {station}. | `NightModeCard` |
+| 6 | Kitchen hours can change; verify tonight before leaving the last pub. | Kitchens can shut early. Check tonight's hours before you leave the last pub. | `NightModeCard` |
+| 7 | After a hard day's work you want a cheap pint nearby — without bouncing between Google Maps, other maps, and ChatGPT. | Find a pub, check its listed prices and send your mates a plan. | `/about` lede |
+| 8 | Karan Manoharan &mdash; X | Karan Manoharan · X | `/about` press-kit founder line (no dash construction) |
 
 ## Where the jokes live
 

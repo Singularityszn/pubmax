@@ -30,10 +30,9 @@ The API applies that to whatever status the row has, and keeps the previous
 note when none is sent. The SQL in step 2 adds a `status = 'visible'` guard
 the API does not have, so check the status in step 1 before using either.
 
-A one-tap price from the venue sheet (`POST /api/price-submit`, a pint of
-beer) writes a `public.community_prices` row first and then the paired Pint
-Drop (`lib/oneTapPintDrop.server.ts`). Nothing links the two rows by id, and
-the community price has its own hide: `hidden_at`, set by
+The [paired-save policy](rules/lib-prices-trust-and-drinks.md#what-a-community-price-is-allowed-to-move-is-a-policy-not-an-implementation-deta)
+owns how the venue sheet saves a pint price and its Pint Drop.
+The community price has its own hide: `hidden_at`, set by
 `POST /api/admin/community-prices` with `action: "hide"`, which also
 re-syncs the price-trust credit (`app/api/admin/community-prices/route.ts`).
 Hiding the Pint Drop leaves that price public, so both are hidden.
@@ -110,10 +109,11 @@ select id, venue_id, drink_category, price_pennies, contributor_handle,
                         and timestamptz '<drop created_at>' + interval '5 minutes';
 ```
 
-A one-tap price lands within seconds of its drop. Zero rows means the drop
-came from the Pint Drop composer alone and there is nothing else to hide. One
-row with `hidden_at` null is the pair: write down its `id`. Several rows:
-stop and ask.
+Zero rows means the query found no matching current community price.
+A later correction can replace an earlier paired observation.
+One row with `hidden_at` null is the candidate pair: verify its attribution,
+figure and date before writing down its `id`. If several rows match, stop
+and ask.
 
 If `confirmation_id` is set on the Pint Drop, it was confirmed together with
 another drop. Find that one by the shared id, not by `confirming_drop_id`:

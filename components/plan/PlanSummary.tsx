@@ -10,6 +10,7 @@ import PlanRoute from "@/components/plan/PlanRoute";
 import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import PlanNightPresentation, { PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
 import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
@@ -795,6 +796,7 @@ function PlanSummaryMember({ planId, state, scope }: { planId: string; state: Pl
           />
           <PlanNightClues planId={planId} ownerKey={ownerKey} stops={canonicalRouteStops} />
           <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(currentPlanState)} />
+          <PlanLiveLocation seat={{ planId, via: "plan", memberToken: memberToken ?? undefined }} ownerKey={ownerKey} />
           {memberToken ? (
             /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */
             <RoundStarter

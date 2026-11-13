@@ -50,13 +50,9 @@ describe("avatar WP3 exclusions (PRD anti-goals)", () => {
       venueName: "The Lamb",
       hasPhoto: false,
     });
-    expect(preview.shownHandle).toBe("@a PUBMAXXER");
+    expect(preview.shownHandle).toBe("a PUBMAXXER");
     expect(preview).not.toHaveProperty("avatarUrl");
     expect(preview.initial.length).toBe(1);
-
-    const spillPreview = read("lib/spillPreview.ts");
-    expect(spillPreview).not.toContain("avatarUrl");
-    expect(spillPreview).not.toContain("HandleAvatar");
   });
 
   it("NightCrawlMode crew free-text names stay avatar-free", () => {

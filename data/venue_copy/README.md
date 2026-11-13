@@ -40,7 +40,7 @@ draft is retained. A failed pub gets one new draft and judge attempt, then an
 The judge is a model-based semantic check, not a mathematical guarantee.
 Reviewer probes are exercised against the actual judge with
 `npm run generate:pub-copy -- --generate --evaluate-judge`. This development
-command records its responses in `docs/proof/pub-record-copy/judge-evaluation.json`
+command records its responses in `artifacts/proof/pub-record-copy/judge-evaluation.json`
 and spends the same metered budget. CI uses mocked judge responses to prove
 protocol handling, publication refusal and retry behavior, without live calls.
 

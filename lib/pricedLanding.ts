@@ -1,6 +1,6 @@
 import type { Route } from "next";
 import { namedLegacyPintPriceSource } from "@/lib/drinks";
-import { NIGHT_AREAS, nightAreaHasRouteReadyProof, type NightArea } from "@/lib/nightAreas";
+import { NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import { venueAreaClaim } from "@/lib/venueTruth";
 import type { Venue } from "@/lib/venues";
@@ -283,16 +283,6 @@ export function nightAreaForPoint(
   // and not a statement that a pub is in that place.
   const claim = venueAreaClaim({ longitude, latitude }, areas);
   return claim.area === null ? null : (claim.area as NightArea);
-}
-
-/**
- * Whether an area may carry an indexed brand-by-area price page.
- *
- * The evidence decision is independent of the dated review window.
- * See docs/specs/governed-priced-landings/TECH.md for the publication contract.
- */
-export function nightAreaPublishesPrices(area: NightArea): boolean {
-  return nightAreaHasRouteReadyProof(area);
 }
 
 export type PricedLandingJsonLdNode = {

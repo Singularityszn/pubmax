@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 // Pub Pal V0.1 on a phone, keyless.
 //
-// Every proof runs against the real deterministic path: no OpenRouter, no
+// Every proof runs against the real deterministic path: no Claude, no
 // ElevenLabs, no Supabase.
 //   1. a text ask comes back grounded, with a source chip on every card,
 //   2. find_desk says "No seat data yet" rather than offering a pub as a desk,
@@ -14,7 +14,7 @@ import { expect, test } from "@playwright/test";
 //   6. voice, unconfigured, explains itself instead of failing on the tap.
 
 const PHONE = { width: 390, height: 844 };
-const SHOTS = "docs/proof/pubpal-v01";
+const SHOTS = "artifacts/proof/pubpal-v01";
 
 async function askOnPhone(page: import("@playwright/test").Page, ask: string) {
   await page.getByRole("textbox", { name: /Where, how many, what budget/i }).fill(ask);
@@ -140,7 +140,7 @@ test.describe("Pub Pal concierge at 390px", () => {
     await planLink.click();
 
     await expect(page).toHaveURL(/\/plan\?/);
-    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
+    await expect(page.getByText("Route ready. Review the preview")).toBeVisible({
       timeout: 30_000,
     });
   });

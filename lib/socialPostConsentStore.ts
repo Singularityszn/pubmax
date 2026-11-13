@@ -119,11 +119,9 @@ function row(value: unknown): Record<string, unknown> {
 
 type SocialPostConsentRpc =
   | "act_social_post_tag"
-  | "moderate_social_post"
   | "moderate_social_post_admin"
   | "read_social_post_media"
   | "read_social_post_media_admin"
-  | "read_social_post_moderation_queue"
   | "read_social_post_moderation_queue_admin"
   | "read_social_post_outbox"
   | "read_social_post_tags_many"
@@ -222,8 +220,6 @@ export type SocialPostConsentStore = {
     expectedAudienceRevision?: number,
   ): Promise<void>;
   outbox(viewer: SocialPostActor, input: PageInput): Promise<SocialPostOutboxPage>;
-  heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
-  moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
   heldQueueForAdmin(staffRoleId: string, limit: number): Promise<SocialPostAdminHeldItem[]>;
   adminMediaObjectKey(staffRoleId: string, mediaId: string): Promise<string | null>;
   moderateHeldForAdmin(
@@ -347,26 +343,6 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
           ? encodeCursor(last.createdAt, last.id, viewer.profileId, scope)
           : null,
       };
-    },
-    async heldQueue(viewer, limit) {
-      return rows(await rpc("read_social_post_moderation_queue", {
-        p_actor: viewer.profileId,
-        p_limit: limit,
-      })).map(heldItemFromRow);
-    },
-    async moderateHeld(viewer, postId, mediaId, action) {
-      const result = await rpc("moderate_social_post", {
-        p_actor: viewer.profileId,
-        p_post_id: postId,
-        p_media_id: mediaId,
-        p_action: action,
-      });
-      if (result !== true) {
-        throw new SocialPostConsentStoreError(
-          "Social moderation choice was not saved.",
-          "conflict",
-        );
-      }
     },
     async heldQueueForAdmin(staffRoleId, limit) {
       const held = rows(await rpc("read_social_post_moderation_queue_admin", {

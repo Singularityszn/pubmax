@@ -364,6 +364,7 @@ beforeAll(async () => {
     crewPalsRoute,
     openCrewRoute,
     usualDrinkRoute,
+    crewArrivalRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -404,6 +405,7 @@ beforeAll(async () => {
     import("@/app/api/plans/[id]/pals/route"),
     import("@/app/api/plans/[id]/open-crew/route"),
     import("@/app/api/plans/[id]/usual-drink/route"),
+    import("@/app/api/social/crews/[crewId]/arrival/route"),
   ]);
   handlers = {
     readPlan: planRoute.GET as Handler,
@@ -415,6 +417,7 @@ beforeAll(async () => {
     rotateInvite: rotateRoute.POST as Handler,
     presence: presenceRoute.POST as Handler,
     usualDrink: usualDrinkRoute.POST as Handler,
+    crewArrival: crewArrivalRoute.POST as Handler,
     crewPals: crewPalsRoute.GET as Handler,
     openCrew: openCrewRoute.POST as Handler,
     planCard: planCard.GET as unknown as Handler,
@@ -1624,7 +1627,16 @@ describe("price observation and its confirmation", () => {
     expect(first.status, await first.clone().text()).toBe(201);
     const firstBody = await readJson<PriceSubmitBody>(first);
     expect(firstBody.confirmationOutcome?.status).toBe("awaiting_second_drinker");
-    expect(firstBody.pintTrust).toBe("logged-once");
+    // A photo attached is not a bill read (captain 5 Nov 2026): the price
+    // lands unchecked, and only the background bill check's match moves it.
+    expect(firstBody.pintTrust).toBe("unchecked");
+    // The bill check's one write on a match, as `grantBillMatch` makes it.
+    truth(
+      `update public.pint_drops set price_evidence = 'receipt' where venue_id = '${PRICE_VENUE}' and price_evidence = 'unchecked' and price_gbp is not null`,
+    );
+    expect(truth(
+      `select count(*) from public.pint_drops where venue_id = '${PRICE_VENUE}' and price_evidence = 'receipt'`,
+    )).toBe("1");
 
     // A second REPORT, not a second tap: a different figure, so the
     // duplicate-tap window (battle test D10) leaves it alone. Since 7 Sept 2026
@@ -2019,6 +2031,49 @@ describe("Social Crew: invitation, acceptance and the block", () => {
   });
 });
 
+describe("Social Crew: open crawl arrival", () => {
+  it("writes only an active member's own seat", async () => {
+    truth(`update public.social_crews set visibility='open' where id='${crew.id}';
+      update public.plans set start_time=now() where id='${CREW_PLAN_ID}';`);
+    const status = () => truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`);
+    const initialStatus = status();
+    for (const bearer of [undefined, BEARER_DAVE, BEARER_CAROL]) {
+      const denied = await defined(handlers.crewArrival)(
+        crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer, body: { here: true } }),
+        context({ crewId: crew.id }),
+      );
+      expect(denied.status).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(denied));
+      expect(status()).toBe(initialStatus);
+    }
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await defined(handlers.crewArrival)(
+        crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
+        context({ crewId: crew.id }),
+      );
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(status()).toBe("here");
+      const body = await readJson<{ crewArrived: { guestsArrived: string }[] }>(response);
+      expect(body.crewArrived.map((receipt) => receipt.guestsArrived)).toEqual(["1"]);
+      expect(truth(`select status from public.plan_crew_members where id='${CREW_HOST_MEMBER_ID}'`)).toBe("in");
+    }
+    const undo = await defined(handlers.crewArrival)(
+      crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: false } }),
+      context({ crewId: crew.id }),
+    );
+    expect(undo.status).toBe(422);
+    expect(status()).toBe("here");
+    truth(`update public.social_crews set visibility='private' where id='${crew.id}';`);
+    const privateStatus = status();
+    const denied = await defined(handlers.crewArrival)(
+      crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
+      context({ crewId: crew.id }),
+    );
+    expect(denied.status).toBe(404);
+    expect(status()).toBe(privateStatus);
+  });
+});
+
 describe("Social Crew: the removed member", () => {
   it("removal takes the read away in the same instant, and the removed member cannot put himself back", async () => {
     const removed = await defined(handlers.removeCrewMember)(
@@ -2032,6 +2087,17 @@ describe("Social Crew: the removed member", () => {
     expect(
       truth(`select state from public.social_crew_members where id = '${crew.bobMemberId}'`),
     ).toBe("removed");
+
+    truth(`update public.social_crews set visibility='open' where id='${crew.id}';`);
+    const statusBeforeArrival = truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`);
+    const arrival = await defined(handlers.crewArrival)(
+      crewRequest(`/api/social/crews/${crew.id}/arrival`, { bearer: BEARER_BOB, body: { here: true } }),
+      context({ crewId: crew.id }),
+    );
+    expect(arrival.status).toBe(404);
+    expectNoDisclosure(await readJson(arrival));
+    expect(truth(`select status from public.plan_crew_members where plan_id='${CREW_PLAN_ID}' and social_account_id='${BOB_ACCOUNT}'`)).toBe(statusBeforeArrival);
+    truth(`update public.social_crews set visibility='private' where id='${crew.id}';`);
 
     const read = await defined(handlers.readCrew)(
       crewRequest(`/api/social/crews/${crew.id}`, { bearer: BEARER_BOB }),
@@ -2243,6 +2309,74 @@ describe("private conversation: write", () => {
     expect(
       truth(`select count(*) from public.messages where body = 'written at the table'`),
     ).toBe("0");
+  });
+});
+
+describe("private conversation: taking words back", () => {
+  it("only the sender unsends, and nobody else moves a word", async () => {
+    const before = truth(
+      `select body || '|' || coalesce(unsent_at::text, '') from public.messages where id = '${ALICE_MESSAGE}'`,
+    );
+    for (const [bearer, handle] of [
+      [undefined, "alicepm"],
+      [BEARER_BOB, "bobpm"],
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "alicepm"],
+    ] as const) {
+      const response = await defined(handlers.writeThread)(
+        request(`/api/messages/${CONVERSATION_ID}`, {
+          bearer,
+          body: { action: "unsend", handle, messageId: ALICE_MESSAGE },
+        }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status, `${handle}`).toBeGreaterThanOrEqual(400);
+      expectNoDisclosure(await readJson(response));
+    }
+    expect(
+      truth(
+        `select body || '|' || coalesce(unsent_at::text, '') from public.messages where id = '${ALICE_MESSAGE}'`,
+      ),
+    ).toBe(before);
+  });
+
+  it("only a participant deletes a chat, and an outsider writes no mark", async () => {
+    for (const [bearer, handle] of [
+      [undefined, "alicepm"],
+      [BEARER_DAVE, "davepm"],
+      [BEARER_CAROL, "alicepm"],
+    ] as const) {
+      const response = await defined(handlers.writeThread)(
+        request(`/api/messages/${CONVERSATION_ID}`, {
+          bearer,
+          body: { action: "delete", handle },
+        }),
+        context({ id: CONVERSATION_ID }),
+      );
+      expect(response.status, `${handle}`).toBeGreaterThanOrEqual(400);
+    }
+    expect(truth("select count(*) from public.conversation_deletions")).toBe("0");
+  });
+
+  it("at the table: nobody's delete marks are any browser's to read or write", () => {
+    expect(visibleRows("anon", null, "select count(*) from public.conversation_deletions")).toBe(0);
+    for (const sub of [ALICE, BOB, CAROL, DAVE]) {
+      const read = attemptAsRole(
+        "authenticated",
+        sub,
+        "select count(*) from public.conversation_deletions",
+      );
+      expect(read.ok).toBe(false);
+      expect(read.err).toMatch(/permission denied/i);
+    }
+    const written = attemptAsRole(
+      "authenticated",
+      ALICE,
+      `insert into public.conversation_deletions (conversation_id, handle)
+         values ('${CONVERSATION_ID}', 'alicepm')`,
+    );
+    expect(written.ok).toBe(false);
+    expect(truth("select count(*) from public.conversation_deletions")).toBe("0");
   });
 });
 

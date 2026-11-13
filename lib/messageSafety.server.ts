@@ -1,5 +1,6 @@
 import "server-only";
 
+import { isHandleAccountWithdrawn } from "@/lib/accountPublicAccess.server";
 import { accountIsAdult, needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
 import { publicApiError } from "@/lib/apiError";
@@ -12,6 +13,7 @@ import {
   MESSAGE_BLOCKED_LINE,
   MESSAGE_MATES_ONLY,
   MESSAGE_MATES_ONLY_LINE,
+  MESSAGE_SUSPENDED_REFUSAL,
   MESSAGE_UNDER_18_REFUSAL,
 } from "@/lib/messageSafety";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
@@ -19,6 +21,21 @@ import { profileStore } from "@/lib/profileStore";
 import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
 import { isMissingTableSchema } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+
+export async function messageSuspendedRefusal(
+  handle: string,
+  isWithdrawn: (handle: string) => Promise<boolean> = isHandleAccountWithdrawn,
+): Promise<Response | null> {
+  let withdrawn: boolean;
+  try {
+    withdrawn = await isWithdrawn(handle);
+  } catch {
+    return publicApiError("Messages are unavailable right now. Try again.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  return withdrawn ? publicApiError(MESSAGE_SUSPENDED_REFUSAL, "ACCOUNT_SUSPENDED", 403) : null;
+}
 
 /**
  * THE MESSAGE DOORS ASK THE ONE ADULT GATE. Opening a conversation and sending

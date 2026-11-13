@@ -11,32 +11,61 @@
 //   1. The card prints the SHEET'S OWN price and date: the figure and the date
 //      the Overview's price block prints for the same lane, for every lane a
 //      drinker's log can take, because both read one lane and one formatter.
-//   2. Exactly ONE coral action: the card's plan door. The Overview's price
-//      door is drawn in ink and the card's other commands are ghosts.
+//   2. Exactly ONE coral action: the card's plan door. The card's other
+//      commands are ghosts.
 //   3. No action appears twice on the sheet: the card's actions left the body.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
-import { createElement } from "react";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const tableAuth = vi.hoisted(() => ({
+  configured: false,
+  loading: false,
+  user: null as { id: string; email: string } | null,
+  handle: null as string | null,
+}));
+const tableTrack = vi.hoisted(() => vi.fn());
+const tableFetch = vi.hoisted(() => vi.fn());
+const emailSignIn = vi.hoisted(() => vi.fn(async () => ({ status: "sent", message: "Link sent" })));
+const routerSearch = vi.hoisted(() => ({ value: null as string | null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return { ...actual, useSearchParams: () => new URLSearchParams(routerSearch.value ?? window.location.search) };
+});
+const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
+vi.mock("next/dynamic", async () => {
+  const { createElement: create } = await import("react");
+  return {
+    default: () => function DynamicDialog(props: never) {
+      return dynamicDialog.component ? create(dynamicDialog.component, props) : null;
+    },
+  };
+});
 vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
 }));
 
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
-    user: null, session: null, loading: false, configured: false,
-    handle: null, identityResolved: true, getCurrentUserId: () => null,
+    ...tableAuth, session: null,
+    supabaseAuthState: "signed-out",
+    socialProviders: { google: false, apple: false, microsoft: false },
+    signInWithEmail: emailSignIn,
+    cancelAuthAttempt: () => {},
+    identityResolved: true, getCurrentUserId: () => tableAuth.user?.id ?? null,
   }),
 }));
 
 import VenueActionCard from "@/components/map/inspector/VenueActionCard";
+import TableRequestDialog from "@/components/map/inspector/TableRequestDialog";
+dynamicDialog.component = TableRequestDialog as React.ComponentType<never>;
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
-import VenuePeekPlanDoor from "@/components/map/inspector/VenuePeekPlanDoor";
+import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import VenuePeekPintPrice from "@/components/map/VenuePeekPintPrice";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
@@ -44,7 +73,6 @@ import {
   venueActionCardPriceDate,
   venueActionCardWalkMinutes,
 } from "@/lib/venueActionCard";
-import { phoneVenuePlanDoor } from "@/lib/venuePlanDoor";
 import {
   dropLaneInputsFor,
   pintTrustFor,
@@ -69,6 +97,13 @@ beforeEach(() => {
   vi.setSystemTime(new Date(NOW));
 });
 afterEach(() => {
+  window.history.replaceState(null, "", "/");
+  routerSearch.value = null;
+  tableAuth.configured = false;
+  tableAuth.loading = false;
+  tableAuth.user = null;
+  tableAuth.handle = null;
+  vi.clearAllMocks();
   vi.useRealTimers();
 });
 
@@ -100,6 +135,236 @@ function venue(overrides: Partial<Venue> = {}): Venue {
     ...overrides,
   } as Venue;
 }
+
+describe("table request arrival", () => {
+  let root: Root;
+  let host: HTMLDivElement;
+  beforeEach(() => {
+    vi.useRealTimers();
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    host = document.createElement("div");
+    document.body.append(host);
+    root = createRoot(host);
+  });
+  afterEach(async () => {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  });
+
+  const show = async (pub = venue()) => {
+    await act(async () => root.render(createElement(VenueActionCard, {
+      venue: pub, shareVenue: async () => {}, currentShareFeedback: null,
+    })));
+  };
+  const input = async (selector: string, value: string) => {
+    const field = defined(document.querySelector<HTMLInputElement>(selector) ?? undefined);
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, value);
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+  };
+  const submit = async () => {
+    await act(async () => defined(document.querySelector("form") ?? undefined).dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true }),
+    ));
+  };
+
+  it("does not retain an invitation after selecting another pub and returning without meet", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    // Map-owned history writes keep Next's router search at the original arrival.
+    routerSearch.value = window.location.search;
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", "/map?sel=other-pub");
+    await show(venue({ id: "other-pub" }));
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it.each(["", "&meet=late", "&meet=24:00", "&meet=20:60"])("clears the invitation when the same pub's URL changes to %s", async (search) => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}${search}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it("updates the invitation when the same pub's URL names a new time", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=21:30`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 9:30pm.");
+  });
+
+  it("opens the named pub with the party prefilled, consumes the intent and does not reopen", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector("select")?.value).toBe("8");
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".tableRequestClose") ?? undefined).click());
+    await act(async () => root.render(null));
+    await show();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it("keeps a signed-out ask in the address for the sign-in return, and drops it on Not now", async () => {
+    tableAuth.configured = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
+    await act(async () => defined(document.querySelector<HTMLButtonElement>(".contributionGateClose") ?? undefined).click());
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+  });
+
+  it("opens the prefilled form when the reader comes back signed in", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=12`);
+    await show();
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(document.querySelector("select")?.value).toBe("12");
+    expect(new URLSearchParams(window.location.search).has("table")).toBe(false);
+  });
+
+  it("keeps the ask through the handle claim door", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+    expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
+    const href = document.querySelector<HTMLAnchorElement>(".contributionGatePrimary")?.href;
+    expect(href && new URL(href).searchParams.get("returnTo")).toBe(`/map?sel=${VENUE_ID}&table=8`);
+  });
+
+  it.each(["/map", "/map/manchester"])("keeps the table ask through email sign-in from %s", async (path) => {
+    tableAuth.configured = true;
+    const id = path === "/map" ? VENUE_ID : "venue-mcr-1lwo5lo";
+    const returnTo = `${path}?sel=${id}&table=8`;
+    window.history.replaceState(null, "", returnTo);
+    await show(venue({ id }));
+    await input('input[type="email"]', "reader@example.test");
+    await submit();
+    expect(emailSignIn).toHaveBeenCalledWith(
+      "reader@example.test", `/u/you?returnTo=${encodeURIComponent(returnTo)}`,
+    );
+  });
+
+  it("resumes the held ask when sign-in and handle resolve without navigation", async () => {
+    tableAuth.configured = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    tableAuth.user = { id: "reader", email: "reader@example.test" };
+    await show();
+    expect(document.querySelector(".contributionGatePrimary")).not.toBeNull();
+    tableAuth.handle = "reader";
+    await show();
+    expect(document.querySelector(".contributionGate")).toBeNull();
+    expect(document.querySelector("select")?.value).toBe("8");
+  });
+
+  it("waits for auth to settle before deciding which door to open", async () => {
+    tableAuth.configured = true;
+    tableAuth.loading = true;
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    tableAuth.loading = false;
+    await show();
+    expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector("select")).toBeNull();
+  });
+
+  it("consumes but never opens a table form for a non-pub", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show(venue({ kind: "cafe" }));
+    expect(window.location.search).not.toContain("table=");
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  it.each(["sent", "not_sent"])("counts a completed Pal request as %s", async (outcome) => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch.mockResolvedValue(Response.json({ outcome }));
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
+    await show();
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector(`[data-table-request-outcome="${outcome}"]`)).not.toBeNull();
+    expect(tableTrack).toHaveBeenCalledWith("table_request_sent", { source: "pal", outcome });
+  });
+
+  it("reuses the attempt key after lost and retryable answers, then rotates it for an edited request", async () => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch
+      .mockRejectedValueOnce(new TypeError("Connection lost"))
+      .mockResolvedValueOnce(Response.json({ retryable: true }, { status: 503 }))
+      .mockResolvedValueOnce(Response.json({ outcome: "sent" }));
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    await submit();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    await input('input[autocomplete="name"]', "Sam's birthday");
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="sent"]')).not.toBeNull();
+    const requests = tableFetch.mock.calls.map(([, init]) => JSON.parse(String(init.body)));
+    expect(requests).toHaveLength(3);
+    expect(requests[0].requestKey).toEqual(expect.any(String));
+    expect(requests[0].requestKey.length).toBeGreaterThan(0);
+    expect(requests[1].requestKey).toBe(requests[0].requestKey);
+    expect(requests[2].requestKey).not.toBe(requests[1].requestKey);
+    expect(requests[2].name).toBe("Sam's birthday");
+  });
+
+  it.each([
+    ["an unreadable", () => new Response("{", { status: 201 })],
+    ["an unrecognised", () => Response.json({ outcome: "queued" }, { status: 201 })],
+  ])("keeps %s ok answer retryable under the same key", async (_label, answer) => {
+    tableAuth.configured = true;
+    tableAuth.user = { id: "reader", email: "reader@example.com" };
+    tableAuth.handle = "reader";
+    tableFetch
+      .mockResolvedValueOnce(answer())
+      .mockResolvedValueOnce(Response.json({ outcome: "sent" }, { status: 201 }));
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await input('input[autocomplete="name"]', "Sam");
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="not_sent"]')).toBeNull();
+    expect(document.querySelector('[role="alert"]')).not.toBeNull();
+    expect(tableTrack).not.toHaveBeenCalled();
+    await submit();
+    expect(document.querySelector('[data-table-request-outcome="sent"]')).not.toBeNull();
+    const keys = tableFetch.mock.calls.map(([, init]) => JSON.parse(String(init.body)).requestKey);
+    expect(keys).toHaveLength(2);
+    expect(keys[1]).toBe(keys[0]);
+  });
+
+  it("counts the keyless fallback as a sheet request, but not invalid input", async () => {
+    await act(async () => root.render(createElement(TableRequestDialog, { venue: venue(), onClose: noop })));
+    await submit();
+    expect(tableTrack).not.toHaveBeenCalled();
+    await input('input[autocomplete="name"]', "Sam");
+    await input('input[type="email"]', "sam@example.com");
+    await submit();
+    expect(tableTrack).toHaveBeenCalledWith("table_request_sent", { source: "sheet", outcome: "not_sent" });
+  });
+});
 
 function daysAgo(days: number): string {
   return new Date(NOW - days * DAY_MS).toISOString();
@@ -166,6 +431,18 @@ function renderSheet(
     lanes.aged,
     lanes.disputed,
   );
+  const doors = venueActionDoors({
+    venueId: pub.id,
+    venueName: pub.name,
+    isPub: true,
+    mode: options.mode ?? "suggest",
+    builtIds: options.builtIds ?? [],
+    drops,
+    communityPrices: [],
+    onLog: noop,
+    onAcceptStop1: noop,
+    onToggleStop: noop,
+  });
   const summary = createElement(VenueActionSummary, {
     label: `${pub.name} summary`,
     walkMinutes: venueActionCardWalkMinutes(options.userLocation ?? null, pub),
@@ -178,26 +455,15 @@ function renderSheet(
       detailLoading: false,
       priceReadStatus: "ready",
       dropReadStatus: "ready",
-      onLog: noop,
+      onLog: doors.logFirst ? undefined : noop,
       dated: venueActionCardPriceDate(lane, pub),
     }),
-    planDoor: createElement(VenuePeekPlanDoor, {
-      door: phoneVenuePlanDoor({
-        isPub: true,
-        mode: options.mode ?? "suggest",
-        builtIds: options.builtIds ?? [],
-        venueId: pub.id,
-        canAcceptStop1: true,
-      }),
-      venueId: pub.id,
-      venueName: pub.name,
-      onAcceptStop1: noop,
-      onToggleStop: noop,
-    }),
+    planDoor: doors.coral,
   });
   const card = createElement(VenueActionCard, {
     venue: pub,
     summary,
+    planDoor: doors.ghost,
     shareVenue: async () => {},
     currentShareFeedback: null,
   });
@@ -286,10 +552,7 @@ describe("the card prints the sheet's own price and date", () => {
 });
 
 describe("one coral action", () => {
-  const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  const CORAL = /var\(--(?:brass|color-accent|accent-action)[\w-]*[,)]/;
-
-  it("the card holds exactly one painted door, and it is the plan door", () => {
+  it("with a fresh drinker price, the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {
       const view = renderSheet([drop()].slice(0, 1), { mode, builtIds: [...builtIds] });
       const card = cardOf(view);
@@ -297,40 +560,44 @@ describe("one coral action", () => {
       expect(view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
       // Every other command on the card is a ghost.
       const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
-      expect(ghosts.map(actionName)).toEqual([`Ask The Action Arms for a table`, "Share The Action Arms"]);
+      expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
     }
   });
 
-  it("the Overview's price door is drawn in ink, the ghosts carry no coral, and the plan door is coral at every width", () => {
-    const globals = read("app/globals.css");
-    const priceDoor = globals.match(/\n\.priceDoor\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoor).toMatch(/background:\s*var\(--control-secondary-surface\)/);
-    expect(priceDoor).not.toMatch(CORAL);
-    const priceDoorHover = globals.match(/\.priceDoor:hover\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(priceDoorHover).not.toMatch(CORAL);
-
-    const sheet = read("components/map/venueSheet.css");
-    for (const [, body = ""] of sheet.matchAll(/\.venueSheetStickyGhost[^{,]*\{([^}]*)\}/g)) {
-      expect(body.replace(/outline[^;]*;/g, "")).not.toMatch(CORAL);
+  it.each([
+    ["no drinker price", () => []],
+    ["a drinker price past the window", () => defined(DROPS["aged-out"])()],
+  ] as const)("with %s, the one painted door is Log what you paid and the plan door is a ghost", (_label, drops) => {
+    for (const [mode, builtIds, plan] of [
+      ["suggest", [], "Make it Stop 1: The Action Arms"],
+      ["build", ["venue-other"], "Plan stop"],
+    ] as const) {
+      const view = renderSheet(drops(), { mode, builtIds: [...builtIds] });
+      const card = cardOf(view);
+      const coral = [...view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)];
+      expect(coral.map(actionName)).toEqual(["Log what you paid at The Action Arms"]);
+      const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
+      expect(ghosts.map(actionName)).toEqual([plan, "Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
+      for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
+      // The coral already asks, so the price cell says and does not ask again.
+      expect(card.querySelector(".mobileVenuePeekDrop")).toBeNull();
     }
+  });
 
-    const card = read("components/map/inspector/venueActionCard.css");
-    const desktopDoor = card.match(/\.venueActionCard \.mobileVenuePeekSummary button\s*\{([^}]*)\}/)?.[1] ?? "";
-    expect(desktopDoor).toMatch(/background:\s*var\(--color-accent\)/);
-    const phone = read("components/mobile/mobileMapShell.css");
-    expect(phone).toMatch(/\.mobileVenuePeekSummary button\s*\{[^}]*background:\s*var\(--color-accent\)/);
-    // A price door still renders, once, beside the one coral.
+  it("the Overview renders one price door beside the plan door", () => {
     expect(renderSheet([drop()]).querySelectorAll("[data-price-door]")).toHaveLength(1);
   });
 });
 
 describe("no action appears twice on the sheet", () => {
   it.each([
-    ["no crawl", "suggest", []],
-    ["a crawl in progress", "build", ["venue-other"]],
-  ] as const)("with %s", (_label, mode, builtIds) => {
-    const view = renderSheet(defined(DROPS["logged-once"])(), { mode, builtIds: [...builtIds] });
+    ["no crawl", "logged-once", "suggest", []],
+    ["a crawl in progress", "logged-once", "build", ["venue-other"]],
+    ["no fresh drinker price", "aged-out", "suggest", []],
+    ["no fresh drinker price and a crawl in progress", "aged-out", "build", ["venue-other"]],
+  ] as const)("with %s", (_label, state, mode, builtIds) => {
+    const view = renderSheet(defined(DROPS[state])(), { mode, builtIds: [...builtIds] });
     // "That's wrong" sits beside the price AND under the listed facts by its
     // own rule (components/map/inspector/VenueCorrectionDoor.tsx, `where`):
     // two lines, two subjects, neither of them a card action.

@@ -16,9 +16,8 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - A London Night Area has a page when it holds **15** priced pubs
   (`PRICED_LANDING_PUBLICATION_FLOORS.area`). Each pub counts once, at its own
   cheapest listed pint. Only pub venue kinds, only finite positive prices.
-- The floor is the ONLY gate. A price list is not a route, so the route
-  readiness review (`nightAreaPublishesPrices`) that gates the brand-by-area
-  pairs does not gate this page. `lib/areaLanding.ts` owns the rule.
+- The floor is the ONLY gate. A price list is not a route, so no route
+  readiness review gates this page. `lib/areaLanding.ts` owns the rule.
 - The page prints the ranked list, publisher per row, count, the area's
   stations from `transportAnchors`, and its published brand-by-area pairs.
   Its headline price and metadata carry that price row's source-read date.
@@ -44,7 +43,7 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 
 ## What a page may claim
 
-- Every figure comes from the exact price row that owns it.
+- Every ranked figure comes from the exact price row that owns it.
 - The publisher label and link come from that same row through
   `namedLegacyPintPriceSource`. A row with no publisher reads
   `Publisher not recorded` and carries no link.
@@ -68,9 +67,12 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   15 priced pubs of any pint. A brand-by-area page
   needs 10, AND its brand's own London page must publish: that page is its
   parent crumb, so a pair without one would link a reader to a 404.
-- A brand-by-area page also requires `nightAreaPublishesPrices` to accept the area.
-  No area currently qualifies under the [catalogue review policy](../../API_CONTRACTS_THE_LOCAL.md#24-nightarea-catalogue), so no brand-by-area pair publishes.
-  London brand pages, ordinary area pages, and map visibility retain their separate rules.
+- A brand-by-area page needs no area review. Its separate area estimate follows
+  the [public estimate method](https://pubmaxxing.com/how-we-estimate).
+  `sampleSize` equals `totalPricedVenues`. The newest valid candidate
+  source-read date supplies `computedAt`. Without a valid date, the page omits
+  the estimate. The figure links to `/how-we-estimate`. It is never a ranked
+  row or a headline `From` price.
 - One pub counts once, at its own cheapest matching row.
 - Only pub venue kinds, only finite positive prices.
 - Ranked cheapest first, then pub name, then pub id. At most 20 rows printed.
@@ -118,9 +120,11 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
   carries position, and a name on a bare span is dropped by assistive tech.
 - A row prints its own drink tag, title-cased when the dataset shouted it. The
   known all-caps beer tokens (IPA, NEIPA and the rest) keep their capitals.
-- London brand rows also show the recorded branch address, or the recorded
-  locality when the address is blank. The ledger link's accessible name
+- Brand and brand-by-area rows also show the recorded branch address, or the
+  recorded locality when the address is blank. The ledger link's accessible name
   includes that text. Without either value, the row keeps its pub name and borough.
+  Above 640 CSS pixels, the location cell shows at most two lines.
+  Its tooltip retains the full location.
 - Every action is at least 44 by 44 CSS pixels and shows visible focus.
 - No horizontal page scroll. Light and dark use existing tokens.
 - Bottom padding carries `env(safe-area-inset-bottom)`, so phone navigation
@@ -131,4 +135,4 @@ not a borough: Soho is part of Westminster, and Shoreditch spans four boroughs.
 - A page for every borough: borough membership is broader than night-out
   intent and would multiply weak pages.
 - Publishing thin combinations to grow URL count.
-- Any figure derived rather than read from a row.
+- A derived figure used as a ranked price, headline `From` price or structured price offer.

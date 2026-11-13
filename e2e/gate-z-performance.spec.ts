@@ -123,7 +123,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
   };
 
   if (process.env.PUBMAX_GATE_Z_SHOTS) {
-    const directory = "docs/screenshots/the-local-gate-z";
+    const directory = "artifacts/screenshots/the-local-gate-z";
     await mkdir(directory, { recursive: true });
     await writeFile(`${directory}/performance-lab.json`, `${JSON.stringify(metrics, null, 2)}\n`);
   }

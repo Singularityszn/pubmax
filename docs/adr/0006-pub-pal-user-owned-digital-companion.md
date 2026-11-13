@@ -18,7 +18,7 @@ Progression unlocks only cosmetics, animation, home objects, reactions, and city
 
 ## Consequences
 
-- Pal creation requires an authenticated account and an 18+ attestation without storing a full birth date.
+- Pal creation and voice access follow the [account age requirements](../../README.md#pub-pal-age-requirements).
 - Users control creative identity and privacy, but cannot disable factuality, moderation, legal, or safety constraints.
 - Voice credentials stay server-side. Raw audio and transcripts are never Pal memory.
   [STORE_READINESS section 5](../STORE_READINESS.md#5-privacy-questionnaire-answers)

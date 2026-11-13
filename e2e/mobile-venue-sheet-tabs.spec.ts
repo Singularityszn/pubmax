@@ -147,14 +147,16 @@ async function expectPrimaryActions(page: Page): Promise<void> {
     }),
   );
 
-  // The toolbar carries no price action: the Overview's one price door owns
-  // that (lib/pintTrust.ts, `overviewPriceDoor`). It carries no plan action
-  // either, in build mode too: the action card's ONE plan door, on the row
-  // above it, owns those (lib/venuePlanDoor.ts).
-  expect(actions.map((action) => action.name)).toEqual(["Ask Arnos Arms for a table", "Share Arnos Arms"]);
+  // Without a fresh drinker price, logging leads and the plan door joins the toolbar.
+  expect(actions.map((action) => action.name)).toEqual([
+    "Make it Stop 1: Arnos Arms",
+    "Ask for a table at Arnos Arms",
+    "Summon mates to Arnos Arms",
+    "Share Arnos Arms",
+  ]);
   const planDoors = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
-    .getByRole("button", { name: /Stop 1$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
+    .getByRole("button", { name: /^Make it Stop 1: .+$|^Plan stop$|^In plan$|crawl$|^Crawl$|^Remove$/ });
   await expect(planDoors).toHaveCount(1);
   await expect(planDoors).toHaveText("Make it Stop 1");
 
@@ -363,9 +365,15 @@ for (const width of [320, 390] as const) {
     // The phrase is inside its own cell, and its cell is inside the row.
     expect(geometry.phraseText.right).toBeLessThanOrEqual(geometry.phraseCell.right + 0.5);
     expect(geometry.phraseCell.right).toBeLessThanOrEqual(geometry.rowRight + 0.5);
-    // Nothing is drawn over it. The action is the control that used to be.
+    // The action can sit beside the caption or wrap onto its own row.
     if (geometry.action) {
-      expect(geometry.phraseText.right).toBeLessThanOrEqual(geometry.action.left + 0.5);
+      const phrase = geometry.phraseText;
+      const action = geometry.action;
+      expect(
+        phrase.right <= action.left + 0.5 || action.right <= phrase.left + 0.5 ||
+        phrase.bottom <= action.top + 0.5 || action.bottom <= phrase.top + 0.5,
+        "the caption and action do not overlap",
+      ).toBe(true);
     }
     // "Near me" is a location prompt, so it prints BELOW the figures size the
     // walk time it stands in for uses. Strictly below: equal is the defect.

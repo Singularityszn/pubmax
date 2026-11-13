@@ -120,7 +120,8 @@ function roundOfFour(averagePint: number | null): number | null {
 
 export default async function AboutPage() {
   const [stats, pintIndexSnapshot, pricedPubs] = await Promise.all([
-    loadAboutStats(),
+    // A failed price read prints an unavailable line, never zeros.
+    loadAboutStats().catch(() => null),
     loadPublicPintIndexSnapshot(),
     // The ONE priced-pub count (lib/pricedPubCount.ts), the same read
     // /pint-index makes, so the two pages print one number on one base.
@@ -132,7 +133,7 @@ export default async function AboutPage() {
     : [];
   const pintIndexSummary = indexSummary(pintIndexRows);
   const ukCoverage = loadUkDirectoryCoverage();
-  const round = roundOfFour(stats.averagePint);
+  const round = stats ? roundOfFour(stats.averagePint) : null;
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   // The root layout publishes both referenced identities.
@@ -323,25 +324,31 @@ export default async function AboutPage() {
           sentence of figures, not a grid of KPI tiles. ──────────── */}
       <section className="aboutSection" aria-labelledby="traction">
         <h2 id="traction" className="aboutH2">By the numbers</h2>
-        <p className="aboutBody">
-          {pricedPubs.status === "degraded" ? null : <>{pricedPubsSentence(pricedPubs.count)}{" "}</>}
-          Our pub price list holds{" "}
-          <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint prices,
-          each with its source status shown.{" "}
-          <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
-          a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
-          cities are live, London first. Every figure here is counted from the
-          same public data the app runs on.
-        </p>
-        <p className="aboutPriceLine">
-          Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
-          boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
-          <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
-          <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
-          {averageBasePhrase(stats.pubsTracked)} is{" "}
-          <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
-          taken from each pub&rsquo;s cheapest pint.
-        </p>
+        {stats ? (
+          <>
+            <p className="aboutBody">
+              {pricedPubs.status === "degraded" ? null : <>{pricedPubsSentence(pricedPubs.count)}{" "}</>}
+              Our pub price list holds{" "}
+              <Figure>{fmtInt(stats.pintPricesObserved)}</Figure> pint prices,
+              each with its source status shown.{" "}
+              <Figure>{fmtInt(stats.historicPubsCited)}</Figure> historic pubs carry
+              a cited fact, and <Figure>{fmtInt(stats.citiesCovered)}</Figure> UK
+              cities are live, London first. Every figure here is counted from the
+              same public data the app runs on.
+            </p>
+            <p className="aboutPriceLine">
+              Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
+              boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
+              <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
+              <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
+              {averageBasePhrase(stats.pubsTracked)} is{" "}
+              <Pint gbp={stats.averagePint} />, the same figure the homepage gives,
+              taken from each pub&rsquo;s cheapest pint.
+            </p>
+          </>
+        ) : (
+          <p className="aboutBody">Price figures are temporarily unavailable.</p>
+        )}
       </section>
 
       {/* ── Press appendix (kit + journalist hooks) ─────────────── */}

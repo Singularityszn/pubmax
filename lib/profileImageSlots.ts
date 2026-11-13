@@ -15,7 +15,7 @@ export type ProfileImageSlotSpec = {
   readonly prefix: string;
   /** Serving object file name (staging is always `staging.jpg`). */
   readonly servingFile: string;
-  /** Public serve route base; the id and generation are appended. */
+  /** Reader route base. The id and generation are appended. */
   readonly servePath: string;
   /** Longest edge the stored JPEG is resized down to. */
   readonly outputWidth: number;
@@ -111,11 +111,20 @@ export function isProfileImageServingKey(
   return objectKey === profileImageServingKey(slot, profileId, generation);
 }
 
-/** Public serve path for an approved image in this slot. */
+/** Reader path for an approved image. The route checks access. */
 export function profileImageServePath(
   slot: ProfileImageSlot,
   profileId: string,
   generation: string,
 ): string {
   return `${PROFILE_IMAGE_SLOT_SPECS[slot].servePath}/${profileId}/${generation}`;
+}
+
+/**
+ * The moderator console's read of a reported cover. A moderator session alone
+ * does not grant access through the reader path. The queue uses this route
+ * instead. Never a reader's URL.
+ */
+export function moderatorCoverPreviewPath(profileId: string, generation: string): string {
+  return `/api/admin/profile-avatars/cover/${profileId}/${generation}`;
 }

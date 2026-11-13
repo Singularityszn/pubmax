@@ -47,11 +47,10 @@ evidence limitations behind confident copy.
   cyberpunk characters.
 - Pub Pal is optional, account-owned, interruptible, and subordinate to the shared
   factual, recommendation, moderation, and safety engines.
-- There are no streaks, freezes, drinking counts, or consumption-based rewards.
+- There are no streaks or freezes. The [Points definition](../CONTEXT.md) governs points and levels.
 - PUBMAXX identity remains canonical. X, Instagram, and TikTok are optional
   integrations, never identity authorities.
-- Supabase remains authoritative for v1. Convex is a reversible, server-only pilot
-  until dual-read evidence proves parity.
+- The [persistence decision](#persistence) governs backend authority and migration scope.
 
 ## 1. The problem
 
@@ -205,7 +204,7 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 ### Rendering and caching
 
 - Launch keeps the current per-request nonce CSP and dynamic HTML rendering.
-  The [CSP and caching decision brief](evidence/csp-vs-caching.md) owns the
+  The [CSP and caching decision brief](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/csp-vs-caching.md) owns the
   post-launch choice between retaining that boundary and prototyping static
   public routes with hash-based CSP.
 - Authentication, owner profiles, private memories, and Pub Pal remain
@@ -220,9 +219,10 @@ flashes a blank canvas or repeatedly re-fits after the user begins interacting.
 - Supabase remains the production system of record and server routes remain the
   authorisation boundary.
 - Keyless local stores remain honest fallbacks, not replicas of durable production.
-- A Convex pilot may implement typed server functions and dual-read comparison.
-  Cutover requires measured parity, reversible routing, and no direct privileged
-  browser-to-database access.
+- Convex is not planned (#1709, option a). The dormant `convex/` scaffold,
+  `lib/convex/`, and shadow-read migration pipeline are removed.
+  Revert the cleanup PR to restore the code from Git history.
+  Any renewed migration requires an explicit owner-approved decision.
 - Moment draft text and metadata use a versioned browser contract. Temporary media
   uses IndexedDB/object references, not localStorage.
 
@@ -280,7 +280,7 @@ person controls its name, appearance, voice, personality, relationship style,
 visibility, approved memories, and mute/delete state.
 
 - Typed conversation always remains available.
-- Voice is user-initiated push-to-talk, never always-listening.
+- Voice starts only when the person requests it. The [voice interruption guide](PUB_PAL_SETUP.md#voice-interruptions) owns interruption and recovery behaviour.
 - The browser receives only a short-lived ElevenLabs conversation grant issued by
   an authenticated server endpoint.
 - Provider configuration disables audio saving. ElevenLabs does not offer zero

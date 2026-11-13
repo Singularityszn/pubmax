@@ -1,6 +1,8 @@
 import "server-only";
 
 import { createHash } from "node:crypto";
+import { markOpenCrawlArrival, openCrawlPlanSeats, readOpenCrawlArrival, type OpenCrawlPlanSeats } from "@/lib/openCrawlArrivalStore";
+import type { PlanCrewArrivedReceipt } from "@/lib/planCrewArrived.server";
 
 import { hashPlanMemberToken } from "@/lib/planStore";
 import type { OutOpenPlan } from "@/lib/out";
@@ -17,6 +19,7 @@ import {
   isSocialCrewRole,
   isSocialCrewVisibility,
   parseSocialCrewPublicPreviewSource,
+  parseSocialCrewShareCardSource,
   type SocialCrewMutationResult,
   type SocialCrewMutationCode,
   type SocialCrewJoinRequestQueueDTO,
@@ -24,6 +27,7 @@ import {
   type SocialCrewListPageDTO,
   type SocialCrewReadDTO,
   type SocialCrewPublicPreviewSource,
+  type SocialCrewShareCardSource,
   type SocialCrewRole,
   type SocialCrewVisibility,
 } from "@/lib/socialCrew";
@@ -43,6 +47,9 @@ import type { SocialPostActor } from "@/lib/socialPostStore";
 import type { Database } from "@/types/database";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
+
+export { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
@@ -67,6 +74,7 @@ type SocialCrewSnapshotRpcName =
   | "list_open_social_crews"
   | "read_social_crew_public_preview"
   | "read_social_crew_open_crawl"
+  | "read_social_crew_share_card"
   | "list_open_plan_crawls";
 
 function crewRpcNamesMatchCatalog(
@@ -79,6 +87,7 @@ function crewRpcNamesMatchCatalog(
 crewRpcNamesMatchCatalog(true);
 
 export type SocialCrewStoreDependencies = {
+  planSeats?: OpenCrawlPlanSeats;
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
   snapshot(
     name: SocialCrewSnapshotRpcName,
@@ -86,16 +95,6 @@ export type SocialCrewStoreDependencies = {
   ): Promise<unknown>;
   signingKey(): Buffer;
 };
-
-export class SocialCrewStoreError extends Error {
-  constructor(
-    public readonly code: "INVALID" | "NOT_FOUND" | "CONFLICT" | "UNAVAILABLE",
-    public readonly status: 400 | 404 | 409 | 422 | 503,
-    message: string,
-  ) {
-    super(message);
-  }
-}
 
 type WriteInput = { idempotencyKey: string };
 type CreateInput = WriteInput & {
@@ -144,8 +143,10 @@ type SocialCrewListInput = {
 };
 
 export type SocialCrewStore = {
+  markArrival(actor: SocialPostActor, input: { crewId: string; here: true }): Promise<{ here: true; crewArrived: PlanCrewArrivedReceipt[] }>;
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
   readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
+  readShareCard(crewId: string): Promise<SocialCrewShareCardSource>;
   list(
     actor: SocialPostActor,
     input: SocialCrewListInput,
@@ -445,6 +446,7 @@ function parseOpenPlanRow(value: unknown): OutOpenPlan | null {
 }
 
 const defaultDependencies: SocialCrewStoreDependencies = {
+  planSeats: openCrawlPlanSeats,
   async rpc(name, input) {
     const { data, error } = await requireDynamicSupabaseAdmin().rpc(name, input);
     if (error) throw new Error(error.message);
@@ -477,6 +479,22 @@ export function createSocialCrewStore(
     }
   }
 
+  async function readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource> {
+    if (!isUuid(crewId)) return notFound();
+    let snapshot: unknown;
+    try {
+      snapshot = await dependencies.snapshot("read_social_crew_public_preview", {
+        p_crew_id: crewId,
+      });
+    } catch {
+      return unavailable();
+    }
+    if (snapshot === null) return notFound();
+    const parsed = parseSocialCrewPublicPreviewSource(snapshot);
+    if (!parsed) return unavailable();
+    return parsed;
+  }
+
   async function readOpenCrawlDetails(crewId: string): Promise<OpenCrawlDetails | null> {
     try {
       const value = await dependencies.snapshot("read_social_crew_open_crawl", { p_crew_id: crewId });
@@ -487,6 +505,10 @@ export function createSocialCrewStore(
   }
 
   return {
+    markArrival(actor, input) {
+      if (!isUuid(input.crewId) || !validActor(actor)) return Promise.reject(new SocialCrewStoreError("NOT_FOUND", 404, "Social Crew not found."));
+      return markOpenCrawlArrival(dependencies, actor, input);
+    },
     async read(crewId, actor) {
       if (!isUuid(crewId) || !validActor(actor)) return notFound();
       let snapshot: unknown;
@@ -511,23 +533,57 @@ export function createSocialCrewStore(
       // The member snapshot admitted this reader; only then are the open
       // crawl facts read. A read that cannot run leaves them off rather than
       // failing the crew page (before 0208 is applied the function is absent).
-      return { ...projected, openCrawl: await readOpenCrawlDetails(crewId) };
+      try {
+        return {
+          ...projected, openCrawl: await readOpenCrawlDetails(crewId),
+          ...(dependencies.planSeats ? { arrival: await readOpenCrawlArrival(snapshot, crewId, actor, dependencies.planSeats) } : {}),
+        };
+      } catch {
+        return unavailable();
+      }
     },
 
-    async readPublicPreview(crewId) {
+    readPublicPreview,
+
+    async readShareCard(crewId) {
       if (!isUuid(crewId)) return notFound();
       let snapshot: unknown;
+      let read = false;
       try {
-        snapshot = await dependencies.snapshot("read_social_crew_public_preview", {
+        snapshot = await dependencies.snapshot("read_social_crew_share_card", {
+          p_crew_id: crewId,
+        });
+        read = true;
+      } catch {
+        read = false;
+      }
+      if (read) {
+        if (snapshot === null) return notFound();
+        const parsed = parseSocialCrewShareCardSource(snapshot);
+        if (parsed) return parsed;
+      }
+      const preview = await readPublicPreview(crewId);
+      let openCrawlSnapshot: unknown;
+      try {
+        openCrawlSnapshot = await dependencies.snapshot("read_social_crew_open_crawl", {
           p_crew_id: crewId,
         });
       } catch {
         return unavailable();
       }
-      if (snapshot === null) return notFound();
-      const parsed = parseSocialCrewPublicPreviewSource(snapshot);
-      if (!parsed) return unavailable();
-      return parsed;
+      const openCrawl = parseOpenCrawlDetails(openCrawlSnapshot);
+      if (openCrawlSnapshot !== null && !openCrawl) return unavailable();
+      return {
+        crewId: preview.crewId,
+        title: preview.title,
+        hostHandle: preview.hostHandle,
+        startsAt: preview.startsAt,
+        capacity: openCrawl?.capacity ?? null,
+        memberCount: null,
+        meetingVenueId: openCrawl?.meetingVenueId ?? preview.stopVenueId,
+        meetingVenueName: openCrawl?.meetingVenueName ?? preview.stopVenueName,
+        stopVenueIds: null,
+      };
     },
 
     async list(actor, input) {

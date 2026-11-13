@@ -11,6 +11,7 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { formatGbp } from "@/lib/formatGbp";
 import { firstHttps } from "@/lib/httpUrl";
 import { haversineKm } from "@/lib/haversine";
+import { nightAreaFocusCentre, nightAreaFocusContains, planAreaName } from "@/lib/nightAreaFocus";
 import { CATEGORY_META } from "@/lib/drinks";
 import {
 	DRY_ROUND_ANCHOR_UNLISTED_LINE,
@@ -76,6 +77,7 @@ import type { PlanningIntentSource } from "@/lib/planningIntent";
 import { clientIp, hashIp, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS } from "@/lib/supabase";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import { matchedWetherspoonsVenueIds } from "@/lib/wetherspoonsMatch.server";
@@ -422,6 +424,12 @@ function applyStrictestRouteBudget(
 	}
 }
 
+function planCandidateGeography(context: NightContext, area: NightArea) {
+	// Stops, swap options and extra stops use the same focus and distance origin.
+	const focus = context.areaFocus ?? null;
+	return { focus, origin: focus ? nightAreaFocusCentre(focus) : area.centre };
+}
+
 export async function preparePlanGeneration(
 	request: Request,
 	requestNow: number = Date.now(),
@@ -557,9 +565,10 @@ export async function preparePlanGeneration(
 	const dietaryMenu = dietaryNeeds.length > 0
 		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
 		: null;
+	const { focus, origin } = planCandidateGeography(context, area);
 	const candidates = cappedVenues
 		.map((venue) => {
-			const distance = distanceKm(area.centre, venue);
+			const distance = distanceKm(origin, venue);
 			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
 			const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
 			const scored = scoreVenueForPlan(
@@ -579,8 +588,12 @@ export async function preparePlanGeneration(
 				operator: wetherspoonBranchIds.has(venue.id) ? "wetherspoon" : null };
 		})
 		.filter(({ distance, venue, signalClaims }) =>
-			distance <= area.radiusKm
+			(focus ? nightAreaFocusContains(focus, venue) : distance <= area.radiusKm)
 			&& venue.promoted !== true
+			// A plan may be shared with people who have never met: never send
+			// them to a members', students' or staff bar. Swap options and the
+			// extra stops at the end of the night come from this same list.
+			&& !isNonPublicVenueName(venue.name)
 			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
 		.sort((a, b) => b.score - a.score);
 	const dryRoundRoute = await dryRoundCandidates(query, candidates, context, area);
@@ -643,7 +656,7 @@ async function dryRoundCandidates(
 	if (selection.ok) return { listed, candidates: selection.candidates };
 	// A pub that lists no alcohol-free price is never brought in to pad it.
 	return { response: publicApiError(
-		dryRoundTooFewLine({ areaName: area.name, stopCount, listedNames: selection.listedNames }),
+		dryRoundTooFewLine({ areaName: planAreaName(area.name, context.areaFocus), stopCount, listedNames: selection.listedNames }),
 		"DRY_ROUND_TOO_FEW",
 		422,
 		{ details: { nightArea: area.slug, listedVenueCount: selection.listedNames.length, requestedStopCount: stopCount } },

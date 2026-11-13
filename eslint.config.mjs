@@ -1,9 +1,19 @@
+import { existsSync } from "node:fs";
+
 import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
+import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.mjs";
+
+const goneLifecycleFiles = namedFiles().filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (goneLifecycleFiles.length > 0) {
+  throw new Error(
+    `lib/statusWriterFence.mjs names ${goneLifecycleFiles.join(", ")}, which no longer exists. Move the owner to the file that writes it.`,
+  );
+}
 
 const eslintConfig = [
   {
@@ -64,8 +74,8 @@ const eslintConfig = [
   {
     // A stray `;` on its own line and an empty `{}` block are what a mechanical
     // edit leaves behind when it lifts a statement out and does not read the
-    // line back. Both are errors so the tree cannot carry that debris:
-    // `npm run lint` is the merge bar and a warning here would be ignored.
+    // line back. Both are errors because warnings do not fail lint.
+    // docs/CI_RUNBOOK.md owns the merge requirements.
     // The matching export-list debris (`export { a, b,  }`) has no core rule,
     // so __tests__/handWrittenSourceFence.test.ts scans for it instead.
     rules: {
@@ -76,6 +86,8 @@ const eslintConfig = [
   // The client router cache is only safe while no page reads the request's
   // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
   ...ROUTER_CACHE_FENCE_CONFIG,
+  // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
+  ...STATUS_WRITER_FENCE_CONFIG,
 ];
 
 export default eslintConfig;

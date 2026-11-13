@@ -219,7 +219,7 @@ async function expectKeptHandoff(page: Page, layout: Layout, name: string): Prom
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   const surface = await expectSelectedVenue(page, layout, name);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
-  const acceptStop1 = surface.getByRole("button", { name: /^Make .+ Stop 1$/ });
+  const acceptStop1 = surface.getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
@@ -460,15 +460,19 @@ for (const layout of LAYOUTS) {
 
           // The embedded answer is browse-only (NearMeNow without acceptance):
           // the same cue on every row, and no Keep, receipt or row pair at all.
-          await expect(answer.locator(".nmnCard .nmnCardView")).toHaveCount(count);
-          await expect(answer.locator(".nmnCardView").first()).toHaveText("View pub");
+          await expect(answer.locator(".nmnList .nmnCard .nmnCardView")).toHaveCount(count);
+          await expect(answer.locator(".nmnList .nmnCardView").first()).toHaveText("View pub");
+          const nearest = answer.getByRole("region", { name: "Nearest listed pub", exact: true });
+          await expect(nearest).toBeVisible();
+          await expect(nearest.getByRole("button")).toHaveCount(1);
+          await expect(nearest.locator(".nmnCardView")).toHaveText("View pub");
           await expect(answer.locator(".nmnAccept")).toHaveCount(0);
           await expect(answer.locator(".nmnCardRow")).toHaveCount(0);
           await expect(answer.locator(".nmnAcceptReceipt")).toHaveCount(0);
           await expect(answer.locator(".nmnListCaption")).toHaveCount(1);
 
           const fit = await answer.evaluate((section) =>
-            Array.from(section.querySelectorAll(".nmnCard")).map((button) => {
+            Array.from(section.querySelectorAll(".nmnList .nmnCard")).map((button) => {
               const box = button.getBoundingClientRect();
               const inside = (node: Element | null) => {
                 if (!node) return false;
@@ -486,6 +490,19 @@ for (const layout of LAYOUTS) {
           for (const row of fit) {
             expect(row).toEqual({ cueInside: true, priceInside: true, nameClipped: false });
           }
+          const nearestFit = await nearest.evaluate((region) => {
+            const button = region.querySelector("button");
+            const name = region.querySelector<HTMLElement>(".nmnCardName");
+            const cue = region.querySelector(".nmnCardView");
+            if (!button || !name || !cue) throw new Error("Expected the nearest-pub browse row");
+            const box = button.getBoundingClientRect();
+            const cueBox = cue.getBoundingClientRect();
+            return {
+              cueInside: cueBox.left >= box.left - 0.5 && cueBox.right <= box.right + 0.5,
+              nameClipped: name.scrollWidth > name.clientWidth,
+            };
+          });
+          expect(nearestFit).toEqual({ cueInside: true, nameClipped: false });
           const overflow = await page.evaluate(
             () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
           );

@@ -24,8 +24,13 @@ import { PERFORMANCE_BUDGETS } from "@/lib/performanceBudgets";
 import { NAMED_ROUTES } from "@/lib/namedRoutes";
 import { loadAreaLandings } from "@/lib/areaLanding.server";
 import { PRICED_LANDING_PUBLICATION_FLOORS } from "@/lib/pricedLanding";
+import { PUBLIC_UPDATES } from "@/lib/publicUpdates";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
+
+const NEWEST_UPDATE = PUBLIC_UPDATES.map((update) => update.date).toSorted().at(-1)!;
+const DAY_AFTER_NEWEST_UPDATE = new Date(Date.parse(`${NEWEST_UPDATE}T00:00:00Z`) + 86_400_000)
+  .toISOString().slice(0, 10);
 
 // The number of UNCONDITIONAL static hub URLs the generator emits while Social
 // is gated (the fixed list in app/sitemap.ts minus /social). Kept here so a
@@ -40,7 +45,9 @@ import type { MetadataRoute } from "next";
 // The public /feedback, /updates and /pal pages also belong in this list, and
 // so does /today since its ISR stale window is one hour (SEO audit #2126).
 // /press and /pub-crawl-cost are the two pages other sites are asked to link
-// to (docs/growth/BACKLINK_PLAYBOOK.md).
+// to (docs/growth/BACKLINK_PLAYBOOK.md). /tools is the public pub comparison
+// explanation and form; personal choices never enter its URL. /guides is the
+// pub of the week, short crawl guides and the oldest cited pubs.
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -48,7 +55,7 @@ import type { MetadataRoute } from "next";
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 24;
+const STATIC_HUB_COUNT = 26;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -185,6 +192,7 @@ describe("sitemap()", () => {
       "/map",
       "/borough",
       "/historic",
+      "/guides",
       "/crawls",
       "/about",
       "/spoons-value",
@@ -209,7 +217,7 @@ describe("sitemap()", () => {
 
   it("dates the updates page from its latest released note", () => {
     const update = entries.find((entry) => entry.url === `${SITE}/updates`);
-    expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-30T00:00:00.000Z");
+    expect(new Date(update!.lastModified!).toISOString()).toBe(`${NEWEST_UPDATE}T00:00:00.000Z`);
   });
 
   it("uses an appended newer release to date the updates page", async () => {
@@ -219,14 +227,14 @@ describe("sitemap()", () => {
       return {
         PUBLIC_UPDATES: [
           ...actual.PUBLIC_UPDATES,
-          { id: "appended-release", date: "2026-10-31", title: "A newer release", changes: ["A verified change."] },
+          { id: "appended-release", date: DAY_AFTER_NEWEST_UPDATE, title: "A newer release", changes: ["A verified change."] },
         ],
       };
     });
     try {
       const { default: appendedSitemap } = await import("@/app/sitemap");
       const update = (await appendedSitemap()).find((entry) => entry.url === `${SITE}/updates`);
-      expect(new Date(update!.lastModified!).toISOString()).toBe("2026-10-31T00:00:00.000Z");
+      expect(new Date(update!.lastModified!).toISOString()).toBe(`${DAY_AFTER_NEWEST_UPDATE}T00:00:00.000Z`);
     } finally {
       vi.doUnmock("@/lib/publicUpdates");
       vi.resetModules();
@@ -267,8 +275,7 @@ describe("sitemap()", () => {
     expect(expected.areas).toBeGreaterThan(0);
     expect(familyCount("/routes/")).toBe(expected.namedRoutes);
     expect(expected.drinkBrands).toBeGreaterThan(0);
-    // R6: no area has supported review evidence, so no area-brand pair publishes.
-    expect(expected.drinkBrandAreas).toBe(0);
+    expect(expected.drinkBrandAreas).toBeGreaterThan(0);
     // Sanity floors so a "0 expected" (dataset wipe) can't make the test pass.
     expect(expected.boroughs).toBeGreaterThan(0);
     expect(expected.historic).toBeGreaterThan(0);
@@ -309,34 +316,12 @@ describe("sitemap()", () => {
     expect(below).toBeGreaterThan(0);
   });
 
-  it("omits area-brand pages without reviews while keeping London brand pages", () => {
+  it("advertises area-brand pages again, each under its published brand parent", () => {
     const areaUrls = urls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
-    expect(areaUrls).toEqual([]);
-    for (const brandSlug of ["guinness", "amstel", "neck-oil", "estrella", "peroni", "birra-moretti"]) {
-      expect(urls).toContain(
-        `${SITE}/drink/${brandSlug}`,
-      );
-    }
-  });
-
-  it("gives each advertised area-brand page its parent when review is simulated", async () => {
-    vi.resetModules();
-    vi.doMock("@/lib/nightAreas", async (importOriginal) => {
-      const { simulatedNightAreas } = await import("./helpers/simulatedNightAreaReview");
-      return simulatedNightAreas(importOriginal);
-    });
-    try {
-      const { default: simulatedSitemap } = await import("@/app/sitemap");
-      const simulatedUrls = (await simulatedSitemap()).map((entry) => entry.url);
-      const areaUrls = simulatedUrls.filter((url) => /\/area\/[^/]+\/drink\/[^/]+$/.test(url));
-      expect(areaUrls.length).toBeGreaterThan(0);
-      for (const url of areaUrls) {
-        const brandSlug = url.slice(url.lastIndexOf("/") + 1);
-        expect(simulatedUrls, `${url} has no published /drink/${brandSlug} parent`).toContain(`${SITE}/drink/${brandSlug}`);
-      }
-    } finally {
-      vi.doUnmock("@/lib/nightAreas");
-      vi.resetModules();
+    expect(areaUrls).toContain(`${SITE}/area/victoria/drink/guinness`);
+    for (const url of areaUrls) {
+      const brandSlug = url.slice(url.lastIndexOf("/") + 1);
+      expect(urls, `${url} has no published /drink/${brandSlug} parent`).toContain(`${SITE}/drink/${brandSlug}`);
     }
   });
 

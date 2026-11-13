@@ -1,13 +1,20 @@
 # Agent rule detail (`docs/rules/`)
 
-Area `AGENTS.md` files stay short indexes. Long narrative, incident history, measured proof and review finding IDs live here.
+Area `AGENTS.md` files hold only short traps, each under 4 KB. The full rules, their pins, measured proof and their history live here. Read a detail file only for the rule you change.
 
-| Area | Index | Detail files |
+| Area | Area file | Detail files |
 | --- | --- | --- |
-| lib | [lib/AGENTS.md](../../lib/AGENTS.md) | lib-*.md in this directory |
-| components | [components/AGENTS.md](../../components/AGENTS.md) | components-*.md in this directory |
-| app | [app/AGENTS.md](../../app/AGENTS.md) | app-*.md in this directory |
-| perf | [perf/AGENTS.md](../../perf/AGENTS.md) | perf-*.md in this directory |
-| scripts | [scripts/AGENTS.md](../../scripts/AGENTS.md) | scripts-*.md in this directory |
+| app | [app/AGENTS.md](../../app/AGENTS.md) | app-*.md |
+| components | [components/AGENTS.md](../../components/AGENTS.md) | components-*.md |
+| lib | [lib/AGENTS.md](../../lib/AGENTS.md) | lib-*.md |
+| perf | [perf/AGENTS.md](../../perf/AGENTS.md) | perf-*.md |
+| scripts | [scripts/AGENTS.md](../../scripts/AGENTS.md) | scripts-*.md |
+| supabase | [supabase/AGENTS.md](../../supabase/AGENTS.md) | supabase-*.md |
+| __tests__ | [__tests__/AGENTS.md](../../__tests__/AGENTS.md) | tests-*.md |
+| e2e | [e2e/AGENTS.md](../../e2e/AGENTS.md) | e2e-*.md |
+| ios | [ios/AGENTS.md](../../ios/AGENTS.md) | ios-*.md |
+| android | [android/AGENTS.md](../../android/AGENTS.md) | android-*.md |
+| data | [data/AGENTS.md](../../data/AGENTS.md) | data-*.md |
+| docs | [docs/AGENTS.md](../AGENTS.md) | docs-*.md |
 
-Each detail file holds the full text of its section's bullets, and is the one place those rules are written down. The app, components, perf and scripts indexes keep one title line per bullet, linked to its anchor here; the lib index links each section's file. Pins and test references in these bullets are authoritative.
+Pins and test references in these files are authoritative. When a decision changes, rewrite or delete the old rule. Do not append to it.

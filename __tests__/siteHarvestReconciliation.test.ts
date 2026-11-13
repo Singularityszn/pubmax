@@ -118,7 +118,7 @@ type Reconciliation = {
   bundleWithdrawals?: Array<{
     decidedOn: string;
     rule: string;
-    reason: "source-page-names-another-branch" | "insufficient-pint-evidence";
+    reason: "source-page-names-another-branch" | "insufficient-pint-evidence" | "truncated-menu-price";
     note: string;
     /** How many later publications were recorded when this was decided. */
     afterLaterPublications: number;
@@ -488,10 +488,10 @@ describe("site-harvest withdrawal reconciliation", () => {
         ? withdrawal.currentBundle
         : latest?.currentBundle;
     const bundleRows = JSON.parse(readFileSync(join(ROOT, "public/data/uk_prices/rows.json"), "utf8")) as Array<{ lane: string }>;
-    expect(latestBundle).toEqual({
-      rowCount: bundleRows.length,
-      siteHarvestRows: bundleRows.filter((row) => row.lane === "site-harvest").length,
-    });
+    // Only the site-harvest count is this audit's to hold. The modelled
+    // estimates follow the base layer and the Guinndex lane is its own, so the
+    // bundle's total moves without any site-harvest publication.
+    expect(latestBundle?.siteHarvestRows).toBe(bundleRows.filter((row) => row.lane === "site-harvest").length);
   });
 
   it("records the later Sydney source refresh without rewriting the withdrawal audit", () => {
@@ -552,10 +552,8 @@ describe("site-harvest withdrawal reconciliation", () => {
     // they were recorded.
     const historicalCounts =
       reconciliation.bundleWithdrawals?.at(-1)?.historicalBundle ?? publication.currentBundle;
-    expect(historicalCounts).toEqual({
-      rowCount: historicalBundle.length,
-      siteHarvestRows: historicalBundle.filter((row) => row.lane === "site-harvest").length,
-    });
+    // As above, only the site-harvest count is held to the record.
+    expect(historicalCounts.siteHarvestRows).toBe(historicalBundle.filter((row) => row.lane === "site-harvest").length);
   });
 
   it("withdraws a bundle row only under a recorded rule, and keeps it in the ledger", () => {
@@ -584,7 +582,7 @@ describe("site-harvest withdrawal reconciliation", () => {
         if (withdrawal.reason === "source-page-names-another-branch") {
           expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow.name ?? null })).toBe(true);
         } else {
-          expect(withdrawal.reason).toBe("insufficient-pint-evidence");
+          expect(["insufficient-pint-evidence", "truncated-menu-price"]).toContain(withdrawal.reason);
           expect(isCategoryQuarantined({
             venueId: defined(ledgerRow.venueId),
             name: ledgerRow.name ?? null,

@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -13,7 +14,7 @@ const BASE_URL = `http://localhost:${process.env.PW_PORT ?? 3100}`;
 
 test("anonymous plan surfaces never leak the route, venues, or title", async ({ request, playwright }) => {
   // Real venues so the created Plan has a genuine three-stop route to hide.
-  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).slice(0, 3);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
 
   // The creating context holds the HttpOnly member cookie; we never read the

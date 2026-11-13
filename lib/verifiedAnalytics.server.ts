@@ -7,6 +7,8 @@ import {
   type AnalyticsEvent,
   type PlanningSource,
 } from "@/lib/analyticsEvents";
+import type { CrewArrivedBand } from "@/lib/crew";
+import { londonMsSinceMidnight } from "@/lib/londonHour";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION = 1;
@@ -213,6 +215,28 @@ export function crewCommittedEventToken(input: {
     },
     `plan:${input.planId}:crew-night:${input.nightKey}:crew-committed`,
     input.committedAt,
+  );
+}
+
+/**
+ * The arrival receipt: a plan's guests reached one arrival band on one night.
+ *
+ * Anchor issuedAt to the scheduled night's London midnight, not the status-write
+ * time. Every member must mint identical bytes for the same plan, night and band.
+ * Otherwise, the receipt store rejects a later member's retry as a token conflict.
+ */
+export function crewArrivedEventToken(input: {
+  planId: string;
+  nightKey: string;
+  band: CrewArrivedBand;
+}, now = Date.now()): string {
+  const midnight = new Date(`${input.nightKey}T00:00:00.000Z`);
+  const issuedAt = midnight.getTime() - londonMsSinceMidnight(midnight);
+  if (issuedAt > now || now >= issuedAt + TOKEN_TTL_MS) throw new Error("Arrival receipt is outside its night delivery window.");
+  return mintVerifiedAnalyticsToken(
+    { name: "crew_arrived", props: { guestsArrived: input.band } },
+    `plan:${input.planId}:crew-night:${input.nightKey}:guests-arrived:${input.band}`,
+    new Date(issuedAt).toISOString(),
   );
 }
 

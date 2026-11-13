@@ -24,7 +24,7 @@ import {
 } from "react";
 import type { Route } from "next";
 import nextDynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import type { Session, User } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
@@ -47,6 +47,7 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
+import { stopLiveLocationBeforeAccountDeparture } from "@/lib/planLiveLocationShare";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
   authCallbackConfirmationLabel,
@@ -56,7 +57,9 @@ import {
   type AuthCallbackSessionResult,
   type PreparedAuthCallbackSession,
 } from "@/lib/authCallbackClient";
-import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, finishNativeSessionInstallation, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
+import { authClientTurn, type AuthClientTurn } from "@/lib/authClientTurn";
+import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -95,6 +98,7 @@ import {
   beginCanonicalAuthAttempt,
   cancelAuthAttempt,
   defaultEmailAuthNext,
+  hasPendingAuthAttempt,
   releaseAuthAttempt,
   scrubAuthCallback,
   scrubLingeringAuthCallback,
@@ -122,6 +126,7 @@ import {
 } from "@/lib/authSessionBootstrap";
 import {
   clearPersistedSession,
+  fetchResumeHint,
   persistSessionForResume,
   markResumePersisted,
   resumeAlreadyPersisted,
@@ -129,6 +134,7 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { authAccountBanMessageFromError } from "@/lib/authAccountBan";
+import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
   readProviderAccountSignal,
@@ -339,6 +345,8 @@ export function AuthProvider({
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
   const router = useRouter();
+  const pathname = usePathname();
+  const pendingClientTurn = useRef<AuthClientTurn | null>(null);
   const accountRevision = useSyncExternalStore(
     subscribeProviderIdentityRevision,
     readProviderIdentityRevision,
@@ -429,7 +437,7 @@ export function AuthProvider({
         // Clear pubmaxx:plan-route-draft:v1, pubmax:plan-route-draft:v2 and
         // pubmax:plan-intake:v1 on sign-out or a shared device owner change.
         // These values describe the departing person's unpublished Plan.
-        // Keep pubmax:planning-intent:v1, pubmax:ask-plan-draft:v1 and
+        // Keep pubmax:planning-intent:v1 and
         // pubmax:onboarding:planner-handoff:v1: these are device handoffs.
         // Keep pubmaxx:plan-mutation:v1:*: request fingerprints bind retry keys.
         // Keep pubmax_active_plan, pubmax:plan-report-line:*,
@@ -642,6 +650,9 @@ export function AuthProvider({
 
     let active = true;
     let subscription: { unsubscribe: () => void } | null = null;
+    let clientLoadInFlight = true;
+    let bootstrapRetryPending = false;
+    let retrySessionBootstrap: (() => void) | null = null;
     // Session restoration is additive; it must never hold the anonymous app or
     // Pub Pal onboarding behind an infinite loading screen when the provider is
     // slow, blocked, or temporarily unavailable. This fail-soft boundary also
@@ -651,16 +662,50 @@ export function AuthProvider({
     // event can still hydrate the session after this boundary. All setState
     // calls below run from async callbacks or event handlers — never the
     // effect body — so react-hooks/set-state-in-effect stays clean.
-    const loadingTimeout = window.setTimeout(() => {
-      if (!active) return;
-      const timeoutAuthState = resolveSupabaseAuthState(
-        "timeout",
-        sessionTransitions.current.currentUserId() !== null,
-        sessionTransitions.current.currentUserId(),
-      );
-      if (timeoutAuthState) setProviderAuthState("supabase", timeoutAuthState);
-      setSessionLoading(false);
-    }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    let loadingTimeout: number | undefined;
+    const armLoadingTimeout = () => {
+      loadingTimeout = window.setTimeout(() => {
+        if (!active) return;
+        const timeoutAuthState = resolveSupabaseAuthState(
+          "timeout",
+          sessionTransitions.current.currentUserId() !== null,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (timeoutAuthState) setProviderAuthState("supabase", timeoutAuthState);
+        setSessionLoading(false);
+      }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+    };
+
+    // A signed-out reader opening the map loads the client after the pins
+    // (lib/authClientTurn.ts). The ceiling above starts when the load does.
+    // One durable-cookie read serves the wait below and the bootstrap.
+    let resumeHint: ReturnType<typeof fetchResumeHint> | null = null;
+    const readResumeHint = () => (resumeHint ??= fetchResumeHint());
+    const clientTurn = authClientTurn(window, {
+      storedSession: hasStoredBrowserSession(browserLocalStorage()),
+      pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
+      pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
+      callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
+      durableSession: () => readResumeHint().then((hint) => hint.status === "present"),
+      clientBuilt: ensureSupabaseBrowserForSession,
+    });
+    pendingClientTurn.current = clientTurn;
+    // No stored session, no durable cookie and no callback is a signed-out
+    // reader. Say so now, so the sign-in invitation shows before the pins
+    // although the client loads after them. The bootstrap repeats the answer.
+    if (clientTurn.waiting) {
+      void Promise.all([callbackCapture, readResumeHint()]).then(([captured, hint]) => {
+        if (!active || captured?.attempt || hint.status !== "absent") return;
+        if (readProviderAuthState("supabase") !== "unresolved") return;
+        const signedOutState = resolveSupabaseAuthState(
+          "bootstrap",
+          false,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (signedOutState) setProviderAuthState("supabase", signedOutState);
+        setSessionLoading(false);
+      }, () => {});
+    }
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
@@ -671,13 +716,17 @@ export function AuthProvider({
     // confident sign-out. An unhandled rejection here used to leave the 20
     // second ceiling to settle it, and every page in the tab then painted its
     // signed-out variant over an intact session (lib/authClientLoad.ts).
-    void loadAuthClientWithRetry(ensureSupabaseBrowser, {
-      delay: (ms) =>
-        new Promise<void>((resolve) => {
-          window.setTimeout(resolve, ms);
-        }),
+    const loadClient = () => clientTurn.ready.then(() => {
+      if (!active) return null;
+      armLoadingTimeout();
+      return loadAuthClientWithRetry(ensureSupabaseBrowser, {
+        delay: (ms) =>
+          new Promise<void>((resolve) => {
+            window.setTimeout(resolve, ms);
+          }),
+      });
     }).then((outcome) => {
-      if (!active) return;
+      if (!active || !outcome) return;
 
       if (outcome.status === "unavailable") {
         // Say nothing about the viewer and stop the ceiling from saying it for
@@ -908,7 +957,7 @@ export function AuthProvider({
         setSessionLoading(false);
       };
 
-      void (async () => {
+      return (async () => {
         await Promise.resolve();
         const captured = await callbackCapture;
         if (!active) return;
@@ -968,7 +1017,7 @@ export function AuthProvider({
         sessionRestoreInFlight.current = true;
         let bootstrapped: Awaited<ReturnType<typeof bootstrapAuthSession>>;
         try {
-          bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth).catch(
+          bootstrapped = await (sessionBootstrapInFlight.current ??= bootstrapAuthSession(supabase.auth, { readHint: readResumeHint }).catch(
             () => ({ status: "unavailable" } as const),
           ));
         } finally {
@@ -976,6 +1025,16 @@ export function AuthProvider({
         }
         if (!active) return;
         publishBootstrappedSession(bootstrapped);
+        retrySessionBootstrap = () => {
+          sessionRestoreInFlight.current = true;
+          const retry = bootstrapAuthSession(supabase.auth).catch(() => ({ status: "unavailable" } as const));
+          sessionBootstrapInFlight.current = retry;
+          void retry.then((retried) => {
+            sessionRestoreInFlight.current = false;
+            if (active) publishBootstrappedSession(retried);
+            if (bootstrapRetryPending) retryBootstrap();
+          });
+        };
         if (confirmation && captured) {
           const prepared = confirmation;
           setAuthCallbackConfirmation({
@@ -988,16 +1047,47 @@ export function AuthProvider({
           });
         }
       })();
+    }).finally(() => {
+      clientLoadInFlight = false;
+      if (bootstrapRetryPending) retryBootstrap();
     });
+
+    const retryBootstrap = () => {
+      if (!active) return;
+      if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
+      if (clientLoadInFlight || sessionRestoreInFlight.current) {
+        bootstrapRetryPending = true;
+        return;
+      }
+      bootstrapRetryPending = false;
+      if (readProviderAuthState("supabase") !== "unavailable") return;
+      if (retrySessionBootstrap) retrySessionBootstrap();
+      else {
+        clientLoadInFlight = true;
+        void loadClient();
+      }
+    };
+    const stopBootstrapRetry = subscribeToReconnectRecovery(retryBootstrap);
+    window.addEventListener("focus", retryBootstrap);
+    void loadClient();
 
     return () => {
       active = false;
+      bootstrapRetryPending = false;
+      pendingClientTurn.current = null;
+      clientTurn.cancel();
       window.clearTimeout(loadingTimeout);
       window.clearTimeout(lingeringSweepTimeout);
+      stopBootstrapRetry();
+      window.removeEventListener("focus", retryBootstrap);
       subscription?.unsubscribe();
       publishAuthEvent.current = null;
     };
   }, [configured, updateSession]);
+
+  useEffect(() => {
+    if (pathname !== null) pendingClientTurn.current?.updatePathname(pathname);
+  }, [pathname]);
 
   const cancelPendingNativeAuth = useCallback((preserveEmailReceipt = false) => {
     if (!preserveEmailReceipt && typeof window !== "undefined") {
@@ -1434,9 +1524,17 @@ export function AuthProvider({
     [startNativeEmail],
   );
 
+  const activateRememberedAccount = useCallback(async (userId: string) => {
+    const outcome = await activateDeviceAccount(userId, browserDeviceAccountSwitchDeps());
+    emitDeviceAccountSessionsChanged();
+    if (outcome.status === "needs_sign_in" && outcome.banned) setAuthBannedNotice(true);
+    return outcome;
+  }, []);
+
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
       const departing = sessionTransitions.current.currentUserId();
+      await stopLiveLocationBeforeAccountDeparture();
       releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
       updateSession(null, "SIGNED_OUT");
       emitDeviceIdentityChanged();
@@ -1445,7 +1543,9 @@ export function AuthProvider({
       if (!supabase) return;
       // The provider can finish a refresh before SIGNED_OUT clears the session.
       // Clear device data after that final event, before another account takes over.
-      await supabase.auth.signOut();
+      // Local scope: signing out here ends this device's session, not the
+      // account's sessions on its other devices.
+      await supabase.auth.signOut({ scope: "local" });
       // Explicit sign-out is the one place the durable resume cookie dies too —
       // a transient SIGNED_OUT (failed refresh) must keep it for silent restore.
       // AWAITED, because an account sign-out may hand the device straight to the
@@ -1476,9 +1576,9 @@ export function AuthProvider({
         departing,
       );
       if (!next) return;
-      await activateDeviceAccount(next.userId, browserDeviceAccountSwitchDeps());
+      await activateRememberedAccount(next.userId);
     },
-    [cancelPendingNativeAuth, updateSession],
+    [activateRememberedAccount, cancelPendingNativeAuth, updateSession],
   );
 
   const switchAccount = useCallback(
@@ -1487,15 +1587,11 @@ export function AuthProvider({
       if (userId === sessionTransitions.current.currentUserId()) {
         return { status: "switched", userId };
       }
-      const outcome = await activateDeviceAccount(
-        userId,
-        browserDeviceAccountSwitchDeps(),
-      );
-      emitDeviceAccountSessionsChanged();
+      const outcome = await activateRememberedAccount(userId);
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
-    [cancelPendingNativeAuth],
+    [activateRememberedAccount, cancelPendingNativeAuth],
   );
 
   useEffect(() => {
@@ -1611,7 +1707,7 @@ export function AuthProvider({
     <AuthContext.Provider value={value}>
       {children}
       {authBannedNotice ? (
-        <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
+        session?.user ? null : <AuthAccountBannedNotice onDismiss={() => setAuthBannedNotice(false)} />
       ) : authCallbackConfirmation ? (
         <div className="authCallbackNotice authCallbackNotice--confirm" role="alert">
           <span>
@@ -1654,7 +1750,12 @@ export function AuthProvider({
           it names the person and retires itself. Both it and the handle claim
           render nothing without a user, so neither is fetched without one. */}
       {session?.user ? <ArrivalWelcome /> : null}
-      {session?.user ? <AccountOnboarding /> : null}
+      {session?.user ? (
+        <AccountOnboarding
+          authBannedNotice={authBannedNotice}
+          onDismissAuthBannedNotice={() => setAuthBannedNotice(false)}
+        />
+      ) : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
       <IdentityNudge />

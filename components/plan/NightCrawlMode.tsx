@@ -22,9 +22,10 @@ import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
 import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
-import type { CrewMemberDTO, CrewPresenceStatus } from "@/lib/crew";
+import { crewPresence, type CrewMemberDTO, type CrewPresenceChip } from "@/lib/crew";
 import type { PlanState } from "@/lib/plan";
 import { isPlanPreviewProjection, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import {
@@ -39,6 +40,7 @@ import {
   classifyActionOutcome,
   isFinalStop,
   nightCrawlActionNote,
+  NIGHT_CRAWL_ROUTE_CHANGED_NOTE,
   nightCrawlActionPayload,
   nightCrawlGlance,
   nightCrawlHandoffTarget,
@@ -61,8 +63,8 @@ import {
   flushPlanMutationOutbox,
   hasPendingPlanMutation,
   listPlanMutationOutbox,
-  removePlanMutationOutboxEntry,
   subscribePlanMutationOutbox,
+  takeRefusedPlanMutations,
   type PlanMutationFlushResult,
 } from "@/lib/planMutationOutbox";
 import {
@@ -74,15 +76,6 @@ import {
 import "./nightCrawl.css";
 
 const TFL_JOURNEY_PLANNER = "https://tfl.gov.uk/plan-a-journey/";
-
-// Global presence → hero "who is where" chip. Only statuses that read as a real
-// position get a chip; a plain "in" is dropped so the row stays a glance.
-const CREW_CHIP: Partial<Record<CrewPresenceStatus, { label: string; tone: "here" | "ahead" | "late" }>> = {
-  here: { label: "here", tone: "here" },
-  on_the_way: { label: "on the way", tone: "ahead" },
-  running_late: { label: "lagging", tone: "late" },
-  start_without_me: { label: "catching up", tone: "late" },
-};
 
 type NoteTone = "offline" | "rejected" | "forbidden" | "pending" | "guidance";
 
@@ -238,7 +231,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
           delete next[result.stopPosition];
           return next;
         });
-        setNote(null);
+        setNote((current) => (current?.tone === "rejected" || current?.tone === "forbidden" ? current : null));
         handOffConfirmedStop(result.plan, result.stopPosition);
         return;
       }
@@ -248,12 +241,6 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
         delete next[result.stopPosition];
         return next;
       });
-      const tone = result.outcome === "conflict" ? "rejected" : result.outcome;
-      setNote({
-        text: nightCrawlActionNote(result.type, result.venueName, tone),
-        tone,
-      });
-      removePlanMutationOutboxEntry(result.entryId);
     },
     [handOffConfirmedStop, planId],
   );
@@ -299,6 +286,35 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     };
   }, [planId, showSurface, applyFlushResult]);
 
+  // A refused replay waits in the outbox, wherever it ran, until this surface
+  // is open to show it. Taking it clears it, so the note shows once.
+  useEffect(() => {
+    if (!showSurface) return;
+    let active = true;
+    const showRefused = () => {
+      if (!active) return;
+      const refused = takeRefusedPlanMutations(planId);
+      const latest = refused.at(-1);
+      if (!latest) return;
+      setOptimistic((previous) => {
+        const next = { ...previous };
+        for (const result of refused) delete next[result.stopPosition];
+        return next;
+      });
+      const tone = latest.outcome === "forbidden" ? "forbidden" : "rejected";
+      setNote({
+        text: latest.routeChanged ? NIGHT_CRAWL_ROUTE_CHANGED_NOTE : nightCrawlActionNote(latest.type, latest.venueName, tone),
+        tone,
+      });
+    };
+    void Promise.resolve().then(showRefused);
+    const unsub = subscribePlanMutationOutbox(showRefused);
+    return () => {
+      active = false;
+      unsub();
+    };
+  }, [planId, showSurface]);
+
   // Refresh on capability changes even while the Crawl overlay is closed. A final
   // action may have confirmed through the site-wide outbox on another route;
   // its canonical action log must still reopen the existing ending owner.
@@ -340,8 +356,8 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     stopCount: stops.length,
   });
   const crewChips = plan.crew
-    .map((member: CrewMemberDTO) => ({ member, chip: CREW_CHIP[member.status] }))
-    .filter((entry): entry is { member: CrewMemberDTO; chip: NonNullable<(typeof CREW_CHIP)[CrewPresenceStatus]> } => Boolean(entry.chip))
+    .map((member: CrewMemberDTO) => ({ member, chip: crewPresence(member.status).chip }))
+    .filter((entry): entry is { member: CrewMemberDTO; chip: CrewPresenceChip } => entry.chip !== null)
     .slice(0, 5);
 
   const runAction = async (type: NightCrawlActionType) => {
@@ -422,6 +438,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     if (mine?.outcome === "forbidden" || mine?.outcome === "rejected" || mine?.outcome === "conflict") {
       clearPersistentPlanMutationKey(scope, key);
       reconcile(mine.outcome === "conflict" ? "rejected" : mine.outcome);
+      if (mine.routeChanged) setNote({ text: NIGHT_CRAWL_ROUTE_CHANGED_NOTE, tone: "rejected" });
       setBusy(null);
       return;
     }
@@ -570,6 +587,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
             clues sit below the route so they never push We are here and
             Skip it under the pinned Get me home on a short phone. */}
         <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
+        <PlanLiveLocation seat={{ planId, via: "plan", memberToken: memberToken ?? undefined }} ownerKey={ownerKey} />
         <details className="nightCrawl__extras">
           <summary>Clues and mystery stops</summary>
           <PlanMysteryControls />

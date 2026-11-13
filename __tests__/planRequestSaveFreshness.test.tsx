@@ -46,26 +46,40 @@ import { rememberPlanHostName } from "@/lib/planHostName";
 import { rememberLastCrew } from "@/lib/lastCrew";
 import { PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY, readPlanRouteDraftEnvelope, reconcilePlanRouteDrafts } from "@/lib/planRouteDraft";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { acceptMapVenue } from "@/lib/mapAcceptance";
 import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
 import { parsePlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
-import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
+import { PLANNING_INTENT_STORAGE_KEY, readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { writeRememberedArea } from "@/lib/nightPatches";
 import { clearPersistedPlanDrafts } from "@/lib/planComposerHandoff";
+
+function clientProof(label: string): string {
+  return `${btoa(JSON.stringify({ v: 1, expiresAt: Date.now() + 86_400_000 }))}.${label}`;
+}
+
+let oldProof: string;
+let newProof: string;
+let competingProof: string;
 
 const GENERATED = {
   stops: [{ venueId: "venue-a", venueName: "Pub A" }],
   inferredContext: { ...inferNightContext("Clapham tonight").context, stopCount: 1 },
-  groundingProof: "new-proof", routeRevision: 1,
+  get groundingProof() { return newProof; },
+  operationKey: "default-generation", routeRevision: 1,
 };
 const T0 = Date.parse("2026-11-03T12:00:00.000Z");
+const CLIENT_PROOF_LIFETIME = 3_600_000;
 const START = "2026-11-03T19:00";
 let root: Root | null = null;
 let host: HTMLElement | null = null;
 let fetchMock: ReturnType<typeof vi.fn<typeof fetch>>;
 
 beforeEach(() => {
+  oldProof = clientProof("old");
+  newProof = clientProof("new");
+  competingProof = clientProof("competing");
   authSeedFixture.user = null;
   authSeedFixture.handle = null;
   authSeedFixture.identityResolved = true;
@@ -184,7 +198,7 @@ function seedStaleRoute(wizard = false): void {
   localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
     savedAt: new Date(T0).toISOString(), stops: GENERATED.stops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
     nightContext: GENERATED.inferredContext, routeNight: null, routeRevision: 1,
-    routeStale: true, groundingProof: "old-proof", createOperationKey: "old-operation", planAnchor: null,
+    routeStale: true, groundingProof: oldProof, createOperationKey: "old-operation", planAnchor: null,
   }));
 }
 
@@ -227,13 +241,24 @@ async function saveRoute(): Promise<Record<string, unknown>> {
   return JSON.parse(String(post![1]?.body));
 }
 
+function seedCurrentRouteBeforeFailedGeneration(): void {
+  seedStaleRoute();
+  const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  const generated = generatedProofFixture();
+  const reference = { savedAt: route.savedAt, operationKey: generated.operationKey };
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+    ...route, routeStale: false, groundingProof: generated.groundingProof, createOperationKey: generated.operationKey,
+  }));
+  const plan = readPlanDraftEnvelope(sessionStorage)!;
+  expect(writePlanDraftEnvelope({ ...plan.draft, routeReference: reference }, plan.origin, sessionStorage, T0).v2).toBe(true);
+}
+
 describe("request save age with an unchanged stale route", () => {
   it("saves failed-generation staleness without advancing the route date", async () => {
     const advance = pinClock();
-    seedStaleRoute();
-    const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
-    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ ...route, routeStale: false }));
+    seedCurrentRouteBeforeFailedGeneration();
     await mountComposer();
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
     await openTune();
     advance(1000);
     fetchMock.mockImplementation(async () => new Response("{}", { status: 503 }));
@@ -252,16 +277,17 @@ describe("request save age with an unchanged stale route", () => {
   it.each(["failure", "empty", "anchor-conflict"].flatMap((outcome) => [false, true].map((samePub) => ({ outcome, samePub }))))(
     "does not redate an unchanged route after $outcome with matching pubs $samePub", async ({ outcome, samePub }) => {
     const advance = pinClock();
-    seedStaleRoute();
+    seedCurrentRouteBeforeFailedGeneration();
     const initial = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
-    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ ...initial, routeStale: false }));
     await mountComposer();
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
     await openTune();
     advance(1000);
     const competing = {
       ...initial, savedAt: "2026-11-03T12:00:01.000Z",
+      routeStale: true,
       stops: [{ key: 1, venueId: samePub ? "venue-a" : "venue-b", venueName: samePub ? "Pub A" : "Pub B", alternatives: [] }],
-      groundingProof: "competing-proof", createOperationKey: "competing-operation",
+      groundingProof: competingProof, createOperationKey: "competing-operation",
       nightContext: { ...GENERATED.inferredContext, nightArea: "piccadilly-soho", transportConstraints: ["walking"] },
     };
     localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(competing));
@@ -333,19 +359,19 @@ describe("request save age with an unchanged stale route", () => {
     const advance = pinClock();
     seedStaleRoute();
     await mountComposer();
+    const originalSession = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
     advance(1000);
     const competing = {
       ...JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!),
-      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "competing-proof", createOperationKey: "competing-operation",
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: competingProof, createOperationKey: "competing-operation",
       nightContext: { ...GENERATED.inferredContext, nightArea: "soho" },
     };
     localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify(competing));
     advance(2000);
     await editInput("#plan-title", "Our night");
     expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toEqual(competing);
-    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
-      savedAt: "2026-11-03T12:00:02.000Z", draft: { title: "Our night" },
-    });
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(originalSession);
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
   });
 
   it("does not overwrite a newer route saved between recovery and the first copy", async () => {
@@ -354,12 +380,16 @@ describe("request save age with an unchanged stale route", () => {
     const local = localStorage;
     const competing = JSON.stringify({
       ...JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!),
-      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "competing-proof", createOperationKey: "competing-operation",
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: competingProof, createOperationKey: "competing-operation",
     });
     let reads = 0;
     vi.stubGlobal("localStorage", {
       getItem: (key: string) => {
-        if (key === PLAN_ROUTE_DRAFT_KEY && ++reads === 2) local.setItem(key, competing);
+        if (key === PLAN_ROUTE_DRAFT_KEY && ++reads === 2) {
+          expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Night");
+          expect(local.getItem(key)).not.toBe(competing);
+          local.setItem(key, competing);
+        }
         return local.getItem(key);
       },
       setItem: local.setItem.bind(local), removeItem: local.removeItem.bind(local),
@@ -368,7 +398,7 @@ describe("request save age with an unchanged stale route", () => {
     advance(2000);
     await mountComposer();
     expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(competing);
-    expect(document.body.textContent).toContain("route details, checks and starting pub could not be saved");
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
   });
 
   it("keeps generated proof and route age while saving a later request edit", async () => {
@@ -381,7 +411,7 @@ describe("request save age with an unchanged stale route", () => {
     await sortAgainFromTune();
     const route = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
     expect(JSON.parse(route!)).toMatchObject({
-      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: "new-proof", routeStale: false,
+      savedAt: "2026-11-03T12:00:01.000Z", groundingProof: newProof, routeStale: false,
     });
     advance(2000);
     await editInput("#plan-title", "Our night");
@@ -389,7 +419,7 @@ describe("request save age with an unchanged stale route", () => {
     expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
       savedAt: "2026-11-03T12:00:02.000Z", draft: { title: "Our night" },
     });
-    expect(await saveRoute()).toMatchObject({ title: "Our night", groundingProof: "new-proof" });
+    expect(await saveRoute()).toMatchObject({ title: "Our night", groundingProof: newProof });
   });
 
   it("does not submit a recovered start time whose night has passed", async () => {
@@ -447,7 +477,7 @@ describe("request save age with an unchanged stale route", () => {
     expect(request.intake).toMatchObject({ timeWindow: { exactStartIso: "2026-11-03T21:00:00.000Z" } });
     const saved = await saveRoute();
     expect(saved.startTime).toBe("2026-11-03T21:00:00.000Z");
-    expect(saved.groundingProof).toBe("new-proof");
+    expect(saved.groundingProof).toBe(newProof);
   });
 
   it.each([
@@ -510,7 +540,7 @@ describe("request save age with an unchanged stale route", () => {
     const generation = fetchMock.mock.calls.find(([input]) => String(input).includes("/api/plans/generate"))!;
     expect(JSON.parse(String(generation[1]?.body))).toMatchObject({ intake: { stopCount: 5 }, context: { stopCount: 5 } });
     expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(5);
-    expect((await saveRoute()).groundingProof).toBe("new-proof");
+    expect((await saveRoute()).groundingProof).toBe(newProof);
   });
 
   it("does not backdate an edit that returns a request field to its original value", async () => {
@@ -552,7 +582,7 @@ describe("request save age with an unchanged stale route", () => {
     const request = await regenerate();
     expect(request.intake).toMatchObject({ accessibilityNeeds: ["step-free"] });
     expect(request.intake).not.toHaveProperty("stopCount");
-    expect((await saveRoute()).groundingProof).toBe("new-proof");
+    expect((await saveRoute()).groundingProof).toBe(newProof);
   });
 
   it("keeps the age and proof of an unchanged copy when local route writes fail", async () => {
@@ -566,7 +596,7 @@ describe("request save age with an unchanged stale route", () => {
     expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
     advance(2000);
     await remountComposer();
-    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ groundingProof: "old-proof", createOperationKey: "old-operation" });
+    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({ groundingProof: oldProof, createOperationKey: "old-operation" });
     expect(document.body.textContent).not.toContain("route details, checks and starting pub could not be saved");
   });
 });
@@ -687,7 +717,7 @@ it.each([
       expect(document.querySelector("#plan-lock-hint")?.textContent).toContain("5 stops");
       expect(readPlanDraftEnvelope(sessionStorage)?.draft.requestedStopCount).toBe(5);
     } else {
-      expect(await saveRoute()).toMatchObject({ context, groundingProof: "new-proof" });
+      expect(await saveRoute()).toMatchObject({ context, groundingProof: newProof });
     }
   },
 );
@@ -1327,7 +1357,7 @@ it("keeps deliberate add and remove counts distinct from picker events after rel
 
 
 function generatedProofFixture(stopCount: 1 | 3 = 1) {
-  const payload = btoa(JSON.stringify({ v: 1, expiresAt: T0 + 3_600_000 }));
+  const payload = btoa(JSON.stringify({ v: 1, expiresAt: T0 + CLIENT_PROOF_LIFETIME }));
   return {
     ...GENERATED,
     stops: stopCount === 1 ? GENERATED.stops : [
@@ -1405,6 +1435,205 @@ function lockButton(): HTMLButtonElement {
   return [...document.querySelectorAll<HTMLButtonElement>("button")]
     .find((button) => button.textContent === "Lock it in")!;
 }
+
+// One Lock at a time owns the composer. While it runs the route cannot change
+// under it, and a Lock the server refuses for its route or key leaves a route
+// that must be refreshed, never one that sends the same refusal again.
+describe("Lock owns the composer while it runs", () => {
+  const creations = () => fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  const generations = () => fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+  const displayedStops = () => [...document.querySelectorAll(".planStop__name")].map((node) => node.textContent);
+  const storedRoute = () => JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  const button = (text: string) => [...document.querySelectorAll<HTMLButtonElement>("button")]
+    .find((candidate) => candidate.textContent?.includes(text));
+  function pendingCreation(generated: { stops: { venueId: string; venueName: string }[]; groundingProof: string }) {
+    let finish!: (response: Response) => void;
+    const pending = new Promise<Response>((resolve) => { finish = resolve; });
+    fetchMock.mockImplementation(async (input, init) => {
+      if (String(input) === "/api/plans") return pending;
+      if (init?.method === "PATCH") return Response.json({});
+      return Response.json(String(input).includes("/api/plans/generate") ? generated : []);
+    });
+    return finish;
+  }
+  const created = (stops: { venueId: string; venueName: string }[]) => Response.json({
+    created: true, grounded: true, memberToken: "lock-host",
+    plan: { plan: { id: "lock-plan", status: "draft" }, stops },
+  });
+  async function lockableRoute() {
+    pinClock();
+    const generated = await generateProofRoute(3);
+    await vi.waitFor(() => expect(displayedStops()).toEqual(["Pub A", "Pub B", "Pub C"]));
+    return generated;
+  }
+
+  it.each([true, false].flatMap((proofBound) => ["#plan-title", "#plan-name"].map((selector) => ({ proofBound, selector }))))(
+    "handles a changed $selector after a lost response, proof bound: $proofBound",
+    async ({ proofBound, selector }) => {
+      pinClock();
+      if (proofBound) {
+        await generateProofRoute(3);
+      } else {
+        expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+        writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, T0);
+        fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+        await mountComposer();
+        await editInput("#plan-title", "Our night");
+      }
+      await editInput("#plan-name", "Captain");
+      fetchMock.mockImplementation(async (input) => {
+        if (String(input) === "/api/plans") throw new TypeError("Response lost");
+        return Response.json([{ id: "venue-new", name: "New Pub" }]);
+      });
+      await act(async () => lockButton().click());
+      await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent).toContain("Response lost"));
+      const firstKey = new Headers(creations()[0]![1]?.headers).get("idempotency-key");
+      expect(firstKey).toEqual(expect.any(String));
+      await remountComposer();
+      await act(async () => lockButton().click());
+      await vi.waitFor(() => expect(creations()).toHaveLength(2));
+      expect(new Headers(creations()[1]![1]?.headers).get("idempotency-key")).toBe(firstKey);
+      await vi.waitFor(() => expect(lockButton().disabled).toBe(false));
+      await editInput(selector, "Changed request");
+      await act(async () => lockButton().click());
+      if (proofBound) {
+        await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
+        expect(creations()).toHaveLength(2);
+        expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+      } else {
+        await vi.waitFor(() => expect(creations()).toHaveLength(3));
+        const changedKey = new Headers(creations()[2]![1]?.headers).get("idempotency-key");
+        expect(JSON.parse(String(creations()[2]![1]?.body))).toMatchObject({
+          [selector === "#plan-title" ? "title" : "creatorName"]: "Changed request",
+        });
+        expect(changedKey).not.toBe(firstKey);
+        await vi.waitFor(() => expect(lockButton().disabled).toBe(false));
+        await act(async () => lockButton().click());
+        await vi.waitFor(() => expect(creations()).toHaveLength(4));
+        expect(new Headers(creations()[3]![1]?.headers).get("idempotency-key")).toBe(changedKey);
+      }
+    },
+  );
+
+  it.each(["Plan with the usual lot", "Cheap round"])("freezes the %s title writer during Lock", async (label) => {
+    pinClock();
+    rememberLastCrew(["Sam", "Alex"], "private-test-crew");
+    expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage, T0);
+    fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+    await mountComposer();
+    const originalTitle = "Our night";
+    await editInput("#plan-title", originalTitle);
+    await editInput("#plan-name", "Captain");
+    const finish = pendingCreation(generatedProofFixture());
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    const writer = button(label)!;
+    expect(writer).toBeDefined();
+    expect(writer.disabled).toBe(true);
+    await act(async () => writer.click());
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe(originalTitle);
+    expect(JSON.parse(String(creations()[0]![1]?.body)).title).toBe(originalTitle);
+    await act(async () => finish(Response.json({ error: "Try again" }, { status: 503 })));
+    await vi.waitFor(() => expect(writer.disabled).toBe(false));
+    if (label === "Cheap round") {
+      await act(async () => writer.click());
+      expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe(originalTitle);
+      await editInput("#plan-title", "");
+    }
+    await act(async () => writer.click());
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).not.toBe(originalTitle);
+  });
+
+  it("freezes acceptance release during Lock and allows it after failure", async () => {
+    const { generated } = await generateAcceptedRouteForLock();
+    const heldRecords = acceptanceRecords();
+    const finish = pendingCreation(generated);
+    const release = button("Release this pub")!;
+    expect(release.disabled).toBe(false);
+
+    await act(async () => {
+      lockButton().click();
+      release.click();
+    });
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(release.disabled).toBe(true);
+    await act(async () => release.click());
+    expect(document.querySelector("[aria-label='Accepted plan context']")?.textContent).toContain("New Pub");
+    expect(displayedStops()).toEqual(["New Pub", "Pub B", "Pub C"]);
+    expect(acceptanceRecords()).toEqual(heldRecords);
+    expect(JSON.parse(String(creations()[0]![1]?.body))).toMatchObject({
+      groundingProof: generated.groundingProof,
+      anchor: { venueId: "venue-new", source: "map-search", outcome: "route" },
+    });
+
+    await act(async () => finish(Response.json({ error: "Try again" }, { status: 503 })));
+    await vi.waitFor(() => expect(release.disabled).toBe(false));
+    await act(async () => release.click());
+    expect(document.querySelector("[aria-label='Accepted plan context']")).toBeNull();
+    expect(storedRoute()).toMatchObject({ groundingProof: null, planAnchor: null });
+    expect(displayedStops()).toEqual(["New Pub", "Pub B", "Pub C"]);
+  });
+
+  it("freezes stop edits, and the Lock creates the route on screen", async () => {
+    const generated = await lockableRoute();
+    const finish = pendingCreation(generated);
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+
+    const remove = document.querySelector<HTMLButtonElement>("[aria-label='Remove stop 2']")!;
+    expect(remove.closest("fieldset")?.disabled).toBe(true);
+    await act(async () => remove.click());
+    await settle();
+    expect(displayedStops()).toEqual(["Pub A", "Pub B", "Pub C"]);
+    expect(storedRoute()).toMatchObject({ routeStale: false, createOperationKey: "proof-operation" });
+
+    await act(async () => finish(created(generated.stops)));
+    await settle();
+    const sent = JSON.parse(String(creations()[0]![1]?.body));
+    expect(sent.stops.map((stop: { venueId: string }) => stop.venueId)).toEqual(["venue-a", "venue-b", "venue-c"]);
+  });
+
+  it("refuses a new route while a Lock runs", async () => {
+    const generated = await lockableRoute();
+    const finish = pendingCreation(generated);
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(1));
+    expect(button("Tune details")?.disabled).toBe(true);
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    expect(creations()).toHaveLength(1);
+    expect(generations()).toHaveLength(0);
+    await act(async () => finish(created(generated.stops)));
+    await settle();
+  });
+
+  it.each([
+    { status: 422, body: { error: "Include the accepted pub for this route.", code: "PLAN_ANCHOR_REQUIRED" } },
+    { status: 409, body: { error: "That request key was already used for a different Plan.", code: "PLAN_IDEMPOTENCY_CONFLICT" } },
+  ])("a $status Lock leaves a route to refresh, and the refreshed route locks with its own key", async ({ status, body }) => {
+    const generated = await lockableRoute();
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? Response.json(body, { status })
+      : Response.json(String(input).includes("/api/plans/generate") ? generated : [])));
+    fetchMock.mockClear();
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).not.toBeNull());
+    expect(storedRoute()).toMatchObject({ routeStale: true, groundingProof: null, createOperationKey: null });
+    await act(async () => { document.querySelector<HTMLFormElement>("#plan-composer")!.requestSubmit(); });
+    expect(creations()).toHaveLength(1);
+
+    const fresh = { ...generated, operationKey: "fresh-operation", groundingProof: `${generated.groundingProof}.fresh` };
+    fetchMock.mockImplementation(async (input) => (String(input) === "/api/plans"
+      ? created(fresh.stops)
+      : Response.json(String(input).includes("/api/plans/generate") ? fresh : [])));
+    await act(async () => button("Regenerate route")!.click());
+    await vi.waitFor(() => expect(document.querySelector("#plan-route-stale-title")).toBeNull());
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(creations()).toHaveLength(2));
+    expect(new Headers(creations()[1]![1]?.headers).get("idempotency-key")).toBe("fresh-operation");
+  });
+});
 
 // The accepted preview contract separates saved candidates from permission to lock.
 // A later exact-time edit must preserve the candidates' date without a false warning.
@@ -1738,7 +1967,7 @@ it.each(["expired", "invalid", "read refused"] as const)(
     expect(writes).not.toContain(PLAN_INTAKE_STORAGE_KEY);
     expect(writes).not.toContain(PLAN_ROUTE_DRAFT_KEY);
     expect(writes).not.toContain(PLAN_ROUTE_DRAFT_V2_KEY);
-    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(condition === "read refused" ? originalBytes : null);
+    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(originalBytes);
   },
 );
 
@@ -1772,11 +2001,11 @@ it("keeps a newer shared intake when a held pub name arrives late", async () => 
 
   advance(3000);
   await editTuneControl("stops", "4");
-  expect(readPlanIntakeDraftWithMetadata(localStorage)).toMatchObject({
-    savedAt: "2026-11-03T12:00:03.000Z", draft: { answers: { stopCount: 4, stopCountSource: "picker" } },
-  });
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(otherTab);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(initialSession);
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
   await remountComposer();
-  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("4");
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-stops")?.value).toBe("5");
 });
 
 it.each([
@@ -1898,10 +2127,17 @@ it.each(["cleared", "V2 read refused", "equal-time pair changed"] as const)(
     await openTune();
     advance(3000);
     await sortAgainFromTune();
-    expect(routeWrites).toContain(PLAN_ROUTE_DRAFT_KEY);
-    expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
-      savedAt: "2026-11-03T12:00:03.000Z", routeStale: false, groundingProof: GENERATED.groundingProof,
-    });
+    if (condition === "V2 read refused") {
+      expect(routeWrites).toContain(PLAN_ROUTE_DRAFT_KEY);
+      expect(JSON.parse(local.getItem(PLAN_ROUTE_DRAFT_KEY)!)).toMatchObject({
+        savedAt: "2026-11-03T12:00:03.000Z", routeStale: false, groundingProof: GENERATED.groundingProof,
+      });
+    } else {
+      expect(routeWrites).toEqual([]);
+      expect(local.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(expected.v1);
+      expect(local.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(expected.v2);
+      expect(document.body.textContent).toContain("The saved planning request changed");
+    }
   },
 );
 
@@ -1909,6 +2145,7 @@ it("does not claim the stops survived when a newer valid route wins the next rel
   const advance = pinClock();
   await generateProofRoute(3);
   const local = localStorage;
+  const originalSession = [sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY)];
   const competing = {
     ...generatedProofFixture(3), operationKey: "competing-operation",
     stops: [
@@ -1933,12 +2170,8 @@ it("does not claim the stops survived when a newer valid route wins the next rel
   advance(1000);
   await editInput("#plan-title", "Our edited night");
   expect(replacementWritten).toBe(true);
-  const oldStops = [{ venueId: "venue-a" }, { venueId: "venue-b" }, { venueId: "venue-c" }];
-  expect(JSON.parse(sessionStorage.getItem(PLAN_DRAFT_KEY)!)).toMatchObject({ title: "Our edited night", stops: oldStops });
-  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
-    legacy: false, savedAt: "2026-11-03T12:00:01.000Z", draft: { title: "Our edited night", stops: oldStops },
-  });
-  expect(document.body.textContent).toContain("Your route could not be saved");
+  expect([sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY)]).toEqual(originalSession);
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
   expect(document.body.textContent).not.toContain("Your stops were saved");
   const originalV1 = local.getItem(PLAN_ROUTE_DRAFT_KEY);
   const originalV2 = local.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
@@ -3866,6 +4099,1613 @@ function expectOriginalExpiredRouteRecords(fixture: Awaited<ReturnType<typeof sa
   expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(fixture.routeV2);
   expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(fixture.intake);
 }
+
+it.each(["expired legacy proof", "expired V2 proof", "invalid legacy record"] as const)(
+  "keeps a local-only route as a preview after $0",
+  async (condition) => {
+    const advance = pinClock();
+    rememberPlanHostName(localStorage, "Captain");
+    const session = blockStorageWrites("sessionStorage");
+    const legacy = condition !== "expired V2 proof";
+    if (legacy) rejectRouteWrites([PLAN_ROUTE_DRAFT_V2_KEY]);
+    const query = legacy ? "Three pubs in Clapham tonight" : "Three pubs in Clapham tonight under £20 each";
+    const generated = {
+      ...generatedProofFixture(3),
+      inferredContext: { ...inferNightContext(query).context, stopCount: 3 as const },
+    };
+    fetchMock.mockImplementation(async (input) => Response.json(
+      String(input).includes("/api/plans/generate") ? generated : [],
+    ));
+    await generateFromDescription(query);
+    if (!legacy) {
+      expect(reconciledGenerationContext()).toMatchObject({ nightArea: "clapham", stopCount: 3, budgetLimitPence: 2000 });
+      expect(transferGeneratedRouteToDraft({
+        ...generated, outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+      }, localStorage, "map-generated", T0)).toBe(true);
+      expect(readPlanRouteDraftEnvelope(localStorage)?.value.nightContext).toMatchObject({
+        budgetLimitPence: 2000, zeroProof: false,
+      });
+    }
+    const savedAt = new Date(T0).toISOString();
+    const rawRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!;
+    const rawV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const rawIntake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+    expect(reconcilePlanRouteDrafts(rawV2, rawRoute, T0 + CLIENT_PROOF_LIFETIME)).toMatchObject({
+      conflicting: false, envelope: {
+        legacy, savedAt, value: { groundingProof: generated.groundingProof, routeStale: false },
+      },
+    });
+    expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference).toEqual({
+      savedAt, operationKey: generated.operationKey,
+    });
+
+    advance(CLIENT_PROOF_LIFETIME);
+    await remountComposer();
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
+    expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+    if (!legacy) {
+      expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("Pub A");
+      // The fixture pubs have no known pint serving, so the title omits
+      // "one pint a stop" (PlanBudgetLedger, allPintServingsKnown).
+      await vi.waitFor(() => expect(document.querySelector("#plan-budget-ledger-title")?.textContent)
+        .toBe("Your £20.00 crawl"));
+    }
+
+    let savedRoute = rawRoute;
+    if (condition === "invalid legacy record") {
+      savedRoute = JSON.stringify({ ...JSON.parse(rawRoute), routeRevision: -1 });
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, savedRoute);
+      expect(reconcilePlanRouteDrafts(null, savedRoute).envelope).toBeNull();
+    } else {
+      advance(CLIENT_PROOF_LIFETIME + 1);
+      expect(readPlanRouteDraftEnvelope(localStorage)?.value).toMatchObject({
+        groundingProof: null, operationKey: generated.operationKey, routeStale: true,
+      });
+    }
+    await remountComposer();
+    expectExpiredCorrelatedPreview();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+    expect(document.querySelector(".planBudgetLedger")).toBeNull();
+    expect(action("Regenerate route").disabled).toBe(false);
+    await attemptRouteSave();
+    expect(document.body.textContent).toContain("Refresh the route before locking it in. Your previous preview is still safe.");
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(savedRoute);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(rawV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(rawIntake);
+    expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+
+    if (condition === "invalid legacy record") return;
+    const originalTitle = document.querySelector<HTMLInputElement>("#plan-title")?.value;
+    advance(CLIENT_PROOF_LIFETIME + 1000);
+    await editInput("#plan-title", "Our unsaved title");
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our unsaved title");
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(rawRoute);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(rawV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(rawIntake);
+    expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+
+    await remountComposer();
+    expectExpiredCorrelatedPreview();
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe(originalTitle);
+    vi.stubGlobal("sessionStorage", session);
+    const editedAt = T0 + CLIENT_PROOF_LIFETIME + 2000;
+    advance(editedAt - T0);
+    await editInput("#plan-title", "Our saved title");
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: new Date(editedAt).toISOString(), draft: {
+        title: "Our saved title", requestedStopCount: 3, requestedStopCountSource: "text",
+        routeReference: { savedAt, operationKey: generated.operationKey },
+      },
+    });
+    expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+    await remountComposer();
+    expectExpiredCorrelatedPreview();
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our saved title");
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(rawRoute);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(rawV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(rawIntake);
+    expectNoRouteSave();
+  },
+);
+
+it.each(["v1", "v2"] as const)("strips expired checks from an already-stale %s route", async (format) => {
+  const advance = pinClock();
+  blockStorageWrites("sessionStorage");
+  rejectRouteWrites([PLAN_INTAKE_STORAGE_KEY, ...(format === "v1" ? [PLAN_ROUTE_DRAFT_V2_KEY] : [])]);
+  const generated = {
+    ...generatedProofFixture(3),
+    stops: [
+      { venueId: "venue-a", venueName: "Pub A" },
+      { venueId: "venue-b", venueName: "Pub B", walkingMinutesFromPrevious: 7, walkFromVenueId: "venue-a",
+        operationalEvidence: { transportBasis: "openrouteservice foot-walking route duration" }, alternatives: [{ venueId: "venue-d", venueName: "Pub D" }] },
+      { venueId: "venue-c", venueName: "Pub C" },
+    ],
+    inferredContext: { ...GENERATED.inferredContext, stopCount: 3, budgetLimitPence: 2000 },
+    routeRevision: 9,
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [],
+  ));
+  await generateFromDescription("Three pubs in Clapham tonight under £20 each");
+  advance(1000);
+  await editInput("#plan-time", "2026-11-03T20:00");
+  const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  expect(route).toMatchObject({ routeStale: true, groundingProof: generated.groundingProof, routeRevision: 9 });
+  expect(document.querySelector(".planStop__walkLabel")?.textContent).toContain("7");
+  expect(document.querySelector("[title='1 other pubs']")).not.toBeNull();
+  const originalRecords = acceptanceRecords();
+  advance(CLIENT_PROOF_LIFETIME + 1);
+  await remountComposer();
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+    .toEqual(["Pub A", "Pub B", "Pub C"]);
+  expect(document.querySelector("#plan-route-stale-title")).not.toBeNull();
+  expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+  expect(document.querySelector(".planStop__walkLabel")).toBeNull();
+  expect(document.querySelector(".planBudgetLedger")).toBeNull();
+  expect(document.querySelector("[title='1 other pubs']")).toBeNull();
+  expect(document.querySelector(".planComposer__previewLabel")?.textContent).toBe("Preview");
+  expect(acceptanceRecords()).toEqual(originalRecords);
+});
+
+it.each(["v1", "v2"] as const)("does not restore the accepted pub from an expired %s route without intake", async (format) => {
+  const advance = pinClock();
+  rememberPlanHostName(localStorage, "Captain");
+  blockStorageWrites("sessionStorage");
+  const legacy = format === "v1";
+  if (legacy) rejectRouteWrites([PLAN_ROUTE_DRAFT_V2_KEY]);
+  const generated = generatedProofFixture(3);
+  expect(transferGeneratedRouteToDraft({
+    ...generated, outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+    inferredContext: { ...generated.inferredContext, budgetLimitPence: 2000 },
+  }, localStorage, "map-generated", T0)).toBe(!legacy);
+  const rawRoute = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  const rawV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+  expect(readPlanRouteDraftEnvelope(localStorage)).toMatchObject({
+    legacy, value: { anchorVenueId: "venue-a", groundingProof: generated.groundingProof },
+  });
+  await mountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("Pub A");
+  expect(document.querySelector(".planBudgetLedger")).not.toBeNull();
+
+  advance(CLIENT_PROOF_LIFETIME + 1);
+  await remountComposer();
+  expectExpiredCorrelatedPreview();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(document.querySelector(".planBudgetLedger")).toBeNull();
+  await attemptRouteSave();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(rawRoute);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(rawV2);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBeNull();
+});
+
+it("keeps historical V1 drink inputs through an expired preview title save and refresh", async () => {
+  const advance = pinClock();
+  const session = blockStorageWrites("sessionStorage");
+  rejectRouteWrites([PLAN_ROUTE_DRAFT_V2_KEY]);
+  rememberPlanHostName(localStorage, "Captain");
+  const generated = generatedProofFixture(3);
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [],
+  ));
+  await generateFromDescription("Three pubs in Clapham tonight");
+  const intake = readPlanIntakeDraftWithMetadata(localStorage)!;
+  expect(intake.routeReference).toEqual({ savedAt: new Date(T0).toISOString(), operationKey: generated.operationKey });
+  expect(writePlanIntakeDraft(intake.draft, localStorage, T0, intake.routeReference)).toBe(true);
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.explicitNightContext).toBeUndefined();
+  const intakeBytes = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+  const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  const explicitNightContext = { zeroProof: true, drinkCategory: null };
+  const routeBytes = JSON.stringify({
+    ...route, explicitNightContext, nightContext: { ...route.nightContext, ...explicitNightContext },
+  });
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, routeBytes);
+
+  advance(CLIENT_PROOF_LIFETIME + 1);
+  await remountComposer();
+  expectExpiredCorrelatedPreview();
+  await openTune();
+  expect(document.querySelector<HTMLSelectElement>("#plan-context-zero-proof")?.value).toBe("zero-proof");
+  await act(async () => { document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); });
+  await editInput("#plan-title", "Our unsaved title");
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeBytes);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeBytes);
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+
+  vi.stubGlobal("sessionStorage", session);
+  const replacement = JSON.stringify({ ...JSON.parse(routeBytes), explicitNightContext: { zeroProof: false, drinkCategory: "wine" } });
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, replacement);
+  await editInput("#plan-title", "Do not certify the earlier inputs");
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(replacement);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeBytes);
+
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, routeBytes);
+  await remountComposer();
+  const editedAt = T0 + CLIENT_PROOF_LIFETIME + 2000;
+  advance(editedAt - T0);
+  await editInput("#plan-title", "Our saved alcohol-free night");
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: new Date(editedAt).toISOString(), draft: {
+      title: "Our saved alcohol-free night", conciergeQuery: "", explicitNightContext, routeReference: intake.routeReference,
+    },
+  });
+  expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+  await remountComposer();
+  expectExpiredCorrelatedPreview();
+  expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our saved alcohol-free night");
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeBytes);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intakeBytes);
+
+  fetchMock.mockImplementation(async (input) => String(input).includes("/api/plans/generate")
+    ? Response.json({}, { status: 503 }) : Response.json([]));
+  await act(async () => action("Regenerate route").click());
+  await settle();
+  const generations = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate"));
+  expect(generations).toHaveLength(2);
+  expect(JSON.parse(String(generations[1]![1]?.body))).not.toHaveProperty("query");
+  expect(reconciledGenerationContext()).toMatchObject({
+    nightArea: "clapham", stopCount: 3, zeroProof: true, drinkCategory: null,
+  });
+  expectNoRouteSave();
+});
+
+async function seedLaterMapAcceptance(format: "v1" | "v2") {
+  const advance = pinClock();
+  const session = blockStorageWrites("sessionStorage");
+  const legacy = format === "v1";
+  if (legacy) rejectRouteWrites([PLAN_ROUTE_DRAFT_V2_KEY]);
+  const generated = generatedProofFixture(3);
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [],
+  ));
+  await generateFromDescription("Three pubs in Clapham tonight");
+  expect(transferGeneratedRouteToDraft({
+    ...generated, outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+  }, localStorage, "map-generated", T0)).toBe(!legacy);
+  const routeV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  const routeV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+  const intake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+
+  advance(CLIENT_PROOF_LIFETIME + 1000);
+  vi.stubGlobal("sessionStorage", session);
+  const result = acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }, { storage: session });
+  expect(result).toMatchObject({ accepted: true, destination: "/plan", telemetry: { source: "map-search" } });
+  expect(readPlanningIntent({ storage: session })).toMatchObject({
+    acceptedVenueId: "venue-new", acceptedAt: new Date(Date.now()).toISOString(), source: "map-search",
+  });
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("venues_slim") ? [{ id: "venue-new", name: "New Pub" }] : [],
+  ));
+  window.history.replaceState({}, "", result.destination!);
+  return { advance, routeV1, routeV2, intake };
+}
+
+it.each([
+  ["v1", "fresh"], ["v1", "expired"], ["v1", "malformed"], ["v2", "fresh"],
+] as const)("announces held-pub Release and locks the stops with a %s %s recovered proof", async (format, proofState) => {
+  const advance = pinClock();
+  sessionStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify({
+    version: 1, source: "near", cityId: "manchester", acceptedVenueId: "venue-a",
+    acceptedArea: { kind: "night-patch", id: "clapham" },
+    startsAt: new Date(T0 + 3_600_000).toISOString(),
+    displayEvidence: { kind: "directory", observedAt: null },
+    acceptedAt: new Date(T0).toISOString(), expiresAt: new Date(T0 + 7_200_000).toISOString(),
+  }));
+  const proof = proofState === "malformed" ? "signed-proof"
+    : `${btoa(JSON.stringify({ v: 1, expiresAt: T0 + (proofState === "expired" ? -1 : CLIENT_PROOF_LIFETIME) }))}.fixture`;
+  localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+    ...(proofState === "fresh" ? { savedAt: new Date(T0 + 1000).toISOString() } : {}),
+    stops: generatedProofFixture(3).stops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+    nightContext: null, routeRevision: 1, routeStale: false,
+    groundingProof: proof, createOperationKey: "operation-key",
+    planAnchor: { venueId: "venue-a", source: "near", outcome: "route" },
+  }));
+  if (format === "v2") {
+    localStorage.setItem(PLAN_ROUTE_DRAFT_V2_KEY, JSON.stringify({
+      storageVersion: 2, origin: "plan-generated",
+      savedAt: new Date(T0 + 1000).toISOString(), expiresAt: new Date(T0 + 1000 + 86_400_000).toISOString(),
+      anchorVenueId: "venue-a", anchorSource: "near", outcome: "route",
+      stops: generatedProofFixture(3).stops.map((stop, index) => ({ key: index + 1, ...stop, alternatives: [] })),
+      alternatives: [], nightContext: null, routeTotals: null, transportBasis: null,
+      planningConfidence: null, warnings: [], groundingProof: proof, operationKey: "operation-key",
+      routeRevision: 1, routeStale: false,
+    }));
+    localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
+  }
+  advance(1000);
+  expect(readPlanRouteDraftEnvelope(localStorage)?.storageVersion).toBe(format === "v2" ? 2 : 1);
+  await mountComposer();
+  if (proofState !== "fresh") {
+    expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+    expect(document.querySelector("#plan-route-stale-title")?.textContent).toBe("This route needs a refresh");
+  }
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector("#plan-route-status")?.textContent)
+    .toBe("Released Pub A. Stop 1 is yours to change.");
+  expect(document.activeElement?.id).toBe("plan-route-status");
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+  const releasedRoute = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+  expect(releasedRoute.planAnchor ?? null).toBeNull();
+  expect(releasedRoute.groundingProof).toBeNull();
+  expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!)).toMatchObject({
+    anchorVenueId: null, anchorSource: null, outcome: "unanchored", groundingProof: null,
+  });
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+    .toEqual(["Pub A", "Pub B", "Pub C"]);
+  await editInput("#plan-name", "Captain");
+  await editInput("#plan-time", START);
+  expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+  const body = await saveRoute();
+  expect(body.cityId).toBe("manchester");
+  expect(body).not.toHaveProperty("anchor");
+  expect(body).not.toHaveProperty("groundingProof");
+  expect(body.stops).toHaveLength(3);
+});
+
+it.each(["v1", "v2"] as const)("keeps the later Map request and release separate from the expired %s route", async (format) => {
+  const { advance, routeV1, routeV2, intake } = await seedLaterMapAcceptance(format);
+  const legacy = format === "v1";
+  const expectLocalBytes = () => {
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+  };
+  const expectEditablePub = () => {
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New Pub"]);
+    expect(document.querySelector('[data-result="true"]')).toBeNull();
+    expect(document.body.textContent).not.toContain("Pub A");
+    expectLocalBytes();
+  };
+  for (let visit = 0; visit < 2; visit += 1) {
+    await remountComposer();
+    await vi.waitFor(() => expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub"));
+    expectRequestField("#plan-concierge-query", "", "Make a plan");
+    expectEditablePub();
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBeNull();
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+  }
+
+  if (legacy) rejectSessionRecordWrites([PLAN_DRAFT_V2_KEY]);
+  const edits = [
+    { selector: "#plan-title", key: "title", value: "Our later Map night", offset: 2000 },
+    { selector: "#plan-name", key: "creatorName", value: "Our host", offset: 3000 },
+  ];
+  for (const { selector, key, value, offset } of edits) {
+    advance(CLIENT_PROOF_LIFETIME + offset);
+    await editInput(selector, value);
+    const savedAt = legacy ? null : new Date(Date.now()).toISOString();
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      legacy, savedAt, draft: { [key]: value, provisionalStop: true, acceptedAnchor: { venueId: "venue-new", source: "map-search" } },
+    });
+    expect(document.body.textContent).not.toContain("could not be saved");
+    await remountComposer();
+    expect(document.querySelector<HTMLInputElement>(selector)?.value).toBe(value);
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
+    expectEditablePub();
+    expect(readPlanDraftEnvelope(sessionStorage)?.savedAt).toBe(savedAt);
+  }
+
+  advance(CLIENT_PROOF_LIFETIME + 4000);
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+  expectEditablePub();
+  const released = readPlanDraftEnvelope(sessionStorage);
+  expect(released).toMatchObject({
+    legacy, savedAt: legacy ? null : new Date(Date.now()).toISOString(), draft: {
+      title: "Our later Map night", creatorName: "Our host", routeReference: null, provisionalStop: true,
+      stops: [{ venueId: "venue-new", venueName: "New Pub" }],
+    },
+  });
+  expect(released?.draft.acceptedAnchor).toBeUndefined();
+  await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our later Map night");
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Our host");
+  expectEditablePub();
+  expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+  advance(CLIENT_PROOF_LIFETIME + 5000);
+  await editInput("#plan-title", "Our released pub night");
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: legacy ? null : new Date(Date.now()).toISOString(),
+    draft: { title: "Our released pub night", provisionalStop: true, routeReference: null },
+  });
+  expect(document.body.textContent).not.toContain("could not be saved");
+  await remountComposer();
+  expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our released pub night");
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expectEditablePub();
+  expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+  await attemptRouteSave();
+  expectNoRouteSave();
+});
+
+it.each(["same form", "remount"] as const)(
+  "refuses to save over a later Session replacement after a valid Release and %s",
+  async (visit) => {
+    const { advance, intake } = await seedLaterMapAcceptance("v2");
+    await remountComposer();
+    advance(CLIENT_PROOF_LIFETIME + 2000);
+    await editInput("#plan-title", "Our accepted night");
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor?.venueId).toBe("venue-new");
+    await act(async () => action("Release this pub").click());
+    await settle();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+    expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+      provisionalStop: true, routeReference: null, stops: [{ venueId: "venue-new" }],
+    });
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor).toBeUndefined();
+    if (visit === "remount") await remountComposer();
+
+    advance(CLIENT_PROOF_LIFETIME + 3000);
+    await editInput("#plan-title", "Our released night");
+    advance(CLIENT_PROOF_LIFETIME + 4000);
+    await editInput("#plan-name", "Our released host");
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: new Date(Date.now()).toISOString(),
+      draft: { title: "Our released night", creatorName: "Our released host", provisionalStop: true },
+    });
+    expect(document.body.textContent).not.toContain("could not be saved");
+
+    advance(CLIENT_PROOF_LIFETIME + 5000);
+    const now = Date.now();
+    expect(writePlanDraftEnvelope({
+      ...CLEAR_REQUEST, title: "Another saved draft", creatorName: "Another host",
+      stops: [{ key: 1, venueId: "venue-foreign", venueName: "Foreign Pub" }],
+    }, "manual", sessionStorage, now)).toMatchObject({ v1: true, v2: true });
+    expect(transferGeneratedRouteToDraft({
+      ...generatedProofFixture(3), operationKey: "route-after-valid-release",
+      groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: now + CLIENT_PROOF_LIFETIME }))}.client-fixture`,
+      outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+    }, localStorage, "map-generated", now)).toBe(true);
+    const planV1 = sessionStorage.getItem(PLAN_DRAFT_KEY);
+    const planV2 = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+    const routeV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const routeV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const expectForeignBytes = () => {
+      expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+      expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+      expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+    };
+
+    expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+    await editInput("#plan-title", "Unsaved title from the old form");
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Unsaved title from the old form");
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+    expectForeignBytes();
+
+    expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+    const foreign = readPlanningIntent({ storage: sessionStorage });
+    expect(foreign?.acceptedVenueId).toBe("venue-foreign");
+    await editInput("#plan-name", "Unsaved host from the old form");
+    expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Unsaved host from the old form");
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+    expectForeignBytes();
+    expect(readPlanningIntent({ storage: sessionStorage })).toEqual(foreign);
+    expectNoRouteSave();
+  },
+);
+
+it.each(["v1", "v2"] as const)("keeps the accepted request after the hidden Local %s route is cleared", async (format) => {
+  const { advance, intake } = await seedLaterMapAcceptance(format);
+  await remountComposer();
+  if (format === "v1") rejectSessionRecordWrites([PLAN_DRAFT_V2_KEY]);
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  await editInput("#plan-title", "Our accepted pub night");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    provisionalStop: true, acceptedAnchor: { venueId: "venue-new" },
+  });
+  const planV1 = sessionStorage.getItem(PLAN_DRAFT_KEY);
+  const planV2 = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+  localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
+  localStorage.removeItem(PLAN_ROUTE_DRAFT_V2_KEY);
+  await remountComposer();
+  expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New Pub"]);
+  expect(document.querySelector('[data-result="true"]')).toBeNull();
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await editInput("#plan-name", "Our accepted host");
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: format === "v1" ? null : new Date(Date.now()).toISOString(),
+    draft: {
+      title: "Our accepted pub night", creatorName: "Our accepted host",
+      provisionalStop: true, acceptedAnchor: { venueId: "venue-new" },
+    },
+  });
+  expect(document.body.textContent).not.toContain("could not be saved");
+  await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Our accepted host");
+  expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+  expectNoRouteSave();
+});
+
+it("restores a V2-only accepted provisional pub over the older Local route", async () => {
+  const { advance, routeV1, routeV2, intake } = await seedLaterMapAcceptance("v2");
+  await remountComposer();
+  rejectSessionRecordWrites([PLAN_DRAFT_KEY]);
+  const edits = [
+    { selector: "#plan-title", key: "title", value: "Our V2-only pub night", offset: 2000 },
+    { selector: "#plan-name", key: "creatorName", value: "Our V2-only host", offset: 3000 },
+  ];
+  for (const { selector, key, value, offset } of edits) {
+    advance(CLIENT_PROOF_LIFETIME + offset);
+    await editInput(selector, value);
+    const savedAt = new Date(Date.now()).toISOString();
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBeNull();
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      legacy: false, savedAt,
+      draft: { [key]: value, provisionalSavedAt: savedAt, acceptedAnchor: { venueId: "venue-new" } },
+    });
+    expect(document.body.textContent).not.toContain("could not be saved");
+    const planV2 = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+    await remountComposer();
+    expect(document.querySelector<HTMLInputElement>(selector)?.value).toBe(value);
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New Pub"]);
+    expect(document.querySelector('[data-result="true"]')).toBeNull();
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBeNull();
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+  }
+  expectNoRouteSave();
+});
+
+it("does not release foreign route, Plan or intent records through the older visible acceptance", async () => {
+  const { advance, intake } = await seedLaterMapAcceptance("v2");
+  await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  const now = Date.now();
+  expect(transferGeneratedRouteToDraft({
+    ...generatedProofFixture(3), operationKey: "foreign-route",
+    groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: now + CLIENT_PROOF_LIFETIME }))}.foreign-client-fixture`,
+    outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+  }, localStorage, "map-generated", now)).toBe(true);
+  const routeV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  const routeV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await editInput("#plan-title", "Do not save over the new Local route");
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+
+  expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+  const foreign = readPlanningIntent({ storage: sessionStorage })!;
+  expect(writePlanDraftEnvelope({
+    ...CLEAR_REQUEST, title: "Foreign saved request",
+    stops: [{ key: 1, venueId: foreign.acceptedVenueId, venueName: "Foreign Pub" }],
+    acceptedAnchor: {
+      venueId: foreign.acceptedVenueId, source: foreign.source, cityId: foreign.cityId,
+      acceptedArea: foreign.acceptedArea, startsAt: foreign.startsAt, expiresAt: foreign.expiresAt,
+    },
+  }, "planning-intent", sessionStorage).v2).toBe(true);
+  const planV1 = sessionStorage.getItem(PLAN_DRAFT_KEY);
+  const planV2 = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+
+  await editInput("#plan-title", "Do not replace the foreign title");
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+  expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+  expect(readPlanningIntent({ storage: sessionStorage })).toEqual(foreign);
+
+  advance(CLIENT_PROOF_LIFETIME + 4000);
+  await act(async () => action("Add another stop").click());
+  await settle();
+  expect(document.querySelector('button[aria-label="Remove stop 2"]')).not.toBeNull();
+  expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+  await editInput("#plan-name", "Do not replace the foreign host after release");
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Do not replace the foreign host after release");
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+  expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(planV1);
+  expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(planV2);
+  expect(readPlanningIntent({ storage: sessionStorage })).toEqual(foreign);
+  expectNoRouteSave();
+});
+
+it.each((["v1", "v2"] as const).flatMap((format) =>
+  (["Release", "Lock", "generate"] as const).flatMap((actionName) =>
+    (["original", "later"] as const).map((acceptance) => ({ format, actionName, acceptance })))))(
+  "protects the $acceptance Local-only $format acceptance during save and $actionName after reload",
+  async ({ format, actionName, acceptance }) => {
+    const { advance } = await seedLaterMapAcceptance(format);
+    const accepted = readPlanningIntent({ storage: sessionStorage })!;
+    sessionStorage.removeItem(PLAN_DRAFT_KEY);
+    sessionStorage.removeItem(PLAN_DRAFT_V2_KEY);
+    const writableSession = sessionStorage;
+    rejectSessionRecordWrites([PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY]);
+    sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+    await remountComposer();
+    const generated = {
+      ...generatedProofFixture(3), operationKey: "local-only-acceptance",
+      groundingProof: clientProof("local-only-acceptance"), anchored: true, grounded: true,
+      outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+      stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+    };
+    fetchMock.mockImplementation(async (input) => Response.json(
+      String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+    ));
+    advance(CLIENT_PROOF_LIFETIME + 2000);
+    await act(async () => action("Make a plan").click());
+    await settle();
+    expect(readPlanDraftEnvelope(writableSession)).toBeNull();
+    expect(readPlanRouteDraftEnvelope(localStorage)?.value.operationKey).toBe(generated.operationKey);
+    advance(CLIENT_PROOF_LIFETIME + 2500);
+    if (acceptance === "later") {
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+      expect(readPlanningIntent()?.startsAt).toBe(accepted.startsAt);
+      expect(readPlanningIntent()?.expiresAt).not.toBe(accepted.expiresAt);
+    }
+    const heldRecords = acceptanceRecords();
+    await remountComposer();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    vi.stubGlobal("sessionStorage", writableSession);
+    advance(CLIENT_PROOF_LIFETIME + 3000);
+    await editInput("#plan-title", "Our Local-only night");
+    await editInput("#plan-name", "Captain");
+    if (acceptance === "later") {
+      expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+      expect(acceptanceRecords()).toEqual(heldRecords);
+      fetchMock.mockClear();
+      if (actionName === "generate") {
+        await openTune();
+        await sortAgainFromTune();
+      } else {
+        await act(async () => (actionName === "Lock" ? lockButton() : action("Release this pub")).click());
+      }
+      await settle();
+      expect(acceptanceRecords()).toEqual(heldRecords);
+      expectNoRouteSave();
+      return;
+    }
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+      title: "Our Local-only night",
+      acceptedAnchor: {
+        venueId: accepted.acceptedVenueId, source: accepted.source, cityId: accepted.cityId,
+        acceptedArea: accepted.acceptedArea, startsAt: accepted.startsAt, expiresAt: accepted.expiresAt,
+      },
+      routeReference: { operationKey: generated.operationKey },
+    });
+    expect(document.body.textContent).not.toContain("Your plan details could not be saved");
+    if (actionName === "Release") {
+      await act(async () => action("Release this pub").click());
+      await settle();
+      expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+      expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+    } else if (actionName === "Lock") {
+      fetchMock.mockImplementation(async () => Response.json(createdAcceptedPlan(generated)));
+      expect(await saveRoute()).toMatchObject({ groundingProof: generated.groundingProof });
+      expect(sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY)).toBeNull();
+    } else {
+      fetchMock.mockClear();
+      await openTune();
+      await sortAgainFromTune();
+      expect(fetchMock.mock.calls.some(([url]) => String(url).includes("/api/plans/generate"))).toBe(true);
+      expect(readPlanRouteDraftEnvelope(localStorage)?.value.groundingProof).toBe(generated.groundingProof);
+      expect(document.body.textContent).not.toContain("The saved planning request changed");
+    }
+  },
+);
+
+it.each([
+  "release", "anchor expiry", "proof expiry", "foreign replacement",
+  "Local replacement during Release", "Local replacement during intake read",
+  "live acceptance Release", "live acceptance Lock",
+] as const)(
+  "recovers generated Local stops after %s with a prior provisional V1 and both Session writes refused",
+  async (transition) => {
+    const { advance } = await seedLaterMapAcceptance("v2");
+    await remountComposer();
+    const accepted = readPlanningIntent({ storage: sessionStorage })!;
+    const expiresAt = Date.parse(accepted.expiresAt);
+    const writableSession = sessionStorage;
+    rejectSessionRecordWrites([PLAN_DRAFT_V2_KEY]);
+    advance(CLIENT_PROOF_LIFETIME + 2000);
+    await editInput("#plan-title", "Our provisional request");
+    const released = transition === "release";
+    if (released) {
+      await act(async () => action("Release this pub").click());
+      await settle();
+      expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+      expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+    }
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      legacy: true, savedAt: null, draft: {
+        provisionalStop: true, provisionalSavedAt: new Date(Date.now()).toISOString(),
+        stops: [{ venueId: "venue-new" }],
+      },
+    });
+    const oldPlan = sessionStorage.getItem(PLAN_DRAFT_KEY);
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+
+    rejectSessionRecordWrites([PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY]);
+    advance(expiresAt - T0 - 1000);
+    const generatedAt = new Date(Date.now()).toISOString();
+    const proofExpiresAt = Date.now() + CLIENT_PROOF_LIFETIME;
+    const fixture = generatedProofFixture(3);
+    const generated = {
+      ...fixture, operationKey: "generation-after-v1-provisional",
+      groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: proofExpiresAt }))}.client-fixture`,
+      ...(released ? {} : {
+        anchored: true, grounded: true, outcome: "route",
+        anchorVenueId: "venue-new", anchorSource: "map-search",
+        stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...fixture.stops.slice(1)],
+      }),
+    };
+    fetchMock.mockImplementation(async (input) => Response.json(
+      String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+    ));
+    await editInput("#plan-concierge-query", "Three pubs in Clapham tonight");
+    await act(async () => action("Make a plan").click());
+    await settle();
+    const post = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1)!;
+    const request = JSON.parse(String(post[1]?.body));
+    expect(request).toMatchObject({ query: "Three pubs in Clapham tonight" });
+    if (released) expect(request).not.toHaveProperty("anchor");
+    else expect(request).toMatchObject({ anchor: { venueId: "venue-new", source: "map-search" } });
+    expect(reconciledGenerationContext()).toMatchObject({ stopCount: 3, nightArea: "clapham" });
+    expect(document.querySelector('[data-result="true"]')).not.toBeNull();
+    const routeReference = { savedAt: generatedAt, operationKey: generated.operationKey };
+    expect(readPlanRouteDraftEnvelope(localStorage)).toMatchObject({
+      savedAt: generatedAt, value: {
+        operationKey: generated.operationKey, groundingProof: generated.groundingProof, routeStale: false,
+        stops: generated.stops.map(({ venueId }) => expect.objectContaining({ venueId })),
+      },
+    });
+    expect(readPlanIntakeDraftWithMetadata(localStorage)).toMatchObject({ routeReference });
+    const routeV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const routeV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const intake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+
+    if (transition === "live acceptance Release" || transition === "live acceptance Lock") {
+      await remountComposer();
+      expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+      expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+        .toEqual(generated.stops.map(({ venueName }) => venueName));
+      vi.stubGlobal("sessionStorage", writableSession);
+      await editInput("#plan-title", "Our recovered accepted night");
+      await editInput("#plan-name", "Captain");
+      expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+        title: "Our recovered accepted night",
+        acceptedAnchor: {
+          venueId: accepted.acceptedVenueId, source: accepted.source, cityId: accepted.cityId,
+          acceptedArea: accepted.acceptedArea, startsAt: accepted.startsAt, expiresAt: accepted.expiresAt,
+        },
+        routeReference,
+      });
+      expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+      if (transition === "live acceptance Release") {
+        await act(async () => action("Release this pub").click());
+        await settle();
+        expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+        expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+        expect(readPlanRouteDraftEnvelope(localStorage)?.value.stops.map(({ venueId }) => venueId))
+          .toEqual(generated.stops.map(({ venueId }) => venueId));
+      } else {
+        fetchMock.mockImplementation(async (input) => Response.json(
+          String(input) === "/api/plans" ? createdAcceptedPlan(generated) : {},
+        ));
+        await act(async () => lockButton().click());
+        await vi.waitFor(() => expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]));
+        expect(fetchMock.mock.calls.some(([input, init]) =>
+          String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH")).toBe(true);
+        expect(document.querySelector("#plan-composer-error")).toBeNull();
+      }
+      return;
+    }
+
+    advance(expiresAt - T0);
+    expect(readPlanningIntent({ storage: sessionStorage, cleanupInvalid: false })).toBeNull();
+    expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor).toBeUndefined();
+    await remountComposer();
+    expect(document.querySelector('[data-result="true"]')).not.toBeNull();
+    expect(document.querySelector("#plan-route-stale-title")).toBeNull();
+    expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+      .toEqual(generated.stops.map(({ venueName }) => venueName));
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(oldPlan);
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+    expectNoRouteSave();
+
+    if (released) return;
+    if (transition === "foreign replacement") {
+      vi.stubGlobal("sessionStorage", writableSession);
+      advance(expiresAt - T0 + 1000);
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+      const foreignIntent = readPlanningIntent({ storage: sessionStorage });
+      expect(writePlanDraftEnvelope({
+        ...CLEAR_REQUEST, title: "Other request",
+        stops: [{ key: 1, venueId: "venue-foreign", venueName: "Foreign Pub" }],
+      }, "manual", sessionStorage).v2).toBe(true);
+      const foreignV1 = sessionStorage.getItem(PLAN_DRAFT_KEY);
+      const foreignV2 = sessionStorage.getItem(PLAN_DRAFT_V2_KEY);
+      await act(async () => action("Release this pub").click());
+      await settle();
+      await editInput("#plan-title", "Do not replace the other request");
+      expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+      expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(foreignV1);
+      expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBe(foreignV2);
+      expect(readPlanningIntent({ storage: sessionStorage })).toEqual(foreignIntent);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+      expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+      expectNoRouteSave();
+      return;
+    }
+    let retainedReference = routeReference;
+    const interposeBeforeEffect = transition === "Local replacement during Release";
+    const interposeAtIntake = transition === "Local replacement during intake read";
+    if (transition === "anchor expiry" || interposeBeforeEffect || interposeAtIntake) {
+      expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+      const releaseOffset = expiresAt - T0 + 1000;
+      const effectOffset = releaseOffset + 1000;
+      const foreignOffset = interposeAtIntake ? effectOffset : releaseOffset + 500;
+      const intentBytes = sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY);
+      let releaseWritten = false;
+      let intakeReadAt = 0;
+      let foreignRoutePair: { v1: string | null; v2: string | null } | null = null;
+      advance(releaseOffset);
+      const write = Storage.prototype.setItem;
+      const clockTick = vi.spyOn(Storage.prototype, "setItem").mockImplementation(function (this: Storage, key, value) {
+        write.call(this, key, value);
+        if (this === localStorage && key === PLAN_ROUTE_DRAFT_V2_KEY && !releaseWritten) {
+          releaseWritten = true;
+          if (!interposeBeforeEffect) advance(effectOffset);
+        }
+      });
+      function writeForeignRoute() {
+        advance(foreignOffset);
+        const now = Date.now();
+        expect(transferGeneratedRouteToDraft({
+          ...generatedProofFixture(3), operationKey: "foreign-release-window-route",
+          groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: now + CLIENT_PROOF_LIFETIME }))}.client-fixture`,
+        }, localStorage, "map-generated", now)).toBe(true);
+        foreignRoutePair = {
+          v1: localStorage.getItem(PLAN_ROUTE_DRAFT_KEY),
+          v2: localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY),
+        };
+        advance(effectOffset);
+      }
+      const readSession = sessionStorage.getItem.bind(sessionStorage);
+      const interposeSession = vi.spyOn(sessionStorage, "getItem").mockImplementation((key) => {
+        const value = readSession(key);
+        if (interposeBeforeEffect && releaseWritten && !foreignRoutePair && key === PLAN_DRAFT_KEY) writeForeignRoute();
+        return value;
+      });
+      const readStorage = Storage.prototype.getItem;
+      const interposeIntake = vi.spyOn(Storage.prototype, "getItem").mockImplementation(function (this: Storage, key) {
+        const value = readStorage.call(this, key);
+        if (!interposeAtIntake || !releaseWritten || foreignRoutePair || this !== localStorage) return value;
+        if (key === PLAN_INTAKE_STORAGE_KEY) {
+          intakeReadAt = Date.now();
+          writeForeignRoute();
+        }
+        return value;
+      });
+      try {
+        await act(async () => action("Release this pub").click());
+        await settle();
+      } finally {
+        interposeIntake.mockRestore();
+        interposeSession.mockRestore();
+        clockTick.mockRestore();
+      }
+      if (interposeBeforeEffect || interposeAtIntake) {
+        if (interposeAtIntake) {
+          expect(intakeReadAt).toBe(T0 + effectOffset);
+        }
+        expect(foreignRoutePair).not.toBeNull();
+        const expectForeignRoute = () => {
+          expect(readPlanRouteDraftEnvelope(localStorage)).toMatchObject({
+            savedAt: new Date(T0 + foreignOffset).toISOString(),
+            value: { operationKey: "foreign-release-window-route" },
+          });
+          expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(foreignRoutePair?.v1);
+          expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(foreignRoutePair?.v2);
+          expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(intake);
+          expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(oldPlan);
+          expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+          expect(sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY)).toBe(intentBytes);
+        };
+        expectForeignRoute();
+        expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+        vi.stubGlobal("sessionStorage", writableSession);
+        await editInput("#plan-title", "Do not overwrite the intervening route");
+        expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+        expectForeignRoute();
+        expectNoRouteSave();
+        return;
+      }
+      retainedReference = { savedAt: new Date(T0 + effectOffset).toISOString(), operationKey: generated.operationKey };
+      expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!)).toMatchObject({
+        savedAt: new Date(T0 + releaseOffset).toISOString(), groundingProof: null, anchorVenueId: null,
+      });
+      expect(readPlanRouteDraftEnvelope(localStorage)).toMatchObject({
+        savedAt: retainedReference.savedAt,
+        value: { operationKey: generated.operationKey, groundingProof: null, anchorVenueId: null },
+      });
+      expect(readPlanIntakeDraftWithMetadata(localStorage)).toMatchObject({
+        savedAt: retainedReference.savedAt, routeReference: retainedReference,
+      });
+      expect(document.body.textContent).toContain("Your stops were saved, but your route details");
+    } else {
+      advance(proofExpiresAt - T0 + 1);
+      expect(readPlanRouteDraftEnvelope(localStorage)?.value).toMatchObject({
+        groundingProof: null, routeStale: true, operationKey: generated.operationKey,
+      });
+    }
+
+    const previewV1 = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+    const previewV2 = localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY);
+    const previewIntake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+    const expectStoredPreview = () => {
+      expect(readPlanRouteDraftEnvelope(localStorage)?.savedAt).toBe(retainedReference.savedAt);
+      expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference).toEqual(retainedReference);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(previewV1);
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(previewV2);
+      expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(previewIntake);
+    };
+    const expectUnverifiedRoute = () => {
+      expect([...document.querySelectorAll<HTMLAnchorElement>(".planStop__open")]
+        .map((node) => new URL(node.href).searchParams.get("sel"))).toEqual(generated.stops.map(({ venueId }) => venueId));
+      expect(document.querySelector("#plan-route-stale-title")?.textContent).toBe("This route needs a refresh");
+      expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+      expect(document.body.textContent).toContain("Opening and travel checks are unavailable");
+      expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+      expect(action("Regenerate route").disabled).toBe(false);
+      expectStoredPreview();
+    };
+    await remountComposer();
+    expectUnverifiedRoute();
+    await attemptRouteSave();
+    advance(Date.now() - T0 + 1000);
+    await editInput("#plan-title", "Unsaved preview title");
+    expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+    expect(sessionStorage.getItem(PLAN_DRAFT_KEY)).toBe(oldPlan);
+    expect(sessionStorage.getItem(PLAN_DRAFT_V2_KEY)).toBeNull();
+    expectStoredPreview();
+
+    vi.stubGlobal("sessionStorage", writableSession);
+    advance(Date.now() - T0 + 1000);
+    await editInput("#plan-title", "Saved preview title");
+    expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+      savedAt: new Date(Date.now()).toISOString(),
+      draft: { title: "Saved preview title", routeReference: retainedReference },
+    });
+    expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+    await remountComposer();
+    expectUnverifiedRoute();
+    expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Saved preview title");
+    expectNoRouteSave();
+  },
+);
+
+it("still revokes and then generates from a genuine new request with a later accepted pub", async () => {
+  const { advance, routeV1, routeV2 } = await seedLaterMapAcceptance("v2");
+  await remountComposer();
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+  await remountComposer();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft).toMatchObject({
+    conciergeQuery: "Three pubs in Clapham tonight", routeReference: null,
+  });
+  expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference).toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+  await remountComposer();
+  expectRequestField("#plan-concierge-query", "Three pubs in Clapham tonight", "Make a plan");
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent)).toEqual(["New Pub"]);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+  await editInput("#plan-name", "Captain");
+  await attemptRouteSave();
+  expect(document.body.textContent).toContain("Refresh the route before locking it in.");
+  const now = Date.now();
+  const generated = {
+    ...generatedProofFixture(3), operationKey: "genuine-new-route",
+    groundingProof: `${btoa(JSON.stringify({ v: 1, expiresAt: now + CLIENT_PROOF_LIFETIME }))}.new-client-fixture`,
+    anchored: true, grounded: true, outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+    stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+  ));
+  await act(async () => action("Make a plan").click());
+  await settle();
+  const generation = fetchMock.mock.calls.filter(([input]) => String(input).includes("/api/plans/generate")).at(-1);
+  expect(JSON.parse(String(generation?.[1]?.body))).toMatchObject({ anchor: { venueId: "venue-new", source: "map-search" } });
+  expect(readPlanRouteDraftEnvelope(localStorage)?.value).toMatchObject({
+    operationKey: generated.operationKey, routeStale: false, anchorVenueId: "venue-new",
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    legacy: false,
+    draft: { routeReference: { savedAt: new Date(now).toISOString(), operationKey: generated.operationKey } },
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(document.querySelector('[data-result="true"]')).not.toBeNull();
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)!)).toMatchObject({
+    anchorVenueId: null, groundingProof: null,
+    stops: [{ venueId: "venue-new" }, { venueId: "venue-b" }, { venueId: "venue-c" }],
+  });
+  expect(document.querySelector('[data-result="true"]')).not.toBeNull();
+  expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.acceptedAnchor).toBeUndefined();
+
+  advance(CLIENT_PROOF_LIFETIME + 4000);
+  await editInput("#plan-title", "Our released route night");
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: new Date(Date.now()).toISOString(), draft: { title: "Our released route night" },
+  });
+  expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+  advance(CLIENT_PROOF_LIFETIME + 5000);
+  await editInput("#plan-name", "Our released route host");
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    savedAt: new Date(Date.now()).toISOString(),
+    draft: { title: "Our released route night", creatorName: "Our released route host" },
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(document.body.textContent).not.toContain("Your plan details could not be saved on this device");
+  await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(document.querySelector<HTMLInputElement>("#plan-title")?.value).toBe("Our released route night");
+  expect(document.querySelector<HTMLInputElement>("#plan-name")?.value).toBe("Our released route host");
+  expect([...document.querySelectorAll(".planStop__name")].map((node) => node.textContent))
+    .toEqual(["New Pub", "Pub B", "Pub C"]);
+  expectNoRouteSave();
+});
+
+it.each(
+  (["mounted", "recovered", "recovered without intent"] as const).flatMap((composer) =>
+    (["intent", "Plan", "route", "all"] as const).map((replacement) => ({ composer, replacement }))),
+)("protects newer $replacement records after generation with the $composer acceptance", async ({ composer, replacement }) => {
+  const { advance } = await seedLaterMapAcceptance("v2");
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+  await remountComposer();
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  const generated = {
+    ...generatedProofFixture(3), operationKey: "owned-generated-route",
+    groundingProof: clientProof("owned-generated-route"),
+    anchored: true, grounded: true, outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+    stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+  ));
+  await act(async () => action("Make a plan").click());
+  await settle();
+  expect(readPlanDraftEnvelope(sessionStorage)).toMatchObject({
+    legacy: false, draft: { routeReference: { operationKey: generated.operationKey } },
+  });
+  expect(JSON.parse(sessionStorage.getItem(PLAN_DRAFT_KEY)!)).toMatchObject({
+    routeReference: { operationKey: generated.operationKey },
+  });
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).not.toBeNull();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).not.toBeNull();
+  if (composer === "recovered without intent") sessionStorage.removeItem(PLANNING_INTENT_STORAGE_KEY);
+  if (composer !== "mounted") await remountComposer();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await editInput("#plan-title", "Our generated night");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.title).toBe("Our generated night");
+  expect(document.body.textContent).not.toContain("could not be saved");
+
+  advance(CLIENT_PROOF_LIFETIME + 4000);
+  if (replacement === "intent" || replacement === "all") {
+    expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+  }
+  if (replacement === "Plan" || replacement === "all") {
+    expect(writePlanDraftEnvelope({
+      ...CLEAR_REQUEST, title: "Newer saved night",
+      stops: [{ key: 1, venueId: "venue-foreign", venueName: "Foreign Pub" }],
+    }, "manual", sessionStorage).v2).toBe(true);
+  }
+  if (replacement === "route" || replacement === "all") {
+    expect(transferGeneratedRouteToDraft({
+      ...generatedProofFixture(3), operationKey: "newer-foreign-route", groundingProof: clientProof("foreign-route"),
+      outcome: "route", anchorVenueId: "venue-a", anchorSource: "near",
+    }, localStorage, "map-generated")).toBe(true);
+  }
+  const records = () => [
+    sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY),
+    sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_ROUTE_DRAFT_KEY), localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_INTAKE_STORAGE_KEY),
+  ];
+  const newerRecords = records();
+  advance(CLIENT_PROOF_LIFETIME + 5000);
+  await editInput("#plan-title", "Do not replace newer records");
+  expect(records()).toEqual(newerRecords);
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  expect(records()).toEqual(newerRecords);
+  advance(CLIENT_PROOF_LIFETIME + 6000);
+  await editInput("#plan-name", "Do not replace newer records after Release");
+  expect(records()).toEqual(newerRecords);
+});
+
+function acceptanceRecords() {
+  return [
+    sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY),
+    sessionStorage.getItem(PLAN_DRAFT_KEY), sessionStorage.getItem(PLAN_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_ROUTE_DRAFT_KEY), localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY),
+    localStorage.getItem(PLAN_INTAKE_STORAGE_KEY),
+  ];
+}
+
+it.each(
+  (["v1", "v2"] as const).flatMap((format) =>
+    (["Plan", "route", "intake", "intent"] as const).flatMap((record) =>
+      (["response", "body"] as const).map((when) => ({ format, record, when })))),
+)("protects $record during generation $when from an ownerless expired $format preview", async ({ format, record, when }) => {
+  const { advance } = await seedLaterMapAcceptance(format);
+  sessionStorage.clear();
+  await remountComposer();
+  expectExpiredCorrelatedPreview();
+  expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  let newerRecords: ReturnType<typeof acceptanceRecords> | null = null;
+  function replaceRecord() {
+    advance(CLIENT_PROOF_LIFETIME + 2000);
+    if (record === "Plan") {
+      expect(writePlanDraftEnvelope({ ...CLEAR_REQUEST, title: "A newer night" }, "manual", sessionStorage).v2).toBe(true);
+    } else if (record === "route") {
+      const route = JSON.parse(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)!);
+      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+        ...route, savedAt: new Date(Date.now()).toISOString(), createOperationKey: "newer-route",
+        groundingProof: clientProof("newer-route"),
+      }));
+    } else if (record === "intake") {
+      const intake = readPlanIntakeDraftWithMetadata(localStorage)!.draft;
+      expect(writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, groupSize: 7 } }, localStorage)).toBe(true);
+    } else {
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-foreign" }).accepted).toBe(true);
+    }
+    newerRecords = acceptanceRecords();
+  }
+  const refreshed = {
+    ...generatedProofFixture(3), operationKey: "obsolete-preview-refresh", groundingProof: clientProof("refresh"),
+  };
+  fetchMock.mockImplementation(async (input) => {
+    if (!String(input).includes("/api/plans/generate")) return Response.json([]);
+    if (when === "response") replaceRecord();
+    const response = Response.json(refreshed);
+    if (when === "body") {
+      response.json = async () => {
+        replaceRecord();
+        return refreshed;
+      };
+    }
+    return response;
+  });
+  await act(async () => action("Regenerate route").click());
+  await settle();
+  expect(newerRecords).not.toBeNull();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+  expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
+  expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+  await editInput("#plan-title", "Do not overwrite the newer night");
+  expect(acceptanceRecords()).toEqual(newerRecords);
+});
+
+it("preserves replacement intake when a provisional request changes", async () => {
+  const advance = pinClock();
+  expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+  fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+  await mountComposer();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+  advance(1000);
+  const intake = skipRemainingPlanIntake(createPlanIntakeDraft());
+  expect(writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, groupSize: 7 } }, localStorage)).toBe(true);
+  const newerRecords = acceptanceRecords();
+  await editInput("#plan-concierge-query", "Three pubs in Clapham tonight");
+  expect(acceptanceRecords()).toEqual(newerRecords);
+  expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+});
+
+async function generateAcceptedRouteForLock() {
+  const clock = await seedLaterMapAcceptance("v2");
+  const advance = (offset: number) => clock.advance(CLIENT_PROOF_LIFETIME + 1000 + offset);
+  const generated = {
+    ...generatedProofFixture(3), anchored: true, grounded: true,
+    groundingProof: clientProof("accepted-lock-route"),
+    outcome: "route", anchorVenueId: "venue-new", anchorSource: "map-search",
+    stops: [{ venueId: "venue-new", venueName: "New Pub" }, ...generatedProofFixture(3).stops.slice(1)],
+  };
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generated : [{ id: "venue-new", name: "New Pub" }],
+  ));
+  sessionStorage.setItem(ASK_PLAN_DRAFT_STORAGE_KEY, JSON.stringify({ query: "Three pubs in Clapham tonight" }));
+  await remountComposer();
+  advance(1000);
+  await act(async () => action("Make a plan").click());
+  await settle();
+  await editInput("#plan-title", "Our accepted night");
+  await editInput("#plan-name", "Captain");
+  expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBeUndefined();
+  expect(acceptanceRecords().every((record) => record !== null)).toBe(true);
+  fetchMock.mockClear();
+  return { advance, generated };
+}
+
+function createdAcceptedPlan(generated: Pick<ReturnType<typeof generatedProofFixture>, "stops">) {
+  return {
+    created: true, grounded: true, memberToken: "test-host-capability",
+    plan: { plan: { id: "accepted-lock-plan", status: "draft" }, stops: generated.stops },
+  };
+}
+
+it.each((["sign-out", "account switch"] as const).flatMap((departure) =>
+  (["save", "generation response", "generation body", "Lock response", "Lock body", "Lock PATCH", "owned Lock"] as const)
+    .map((step) => ({ departure, step }))))(
+  "protects planning records at $step after $departure without restoring private inputs",
+  async ({ departure, step }) => {
+    const advance = pinClock();
+    authSeedFixture.user = { id: "departing-account" };
+    await mountComposer();
+    await editInput("#plan-describe-first-query", "Private Soho night");
+    advance(1000);
+    authSeedFixture.user = departure === "sign-out" ? null : { id: "arriving-account" };
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expectRequestField("#plan-describe-first-query", "", "Plan it");
+    expect(document.body.textContent).not.toContain("Private Soho night");
+    expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+
+    const generated = generatedProofFixture(3);
+    let newerRecords: ReturnType<typeof acceptanceRecords> | null = null;
+    function replaceRecords() {
+      advance(3000);
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+      expect(writePlanDraftEnvelope({ ...CLEAR_REQUEST, title: "Newer saved night" }, "manual", sessionStorage).v2).toBe(true);
+      expect(transferGeneratedRouteToDraft({ ...generated, operationKey: "newer-route" }, localStorage, "map-generated")).toBe(true);
+      expect(writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()), localStorage)).toBe(true);
+      newerRecords = acceptanceRecords();
+    }
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      const generating = url.includes("/api/plans/generate");
+      const creating = url === "/api/plans";
+      const patching = init?.method === "PATCH";
+      if ((generating && step === "generation response") || (creating && step === "Lock response")
+        || (patching && step === "Lock PATCH")) replaceRecords();
+      const body = generating ? generated : creating ? createdAcceptedPlan(generated) : {};
+      const response = Response.json(body);
+      if ((generating && step === "generation body") || (creating && step === "Lock body")) {
+        response.json = async () => {
+          replaceRecords();
+          return body;
+        };
+      }
+      return response;
+    });
+    advance(2000);
+    await editInput("#plan-describe-first-query", "Three pubs in Clapham tonight");
+    await act(async () => action("Plan it").click());
+    await settle();
+    if (!step.startsWith("generation")) {
+      expect(readPlanRouteDraftEnvelope(localStorage)?.value.operationKey).toBe(generated.operationKey);
+      expect(readPlanDraftEnvelope(sessionStorage)?.draft.stops).toHaveLength(3);
+      expect(readPlanIntakeDraftWithMetadata(localStorage)?.routeReference?.operationKey).toBe(generated.operationKey);
+      await editInput("#plan-name", "Captain");
+      expect(lockButton().getAttribute("aria-disabled")).toBeNull();
+      if (step === "save") {
+        replaceRecords();
+        await editInput("#plan-title", "Do not replace the newer night");
+      } else {
+        await act(async () => lockButton().click());
+        await vi.waitFor(() => {
+          if (step === "owned Lock") expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
+          else expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
+        });
+      }
+    }
+    if (step === "owned Lock") {
+      expect(fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans")).toHaveLength(1);
+      expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]);
+      expect(document.querySelector("#plan-composer-error")).toBeNull();
+    } else {
+      expect(newerRecords).not.toBeNull();
+      expect(acceptanceRecords()).toEqual(newerRecords);
+      if (step === "save") {
+        expect(document.body.textContent).toContain("Your plan details could not be saved on this device");
+      } else {
+        expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed");
+      }
+      await editInput(step.startsWith("generation") ? "#plan-concierge-query" : "#plan-title", "Keep the newer request");
+      expect(acceptanceRecords()).toEqual(newerRecords);
+    }
+  },
+);
+
+it.each(["save", "Release", "generate", "Lock"] as const)(
+  "protects replacement intake on %s from a V2-only route without a live intent",
+  async (actionName) => {
+    const { advance, generated } = await generateAcceptedRouteForLock();
+    const route = readPlanRouteDraftEnvelope(localStorage)!;
+    expect(transferGeneratedRouteToDraft(generated, localStorage, "plan-generated", Date.parse(route.savedAt!))).toBe(true);
+    sessionStorage.removeItem(PLANNING_INTENT_STORAGE_KEY);
+    localStorage.removeItem(PLAN_ROUTE_DRAFT_KEY);
+    await remountComposer();
+    expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    if (actionName === "generate") await openTune();
+    advance(2000);
+    const intake = readPlanIntakeDraftWithMetadata(localStorage)!.draft;
+    expect(writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, groupSize: 7 } }, localStorage)).toBe(true);
+    const newerRecords = acceptanceRecords();
+    fetchMock.mockImplementation(async (input) => Response.json(
+      String(input).includes("/api/plans/generate") ? generated : createdAcceptedPlan(generated),
+    ));
+    if (actionName === "save") await editInput("#plan-title", "Do not overwrite the newer intake");
+    else if (actionName === "generate") await sortAgainFromTune();
+    else await act(async () => (actionName === "Lock" ? lockButton() : action("Release this pub")).click());
+    await settle();
+    expect(acceptanceRecords()).toEqual(newerRecords);
+    if (actionName === "Lock") expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/plans")).toBe(false);
+  },
+);
+
+it("preserves intake replaced after Lock removes the legacy route", async () => {
+  const { generated } = await generateAcceptedRouteForLock();
+  const intake = readPlanIntakeDraftWithMetadata(localStorage)!.draft;
+  let newerIntake: string | null = null;
+  const remove = Storage.prototype.removeItem;
+  const interpose = vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (this: Storage, key) {
+    remove.call(this, key);
+    if (this === localStorage && key === PLAN_ROUTE_DRAFT_KEY && !newerIntake) {
+      expect(writePlanIntakeDraft({ ...intake, answers: { ...intake.answers, groupSize: 7 } }, localStorage)).toBe(true);
+      newerIntake = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+    }
+  });
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input) === "/api/plans" ? createdAcceptedPlan(generated) : {},
+  ));
+  try {
+    await act(async () => lockButton().click());
+    await vi.waitFor(() => expect(newerIntake).not.toBeNull());
+    await settle();
+  } finally {
+    interpose.mockRestore();
+  }
+  expect(newerIntake).not.toBeNull();
+  expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(newerIntake);
+});
+
+it.each(["venue", "source", "city", "area", "start", "expiry"] as const)(
+  "does not adopt a different %s identity merely by reopening the older accepted route",
+  async (field) => {
+    await generateAcceptedRouteForLock();
+    const intent = JSON.parse(sessionStorage.getItem(PLANNING_INTENT_STORAGE_KEY)!);
+    if (field === "venue") intent.acceptedVenueId = "venue-foreign";
+    if (field === "source") intent.source = "near";
+    if (field === "city") intent.cityId = "manchester";
+    if (field === "area") intent.acceptedArea = { kind: "night-patch", id: "clapham" };
+    if (field === "start") intent.startsAt = "2026-11-03T21:00:00.000Z";
+    if (field === "expiry") {
+      intent.acceptedAt = new Date(Date.parse(intent.acceptedAt) + 1000).toISOString();
+      intent.expiresAt = new Date(Date.parse(intent.expiresAt) + 1000).toISOString();
+    }
+    sessionStorage.setItem(PLANNING_INTENT_STORAGE_KEY, JSON.stringify(intent));
+    expect(readPlanningIntent()).not.toBeNull();
+    const newerRecords = acceptanceRecords();
+    await remountComposer();
+    expect(document.querySelector('[aria-label="Accepted plan context"]')?.textContent).toContain("New Pub");
+    await editInput("#plan-title", "Do not overwrite the newer acceptance");
+    await act(async () => action("Release this pub").click());
+    await settle();
+    expect(acceptanceRecords()).toEqual(newerRecords);
+  },
+);
+
+it.each(
+  (["route V1", "route V2", "Plan V1", "Plan V2", "intake", "intent"] as const).flatMap((record) =>
+    (["before Lock", "during POST", "during PATCH"] as const).map((when) => ({ record, when }))),
+)("preserves all records when another tab replaces $record $when", async ({ record, when }) => {
+  const { advance, generated } = await generateAcceptedRouteForLock();
+  let newerRecords: ReturnType<typeof acceptanceRecords> | null = null;
+  function replaceRecord() {
+    advance(2000);
+    if (record === "intent") {
+      const previous = readPlanningIntent()!;
+      expect(acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }).accepted).toBe(true);
+      expect(readPlanningIntent()?.acceptedAt).not.toBe(previous.acceptedAt);
+      expect(readPlanningIntent()?.acceptedVenueId).toBe(previous.acceptedVenueId);
+    } else {
+      const storage = record.startsWith("Plan") ? sessionStorage : localStorage;
+      const key = record === "Plan V1" ? PLAN_DRAFT_KEY : record === "Plan V2" ? PLAN_DRAFT_V2_KEY
+        : record === "route V1" ? PLAN_ROUTE_DRAFT_KEY : record === "route V2" ? PLAN_ROUTE_DRAFT_V2_KEY
+          : PLAN_INTAKE_STORAGE_KEY;
+      const replacement = JSON.parse(storage.getItem(key)!);
+      if (record === "Plan V1") replacement.title = "Newer night";
+      if (record === "Plan V2") replacement.draft.title = "Newer night";
+      if (record === "route V1") replacement.createOperationKey = "newer-route-operation";
+      if (record === "route V2") replacement.operationKey = "newer-route-operation";
+      if (record === "intake") replacement.draft.answers.groupSize = 7;
+      storage.setItem(key, JSON.stringify(replacement));
+    }
+    newerRecords = acceptanceRecords();
+  }
+  fetchMock.mockImplementation(async (input, init) => {
+    if (String(input) === "/api/plans") {
+      if (when === "during POST") replaceRecord();
+      return Response.json(createdAcceptedPlan(generated));
+    }
+    if (String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH") {
+      if (when === "during PATCH") replaceRecord();
+      return Response.json({});
+    }
+    return Response.json([]);
+  });
+  if (when === "before Lock") replaceRecord();
+  await act(async () => lockButton().click());
+  await vi.waitFor(() => expect(document.querySelector("#plan-composer-error")?.textContent).toContain("The saved planning request changed"));
+  expect(newerRecords).not.toBeNull();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+  const posts = fetchMock.mock.calls.filter(([input]) => String(input) === "/api/plans");
+  expect(posts).toHaveLength(when === "before Lock" ? 0 : 1);
+  const patches = fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH");
+  expect(patches).toHaveLength(when === "during PATCH" ? 1 : 0);
+  await editInput("#plan-title", "Do not replace the newer night");
+  await act(async () => action("Release this pub").click());
+  await settle();
+  expect(acceptanceRecords()).toEqual(newerRecords);
+});
+
+it("clears owned acceptance records only after Lock metadata succeeds", async () => {
+  const { generated } = await generateAcceptedRouteForLock();
+  const heldRecords = acceptanceRecords();
+  let patched = false;
+  fetchMock.mockImplementation(async (input, init) => {
+    if (String(input) === "/api/plans") return Response.json(createdAcceptedPlan(generated));
+    if (String(input) === "/api/plans/accepted-lock-plan" && init?.method === "PATCH") {
+      expect(acceptanceRecords()).toEqual(heldRecords);
+      patched = true;
+      return Response.json({});
+    }
+    return Response.json([]);
+  });
+  await act(async () => lockButton().click());
+  await vi.waitFor(() => expect(acceptanceRecords()).toEqual([null, null, null, null, null, null]));
+  expect(patched).toBe(true);
+  expect(document.querySelector("#plan-composer-error")).toBeNull();
+});
+
+it.each(["both", "v1-only", "v2-only"] as const)(
+  "marks a clean-device Map acceptance as provisional through %s saves and Release",
+  async (lane) => {
+    const advance = pinClock();
+    expect(readPlanDraftEnvelope(sessionStorage)).toBeNull();
+    expect(readPlanRouteDraftEnvelope(localStorage)).toBeNull();
+    const accepted = acceptMapVenue({ cityId: "london", acceptedVenueId: "venue-new" }, { storage: sessionStorage });
+    expect(accepted.accepted).toBe(true);
+    if (lane !== "both") rejectSessionRecordWrites([lane === "v1-only" ? PLAN_DRAFT_V2_KEY : PLAN_DRAFT_KEY]);
+    fetchMock.mockImplementation(async () => Response.json([{ id: "venue-new", name: "New Pub" }]));
+    await mountComposer();
+    advance(1000);
+    await editInput("#plan-title", "Our first Map night");
+    const expectProvisional = (held: boolean) => {
+      const draft = readPlanDraftEnvelope(sessionStorage)?.draft;
+      expect(draft).toMatchObject({
+        title: "Our first Map night", provisionalStop: true,
+        stops: [{ venueId: "venue-new", venueName: "New Pub" }],
+      });
+      if (held) expect(draft?.acceptedAnchor?.venueId).toBe("venue-new");
+      else expect(draft?.acceptedAnchor).toBeUndefined();
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBeNull();
+      expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBeNull();
+      expect(document.querySelector('[data-result="true"]')).toBeNull();
+    };
+    expectProvisional(true);
+    await remountComposer();
+    expectProvisional(true);
+    advance(2000);
+    await act(async () => action("Release this pub").click());
+    await settle();
+    expectProvisional(false);
+    expect(readPlanningIntent({ storage: sessionStorage })).toBeNull();
+    await remountComposer();
+    expectProvisional(false);
+    expect(document.querySelector('[aria-label="Accepted plan context"]')).toBeNull();
+  },
+);
+
+it("leaves a genuine one-stop edit unmarked when only the legacy Session write succeeds", async () => {
+  const advance = pinClock();
+  const session = blockStorageWrites("sessionStorage");
+  rememberPlanHostName(localStorage, "Captain");
+  fetchMock.mockImplementation(async (input) => Response.json(
+    String(input).includes("/api/plans/generate") ? generatedProofFixture(3) : [],
+  ));
+  await generateFromDescription("Three pubs in Clapham tonight");
+  const route = localStorage.getItem(PLAN_ROUTE_DRAFT_KEY);
+  advance(CLIENT_PROOF_LIFETIME + 1);
+  await remountComposer();
+  expectExpiredCorrelatedPreview();
+  vi.stubGlobal("sessionStorage", session);
+  rejectSessionRecordWrites([PLAN_DRAFT_V2_KEY]);
+  rejectRouteWrites([PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY]);
+
+  for (const position of [3, 2]) {
+    advance(CLIENT_PROOF_LIFETIME + (4 - position) * 1000);
+    const remove = document.querySelector<HTMLButtonElement>(`button[aria-label="Remove stop ${position}"]`);
+    expect(remove).not.toBeNull();
+    await act(async () => remove!.click());
+    await settle();
+  }
+  const edited = readPlanDraftEnvelope(sessionStorage);
+  expect(edited).toMatchObject({
+    legacy: true, savedAt: null, draft: { stops: [{ venueId: "venue-a", venueName: "Pub A" }], routeReference: null },
+  });
+  expect(edited?.draft.provisionalStop).toBeUndefined();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(route);
+  await remountComposer();
+  expect(document.querySelector('[data-result="true"]')).not.toBeNull();
+  expect(lockButton().getAttribute("aria-disabled")).toBe("true");
+  await attemptRouteSave();
+});
+
+it("drops the provisional marker after adding another stop", async () => {
+  const { advance, routeV1, routeV2 } = await seedLaterMapAcceptance("v2");
+  await remountComposer();
+  advance(CLIENT_PROOF_LIFETIME + 2000);
+  await editInput("#plan-title", "Our provisional request");
+  expect(readPlanDraftEnvelope(sessionStorage)?.draft.provisionalStop).toBe(true);
+  advance(CLIENT_PROOF_LIFETIME + 3000);
+  await act(async () => action("Add another stop").click());
+  await settle();
+  const edited = readPlanDraftEnvelope(sessionStorage)?.draft;
+  expect(edited?.stops).toHaveLength(2);
+  expect(edited?.provisionalStop).toBeUndefined();
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)).toBe(routeV1);
+  expect(localStorage.getItem(PLAN_ROUTE_DRAFT_V2_KEY)).toBe(routeV2);
+  expectNoRouteSave();
+});
 
 it("restores ordered stops as a preview after proof expires with Session writes blocked", async () => {
   const fixture = await saveCorrelatedRouteBeforeProofExpiry();

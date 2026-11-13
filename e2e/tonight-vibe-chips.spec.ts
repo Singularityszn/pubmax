@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { expect, test } from "@playwright/test";
 
-const SHOTS_DIR = "docs/screenshots/tonight-vibe-chips";
+const SHOTS_DIR = "artifacts/screenshots/tonight-vibe-chips";
 
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {

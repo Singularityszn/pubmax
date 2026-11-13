@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { needsAdultSelfAssertion } from "@/lib/adultGate";
 import { adultSelfAssertionStore } from "@/lib/adultSelfAssertionStore";
+import type { ContributionDoorStatus } from "@/lib/contributionGateStatus";
 import { verifyCallerAuth } from "@/lib/authServer";
 import {
   authResumeCookieFromHeader,
@@ -78,6 +79,7 @@ export type SocialAccessResolution = (
        * button that would not be honoured.
        */
       adultPrompt?: boolean;
+      gate?: ContributionDoorStatus;
     }
   | { available: true; state: "verified"; actor: SocialPostActor }
   | {
@@ -436,18 +438,19 @@ async function resolveSocialAccessFor(
         authUserId: supabase.userId,
       };
     }
+    const gate: ContributionDoorStatus = !profile?.handle?.trim()
+      ? "onboarding_required"
+      : needsAdultSelfAssertion({ dateOfBirth, adultSelfAssertedAt: adultSelfAssertedAt ?? null })
+        ? "adult_check_required"
+        : "adult_check_failed";
     return without({
       available: true,
       state,
       ...resumeCookie,
       ...(state === "age_verification_required"
         ? {
-            adultPrompt:
-              Boolean(profile?.handle?.trim()) &&
-              needsAdultSelfAssertion({
-                dateOfBirth,
-                adultSelfAssertedAt: adultSelfAssertedAt ?? null,
-              }),
+            gate,
+            adultPrompt: gate === "adult_check_required",
           }
         : {}),
     });
@@ -479,6 +482,7 @@ export type VerifiedSocialActorResolution = (
         | "SOCIAL_ACCESS_UNAVAILABLE";
       error: string;
       retryable?: true;
+      gate?: ContributionDoorStatus;
     }
 ) & SocialResumeCookie;
 
@@ -528,6 +532,7 @@ export async function requireVerifiedSocialActor(
     status: 403,
     code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
     error: "Adult verification is needed for Social.",
+    gate: access.gate,
     ...resumeCookie,
   };
 }

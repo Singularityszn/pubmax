@@ -8,6 +8,7 @@ const PRODUCT_EVENT_STATIC_SURFACES = new Set([
   "/plan",
   "/social",
   "/tonight",
+  "/tools",
   "/you",
 ]);
 

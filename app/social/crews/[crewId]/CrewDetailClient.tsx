@@ -15,11 +15,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import ReportPerson from "@/components/social/ReportPerson";
+import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
+import { liveShareCrewStopSeat, subscribeLiveShare } from "@/lib/planLiveLocationShare";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -52,6 +56,32 @@ type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 type IdentityMessage = { identityKey: string; text: string } | null;
+const noStopSeat = () => null;
+
+function CrewArrivalControl({ arrival, busy, onMark }: {
+  arrival: { open: boolean; here: boolean };
+  busy: boolean;
+  onMark: () => void;
+}) {
+  return (
+    <section className="crews__notice" aria-labelledby="crew-arrival-title">
+      <h2 id="crew-arrival-title" className="crews__title">On the night</h2>
+      <p className="crews__muted" role="status">
+        {arrival.here ? "You're marked Here." : arrival.open
+          ? "Let the crew know when you've arrived." : "Arrival is only open on the night."}
+      </p>
+      <button
+        type="button"
+        className={arrival.here ? "crews__button" : "crews__button crews__button--primary"}
+        disabled={busy || !arrival.open || arrival.here}
+        aria-pressed={arrival.here}
+        onClick={onMark}
+      >
+        {busy ? "Working…" : arrival.here ? "You're here" : "I'm here"}
+      </button>
+    </section>
+  );
+}
 
 export default function CrewDetailClient({
   crewId,
@@ -66,6 +96,7 @@ export default function CrewDetailClient({
   const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
+  const liveLocationSeat = useSyncExternalStore(subscribeLiveShare, liveShareCrewStopSeat, noStopSeat);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<IdentityMessage>(null);
@@ -87,6 +118,27 @@ export default function CrewDetailClient({
   const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
   const previousScopeKey = useRef(scopeKey);
   const queueRefreshAuthorityRevision = useRef<number | null>(null);
+  const canRefreshArrival = identityResolved && loadedIdentityKey === identityKey
+    && crew?.kind === "member" && crew.visibility === "open" && Boolean(crew.arrival);
+  const arrival = crew?.kind === "member" ? crew.arrival : undefined;
+
+  useEffect(() => {
+    if (!canRefreshArrival) return;
+    const refresh = () => setAttempt((value) => value + 1);
+    const resume = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", resume);
+    const timer = typeof arrival?.refreshAt === "number"
+      ? setTimeout(refresh, Math.min(2_147_483_647, Math.max(1_000, arrival.refreshAt - Date.now())))
+      : undefined;
+    return () => {
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", resume);
+      clearTimeout(timer);
+    };
+  }, [arrival, canRefreshArrival, scopeKey]);
 
   useEffect(() => {
     if (previousScopeKey.current === scopeKey) return;
@@ -171,7 +223,7 @@ export default function CrewDetailClient({
       active = false;
       controller.abort();
     };
-  }, [attempt, crewId, identityKey, identityResolved]);
+  }, [attempt, crewId, identityKey, identityResolved, scopeKey]);
 
   useEffect(() => {
     if (
@@ -444,13 +496,29 @@ export default function CrewDetailClient({
       router.push("/social");
     });
 
+  const markArrival = () =>
+    run(async () => {
+      if (crew?.kind !== "member" || !crew.arrival?.open || crew.arrival.here) return;
+      const result = await write(`/api/social/crews/${encodeURIComponent(crewId)}/arrival`, {
+        method: "POST",
+        body: JSON.stringify({ here: true }),
+        prefix: "crew-arrival",
+      });
+      if (result?.here !== true) throw new Error("Could not update your arrival.");
+      if (previousScopeKey.current !== scopeKey) return;
+      setCrew((current) => current?.kind === "member" && current.arrival
+        ? { ...current, arrival: { ...current.arrival, here: true } } : current);
+      trackCrewArrivedReceipts(result.crewArrived);
+    });
+
   const changeJoinRequest = (action: "request" | "cancel") =>
     run(async () => {
-      await write(`/api/social/crews/${encodeURIComponent(crewId)}/join-requests`, {
+      const body = await write(`/api/social/crews/${encodeURIComponent(crewId)}/join-requests`, {
         method: action === "request" ? "POST" : "DELETE",
         body: "{}",
         prefix: "crew-join",
       });
+      if (action === "request") trackHostLoopStep("request", parseCrewMutation(body), crew);
       setAttempt((value) => value + 1);
     });
 
@@ -459,20 +527,22 @@ export default function CrewDetailClient({
     decision: "accept" | "decline",
   ) =>
     run(async () => {
+      let outcome: ReturnType<typeof parseCrewMutation> = null;
       try {
-        await write(
+        outcome = parseCrewMutation(await write(
           `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
           {
             method: "PATCH",
             body: JSON.stringify({ decision }),
             prefix: "crew-join-decide",
           },
-        );
+        ));
       } catch (error) {
         setFocusJoinRequests(true);
         setJoinRequestAttempt((value) => value + 1);
         throw error;
       }
+      trackHostLoopStep("decide", outcome);
       setJoinRequests((current) =>
         current.filter((item) => item.requestId !== request.requestId),
       );
@@ -631,6 +701,11 @@ export default function CrewDetailClient({
         </header>
 
         <CrewPlanSection crew={crew} />
+        <PlanLiveLocation seat={{ planId: crew.plan.plan.id, via: "crew" }} ownerKey={`${crew.viewer.memberId}:${accountRevision ?? 0}`} />
+
+        {crew.visibility === "open" && crew.arrival ? (
+          <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />
+        ) : null}
 
         <section aria-labelledby="crew-members-title">
           <h2 id="crew-members-title" className="crews__title">
@@ -655,6 +730,11 @@ export default function CrewDetailClient({
               </li>
             ))}
           </ul>
+          <ReportPerson
+            handles={crew.members
+              .filter((member) => member.memberId !== crew.viewer.memberId)
+              .map((member) => member.handle)}
+          />
         </section>
 
         {managesOpenCrew ? (
@@ -866,6 +946,10 @@ export default function CrewDetailClient({
           </p>
         ) : null}
         {body}
+        {identityResolved && liveLocationSeat
+          && (status !== "ready" || loadedIdentityKey !== identityKey || crew?.kind !== "member" || crew.plan.plan.id !== liveLocationSeat.planId) ? (
+          <PlanLiveLocation seat={liveLocationSeat} ownerKey={identityKey} stopOnly />
+        ) : null}
       </main>
     </>
   );

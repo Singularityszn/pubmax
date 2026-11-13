@@ -62,7 +62,12 @@ export type HarvestSourceKind =
   // terms rather than robots.txt, and it states facts about businesses it does
   // not own, so every row is a non-first-party exception. A builder never
   // types its URL: it asks `openDataSourceUrl` for one.
-  | "open-data";
+  | "open-data"
+  // A third party's published price index, read by a builder into a committed
+  // pack under a narrow facts-only exception. It is not first party for any
+  // pub, so a row it yields is a listed price and never a confirmed one. Its
+  // builder takes its URLs from `openDataSourceUrl` like an open-data builder.
+  | "price-listing";
 
 type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
@@ -104,6 +109,11 @@ export type HarvestSource = {
    * means `/menu`, which is what every chain in this table uses today.
    */
   menuPathSuffix?: string;
+  /**
+   * Path prefixes the host's robots.txt disallows for `User-agent: *`.
+   * `openDataSourceUrl` refuses a URL under any of them before it is asked.
+   */
+  disallowedPaths?: readonly string[];
   /** What this source is expected to yield, and what it plainly will not. */
   notes: string;
 };
@@ -135,6 +145,15 @@ const OPEN_DATA_CHECKED_ON = "2026-10-17";
 // The quiz directory, read against the live robots.txt, its page list and its
 // footer on this day.
 const QUIZ_CHECKED_ON = "2026-10-28";
+// The Guinndex price index, read against its live robots.txt, /terms,
+// /voice.txt and /llms.txt on this day.
+const GUINNDEX_CHECKED_ON = "2026-11-09";
+// The Fuller's and Stonegate terms of use, read live on this day under the
+// captain's 7 Nov 2026 ruling that a pub group whose terms forbid commercial
+// use or scraping is a refused source.
+const TERMS_CHECKED_ON = "2026-11-12";
+const FULLERS_TERMS_EVIDENCE =
+  "Captain ruling, 7 Nov 2026: a pub group whose terms forbid commercial use or scraping is refused. Fuller's terms of use (https://www.fullers.co.uk/corporate/terms-of-use), read live on 12 Nov 2026, cover `this website or any site which we own` and say `You must not use any part of the content on our site for commercial purposes without obtaining a licence to do so from us or our licensors` and `You agree not to use our site for any commercial or business purposes`. PUBMAXX is commercial. robots.txt disallows /sitecore/, /homepage/ and three internal paths only and would permit the page, but the narrower terms rule binds.";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -175,12 +194,13 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-deals",
     firstParty: true,
     access: {
-      allowed: true,
-      evidence: "robots.txt disallows /sitecore/, /homepage/ and three internal paths only.",
-      checkedOn: CHECKED_ON,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
+      evidence: FULLERS_TERMS_EVIDENCE,
+      checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "Checked 2026-08-09: the event finder renders its results in the browser, so the served document lists no event, and the programme pages behind it (for example Laughs On Tap) give a season rather than a date. Expect zero rows until Fuller's publishes dates in the document.",
+      "The chain-deals entry for Fuller's event finder. See fullers-event-finder-events for the terms refusal shared by both event lanes.",
   },
   {
     id: "youngs-offers",
@@ -303,12 +323,14 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "chain-menu-prices",
     firstParty: true,
     access: {
-      allowed: true,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
       evidence:
-        "robots.txt re-read 2026-09-22: HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only. Menu paths are still checked against their own live robots response before each request.",
-      checkedOn: "2026-09-22",
+        "Captain ruling, 7 Nov 2026: a pub group whose terms forbid commercial use or scraping is refused. The Slug and Lettuce footer links its terms to the Stonegate Group terms (https://www.stonegategroup.co.uk/terms-conditions/), read live on 12 Nov 2026. They say `No text or data mining, or web scraping. You shall not conduct, facilitate, authorise or permit any text or data mining or web scraping in relation to our Websites and Apps`, name any `robot`, `bot`, `spider`, `scraper` or other automated tool, and say `You must not use any part of the content on our Websites and Apps for commercial purposes without obtaining a licence`. robots.txt re-read 2026-09-22 (HTTP 200, `User-agent: *` `Allow: /` with `Disallow: /home` only) would permit the menus, but the narrower terms rule binds.",
+      checkedOn: TERMS_CHECKED_ON,
     },
-    notes: "Slug and Lettuce /menus paths; prices only when printed on the page.",
+    notes:
+      "Slug and Lettuce /menus paths. Refused on terms, not on robots. Reading it needs Stonegate's written licence or a feed, not a crawler.",
   },
   {
     id: "brewdog-menu-prices",
@@ -351,12 +373,13 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     kind: "venue-events",
     firstParty: true,
     access: {
-      allowed: true,
-      evidence: "robots.txt disallows /sitecore/, /homepage/ and three internal paths only.",
-      checkedOn: CHECKED_ON,
+      allowed: false,
+      reason: "terms-forbid-commercial-use",
+      evidence: FULLERS_TERMS_EVIDENCE,
+      checkedOn: TERMS_CHECKED_ON,
     },
     notes:
-      "The operator's own event finder. Checked 2026-08-09: results render in the browser, so a markdown read may yield zero dated rows until Fuller's publishes dates in the document. Context.dev events lane reads this page; the chain-deals lane reads the same URL separately.",
+      "The operator's own event finder. The Context.dev events lane and the chain-deals lane refuse this page because Fuller's terms forbid commercial use.",
   },
   {
     id: "common-social-posts",
@@ -493,6 +516,27 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     },
     notes:
       "Read by scripts/build_heritage_listings.mjs into public/data/heritage_listings.json: one page of 1,000 points at a time (the layer allows 2,000), redirects refused, and a failed page stops the run and writes nothing.",
+  },
+
+  // --- price listings: a third party's published price index ---------------
+  {
+    id: "guinndex-uk",
+    label: "Guinndex UK",
+    url: "https://guinndex.co.uk/",
+    kind: "price-listing",
+    firstParty: false,
+    nonFirstPartyException:
+      "Captain decision, 9 Nov 2026. FACTS ONLY plus a link out: the Guinness price, the drink, the measure, the day the price was recorded and the pub's own guinndex.co.uk page. A row is a listed price, never a confirmed one, and it is shown with the day it was recorded, a note that it may have changed since, and a link to that pub's Guinndex page, as Guinndex's /voice.txt asks. The local cache keeps only the pub slug and name, matching coordinates and formatted address, Guinness price records, drink and measure, price timestamps, price source, flag state, currency and business status. Names, addresses and points are used only for matching and are never committed. Other Google Places fields, ratings, opening hours, phone numbers, photos, contributor details and other taps are never stored or shown.",
+    access: {
+      allowed: true,
+      evidence:
+        "Captain decision, 9 Nov 2026. Read live on 9 Nov 2026. robots.txt: HTTP 200, `User-agent: *` with `Allow: /`, `Disallow: /spoons` and `Disallow: /api/spoons`, ClaudeBot and ChatGPT-User named and allowed, and no Crawl-delay. /voice.txt: `Bot-Access: open`, `Quote-Prices: yes`, and `Pint prices are snapshots. Say when a price was recorded, that it may have changed since, and point to that pub's page on guinndex.co.uk.` /terms holds no clause on automated access; its section 5 says prices are indicative only, and its section 6 reserves the Guinndex name, branding, graphics and design to Prime Directive AI Ltd. This is a quoting policy and not a reuse licence: partnerships@guinndex.co.uk is the address for written permission or a dump. The API answers `x-ratelimit-limit: 15` over a 60-second window and HTTP 429 past it, measured on 9 Nov 2026, so a reader waits 5 seconds between requests.",
+      checkedOn: GUINNDEX_CHECKED_ON,
+    },
+    crawlDelaySeconds: 5,
+    disallowedPaths: ["/spoons", "/api/spoons"],
+    notes:
+      "Read by scripts/build_guinndex_prices.mjs into data/uk_prices/guinndex.json: one county list per county from /api/county/{name}, then /api/pub/{slug} for each priced pub the list places at a PubMaxx venue, the registry delay between requests, one session, a User-Agent naming PubMaxx, and redirects refused. County and pub responses are trimmed before caching in data-harvest/guinndex. Without --collect, the same command rebuilds from that cache. A 403, a 429 or a challenge page stops the run before data/uk_prices/guinndex.json is written, so the committed pack stays unchanged. Cache entries already read stay in the cache. A price without a dated record on the pub's own page is skipped, never dated by guess. scripts/build_uk_price_bundle.mjs carries the matched rows into the bundle as `listing-site` rows.",
   },
 ];
 

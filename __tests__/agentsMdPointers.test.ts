@@ -19,8 +19,9 @@ import { defined } from "@/__tests__/helpers/defined";
 //
 // It reads the WHOLE tree rather than the root file. The document is a short
 // root index plus one area file per area, with long-form detail under
-// `docs/rules/`. `__tests__/agentsMdTree.test.ts` holds the tree's own shape.
-// This one holds what its prose points at.
+// `docs/rules/`. `__tests__/agentsMdTree.test.ts` holds the tree's own shape and
+// its byte budgets. This one holds what its prose points at. It sets no floor on
+// the pointer count, because a floor stops anyone pruning the rules.
 const ROOT = resolve(process.cwd());
 
 function ruleDetailDocPaths(): string[] {
@@ -176,6 +177,8 @@ const NOT_REPO_PATHS = new Set([
   ".mobileTabBarClearance",
   // An OSM tag VALUE, not a path.
   "24/7",
+  // A drink serving label, not a path.
+  "1/2-pint",
   // Accept header value named in the /onboarding entry, not a path.
   "text/html,...",
   // Receipt copy the product prints, not a file.
@@ -339,24 +342,5 @@ describe("AGENTS.md pointers", () => {
   it("sends every reader to a file or directory that exists", () => {
     const dangling = pointers().filter((pointer) => !resolves(pointer));
     expect(dangling, "AGENTS.md points at paths that are no longer here").toEqual([]);
-  });
-
-  it("keeps its pointers, so a trim cannot quietly gut it", () => {
-    // A pointer document with no pointers has stopped being one, and the
-    // pointer is the half a future reader cannot reconstruct: prose can be
-    // re-derived from the code, the knowledge of WHICH file owns a rule cannot.
-    // So this floor RATCHETS. It sits just under the shipped count rather than
-    // far below it, because a floor hundreds of pointers beneath the number it guards
-    // reads as protection and can never fire. Same rule as the performance
-    // budgets: take it UP when the count rises, and take it DOWN only in the
-    // commit that removes pointers on purpose, with the reason.
-    // Raised from 549 with the law-by-law trim: the document lost 27 per cent of
-    // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
-    // floor keeps the same slack under it. The split into an area tree moved
-    // every law and cost no pointer, so the count and the floor both stand.
-    // Raised from 555 when the long-form rules moved into `docs/rules/` and this
-    // fence began reading that directory: the move cost no pointer, the shipped
-    // count reads 1374, and the floor takes the same slack under it.
-    expect(pointers().length).toBeGreaterThan(1360);
   });
 });

@@ -11,7 +11,9 @@ const table = vi.hoisted(() => ({ rows: [] as Record<string, unknown>[] }));
 vi.mock("@/lib/storeBackend", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/storeBackend")>();
   const chain: Record<string, unknown> = {};
-  for (const method of ["select", "eq", "neq", "order", "limit"]) chain[method] = () => chain;
+  for (const method of ["select", "eq", "neq", "in", "not", "gte", "lt", "order", "limit", "range"]) {
+    chain[method] = () => chain;
+  }
   chain.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) =>
     Promise.resolve({ data: table.rows, error: null }).then(resolve, reject);
   return { ...actual, admin: () => ({ from: () => chain }) };
@@ -21,10 +23,16 @@ import {
   __resetMemoryProfileWithdrawals,
   __setMemoryProfileWithdrawn,
 } from "@/lib/accountPublicAccess.server";
+import { supabaseDutyCensusStore } from "@/lib/dutyCensusStore.server";
 import { supabasePintDropStore } from "@/lib/pintDropsStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 
-function row(id: string, handle: string, visibility: string): Record<string, unknown> {
+function row(
+  id: string,
+  handle: string,
+  visibility: string,
+  overrides: Record<string, unknown> = {},
+): Record<string, unknown> {
   return {
     id,
     venue_id: "withdrawal-test-venue",
@@ -37,6 +45,7 @@ function row(id: string, handle: string, visibility: string): Record<string, unk
     status: "visible",
     visibility,
     created_at: "2026-01-01T00:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -47,6 +56,22 @@ afterEach(() => {
 });
 
 describe("supabasePintDropStore withdrawal", () => {
+  it.each([
+    { count: 499, complete: true },
+    { count: 500, complete: false },
+  ])("marks a $count-row history complete=$complete before anonymous rows are filtered", async ({ count, complete }) => {
+    table.rows = Array.from({ length: count }, (_, index) => row(
+      `drop-${index}`, "alice", index < 2 ? "public" : "anonymous",
+    ));
+
+    const history = await supabasePintDropStore.listVisibleHistory(
+      "withdrawal-test-venue", { handle: "reader" }, "alice",
+    );
+
+    expect(history.complete).toBe(complete);
+    expect(history.drops.map((drop) => drop.id).sort()).toEqual(["drop-0", "drop-1"]);
+  });
+
   it("withholds a withdrawn author's named and anonymous drops from venue reads", async () => {
     __setMemoryProfileWithdrawn(__seedMemoryOwnedProfile("karansdad", "user-karansdad").id, true);
     table.rows = [
@@ -73,5 +98,20 @@ describe("supabasePintDropStore withdrawal", () => {
       "karansdad",
     );
     expect(own.map((drop) => drop.id).sort()).toEqual(["anon", "named"]);
+  });
+
+  it("leaves a withdrawn author's drops out of the duty census count", async () => {
+    __setMemoryProfileWithdrawn(__seedMemoryOwnedProfile("karansdad", "user-karansdad").id, true);
+    const inCensus = { created_at: "2026-11-20T19:00:00.000Z" };
+    table.rows = [
+      row("named", "karansdad", "public", inCensus),
+      row("anon", "karansdad", "anonymous", inCensus),
+      row("alice", "alice", "public", inCensus),
+      row("bob", "bob", "anonymous", inCensus),
+      row("friends", "carol", "friends", inCensus),
+      row("unpriced", "dave", "public", { ...inCensus, price_gbp: null }),
+    ];
+
+    await expect(supabaseDutyCensusStore.count()).resolves.toBe(2);
   });
 });

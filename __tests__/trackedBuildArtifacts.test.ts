@@ -59,4 +59,17 @@ describe("tracked build artifacts", () => {
     }
     expect(tracked.filter((file) => file.startsWith(".tmp-evidence/"))).toEqual([]);
   });
+
+  // PR evidence goes on the PR, never into the repository. About 1.08 GB of
+  // committed screenshots and proof made every clone and worktree carry it.
+  it("tracks no committed PR evidence and ignores its old folders", () => {
+    const folders = ["docs/proof/", "docs/screenshots/", "docs/evidence/"];
+    const tracked = trackedFiles().filter((file) =>
+      folders.some((folder) => file.startsWith(folder)),
+    );
+    expect(tracked).toEqual([]);
+    for (const folder of folders) {
+      expect(isIgnored(`${folder}shot.png`)).toBe(true);
+    }
+  });
 });

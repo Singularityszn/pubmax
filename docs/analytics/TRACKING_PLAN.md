@@ -7,6 +7,27 @@ registry grows an event this file does not name.
 
 Issue: [#1361](https://github.com/Singularityszn/pubmax/issues/1361).
 
+## Pub comparisons
+
+These events use the existing consent gate and carry no custom properties.
+They exclude venue IDs, orders, meeting points, conversation IDs and poll answers.
+
+| Event | Meaning |
+|---|---|
+| `pub_comparison_viewed` | The comparison form mounted. |
+| `pub_comparison_ready` | One submitted order returned complete comparable totals at two or more pubs. |
+| `pub_comparison_incomplete` | The answer returned fewer than two complete totals. This is not a successful price comparison. |
+| `pub_comparison_map_requested` | The person tapped a pub map link. This does not prove map arrival. |
+| `pub_comparison_share_requested` | The person requested the share sheet or clipboard. This does not prove delivery. |
+| `pub_comparison_links_copied` | The clipboard accepted the public pub links. |
+| `pub_comparison_poll_requested` | The person explicitly submitted the reviewed poll to a selected conversation. |
+| `pub_comparison_poll_sent` | The existing authenticated message endpoint acknowledged that submission. This does not prove a recipient read it. |
+
+Use existing plan creation, invitation and engagement events for later outcomes.
+Do not infer recipient engagement from a share-sheet close or a copied link.
+Search Console and Bing reports remain separate measurements. Missing access is
+unknown, not zero. Experimental AI answers are observations, not ranking positions.
+
 ## 1. How an event reaches PostHog
 
 Two reader transports, one consent gate, plus server telemetry that no reader is behind.
@@ -238,7 +259,7 @@ vocabularies. The column here is the question the event exists to answer.
 |---|---|
 | `discovery_viewed` | How many landings happened, and at what time of day. The release metric's denominator. |
 | `landing_cta_clicked` | Which front door a visitor took. |
-| `poster_landing` | A physical QR poster sent somebody to `/near`. |
+| `poster_landing` | Which poster or beer mat brought a consented visit to `/near`, by minted code when present. A visit does not prove installation. |
 | `poster_shared` | A poster or card was shared out of a surface. |
 | `pint_index_viewed` | A press arrival on the live Index or a dated edition, and whether the browser had been before. |
 | `pint_index_area_opened` | The arrival tapped through to an area. |
@@ -266,6 +287,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `whats_on_filter` | A what's-on filter was used. |
 | `event_chip_view` | A tonight chip was shown on a venue. |
 | `booking_click` | A booking link was taken. |
+| `table_request_sent` | Did a completed table request reach the pub, or need the reader to contact it directly, and did the request start in Pal or the venue sheet? Counts consented completed requests, not bookings, seated groups or revenue. |
 | `price_submit_viewed` | A price entry panel was seen. The contribution funnel's denominator. |
 | `price_submitted` | A price landed. The product's core action. |
 | `price_submit_outcome` | What that price turned out to be worth: trusted, still one voice, or kept on the page. |
@@ -343,6 +365,10 @@ vocabularies. The column here is the question the event exists to answer.
 | `invite_reaction_toggled` | A reaction was added or removed. |
 | `invite_map_opened` | The invite sent somebody to the Map. |
 | `friend_edge_via_crew` | A mutual pair formed because both were on one crew. |
+| `open_crawl_opened` | A host opened a locked plan up to strangers. |
+| `crew_join_requested` | Somebody asked to join an open crawl. |
+| `crew_join_accepted` | The host let a join request in. |
+| `crew_arrived` | A hosted night reached a guest arrival band. [METRICS section 3.3](METRICS.md#33-the-host-loop-and-hosted-night-arrivals) owns the counting rules and limits. |
 | `out_tonight_beacon_on` | The crew-only beacon went on. |
 | `out_tonight_beacon_off` | It went off. |
 
@@ -377,7 +403,7 @@ vocabularies. The column here is the question the event exists to answer.
 | `pal_passport_viewed` | A price passport with at least one stamp was opened on /pal. |
 | `pal_lead_started` | The Pal began to walk the way the reader chose to the next stop. Counted once for each chosen way. |
 | `voice_started` | A Pub Pal voice session connected. See 5.10. |
-| `voice_ended` | A connected voice session ended, and why: the reader stopped it, it disconnected, it hit the cap, or it failed. |
+| `voice_ended` | A connected voice session ended, and why: the reader stopped it, the page went out of sight, it disconnected, it hit the cap, or it failed. |
 
 ### 5.8 Identity and account
 

@@ -4,8 +4,8 @@ import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useOptimisticSpillRetry } from "@/components/feed/useOptimisticSpillRetry";
 import FeedCard from "@/components/feed/FeedCard";
-import { proposeWithTagsForDrop } from "@/components/map/composer/proposeWithTags";
 import FeedFilters from "@/components/feed/FeedFilters";
 import FeedSightings from "@/components/feed/FeedSightings";
 import PresenceStrip from "@/components/feed/PresenceStrip";
@@ -15,7 +15,6 @@ import TonightConditionsStrip from "@/app/tonight/TonightConditionsStrip";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import { discardBody } from "@/lib/responseBody";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { getAnonId } from "@/lib/anonId";
 import type { CheckIn } from "@/lib/checkIn";
 import {
@@ -30,13 +29,7 @@ import {
 import { sightingPlacement, type SightingDTO } from "@/lib/feedSightings";
 import {
   OPTIMISTIC_SPILL_EVENT,
-  buildOptimisticSpillRetryFormData,
-  emitOptimisticSpillChange,
-  failOptimisticSpill,
-  markOptimisticSpillRetrying,
   readOptimisticSpills,
-  reconcileOptimisticSpill,
-  writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { postReactionToggle } from "@/lib/optimisticToggle";
 import { followListHandleSet } from "@/lib/followList";
@@ -51,9 +44,8 @@ import {
 import { currentMode, MODE_DEFAULT_LANE } from "@/lib/viewMode";
 import { countSpillingNow, subscribeToNewDrops } from "@/lib/realtime";
 import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
-import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
-import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import { authedFetch } from "@/lib/authedFetch";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const PAGE_SIZE = 12;
@@ -667,63 +659,7 @@ export default function FeedPageClient({
     [actorId],
   );
 
-  const retryOptimisticPost = useCallback(async (clientRequestId: string) => {
-    if (typeof window === "undefined") return;
-    const writeLocalEntries = (entries: ReturnType<typeof readOptimisticSpills>) => {
-      writeOptimisticSpills(window.localStorage, entries);
-      emitOptimisticSpillChange();
-    };
-    const stored = readOptimisticSpills(window.localStorage);
-    const entry = stored.find((candidate) => candidate.clientRequestId === clientRequestId);
-    if (!entry?.retry) {
-      writeLocalEntries(
-        failOptimisticSpill(
-          stored,
-          clientRequestId,
-          "Retry details are no longer available. Open the map and post it again.",
-        ),
-      );
-      return;
-    }
-
-    writeLocalEntries(markOptimisticSpillRetrying(stored, clientRequestId));
-
-    try {
-      const body = await buildOptimisticSpillRetryFormData(entry.retry);
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
-      const data = (await response.json().catch(() => ({}))) as {
-        drop?: PintDropDTO;
-        error?: string;
-      };
-      if (!response.ok || !data.drop) {
-        throw new Error(errorMessageFrom(data, "Could not save that Spill."));
-      }
-      const reconciledDrop: PintDropDTO = {
-        ...data.drop,
-        venueName: entry.retry.venueName,
-        venueMapUrl: venueMapUrl(entry.retry.venueId),
-      };
-      writeLocalEntries(
-        reconcileOptimisticSpill(
-          readOptimisticSpills(window.localStorage),
-          clientRequestId,
-          reconciledDrop,
-        ),
-      );
-      window.localStorage.setItem("pubmax_handle", entry.retry.handle.trim());
-      // The tags ride the retry: the first attempt never got a drop id to
-      // tag, and proposing is idempotent on drop id plus handle.
-      void proposeWithTagsForDrop(data.drop, entry.retry.withHandles ?? []);
-    } catch (err) {
-      const message =
-        err instanceof Error && err.message.trim()
-          ? err.message
-          : "Network or storage error. Try again.";
-      writeLocalEntries(
-        failOptimisticSpill(readOptimisticSpills(window.localStorage), clientRequestId, message),
-      );
-    }
-  }, []);
+  const retryOptimisticPost = useOptimisticSpillRetry();
 
   function onFilterChange(next: FeedFilter) {
     // The viewer chose a lane — from here on their choice is sticky and the

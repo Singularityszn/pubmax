@@ -5,8 +5,8 @@ import { londonDayKey } from "../lib/pintContributions";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
-// "Your year so far" (components/pal/PalYear.tsx) on /pal, read from this
-// device: the nights kept and the crawls walked. Then "Share my year"
+// "Your year so far" (components/pal/PalYear.tsx) on /pal, reached by typing
+// /year-in-pints, read from this device: the nights kept and the crawls walked. Then "Share my year"
 // (components/pal/PalYearShare.tsx): the person ticks the lines, the link
 // carries only those, and the shared page and its card read the link. Shots
 // land in artifacts/pal-year/ (gitignored).
@@ -60,10 +60,14 @@ test("the Pal reads the year back from this device", async ({ page }) => {
     } }));
   }, { year, ownerId: ACCOUNTS.A.id, ...DEFAULT_PAL_DRAFT });
   await seedSignedIn(page, "A");
-  await page.goto("/pal");
+  // The typed address is the door: it lands on the year, and focus with it.
+  await page.goto("/year-in-pints");
+  await expect(page).toHaveURL(/\/pal#year-in-pints$/);
 
   const card = page.getByTestId("pal-year");
   await expect(card).toBeVisible({ timeout: 60_000 });
+  await expect(card.getByRole("heading", { level: 2 })).toBeFocused();
+  await expect(card).toBeInViewport();
   const londonMonth = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", month: "numeric" }).format(new Date());
   const december = londonMonth === "12";
   await expect(card.getByRole("heading", { name: december ? "Your Year in Pints" : "Your year so far" })).toBeVisible();
@@ -117,7 +121,7 @@ test("the Pal reads the year back from this device", async ({ page }) => {
     "5 stops walked.",
     /^First night out: 1 January, at .+\.$/,
   ]);
-  await expect(page.getByRole("link", { name: "Read your own year" })).toHaveAttribute("href", "/pal");
+  await expect(page.getByRole("link", { name: "Read your own year" })).toHaveAttribute("href", "/pal#year-in-pints");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", /noindex/);
   const cardUrl = await page.locator('meta[property="og:image"]').getAttribute("content");
   expect(cardUrl).toContain(`/api/year-card?y=${year}&${link.search.slice(1)}`);

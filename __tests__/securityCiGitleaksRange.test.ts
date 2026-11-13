@@ -1,5 +1,5 @@
 // WHICH COMMITS GITLEAKS READS, BY EVENT (docs/CI_RUNBOOK.md, "Security CI is
-// advisory").
+// blocking").
 //
 // A push to main once scanned every ref, so a finding on an unmerged branch
 // turned main red on every push and the colour of main meant nothing. A push
@@ -93,8 +93,8 @@ describe("the gitleaks step", () => {
     });
   });
 
-  it("scans a pull request head's complete history", () => {
-    expect(logOptsFor({ EVENT_NAME: "pull_request" })).toBe("--full-history HEAD");
+  it.each(["pull_request", "merge_group"])("scans the %s head's complete history", (event) => {
+    expect(logOptsFor({ EVENT_NAME: event })).toBe("--full-history HEAD");
   });
 
   it("scans only the commits a push to main added", () => {

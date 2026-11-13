@@ -15,12 +15,13 @@ import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
-import { displayHandle } from "@/lib/handleDisplay";
-import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
+import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
 import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import type { ZonePintIndex } from "@/lib/zones";
 
 /**
  * The ONE line a provisional price prints. Captain decision 2026-09-04 (issue
@@ -42,8 +43,8 @@ export const PRICE_PENDING_LINE = "Checking prices…";
 export const AGED_PRICE_LINE = `Over ${PRICE_AUTHORITY_MAX_AGE_DAYS} days old, needs a fresh drinker`;
 
 /**
- * The ONE line an UNCHECKED report prints beside its figure (captain decision
- * 9, 1 Nov 2026): a typed price with no bill. It says what the price is still
+ * The line an unchecked report prints beside its figure. lib/pintDropReceipt.ts
+ * defines unchecked evidence. The line says what the price is still
  * waiting for and what that buys, in the words the rest of this lane uses.
  * Copy may claim the map only through the second drinker, never through the
  * drinker who typed it.
@@ -57,8 +58,7 @@ export const UNCHECKED_PRICE_LINE = "Counts on the map once a second drinker agr
  * one, never as a made-up handle.
  */
 export function uncheckedPriceLine(handle: string | null | undefined): string {
-  const name = !handle?.trim() || handle === ANON_HANDLE_LABEL ? ANON_HANDLE_LABEL : displayHandle(handle);
-  return `Logged by ${name}, not checked`;
+  return `Logged by ${dropAuthorLabel(handle)}, not checked`;
 }
 
 /** The price claim the overview area prints, in precedence order. */
@@ -83,9 +83,8 @@ export type ProvisionalPriceInput = {
   priceGbp: number;
   observedAt: string | number | null;
   /**
-   * The public handle an UNCHECKED report was logged under (a typed price with
-   * no bill, captain decision 9), or absent on a report with a bill and on
-   * every row written before the decision. Its presence is the whole signal:
+   * The public handle an unchecked report was logged under, or absent when
+   * `isUncheckedPrice` (lib/pintDropReceipt.ts) is false. Its presence is the signal:
    * the lane that carries it prints no band, and the trust chip reads
    * `unchecked` on the in-window lane (lib/pintTrust.ts `trustChipStateFor`).
    */
@@ -143,7 +142,7 @@ export type VenuePriceLane =
       lane: "provisional";
       provisionalPrice: number;
       observedAt: string | number | null;
-      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      /** Present when this report is unchecked (see `ProvisionalPriceInput`). */
       uncheckedBy?: string;
     }
   | {
@@ -169,7 +168,7 @@ export type VenuePriceLane =
       lane: "aged";
       agedPrice: number;
       observedAt: string | number | null;
-      /** Present when this report has no bill (see `ProvisionalPriceInput`). */
+      /** Present when this report is unchecked (see `ProvisionalPriceInput`). */
       uncheckedBy?: string;
     }
   | { lane: "estimate"; estimate: EstimatedPriceInput };
@@ -279,6 +278,15 @@ export function venuePriceLane(
   return null;
 }
 
+/** The modelled figure a surface shows: the decided lane's own, else the bundle's. */
+export function venuePriceLaneEstimate(
+  lane: VenuePriceLane | null,
+  bundle: VenueBundlePrices,
+): EstimatedPriceInput | null {
+  if (lane?.lane === "estimate") return lane.estimate;
+  return bundle.estimate ?? null;
+}
+
 /** A venue carrying whatever the UK price bundle holds about it. */
 type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null };
 
@@ -287,8 +295,16 @@ type VenueWithBundlePrices = Venue & { bundlePrices?: VenueBundlePrices | null }
  * `venueSourcedPrice` is derived. Absent reads as an empty answer rather than
  * as "no price": the bundle may simply not have been asked on this surface.
  */
-export function venueBundlePrices(venue: Venue): VenueBundlePrices {
-  return (venue as VenueWithBundlePrices).bundlePrices ?? {};
+export function venueBundlePrices(
+  venue: Venue,
+  zoneIndex?: ZonePintIndex | null,
+): VenueBundlePrices {
+  const read = (venue as VenueWithBundlePrices).bundlePrices;
+  const bundle = read ?? {};
+  const hasRecordedPrice = venue.hasRecordedPrice === true
+    ? true : zoneIndex?.recordedPintVenueIds?.includes(venue.id) ?? venue.hasRecordedPrice;
+  if (hasRecordedPrice === true || (read == null && hasRecordedPrice !== false)) return bundle;
+  return isPubVenueKind(venue.kind) ? withZoneEstimate(bundle, venue.zone, zoneIndex) : bundle;
 }
 
 /** The sourced-price lane input both callers derive the same way. */

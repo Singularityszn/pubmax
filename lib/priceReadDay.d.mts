@@ -5,3 +5,6 @@ export declare function cheapestPriceReadDay(
   rows: readonly { price_gbp?: unknown; scraped_at_values?: unknown }[],
   cheapestPrice: number | null | undefined,
 ): string | null;
+export declare function latestPriceRowRead(
+  rows: readonly { scraped_at_values?: unknown }[],
+): number | null;

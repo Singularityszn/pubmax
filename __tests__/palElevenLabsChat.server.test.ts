@@ -10,7 +10,7 @@ const CHECKING_LINE = "Let me check prices near Soho.";
 const SIGNED_URL =
   "wss://api.elevenlabs.io/v1/convai/conversation?agent_id=agent-id&conversation_signature=sig&conversation_id=conv_regression01";
 
-type ScriptedEvent = { afterMs: number; event: Record<string, unknown> };
+type ScriptedEvent = { afterMs: number; event: Record<string, unknown>; socketEvent?: "close" };
 
 function agentResponse(text: string): Record<string, unknown> {
   return { type: "agent_response", agent_response_event: { agent_response: text } };
@@ -55,6 +55,8 @@ const wsState = vi.hoisted(() => ({
   replyScript: null as ScriptedEvent[] | null,
   /** False until the mock sends a tool response, as the webhook fills the store first. */
   storeFilled: true,
+  /** Client tool results the server sent back to the agent. */
+  toolResults: [] as Array<{ tool_call_id?: string; result?: string; is_error?: boolean }>,
 }));
 
 class MockElevenLabsWebSocket {
@@ -105,6 +107,10 @@ class MockElevenLabsWebSocket {
       wsState.lastInitPayload = payload;
       return;
     }
+    if (payload.type === "client_tool_result") {
+      wsState.toolResults.push(payload as (typeof wsState.toolResults)[number]);
+      return;
+    }
     if (payload.type === "user_message") {
       wsState.userMessageCount += 1;
       wsState.userMessageText = payload.text ?? null;
@@ -112,7 +118,7 @@ class MockElevenLabsWebSocket {
         let at = 0;
         for (const step of wsState.replyScript) {
           at += step.afterMs;
-          setTimeout(() => this.emit("message", { data: JSON.stringify(step.event) }), at);
+          setTimeout(() => this.emit(step.socketEvent ?? "message", { data: JSON.stringify(step.event) }), at);
         }
         return;
       }
@@ -192,9 +198,12 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
 
 const tasteMocks = vi.hoisted(() => ({
   readPalTaste: vi.fn<(ownerId: string) => Promise<unknown>>(async () => null),
+  palOnlyNewScope: vi.fn<(ownerId: string | null) => Promise<{ exclude?: ReadonlySet<string>; hint: string }>>(
+    async () => ({ hint: "I don't know where you've been yet." }),
+  ),
 }));
 
-vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste }));
+vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: tasteMocks.readPalTaste, palOnlyNewScope: tasteMocks.palOnlyNewScope }));
 
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { runPalElevenLabsChatTurn } from "@/lib/palElevenLabsChat.server";
@@ -212,6 +221,7 @@ describe("runPalElevenLabsChatTurn", () => {
     wsState.userMessageCount = 0;
     wsState.repeatMetadata = false;
     wsState.replyScript = null;
+    wsState.toolResults = [];
     wsState.storeFilled = true;
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
@@ -339,6 +349,24 @@ describe("runPalElevenLabsChatTurn", () => {
     }
     expect(wsState.socketsOpened).toBe(0);
     expect(wsState.userMessageText).toBeNull();
+  });
+
+  it("leaves the owner's visits out of a typed somewhere-new answer from the records, and says why when it cannot", async () => {
+    const owner = "11111111-1111-4111-8111-111111111111";
+    const ask = "Find four pubs in Soho with pints under £6";
+    const before = await runPalElevenLabsChatTurn({ query: ask, ownerId: owner });
+    expect(tasteMocks.palOnlyNewScope).not.toHaveBeenCalled();
+    const visited = before.ok ? before.cards.map((card) => card.venueId).slice(0, 2) : [];
+    expect(visited).toHaveLength(2);
+    tasteMocks.palOnlyNewScope.mockResolvedValueOnce({ exclude: new Set(visited), hint: "" });
+
+    const fresh = await runPalElevenLabsChatTurn({ query: `${ask}, somewhere new`, ownerId: owner });
+
+    expect(tasteMocks.palOnlyNewScope).toHaveBeenCalledWith(owner);
+    expect(fresh.ok && fresh.cards.some((card) => visited.includes(card.venueId))).toBe(false);
+    expect(wsState.socketsOpened).toBe(0);
+    const off = await runPalElevenLabsChatTurn({ query: `${ask}, surprise me`, ownerId: owner });
+    expect(off.ok && off.message.startsWith("I don't know where you've been yet.")).toBe(true);
   });
 
   it("review regression: returns independent transit with the unsupported price answer", async () => {
@@ -943,6 +971,30 @@ describe("runPalElevenLabsChatTurn", () => {
     );
   });
 
+  it("answers a voice-only map tool call with an error, so the typed reply goes on in words", async () => {
+    const mapCall = { type: "client_tool_call", client_tool_call: { tool_name: "map_focus_pick", tool_call_id: "map_1", parameters: { number: 2 }, event_id: 2 } };
+    wsState.replyScript = [
+      { afterMs: 0, event: mapCall },
+      { afterMs: 20, event: agentResponse(SOURCED_ANSWER) },
+      { afterMs: 10, event: responseComplete() },
+    ];
+
+    const outcome = await runPalElevenLabsChatTurn({
+      query: "Show me the second one on the map",
+      ownerId: "11111111-1111-4111-8111-111111111111",
+    });
+
+    const init = wsState.lastInitPayload as { conversation_config_override?: { conversation?: { client_events?: string[] } } };
+    expect(init?.conversation_config_override?.conversation?.client_events).toContain("client_tool_call");
+    expect(wsState.toolResults).toEqual([{
+      type: "client_tool_result",
+      tool_call_id: "map_1",
+      result: "The map only works in a voice call. Answer in words.",
+      is_error: true,
+    }]);
+    expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
   it("answers a turn that asks for no tool on its first reply, without waiting for the turn end", async () => {
     wsState.replyScript = [{ afterMs: 0, event: agentResponse(SOURCED_ANSWER) }];
 
@@ -1048,6 +1100,72 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+  });
+
+  describe("agent end_call in typed chat", () => {
+    const ownerId = "11111111-1111-4111-8111-111111111111";
+    const farewell = "Tap me when you want another pub.";
+    const request = {
+      type: "agent_tool_request",
+      agent_tool_request: { tool_name: "end_call", tool_call_id: "end_1", tool_type: "system" },
+    };
+    const response = {
+      type: "agent_tool_response",
+      agent_tool_response: { tool_name: "end_call", tool_call_id: "end_1", is_error: false },
+    };
+
+    beforeEach(() => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    });
+
+    it.each([
+      { name: "request", events: [agentResponse(farewell), request] },
+      { name: "response", events: [agentResponse(farewell), response] },
+      { name: "request and response", events: [agentResponse(farewell), request, response] },
+      { name: "request before the farewell", events: [request, agentResponse(farewell), response] },
+      { name: "earlier data tool", events: [toolRequest("search_1"), toolResponse("search_1"), agentResponse(farewell), request, response] },
+    ])("returns the latest farewell on socket close after $name", async ({ events }) => {
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse("An earlier answer.") },
+        ...events.flatMap((event) => event.type === "agent_response"
+          ? [responsePart("delta", farewell), event]
+          : [event]).map((event) => ({ afterMs: 0, event })),
+        { afterMs: 0, event: {}, socketEvent: "close" },
+      ];
+      const onProgress = vi.fn();
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId, onProgress });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: farewell });
+      expect(onProgress.mock.calls).toEqual([[{ type: "delta", text: farewell }]]);
+    });
+
+    it("keeps the farewell eligible when the socket stays open", async () => {
+      wsState.replyScript = [agentResponse(farewell), request, response].map((event) => ({ afterMs: 0, event }));
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: farewell });
+    });
+
+    it.each([
+      { name: "unexpected closure", events: [agentResponse(farewell)] },
+      { name: "no farewell", events: [request, response] },
+      { name: "unfinished data tool", events: [agentResponse(CHECKING_LINE), toolRequest("search_1"), request, response] },
+      { name: "failed end_call", events: [agentResponse(farewell), request, { ...response, agent_tool_response: { ...response.agent_tool_response, is_error: true } }] },
+    ])("retains the provider failure for $name", async ({ events }) => {
+      wsState.replyScript = [
+        ...events.map((event) => ({ afterMs: 0, event })),
+        { afterMs: 0, event: {}, socketEvent: "close" },
+      ];
+      const pending = runPalElevenLabsChatTurn({ query: "Cheers, that's all", ownerId });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toEqual({ ok: false, code: "PROVIDER_UNAVAILABLE" });
+    });
   });
 
   describe("streaming the reply as the agent writes it", () => {
@@ -1171,6 +1289,32 @@ describe("runPalElevenLabsChatTurn", () => {
 
     afterEach(() => {
       vi.useRealTimers();
+    });
+
+    it.each([
+      { name: "a blank reply", event: agentResponse("   ") },
+      { name: "a missing reply body", event: { type: "agent_response", agent_response_event: {} } },
+      { name: "a missing reply event", event: { type: "agent_response" } },
+      { name: "an empty stream delta", event: responsePart("delta") },
+      { name: "a missing stream part", event: { type: "agent_chat_response_part" } },
+    ])("keeps the latest reply after $name", async ({ event }) => {
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("delta", SOURCED_ANSWER) },
+        { afterMs: 0, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 0, event },
+        { afterMs: 0, event: responseComplete() },
+      ];
+      const onProgress = vi.fn();
+      const pending = runPalElevenLabsChatTurn({
+        query: "quiet pubs",
+        ownerId: "11111111-1111-4111-8111-111111111111",
+        onProgress,
+      });
+
+      await vi.runAllTimersAsync();
+
+      await expect(pending).resolves.toMatchObject({ ok: true, message: SOURCED_ANSWER });
+      expect(onProgress.mock.calls).toEqual([[{ type: "delta", text: SOURCED_ANSWER }]]);
     });
 
     it("answers a tool turn once the reply has settled, without waiting for the turn end", async () => {

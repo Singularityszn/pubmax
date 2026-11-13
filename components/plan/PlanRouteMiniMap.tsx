@@ -132,6 +132,7 @@ export default function PlanRouteMiniMap({
   );
   const titleId = useId();
   const descId = useId();
+  const accuracyId = useId();
 
   const [noWebGl, setNoWebGl] = useState(false);
   useEffect(() => {
@@ -237,18 +238,21 @@ export default function PlanRouteMiniMap({
     ? `Route map: ${count} stops ${activeResolved.areaDescription}`
     : `Route map: ${count} stops`;
   const description = activeDrawn.source === "straight"
-    ? `Approximate stop order between ${activeResolved.names.join(", ")}. Dashed lines show stop order only.`
+    ? `Approximate stop order between ${activeResolved.names.join(", ")}.`
     : `Walking route between ${activeResolved.names.join(", ")}.`;
 
-  const labelledBy = `${titleId} ${descId}`;
+  const labelledBy = activeDrawn.source === "straight"
+    ? `${titleId} ${accuracyId} ${descId}`
+    : `${titleId} ${descId}`;
   const preview = (
     <>
       <p id={titleId} className="planRouteMiniMap__title">
         {title}
-      </p>
+      </p>{" "}
       {activeDrawn.source === "straight" ? (
-        <p className="planRouteMiniMap__accuracy">Dashed lines show stop order only.</p>
+        <p id={accuracyId} className="planRouteMiniMap__accuracy">Dashed lines show stop order only.</p>
       ) : null}
+      {" "}
       <p id={descId} className="planRouteMiniMap__srOnly">
         {description}
       </p>

@@ -1,11 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import NightCrawlMode from "@/components/plan/NightCrawlMode";
+import PlanMutationOutboxHost from "@/components/plan/PlanMutationOutboxHost";
 import { markActivePlan, readActivePlan, setActivePlanStopIndex } from "@/lib/activePlan";
+import { NIGHT_CRAWL_ROUTE_CHANGED_NOTE } from "@/lib/nightCrawl";
 import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION, writePlanCapability } from "@/lib/planSessionCapability";
 import { __resetPlanMutationOutboxForTests, listPlanMutationOutbox } from "@/lib/planMutationOutbox";
 import type { PlanState } from "@/lib/plan";
@@ -18,7 +20,7 @@ const plan: PlanState = {
 };
 let host: HTMLDivElement;
 let root: Root;
-let actionStatus: number | "network";
+let actionStatus: number | "network" | "route_changed";
 let actionCalls: number;
 
 beforeEach(() => {
@@ -36,6 +38,9 @@ beforeEach(() => {
     if (String(input).endsWith("/actions")) {
       actionCalls += 1;
       if (actionStatus === "network") throw new TypeError("offline");
+      if (actionStatus === "route_changed") {
+        return Response.json({ error: NIGHT_CRAWL_ROUTE_CHANGED_NOTE, code: "PLAN_ROUTE_CHANGED", retryable: false }, { status: 409 });
+      }
       return Response.json(actionStatus === 200 ? plan : {
         error: { code: actionStatus === 403 ? "PLAN_ACTION_FORBIDDEN" : "MALFORMED_REQUEST", retryable: false },
       }, { status: actionStatus });
@@ -198,6 +203,40 @@ describe("Night mode action permissions and recovery", () => {
       expect(listPlanMutationOutbox(planId)).toEqual([]);
       expect(host.textContent).not.toContain("Held on this phone");
     });
+  });
+
+  it("shows a route change that refused a background replay once the drinker is back", async () => {
+    actionStatus = "network";
+    await render("host", true);
+    await tap("We are here");
+    await settle(() => expect(listPlanMutationOutbox(planId)[0]?.status).toBe("pending"));
+
+    // The drinker leaves the Plan page, the host changes the route, and the
+    // site-wide outbox host replays the held tap when signal returns.
+    const attemptsBeforeLeaving = actionCalls;
+    actionStatus = "route_changed";
+    await act(async () => root.render(createElement(PlanMutationOutboxHost)));
+    await settle(() => {
+      expect(actionCalls).toBe(attemptsBeforeLeaving + 1);
+      expect(readActivePlan()?.stopIndex).toBe(0);
+    });
+
+    const planPage = () => createElement(Fragment, null,
+      createElement(PlanMutationOutboxHost),
+      createElement(NightCrawlMode, { planId, initialState: plan }),
+    );
+    await act(async () => root.render(planPage()));
+    await settle(() => {
+      expect(host.querySelector('.nightCrawl__note[role="status"]')?.textContent).toBe(NIGHT_CRAWL_ROUTE_CHANGED_NOTE);
+      expect(listPlanMutationOutbox(planId)).toEqual([]);
+    });
+    expect(host.textContent).toContain("Stop 1 of 2");
+
+    await act(async () => root.render(createElement(PlanMutationOutboxHost)));
+    await act(async () => root.render(planPage()));
+    await settle(() => expect(host.querySelector(".nightCrawl__heroName")?.textContent).toBe("First Arms"));
+    expect(host.querySelector('.nightCrawl__note[role="status"]')).toBeNull();
+    expect(actionCalls).toBe(attemptsBeforeLeaving + 1);
   });
 });
 

@@ -19,7 +19,7 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
         const initialResponse = page.waitForResponse((response) => response.url().endsWith("/api/plans/generate") && response.request().method() === "POST");
         await page.getByRole("button", { name: "Plan it", exact: true }).click();
         expect((await initialResponse).status()).toBe(200);
-        await expect(page.locator("#plan-route-status")).toContainText("Route refreshed.");
+        await expect(page.locator("#plan-route-status")).toContainText("Route ready.");
         const tune = page.getByRole("button", { name: "Tune details", exact: true }).and(page.locator('[aria-haspopup="dialog"]'));
         await expect(tune).toBeVisible();
         await tune.click();

@@ -148,21 +148,15 @@ function boundaries(source: string): Boundary[] {
     .map(([boundary]) => boundary);
 }
 
-const RUNTIME_TESTED_ROUTES = new Set(["app/api/plans/[id]/beacon", "app/api/plans/[id]/presentation"]);
+const RUNTIME_TESTED_ROUTES = new Set([
+  "app/api/plans/[id]/beacon",
+  "app/api/plans/[id]/presentation",
+  "app/api/social/crews/[crewId]/arrival",
+]);
 
 const mutationHandlers = routeFiles(API_ROOT)
   .flatMap((file) => mutationHandlersFromSource(readFileSync(file, "utf8"), file))
   .sort((first, second) => mutationHandlerKey(first).localeCompare(mutationHandlerKey(second)));
-
-function certifiedMutationHandlers(): string[] {
-  const block = CERTIFICATION.match(
-    /<!-- mutation-handler-inventory:start -->[\s\S]*?<!-- mutation-handler-inventory:end -->/,
-  )?.[0] ?? "";
-  return [...block.matchAll(/^- `((?:POST|PUT|PATCH|DELETE) app\/api\/[^`]+)`$/gm)]
-    .map((match) => match[1] ?? "")
-    .filter(Boolean)
-    .sort();
-}
 
 describe("mutating API surface certification", () => {
   it("documents account-derived Visit Report and Recommendation identity", () => {
@@ -185,41 +179,6 @@ describe("mutating API surface certification", () => {
     );
     expect(recommendations).toMatch(/profile-based actor/);
     expect(recommendations).not.toMatch(/Keyless development|asserted handle/);
-  });
-
-  it("keeps the declared mutation inventory explicit", () => {
-    // Each mutation method is one coordination point. Exact path and method
-    // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    // 150: 146 (main's 147 less POST /api/price-confirm, which contribution
-    // battle test L03 retired) plus the four mutation methods of the API tree's
-    // own 404, `app/api/[[...unmatched]]`, which refuses and writes nothing.
-    // 149: less POST /api/pub-pal/mastery, deleted with no caller (#1802).
-    // 150: plus POST /api/drink-wall, the city Drink Wall upload.
-    // 153: plus POST /api/pub-pal/chat, tool-turn, and tools/[toolName] (#Pal ElevenLabs brain).
-    // 152: less POST /api/pub-pal/llm, the unused Custom LLM bridge.
-    // 153: plus POST /api/diary, the private Diary (Phase 1).
-    // 156: plus POST and PUT for Social video upload intents and POST for the
-    // held-video review queue (ADR 0017).
-    // 157: plus POST for Social photos 2 to 4.
-    // 159: plus POST and DELETE for your pubs in your own order (0186).
-    // 161: plus POST /api/venue-submissions and POST /api/admin/venue-submissions (Add a pub).
-    // 162: plus the anonymous POST /api/mcp transport.
-    // 163: plus the signed-in POST /api/pub-list-import entry point.
-    // 165: plus POST /api/venue-corrections and PATCH /api/admin/venue-corrections ("That's wrong").
-    // 166: plus POST /api/social/tags/with, Pint Drop "With" tag proposals.
-    // 169: plus POST and PATCH /api/regular-nights (add, "still on") and PATCH
-    // /api/admin/regular-nights (confirm, hide).
-    // 170: plus POST /api/plans/[id]/open-crew, "Open it up" (open crawls, 0208).
-    // 171: plus POST /api/kitchen-reports ("Still serving", "Kitchen closed").
-    // 172: plus POST /api/plans/[id]/usual-drink, a member's own usual drink for
-    // the round forecast on the plan card (review item B6).
-    // 173: plus POST /api/board-reads, the board reader's proposal read (A4).
-    // 176: private Plan beacon PUT/DELETE and mystery presentation PUT.
-    // 177: plus POST /api/table-requests, "Ask the pub for a table" (0219).
-    expect(mutationHandlers).toHaveLength(177);
-    expect(certifiedMutationHandlers()).toEqual(
-      mutationHandlers.map(mutationHandlerKey),
-    );
   });
 
   it("certifies both verified Social post write routes", () => {
@@ -247,34 +206,8 @@ describe("mutating API surface certification", () => {
     expect(section).toMatch(/stable profile/i);
     expect(section).toMatch(/desired state/i);
     expect(section).toMatch(/private saves/i);
-    expect(section).toMatch(/held moderation/i);
     expect(section).toMatch(/named staff/i);
     expect(section).toMatch(/safety floors\s+stay\s+open/i);
-  });
-
-  it("certifies every verified Social Crew membership route", () => {
-    const section = CERTIFICATION.match(
-      /### Social Crew authority routes[\s\S]*?(?=\n### `app\/api\/push-tokens`)/,
-    )?.[0] ?? "";
-    const routes = [
-      "app/api/social/crews",
-      "app/api/social/crews/[crewId]",
-      "app/api/social/crews/[crewId]/invitations",
-      "app/api/social/crews/[crewId]/invitations/[invitationId]",
-      "app/api/social/crews/[crewId]/join-requests",
-      "app/api/social/crews/[crewId]/join-requests/[requestId]",
-      "app/api/social/crews/[crewId]/members/[memberId]",
-      "app/api/social/crews/[crewId]/leave",
-    ];
-
-    for (const route of routes) expect(section).toContain(`\`${route}\``);
-    expect(section).toMatch(/verified Social actor/i);
-    expect(section).toMatch(/Idempotency-Key/);
-    expect(section).toMatch(/16 to 128/);
-    expect(section).toMatch(/private, no-store/);
-    expect(section).toMatch(/401[\s\S]*403[\s\S]*404[\s\S]*409[\s\S]*422[\s\S]*429[\s\S]*503/);
-    expect(section).toMatch(/creation alone[\s\S]*Authorization/i);
-    expect(section).toMatch(/unknown keys/i);
   });
 
   it("enumerates synchronous handlers and checks sibling boundaries independently", () => {

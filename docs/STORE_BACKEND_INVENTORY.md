@@ -8,21 +8,12 @@ The `planBeaconStore` and `planPresentationStore` rows declare metadata only.
 `__tests__/planNightStorePermissions.test.ts` exercises production refusal, current membership and host permissions.
 The beacon and presentation route tests exercise their HTTP handlers.
 
-## Current snapshot
+## Backend selection
 
-Counted on 31 October 2026 with the V1 night stores included.
-Recount it with `ls lib/*Store.ts` and a grep for `selectStore(` and
-`createDualBackendStore` whenever a store is added.
-
-- The repository has 66 `lib/*Store.ts` modules.
-- 44 modules call `selectStore` directly.
-- 15 modules use `createDualBackendStore`.
-- 8 modules keep memory state on `globalThis` so it survives a development
-  server reload. That state pattern is separate from backend selection.
-- The remaining 7 modules use an explicit backend, a file or static data path,
-  or an inline legacy selector: `contributorLeaderboardStore`,
-  `crawlStoryStore`, `importNotesStore`, `pubPalStore`, `socialCrewStore`,
-  `socialPostConsentStore` and `whatsOnStore`.
+The [canonical inventory](#canonical-inventory) lists the current stores.
+`__tests__/storeBackendInventory.test.ts` checks its store names and inline
+backend references against the source. Classifications describe the backend
+selection in each store.
 
 `lib/storeBackend.ts` owns the narrow backend seam. `createDualBackendStore`
 only curries `selectStore(memory, supabase)` into a zero-argument getter. It
@@ -55,6 +46,7 @@ silently stale.
 | adultSelfAssertionStore | factory-ready | Account assertion read and record; see [the adult policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap). |
 | analyticsReceiptStore | legacy-exception | Inline Supabase configuration checks; needs one selector seam. |
 | areaDemandStore | factory-ready | Demand signal with shared backend selection. |
+| billCheckStore | factory-ready | Observation verdicts and moderation. See the [bill check rule](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price). |
 | checkInStore | factory-ready | Check-in rows with shared backend selection. |
 | commentsStore | factory-eligible, policy-heavy | Comment moderation and report flow. |
 | communityPriceStore | factory-eligible, policy-heavy | Moderation, corroboration, venue signals, and Round source ownership. |
@@ -72,6 +64,7 @@ silently stale.
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
 | occupancyStore | factory-eligible, policy-heavy | Time window, retake, reporting, and moderation policy. |
+| openCrawlArrivalStore | not dual-backend | Supabase Plan-seat reads and mark-Here writes for open crawls. |
 | operatorFactsStore | factory-ready | What a moderator's acceptance of an operator proposal publishes: one fact per proposal, withdrawn by a later decline, read by the venue sheet and Tonight. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
@@ -82,6 +75,7 @@ silently stale.
 | planPresentationStore | factory-eligible, policy-heavy | Host-controlled mystery settings with private member reads and route revision checks. |
 | planGroupPrefsStore | factory-ready | Shared selector with `globalThis` memory state. |
 | planInviteRsvpStore | factory-ready | Shared selector with `globalThis` memory state. |
+| planLiveLocationStore | factory-eligible, policy-heavy | Member-only live positions with opt-in, Stop revocation, and night expiry. |
 | planStore | legacy-exception | Multiple inline Supabase configuration checks and plan policy. |
 | presenceStore | factory-ready | Presence rows with shared backend selection. |
 | priceTrustEventStore | factory-eligible, policy-heavy | Append-only trust events, reversals, and account credits. |
@@ -98,7 +92,7 @@ silently stale.
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |
 | savedPubsStore | legacy-exception | Inline Supabase configuration branch keyed by existing profile rows; needs its own selector refactor. |
 | socialConnectionStore | factory-ready | Connected provider rows with one backend selector. |
-| socialCrewStore | not dual-backend | Supabase-only RPC store. |
+| socialCrewStore | not dual-backend | Supabase-only Crew RPCs and open-crawl arrival operations. |
 | socialInteractionStore | factory-eligible, policy-heavy | Social relationship, block, and interaction policy. |
 | socialPostConsentStore | not dual-backend | Supabase-only RPC store. |
 | socialPostExtraPhotoStore | factory-eligible, policy-heavy | Photos 2 to 4: owner and first-photo checks, per-photo moderation. |
@@ -106,8 +100,9 @@ silently stale.
 | socialPostStore | factory-eligible, policy-heavy | Moderation, visibility, consent, and relationship policy. |
 | socialPostVideoStore | factory-eligible, policy-heavy | Upload intents, held-until-watched review and signed playback. |
 | socialPubRankingStore | factory-eligible, policy-heavy | Adjacent-neighbour placement and stale-list refusal (0186). |
+| socialSafetyModerationStore | not dual-backend | Service-role RPCs for moderator report queues, reported-content and flagged-message evidence, reviews and audited suspension decisions. No memory implementation. |
 | stepOutNudgeStore | factory-ready | Nudge preference and send-stamp rows with shared backend selection. |
-| tableRequestsStore | factory-ready | "Ask the pub for a table" requests PUBMAXX emailed to a verified operator: stored pending, stamped emailed or discarded, listed to that operator alone, and read back for the requester's own export. |
+| tableRequestsStore | factory-ready | Group table requests. See the [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent) for delivery, retries and visibility. |
 | venueCorrectionsStore | factory-ready | "That's wrong" notes about a pub (shut, hours, other) and the moderator's resolve or dismiss. |
 | venueOperatorsStore | factory-eligible, policy-heavy | Venue claim ownership and operator moderation policy. |
 | venuePhotoStore | factory-eligible, policy-heavy | Photo cap, author projection, reports, and moderation policy. |
@@ -129,11 +124,11 @@ The following stores intentionally stay outside the factory-ready path:
   `pubPalStore`, and `savedPubsStore`. Each needs a separate selector
   refactor before a factory wrapper can preserve its behavior. Owner: the
   next issue #727 store wave.
-- **not dual-backend:** `importNotesStore`, `socialCrewStore`,
-  `socialPostConsentStore`, and `whatsOnStore`. Their storage premise is not
+- **not dual-backend:** `importNotesStore`, `openCrawlArrivalStore`, `socialCrewStore`,
+  `socialPostConsentStore`, `socialSafetyModerationStore`, and `whatsOnStore`. Their storage premise is not
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
-  `planBeaconStore`, `planPresentationStore`,
+  `planBeaconStore`, `planPresentationStore`, `planLiveLocationStore`,
   `identityHandleStore`, `messagesStore`, `occupancyStore`,
   `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
@@ -147,6 +142,8 @@ The following stores intentionally stay outside the factory-ready path:
 ## Inline backend references
 
 Every production file with an inline `selectStore` or `isSupabaseConfigured` branch is listed here. This includes non-store modules such as `lib/messageAuth.ts`. The test compares this list with repository search results.
+
+`lib/openCrawlInvite.server.ts` checks Supabase inline because keyless development holds no crews, so the open-crawl lookup returns none without Supabase.
 
 <!-- inline-backend-references:start -->
 ```json
@@ -188,6 +185,8 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/crawlStoryStore.ts",
     "lib/creatorListDiscoveryRoute.server.ts",
     "lib/crewFriendEdges.ts",
+    "lib/crewJoinNotice.server.ts",
+    "lib/dutyCensusStore.server.ts",
     "lib/emailProvider.ts",
     "lib/followStore.ts",
     "lib/followWrite.server.ts",
@@ -197,7 +196,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/identityHandleStore.ts",
     "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
-    "lib/matesPrices.server.ts",
+    "lib/matesActivity.server.ts",
     "lib/messageAuth.ts",
     "lib/messagePhotoMedia.server.ts",
     "lib/messageSafety.server.ts",
@@ -207,9 +206,11 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/nightProfileStore.ts",
     "lib/nightSignalStore.server.ts",
     "lib/notificationsStore.ts",
+    "lib/openCrawlInvite.server.ts",
     "lib/operatorAccountAddress.server.ts",
     "lib/operatorProposalsStore.ts",
     "lib/pendingPlanRecapStore.ts",
+    "lib/peopleYouMayKnow.server.ts",
     "lib/pintDropLookup.ts",
     "lib/pintDropWithTagsStore.ts",
     "lib/pintDrops.ts",
@@ -219,6 +220,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/planCrewIdentity.ts",
     "lib/planGroupPrefsStore.ts",
     "lib/planInviteRsvpStore.ts",
+    "lib/planLiveLocationStore.ts",
     "lib/planPresentationStore.ts",
     "lib/planStore.ts",
     "lib/presenceStore.ts",
@@ -242,6 +244,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/serverEnv.ts",
     "lib/socialConnectionStore.ts",
     "lib/socialInteractionStore.ts",
+    "lib/socialMutual.server.ts",
     "lib/socialOAuth.ts",
     "lib/socialPostCreateRequest.server.ts",
     "lib/socialPostExtraPhotoStore.ts",
@@ -280,7 +283,7 @@ zero-argument selector before and after the factory wrapper, and its memory
 and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
-`adultSelfAssertionStore`, `diaryStore`, `feedFreshnessStore`,
+`adultSelfAssertionStore`, `billCheckStore`, `diaryStore`, `feedFreshnessStore`,
 `harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `operatorFactsStore`, `priceTrustEventStore`,
 `pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `tableRequestsStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require

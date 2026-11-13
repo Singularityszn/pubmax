@@ -8,7 +8,8 @@ export function askRequestClauses(query: string): string[] {
 }
 
 const TIME_QUALIFIER = String.raw`tonight|right now|now|later|today|this evening|this afternoon|this morning|this weekend`;
-const TRAILING_QUALIFIER = String.raw`${TIME_QUALIFIER}|with mates|for (?:two|a few|\d+)`;
+const DAY_QUALIFIER = String.raw`(?:on|this|next)\s+(?:mon|tues|wednes|thurs|fri|satur|sun)day(?:\s+(?:night|evening))?`;
+const TRAILING_QUALIFIER = String.raw`${TIME_QUALIFIER}|${DAY_QUALIFIER}|with mates|for (?:two|three|four|five|six|seven|eight|nine|ten|a few|\d+)(?:\s+(?:of us|people))?`;
 const TRAILING_QUALIFIER_RE = new RegExp(String.raw`(?:^|\s+)(?:${TRAILING_QUALIFIER})\s*$`, "i");
 
 export function stripTrailingPunctuation(phrase: string): string {

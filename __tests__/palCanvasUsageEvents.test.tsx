@@ -11,6 +11,7 @@ const boundary = vi.hoisted(() => ({
   placements: [] as Array<[number, number]>,
   events: [] as Array<{ name: string; props: unknown }>,
   reducedMotion: false,
+  pubsWrites: null as GeoJSON.FeatureCollection[] | null,
 }));
 
 const auth = vi.hoisted(() => ({ getCurrentUserId: (): string | null => auth.liveId, userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
@@ -23,6 +24,8 @@ vi.mock("@/lib/authedFetch", async (original) => ({
   ...await original<typeof import("@/lib/authedFetch")>(),
   authedActionFetch: async () => new Response(null, { status: 503 }),
 }));
+// The map chip's age read is its own suite's (pubPalSummonOwnership); here the owner may have voice.
+vi.mock("@/components/pubpal/usePalVoiceEligibility", () => ({ usePalVoiceEligibility: () => "eligible" }));
 vi.mock("@/components/map/useCommunityPrices", () => ({ useCommunityPrices: () => ({}) }));
 vi.mock("@/components/nearme/usePriceEvidenceMission", () => ({
   usePriceEvidenceMission: () => ({ mission: { venueId: "venue-a", reason: "missing" }, dismiss() {}, complete() {} }),
@@ -82,7 +85,10 @@ vi.mock("maplibre-gl", () => ({
     getPadding() { return { top: 0, bottom: 0, left: 0, right: 0 }; }
     getStyle() { return { sources: {}, layers: [] }; }
     getLayer() { return undefined; }
-    getSource() { return undefined; }
+    getSource(id: string) {
+      if (id !== "pubs" || !boundary.pubsWrites) return undefined;
+      return { setData: (data: GeoJSON.FeatureCollection) => boundary.pubsWrites!.push(data) };
+    }
     getBounds() { return { getWest: () => -0.2, getEast: () => 0, getSouth: () => 51.4, getNorth: () => 51.6 }; }
     project() { return { x: 200, y: 300 }; }
     queryRenderedFeatures() { return []; }
@@ -195,6 +201,7 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     boundary.placements = [];
     boundary.events = [];
     boundary.reducedMotion = false;
+    boundary.pubsWrites = null;
     frames = new Map();
     nextFrame = 0;
     clock = 0;
@@ -236,6 +243,26 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  // The cold-load contract requires a source write after scene readiness,
+  // even when the venue array did not change. Losing it delays the pin reveal.
+  it.each(["before", "after"] as const)("sends venue data that arrives %s map readiness to the pubs source", async (arrival) => {
+    await render({ venues: [], venueDataReady: false });
+    if (arrival === "before") {
+      await render({ venues: route, venueDataReady: true });
+    }
+    boundary.pubsWrites = [];
+    await ready();
+    if (arrival === "after") {
+      boundary.pubsWrites.length = 0;
+      await render({ venues: route, venueDataReady: true });
+    }
+    expect(boundary.pubsWrites).toHaveLength(1);
+    expect(boundary.pubsWrites[0]?.features).toEqual([
+      expect.objectContaining({ geometry: { type: "Point", coordinates: [-0.1, 51.5] }, properties: expect.objectContaining({ id: "venue-a" }) }),
+      expect.objectContaining({ geometry: { type: "Point", coordinates: [-0.09, 51.5] }, properties: expect.objectContaining({ id: "venue-b" }) }),
+    ]);
   });
 
   it("emits on placement, retains the count across rebuilds, and counts a new choice", async () => {

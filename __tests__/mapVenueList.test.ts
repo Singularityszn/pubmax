@@ -29,6 +29,18 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
 }
 
 describe("buildMapVenueListModel — the list-toggle gate", () => {
+  it("shows a bundle listing instead of a cheaper zone estimate", () => {
+    const pub = { ...venue({ id: "listed-bundle", zone: 5 }), bundlePrices: { listed: {
+      priceGbp: 6.45, sourceUrl: "https://guinndex.co.uk/pub/kings-head-chingford-london",
+      observedAt: "2026-11-07T18:27:36.845Z", publisher: "Guinndex",
+    } } };
+    const model = buildMapVenueListModel([pub], null, 1, null, "this view", "ready", "nearest", null, {
+      rows: [{ zone: 5, medianGbp: 4.6, pricedCount: 51, enough: true }],
+      ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
+    });
+    expect(model.rows[0]?.priceLabel).toBe("£6.45");
+  });
+
   it("keeps a half pint visible without naming it the cheapest pint", () => {
     const half = venue({ id: "half", cheapestPrice: 3.4, anchorLabel: "Half pint house lager" });
     const pint = venue({ id: "pint", cheapestPrice: 5, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });

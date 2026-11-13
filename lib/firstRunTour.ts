@@ -1,10 +1,7 @@
 // First-run onboarding tour gate — localStorage-backed, SSR-safe.
 //
-// A one-time welcome overlay orients a first-timer to the three core moves
-// (the map, DROP, Discover). Once dismissed — by Skip, close, backdrop, Esc,
-// or finishing — it is marked done and never shows again. Mirrors the
-// storage idiom in lib/cityPreference.ts (hasStorage guard, try/catch, a
-// same-tab CHANGE_EVENT so useSyncExternalStore clients re-read after a write).
+// The storage idiom follows lib/cityPreference.ts: a hasStorage guard,
+// try/catch, and a same-tab CHANGE_EVENT for useSyncExternalStore clients.
 //
 // The tour also participates in the shared one-interruptive-prompt-per-session
 // budget (lib/promptBudget): before it interrupts it checks the budget, and at
@@ -203,9 +200,8 @@ export function getTourSeenServerSnapshot(): boolean {
 
 /**
  * Whether `pathname` is a map surface (/map, /map/[city]) — the only place
- * the tour is allowed to render. It spotlights the map + mobile tab bar, so
- * it's meaningless everywhere else, and landing/tonight/feed/pint-index/etc.
- * must render clean on first paint for SEO, press, and first-tap.
+ * the tour is allowed to render. Other routes must render without the map's
+ * tour so it cannot cover their own onboarding or an intentional arrival.
  */
 export function isTourEligiblePathname(pathname: string): boolean {
   return pathname === "/map" || pathname.startsWith("/map/");

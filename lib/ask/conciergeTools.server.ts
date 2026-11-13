@@ -48,6 +48,9 @@ import {
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { selectedVenuePintEvidence } from "@/lib/comparableVenuePint";
+import { DRINK_MEASURE_LABEL, statedDrinkMeasure } from "@/lib/drinkMeasure";
+import { listedPriceReceipt } from "@/lib/listedPriceReceipt";
 import { DEFAULT_DRINK_LANE, orderVenueDrinkPrices } from "@/lib/drinkLanes";
 import { categoryLabel, isDrinkCategory, type DrinkCategory } from "@/lib/drinks";
 import {
@@ -62,6 +65,8 @@ import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { filterRowsByArea } from "@/lib/concierge/whatsOn";
 import { publishedMenuCards, publishedMenuAnswer } from "@/lib/ask/publishedMenu.server";
 import { resolveAskPriceIntent } from "@/lib/ask/router";
+import { formatDrinkTagName } from "@/lib/drinkTagName";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 
 const DIRECTORY: AskSource = { label: "On record", kind: "directory" };
 const PEOPLE_LOGGED: AskSource = {
@@ -236,7 +241,9 @@ export async function toolCheapestPintNear(
   }
 
   const limit = limitOf(args.limit, 4, 5);
-  const points = toPricedPoints(args.foodOnly === true ? venues.filter((venue) => venue.amenities.food) : venues);
+  // "Somewhere new" leaves the owner's visits out of the answers, never out of the anchor match.
+  const candidates = ctx.excludeVenueIds ? venues.filter((venue) => !ctx.excludeVenueIds!.has(venue.id)) : venues;
+  const points = toPricedPoints(args.foodOnly === true ? candidates.filter((venue) => venue.amenities.food) : candidates);
   let rows: NearMeCard[];
   let scope: "walkable" | "widened" | "none";
   if (anchorVenue && (anchor.kind === "venue" || anchorVenue.id.startsWith("night-area:"))) {
@@ -268,23 +275,40 @@ export async function toolCheapestPintNear(
     };
   }
 
-  const cards: AskCard[] = rows.map((row) => ({
-    key: `cheapest:${row.id}`,
-    venueId: row.id,
-    title: row.name,
-    place: row.borough,
-    note: cheapestNearRowNote({
-      walkMinutes: row.walkMinutes ?? null,
-    }),
-    price: row.cheapestPrice,
-    provenance: DIRECTORY,
-  }));
+  const pricedVenues = ctx.cityId === "london" ? await getPricedVenues().catch(() => []) : [];
+  const byId = new Map([...venues, ...pricedVenues].map((venue) => [venue.id, venue]));
+  const cards: AskCard[] = rows.map((row) => {
+    const venue = byId.get(row.id);
+    const evidence = venue?.cheapestPrice === row.cheapestPrice
+      ? selectedVenuePintEvidence(venue, ctx.now)
+      : {};
+    const measure = statedDrinkMeasure(evidence.measure);
+    return {
+      key: `cheapest:${row.id}`,
+      venueId: row.id,
+      title: row.name,
+      place: row.borough,
+      note: [
+        cheapestNearRowNote({ walkMinutes: row.walkMinutes ?? null }),
+        evidence.cheapestPint?.trim() ? formatDrinkTagName(evidence.cheapestPint.trim()) : "Drink not recorded",
+        measure ? DRINK_MEASURE_LABEL[measure] : "Serving not recorded",
+      ].filter(Boolean).join(" · "),
+      price: row.cheapestPrice,
+      provenance: {
+        kind: "directory",
+        label: `${listedPriceReceipt(evidence, ctx.now)}${evidence.priceSource?.trim() ? " Link unavailable." : ""}`,
+      },
+    };
+  });
 
   return {
     ok: true,
     tool: "cheapest_pint_near",
-    data: { anchor, scope, rows },
-    provenance: [DIRECTORY],
+    data: { anchor, scope, rows, venues: rows.flatMap((row) => {
+      const venue = venues.find((item) => item.id === row.id);
+      return venue ? [{ id: venue.id, lat: venue.lat, lng: venue.lng }] : [];
+    }) },
+    provenance: askCardSources(cards),
     cards,
     priceEvidence: rows.map((row) => listedPintEvidence(`cheapest:${row.id}`, row.id, row.cheapestPrice)),
     proposals: cards
@@ -517,6 +541,7 @@ export async function toolVenueDrinks(
     provenance: PEOPLE_LOGGED,
   }));
 
+  const listedProvenance: AskSource = { kind: "directory", label: listedPriceReceipt(venue, now) };
   if (includeListedPint && venue.cheapestPrice != null) {
     cards.push({
       key: `${venue.id}:listed`,
@@ -525,7 +550,7 @@ export async function toolVenueDrinks(
       place: venue.area,
       note: "Current recorded pint on the listed index.",
       price: venue.cheapestPrice,
-      provenance: DIRECTORY,
+      provenance: listedProvenance,
     });
   }
 
@@ -557,7 +582,7 @@ export async function toolVenueDrinks(
     },
     provenance: [
       ...(rows.length > 0 ? [PEOPLE_LOGGED] : []),
-      ...(includeListedPint && venue.cheapestPrice != null ? [DIRECTORY] : []),
+      ...(includeListedPint && venue.cheapestPrice != null ? [listedProvenance] : []),
       ...askCardSources(menu.cards),
     ],
     cards,

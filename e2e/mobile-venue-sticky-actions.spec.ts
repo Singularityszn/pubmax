@@ -73,14 +73,13 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
     `/map?sel=${ARNOS_ARMS_ID}`,
   );
 
-  // The action card's second row: "Ask for a table" and Share. The plan door
-  // is the card's first row (components/map/inspector/VenueActionCard.tsx).
-  await expect(stickyActions.getByRole("button")).toHaveText(["Ask for a table", "Share"]);
+  // With no fresh drinker price, the toolbar also carries the plan door.
+  await expect(stickyActions.getByRole("button")).toHaveText(["Plan stop", "Ask for a table", "Summon mates", "Share"]);
   await portal.getByRole("tab", { name: "Overview", exact: true }).click();
-  const planDoor = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "Plan stop", exact: true });
+  const planDoor = portal.locator(".venueActionCard").getByRole("button", { name: "Plan stop", exact: true });
   await expect(planDoor).toHaveAttribute("aria-pressed", "false");
   await planDoor.click();
-  const inPlan = portal.locator(".mobileVenuePeekSummary").getByRole("button", { name: "In plan", exact: true });
+  const inPlan = portal.locator(".venueActionCard").getByRole("button", { name: "In plan", exact: true });
   await expect(inPlan).toHaveAttribute("aria-pressed", "true");
   await expect.poll(() => new URL(page.url()).searchParams.get("pubs")).toBe(`${COMMUNITY_SHEET_FIXTURE_VENUE_ID},${ARNOS_ARMS_ID}`);
   await inPlan.click();

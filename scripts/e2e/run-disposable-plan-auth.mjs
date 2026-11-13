@@ -5,6 +5,8 @@ import { createServer } from "node:net";
 import { isAbsolute, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { removeSupabaseProjectLeftovers } from "./supabase-project-cleanup.mjs";
+
 const ROOT = fileURLToPath(new URL("../../", import.meta.url));
 if (process.argv.length !== 2) throw new Error("Usage: node scripts/e2e/run-disposable-plan-auth.mjs");
 const dockerHost = process.env.DOCKER_HOST;
@@ -15,6 +17,9 @@ if (!dockerHost?.startsWith("unix://") || !isAbsolute(dockerHost.slice(7)) || !e
 const projectId = `pubmax-auth-${randomBytes(6).toString("hex")}`;
 const workdir = mkdtempSync(join(ROOT, ".plan-auth-"));
 const dist = `.next-${projectId}`;
+// A production build starts email sign-in on pubmaxxing.com and its CSP keeps
+// the browser off a local GoTrue, so the emailed-link journey runs on next dev.
+const devDist = `.next-${projectId}-dev`;
 const admittedMigrations = new Set();
 const processGroups = new Set();
 let started = false;
@@ -94,6 +99,9 @@ try {
   await command("supabase", ["init", "--workdir", workdir], { capture: true });
   const configPath = join(workdir, "supabase/config.toml");
   let config = readFileSync(configPath, "utf8").replace(/^project_id = .*$/m, `project_id = "${projectId}"`);
+  const devPort = await port();
+  const mailPort = await port();
+  const devOrigin = `http://localhost:${devPort}`;
   for (const [section, key, value] of [
     ["api", "port", await port()],
     ["db", "port", await port()],
@@ -101,7 +109,10 @@ try {
     ["db", "major_version", 17],
     ["db.seed", "enabled", false],
     ["studio", "enabled", false],
-    ["local_smtp", "enabled", false],
+    ["local_smtp", "enabled", true],
+    ["local_smtp", "port", mailPort],
+    ["auth", "site_url", JSON.stringify(devOrigin)],
+    ["auth", "additional_redirect_urls", JSON.stringify([`${devOrigin}/**`])],
     ["realtime", "enabled", true],
     ["storage", "enabled", false],
     ["edge_runtime", "enabled", false],
@@ -124,7 +135,7 @@ try {
   }
   cpSync(join(ROOT, "supabase/migrations"), join(workdir, "supabase/migrations"), { recursive: true });
   started = true;
-  await command("supabase", ["start", "--output-format", "stream-json", "--workdir", workdir, "--exclude", "realtime,storage-api,imgproxy,mailpit,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"], { capture: true });
+  await command("supabase", ["start", "--output-format", "stream-json", "--workdir", workdir, "--exclude", "realtime,storage-api,imgproxy,postgres-meta,studio,edge-runtime,logflare,vector,supavisor"], { capture: true });
   await command("supabase", ["migration", "up", "--local", "--workdir", workdir], { capture: true });
   const status = JSON.parse(await command("supabase", ["status", "--workdir", workdir, "--output-format", "json", "--output", "json"], { capture: true }));
   const url = new URL(status.API_URL);
@@ -145,7 +156,7 @@ try {
   }
   Object.assign(env, {
     NODE_OPTIONS: "--max-old-space-size=4096",
-    OPENROUTER_API_KEY: "", ELEVENLABS_API_KEY: "", AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
+    ANTHROPIC_API_KEY: "", ELEVENLABS_API_KEY: "", AI_GATEWAY_API_KEY: "", VERCEL_OIDC_TOKEN: "",
     PW_DISPOSABLE_PLAN_DB: "1", PW_DISPOSABLE_PLAN_AUTH: "1",
     PW_DISPOSABLE_PLAN_SIGNING_SECRET: randomBytes(32).toString("base64url"),
     PW_DISPOSABLE_SUPABASE_URL: url.origin,
@@ -157,10 +168,16 @@ try {
     PW_SKIP_KEYLESS_WEBSERVER: "1", PW_SCREENSHOTS: "", PUBMAX_E2E_LOGIN: "0",
     PW_NEXT_DIST_DIR: dist, PUBMAX_TRACKED_OUTPUTS: "public/data",
   });
-  await command(process.execPath, [
+  const playwright = (specs, grep, overrides) => command(process.execPath, [
     join(ROOT, "node_modules/@playwright/test/cli.js"),
-    "test", "e2e/plan-capability-recovery.spec.ts", "--project=chromium", "--workers=1", "--trace=off",
-  ], { env });
+    "test", ...specs, "--grep", grep,
+    "--project=chromium", "--workers=1", "--trace=off",
+  ], { env: { ...env, ...overrides } });
+  await playwright(["e2e/plan-capability-recovery.spec.ts"], "Plan capability recovery", {});
+  await playwright(["e2e/log-intent-composer.spec.ts"], "new phone account", {
+    PW_PORT: String(devPort), PW_NEXT_DIST_DIR: devDist, PW_DEV_SERVER: "1",
+    PW_DISPOSABLE_MAIL_URL: `http://127.0.0.1:${mailPort}`,
+  });
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Disposable Plan auth failed.");
   process.exitCode = interrupted ? 130 : 1;
@@ -170,10 +187,15 @@ try {
   try { await stopProcessGroups(); groupsStopped = true; }
   catch (error) { console.error(error.message); process.exitCode = 1; }
   if (started && groupsStopped) {
+    const cleanup = (program, args) => command(program, args, { capture: true, cleanup: true });
+    try { await cleanup("supabase", ["stop", "--no-backup", "--workdir", workdir]); }
+    catch { console.error(`supabase stop failed for ${projectId}. Removing its Docker resources by name.`); }
     try {
-      await command("supabase", ["stop", "--no-backup", "--workdir", workdir], { capture: true, cleanup: true });
-      backendStopped = true;
-    } catch {
+      const remaining = await removeSupabaseProjectLeftovers(projectId, cleanup);
+      backendStopped = remaining.length === 0;
+      if (!backendStopped) console.error(`Docker still holds ${remaining.join(", ")}.`);
+    } catch (error) { console.error(error.message); }
+    if (!backendStopped) {
       console.error(`Could not remove owned project ${projectId}. Preserve ${workdir} for recovery.`);
       process.exitCode = 1;
     }
@@ -181,6 +203,7 @@ try {
   if (groupsStopped) {
     await stopProcessGroups();
     rmSync(join(ROOT, dist), { recursive: true, force: true });
+    rmSync(join(ROOT, devDist), { recursive: true, force: true });
     if (backendStopped) rmSync(workdir, { recursive: true, force: true });
   }
   process.off("SIGINT", interrupt);

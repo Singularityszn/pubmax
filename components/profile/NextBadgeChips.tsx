@@ -20,34 +20,32 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 import "./nextBadgeChips.css";
 
-// Quest chips (IDEAS B2-lite): forward-looking "next badge" progress for the
-// viewer's self-asserted handle. Self-contained on purpose — it resolves the
-// handle the same way /activity does (localStorage `pubmax_handle`, read AFTER
-// mount so server render and hydration agree), fetches the public drops, and
-// computes progress with the pure lib/profiles helpers. Honesty rules:
-//  • no handle → renders nothing (no invented identity);
-//  • fetch failed → renders nothing (a guess is worse than silence);
-//  • every badge earned → renders nothing (no fake quests).
-// A `handle` prop skips the localStorage read when the parent already knows it.
-// Loop 2 / Wave G2: optionally shows crawl-walked + Place-story quest chips from
-// local crawlCompletion when `showCrawlsWalked` is set (own-device progress only).
+// Supplied drops can include viewer-permitted history. Never publish them to
+// the shared public cache used by the fallback read.
 
 const HANDLE_KEY = "pubmax_handle";
 const MAX_CHIPS = 2;
 
 export default function NextBadgeChips({
   handle,
+  drops,
   showCrawlsWalked = false,
 }: {
   handle?: string;
+  drops?: readonly ProfileDrop[];
   showCrawlsWalked?: boolean;
 }): React.JSX.Element | null {
-  const [quests, setQuests] = useState<BadgeProgress[]>([]);
+  const [loadedQuests, setQuests] = useState<BadgeProgress[]>([]);
+  const mine = drops?.filter((drop) => normalizeHandle(drop.handle) === normalizeHandle(handle));
+  const quests = mine
+    ? nextBadgeProgress(mine, profileStats(mine)).filter((quest) => quest.current > 0)
+    : loadedQuests;
   const [crawlsWalked, setCrawlsWalked] = useState(0);
   const [crawlQuests, setCrawlQuests] = useState<CrawlQuestChip[]>([]);
   const [eventQuests, setEventQuests] = useState<CrawlQuestChip[]>([]);
 
   useEffect(() => {
+    if (drops !== undefined) return;
     const controller = new AbortController();
 
     async function load() {
@@ -85,7 +83,7 @@ export default function NextBadgeChips({
 
     void load();
     return () => controller.abort();
-  }, [handle]);
+  }, [handle, drops]);
 
   useEffect(() => {
     if (!showCrawlsWalked) return;

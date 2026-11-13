@@ -5,7 +5,8 @@ import { routeAsk } from "@/lib/ask/routerJudged";
 import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
-import { runAskModelLoop } from "@/lib/ask/modelLoop";
+import { askModelConfigured, runAskModelLoop } from "@/lib/ask/modelLoop";
+import type { ClaudeClient } from "@/lib/claudeClient.server";
 import {
   resolveAskCityId,
   runAskTool,
@@ -133,11 +134,21 @@ function composeAnswer(
     if (!isPubPickAnswer) {
       return hints.length > 0 ? hints.join(" ") : "Nothing sourced for that. Try a nearby area or a broader ask.";
     }
-    const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`;
+    const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs.`;
     return [countLine, ...hints].join(" ");
   }
   if (hints.length > 0) return hints.join(" ");
   return "Nothing sourced for that. Try a nearby area or a broader ask.";
+}
+
+/**
+ * The request discovery runs: a short follow-up such as "in Soho" folded into
+ * the person's earlier ask. Anything that reads the ask, such as "somewhere
+ * new", reads this, so it sees what the search sees.
+ */
+export function routedAskRequest(query: string, turns: readonly AskTurn[]): string {
+  const prior = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  return refineRoutedAskQuery(query, prior.at(-1), prior);
 }
 
 function normaliseTurns(raw: unknown): AskTurn[] {
@@ -166,8 +177,12 @@ export type RunAskInput = {
   now?: number;
   /** Model loop deadline (tests); the loop's own default otherwise. */
   modelTimeoutMs?: number;
+  /** Claude client for the model loop (tests and evals); the shared one otherwise. */
+  claude?: ClaudeClient;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
+  /** Server-owned discovery exclusions. See AskToolContext. */
+  excludeVenueIds?: ReadonlySet<string>;
 };
 
 /**
@@ -185,6 +200,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     skipModel: true,
     ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
     ...(input.now !== undefined ? { now: input.now } : {}),
+    ...(input.excludeVenueIds ? { excludeVenueIds: input.excludeVenueIds } : {}),
   };
 
   const recordedDrinks = recordedDrinkComparison(query);
@@ -215,13 +231,13 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     };
   }
 
-  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx);
+  const lateFood = unsupported ? null : answerLateFoodQuestion(ctx, input.turns);
   let toolResults: AskToolResult[] = lateFood ? [lateFood] : deterministicOnly
     ? await Promise.all(routeAskDeterministically(query).map((call) => runAskTool(call.name, { ...call.args, query }, ctx)))
     : [];
 
   const allowModel =
-    !lateFood && !deterministicOnly && !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
+    !lateFood && !deterministicOnly && !input.skipModel && askModelConfigured();
 
   if (allowModel) {
     const modelOutcome = await runAskModelLoop({
@@ -229,7 +245,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
       turns,
       ctx,
       ...(input.traceRoute ? { traceRoute: input.traceRoute } : {}),
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+      ...(input.claude ? { claude: input.claude } : {}),
       ...(input.modelTimeoutMs !== undefined ? { timeoutMs: input.modelTimeoutMs } : {}),
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {
@@ -240,8 +256,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   if (toolResults.length === 0 && !unsupported) {
     // Incorporate last user refinement phrases into the routed query when the
     // current ask is short ("cheaper", "closer to the Tube").
-    const priorUser = [...turns].reverse().find((t) => t.role === "user");
-    const routedQuery = refineRoutedAskQuery(query, priorUser?.content, turns.filter((turn) => turn.role === "user").map((turn) => turn.content));
+    const routedQuery = routedAskRequest(query, turns);
     let venues: Array<{ id: string; name: string; area: string }> = [];
     try {
       venues = (await loadConciergeVenues(cityId)).map((venue) => ({

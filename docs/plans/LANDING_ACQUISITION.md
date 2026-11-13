@@ -6,6 +6,8 @@
 > landing hierarchy lives in
 > `docs/superpowers/plans/2026-08-14-permanent-one-tap-landing.md` and its tests.
 > Do not implement the flag decisions below.
+> The [welcome tour guide](../../README.md#welcome-tour) owns the current tour.
+> The single-step W3 proposal below is historical.
 
 ---
 
@@ -337,7 +339,7 @@ Avoid banned words; avoid exclaims; keep ≤2 lines at 1440 (wave-1 clamp still 
 - `components/map/MapPriceControl.tsx` / mobile key host — first-show expand once
 - `lib/cities.ts` or map cold-start camera helper — optional named-patch zoom (explicit-intent aware); defer behind legend beat
 - `lib/analyticsEvents.ts` + funnel docs — hero CTA + orientation dismiss (W6)
-- Proof shots under `docs/proof/` after implement
+- Proof shots follow [the PR evidence policy](../../AGENTS.md#pull-requests) after implementation
 
 Do not touch: AuthProvider token paths, RLS, community corroboration, pin collision constants, Pint Index archive.
 
@@ -395,7 +397,7 @@ Do not touch: AuthProvider token paths, RLS, community corroboration, pin collis
 
 1. **Should Open the map become the unconditional default primary?** **Yes.** Make **Open the map** (`primaryCtaHref` → `/choose-city` or preferred city map) the brass primary in the **flag-off** hero. Keep **Find my pint** as secondary text link (or quiet button). Preserve `landingFindMyPint` **on** as the experiment arm that restores Find-my-pint-primary — do not invert the flag; change the default-off branch and update `__tests__/landingFindMyPintHierarchy.test.ts` snapshots accordingly.
 
-2. **ThamesHero sacred vs true map frame?** **Keep drink-shape IP; evolve, do not replace.** Rank **W2 option 1 (evolve ThamesHero)**: subtle band-colour rim on glyphs (decorative, not authority), optional faint map-grid scrim under the photo, keep illustrative price tags labelled as examples in figcaption. Reject live map embed. Pin prices must stay clearly non-authoritative (existing figcaption + `docs/evidence/mobile-hidden-qualifier-audit.md` contract).
+2. **ThamesHero sacred vs true map frame?** **Keep drink-shape IP; evolve, do not replace.** Rank **W2 option 1 (evolve ThamesHero)**: subtle band-colour rim on glyphs (decorative, not authority), optional faint map-grid scrim under the photo, keep illustrative price tags labelled as examples in figcaption. Reject live map embed. Pin prices must stay clearly non-authoritative (existing figcaption + [historical qualifier audit](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/mobile-hidden-qualifier-audit.md)).
 
 3. **Lightest first-map orientation?** **Piggyback `mapPriceLegend` on first open — no new modal pattern.**
    - **Desktop:** auto-open `MapPriceControl` once (`MapPriceControl.tsx` `useState(false)` → sessionStorage gate) using existing `activePriceLegend` rows.
@@ -428,7 +430,7 @@ Defer:
 
 **Copy direction (not final).** H1 toward concrete outcome: e.g. "See pint prices on the map before you set off." Subline: one sentence on the map + cheapest nearby; move publisher sentence to second line or wedge #01 (already there). Ban list unchanged (`docs/VOICE.md`).
 
-**Proof.** Re-run shots at 1440 + 390 light/dark; add `docs/proof/landing-acquisition-wave/` mirroring design-taste-wave-1 pattern. Manual: primary opens map with **no** geolocation prompt.
+**Proof.** Re-run shots at 1440 + 390 light/dark; save captures under ignored `artifacts/proof/landing-acquisition-wave/` and upload them to the PR. Manual: primary opens map with **no** geolocation prompt.
 
 #### Agreements / disagreements with Grok (§10.1)
 
@@ -485,7 +487,7 @@ The draft’s acquisition diagnosis is right. The codebase is further along than
 - `__tests__/landingPriceHonesty.test.ts`
 - `__tests__/landingChromeCss.test.ts` (as needed)
 - `e2e/mobile-landing-entry.spec.ts`
-- Proof: `docs/proof/landing-acquisition-wave/` (mirror design-taste-wave-1 pattern)
+- Proof: [the PR evidence policy](../../AGENTS.md#pull-requests)
 
 #### Implementation file list (PR2)
 - `components/onboarding/FirstRunTour.tsx` (+ css); bump storage key if steps change enough

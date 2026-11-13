@@ -36,6 +36,8 @@ const ALLOWED_IMPORTERS: Record<string, string> = {
   "components/map/inspector/TableRequestDialog.tsx": "the form",
   "components/operators/OperatorTableRequests.tsx": "the operator panel's list",
   "components/operators/OperatorRailPanel.tsx": "mounts the list for a verified operator",
+  "lib/tableRequestIntent.ts": "reads a crew size from a question or a /map?table= deep link",
+  "components/pal/PalChat.tsx": "the Pal card's 'Ask for a table' link to the sheet's form",
   "lib/accountExport.ts": "the export lane's type: the requester's own fields",
   "lib/accountExport.server.ts": "the export lane: the requester's own requests",
 };

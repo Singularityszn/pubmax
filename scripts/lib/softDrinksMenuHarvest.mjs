@@ -10,6 +10,7 @@ import {
 import { createRobotsChecker } from "../../lib/harvest/robots.ts";
 import { drinkSubtypeFromText } from "../../lib/drinkSubtypes.ts";
 import {
+  UK_PRICE_PATTERN,
   cheapestPerCategory,
   pageStatesADrinksList,
   readVenueDrinkPrices,
@@ -21,7 +22,7 @@ const TAP_WATER = /\btap\s+water\b/i;
 const MBPLC_TOP = /^##\s+(.+)$/;
 const MBPLC_SUB = /^###\s+(.+)$/;
 const MBPLC_ITEM = /^####\s+(.+)$/;
-const POUND = /£\s*(\d+(?:\.\d{2})?)/;
+const POUND = new RegExp(UK_PRICE_PATTERN.source, "i");
 const BARE = /^\s*(\d+\.\d{2})\s*$/;
 const LEADING_MEASURE = /^\s*\d+(?:\.\d+)?\s*(?:ml|cl|l|oz)\b\s*/i;
 const CLEAR_SOFT_DRINK =
@@ -206,7 +207,7 @@ function mapGkSectionToCategory(section) {
 
 function gkPriceFromLines(lines) {
   for (const line of lines) {
-    const m = line.match(/£\s*(\d+(?:\.\d{2})?)/);
+    const m = line.match(POUND);
     if (m) return parseFloat(m[1]);
   }
   return null;

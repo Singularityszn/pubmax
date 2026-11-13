@@ -1,23 +1,8 @@
 # Project skills
 
-PubMaxxing keeps project skills in this directory only. General engineering skills stay in `~/.agents/skills` and are not copied here.
+PubMaxxing keeps only project-relevant skills in this directory: the skills written for this repo, and the vendored skills for its stack (Supabase, MapLibre and the Capacitor shell). General engineering, design, CI and media skills live in `~/.agents/skills` and are not copied here.
 
-Cursor loads `.agents/skills/<name>/SKILL.md`. Claude Code loads the same files through `.claude/skills`, a committed symlink to this directory, so local and cloud sessions see every skill here. There is no `skills/` mirror, no `.cursor/skills/` tree and no copy under `.claude/`.
-
-## Kept for this repo
-
-These were already in the tree. They are not part of the five packs below.
-
-| Directory | Why it stays |
-| --- | --- |
-| `debugging-capacitor` | Capacitor debugging for this app's native shell. Vendored from [Cap-go/capgo-skills](https://github.com/Cap-go/capgo-skills). |
-| `maplibre-source-wiring` | MapLibre source wiring for this app's map. Vendored from [maplibre/maplibre-agent-skills](https://github.com/maplibre/maplibre-agent-skills). |
-| `maplibre-terrain-rendering` | MapLibre terrain rendering for this app's map. Same upstream repo. |
-| `maplibre-tile-sources` | MapLibre tile sources for this app's map. Same upstream repo. |
-| `maplibre-v6-migration` | MapLibre GL JS v5 to v6 migration for this app's map. Same upstream repo. |
-| `continual-learning` | Approval-gated mining of this workspace's transcripts into `AGENTS.md`. It is not in `~/.agents/skills`. |
-
-The MapLibre and Capacitor rows above were vendored for the map and native shell in pull request 1678. The 2 Oct 2026 refresh and the store-path skills are recorded below.
+Cursor loads `.agents/skills/<name>/SKILL.md`. Claude Code loads the same files through `.claude/skills`, a committed symlink to this directory. There is no `skills/` mirror, no `.cursor/skills/` tree and no copy under `.claude/`.
 
 ## Written for this repo
 
@@ -27,95 +12,16 @@ These have no upstream. They describe this repo's own conventions and point at t
 | --- | --- |
 | `pubmax-nextjs` | Route handlers, the API error envelope, `proxy.ts`, CSP, caching and file tracing. |
 | `pubmax-supabase` | The admin and browser clients, stores, migrations and rollbacks, RLS helpers and private Realtime channels. Read it with the vendored `supabase` skill. |
-| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, direct OpenRouter calls, TypeSafe, paid-spend lanes, model tracing, and local guidance for the installed TanStack AI skills. |
+| `pubmax-ai-sdk` | The `ai` v7 AI Gateway call, Claude API calls, TypeSafe, paid-spend lanes and model tracing. |
 
-## Packs
+## Vendored for this stack
 
-No two packs shipped the same directory name or the same frontmatter `name`, so nothing was dropped for a collision.
-
-Upstream `SKILL.md` trees were copied flat, one directory per skill. Plugin tests, adapters, and example galleries were not copied.
-
-### emilkowalski/skills
-
-- Repo: https://github.com/emilkowalski/skills
-- Commit: `a81dbca07f2217b7103e510c0f13f8d5b017afc9` (`main`)
-- Checked 29 Oct 2026. The installed skill trees match this tip, preserving the `emil-prototype` namespace. New upstream skills remain outside this pack.
-
-`animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `emil-prototype`, `review-animations`, `write-swift`.
-
-`emil-prototype` is the upstream `prototype` skill. The directory and the frontmatter `name` are `emil-prototype` so this copy does not shadow the machine-wide `prototype` skill.
-
-### Leonxlnx/taste-skill
-
-- Repo: https://github.com/Leonxlnx/taste-skill
-- Commit: `12af471f627f866411b4bd785b19646d3672784c` (`main`)
-- Checked 29 Oct 2026. The upstream repo now publishes one consolidated `taste-skill` tree. That tree is refreshed here. The other twelve installed trees remain from the prior pack because the current source has no direct replacements for them.
-
-The consolidated tree includes upstream JavaScript helpers and browser assets. Its `LICENSE` preserves the upstream MIT notice from the pinned commit. These files do not execute on install. The local `PUBMAXX project rules` section preserves project design, copy, source permissions, explicit build approval and runtime ownership. The refresh does not grant permission to execute these helpers.
-
-Local changes in `taste-skill/scripts/inspect.mjs` and `scenes.mjs` restrict HTTP serving to known web assets in the canonical entry folder. The public folder must contain the entry and all local assets. Both helpers passed synthetic HTTP checks for hidden paths, symlink escapes, allowed assets, methods, malformed URLs and input refusals. The inspector loaded a real TTF font and decoded a real ICO image. OTF responses passed MIME and byte checks. OTF decoding, Windows execution and concurrent filesystem replacement remain unverified. Both inspectors and the media downloader remain excluded from ordinary project execution pending their separate checks and permissions.
-
-Directory name, then frontmatter `name` when it differs:
-
-| Directory | Name |
+| Directory | Why it stays |
 | --- | --- |
-| `brandkit` | `brandkit` |
-| `brutalist-skill` | `industrial-brutalist-ui` |
-| `gpt-tasteskill` | `gpt-taste` |
-| `image-to-code-skill` | `image-to-code` |
-| `imagegen-frontend-mobile` | `imagegen-frontend-mobile` |
-| `imagegen-frontend-web` | `imagegen-frontend-web` |
-| `minimalist-skill` | `minimalist-ui` |
-| `output-skill` | `full-output-enforcement` |
-| `redesign-skill` | `redesign-existing-projects` |
-| `soft-skill` | `high-end-visual-design` |
-| `stitch-skill` | `stitch-design-taste` |
-| `taste-skill` | `design-taste-frontend` |
-| `taste-skill-v1` | `design-taste-frontend-v1` |
-
-### jakubkrehel/skills
-
-- Repo: https://github.com/jakubkrehel/skills
-- Commit: `592aedc44d7d5b3e29740984252902f3e5402a1c` (`main`)
-- Refreshed 29 Oct 2026. The installed trees use this tip with the local corrections below. `state-machine` remains because `variant` refers to it.
-
-Local corrections:
-
-- [`state-machine` step 3](state-machine/SKILL.md#3-build-the-throwaway-page) preserves the target's Next.js server/client boundary.
-- [`break` step 3](break/SKILL.md#3-build-the-harness-page) points to that fixture boundary guidance.
-- [`better-typography` punctuation guidance](better-typography/SKILL.md#before-you-finish) defers to the project's voice policy.
-- `better-writing` preserves the full PUBMAXX voice, price uncertainty, quoted text and rendered-coverage override.
-- [`explain-interface` breakpoint recipe](explain-interface/read-the-system.md#breakpoints) follows imported stylesheets, records unreadable sheets, prevents repeated traversal and recognises both media-range directions.
-- [`explain-interface` token recipe](explain-interface/read-the-system.md#tokens) reads active computed values for the current viewport and theme.
-- [`better-layout` growth guidance](better-layout/spacing-and-adaptivity.md#plan-for-growth-and-clipping) preserves the project's keyboard-inset requirement alongside `dvh` sizing. Its [review checklist](better-layout/SKILL.md#before-you-finish) retains this requirement.
-- [`better-accessibility` hit-area recipe](better-accessibility/hit-areas.md#expanding-the-hit-area) requires a wrapping label for expanded checkbox targets.
-
-`better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `variant`, `state-machine`.
-
-### gnurio/refactoring-ui-plugin
-
-- Repo: https://github.com/gnurio/refactoring-ui-plugin
-- Commit: `00781eab1dde7fdb720d63f8d6c8148bf5835a31` (`main`)
-- Checked 2 Oct 2026. This is still the upstream tip.
-
-`01-establish-visual-hierarchy`, `02-apply-typography-scale`, `03-build-color-palette`, `04-apply-consistent-spacing`, `05-design-button-hierarchy`, `06-eliminate-visual-clutter`, `07-design-empty-states`, `08-use-shadows-appropriately`, `09-manage-color-contrast`, `10-group-related-elements`, `meta-refactor-ui`.
-
-The plugin's root `SKILL.md` and `skills.json` are in `refactoring-ui-plugin/`. Each `path` in `skills.json` is `.agents/skills/<id>/SKILL.md`. `meta-refactor-ui` reads `../refactoring-ui-plugin/skills.json`. The installed registry paths and both skill references retain this local layout.
-
-### shadcn-labs/skills
-
-- Repo: https://github.com/shadcn-labs/skills
-- Commit: `5316082202ab6a7e0779b16b5c58b846c006a460` (`main`), refreshed 2 Oct 2026 from `cb4cd2b719e9539720f3cd07cf297999e58b5eff`
-
-Kept from that pack: `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `tailwind-to-stylex`.
-
-Chinese companions for `launch-shadcn-registry` and `tailwind-to-stylex` are not kept. The English skills stay.
-
-Dropped, because they sit outside that UI scope or duplicate the machine-wide set: `docs-i18n-zh`, `mastra-file-agents`, `skill-creator`, `unslop`, `writing-great-skills`. The 2 Oct 2026 upstream also added Chinese companions for `mastra-file-agents`. That skill stays dropped.
-
-## MapLibre and Capacitor refreshes
-
-These were already in the tree. Each repo below records its refresh date and upstream tip. `debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
+| `ste` | Simplified Technical English for every message to the captain. The root `AGENTS.md` points here. |
+| `supabase`, `supabase-postgres-best-practices` | The database, auth, RLS and migration stack. |
+| `maplibre-cartography`, `maplibre-fonts-glyphs`, `maplibre-source-wiring`, `maplibre-sprites-icons`, `maplibre-terrain-rendering`, `maplibre-tile-sources`, `maplibre-v6-migration` | The 3-D map. The kept MapLibre skills link to each other, so they stay as a set. |
+| `capacitor-best-practices`, `capacitor-deep-linking`, `capacitor-apple-review-preflight`, `debugging-capacitor` | The iOS and Android shell and the store review. A kept Capacitor skill may name a sibling (for example `capacitor-security`) that now lives in `~/.agents/skills`. |
 
 ### maplibre/maplibre-agent-skills
 
@@ -137,11 +43,16 @@ Left upstream: `maplibre-pmtiles-patterns` (this app does not host PMTiles), `ma
 
 Refreshed: `debugging-capacitor`.
 
-## Stack skills added 2 Oct 2026
+`debugging-capacitor` keeps three local guards the upstream file does not: debug-only WebView and cleartext flags, ATS exceptions never committed, and no `rm -rf node_modules` in a shared worktree unless someone asks.
 
-Twenty-five skills. Official vendor repos first. Nothing here duplicates the machine-wide set (Poteto, Matt Pocock, Kun Chen, Superpowers, Addy Osmani, jev, typesafe-ai, new-feature, verification-before-completion, last30days) or a skill already in this directory.
+`capacitor-best-practices`, `capacitor-deep-linking` and `capacitor-apple-review-preflight` come from the same commit.
 
-A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) ranked [vercel-labs/agent-skills](https://github.com/vercel-labs/agent-skills), [supabase/agent-skills](https://github.com/supabase/agent-skills), [elevenlabs/skills](https://github.com/elevenlabs/skills), and [Cap-go/capgo-skills](https://github.com/Cap-go/capgo-skills). PostHog's Next.js skills are the official [PostHog/skills](https://github.com/PostHog/skills) tree. Supabase documents the install at [supabase.com/docs/guides/ai-tools/ai-skills](https://supabase.com/docs/guides/ai-tools/ai-skills). Vercel documents React and Next.js skills at [vercel.com/docs/agent-resources/skills](https://vercel.com/docs/agent-resources/skills).
+`capacitor-best-practices` keeps a local [Stay on Capacitor 8](capacitor-best-practices/SKILL.md#stay-on-capacitor-8) section, so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest` or `@next`. The 29 Oct refresh replaced the upstream file, and the section was added back to it. Do not leave that major unless someone asks.
+
+Local corrections:
+
+- Release, security, debugging and Apple review guidance preserve the required production `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Development hosts, LAN IPs and cleartext remain excluded from release builds.
+- The `capacitor-deep-linking` handler skips a duplicate launch URL only when the first `appUrlOpen` delivers it before `getLaunchUrl()` resolves. Later intentional opens of the same URL still route. Angular preserves custom-scheme hosts and query parameters, as the React, Vue and shared examples do.
 
 ### supabase/agent-skills
 
@@ -151,143 +62,21 @@ A last30days run on 2 Oct 2026 (Reddit, YouTube, Hacker News, GitHub, Digg) rank
 
 `supabase`, `supabase-postgres-best-practices`.
 
-### vercel-labs/agent-skills
-
-- Repo: https://github.com/vercel-labs/agent-skills
-- Commit: `1a2c79d4e6c4a2283dc2c614b6538cbe1ed5ca62` (`main`)
-- Checked 29 Oct 2026. `react-view-transitions` was refreshed. `vercel-optimize` keeps five local changes:
-  - `CONTRIBUTING.md`, `README.md`, `references/data-collection.md` and `references/playbooks/README.md` say the upstream test package `packages/vercel-optimize-tests` was not vendored.
-  - `lib/vercel.mjs` resolves a `usr_` link to the CLI username scope only when the signed-in user ID equals the linked ID. Upstream also accepts a missing user ID. This is the scope fix from `13121954d`.
-
-`react-best-practices` (frontmatter `vercel-react-best-practices`), `composition-patterns` (`vercel-composition-patterns`), `react-view-transitions` (`vercel-react-view-transitions`), `web-design-guidelines`, `vercel-optimize`.
-
-### React View Transitions compilation
-
-The compiled `react-view-transitions/AGENTS.md` is regenerated from this repository's actual skill and five reference sources. The one-off recipe below rebases their relative Markdown links. It needs only Python 3. Run it from the repository root after the source owner allocates this generation action. Review the generated delta before committing it. Do not edit the compiled file manually.
-
-```sh
-python3 - <<'PY'
-from pathlib import Path
-import hashlib
-import json
-import posixpath
-import re
-
-root = Path('.agents/skills/react-view-transitions')
-inputs = ['SKILL.md', 'references/implementation.md', 'references/patterns.md', 'references/troubleshooting.md', 'references/css-recipes.md', 'references/nextjs.md']
-metadata = json.loads((root / 'metadata.json').read_text())
-parts = ['# React View Transitions\n', '**Version ' + metadata['version'] + '**\n\n' + metadata['organization'] + '\n', '> Generated from SKILL.md and the five reference sources. Do not edit this compiled file.\n> Regeneration recipe: see the React View Transitions compilation section in `../SOURCES.md`.\n']
-records = []
-for name in inputs:
-    source = root / name
-    raw = source.read_bytes()
-    text = raw.decode()
-    if text.startswith('---\n'):
-        text = text.split('---\n', 2)[2].lstrip()
-    def rebase(match):
-        target = match.group(2)
-        if target.startswith(('#', '/', 'http:', 'https:', 'mailto:')):
-            return match.group(0)
-        path, marker, anchor = target.partition('#')
-        if not path or not path.endswith('.md'):
-            return match.group(0)
-        rebased = posixpath.normpath(posixpath.join(posixpath.dirname(name), path))
-        return match.group(1) + rebased + (marker + anchor if marker else '') + ')'
-    text = re.sub(r'(\[[^\]]+\]\()([^\s)]+)\)', rebase, text)
-    parts.append('---\n\n<!-- Source: ' + name + ' -->\n\n' + text.rstrip() + '\n')
-    records.append({'path': name, 'sha256': hashlib.sha256(raw).hexdigest()})
-target = root / 'AGENTS.md'
-before = hashlib.sha256(target.read_bytes()).hexdigest()
-output = '\n'.join(parts).encode()
-target.write_bytes(output)
-receipt = {'inputs': records, 'metadataSHA256': hashlib.sha256((root / 'metadata.json').read_bytes()).hexdigest(), 'output': str(target), 'beforeSHA256': before, 'afterSHA256': hashlib.sha256(output).hexdigest()}
-print(json.dumps(receipt, indent=2))
-PY
-```
-
-`web-design-guidelines` tells the agent to fetch `https://raw.githubusercontent.com/vercel-labs/web-interface-guidelines/main/command.md` when someone asks for a review. That fetch is not an install step.
-
-`vercel-optimize` ships reviewed local scripts. They call the Vercel CLI when an agent runs the skill. They do not run on install. `collect-signals.mjs` redacts sensitive text before it prints JSON.
-
-Left upstream: `deploy-to-vercel` (the machine already has `deploy-with-vercel`), `react-native-skills` (this app uses Capacitor), `writing-guidelines` (generic, and the machine already has writing skills), `vercel-cli-with-tokens` (token handling).
-
-### elevenlabs/skills
-
-- Repo: https://github.com/elevenlabs/skills
-- Commit: `503d4e9fda0190ab9357142f44e51de626f97f90` (`main`)
-- Refreshed 29 Oct 2026.
-
-`elevenlabs-agents` is the upstream `agents` skill. The directory and the frontmatter `name` are `elevenlabs-agents` so this copy does not register as a generic agents skill. Also `text-to-speech`, `speech-to-text`, `speech-engine`.
-
-Upstream `references/installation.md` in three of these skills offered `curl … | sh` for the ElevenLabs CLI. Those blocks are removed. npm, Homebrew, and Scoop remain.
-
-The local [`text-to-speech` dialogue example](text-to-speech/references/streaming.md#eleven-v4-turbo-websocket) sets a nonzero process status on API, output-stream or premature-close errors.
-
-Left upstream: `dubbing`, `music`, `sound-effects`, `voice-changer`, `voice-isolator`, `setup-api-key`, `update-skills-from-changelog`.
-
-### PostHog/skills
-
-- Repo: https://github.com/PostHog/skills
-- Commit: `221bfed4f757a4b7e1826a9573665e1152c4d728` (`main`)
-- Checked 29 Oct 2026. The three installed skill trees match this tip. It changes only other PostHog skills.
-
-`integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
-
-The rest of that repo is other frameworks or PostHog-product operations. Those stay upstream.
-
-### Cap-go/capgo-skills (store path)
-
-Same commit as the Capacitor refresh above.
-
-`capacitor-app-store`, `capacitor-apple-review-preflight`, `capacitor-best-practices`, `capacitor-accessibility`, `capacitor-security`, `safe-area-handling`, `capacitor-testing`, `capacitor-performance`, `capacitor-deep-linking`.
-
-`capacitor-security` includes a fake `sk_live_abc123xyz` string inside a "do not hardcode keys" example. It is not a credential.
-
-Left upstream: Capgo cloud and live-update skills, version-upgrade skills (this app is already on Capacitor 8), plugin-authoring skills, Ionic and Konsta UI skills.
-
-`capacitor-best-practices` keeps a local [Stay on Capacitor 8](capacitor-best-practices/SKILL.md#stay-on-capacitor-8) section, so core, CLI, iOS, and Android install on this repo's Capacitor 8 pin (`@8`), not `@latest` or `@next`. The 29 Oct refresh replaced the upstream file, and the section was added back to it. Do not leave that major unless someone asks.
-
-Local corrections:
-
-- Release, security, debugging and Apple review guidance preserve the required production `server.url: "https://pubmaxxing.com/"` from `capacitor.config.ts`. Development hosts, LAN IPs and cleartext remain excluded from release builds.
-- The `capacitor-deep-linking` handler skips a duplicate launch URL only when the first `appUrlOpen` delivers it before `getLaunchUrl()` resolves. Later intentional opens of the same URL still route. Angular preserves custom-scheme hosts and query parameters, as the React, Vue and shared examples do.
-
-### maplibre/maplibre-agent-skills (added)
-
-See the [MapLibre refresh](#maplibremaplibre-agent-skills) for the source commit and installed skills.
-
-## Machine-wide design addition, 4 Oct 2026
-
-Anthropic `frontend-design` is installed in the canonical machine-wide skill root at `~/.agents/skills/frontend-design`, exposed to Codex. Source: [anthropics/skills](https://github.com/anthropics/skills), commit `8a1541c4a3ffa5a20a5a91de0dcf3f0bab1d1ef4`. Claude already provides this skill through its enabled synced plugin, so no second Claude copy was added.
-
-`docs/DESIGN_SYSTEM.md` and `docs/VOICE.md` remain authoritative for this project. Upstream design skills do not replace project tokens, brand identity, price semantics or copy laws.
-
-## Maintenance check, 29 Oct 2026
-
-All eleven documented upstream repositories were checked at their default branch tips. The installed Jakub, MapLibre, Cap-go, Vercel, Shadcn, taste-skill and ElevenLabs trees were refreshed where upstream content changed. Supabase, PostHog and Emil skill content had no applicable updates. Local corrections remain recorded in each source section above. No upstream changelog files were modified. The three PUBMAXX-specific skills have no upstream.
-
-## Plain-English replies, 17 Oct 2026
-
 ### mryll/skills
 
 [mryll/skills](https://github.com/mryll/skills), commit `e0bacd42498b18e4c5472689bd7a0c19bd72da68`, MIT (licence copied into the skill directory). `ste`: Simplified Technical English (ASD-STE100), with a dictionary checker script (`scripts/ste-check.sh`, POSIX shell and gawk, no network access). The root `AGENTS.md` law "Talk to the captain in Simplified Technical English" points here. Agents write their replies in STE style from memory. They run the skill when the captain asks for a checked rewrite or an STE compliance check.
 
 Local corrections in `scripts/ste-check.sh` (pull request 2184, from Codex review findings): a technical-verb category must be exactly 1 to 4 with an optional letter (`tv12` was accepted), and a word plus apostrophe-s is checked as a possessive under rule GR-8 instead of always being reported as a contraction. A pronoun or adverb plus apostrophe-s (`it's`, `there's`, `let's`) is still a contraction.
 
-## Faster CI, 2 Nov 2026
+## Moved out of the repo, 7 Nov 2026
 
-### starslingdev/skills
+By the captain's decision, this directory keeps about 15 project-relevant skills. The 77 skills below left the repo. Install one in `~/.agents/skills` when a task needs it. Each upstream source and local correction is in this file's git history.
 
-[starslingdev/skills](https://github.com/starslingdev/skills), commit `48db0635bdebc298e022a986376da04de93fce13` (`main`), MIT (licence copied into each skill directory). The captain asked for `npx skills add starslingdev/skills` and for agents to use it for faster CI. The trees were copied by hand from that commit, the same way as every pack above, so no install script ran and the source is pinned.
-
-| Directory | What it answers |
-| --- | --- |
-| `ci-speedup` | Why is CI slow? It measures the merge-gating critical path from run history and matches 91 patterns. |
-| `ci-score` | Does the workflow configuration follow 11 best-practice checks? Offline. |
-| `ci-secure` | Can someone attack us through CI? Ten critical attack vectors. Offline. |
-
-Copied: each `SKILL.md`, `ARCHITECTURE.md`, `references/`, `scripts/`, `ci-secure/scaffold/`, and the one runtime verifier `tests/verify_report.py` that `ci-speedup` and `ci-secure` call in their verify step. Not copied: the other tests and fixtures, `evals/`, `CHANGELOG.md`, and the upstream `examples/`.
-
-Left upstream: `sling`. It sends org, repo and run identifiers to StarSling's service and stores a credential in `~/.config/sling/credentials`. The three audit skills send nothing to StarSling.
-
-The scripts need `python3` 3.9+ and PyYAML. They reach the network only through the `gh` CLI. `ci-speedup` reads run history with `gh api`; where an agent has no `gh` access (a cloud session uses the GitHub MCP tools instead), run the static scan alone (`scripts/scan.py --root .`) and read job timings with the MCP `actions_list` tool. The rule that tells agents when to use these skills is in [`docs/rules/scripts-ci-gates-and-audits.md`](../../docs/rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path).
+- Design and UI: `01-establish-visual-hierarchy` to `10-group-related-elements`, `meta-refactor-ui`, `refactoring-ui-plugin`, `better-accessibility`, `better-colors`, `better-interface`, `better-layout`, `better-typography`, `better-ui`, `better-writing`, `break`, `explain-interface`, `interface-review`, `state-machine`, `variant`, `brandkit`, `brutalist-skill`, `gpt-tasteskill`, `minimalist-skill`, `redesign-skill`, `soft-skill`, `stitch-skill`, `taste-skill`, `taste-skill-v1`, `output-skill`, `image-to-code-skill`, `imagegen-frontend-mobile`, `imagegen-frontend-web`, `icon-set-audit`, `icon-set-extend`, `icon-set-generator`, `launch-shadcn-registry`, `tailwind-to-stylex`, `web-design-guidelines`.
+- Motion and platform craft: `animate`, `animate-expo`, `animation-vocabulary`, `apple-design`, `ask-sonner`, `emil-design-eng`, `emil-prototype`, `find-animation-opportunities`, `improve-animations`, `mobile-native`, `pick-ui-library`, `review-animations`, `write-swift`.
+- React and Vercel: `react-best-practices`, `composition-patterns`, `react-view-transitions`, `vercel-optimize`.
+- PostHog: `integration-nextjs-app-router`, `feature-flags-nextjs`, `error-tracking-nextjs`.
+- Capacitor: `capacitor-accessibility`, `capacitor-app-store`, `capacitor-performance`, `capacitor-security`, `capacitor-testing`, `safe-area-handling`.
+- CI: `ci-speedup`, `ci-score`, `ci-secure`.
+- Voice and media: `elevenlabs-agents`, `speech-engine`, `speech-to-text`, `text-to-speech`.
+- Workflow: `continual-learning`.

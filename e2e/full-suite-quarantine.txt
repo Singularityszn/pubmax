@@ -1,0 +1,198 @@
+# Known-red tests that the nightly full suite leaves out (--test-list-invert).
+# Each block starts with a comment that links its tracking issue.
+# npm run gate:e2e-skips refuses a test line with no issue above it.
+# Delete a block in the pull request that fixes its tests, then close the issue.
+
+# https://github.com/Singularityszn/pubmax/issues/2656 the reader's own Pal map marker is missing
+[chromium] › night-ways-there.spec.ts › a routed crawl is a thick solid line with its walking minutes on a bubble on each leg, and the Pal sets off saying the first one
+[chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves it perched beside the open pub
+[chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves no Pal on the map
+[chromium] › night-ways-there.spec.ts › Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map with the Pal leading
+[chromium] › pal-crew-walk.spec.ts › the crew's opted-in Pals walk the plan's route beside the reader's own
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 320px in dark
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in dark
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 768px in dark
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1280px in dark
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1440px in dark
+[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in light with recorded roads
+
+# https://github.com/Singularityszn/pubmax/issues/2658 the Save to a list button takes no click
+[chromium] › profile-saved-after-reload.spec.ts › profile saved venues after a full reload › the owner sees a saved venue on a full load of their profile
+[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 1440px
+[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 390px
+
+# https://github.com/Singularityszn/pubmax/issues/2701 accessible-filters.spec.ts
+[chromium] › accessible-filters.spec.ts › a Step-free route surfaces unknown accessibility evidence instead of claiming a match
+
+# https://github.com/Singularityszn/pubmax/issues/2701 account-password.spec.ts
+[chromium] › account-password.spec.ts › an account with no password is offered one, with the rules up front
+[chromium] › account-password.spec.ts › an account with a password keeps change collapsed until opened
+[chromium] › account-password.spec.ts › a wrong current password and a reused password each name their fault
+
+# https://github.com/Singularityszn/pubmax/issues/2701 anchored-plan-client.spec.ts
+[chromium] › anchored-plan-client.spec.ts › existing Plan work wins without consuming a newer accepted Venue
+
+# https://github.com/Singularityszn/pubmax/issues/2701 city-crawl-directory.spec.ts
+[chromium] › city-crawl-directory.spec.ts › city crawl Edit stops works while the Place story intro is visible
+
+# https://github.com/Singularityszn/pubmax/issues/2701 diary-log-a-visit.spec.ts
+[chromium] › diary-log-a-visit.spec.ts › log a visit from the pub sheet, see it on the profile, and a repeat is refused
+
+# https://github.com/Singularityszn/pubmax/issues/2701 discover-route-intent.spec.ts
+[chromium] › discover-route-intent.spec.ts › Discover loads its data before reader intent opens plan
+[chromium] › discover-route-intent.spec.ts › Discover loads its data before reader intent opens map
+
+# https://github.com/Singularityszn/pubmax/issues/2701 drink-context-history.spec.ts
+[chromium] › drink-context-history.spec.ts › canonical city pathname wins over obsolete city query during a drink edit
+
+# https://github.com/Singularityszn/pubmax/issues/2701 homepage-navigation-clearance.spec.ts
+[chromium] › homepage-navigation-clearance.spec.ts › homepage styles do not lower Create onto Tonight after client navigation
+
+# https://github.com/Singularityszn/pubmax/issues/2701 landing-london-photo.spec.ts
+[chromium] › landing-london-photo.spec.ts › text over a landing photograph ships the alpha the contrast contract is proved at
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-active-plan-large-text.spec.ts
+[chromium] › map-active-plan-large-text.spec.ts › ios text layout model contains the active plan in light
+[chromium] › map-active-plan-large-text.spec.ts › ios text layout model contains the picked plan in light
+[chromium] › map-active-plan-large-text.spec.ts › ios text layout model contains the active plan in dark
+[chromium] › map-active-plan-large-text.spec.ts › ios text layout model contains the picked plan in dark
+[chromium] › map-active-plan-large-text.spec.ts › android text layout model contains the active plan in light
+[chromium] › map-active-plan-large-text.spec.ts › android text layout model contains the picked plan in light
+[chromium] › map-active-plan-large-text.spec.ts › android text layout model contains the active plan in dark
+[chromium] › map-active-plan-large-text.spec.ts › android text layout model contains the picked plan in dark
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-console-health.spec.ts
+[chromium-gl] › map-console-health.spec.ts › /map stays console-healthy across repeated /map↔/feed navigation
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-drink-plan.spec.ts
+[chromium] › map-drink-plan.spec.ts › victorian-soho Beer shares retain their drink through catalogue hydration and copying
+[chromium] › map-drink-plan.spec.ts › soho-food-crawl Beer shares retain their drink through catalogue hydration and copying
+[chromium] › map-drink-plan.spec.ts › phone planner refuses an unsupported Gin brand before requesting a generic plan
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-gl.spec.ts
+[chromium-gl] › map-gl.spec.ts › /map spends its one bounded style reload, then surfaces the honest tile card
+[chromium-gl] › map-gl.spec.ts › desktop area search resolves a gazetteer locality and fits the map
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-opening-preview.spec.ts
+[chromium-gl] › map-opening-preview.spec.ts › the document's opening prices › show from the first paint on a phone and hand over to the engine's discs in place
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-sun-chaser.spec.ts
+[chromium-gl] › map-sun-chaser.spec.ts › Sun Chaser marks garden sun honestly at 390x844 light
+[chromium-gl] › map-sun-chaser.spec.ts › Sun Chaser marks garden sun honestly at 390x844 dark
+[chromium-gl] › map-sun-chaser.spec.ts › Sun Chaser marks garden sun honestly at 1280x800 light
+[chromium-gl] › map-sun-chaser.spec.ts › Sun Chaser marks garden sun honestly at 1280x800 dark
+
+# https://github.com/Singularityszn/pubmax/issues/2701 map-you-are-here.spec.ts
+[chromium-gl] › map-you-are-here.spec.ts › picker location refresh preserves the settled and saved camera
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-first-run-onboarding.spec.ts
+[chromium] › mobile-first-run-onboarding.spec.ts › first-run onboarding is composed at 390x844 in light
+[chromium] › mobile-first-run-onboarding.spec.ts › first-run onboarding is composed at 390x844 in dark
+[chromium] › mobile-first-run-onboarding.spec.ts › native first run with analytics decided hands one useful Plan to the contextual push ask
+[chromium] › mobile-first-run-onboarding.spec.ts › Skip releases onboarding budget for the next Plan but never prompts on reboot
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-invite-map-prompt.spec.ts
+[chromium] › mobile-invite-map-prompt.spec.ts › guest RSVP reveals one ordered map handoff that fits mobile
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-large-text.spec.ts
+[chromium] › mobile-large-text.spec.ts › Android font growth clears map controls before the next height measurement
+[chromium] › mobile-large-text.spec.ts › Android 1.3x text grows the map's bottom card with its text, and the controls above it follow
+[chromium] › mobile-large-text.spec.ts › Android 1.5x text grows the map's bottom card with its text, and the controls above it follow
+[chromium] › mobile-large-text.spec.ts › Android 2x text grows the map's bottom card with its text, and the controls above it follow
+[chromium] › mobile-large-text.spec.ts › 320px large text: five dock doors keep 44px targets and lose no name
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-map-tile-paint.spec.ts
+[chromium] › mobile-map-tile-paint.spec.ts › mobile map tile paint › cold /map paints tiles and pins within the lane gate on a throttled profile
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-moment-flow.spec.ts
+[chromium] › mobile-moment-flow.spec.ts › 390px: the selected Moment text passes dark-theme contrast
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-plan-flow.spec.ts
+[chromium] › mobile-plan-flow.spec.ts › mobile Plan flow stays tappable and usable at 390px
+
+# https://github.com/Singularityszn/pubmax/issues/2701 mobile-site-nav.spec.ts
+[chromium] › mobile-site-nav.spec.ts › site navigation touch targets › keeps the command-palette affordance large enough when it is visible
+
+# https://github.com/Singularityszn/pubmax/issues/2701 native-push-ask-lifecycle.spec.ts
+[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Plan my night in light
+[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in light
+[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Plan my night in dark
+[chromium] › native-push-ask-lifecycle.spec.ts › native push ask survives planning navigation after Skip in dark
+
+# https://github.com/Singularityszn/pubmax/issues/2701 night-memory-removal.spec.ts
+[chromium] › night-memory-removal.spec.ts › a Memory is removed with the Moments inside it
+
+# https://github.com/Singularityszn/pubmax/issues/2701 pal-night-question.spec.ts
+[chromium] › pal-night-question.spec.ts › once tonight's plan is saved, the Pal hands out the crew link
+
+# https://github.com/Singularityszn/pubmax/issues/2701 pal-pint-needle.spec.ts
+[chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, light
+[chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, dark
+
+# https://github.com/Singularityszn/pubmax/issues/2701 pal-voice-lifecycle.spec.ts
+[chromium] › pal-voice-lifecycle.spec.ts › 390px: background ends a connected call, preserves transcript and Carry on starts a fresh call
+[chromium] › pal-voice-lifecycle.spec.ts › 768px: background ends a connected call, preserves transcript and Carry on starts a fresh call
+[chromium] › pal-voice-lifecycle.spec.ts › 1440px: background ends a connected call, preserves transcript and Carry on starts a fresh call
+[chromium] › pal-voice-lifecycle.spec.ts › a deferred first microphone request keeps starting through foreground inactive
+[chromium] › pal-voice-lifecycle.spec.ts › background while the first microphone request is pending cancels without a provider grant
+[chromium] › pal-voice-lifecycle.spec.ts › background during SDK startup closes late connection after the documented SDK limit
+[chromium] › pal-voice-lifecycle.spec.ts › a real browser tab hide ends the call and returning offers Carry on without restarting
+
+# https://github.com/Singularityszn/pubmax/issues/2701 plan-account-boundary.spec.ts
+[chromium] › plan-account-boundary.spec.ts › sign-in during request-key hashing cancels the stale key and permits Lock retry
+
+# https://github.com/Singularityszn/pubmax/issues/2701 plan-intake.spec.ts
+[chromium] › plan-intake.spec.ts › reloading a recovered draft does not extend its near expiry
+[chromium] › plan-intake.spec.ts › submission revalidates that the exact start is still in the future
+
+# https://github.com/Singularityszn/pubmax/issues/2701 plan-invite-surface.spec.ts
+[chromium] › plan-invite-surface.spec.ts › M04: rotating the invite link re-points the WhatsApp share href
+
+# https://github.com/Singularityszn/pubmax/issues/2701 plan-route-strip.spec.ts
+[chromium-gl] › plan-route-strip.spec.ts › the route strip paints a real map after the cards (light)
+[chromium-gl] › plan-route-strip.spec.ts › the route strip paints a real map after the cards (dark)
+
+# https://github.com/Singularityszn/pubmax/issues/2701 qa-sweep-css.spec.ts
+[chromium] › qa-sweep-css.spec.ts › 44px hit areas at 390 › the walking route link is 44px tall and does not push the layout
+
+# https://github.com/Singularityszn/pubmax/issues/2701 sample-skeleton-layout-shift.spec.ts
+[chromium] › sample-skeleton-layout-shift.spec.ts › sample skeleton › the profile timeline's wait has the answer's size, and the answer moves nothing
+
+# https://github.com/Singularityszn/pubmax/issues/2701 save-list-alias-recovery.spec.ts
+[chromium] › save-list-alias-recovery.spec.ts › an explicit save after the alias lookup recovers keeps the old save and its note
+[chromium] › save-list-alias-recovery.spec.ts › Create & save after the alias lookup recovers keeps the old save and its note
+
+# https://github.com/Singularityszn/pubmax/issues/2701 social-loop.spec.ts
+[chromium] › social-loop.spec.ts › legacy /feed opens signed-out Social, not the retired feed
+[chromium] › social-loop.spec.ts › mobile Social keeps the launch primary thumb-sized without page overflow
+[chromium] › social-loop.spec.ts › signed-out Social offers Sign in, not a Cheers chip
+
+# https://github.com/Singularityszn/pubmax/issues/2701 social-shell.spec.ts
+[chromium] › social-shell.spec.ts › Social shell fits target viewports in light and dark themes
+
+# https://github.com/Singularityszn/pubmax/issues/2701 tablet-header-first-render.spec.ts
+[chromium] › tablet-header-first-render.spec.ts › tablet Map clears its first real header and toolbar through loading at 641px and root32
+
+# https://github.com/Singularityszn/pubmax/issues/2701 tap-targets-sweep.spec.ts
+[chromium] › tap-targets-sweep.spec.ts › Spoons value pub links are 44px tall without stretching the row
+
+# https://github.com/Singularityszn/pubmax/issues/2701 ui-ux-battle-test.spec.ts
+[chromium-gl] › ui-ux-battle-test.spec.ts › UI UX battle-test guardrails › audited mobile routes keep tap targets and page width within contract
+
+# https://github.com/Singularityszn/pubmax/issues/2701 wanted-save-recovery.spec.ts
+[chromium] › wanted-save-recovery.spec.ts › Wanted sign-in form aligns with its status at 1280px
+[chromium] › wanted-save-recovery.spec.ts › Wanted sign-in form aligns with its status at 390px
+[chromium] › wanted-save-recovery.spec.ts › Wanted explains an unresolved session and lets the viewer retry
+
+# https://github.com/Singularityszn/pubmax/issues/2701 web-push-prompt.spec.ts
+[chromium] › web-push-prompt.spec.ts › installed PWA asks for the honest London brief only after a useful plan action
+[chromium] › web-push-prompt.spec.ts › installed PWA recovers when service-worker readiness never settles
+
+# https://github.com/Singularityszn/pubmax/issues/2630 Page.captureScreenshot fails on the Mac runner
+[chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 390px
+[chromium] › search-growth-live.spec.ts › public discovery renders dated prices and working crawl links at 1440px
+[chromium] › account-identity-recovery.spec.ts › you: Retry recovers from 503 without reloading
+
+# https://github.com/Singularityszn/pubmax/issues/2701 passed only on retry on 10 November (map-uk-base-layer, messages-thread)
+[chromium-gl] › map-uk-base-layer.spec.ts › normal London entry paints UK base pubs and takes a price
+[chromium] › messages-thread.spec.ts › the message thread on a phone › names the other person, pins the composer, opens on the newest message

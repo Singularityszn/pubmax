@@ -32,6 +32,8 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
+import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
+import { readProviderIdentityRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -111,7 +113,7 @@ function slimToVenue(slim: SlimVenue): Venue {
 }
 
 export default function RoundPageClient({ params }: { params: Promise<{ code: string }> }): React.JSX.Element {
-  const { user, session, loading: authLoading } = useAuth();
+  const { user, session, loading: authLoading, accountRevision, identityResolved } = useAuth();
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -152,7 +154,11 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   // Presence rows at the Round's CURRENT stop — the "your crew is here" overlay
   // (B6). Fetched from the EXISTING GET /api/presence?venueId=…; the intersection
   // with members happens in the pure lib/roundPresence lens. Fail-soft to [].
-  const [presence, setPresence] = useState<PresenceDTO[]>([]);
+  const [presence, setPresence] = useState<{
+    accountRevision: number;
+    venueId: string;
+    rows: PresenceDTO[];
+  } | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -199,6 +205,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
         setState(next);
         setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));
       } else if (res.status === 404) {
+        clearActiveRoundCode(code);
         setState(null);
         setStateOwnerKey(null);
       }
@@ -223,21 +230,26 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
   }, [code, refetch]);
 
   const isOpen = state != null && state.round.closedAt == null;
+  const isClosed = state != null && state.round.closedAt != null;
 
   // Stickiness seam for the map composer (Loop 2): while this Round is open,
   // stamp the active Round key so Pint Drop's "My Round" chip lights up and a
-  // successful drop can append the venue as a stop. Clear on leave / close, but
-  // only when the stored value still matches THIS code (another tab may have
-  // switched Rounds).
+  // successful drop can append the venue as a stop. Clear on leave, on a
+  // confirmed close or on a 404, but only when the stored value still matches
+  // THIS code (another tab may have switched Rounds). A read that failed for
+  // any other reason proves nothing, so it keeps the key.
   useEffect(() => {
     if (!code || !isValidRoundCode(code)) return;
     if (isOpen) {
       writeActiveRoundCode(code);
-      return () => clearActiveRoundCode(code);
     }
-    clearActiveRoundCode(code);
-    return undefined;
-  }, [code, isOpen]);
+    if (isClosed) clearActiveRoundCode(code);
+  }, [code, isOpen, isClosed]);
+
+  useEffect(() => {
+    if (!code || !isValidRoundCode(code)) return;
+    return () => clearActiveRoundCode(code);
+  }, [code]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -268,37 +280,33 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     [state],
   );
 
-  // Poll presence at the current stop alongside the Round poll (same cadence, the
-  // repo's live-ness-by-polling convention — the Round page already polls, there's
-  // no realtime channel wired here to reuse). Fail-soft: a miss keeps the last
-  // rows; a 404/venue change resets. Only while the Round is open with a stop.
-  const refetchPresence = useCallback(async () => {
-    if (!currentStopVenueId) return;
-    try {
-      const res = await fetch(`/api/presence?venueId=${encodeURIComponent(currentStopVenueId)}`, {
-        cache: "no-store",
-      });
-      if (res.ok) {
-        const data = (await res.json()) as { presence?: PresenceDTO[] };
-        setPresence(Array.isArray(data.presence) ? data.presence : []);
-      }
-    } catch {
-      // Network blip — keep the last-known presence rather than blanking it.
-    }
-  }, [currentStopVenueId]);
-
   useEffect(() => {
-    let active = true;
-    // Not open, or no stop yet → clear presence and don't arm a poll. Defer the
-    // state update out of the synchronous effect body for React 19's lint rule.
-    if (!isOpen || !currentStopVenueId) {
-      void Promise.resolve().then(() => {
-        if (active) setPresence([]);
-      });
-      return () => {
-        active = false;
-      };
-    }
+    if (!isOpen || !currentStopVenueId || readProviderIdentityRevision() !== accountRevision) return;
+    const venueId = currentStopVenueId;
+    const controller = new AbortController();
+    const accountSignal = readProviderAccountSignal();
+    const signal = compositeActionSignal([controller.signal, accountSignal]);
+    const live = () => !signal.aborted && readProviderIdentityRevision() === accountRevision;
+    const refetchPresence = async () => {
+      if (!live()) return;
+      try {
+        const res = await authedActionFetch(
+          `/api/presence?venueId=${encodeURIComponent(venueId)}`,
+          { cache: "no-store", signal, credentials: "omit" },
+          { requiresIdentity: true },
+        );
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
+        const data = (await res.json()) as { presence?: PresenceDTO[] };
+        if (live()) {
+          setPresence({ accountRevision, venueId, rows: Array.isArray(data.presence) ? data.presence : [] });
+        }
+      } catch {
+        return;
+      }
+    };
     void Promise.resolve().then(() => refetchPresence());
     // Same visibility gating as the Round poll: don't poll presence in the
     // background; refetch on wake so "your crew is here" is current on return.
@@ -312,12 +320,12 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
     window.addEventListener("focus", onWake);
     document.addEventListener("visibilitychange", onWake);
     return () => {
-      active = false;
+      controller.abort();
       window.clearInterval(id);
       window.removeEventListener("focus", onWake);
       document.removeEventListener("visibilitychange", onWake);
     };
-  }, [isOpen, currentStopVenueId, refetchPresence]);
+  }, [isOpen, currentStopVenueId, accountRevision, identityResolved]);
 
   const effectiveHandle = roundViewerHandle(
     state?.viewerMemberHandle,
@@ -379,7 +387,7 @@ export default function RoundPageClient({ params }: { params: Promise<{ code: st
         roundIdentity={roundIdentity}
         currentRoundIdentity={currentRoundIdentity}
         amMember={amMember}
-        presence={presence}
+        presence={isOpen && presence?.accountRevision === accountRevision && presence.venueId === currentStopVenueId ? presence.rows : []}
         onChange={(next) => {
           setState(next);
           setStateOwnerKey(roundRequestIdentityOwnerKey(roundIdentity));

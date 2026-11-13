@@ -1,13 +1,16 @@
 // A handle's notifications / activity inbox (story 34 / Wave I2).
-//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread }
+//   GET  ?handle=<handle>            → { notifications: NotificationDTO[], unread, mapFixes, mapFixesComplete }
 //   POST { handle, id? }             → { notifications, unread }   (marks read)
+// `unread` counts social notifications only. The client adds unread map outcomes.
 //
 // Wave I2: resolve the actor via resolveMessageHandle (JWT-linked handle wins)
 // then gateHandleAction. A read, including the inbox a mark-read returns, is
 // allowed only when the caller's account owns the handle. An unowned row and
 // a tombstone are the same refusal as a handle owned by somebody else. A
-// notification carries only already-public feed signal (a follow, a reaction,
-// a comment, a crawl save). See lib/notifications.ts and migration 0010.
+// notification can include private crew membership activity. The event
+// vocabulary lives in lib/notifications.ts.
+//
+// Map-fix eligibility and acknowledgement rules live in lib/mapFixOutcomes.ts.
 //
 // Reads are fail-soft (the store returns an empty inbox on any error), so a
 // notifications outage can never 500 the bell / activity page. Store choice is the
@@ -15,6 +18,7 @@
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { listMapFixOutcomes } from "@/lib/mapFixOutcomes.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { notificationsStore } from "@/lib/notificationsStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -37,19 +41,22 @@ export async function GET(request: Request): Promise<Response> {
   }
   const asserted = new URL(request.url).searchParams.get("handle") ?? "";
   const handle = await resolveMessageHandle(request, asserted);
-  if (!handle) return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+  if (!handle) return jsonNoStore({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: false }, { status: 200 });
   const ownership = await gateHandleAction(request, handle, undefined, {
     requireAccountOwner: true,
   });
   if (!ownership.allowed) {
     // Fail-soft on store outage: empty bell keeps chrome rendering.
     if (ownership.status === 503) {
-      return jsonNoStore({ notifications: [], unread: 0 }, { status: 200 });
+      return jsonNoStore({ notifications: [], unread: 0, mapFixes: [], mapFixesComplete: false }, { status: 200 });
     }
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
-  const inbox = await notificationsStore().list(handle);
-  return jsonNoStore(inbox, { status: 200 });
+  const [inbox, mapFixes] = await Promise.all([
+    notificationsStore().list(handle),
+    ownership.callerUserId ? listMapFixOutcomes(ownership.callerUserId) : Promise.resolve({ outcomes: [], complete: false }),
+  ]);
+  return jsonNoStore({ ...inbox, mapFixes: mapFixes.outcomes, mapFixesComplete: mapFixes.complete }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {

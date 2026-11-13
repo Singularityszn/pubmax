@@ -493,6 +493,25 @@ describe("refreshOfficialWhatsOnListings", () => {
     ]);
   });
 
+  it("serves no deal rows from a table that reads no source", async () => {
+    const store = memoryStore();
+    await store.replaceKind("deal", [kindRow("deal")], GENERATED);
+    const result = await refreshWhatsOnListings({
+      now: Date.parse("2026-07-20T20:00:00.000Z"),
+      store,
+      providers: [],
+      refreshers: {
+        quiz: async () => [],
+        music: async () => [],
+        sport: async () => [],
+      },
+    });
+
+    const deals = (await store.readAll()).rows.filter((row) => row.kind === "deal");
+    expect(deals.map((row) => `${row.observedAt} ${row.detail ?? ""}`)).toEqual([]);
+    expect(result.kinds).toContainEqual({ name: "deal", kind: "deal", rows: 0 });
+  });
+
   it("keeps previous sport rows when the live fixture lane throws", async () => {
     const store = memoryStore();
     await store.replaceKind("sport", [kindRow("sport")], GENERATED);

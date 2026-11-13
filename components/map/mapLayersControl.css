@@ -291,7 +291,7 @@
 .mapLayersChip.isOn {
   border-color: var(--state-selected-border);
   background: var(--state-selected-surface);
-  color: var(--color-on-accent);
+  color: var(--state-selected-ink);
 }
 
 .mapLayersChip:focus-visible {

@@ -23,7 +23,7 @@ All writes go through a route handler and the admin client. RLS is the second li
 
 ## Migrations
 
-The captain applies migrations. Agents write SQL only. Never apply a migration to production.
+Follow the [migration apply policy](../../../supabase/AGENTS.md#traps) for authorisation, the apply path, and independent verification.
 
 1. Take the next free four-digit label from `ls supabase/migrations`.
 2. Name the file `<14-digit timestamp>_<label>_<name>.sql`.

@@ -1,3 +1,4 @@
+import type { PintDropRating } from "@/lib/pintDropRating";
 // InstaPint feed model — a pure, testable normalizer + cursor pagination over
 // the public Pint Drops API. The /feed page fetches `/api/pint-drops`, maps each
 // DTO through normalizePintDrop, then filters/paginates with the helpers here.
@@ -24,6 +25,7 @@ export type PintDropDTO = {
   handle: string;
   priceGbp: number | null;
   drink: string;
+  rating?: PintDropRating;
   passedDownNote: string;
   era: string;
   provenance: Provenance;

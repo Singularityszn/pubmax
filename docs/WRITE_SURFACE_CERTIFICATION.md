@@ -1,26 +1,27 @@
 # Mutating API surface certification
 
-The Plan beacon and presentation entries declare the handler inventory.
-Their route tests and `__tests__/planNightStorePermissions.test.ts` exercise the permission contracts.
+The Plan beacon, presentation, live location and open-crawl arrival entries declare the handler inventory.
+The Plan route tests and `__tests__/planNightStorePermissions.test.ts` exercise beacon and presentation permissions.
+The live-location route and store tests exercise live-location permissions.
+`__tests__/permissionMatrixEffective.test.ts` exercises open-crawl arrival permissions.
 Source names and syntax do not establish their runtime protection.
 
 
 Wave 0 treats every exported `POST`, `PUT`, `PATCH`, or `DELETE` handler as a
 reviewed surface—even when a POST is semantically read-only. The regression test
 `__tests__/writeSurfaceCertification.test.ts` scans the complete `app/api` tree.
-Adding a mutating route or removing its authority/abuse boundary fails
-CI until this certification is deliberately updated.
+The test checks authority and abuse boundaries, with runtime-tested routes
+excluded from source-token checks.
 
-> **Inventory: 176 mutating handlers across 141 route files.** Each exported
+> Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
-> inventory. Both counts are merge-conflict coordination points.
+> inventory. TypeScript syntax-tree discovery in the test owns the handler counts.
 
 ## Certified mutation handlers
 
-This list is matched exactly against TypeScript syntax-tree discovery. Handler
-bodies are checked separately, including only local helpers each body calls.
-Protection in a sibling method cannot certify another method.
+The list below records the reviewed handlers. Source-token checks include only
+local helpers each handler calls. Protection in a sibling method cannot certify another method.
 
 <!-- mutation-handler-inventory:start -->
 - `DELETE app/api/[[...unmatched]]`
@@ -37,6 +38,8 @@ Protection in a sibling method cannot certify another method.
 - `DELETE app/api/plans/[id]/beacon`
 - `PUT app/api/plans/[id]/beacon`
 - `PUT app/api/plans/[id]/presentation`
+- `DELETE app/api/plans/[id]/live-location`
+- `PUT app/api/plans/[id]/live-location`
 - `DELETE app/api/plans/[id]/invite-rsvp`
 - `DELETE app/api/plans/[id]/invites/[inviteId]`
 - `DELETE app/api/profiles/[handle]`
@@ -73,6 +76,7 @@ Protection in a sibling method cannot certify another method.
 - `PATCH app/api/social/crews/[crewId]/join-requests/[requestId]`
 - `PATCH app/api/social/crews/[crewId]/members/[memberId]`
 - `PATCH app/api/social/posts/[postId]`
+- `POST app/api/admin/bill-checks`
 - `POST app/api/admin/city-enrichment`
 - `POST app/api/admin/comments`
 - `POST app/api/admin/community-prices`
@@ -81,6 +85,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/admin/profile-avatars`
 - `POST app/api/admin/session`
 - `POST app/api/admin/social-posts`
+- `POST app/api/admin/social-safety`
 - `POST app/api/admin/social-videos`
 - `POST app/api/admin/venue-submissions`
 - `POST app/api/area-demand`
@@ -158,6 +163,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/pub-pal/tools/[toolName]`
 - `POST app/api/pub-pal/voice-token`
 - `POST app/api/pub-list-import`
+- `POST app/api/pub-comparison`
 - `POST app/api/push-tokens`
 - `DELETE app/api/push-tokens`
 - `POST app/api/step-out-nudge`
@@ -174,6 +180,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/crews/[crewId]/invitations`
 - `POST app/api/social/crews/[crewId]/join-requests`
 - `POST app/api/social/crews/[crewId]/leave`
+- `POST app/api/social/crews/[crewId]/arrival`
 - `POST app/api/social/interactions`
 - `POST app/api/social/posts`
 - `POST app/api/social/posts/[postId]/photos`
@@ -182,6 +189,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/social/tags/with`
 - `POST app/api/social/videos/uploads`
 - `POST app/api/starter-packs/[slug]/follow`
+- `POST app/api/summon`
 - `POST app/api/table-requests`
 - `POST app/api/venue-corrections`
 - `POST app/api/regular-nights`
@@ -381,13 +389,16 @@ bodies.
   counts and notifications re-authorise their source and apply block reductions
   on every read. Feeds stay chronological and engagement never enters map,
   venue, price or popularity ranking.
-- **Moderation and governance:** comments and quote posts remain held moderation
-  content until the OpenAI worker records an approval. Reports never auto-hide.
-  Hide and restore require an active named staff role and append an audit row.
+- **Moderation and governance:** the [Social usage guide](../README.md#features)
+  owns comment and quote moderation outcomes. Reports never auto-hide.
+  Staff hide and restore actions require an active named staff role and append an audit row.
   Named moderators read the private report queue and explicitly resolve each
   report, retaining staff-role provenance.
-  Feature-request status and response history are append-only and staff actions
-  use the same private identity.
+  Feature-request staff history is append-only, and staff actions use the same
+  private identity. Status and response derive from the latest staff update,
+  ordered by creation time and ID. Without an update, the status is `submitted`
+  and the response is null. Changing a post to standard clears its displayed
+  feature metadata. Changing it back restores the latest update from history.
 - **Failure and rollback:** the Social freeze runs before identity, limiter or
   storage work for ordinary writes. Reporting and moderation safety floors stay
   open. Deployed production selects the durable store and fails closed when
@@ -440,18 +451,45 @@ bodies.
   Responses are private and no-store. No partial moderation result is
   returned.
 
-### Social Crew authority routes (routes 81-88)
+### `app/api/admin/social-safety` - Social safety moderation (0224)
 
-All eight route files resolve a verified Social actor before parameter, header,
+- **Route / method:** `GET` and `POST app/api/admin/social-safety/route.ts`.
+- **Authority:** both methods require `isModerator` and a named staff role.
+  Each service-role RPC checks that the staff role is an active moderator.
+- **Abuse control:** POST uses the `admin-social-safety` hashed-IP limiter,
+  with a limit of 60 requests per window, before the moderator check.
+- **Moderation:** POST resolves reports, reviews flagged messages, suspends
+  or reinstates accounts, and reads reported evidence. The
+  [permission matrix](security/PERMISSION_MATRIX.md) owns the evidence scope,
+  audit requirements and media access limits.
+- **Failure:** malformed input returns 400, missing moderator access returns
+  403, missing evidence or accounts return 404, and deleted accounts return 409.
+  Unavailable staff authority, storage or database reads return 503.
+  Queue and evidence responses are private and no-store.
+
+### Social Crew authority routes (routes 81-89)
+
+All nine route files resolve a verified Social actor before parameter, header,
 or bounded JSON reads. No body can assert account ownership, role authority, or
 an owner. JSON objects use exact keys, so unknown keys fail. Every mutation
-requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
+except the mark-Here arrival write requires a header-only `Idempotency-Key` of 16 to 128 trimmed characters. Body
 fallback is not supported. A salted stable-profile budget limits writes to 30
 per minute. Every success and failure is `private, no-store` JSON. Statuses are
 stable: 401 for sign-in, 403 for Social policy, 404 for unknown or protected
 denial, 409 for write conflict, 422 for invalid input, 429 for the write budget,
 and 503 for unavailable authority or storage. Store transactions re-check
 membership, current reciprocal follows, blocks, role, state, and revision.
+
+With migration `0232` applied, becoming an active member closes pending invitations to that Crew.
+Unexpired invitations become accepted, and expired invitations become expired.
+Leaving or removal revokes pending invitations and ends the linked Plan seat by setting `membership_revoked_at` and rotating its capability token.
+Reactivating an existing inactive membership clears that revocation and resets the seat status to `in`.
+Activation of an already active member preserves the seat status, including `here`.
+
+The migration also closes pending invitations for existing active members.
+For inactive memberships, it revokes pending invitations created before the membership ended and ends any linked Plan seat that remains live.
+The [rollback header](../supabase/migrations/rollback/20261110140000_0232_crew_membership_closes_leftovers_rollback.sql) describes what rollback preserves and restores.
+The regression cases are in [`crewMembershipLeftoversMigrationEffective.test.ts`](../__tests__/crewMembershipLeftoversMigrationEffective.test.ts).
 
 #### `app/api/social/crews` (route 81)
 
@@ -496,6 +534,20 @@ ID.
 
 `POST` leaves as verified actor. Self-leave stays available after friendship
 loss or a block; owner leave remains a durable conflict until ownership moves.
+
+#### `app/api/social/crews/[crewId]/arrival` (route 89)
+
+`POST` accepts only `{ here: true }`. Other bodies, including `{ here: false }`, return 422.
+A verified actor must be an active
+member of the named open crew. The server derives the Plan and seat from that
+membership and updates only the seat bound to that account. It reads authority
+again before minting the existing arrival receipts. Private and friends crews
+return 404. No Plan capability or account ID is returned. Arrival opens at London
+midnight on the scheduled date and closes 12 hours after the start.
+The [crew-status contract](API_CONTRACTS_THE_LOCAL.md#crew-status) also applies at the database write.
+Within these guards, marking Here is idempotent without a receipt key. The endpoint cannot undo an arrival.
+The [arrival metric](analytics/METRICS.md#33-the-host-loop-and-hosted-night-arrivals)
+owns receipt counting and deduplication rules.
 
 ### `app/api/cheap-pint-ping` - weekday push preference
 
@@ -851,21 +903,30 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   NULL, and has no browser grant. A hard store failure answers 503, never a
   fake success. No admin verb: a report is two fixed words and no free text.
 
+### `app/api/summon` - invite mates to a pub
+
+`POST app/api/summon/route.ts` accepts `{ venueId, time, mates }`.
+The [summon usage guide](../README.md#features) owns the reader journey.
+`requireVerifiedSocialActor` derives the sender from the session.
+Access refusals preserve the error code and include `details.gate` when available.
+The dialog uses that gate to offer account setup or the adult check.
+GET and POST use separate profile-based `isLimited` budgets and private, no-store responses.
+POST also honours `socialFreezeResponse`.
+`lib/summonMates.server.ts` checks every candidate's current eligibility before delivery starts.
+Unavailable relationship or mute reads return retryable `503 UNAVAILABLE`, without sending any messages.
+Definite eligibility refusals are omitted without identifying which side blocked or muted.
+Successful sends return `201` with `sent` and `failed` handles.
+If every attempted delivery fails, the route returns `503 UNAVAILABLE`.
+Regression coverage lives in `__tests__/summonRoute.test.ts`.
+
 ### `app/api/table-requests` - a crew asks a pub for a table
 
-- **Route / method:** `POST app/api/table-requests/route.ts` takes one JSON
-  request for a crew of 6 to 20: `venueId`, `name`, `partySize`, `date`,
-  `time`, an optional `note` and ONE `contact` (`{ kind: "email" | "phone",
-  value }`) the pub can reply to. It answers `201 { outcome: "sent" }` only
-  when an email to the pub's VERIFIED operator was sent through
-  `lib/emailProvider.ts`, and `200 { outcome: "not_sent" }` otherwise (no
-  verified operator, no address on the operator's account, a keyless
-  deployment where the seam answers `skipped`, a failed send, or a store that
-  could not keep the request). The sheet then hands the person a prefilled
-  email to the pub's own published address, or its phone, and says plainly
-  that PUBMAXX did not send it. The `GET ?venueId=` read lists that pub's
-  emailed requests to a verified operator of THAT pub alone (401 signed out,
-  403 anybody else), without the requester's account id.
+- **Route / method:** `POST app/api/table-requests/route.ts` accepts a group
+  table request. The [table request rules](rules/lib-shared-seams-stores-http-freshness-brand.md#a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent)
+  own its delivery outcomes, retry keys, retention and manual-contact fallback.
+  The `GET ?venueId=` read lists that pub's emailed requests to a verified
+  operator of that pub alone (401 signed out, 403 anybody else), without the
+  requester's account id.
 - **What it never writes:** a booking, a hold, a fee, a payment, a venue, a pin,
   a price or an order. A fee per seated group is a later decision under
   ADR 0011 and the 0219 table has no column for one. The answer never echoes a
@@ -888,10 +949,8 @@ loss or a block; owner leave remains a durable conflict until ownership moves.
   and their address is read from Supabase Auth on the service role
   (`lib/operatorAccountAddress.server.ts`), never from a body or a venue
   record. The 0219 table keys the requester to `auth.users` with ON DELETE
-  CASCADE and has no browser grant. A request that was stored and then not
-  sent is deleted, so the operator panel never lists one the person was told
-  PUBMAXX did not send. The requester's account export carries their own
-  requests (the `tableRequests` lane), and nothing about the operator.
+  CASCADE and has no browser grant. The requester's account export carries
+  their own requests (the `tableRequests` lane), and nothing about the operator.
 
 ### `app/api/visit-reports` — structured Visit Reports (route 66)
 
@@ -1061,9 +1120,8 @@ commit.
   in migration 0048 mirror the allowlists.
 - **Auth stance (ACCOUNT — the CREATE boundary):** `account_id` is the VERIFIED
   Supabase uid from the bearer JWT (`callerAuthIdentity`), never a body value; an
-  anonymous caller is 401. Idempotent per `(account_id, venue_id)` — a re-claim
-  UPDATES in place and reopens the row to `pending`, so table growth is bounded by
-  distinct account×venue pairs.
+  anonymous caller is 401. The [`VenueOperatorStore.claim` contract](../lib/venueOperatorsStore.ts)
+  owns claim uniqueness and re-claim behaviour.
 - **Rate limit (boundary):** durable per-account + hashed-IP `isLimited` with key
   `venue-operator-claim:${accountId}:${hashIp(clientIp)}` (raw IP never keyed),
   budget 10 — an operator may run a few pubs. 429 `{ code: "RATE_LIMITED",
@@ -1104,29 +1162,38 @@ commit.
   `operator-proposal:${accountId}:${hashIp(clientIp)}`, budget 20 — 429
   `{ retryable: true }` on exceed. This is the rate_limit-class boundary; the
   route also carries the moderator class (accept/decline).
-- **Moderation + the admin acceptance seam (boundary):** `accept` / `decline`
-  require the admin token (`isModerator`). TRUSTED DATA IS UNTOUCHED — a proposal
-  NEVER writes a venue fact. Only the `accept` branch (the admin acceptance seam)
-  materialises an accepted payload into served evidence, and even then only as a
-  `FactSource` of authority `operator` (rank 0, `factClaims.
-  acceptedProposalFactSource`): additive, attributed, and exposed as a CONFLICT if
-  it disagrees with the observed corpus, never a silent overwrite. A fence test
-  (`__tests__/operatorProposalFence.test.ts`) asserts the proposal store/module
-  import NO venue-fact module — the acceptance route is the sole bridge.
-- **Published fact:** the `accept` branch also publishes ONE operator fact
-  (`lib/operatorFactsStore.ts`, migration 0217, unique per proposal) BEFORE it
-  stamps the status, so a failed publish leaves the proposal pending and answers
-  503; a failed stamp withdraws the fact. `decline` withdraws any published fact
-  first. The fact is shown as "From the pub" and changes no rank, pin colour,
-  price band or order (`__tests__/operatorFactsFence.test.ts`).
+- **Moderation:** `accept` and `decline` require the admin token (`isModerator`).
+  `operatorProposalsStore().decide` accepts only a `pending` proposal.
+  It declines a `pending` or `accepted` proposal, so a moderator can undo acceptance.
+  Other transitions return 409 `CONFLICT` without changing the proposal or its fact.
+  A missing proposal returns 404 `NOT_FOUND`.
+- **Atomic publication:** the durable store calls `decide_operator_proposal`
+  (migration 0235). The function locks the proposal row and checks its status.
+  It publishes one operator fact on acceptance, or withdraws the fact on decline,
+  and stamps the decision in the same transaction.
+  A failed publication, withdrawal or status write rolls back the transaction.
+  Concurrent decisions cannot withdraw a winning acceptance as compensation.
+  The memory backend performs the decision without yielding between the guard and writes.
+  Regression coverage is in `__tests__/operatorProposalsRoute.test.ts` and
+  `__tests__/operatorFactsMigrationEffective.test.ts`.
+- **Trusted evidence:** the acceptance route converts the accepted payload through
+  `factClaims.acceptedProposalFactSource` into authority `operator` (rank 0).
+  This is attributed evidence. A disagreement with observed data appears as a conflict.
+  The proposal module and store cannot import trusted venue-data modules
+  (`__tests__/operatorProposalFence.test.ts`). The store can import operator-fact storage.
+  [The operator-fact display rule](rules/lib-venues-areas-listings-and-nights.md)
+  owns placement and ranking constraints.
 - **Freeze stance:** NOT under the SOCIAL freeze (venue-business content), same
   exemption as route 68.
-- **Rollback / kill:** durable rows live in `public.operator_proposals` (migration
-  0048, RLS on, anon/authenticated revoked, service_role only); `truncate` is a
-  safe reset. Fails soft to process-memory until 0048 lands
-  (`lib/operatorProposalsStore.ts`); a hard write failure answers 503. Published
-  facts live in `public.operator_facts` (0217); its rollback drops the table and
-  keeps every proposal's review status.
+- **Storage and rollback:** proposals live in `public.operator_proposals` (0048).
+  Published facts live in `public.operator_facts` (0217).
+  [The permission matrix](security/PERMISSION_MATRIX.md) owns browser and service-role access.
+  A keyless process uses memory. With Supabase configured, creation and reads
+  retain their schema-miss fallback, but moderation requires the durable RPC.
+  A missing RPC or failed durable decision returns retryable 503 `STORE_UNAVAILABLE`.
+  The 0235 rollback removes only the function and preserves proposals and facts.
+  Moderation then remains unavailable until the function returns or compatible code is deployed.
+  The 0217 rollback drops the fact table and preserves proposal review statuses.
 
 ### `app/api/price-submit` - community price and venue-signal submissions (route 70)
 
@@ -1328,26 +1395,23 @@ commit.
 
 ### Contributor identity onboarding
 
-- **Routes / methods:** `POST` and `PATCH` on
-  `app/api/identity/onboarding/route.ts` claim an account-owned handle and edit
-  optional private full name and sex. Date of birth is required on the signup
-  POST. Its sibling GET is read-only.
+- **Routes / methods:** `POST` on `app/api/identity/onboarding/route.ts`
+  claims an account-owned handle. `PATCH` saves private account details.
+  Date input follows `readOptionalDateOfBirth` in `lib/privateIdentity.ts`.
+  Its sibling GET is read-only.
 - **Authority:** every method derives the account from a verified Supabase JWT
   through `callerUserId`. Missing authority returns 401 before any read or
   write. Handle ownership is enforced transactionally by
   `complete_contributor_onboarding`; reserved handles are rejected by shared
   code policy.
-- **Privacy:** date of birth, optional full name and optional sex stay in the
-  private account table and are not returned by public profile routes. Date of
-  birth stays until profile deletion; full name and sex stay until edited,
-  cleared or profile deletion. No contribution eligibility is derived.
-- **The PATCH creates the row it edits.** An account that claimed its handle
-  through the early path stores no date of birth, so it has no
-  `private_account_identities` row at all, and the save was refused for that
-  row's own absence. An owner may now save private details whatever the
-  onboarding status says. Two real refusals remain, and they are two findings:
-  no profile at all is 409, and a first save carrying no date of birth is 400,
-  because the column is NOT NULL.
+- **Privacy:** private identity fields stay in the private account table and
+  are not returned by public profile routes. The [privacy notice](../app/privacy/page.tsx)
+  owns retention and use of these fields. The
+  [contribution access rules](rules/lib-identity-accounts-and-sessions.md#contributing-asks-two-questions-and-the-age-one-is-the-10-aug-rule-s)
+  own the age decision.
+- **Save policy:** the
+  [identity policy](rules/lib-identity-accounts-and-sessions.md#everybody-who-joins-is-taken-to-be-an-adult-on-one-recorded-tap)
+  owns first-save requirements, date-edit refusals and concurrent-save protection.
 
 ### `app/api/identity/adult-assertion` - the recorded 18-or-over tap
 
@@ -1380,8 +1444,8 @@ commit.
   updates that device's own RSVP rather than adding a second guest.
 - **Token boundary:** public invite writes resolve the token through
   `resolveClassicInvitePlan` (`lib/planInviteResolve.ts`), which requires the
-  same classic-plan `planStateResult` gate as the invite page (Crew-bound plans
-  404). Neither public write route accepts a plan id from the client.
+  classic-plan `planStateResult` gate. Crew-bound plans return 404 for these
+  writes. Neither public write route accepts a plan id from the client.
 - **Text hygiene (boundary):** guest display names pass through
   `cleanText`/`readString` (`lib/textClean.ts`), the same hygiene already used
   for handles and comments, before persistence.
@@ -1770,6 +1834,11 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   the moderator check.
 - **Validation:** a post UUID and a decision of `approved` or `rejected`,
   nothing else. `review_social_post_video` refuses any other word.
+- **Write:** only a `held` video can receive a decision. The first decision
+  wins. Later attempts leave the decision unchanged and return `false` from
+  the store, which the route maps to 404 `NOT_FOUND`, as for a missing video.
+  The memory store enforces this guard directly. Supabase requires migration
+  `0228`, which the captain applies separately.
 
 ### `app/api/social/posts/[postId]/photos` - Social photos 2 to 4 (route 98)
 
@@ -1823,7 +1892,7 @@ Both budgets use salted hashes and refuse requests when the configured durable l
 The server reads at most 48,000 bytes, then accepts up to 4,000 text characters and an optional source link.
 Unknown fields are refused. The source link carries attribution only and is never fetched.
 The response contains a temporary import ID and ordered match states with `Cache-Control: no-store`.
-The endpoint discards pasted text after matching. Short prose can use the bounded zero-retention model fallback.
+The endpoint discards pasted text after matching. Short prose can use the bounded model fallback.
 The cluster action resolves selected IDs again and excludes closed and national pubs from London crawls.
 The save action stores matched IDs and attribution as an owner-only Planned Night draft. It stores no pasted text or creator claims.
 The resume action and GET read only the verified account's drafts. Missing storage refuses a save without a memory fallback.
@@ -1855,6 +1924,24 @@ An oversized body answers 413. Unavailable account checks or catalogues answer a
   the three facts, in one transaction: the plan becomes social-owned, every seat
   token rotates and open plan invites are revoked.
 
+### `app/api/admin/bill-checks` - the bill check's moderation queue
+
+The [bill check rule](rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price) owns background reads and verdicts.
+This route reviews `mismatch` verdicts.
+`GET` lists unreviewed mismatches with the submitted price, extracted lines and pub.
+It resolves the original bill photo from the named Pint Drop or Round spend when available.
+A Round photo also requires the recorded venue and line price to match.
+`GET` is not a mutating verb and is not counted.
+`POST` takes `{ id, decision, note? }`, where `decision` is `kept` or `hidden`. Any other decision answers 400. There is no `delete`.
+The caller must pass `isModerator` (`lib/adminAuth.ts`), the same gate as every other queue. Writes are limited to 60 a minute for each address.
+`kept` stamps the check and leaves the price unchanged. It grants no receipt evidence.
+`hidden` hides the checked Pint Drop through `moderate`. It hides a matching current community observation through `moderateWithState` and reconciles its trust. A conditional update claims the pending check before either decision changes a price. A losing request answers 404 and changes nothing. A failed hide answers 503 and attempts to release the review claim so a moderator can retry. Any completed hide remains in place. A community hide also checks the submitted date, price and Round source line, so a correction survives an older bill review.
+When a newer community observation supersedes the checked one, the route completes the review with 200 after hiding any checked drop.
+It leaves the newer price unchanged and does not reconcile its trust.
+An unknown id, a completed review or a result other than `mismatch` answers 404.
+Nothing is deleted: the check row (`public.price_bill_checks`, migration 0220, service role only), the drop and the community price all survive either decision.
+`__tests__/billChecksAdminRoute.test.ts` exercises these responses through the real entry point.
+
 ### `app/api/board-reads` - the board reader's proposal read (review item A4)
 
 POST takes one multipart body: a venue ID and one photo of a pub's price board.
@@ -1869,3 +1956,12 @@ A row with no price, a price outside the community envelope, an unknown measure 
 Nothing lands from this answer. The page sends each row the person confirms through `POST app/api/price-submit`, one by one, with the board photo as its bill.
 Missing sign-in answers 401, a spent budget answers 429, a keyless deployment or a failed read answers 503, and a bad photo answers 400 or 413.
 `__tests__/boardReadsRoute.test.ts` exercises these responses through the real entry point.
+
+### `app/api/pub-comparison` - read-only pub order comparison
+
+POST calculates an order without creating a price report, Round, plan or poll.
+This public calculation uses hashed-address rate limiting without requiring an account.
+The [pub comparison contract](PUB_COMPARISON.md#read-contract) owns request limits,
+response caching and input restrictions. Its [price and walking rules](PUB_COMPARISON.md#price-and-walking-rules)
+own evidence eligibility and routing constraints.
+`__tests__/pubComparison.route.test.ts` covers the public HTTP boundary.

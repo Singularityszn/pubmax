@@ -29,12 +29,12 @@
 //                 "Two drinkers, two prices: £4.50 and £4.70". Paints the same
 //                 provisional MARK as one report, and no figure, because two
 //                 figures have no one band.
-//   logged-once   one in-window public report with a bill, or written before
-//                 the bill became optional (provisionalPriceDrop). Paints the
-//                 pin's provisional MARK and nothing else; the sheet prints the
-//                 figure, dated, with PROVISIONAL_PRICE_LINE.
-//   unchecked     the only in-window public report is a typed price with NO
-//                 bill (uncheckedPriceDrop; captain decision 9, 1 Nov 2026).
+//   logged-once   one in-window public report with receipt or legacy evidence
+//                 (provisionalPriceDrop). Paints the pin's provisional MARK
+//                 and nothing else. The sheet prints the dated figure with
+//                 PROVISIONAL_PRICE_LINE.
+//   unchecked     the only in-window public report has unchecked evidence
+//                 (uncheckedPriceDrop; meanings owned by lib/pintDropReceipt.ts).
 //                 Paints NOTHING on the pin, not even the mark; the sheet
 //                 prints the figure, dated, on the neutral plaque, as "Logged
 //                 by @handle, not checked" with UNCHECKED_PRICE_LINE. A second
@@ -120,10 +120,8 @@ export const PINT_TRUST_PIN_PAINT: Record<PintTrustState, PintTrustPinPaint> = {
   // price half the reporters here did not pay.
   disputed: "mark",
   "logged-once": "mark",
-  // Captain decision 9 (1 Nov 2026): a typed price with no bill does not touch
-  // the pin until a second drinker agrees. Not the band, and not the mark
-  // either: the mark is what the bill buys a lone report, and the composer's
-  // one line about the bill says exactly that (RECEIPT_OPTIONAL_LINE).
+  // An unchecked price earns neither the band nor the mark on its own.
+  // lib/pintDropReceipt.ts owns how a bill can change its evidence.
   unchecked: "none",
   "aged-out": "none",
   none: "none",
@@ -290,8 +288,8 @@ export type PintTrustSignalFields = {
   agedContributorAt: number | null;
   /**
    * The public handle behind the provisional or aged figure when that figure
-   * has NO BILL (captain decision 9), or null. It rides beside the figure it
-   * names, so a surface prints "Logged by @handle, not checked" and keeps the
+   * is unchecked under lib/pintDropReceipt.ts, or null. It accompanies the
+   * figure, so a surface prints "Logged by @handle, not checked" and keeps the
    * band off without reading the drops again.
    */
   uncheckedBy: string | null;
@@ -349,7 +347,7 @@ export function splitLaneInput(
 export function dropLaneInput(
   priceGbp: number | null | undefined,
   observedAtMs: number | null | undefined,
-  /** The signal's `uncheckedBy`: present only when the figure has no bill. */
+  /** The signal's `uncheckedBy`: the drinker behind an unchecked figure. */
   uncheckedBy?: string | null,
 ): ProvisionalPriceInput | null {
   if (priceGbp == null) return null;
@@ -421,8 +419,8 @@ export function trustChipStateFor(
   switch (lane.lane) {
     case "contributor":
       return standing === "confirmed" ? "confirmed" : "corroborated";
-    // ONE SLOT, TWO STATES: a lone report with a bill is `logged-once`, and
-    // one typed without a bill is `unchecked` (captain decision 9).
+    // One slot carries both states. `uncheckedBy` preserves unchecked evidence
+    // from lib/pintDropReceipt.ts rather than inferring evidence from a photo.
     case "provisional":
       return venuePriceLaneUncheckedBy(lane) !== null ? "unchecked" : "logged-once";
     case "disputed":

@@ -10,7 +10,7 @@ const { getSupabaseBrowser, ensureSupabaseBrowser, isAuthConfigured } = vi.hoist
 
 vi.mock("@/lib/authClient", () => ({
   getSupabaseBrowser,
-  ensureSupabaseBrowser,
+  ensureSupabaseBrowserForSession: ensureSupabaseBrowser,
   isAuthConfigured,
 }));
 

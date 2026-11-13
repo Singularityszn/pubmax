@@ -17,15 +17,18 @@ import type { PintDropDTO } from "@/lib/feed";
 import {
   buildOptimisticSpillDrop,
   buildOptimisticSpillRetryPayload,
+  createOptimisticSpillPhotoPreview,
   emitOptimisticSpillChange,
   failOptimisticSpill,
   newOptimisticSpillClientId,
   readOptimisticSpills,
   reconcileOptimisticSpill,
+  revokeOptimisticSpillPhotoPreview,
   shouldOptimisticallyAppearInFeed,
   upsertOptimisticSpill,
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
+import { startPintDropSubmission, transitionPintDropSubmission } from "@/lib/pintDropSubmission";
 import { lastTrainComposeFields } from "@/lib/lastTrainBadge";
 import {
   filterMapPintDropEntries,
@@ -66,13 +69,25 @@ import {
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
+import { BILL_READING_RECEIPT_LINE } from "@/lib/billCheck";
 import {
   UNCHECKED_RECEIPT_LINE,
+  isPricedWrite,
   isUncheckedPrice,
   photoRefusal,
   priceEvidenceFor,
 } from "@/lib/pintDropReceipt";
+import { receiptShareFromSavedDrop, type ReceiptShare } from "@/lib/pintReceipt";
 import { pintTrustFor, pintTrustSignalFields, type PintTrustState } from "@/lib/pintTrust";
+import { isPintDropRating, PINT_DROP_STARS_NOT_SAVED } from "@/lib/pintDropRating";
+import type { RatingValue } from "@/lib/ratings";
+
+function submittedRatingNotSaved(
+  rating: RatingValue | null,
+  data: { ratingSaved?: unknown; drop?: { rating?: unknown } | null },
+): boolean {
+  return rating !== null && (data.ratingSaved === false || data.drop?.rating !== rating);
+}
 
 // The API DTO carries photo URLs on every drop; lib/pintDrops owns the base
 // shape, so we augment it here at the client boundary rather than editing lib/*.
@@ -90,10 +105,8 @@ export type { VenueDropReadStatus } from "@/lib/venueDropRead";
 
 export type PhotoSlot = { file: File; previewUrl: string };
 /**
- * THREE SLOTS since 7 Sept 2026. `pint` is what they drank, `venue` is where,
- * and `receipt` is the photo of the bill a new price now carries
- * (lib/pintDropReceipt.ts). Three names rather than a reused one, because the
- * drop's own row prints them apart and only one of them is required.
+ * Keep the pint, venue and bill photos separate because the drop displays
+ * them separately. lib/pintDropReceipt.ts owns the attachment requirements.
  */
 export type PhotoSlotName = "pint" | "venue" | "receipt";
 
@@ -102,8 +115,13 @@ export type DropMsg = {
   ok: boolean;
   text: string;
   links?: Array<{ href: Route; label: string }>;
+  /** A priced drop landed, so the duty census card may follow the receipt. */
+  census?: boolean;
+  /** The receipt a saved public drop offers to share (lib/pintReceipt.ts). */
+  receipt?: ReceiptShare | null;
   accountRevision?: number;
   ageRecovery?: { accountRevision: number };
+  retry?: { venueId: string; send: () => Promise<void> };
 };
 
 // ONE NUMBER ON BOTH SIDES OF THE WIRE, and ONE PLACE THAT ASKS. This gate
@@ -212,6 +230,10 @@ function fileOfPhoto(photo: PhotoSlot | null): File | null {
   return photo?.file ?? null;
 }
 
+function previewUrlOfPhoto(photo: PhotoSlot | null): string | null {
+  return photo?.previewUrl ?? null;
+}
+
 function groupDropsByVenueId(drops: DropWithPhotos[]): Map<string, DropWithPhotos[]> {
   const grouped = new Map<string, DropWithPhotos[]>();
   for (const drop of drops) {
@@ -237,12 +259,24 @@ function rereadLaneOnMint(
   if (outcome?.status === "confirmed") reread();
 }
 
+/**
+ * What stands behind a landed price while the pin waits, as the composer's
+ * receipt words it. `bill`: the drinker sent the bill and the server is
+ * reading it (the answer's `billCheck: "reading"`, captain 5 Nov 2026).
+ * `unchecked`: the server returned unchecked evidence without a scheduled bill read.
+ */
+export type DropReceiptWait = "bill" | "unchecked" | null;
+
+export function dropReceiptWait(data: { drop?: unknown; billCheck?: unknown }): DropReceiptWait {
+  if (data.billCheck === "reading") return "bill";
+  return isUncheckedPrice(data.drop as Parameters<typeof isUncheckedPrice>[0]) ? "unchecked" : null;
+}
+
 export function dropReceiptText(
   addedToNight: boolean,
   outcome: PintDropConfirmationOutcome | null,
   submittedPrice: string,
-  /** The server stamped the landed drop `unchecked` (captain decision 9). */
-  unchecked = false,
+  wait: DropReceiptWait = null,
 ): string {
   const receipt = addedToNight
     ? "Cheers. Added to your night."
@@ -253,8 +287,11 @@ export function dropReceiptText(
     Number.isFinite(submittedGbp) ? submittedGbp : null,
   );
   // The pass's own sentence wins (a mint over two typed prices says so). With
-  // nothing stronger to say, a typed price is told once why its pin is quiet.
-  const line = outcomeLine ?? (unchecked ? UNCHECKED_RECEIPT_LINE : null);
+  // nothing stronger to say, the drinker is told once why the pin is quiet:
+  // a bill is being read, or a typed price waits for a second drinker.
+  const waitLine =
+    wait === "bill" ? BILL_READING_RECEIPT_LINE : wait === "unchecked" ? UNCHECKED_RECEIPT_LINE : null;
+  const line = outcomeLine ?? waitLine;
   return line ? `${receipt} ${line}` : receipt;
 }
 
@@ -332,6 +369,7 @@ export function usePintDrops(
   // Selected vibe tags (client-side UX only — the server re-filters against its
   // own allowlist). Multi-select, capped at MAX_VIBE_TAGS by toggleVibeTag.
   const [vibeTags, setVibeTags] = useState<VibeTag[]>([]);
+  const [rating, setRating] = useState<RatingValue | null>(null);
   const [pintPhoto, setPintPhoto] = useState<PhotoSlot | null>(null);
   const [venuePhoto, setVenuePhoto] = useState<PhotoSlot | null>(null);
   const [receiptPhoto, setReceiptPhoto] = useState<PhotoSlot | null>(null);
@@ -353,19 +391,22 @@ export function usePintDrops(
     readProviderAccountRevision,
     readProviderAccountRevision,
   );
+  // The price an adult refusal held back. The adult tap finishes it as the
+  // same request, so the drinker never types the price twice.
+  const ageHeldDrop = useRef<{ accountRevision: number; finish: () => Promise<void> } | null>(null);
   const ageAsserted = useCallback(() => {
-    setDropMsg((message) => message?.ageRecovery?.accountRevision === readProviderAccountRevision()
-      ? { ok: true, text: "Age confirmation saved. Submit your price again.", accountRevision: message.ageRecovery.accountRevision }
-      : message);
-  }, [setDropMsg]);
+    const held = ageHeldDrop.current;
+    ageHeldDrop.current = null;
+    if (held?.accountRevision === readProviderAccountRevision()) void held.finish();
+  }, []);
   const pintInputRef = useRef<HTMLInputElement>(null);
   const venueInputRef = useRef<HTMLInputElement>(null);
   const receiptInputRef = useRef<HTMLInputElement>(null);
   // EVERY PREVIEW URL THIS HOOK HAS MINTED AND NOT YET REVOKED. A slot's URL
   // is revoked when the slot is replaced or removed; a URL handed to an
   // optimistic row (map drop, feed spill) outlives the composer and is revoked
-  // when the server row replaces it. Whatever is still held at unmount goes
-  // then. One set, so nothing is revoked twice and nothing still on screen is
+  // when the server row replaces it. Stored retries retain their URLs across
+  // unmount. One set, so nothing is revoked twice and nothing still on screen is
   // revoked by a sibling slot changing.
   const livePreviewUrls = useRef(new Set<string>());
   // Ref guard + optimistic removal is the whole "pending state" for reports —
@@ -477,8 +518,7 @@ export function usePintDrops(
   }, []);
 
   // Pick a photo for one slot: pre-validate (type + size) before we ever build a
-  // preview or submit, so bad files are caught client-side. Object URLs are
-  // revoked when the slot is replaced/removed and on unmount (effect below).
+  // preview or submit, so bad files are caught client-side.
   // ONE TABLE FOR THREE SLOTS. It was a pair of ternaries per function, and a
   // third slot would have made six places to keep in step.
   const photoSlots = {
@@ -489,7 +529,7 @@ export function usePintDrops(
 
   function revokePreview(url: string) {
     if (!livePreviewUrls.current.delete(url)) return;
-    URL.revokeObjectURL(url);
+    revokeOptimisticSpillPhotoPreview(url);
   }
 
   function pickPhoto(slot: PhotoSlotName, file: File | undefined, inputEl: HTMLInputElement | null) {
@@ -504,7 +544,7 @@ export function usePintDrops(
     }
     if (current) revokePreview(current.previewUrl);
     setDropMsg(null);
-    const previewUrl = URL.createObjectURL(file);
+    const previewUrl = createOptimisticSpillPhotoPreview(file);
     livePreviewUrls.current.add(previewUrl);
     setSlot({ file, previewUrl });
   }
@@ -530,12 +570,17 @@ export function usePintDrops(
     if (inputEl) inputEl.value = "";
   }
 
+  const composerRevision = useRef(0);
+
   // `keepPreviews` is the post: the slots empty, but their URLs now belong to
   // the optimistic row that is about to render them.
   const resetComposer = useCallback((options?: { keepPreviews?: boolean }) => {
+    composerRevision.current += 1;
+    setSubmitting(false);
+    setDropMsg((current) => current?.retry ? null : current);
     const release = (current: PhotoSlot | null) => {
       if (current && !options?.keepPreviews && livePreviewUrls.current.delete(current.previewUrl)) {
-        URL.revokeObjectURL(current.previewUrl);
+        revokeOptimisticSpillPhotoPreview(current.previewUrl);
       }
       return null;
     };
@@ -552,11 +597,12 @@ export function usePintDrops(
       withWho: "",
     });
     setVibeTags([]);
+    setRating(null);
     setVisibility(DEFAULT_VISIBILITY);
     if (pintInputRef.current) pintInputRef.current.value = "";
     if (venueInputRef.current) venueInputRef.current.value = "";
     if (receiptInputRef.current) receiptInputRef.current.value = "";
-  }, []);
+  }, [setDropMsg]);
 
   // A different account does not inherit an unsent draft: its text, price and
   // photos belong to the account that typed and picked them. Deferred out of
@@ -568,13 +614,19 @@ export function usePintDrops(
     void Promise.resolve().then(() => resetComposer());
   }, [accountRevision, resetComposer]);
 
-  // Revoke every preview URL still held when the component unmounts. Empty
+  // Revoke composer previews on unmount, but leave stored retries their photos. Empty
   // deps on purpose: a cleanup keyed on the slots ran with the previous
   // closure, so changing ONE slot revoked all three (review finding CMP-2).
   useEffect(() => {
     const held = livePreviewUrls.current;
     return () => {
-      for (const url of held) URL.revokeObjectURL(url);
+      const storage = safeLocalStorage();
+      const retained = new Set(storage ? readOptimisticSpills(storage).flatMap(({ retry }) =>
+        retry ? [retry.pintPhotoUrl, retry.venuePhotoUrl, retry.receiptPhotoUrl] : [],
+      ) : []);
+      for (const url of held) {
+        if (!retained.has(url)) revokeOptimisticSpillPhotoPreview(url);
+      }
       held.clear();
     };
   }, []);
@@ -595,6 +647,8 @@ export function usePintDrops(
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    if (submitting) return;
+    if (dropMsg?.retry?.venueId === venueId) return dropMsg.retry.send();
     if (
       !spillHasSubmissionEvidence({
         price: dropForm.price,
@@ -660,12 +714,16 @@ export function usePintDrops(
       handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
+      rating: isPintDropRating(rating) ? rating : null,
       passedDownNote,
       era: dropForm.era,
       visibility,
       vibeTags,
-      pintPhotoUrl: pintPhoto?.previewUrl ?? null,
-      venuePhotoUrl: venuePhoto?.previewUrl ?? null,
+      pintPhotoUrl: previewUrlOfPhoto(pintPhoto),
+      venuePhotoUrl: previewUrlOfPhoto(venuePhoto),
+      // The retry sends the bill and the measure too, never a default pint.
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
+      ...measureFieldsOf(dropForm),
       createdAt: new Date().toISOString(),
       ...(trainFields ?? {}),
       // The retry payload keeps them only when there are some.
@@ -692,10 +750,10 @@ export function usePintDrops(
       ...measureFieldsOf(dropForm),
       priceGbp: optimisticDrop.priceGbp,
       // And its evidence, by the same rule the store applies to the answer,
-      // so a typed price never flashes the pin's mark before the server says
-      // it is unchecked (lib/pintDropReceipt.ts).
+      // so a price never flashes the pin's mark before its bill has been read
+      // (lib/pintDropReceipt.ts).
       ...(() => {
-        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp, Boolean(receiptPhoto));
+        const priceEvidence = priceEvidenceFor(optimisticDrop.priceGbp);
         return priceEvidence ? { priceEvidence } : {};
       })(),
       passedDownNote: optimisticDrop.passedDownNote,
@@ -710,7 +768,8 @@ export function usePintDrops(
       // The bill shows on the row the moment it is posted, from the same local
       // preview the other two use, so the drinker sees their own evidence
       // before the upload lands.
-      receiptPhotoUrl: receiptPhoto?.previewUrl ?? null,
+      receiptPhotoUrl: previewUrlOfPhoto(receiptPhoto),
+      ...(isPintDropRating(rating) ? { rating } : {}),
       optimistic: optimisticDrop.optimistic,
       ...trainFields,
     };
@@ -720,8 +779,6 @@ export function usePintDrops(
       return next;
     });
 
-    // Instant post UX (IDEAS A2): close the composer immediately and reconcile
-    // in the background. Failures keep the optimistic card in a retryable state.
     // Capture form fields BEFORE resetComposer clears them.
     const submittedHandle = submittedAuthor.handle.trim();
     const submittedDrink = dropForm.drink;
@@ -730,10 +787,13 @@ export function usePintDrops(
     const submittedEra = dropForm.era;
     const submittedVisibility = visibility;
     const submittedVibeTags = [...vibeTags];
+    const submittedRating = rating;
+    const submittedComposerRevision = composerRevision.current;
+    const ownsComposer = () => submittedRating === null || composerRevision.current === submittedComposerRevision;
     const submittedPintFile = fileOfPhoto(pintPhoto);
     const submittedVenueFile = fileOfPhoto(venuePhoto);
     const submittedReceiptFile = fileOfPhoto(receiptPhoto);
-    clearPintDropDraft(safeSessionStorage(), venueId);
+    if (submittedRating === null) clearPintDropDraft(safeSessionStorage(), venueId);
     const local = safeLocalStorage();
     if (local) {
       try {
@@ -746,15 +806,17 @@ export function usePintDrops(
     const handedOffPreviews = [pintPhoto, venuePhoto, receiptPhoto].flatMap((slot) =>
       slot ? [slot.previewUrl] : [],
     );
-    resetComposer({ keepPreviews: true });
-    setComposerOpen(false);
-    setSubmitting(false);
-    setDropMsg({
+    if (submittedRating === null) {
+      resetComposer({ keepPreviews: true });
+      setComposerOpen(false);
+      setSubmitting(false);
+    }
+    const savingMsg: DropMsg = {
       ok: true,
       text: "Cheers. Saving your Pint Drop…",
       links: [{ href: "/social", label: "Open Social" }],
       accountRevision: submittedAccountRevision,
-    });
+    };
 
     // A saved wrapper keeps its client ID. Cancellation owns only the original pending row.
     const isAbandonedDrop = (drop: Pick<DropWithPhotos, "id" | "optimistic">) =>
@@ -773,37 +835,32 @@ export function usePintDrops(
       });
       handedOffPreviews.forEach(revokePreview);
     };
-    submittedAccountSignal.addEventListener("abort", disposeAbandonedSubmission, { once: true });
+
+    const setOptimisticRow = (optimistic: DropWithPhotos["optimistic"]) => {
+      setDropsByVenueId((current) => {
+        const next = new Map(current);
+        next.set(
+          venueId,
+          (next.get(venueId) ?? []).map((drop) =>
+            drop.id === optimisticDrop.id ? { ...drop, optimistic } : drop,
+          ),
+        );
+        return next;
+      });
+    };
 
     const markFailed = (message: string, status?: string) => {
       if (submittedAccountRevision !== readProviderAccountRevision()) return;
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) => failOptimisticSpill(current, clientRequestId, message));
       }
-      setDropsByVenueId((current) => {
-        const next = new Map(current);
-        next.set(
-          venueId,
-          (next.get(venueId) ?? []).map((drop) =>
-            drop.id === optimisticDrop.id
-              ? {
-                  ...drop,
-                  optimistic: {
-                    state: "failed",
-                    message,
-                    uploadProgress: null,
-                    canRetry: true,
-                    clientRequestId,
-                  },
-                }
-              : drop,
-          ),
-        );
-        return next;
-      });
+      setOptimisticRow({ state: "failed", message, uploadProgress: null, canRetry: true, clientRequestId });
+      if (!ownsComposer()) return;
       setDropMsg({
         ok: false,
         text: message,
+        retry: submittedRating !== null && status !== "adult_check_required"
+          ? { venueId, send } : undefined,
         accountRevision: status === "adult_check_required" || status === "adult_check_failed"
           ? submittedAccountRevision : undefined,
         ageRecovery: status === "adult_check_required"
@@ -811,109 +868,149 @@ export function usePintDrops(
       });
     };
 
-    try {
-      // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
-      const body = new FormData();
-      body.set("venueId", venueId);
-      body.set("handle", submittedHandle);
-      body.set("drink", submittedDrink);
-      // The SERVING the price is about (battle test D04). Always sent, so
-      // the server never has to infer a measure from the drink text.
-      body.set("measure", submittedMeasure.measure);
-      body.set("measureLabel", submittedMeasure.measureLabel);
-      body.set("priceGbp", submittedPrice);
-      // Free-text "with" names are folded into the note ("with Jo, Dan");
-      // @handles are consented tags sent after the drop saves. See
-      // lib/spill.ts and lib/pintDropWithTags.ts.
-      body.set("passedDownNote", passedDownNote);
-      body.set("era", submittedEra);
-      body.set("visibility", submittedVisibility);
-      // Repeated field entries — the route also accepts one comma-separated
-      // value; the server re-filters against its allowlist either way.
-      for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
-      if (trainFields) {
-        body.set("leaveByIso", trainFields.leaveByIso);
-        body.set("lastTrainDecision", trainFields.lastTrainDecision);
-      }
-      if (submittedPintFile) body.set("pint_photo", submittedPintFile);
-      if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
-      if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
+    // multipart/form-data — do NOT set Content-Type, the browser adds the boundary.
+    const body = new FormData();
+    body.set("clientRequestId", clientRequestId);
+    body.set("venueId", venueId);
+    body.set("handle", submittedHandle);
+    body.set("drink", submittedDrink);
+    // The SERVING the price is about (battle test D04). Always sent, so
+    // the server never has to infer a measure from the drink text.
+    body.set("measure", submittedMeasure.measure);
+    body.set("measureLabel", submittedMeasure.measureLabel);
+    body.set("priceGbp", submittedPrice);
+    // Free-text "with" names are folded into the note ("with Jo, Dan");
+    // @handles are consented tags sent after the drop saves. See
+    // lib/spill.ts and lib/pintDropWithTags.ts.
+    body.set("passedDownNote", passedDownNote);
+    body.set("era", submittedEra);
+    body.set("visibility", submittedVisibility);
+    // Repeated field entries — the route also accepts one comma-separated
+    // value; the server re-filters against its allowlist either way.
+    for (const tag of submittedVibeTags) body.append("vibe_tags", tag);
+    if (submittedRating !== null) body.set("rating", String(submittedRating));
+    if (trainFields) {
+      body.set("leaveByIso", trainFields.leaveByIso);
+      body.set("lastTrainDecision", trainFields.lastTrainDecision);
+    }
+    if (submittedPintFile) body.set("pint_photo", submittedPintFile);
+    if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
+    if (submittedReceiptFile) body.set("receipt_photo", submittedReceiptFile);
 
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
-      const data = await response.json().catch(() => null);
-      if (submittedAccountRevision !== readProviderAccountRevision()) return;
-      if (!response.ok) {
-        markFailed(
-          errorMessageFrom(data, "Could not save that drop."),
-          data?.status,
+    let sending = false;
+    const send = async () => {
+      if (sending || submittedAccountSignal.aborted || !ownsComposer()) return;
+      sending = true;
+      if (submittedRating !== null) setSubmitting(true);
+      setDropMsg(savingMsg);
+      submittedAccountSignal.addEventListener("abort", disposeAbandonedSubmission, { once: true });
+      try {
+        const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
+        const data = await response.json().catch(() => null);
+        const scope = { requestId: clientRequestId, accountRevision: readProviderAccountRevision() };
+        const answered = transitionPintDropSubmission(
+          startPintDropSubmission(clientRequestId, submittedAccountRevision),
+          response.ok
+            ? { type: "succeeded", ...scope, dropId: String(data?.drop?.id ?? "") }
+            : { type: "failed", ...scope, message: errorMessageFrom(data, "Could not save that drop."), canRetry: true },
         );
-        return;
-      }
-      trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
-      notifyCheapPintPingQualified();
+        if (answered.phase === "posting") return;
+        if (answered.phase === "failed") {
+          if (data?.status === "adult_check_required") {
+            ageHeldDrop.current = { accountRevision: submittedAccountRevision, finish: finishAfterAdultTap };
+          }
+          markFailed(answered.message, data?.status);
+          return;
+        }
+        const ratingNotSaved = submittedRatingNotSaved(submittedRating, data);
+        trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
+        notifyCheapPintPingQualified();
 
-      const reconciledDrop = {
-        ...(data.drop as PintDropDTO),
-        venueName: options?.venueName,
-        venueMapUrl: venueMapUrl(venueId),
-      };
+        const reconciledDrop = {
+          ...(data.drop as PintDropDTO),
+          venueName: options?.venueName,
+          venueMapUrl: venueMapUrl(venueId),
+        };
+        if (publishToFeed) {
+          updateOptimisticFeedStorage((current) =>
+            reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
+          );
+        }
+        setDropsByVenueId((current) => {
+          const next = new Map(current);
+          next.set(venueId, [
+            data.drop,
+            ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id && drop.id !== data.drop.id),
+          ]);
+          return next;
+        });
+        if (!ratingNotSaved) handedOffPreviews.forEach(revokePreview);
+        void proposeWithTagsForDrop(data.drop, submittedWithHandles);
+
+        const venueLabel = options?.venueName ?? unresolvedVenueLabel(venueId);
+        // Loop 2: if a Round is open, append this pub as a stop (existing
+        // addStop API). Fail-soft — the drop already landed.
+        const addedToNight = await appendPintDropStopToActiveRound({
+          round: submittedRound,
+          currentUserId: getCurrentUserId,
+          venueId,
+          venueName: venueLabel,
+          dropRef: pintDropId(data.drop),
+        });
+        if (submittedAccountRevision !== readProviderAccountRevision() || !ownsComposer()) return;
+        if (submittedRating !== null && !ratingNotSaved) {
+          clearPintDropDraft(safeSessionStorage(), venueId);
+          resetComposer({ keepPreviews: true });
+          setComposerOpen(false);
+        }
+
+        const links: NonNullable<DropMsg["links"]> = [
+          { href: "/social", label: "Open Social" },
+        ];
+        if (addedToNight) {
+          links.push({
+            href: barTabPath(venueId),
+            label: "Bar tab",
+          });
+          const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
+          if (cleanHandle) {
+            links.push({ href: profilePath(cleanHandle), label: "Your profile" });
+          }
+        }
+        // What the second-reporter pass answered. A mint changes the standing of
+        // BOTH rows of the pair, and the row this browser holds for the earlier
+        // report predates it, so the lane is re-read rather than patched by hand.
+        const outcome = parseConfirmationOutcome(data.confirmationOutcome);
+        rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
+        setDropMsg({
+          ok: !ratingNotSaved,
+          text: ratingNotSaved ? PINT_DROP_STARS_NOT_SAVED : dropReceiptText(addedToNight, outcome, submittedPrice, dropReceiptWait(data)),
+          retry: ratingNotSaved ? { venueId, send } : undefined,
+          links,
+          census: isPricedWrite(submittedPrice),
+          receipt: receiptShareFromSavedDrop(data.drop, venueLabel),
+          accountRevision: submittedAccountRevision,
+        });
+      } catch {
+        markFailed("Network or storage error. Try again.");
+      } finally {
+        sending = false;
+        if (submittedRating !== null && submittedAccountRevision === readProviderAccountRevision() && ownsComposer()) setSubmitting(false);
+        submittedAccountSignal.removeEventListener("abort", disposeAbandonedSubmission);
+      }
+    };
+    // The refused row goes back to saving, then the same request goes again.
+    const finishAfterAdultTap = () => {
+      if (submittedAccountSignal.aborted) return Promise.resolve();
       if (publishToFeed) {
         updateOptimisticFeedStorage((current) =>
-          reconcileOptimisticSpill(current, clientRequestId, reconciledDrop),
+          upsertOptimisticSpill(current, optimisticDrop, buildOptimisticSpillRetryPayload(optimisticInput)),
         );
       }
-      setDropsByVenueId((current) => {
-        const next = new Map(current);
-        next.set(venueId, [
-          data.drop,
-          ...(next.get(venueId) ?? []).filter((drop) => drop.id !== optimisticDrop.id),
-        ]);
-        return next;
-      });
-      // The server row has replaced the optimistic one, so its previews go.
-      handedOffPreviews.forEach(revokePreview);
-      void proposeWithTagsForDrop(data.drop, submittedWithHandles);
-
-      // Loop 2: if a Round is open, append this pub as a stop (existing
-      // addStop API). Fail-soft — the drop already landed.
-      const addedToNight = await appendPintDropStopToActiveRound({
-        round: submittedRound,
-        currentUserId: getCurrentUserId,
-        venueId,
-        venueName: options?.venueName ?? unresolvedVenueLabel(venueId),
-        dropRef: pintDropId(data.drop),
-      });
-      if (submittedAccountRevision !== readProviderAccountRevision()) return;
-
-      const links: NonNullable<DropMsg["links"]> = [
-        { href: "/social", label: "Open Social" },
-      ];
-      if (addedToNight) {
-        links.push({
-          href: barTabPath(venueId),
-          label: "Bar tab",
-        });
-        const cleanHandle = submittedRound?.handle.replace(/^@+/, "") ?? "";
-        if (cleanHandle) {
-          links.push({ href: profilePath(cleanHandle), label: "Your profile" });
-        }
-      }
-      // What the second-reporter pass answered. A mint changes the standing of
-      // BOTH rows of the pair, and the row this browser holds for the earlier
-      // report predates it, so the lane is re-read rather than patched by hand.
-      const outcome = parseConfirmationOutcome(data.confirmationOutcome);
-      rereadLaneOnMint(outcome, () => refreshVenueDrops(venueId));
-      setDropMsg({
-        ok: true,
-        text: dropReceiptText(addedToNight, outcome, submittedPrice, isUncheckedPrice(data.drop)),
-        links,
-        accountRevision: submittedAccountRevision,
-      });
-    } catch {
-      markFailed("Network or storage error. Try again.");
-    } finally {
-      submittedAccountSignal.removeEventListener("abort", disposeAbandonedSubmission);
-    }
+      setOptimisticRow(optimisticDrop.optimistic);
+      return send();
+    };
+    return send();
   }
 
   async function reportDrop(venueId: string, id: string) {
@@ -1021,7 +1118,7 @@ export function usePintDrops(
         agedContributorPrice: number | null;
         /** Epoch ms that aged report was logged, or null. */
         agedContributorAt: number | null;
-        /** The handle behind either figure above when it has no bill, or null. */
+        /** The handle behind either figure above when it is unchecked, or null. */
         uncheckedBy: string | null;
         /** The figures this pub's drinkers disagree about, for the sheet and
          *  the peek. Never a band, a bucket or a pin figure: two prices have
@@ -1085,6 +1182,8 @@ export function usePintDrops(
     vibeTags,
     setVibeTags,
     toggleVibeTag,
+    rating,
+    setRating,
     visibility,
     setVisibility,
     pintPhoto,

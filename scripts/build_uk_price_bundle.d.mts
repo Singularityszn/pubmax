@@ -24,3 +24,15 @@ export declare function addSiteHarvestRows(
     pubIdentities?: ReadonlyMap<string, BranchIdentity>;
   },
 ): void;
+
+export declare function addListingSiteRows(
+  listingRows: ReadonlyArray<Record<string, unknown>>,
+  options: {
+    owners: ReadonlyMap<string, string>;
+    servedRefs: ReadonlySet<string>;
+    venueAliases?: Record<string, string>;
+    baselineDays?: ReadonlyMap<string, string>;
+    push: (row: UkPriceBundleRow) => void;
+    report: { droppedRefusedHost: number; droppedUnresolvedVenue: number; droppedOlderThanOnRecord: number };
+  },
+): void;

@@ -68,6 +68,14 @@ export const commands: Command[] = [
     run: (ctx) => ctx.navigate("/near"),
   },
   {
+    id: "nav-guides",
+    label: "Guides",
+    hint: "/guides",
+    keywords: ["pub of the week", "guides", "famous pubs", "explore", "crawl guides"],
+    group: "Navigate",
+    run: (ctx) => ctx.navigate("/guides"),
+  },
+  {
     id: "nav-historic",
     label: "Historic",
     hint: "/historic",

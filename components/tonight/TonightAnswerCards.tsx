@@ -77,15 +77,15 @@ function CheapestCard({ cheapest }: { cheapest: TonightCheapestAnswer | null }) 
         </Link>
         <PintPriceBadge priceGbp={cheapest.priceGbp} venueId={cheapest.venueId} />
       </p>
-      <p className="tonightAnswerMeta tonightAnswerMetaWithSource">
+      <p className="tonightAnswerMeta tonightAnswerMetaWithSource tonightAnswerEvidence">
         <span>
           {cheapest.placeLine} · {cheapest.drinkLabel || (cheapest.evidenceUnavailable ? "Drink unavailable" : "Drink not recorded")} · {cheapest.servingSize || (cheapest.evidenceUnavailable ? "Serving unavailable" : "Serving not recorded")} ·{" "}
         </span>
-        {cheapest.publisher?.label ? (sourceUrl ? (
-          <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
-        ) : <span>{cheapest.publisher.label} (link unavailable)</span>) : <span>Publisher not recorded</span>}
-        <span>
-          ·{" "}{readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}
+        <span className="tonightAnswerSourceDate">
+          {cheapest.publisher?.label ? (sourceUrl ? (
+            <a className="tonightAnswerSource" href={sourceUrl} target="_blank" rel="noreferrer noopener">{cheapest.publisher.label}</a>
+          ) : <span>{cheapest.publisher.label} (link unavailable)</span>) : <span>Publisher not recorded</span>}
+          <span className="tonightAnswerReadDate">·{" "}{readable ? <time dateTime={cheapest.observedAt ?? undefined}>{new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Europe/London" }).format(date)}</time> : "Read date not recorded"}</span>
         </span>
       </p>
     </li>

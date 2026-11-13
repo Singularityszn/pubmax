@@ -78,7 +78,7 @@ Night Stories must remain drafts until every required contributor and photo-tag 
 
 ## Moderation operations
 
-Social must reuse existing moderation queues where their contracts match. Reports must queue content for review. A report must not silently delete or hide another person's content. Only an authorised moderator may hide, restore, or resolve it, and every action must keep an audit trail.
+Social must reuse existing moderation queues where their contracts match. Reports must queue content for review. A report must not silently delete or hide another person's content. Manual hide, restore, and report resolution require an authorised moderator and an audit trail. Automated comment and quote outcomes follow the [Social usage guide](../../README.md#features).
 
 Primary and backup moderation ownership must be a launch control, not a documentation placeholder:
 

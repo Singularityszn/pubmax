@@ -3,11 +3,14 @@
 // the owner, against a public and a private account. Every store is a fake, so
 // what each reader receives is the whole of the proof.
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import type { AccountVisibility } from "@/lib/accountVisibility";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import { PASSPORT_COPY, TASTE_COPY } from "@/lib/profilePassport";
 import {
+  CappedRead,
+  defaultPassportDeps,
   readPassportBeen,
   readPassportOverlap,
   readPassportRanked,
@@ -52,8 +55,9 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
       getByUserId: async (userId) => [...profiles.values()].find((entry) => entry.userId === userId) ?? null,
     },
     follows: { isFollowing: async (a, b) => edges.has(`${a}>${b}`) },
+    liveMutual: async () => true,
     withdrawn: async () => false,
-    dropViewer: async () => (USER_FOR[reader] ? { handle: reader } : undefined),
+    dropViewer: async () => (USER_FOR[reader] ? { handle: reader, mutualHandles: new Set<string>() } : undefined),
     diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" }],
     drops: async () => [
       { venueId: "lamb", drink: "Guinness", createdAt: "2026-10-05T19:00:00.000Z" },
@@ -68,7 +72,11 @@ function deps(reader: Reader, visibility: AccountVisibility, overrides: Partial<
     rankings: async (profileId) =>
       profileId === OWNER.id ? rankedRows(["lamb", "stars", "mitre", "a", "b"]) : rankedRows(["stars", "z", "lamb"]),
     nightProfile: async () => ({ patch: "Soho" }),
-    venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden" }),
+    dropVenueIds: async () => ["lamb", "stars"],
+    // The author's own complete list answers like the public one unless a case
+    // sets it, so a case that names one author's venues covers both reads.
+    ownDropVenueIds: async (author) => (overrides.dropVenueIds ?? (async () => ["lamb", "stars"]))(author, undefined),
+    venue: async (venueId) => ({ name: venueId.toUpperCase(), borough: "Camden", point: [-0.12, 51.52] }),
     heritageDateLabel: async (venueId) => (venueId === "lamb" ? "Built 1729" : null),
     venueAliases: async () => (venueId) => venueId,
     ...overrides,
@@ -192,6 +200,21 @@ describe("GET been", () => {
 });
 
 describe("GET overlap", () => {
+  it.each(["blocked", "unavailable"])("refuses overlap when the live mate check is %s", async (state) => {
+    const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+      liveMutual: async () => {
+        if (state === "unavailable") throw new Error("relationship unavailable");
+        return false;
+      },
+    }));
+    expect(result).toEqual({
+      ok: false,
+      status: 403,
+      code: "MATES_ONLY",
+      error: "Only mates see this.",
+    });
+  });
+
   it("gives a mate the two name lists and nothing else", async () => {
     const result = await readPassportOverlap(request(), "owner", deps("mate", "private"));
     expect(result).toEqual({
@@ -202,8 +225,203 @@ describe("GET overlap", () => {
           { venueId: "stars", venueName: "STARS" },
         ],
         wantToTry: [{ venueId: "cittie", venueName: "Cittie of Yorke" }],
+        been: {
+          both: [
+            { venueId: "lamb", venueName: "LAMB", point: [-0.12, 51.52] },
+            { venueId: "stars", venueName: "STARS", point: [-0.12, 51.52] },
+          ],
+          onlyYou: [{ venueId: "mitre", venueName: "Ye Olde Mitre", point: [-0.12, 51.52] }],
+          onlyThem: [],
+        },
       },
     });
+  });
+
+  it("compares the viewer's whole Been list with only the mate's shared one", async () => {
+    const askedFor: string[] = [];
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "private", {
+        diary: async (userId) => (askedFor.push(`diary:${userId}`), []),
+        plans: async (userId) => (askedFor.push(`plans:${userId}`), []),
+        beenHere: async (handle) => (askedFor.push(`beenHere:${handle}`), [{ venueId: "grapes", venueName: "The Grapes" }]),
+        drops: async (author) =>
+          author === "owner"
+            ? [{ venueId: "anchor", drink: "Guinness", createdAt: "2026-10-05T19:00:00.000Z" }]
+            : [],
+        dropVenueIds: async (author) => (author === "owner" ? ["anchor"] : []),
+      }),
+    );
+    expect(askedFor.sort()).toEqual(["beenHere:mate", "diary:u-mate", "plans:u-mate"]);
+    expect(result.ok && result.body.been).toEqual({
+      both: [],
+      onlyYou: [{ venueId: "grapes", venueName: "The Grapes", point: [-0.12, 51.52] }],
+      onlyThem: [{ venueId: "anchor", venueName: "ANCHOR", point: [-0.12, 51.52] }],
+    });
+  });
+
+  it("compares a saved Cambridge pub with a mate's drop across enabled cities", async () => {
+    const read = vi.spyOn(pintDropsStore(), "listVisibleAuthorVenueIds").mockImplementation(
+      async (author, _viewer, cityId) => {
+        if (cityId === "cambridge" && author === "owner") return ["cambridge:eagle", "lamb"];
+        return cityId === "london" ? ["lamb"] : [];
+      },
+    );
+    try {
+      const dropVenueIds = defaultPassportDeps().dropVenueIds;
+      expect((await dropVenueIds("owner", { handle: "mate" })).sort()).toEqual(["cambridge:eagle", "lamb"]);
+      const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        beenHere: async () => [{ venueId: "cambridge:eagle", venueName: "The Eagle" }],
+        dropVenueIds,
+      }));
+      expect(result.ok && result.body.been).toEqual({
+        both: [
+          { venueId: "lamb", venueName: "LAMB", point: [-0.12, 51.52] },
+          { venueId: "cambridge:eagle", venueName: "The Eagle", point: [-0.12, 51.52] },
+        ],
+        onlyYou: [],
+        onlyThem: [],
+      });
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  it.each(["owner", "mate"])("compares nothing when %s's Cambridge drop read fails", async (failedAuthor) => {
+    const read = vi.spyOn(pintDropsStore(), "listVisibleAuthorVenueIds").mockImplementation(
+      async (author, _viewer, cityId) => {
+        if (author === failedAuthor && cityId === "cambridge") throw new Error("city read unavailable");
+        return cityId === "london" ? ["lamb"] : [];
+      },
+    );
+    try {
+      const result = await readPassportOverlap(request(), "owner", deps("mate", "public", {
+        dropVenueIds: defaultPassportDeps().dropVenueIds,
+      }));
+      expect(result.ok).toBe(true);
+      expect(result.ok && result.body.been).toBeNull();
+    } finally {
+      read.mockRestore();
+    }
+  });
+
+  it("puts a pub on the map only where the venue index places it", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        venue: async (venueId) =>
+          venueId === "stars" ? { name: "STARS", borough: "Camden", point: null } : { name: venueId.toUpperCase(), borough: "Camden", point: [-0.1, 51.5] },
+      }),
+    );
+    expect(result.ok && result.body.been?.both).toEqual([
+      { venueId: "lamb", venueName: "LAMB", point: [-0.1, 51.5] },
+      { venueId: "stars", venueName: "STARS", point: null },
+    ]);
+  });
+
+  it("counts a mate's pub that fell off their capped drop timeline", async () => {
+    // The timeline read stops at its cap, so the mate's old drop at the Anchor is
+    // missing from it. The complete venue read still has it, so the Anchor is a
+    // pub you have both been to, never "only you".
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        plans: async () => [{ venueId: "anchor", venueName: "Anchor", date: "2026-09-01", source: "plan" }],
+        drops: async () => [{ venueId: "stars", drink: "Guinness", createdAt: "2026-10-06T19:00:00.000Z" }],
+        dropVenueIds: async (author) => (author === "owner" ? ["stars", "anchor"] : ["stars"]),
+      }),
+    );
+    expect(result.ok && result.body.been?.both.map((venue) => venue.venueId)).toEqual(["anchor", "stars"]);
+    expect(result.ok && result.body.been?.onlyYou.map((venue) => venue.venueId)).toEqual(["lamb"]);
+  });
+
+  it.each([
+    ["diary", { diary: async () => { throw new CappedRead([{ venueId: "lamb", venueName: "The Lamb", date: "2026-10-01", source: "diary" }]); } }],
+    ["plans", { plans: async () => { throw new CappedRead([{ venueId: "mitre", venueName: "Ye Olde Mitre", date: "2026-09-01", source: "plan" }]); } }],
+    ["Been here", { beenHere: async () => { throw new CappedRead([{ venueId: "grapes", venueName: "The Grapes" }]); } }],
+  ] as const)("keeps a capped %s read in the Been list but compares nothing", async (_source, override) => {
+    const been = await readPassportBeen(request(), "owner", deps("owner", "public", override as Partial<PassportDeps>));
+    expect(been.ok && been.body.status).toBe("ready");
+    expect(been.ok && been.body.count).toBeGreaterThan(0);
+
+    const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", override as Partial<PassportDeps>));
+    expect(overlap.ok).toBe(true);
+    expect(overlap.ok && overlap.body.been).toBeNull();
+  });
+
+  it("compares nothing when the mate's drop context lost its friends graph", async () => {
+    // A graph outage leaves the context with a handle and no mutuals, so
+    // friends-only drops would vanish from the mate's side without an error.
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", { dropViewer: async () => ({ handle: "mate" }) }),
+    );
+    expect(result.ok).toBe(true);
+    expect(result.ok && result.body.been).toBeNull();
+  });
+
+  it("keeps the Been read but compares nothing when venue aliases cannot be read", async () => {
+    const venueAliases = async (): Promise<(venueId: string) => string> => {
+      throw new Error("alias files unavailable");
+    };
+    const been = await readPassportBeen(request(), "owner", deps("owner", "public", { venueAliases }));
+    expect(been.ok && been.body.count).toBe(3);
+    const overlap = await readPassportOverlap(request(), "owner", deps("mate", "public", { venueAliases }));
+    expect(overlap.ok && overlap.body.been).toBeNull();
+  });
+
+  it("counts the viewer's own anonymous drops on their side", async () => {
+    // The public venue read leaves out anonymous drops even for their author,
+    // so the viewer's side reads their own complete list instead.
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        dropVenueIds: async (author) => (author === "owner" ? ["anchor"] : []),
+        ownDropVenueIds: async (author) => (author === "mate" ? ["anchor"] : []),
+      }),
+    );
+    expect(result.ok && result.body.been?.both.map((venue) => venue.venueId)).toEqual(["anchor"]);
+    expect(result.ok && result.body.been?.onlyThem).toEqual([]);
+  });
+
+  it("drops the Been comparison when the complete drop read fails", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        dropVenueIds: async () => {
+          throw new Error("drops down");
+        },
+      }),
+    );
+    expect(result.ok && result.body.been).toBeNull();
+  });
+
+  it("drops the Been comparison when either list could not be read whole", async () => {
+    const result = await readPassportOverlap(
+      request(),
+      "owner",
+      deps("mate", "public", {
+        diary: async () => {
+          throw new Error("diary down");
+        },
+      }),
+    );
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.body.been).toBeNull();
+    expect(result.body.topFive.length).toBeGreaterThan(0);
   });
 
   it.each<Reader>(["anon", "stranger", "owner"])("refuses %s, even on a public account", async (reader) => {
@@ -332,6 +550,7 @@ describe("a former venue id and its successor are one pub", () => {
       body: {
         topFive: [{ venueId: "lamb", venueName: "LAMB" }],
         wantToTry: [{ venueId: "lamb", venueName: "The Lamb" }],
+        been: expect.any(Object),
       },
     });
   });
@@ -386,7 +605,7 @@ describe("a former venue id and its successor are one pub", () => {
     );
     expect(result).toEqual({
       ok: true,
-      body: { topFive: [{ venueId: "lamb", venueName: "LAMB-OLD" }], wantToTry: [] },
+      body: { topFive: [{ venueId: "lamb", venueName: "LAMB-OLD" }], wantToTry: [], been: expect.any(Object) },
     });
   });
 });

@@ -30,7 +30,8 @@ before the run ends, and `afterAll` undoes it again when a journey fails partway
 - **Saves toggle.** The suite taps the same list chip again to remove the save. It
   reads the list from `/api/saved-pubs` before it saves and after every tap, so a
   save left by a run that crashed is removed before the next run saves again.
-- **Pub Pal turns** expire through the `purge-pub-pal-turns` cron.
+- **Pub Pal turns.** The [cron runbook](../../docs/CRON_PLANE_RUNBOOK.md#what-runs-when)
+  owns their scheduled deletion.
 - **The Pal stays.** The first run creates the smoke account's Pal through the
   setup a new user meets. Every later run finds it and goes straight to the
   message box.
@@ -99,16 +100,17 @@ live site must serve:
 gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
 ```
 
-Replace `dpl_...` with the released deployment's ID from its own `/api/version`
-response. A dispatched run tests its selected ref. Use a ref whose commit
+Replace `dpl_...` with the deployment ID printed by `npm run release:prod`.
+A dispatched run tests its selected ref. Use a ref whose commit
 matches the deployment.
 
 Before the suite runs, the workflow checks the live deployment's identity.
 The trigger determines the expected deployment:
 
-- A deployment-status event supplies the deployment URL. The workflow compares
-  its `/api/version` deployment ID with the live site's ID. If another
-  deployment already serves production, the run skips with a notice.
+- A deployment-status event supplies the deployed commit. The workflow compares
+  it with the `gitCommitSha` from `https://pubmaxxing.com/api/version`. If
+  another commit already serves production, the run skips with a notice.
+  An invalid or missing event commit, or a missing live commit, fails the run.
 - A dispatch with `deployment_id` requires the live site to serve that ID.
   A mismatch fails the run and leaves the named deployment unverified.
 - A dispatch without `deployment_id` tests whatever production serves when the
@@ -119,8 +121,12 @@ the suite, even if the suite failed. A changed or missing ID fails the run.
 The named deployment remains unverified because the suite cannot provide a
 complete verdict for it.
 
-The workflow always tests `https://pubmaxxing.com`, so the smoke account's
-secrets never go to another origin. `SMOKE_BASE_URL` is for local runs only.
+The workflow reads deployment identity and tests journeys through
+`https://pubmaxxing.com`. It never requests generated `*.vercel.app` URLs.
+See the [deployment runbook](../../docs/DEPLOYMENT.md#captain-owned-supabase-url-config)
+for access requirements on generated URLs.
+The smoke account's secrets never go to another origin.
+`SMOKE_BASE_URL` is for local runs only.
 
 The workflow sets `SMOKE_REQUIRE_SIGN_IN=1`. If a secret is missing, the run
 fails instead of quietly testing only the read-only half.
@@ -174,11 +180,12 @@ security policy admits only `*.supabase.co`, so the app must run as `next dev`.
    and password.
 7. Remove the account afterwards with `npm run e2e:teardown`, then `supabase stop`.
 
-Two Pub Pal checks cannot pass locally:
+Pub Pal checks have these local limits:
 
-- **With ElevenLabs keys set**, as in production, Pub Pal runs its tools through
-  webhooks to the deployed site. A local reply has no cards, so "venue cards"
-  only passes live or without those keys.
+- [Pub Pal setup](../../docs/PUB_PAL_SETUP.md#typed-chat-on-claude) owns provider selection.
+  When typed chat uses ElevenLabs, its tool webhooks target the configured site.
+  Local venue-card checks need those webhooks to reach the local server.
+  Claude runs tools in process and does not have this webhook limit.
 - **The `/pal` hand-off** opens `/pal/chat?ask=`, but under `next dev` React's
   double effect run cancels the ask before it is sent. A production build sends
   it.

@@ -835,6 +835,16 @@ export function drinkSubtypeFromText(
   return subtypeFromBrandName(hay, category);
 }
 
+export function drinkBrandCategoryAtStart(drink: string): DrinkCategory | null {
+  const hay = normalizeDrinkHaystack(drink);
+  for (const [name, subtypeId] of NAME_SUBTYPE_HINTS) {
+    if (hay === name || hay.startsWith(`${name} `)) {
+      return findSubtype(subtypeId)?.category ?? null;
+    }
+  }
+  return null;
+}
+
 /**
  * Subtype implied by a brand/pint NAME alone — the knowledge the text can't
  * carry ("GUINNESS" is a stout without saying so). Split out from the text

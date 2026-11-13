@@ -15,9 +15,9 @@ describe("PostHog AI generation capture", () => {
     vi.stubGlobal("fetch", fetchMock);
     const { capturePosthogAiGeneration } = await import("@/lib/posthog/posthogAiCapture");
     capturePosthogAiGeneration({
-      route: "api/heritage",
-      model: "anthropic/claude-sonnet-4-5",
-      provider: "openrouter",
+      route: "api/bill-checks",
+      model: "claude-haiku-5-5",
+      provider: "anthropic",
       latencyMs: 250,
       promptTokens: 10,
       completionTokens: 20,
@@ -26,7 +26,7 @@ describe("PostHog AI generation capture", () => {
     await vi.waitFor(() => expect(fetchMock).toHaveBeenCalled());
     const body = JSON.parse(String(defined(fetchMock.mock.calls[0])[1]?.body));
     expect(body.event).toBe("$ai_generation");
-    expect(body.properties.$ai_model).toBe("anthropic/claude-sonnet-4-5");
+    expect(body.properties.$ai_model).toBe("claude-haiku-5-5");
     expect(body.properties.$ai_input_tokens).toBe(10);
     expect(body.properties.$ai_input).toBeUndefined();
     expect(body.properties.$ai_output).toBeUndefined();

@@ -13,7 +13,8 @@ const { modelLoopMock } = vi.hoisted(() => ({
 
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
 
-vi.mock("@/lib/ask/modelLoop", () => ({
+vi.mock("@/lib/ask/modelLoop", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/ask/modelLoop")>()),
   runAskModelLoop: modelLoopMock,
 }));
 
@@ -31,12 +32,13 @@ import { runAsk } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import { resetJourneyCache } from "@/lib/citymcp/client";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
+import { bundledReadDay } from "@/__tests__/helpers/pintDatasetClock";
 
 beforeEach(() => {
   vi.stubGlobal("fetch", offlineFetch);
   isLimitedMock.mockReset().mockResolvedValue(false);
   modelLoopMock.mockReset().mockResolvedValue(null);
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
 });
@@ -263,7 +265,7 @@ describe("POST /api/ask", () => {
     const body = await response.json();
     expect(response.status).toBe(200);
     const card = body.cards.find((item: { venueId: string }) => item.venueId === "venue-e1srzr");
-    expect(card).toMatchObject({ price: 6.25, provenance: { kind: "directory", label: "Pint Prices. Source read 2 October 2026." } });
+    expect(card).toMatchObject({ price: 6.25, provenance: { kind: "directory", label: `Pint Prices. Source read ${bundledReadDay("app_price_000239").words}.` } });
   });
 
   it("asks for a listed pub instead of arbitrary cards for an unanchored pint comparison", async () => {
@@ -549,7 +551,7 @@ describe("POST /api/ask", () => {
   });
 
   it("refuses an area burger price before model routing or price cards", async () => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query: "How much is a burger in Camden?", cityId: "london" });
     expect(result.answer).toMatch(/meal prices|food prices|menu prices/i);
     expect(result.cards).toEqual([]);
@@ -565,7 +567,7 @@ describe("POST /api/ask", () => {
     "Coke prices at The Eagle",
     "Prices for Coke at The Eagle",
   ])("requests a pub identity for ambiguous named Coke pricing: %s", async (query) => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query, cityId: "london" });
     expect(result.answer).toMatch(/listed pub/i);
     expect(result.cards).toEqual([]);
@@ -604,7 +606,7 @@ describe("POST /api/ask", () => {
   });
 
   it("keeps a named-pub wine lookup on recorded drinks before model routing", async () => {
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
     const result = await runAsk({ query: "Cheapest wine at The Lamb", cityId: "london" });
     expect(result.toolsUsed).toEqual(["venue_drinks"]);
     expect(result.answer).not.toMatch(/cheapest listed pints/i);
@@ -740,12 +742,26 @@ describe("POST /api/ask", () => {
       }],
       answer: "2 grounded picks from CityMCP",
     });
-    process.env.OPENROUTER_API_KEY = "test-key";
+    process.env.ANTHROPIC_API_KEY = "test-key";
 
     const result = await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
 
-    expect(result.answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(result.answer).toBe("1 pick from the listed pubs. The Lamb is listed.");
     expect(result.answer).not.toMatch(/CityMCP|grounded/iu);
+  });
+
+  it("runs the model loop on a Claude key", async () => {
+    process.env.ANTHROPIC_API_KEY = "test-key";
+
+    await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
+
+    expect(modelLoopMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the model loop off without a Claude key", async () => {
+    await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
+
+    expect(modelLoopMock).not.toHaveBeenCalled();
   });
 });
 

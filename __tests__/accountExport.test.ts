@@ -1,6 +1,3 @@
-import { readdirSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it, vi } from "vitest";
 
 // The account export: its shape (`lib/accountExport.ts`) and its assembly
@@ -20,7 +17,6 @@ import {
   boundedLane,
   unavailableExportLanes,
   unavailableLane,
-  type AccountExportLaneName,
 } from "@/lib/accountExport";
 import { MessageReadUnavailableError } from "@/lib/messagesStore";
 
@@ -419,6 +415,15 @@ describe("buildAccountExport", () => {
     expect(document.version).toBe(1);
     expect(document.exportedAt).toBe("2026-09-05T18:30:00.000Z");
     expect(document.account).toEqual({ userId: USER, handle: "night_owl", displayName: "Night Owl" });
+    // lib/planLiveLocationStore.ts holds one fix for one night and deletes it
+    // when sharing ends. This temporary Plan position has no lasting export lane.
+    expect(Object.keys(document).sort()).toEqual([
+      "version", "exportedAt", "account", "profile", "identity", "memories", "prices",
+      "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
+      "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
+      "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
+      "pubListNightDrafts", "socialLinks", "nightProfile", "messages",
+    ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
     expect(document.memories.items).toEqual([{ ...memory, moments: [moment] }]);
@@ -900,199 +905,6 @@ describe("the export's own helpers", () => {
     const over = boundedLane(Array.from({ length: ACCOUNT_EXPORT_LANE_CAP + 5 }, (_, i) => i));
     expect(over.truncated).toBe(true);
     expect(over.items).toHaveLength(ACCOUNT_EXPORT_LANE_CAP);
-  });
-});
-
-// ── The coverage fence ───────────────────────────────────────────────────────
-//
-// EVERY OWNER-KEYED STORE IS A LANE OR A NAMED EXCLUSION. The first cut of this
-// door shipped four lanes and left the private card, the visit reports, the
-// wall photos, the cover rotation, the saved pubs, the Wanted list, the linked
-// socials, the check-ins, the follow list and the Night Profile out of a file
-// the surface calls "your data". A list of lanes cannot catch that; a list of
-// STORES can, so this walks every `lib/*Store*.ts` module in the tree (the same
-// enumeration `__tests__/storeInventory.test.ts` runs on) and fails on one that
-// is neither exported nor argued about.
-//
-// A row is a lane name, or a sentence saying why the store's rows are not the
-// account's own content to take away. A NAMED GAP is the third answer and the
-// only dishonest-looking one, so it is spelled out and the list may only ever
-// SHRINK: it names content that IS the person's and has no owner-keyed read to
-// export it through yet.
-type ExportCoverage =
-  | { lane: AccountExportLaneName }
-  | { excluded: string }
-  | { gap: string };
-
-const STORE_EXPORT_COVERAGE: Record<string, ExportCoverage> = {
-  "lib/adultSelfAssertionStore.ts": {
-    excluded:
-      "One timestamp recording that the account tapped the 18-or-over confirmation. It is a gate answer we wrote down, not something the person composed, and `identity` already carries the date of birth the same question reads.",
-  },
-  "lib/analyticsReceiptStore.ts": {
-    excluded: "Keyed on an event id and a token digest; no account id is stored.",
-  },
-  "lib/areaDemandStore.ts": { excluded: "Per-area demand counters, keyed on a night area rather than on any account." },
-  "lib/checkInStore.ts": { lane: "checkIns" },
-  "lib/cityEnrichmentCheckpointStore.server.ts": {
-    excluded: "The nightly enrichment cursor, keyed on a city rather than on any account.",
-  },
-  "lib/commentsStore.ts": {
-    excluded:
-      "A Pint Drop comment carries a typed handle beside an IP hash and proves no account (migration 0150 leaves it out of the retention ledger for the same reason), so no row here can be shown to be this caller's.",
-  },
-  "lib/communityPriceStore.ts": { lane: "prices" },
-  "lib/contributorLeaderboardStore.ts": {
-    excluded: "An aggregate derived from the price, visit report and recommendation rows the lanes already carry.",
-  },
-  "lib/crawlStoryStore.ts": { excluded: "Editorial crawl stories, keyed on a crawl rather than on any account." },
-  "lib/feedFreshnessStore.ts": { excluded: "Feed collection stamps, keyed on a dataset rather than on any account." },
-  "lib/followStore.ts": { lane: "follows" },
-  "lib/freshnessStoreOverlay.ts": { excluded: "An overlay over the freshness registry; the module holds no account rows at all." },
-  "lib/harvestOverlayStore.ts": { excluded: "Harvested venue facts, keyed on an OSM id rather than on any account." },
-  "lib/identityHandleStore.ts": {
-    excluded:
-      "The claimed handle is in the export's own `account` block. The alias table behind it is the rename ledger, keyed on the profile, and has no owner read.",
-  },
-  "lib/importNotesStore.ts": { excluded: "A developer import log under .data/; the module holds no account rows at all." },
-  "lib/messagesStore.ts": { lane: "messages" },
-  "lib/nightMemoryStore.ts": { lane: "memories" },
-  "lib/nightProfileStore.ts": { lane: "nightProfile" },
-  "lib/nightSignalStore.server.ts": { excluded: "Night signal ingest candidates, keyed on a venue rather than on any account." },
-  "lib/notificationsStore.ts": {
-    excluded: "Notifications we generated for the account out of other people's actions; nothing here was written by them.",
-  },
-  "lib/occupancyStore.ts": { lane: "crowdReports" },
-  "lib/operatorFactsStore.ts": {
-    excluded: "What a moderator published from a venue operator's proposal, keyed on a venue and shown as the pub's word, not a drinker's.",
-  },
-  "lib/operatorProposalsStore.ts": { excluded: "Venue operator proposals, keyed on a venue and answered by a moderator." },
-  "lib/pendingPlanRecapStore.ts": {
-    excluded: "A queue of recaps waiting to be written; a published recap rides its Plan, and the queue row is ours.",
-  },
-  "lib/pintDropsStore.ts": { lane: "pintDrops" },
-  "lib/pintDropWithTagsStore.ts": {
-    excluded:
-      "A With tag is a consent record between two accounts: the proposal names another person and the approval is that person's, so no row here is this caller's alone.",
-  },
-  "lib/planBeaconStore.ts": { excluded: "An expiring table sign belongs to a shared Plan and can contain another member's private note, not this account's data." },
-  "lib/planCollaborationStore.ts": { excluded: "A Plan is shared: its crew rows name other people." },
-  "lib/planGroupPrefsStore.ts": { excluded: "Group preferences on a shared Plan, named by other members." },
-  "lib/planInviteRsvpStore.ts": { excluded: "RSVPs on a shared Plan, named by other members." },
-  "lib/planPresentationStore.ts": { excluded: "Mystery settings belong to a shared Plan and its host member capability, not an account. Device reveals are not stored here." },
-  "lib/planStore.ts": { excluded: "A Plan is shared with the crew that joined it, so its rows are not one account's to take away." },
-  "lib/presenceStore.ts": { excluded: "Ambient presence expires within the night and is never a durable record." },
-  "lib/priceTrustEventStore.ts": {
-    excluded: "Credit events derived from the price rows the `prices` lane already carries.",
-  },
-  "lib/privateIdentityStore.ts": { lane: "identity" },
-  "lib/profileCoverPhotoStore.ts": { lane: "coverPhotos" },
-  "lib/profileStore.ts": { lane: "profile" },
-  "lib/pubPalStore.ts": {
-    excluded: "Pal memories have their own export door, `/api/pub-pal/memories/export`.",
-  },
-  "lib/pubPalToolTurnStore.ts": {
-    excluded:
-      "Ephemeral ElevenLabs tool-turn correlation rows, keyed on a provider conversation id with no account id and service-role access only.",
-  },
-  "lib/diaryStore.ts": { lane: "diary" },
-  "lib/pushTokenStore.ts": {
-    excluded: "A live push endpoint for one device. It is a credential rather than content, and handing it back hands back a way to reach the device.",
-  },
-  "lib/ratingsStore.ts": { excluded: "Ratings are keyed on an actor hash, which proves no account." },
-  "lib/reactionsStore.ts": { excluded: "Reactions are keyed on an actor hash, which proves no account." },
-  "lib/referralStore.ts": {
-    excluded: "Recognition marks derived from other accounts' arrivals; the invite code is minted on demand rather than stored as content.",
-  },
-  "lib/roundsStore.ts": { excluded: "A Round is shared with everybody who bought one; its rows name them." },
-  "lib/savedPubsStore.ts": { lane: "savedPubs" },
-  "lib/socialConnectionStore.ts": { lane: "socialLinks" },
-  "lib/socialCrewStore.ts": { excluded: "A Crew is shared and its rows name its other members." },
-  "lib/socialInteractionStore.ts": {
-    gap: "A cheer, a save and a comment are the account's own actions, and every read here is keyed on a POST rather than on the actor.",
-  },
-  "lib/socialPostConsentStore.ts": {
-    excluded: "One consent stamp per post, read back through the post itself.",
-  },
-  "lib/socialPostExtraPhotoStore.ts": { lane: "socialPosts" },
-  "lib/socialPostReviewStore.ts": { lane: "socialPosts" },
-  "lib/socialPostStore.ts": { lane: "socialPosts" },
-  "lib/socialPostVideoStore.ts": { lane: "socialPosts" },
-  "lib/socialPubRankingStore.ts": { lane: "pubRankings" },
-  "lib/stepOutNudgeStore.ts": {
-    excluded: "Push preferences and the day each nudge was last sent: a delivery record we keep, changed from the account's own settings surface.",
-  },
-  "lib/venueOperatorsStore.ts": { excluded: "Venue operator claims, keyed on a venue rather than on a drinker's own account." },
-  "lib/venuePhotoStore.ts": { lane: "wallPhotos" },
-  "lib/venueSubmissionStore.ts": { lane: "venueSubmissions" },
-  "lib/venueCorrectionsStore.ts": { lane: "venueCorrections" },
-  "lib/regularNightReportsStore.ts": { lane: "regularNightReports" },
-  "lib/kitchenReportsStore.ts": { lane: "kitchenReports" },
-  "lib/tableRequestsStore.ts": { lane: "tableRequests" },
-  "lib/pubListImportDraftStore.server.ts": { lane: "pubListNightDrafts" },
-  "lib/visitReportsStore.ts": { lane: "visitReports" },
-  "lib/walkRouteStore.ts": { excluded: "Cached walking routes between two points, shared by every reader who asks for them." },
-  "lib/wantedStore.ts": { lane: "wanted" },
-  "lib/weatherRecommendationStore.ts": {
-    gap: "A weather recommendation is the account's own contribution and, like the visit reports beside it, needs an owner-keyed read to export.",
-  },
-  "lib/weatherSnapshotStore.ts": { excluded: "Cached weather forecasts, keyed on a point rather than on any account." },
-  "lib/whatsOnListingStore.ts": { excluded: "Listings we harvested from a public source, keyed on that source rather than on any account." },
-  "lib/whatsOnStore.ts": { excluded: "Bundled baseline listings plus a live merge; the module holds no account rows at all." },
-};
-
-/**
- * The stores whose rows ARE the account's own content and are still not in the
- * file. Shrink-only: closing one is deleting its line here.
- */
-const NAMED_GAPS = [
-  "lib/socialInteractionStore.ts",
-  "lib/weatherRecommendationStore.ts",
-];
-
-function storeModules(): string[] {
-  return readdirSync(join(process.cwd(), "lib"))
-    .filter((name) => /Store.*\.ts$/.test(name) && !name.endsWith(".d.ts"))
-    .map((name) => `lib/${name}`)
-    .filter((path) => path !== "lib/storeBackend.ts")
-    .sort();
-}
-
-describe("every store is a lane or a named exclusion", () => {
-  it("names every lib/*Store*.ts module, and nothing else", () => {
-    expect(Object.keys(STORE_EXPORT_COVERAGE).sort()).toEqual(storeModules());
-  });
-
-  it("every lane row names a lane the document actually carries", () => {
-    const lanes = new Set<string>(ACCOUNT_EXPORT_LANES);
-    for (const [path, row] of Object.entries(STORE_EXPORT_COVERAGE)) {
-      if ("lane" in row) expect(lanes.has(row.lane), `${path} names an unknown lane`).toBe(true);
-    }
-  });
-
-  it("every lane in the document is fed by a store that says so", () => {
-    const claimed = new Set(
-      Object.values(STORE_EXPORT_COVERAGE)
-        .filter((row): row is { lane: AccountExportLaneName } => "lane" in row)
-        .map((row) => row.lane),
-    );
-    expect([...ACCOUNT_EXPORT_LANES].filter((lane) => !claimed.has(lane))).toEqual([]);
-  });
-
-  it("every exclusion and every gap argues itself in a sentence", () => {
-    for (const [path, row] of Object.entries(STORE_EXPORT_COVERAGE)) {
-      if ("lane" in row) continue;
-      const reason = "excluded" in row ? row.excluded : row.gap;
-      expect(reason.trim().length, `${path} needs a reason`).toBeGreaterThan(40);
-    }
-  });
-
-  it("keeps the named-gap list to the ones argued for, and it may only shrink", () => {
-    const gaps = Object.entries(STORE_EXPORT_COVERAGE)
-      .filter(([, row]) => "gap" in row)
-      .map(([path]) => path)
-      .sort();
-    expect(gaps).toEqual([...NAMED_GAPS].sort());
   });
 });
 

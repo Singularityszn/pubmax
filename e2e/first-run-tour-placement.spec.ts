@@ -36,7 +36,7 @@ test("mobile first-run tour leaves the map centre visible", async ({ page }) => 
     centre.y <= box!.y + box!.height;
   expect(coversCentre).toBe(false);
 
-  for (const name of ["Skip", "Got it"] as const) {
+  for (const name of ["Skip", "Next"] as const) {
     const action = dialog.getByRole("button", { name, exact: true });
     await expect(action).toBeVisible();
     const actionBox = await action.boundingBox();

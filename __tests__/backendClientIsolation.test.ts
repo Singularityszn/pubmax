@@ -1,16 +1,13 @@
 // Which backend client each surface actually pays for.
 //
-// U4 of docs/plans/SITE_SPEED_2026-09-01.md. Two backend clients ship as
-// dependencies, `@supabase/supabase-js` and `convex`, and the question the unit
-// asks is entry-point isolation rather than removal: is either parsed on a
+// U4 of docs/plans/SITE_SPEED_2026-09-01.md. The question the unit asks is
+// entry-point isolation rather than removal: is a heavy client parsed on a
 // route that does not use it?
 //
 // The 2026-09-01 production inventory and decoded-KB figures live in
 // docs/PERFORMANCE_BUDGETS.md under "What each route actually parses". This
-// file is the fence for its three entry-point conclusions: Supabase stays
-// dynamic and off the critical path, MapLibre stays on the map, and Convex
-// reaches no browser bundle. The Convex scaffold remains under its Wave 0.6
-// containment law (__tests__/convexContainment.test.ts).
+// file is the fence for its entry-point conclusions: Supabase stays dynamic
+// and off the critical path, and MapLibre stays on the map.
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
@@ -39,26 +36,6 @@ function sourceFiles(dir: string): string[] {
 function importsPackage(source: string, name: string): boolean {
   return new RegExp(`from ["']${name}(?:/[^"']*)?["']`).test(source);
 }
-
-describe("no browser route pays for Convex", () => {
-  it("is imported by nothing the app renders", () => {
-    const offenders: string[] = [];
-    for (const dir of ["app", "components", "lib"]) {
-      for (const file of sourceFiles(dir)) {
-        const relative = file.slice(REPO_ROOT.length + 1);
-        // lib/convex holds the contracts and the migration scaffold. They are
-        // types and tables, and no route imports them.
-        if (relative.startsWith("lib/convex/")) continue;
-        const source = readFileSync(file, "utf8");
-        if (importsPackage(source, "convex")) offenders.push(relative);
-      }
-    }
-    expect(
-      offenders,
-      "a route importing convex needs an owner ruling first (Wave 0.6 containment)",
-    ).toEqual([]);
-  });
-});
 
 describe("MapLibre stays on the map", () => {
   it("is imported only by the map canvas and its own scene modules", () => {

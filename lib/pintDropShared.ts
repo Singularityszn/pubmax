@@ -9,6 +9,7 @@
 // Precedent: lib/reactions.ts (reactions) and lib/crawlStory.ts (crawls) are the
 // exact same browser-safe-twin pattern.
 
+import type { PintDropRating } from "@/lib/pintDropRating";
 import type { Provenance } from "@/lib/curation";
 // Type-only: lib/drinkMeasure.ts is a pure leaf, so this stays browser-safe.
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
@@ -26,6 +27,7 @@ export type PintDropInput = {
   venueId: string;
   handle: string;
   drink?: string;
+  rating?: PintDropRating;
   /**
    * The SERVING this price is about (lib/drinkMeasure.ts). Absent reads as
    * `pint`, which is what the lane already assumed of every row written before
@@ -115,6 +117,7 @@ export type PintDrop = {
   venueId: string;
   handle: string;
   drink: string;
+  rating?: PintDropRating;
   /**
    * The SERVING the price is about (lib/drinkMeasure.ts). Optional so every row
    * written before migration 0147 reads cleanly; absent means `pint`, and
@@ -127,10 +130,9 @@ export type PintDrop = {
   measureLabel?: string;
   priceGbp: number | null;
   /**
-   * What stands behind the figure (lib/pintDropReceipt.ts, migration 0218):
-   * `receipt` when the write came with a photo of the bill, `unchecked` when
-   * it was typed without one (captain decision 9, 1 Nov 2026). Stamped by the
-   * store's create path from what arrived, never from a client field. Absent
+   * Server-owned price evidence. lib/pintDropReceipt.ts owns its meanings
+   * and initial value. Only the bill check grants receipt evidence.
+   * Migration 0218 stores the value, never a client claim. Absent
    * on an unpriced drop and on every row written before 0218, which read as
    * they always have. Public: the browser's own trust lanes read it.
    */

@@ -167,6 +167,16 @@
   color: var(--muted);
 }
 
+.findLot__mayKnow {
+  margin-top: var(--space-4);
+}
+
+.findLot__subtitle {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
 .findLot__invite {
   margin-top: var(--space-3);
   display: grid;

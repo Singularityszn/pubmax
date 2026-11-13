@@ -14,7 +14,7 @@ const BRAND_SLUG = "guinness";
 // own answer for this brand and a change to it is a change worth reading.
 const COLLECTED_DAY = formatObservedDate(PINT_DATASET_OBSERVED_AT);
 const SUMMARY = `345 pubs with listed Guinness pints. Collected ${COLLECTED_DAY}.`;
-const TRACKED_PROOF_DIR = "docs/proof/drink-brand-landing";
+const TRACKED_PROOF_DIR = "artifacts/proof/drink-brand-landing";
 type ProofScreenshotName =
   | "guinness-390-light.png"
   | "guinness-390-dark.png"
@@ -210,6 +210,9 @@ async function assertLandingContract(page: Page): Promise<void> {
   const areaLinks = areaNav.getByRole("link");
   expect(await areaLinks.count()).toBeGreaterThan(0);
   await expect(areaLinks.first()).toHaveAttribute("href", /\/area\/[^/]+\/drink\/guinness$/);
+  // Area pages publish on the floor alone again, so Victoria's pair is back.
+  await expect(areaNav.getByRole("link", { name: "Victoria", exact: true }))
+    .toHaveAttribute("href", "/area/victoria/drink/guinness");
 
   const rows = page.locator(".drinkBrandDirectory__row");
   await expect(rows).toHaveCount(20);

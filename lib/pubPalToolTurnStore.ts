@@ -13,7 +13,7 @@ import {
 } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
-/** Two minutes after the user's last line. The purge cron deletes expired rows every minute. */
+/** Two minutes after the user's last line. See docs/CRON_PLANE_RUNBOOK.md for scheduled deletion. */
 export const PUB_PAL_TOOL_TURN_TTL_MS = PUB_PAL_CONVERSATION_IDLE_MS;
 
 const PUB_PAL_TOOL_TURN_MIGRATION_HINT = "apply migration 0169";
@@ -174,7 +174,6 @@ type PubPalToolTurnStore = {
       toolsUsed?: string[];
     },
   ): Promise<void>;
-  purgeExpired(): Promise<void>;
 };
 
 const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
@@ -273,10 +272,6 @@ const memoryPubPalToolTurnStore: PubPalToolTurnStore = {
       }
     }
   },
-
-  async purgeExpired() {
-    pruneMemory(Date.now());
-  },
 };
 
 const { guard, resetWarnings } = createFailSoftGuard({
@@ -291,18 +286,6 @@ type ToolTurnRow = {
   payload: unknown;
   expires_at: string;
 };
-
-// The purge runs on the /api/cron/purge-pub-pal-turns minute and nowhere else.
-// Every read already refuses an expired row, so a DELETE in front of each write
-// was a round trip on every Pub Pal turn and every tool append that changed
-// nothing a reader could see.
-async function purgeExpiredRows(): Promise<void> {
-  const { error } = await requireSupabaseAdmin()
-    .from("pub_pal_tool_turns")
-    .delete()
-    .lt("expires_at", new Date().toISOString());
-  if (error) throw new Error(error.message);
-}
 
 type StoredLookup =
   | { status: "missing" }
@@ -578,19 +561,6 @@ const supabasePubPalToolTurnStore: PubPalToolTurnStore = {
       },
     });
   },
-
-  async purgeExpired() {
-    await guard<void>({
-      context: "purge",
-      onSchemaMiss: () =>
-        onMissingDurableWrite({
-          storeTag: "pub-pal-tool-turn",
-          migrationHint: PUB_PAL_TOOL_TURN_MIGRATION_HINT,
-          fallback: () => memoryPubPalToolTurnStore.purgeExpired(),
-        }),
-      run: purgeExpiredRows,
-    });
-  },
 };
 
 const pubPalToolTurnStore = createDualBackendStore(
@@ -657,15 +627,6 @@ export async function appendPubPalToolTurn(
   },
 ): Promise<void> {
   await pubPalToolTurnStore().append(conversationId, patch);
-}
-
-export async function purgeExpiredPubPalToolTurns(): Promise<void> {
-  await pubPalToolTurnStore().purgeExpired();
-}
-
-/** Test-only observer. Unlike every read, it never prunes, so it shows what the purge left behind. */
-export function hasStoredPubPalToolTurnForTest(conversationId: string): boolean {
-  return memoryTurns.has(conversationId);
 }
 
 export function __resetPubPalToolTurnStore(): void {

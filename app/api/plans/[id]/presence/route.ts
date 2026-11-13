@@ -2,6 +2,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { isPlanId } from "@/lib/plan";
+import { planCrewArrivedReceipts } from "@/lib/planCrewArrived.server";
 import { planStore } from "@/lib/planStore";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -29,9 +30,14 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
   const result = await planStore().updatePresence(id, memberToken, body.status);
   if (!result.ok) {
+    if (result.error === "closed") return publicApiError("This Plan has ended.", "PLAN_CLOSED", 409, { retryable: false });
     const status = result.error === "invalid" ? 400 : result.error === "not_found" ? 404 : result.error === "forbidden" ? 403 : 503;
     const error = result.error === "forbidden" ? "That member token isn't valid." : result.error === "invalid" ? "Choose a valid crew status." : result.error === "not_found" ? "That Plan doesn't exist." : "Could not update presence.";
     return publicApiError(error, result.error === "error" ? "PLAN_PRESENCE_UNAVAILABLE" : result.error === "not_found" ? "PLAN_NOT_FOUND" : result.error === "forbidden" ? "PLAN_PRESENCE_FORBIDDEN" : "PLAN_PRESENCE_INVALID", status, { retryable: result.error === "error" });
   }
-  return jsonNoStore(result.plan, { status: 200 });
+  // P0 item 7: the night's arrival bands ride back on every successful status
+  // write, from any member, so a consented device can report them. The rule
+  // and its dedupe live in lib/planCrewArrived.server.ts.
+  const crewArrived = planCrewArrivedReceipts(result.plan);
+  return jsonNoStore(crewArrived.length > 0 ? { ...result.plan, crewArrived } : result.plan, { status: 200 });
 }

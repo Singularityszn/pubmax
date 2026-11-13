@@ -6,6 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
+import { trackCrewArrivedReceipts } from "@/lib/hostLoopAnalytics";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
 import { planRouteReady } from "@/lib/planPrivacy";
@@ -394,6 +395,8 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       if (!ownsCapability()) return;
       setCrew(body.crew ?? crew);
       scope.invalidate = null;
+      // P0 item 7: one verified receipt per arrival band the night has reached.
+      trackCrewArrivedReceipts(body.crewArrived);
       if (status === "here") {
         try {
           sessionStorage.removeItem(`pubmax:night-crawl-collapsed:${planId}`);

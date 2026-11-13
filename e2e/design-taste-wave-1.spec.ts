@@ -185,7 +185,7 @@ test.describe("desktop taste wave 1", () => {
       await expect(storiesPrimary.getByRole("link", { name: "Plan a night", exact: true })).toBeVisible();
       const empty = page.locator(".socialFeedEmpty--london");
       await expect(empty.getByRole("link", { name: "Victorian Soho", exact: true })).toBeVisible();
-      await expect(empty.getByRole("heading", { name: "Latest prices we hold", exact: true })).toBeVisible();
+      await expect(empty.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
       const offer = empty.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
       await expect(offer).toBeVisible();
       expect(await empty.evaluate((node) => {
@@ -207,9 +207,11 @@ test.describe("desktop taste wave 1", () => {
           label: link.textContent?.trim() ?? "",
         })),
       );
-      expect(actionStyles.length).toBeGreaterThanOrEqual(7);
+      // Eight distinct doors: the guides card, four editorial walks and three
+      // heritage routes.
+      expect(actionStyles.length).toBeGreaterThanOrEqual(8);
       expect(actionStyles.every(({ backgroundImage }) => backgroundImage === "none")).toBe(true);
-      expect(new Set(actionStyles.map(({ label }) => label)).size).toBe(7);
+      expect(new Set(actionStyles.map(({ label }) => label)).size).toBe(8);
       await expectSentenceCase(page.locator(".nightAreaCoverage__eyebrow").first());
       await expectSentenceCase(page.getByRole("heading", { name: "Where you can plan a crawl tonight", exact: true }));
     });

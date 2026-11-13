@@ -31,18 +31,27 @@ in the same commit.
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
-| `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh bounded quiz, deal, music, and sport lanes plus official Ticketmaster / Skiddle events into `whats_on_listings`; readers prefer non-expired durable rows and fall back to bundled files | 60s |
+| `GET /api/cron/refresh-whats-on` | `30 5 * * *` and `0 15 * * *` | **06:30** and **16:00** / 05:30 and 15:00 | Refresh `whats_on_listings` through the [bounded lanes and official events](#which-keys-enable-each-job). Readers prefer eligible durable rows and fall back to eligible bundled rows | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine and report stale feeds and unresolvable feeds separately. See [failure posture](#failure-posture-never-fake-success) for alert delivery. | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
-| `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
-| `GET /api/cron/purge-pub-pal-turns` | `* * * * *` | Every minute | Delete expired Pub Pal tool turns (`pub_pal_tool_turns`), which keep the user's lines for two minutes after their last line. Migration 0202 runs the same delete in the database with pg_cron; this route stays as the backstop until `cron.job_run_details` shows that job succeeding ([proof](./proof/2026-10-30-pub-pal-purge-pg-cron/README.md)) | 30s |
+| `GET /api/cron/moderate-social-interactions` | `*/10 * * * *` | Every 10 minutes | Claim and moderate up to 20 queued comments or quote posts; see [Social moderation outcomes](../README.md#features) | 30s |
 | `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 | `GET /api/cron/reconcile-price-trust` | `*/10 * * * *` | Every 10 minutes | Retry the queued price-trust events and account credits that a community-price write could not record, then acknowledge each queue revision; the price itself is already saved | 30s |
 | `GET /api/cron/purge-social-media` | `20 4 * * *` | 05:20 / 04:20 | Delete up to 50 detached Social photos and up to 50 orphaned uploads; skips while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` keeps Social rolled back | 30s |
 | `GET /api/cron/step-out-nudge` | `0 16 * * 4` | Thursday 17:00 / Thursday 16:00 | Send the weekly Step Out push to opted-in subscribers who are owed one, at most one a week per subscription | 60s |
 | `GET /api/cron/cheap-pint-ping` | `0 16,17 * * 1-5` | Weekdays 17:00·18:00 / weekdays 16:00·17:00 | Send the one-time cheap-pint push to opted-in accounts with a grounded listed price. Two UTC runs cover both halves of the year: the route sends only in the 17:00 London hour, so the 18:00 BST and 16:00 GMT runs skip | 60s |
 | `GET /api/cron/harvest-refresh` | `0 5 * * 1` | Monday 06:00 / Monday 05:00 | Weekly first-party London harvest under `HARVEST_CRON_REQUEST_BUDGET`; the run report goes to logs only, because `npm run harvest:run` owns the durable files. Without `FIRECRAWL_API_KEY` every source is skipped | 300s |
+
+The pg_cron job `pubmax-purge-pub-pal-tool-turns` (migration 0202) deletes expired
+Pub Pal tool turns (`pub_pal_tool_turns`) in the database every minute.
+Check its runs in `cron.job_run_details`, using the `jobid` from `cron.job`.
+The Vercel purge route and its schedule are retired. Without pg_cron, no
+scheduled purge replaces them.
+
+Before rolling back 0202, restore a working purge route and its Vercel schedule,
+or provide another scheduled purge. Confirm that the replacement deletes expired
+rows. Reads reject expired turns, but they do not delete durable rows.
 
 The What's-On refresh runs **twice a day**. The morning run, `30 5 * * *`
 (06:30 BST, 05:30 GMT), is the baseline: it writes each bounded lane to
@@ -95,7 +104,7 @@ own observation times and bundled files remain the fallback.
 | Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
-| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, deal, music, and sport into `whats_on_listings`; a failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
+| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
@@ -183,8 +192,9 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   The cron and the bundled-pack command share
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps
-  the stored quiz rows. Deal, music and sport use existing first-party
-  definitions and bundled venue inputs.
+  the stored quiz rows. Music uses first-party definitions and bundled venue
+  inputs. Sport reads live fixtures and bundled venue attributes. The
+  [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
 - The GitHub events-refresh workflow writes the same committed file. Keep it
   in the tree so it can resume when Actions billing returns. It is not the
   live path; Vercel Cron is the reliable refresh path.
@@ -283,10 +293,10 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   failed drain. The posts cron still inspects the backlog and emits its findings
   on that path, so a growing pending queue is never silent. A store failure is
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
-  In deployed production, each missing-key skip also logs an error event:
+  Each missing-key skip logs one warning event, not an error:
   `social_posts.moderation_unconfigured` or
-  `social_interactions.moderation_unconfigured`. These events qualify for
-  webhook delivery under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
+  `social_interactions.moderation_unconfigured`. The posts cron's backlog
+  findings still alert under the [alert policy](rules/lib-observability.md#an-alert-leaves-the-process-through-one-webhook-and-unset-is-silent).
   Pending content stays held.
   Configure the provider key and alert destination before release. Inspect the
   backlog, then use the authenticated drain and terminal-requeue actions.

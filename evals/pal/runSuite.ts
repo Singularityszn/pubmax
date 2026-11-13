@@ -1,8 +1,8 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { DEFAULT_ASK_MODEL } from "@/lib/ask/modelLoop";
 import { runAsk } from "@/lib/ask/runAsk";
+import { claudeApiKey, claudeClient, claudeModel } from "@/lib/claudeClient.server";
 import { createUsageCapture } from "./captureUsage";
 import { gradePalCase } from "./grade";
 import { loadPalEvalSuite } from "./loadSuite";
@@ -35,12 +35,13 @@ async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalE
   const { cases, answerKey, now } = loadPalEvalSuite(root);
   const index = loadPalEvalVenueIndex(root);
   const live = options.mode === "live";
-  const apiKey = process.env.OPENROUTER_API_KEY?.trim();
+  const apiKey = claudeApiKey();
   if (live && !apiKey) {
-    throw new Error("OPENROUTER_API_KEY is not set; live Pal eval is blocked.");
+    throw new Error("ANTHROPIC_API_KEY is not set; live Pal eval is blocked.");
   }
 
-  const usageCapture = live ? createUsageCapture() : null;
+  const model = claudeModel();
+  const usageCapture = live ? createUsageCapture(claudeClient(apiKey!), model) : null;
   const results: PalEvalCaseResult[] = [];
 
   for (const caseDef of cases) {
@@ -56,7 +57,8 @@ async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalE
       turns: caseDef.turns,
       now,
       skipModel: !live,
-      fetchImpl: usageCapture ? usageCapture.fetchImpl : offlineFetch,
+      fetchImpl: offlineFetch,
+      ...(usageCapture ? { claude: usageCapture.claude } : {}),
       traceRoute: live ? "eval/pal-live" : "eval/pal-deterministic",
     });
     const latencyMs = performance.now() - started;
@@ -110,7 +112,7 @@ async function runSuiteWithoutTypesafe(options: RunPalEvalOptions): Promise<PalE
   const scoreboard: PalEvalScoreboard = {
     runAt: new Date().toISOString(),
     mode: options.mode,
-    ...(live ? { model: process.env.OPENROUTER_MODEL ?? DEFAULT_ASK_MODEL } : {}),
+    ...(live ? { model } : {}),
     totals: {
       cases: results.length,
       passed,

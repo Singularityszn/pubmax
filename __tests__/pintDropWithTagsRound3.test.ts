@@ -173,6 +173,9 @@ describe("a retried save resends its tags and never doubles them", () => {
       vibeTags: [],
       pintPhotoUrl: null,
       venuePhotoUrl: null,
+      receiptPhotoUrl: null,
+      measure: "pint" as const,
+      measureLabel: "",
       createdAt: "2026-10-30T20:00:00.000Z",
       withHandles: ["sam", "priya"],
     };

@@ -339,6 +339,12 @@ describe("Social governance, reports, and notifications", () => {
       status: "shipped",
       staffResponse: "Available now.",
     });
+
+    expect((await posts.edit(post.id, alice, 0, { kind: "standard" }, true)).featureRequest).toBeNull();
+    expect((await posts.edit(post.id, alice, 1, { kind: "feature_request" }, true)).featureRequest).toEqual({
+      status: "shipped",
+      staffResponse: "Available now.",
+    });
   });
 
   it("queues deduplicated reports without hiding content", async () => {
@@ -353,7 +359,23 @@ describe("Social governance, reports, and notifications", () => {
       items: [{ id: first.id, kind: "post", contentId: post.id, reason: "harassment", state: "queued" }],
     });
     await store.resolveReport(carol, first.id);
+    await store.report(bob, { kind: "post", id: post.id, reason: "harassment" });
     expect(await store.reportQueue(carol, { limit: 20 })).toEqual({ items: [], nextCursor: null });
+  });
+
+  it("reopens a resolved person report and keeps queued repeats deduplicated", async () => {
+    const { store } = harness();
+    const input = { kind: "profile", id: alice.profileId, reason: "harassment" } as const;
+    const first = await store.report(bob, input);
+    expect(await store.report(bob, input)).toEqual(first);
+    await store.resolveReport(carol, first.id);
+    expect(await store.reportQueue(carol, { limit: 20 })).toEqual({ items: [], nextCursor: null });
+    expect(await store.report(bob, input)).toEqual(first);
+    expect(await store.report(bob, input)).toEqual(first);
+    expect(await store.reportQueue(carol, { limit: 20 })).toMatchObject({
+      items: [{ id: first.id, kind: "profile", contentId: alice.profileId, reason: "harassment", state: "queued" }],
+      nextCursor: null,
+    });
   });
 
   it("refuses reports for interaction content the reporter cannot read", async () => {

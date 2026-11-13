@@ -11,7 +11,7 @@ import { getPricedVenues } from "@/lib/venuePriceIndex";
 /** Read bundled public menu data. This never reads a session or Social store. */
 export async function loadSocialAlternatives(): Promise<SocialAlternatives> {
   const [venues, updates, bundle, london] = await Promise.all([
-    getPricedVenues(), readAllDrinkPriceUpdates(), ukPriceBundleRowsByVenue(), readCityVenueIndex(getCity("london")),
+    getPricedVenues().catch(() => []), readAllDrinkPriceUpdates(), ukPriceBundleRowsByVenue(), readCityVenueIndex(getCity("london")),
   ]);
   const catalog = getUkNationalPubCatalog();
   if (!london || catalog.status !== "ready" || bundle.status === "unavailable" || venues.length === 0) {

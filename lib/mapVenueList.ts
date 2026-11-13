@@ -13,10 +13,14 @@ import {
 import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import { compactVenueAnchor, type CompactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { comparableLensPrice, comparableVenuePint } from "@/lib/comparableVenuePint";
+import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { venueBundlePrices, venuePriceLane, venuePriceLaneObservedGbp, venueSourcedPrice } from "@/lib/venuePriceLane";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import type { ZonePintIndex } from "@/lib/zones";
 
 type MapVenueListVenueSignals = ReadonlyMap<
   string,
-  { latestContributorPrice: number | null; latestContributorAt?: number | null }
+  { latestContributorPrice: number | null; latestContributorAt?: number | null; pintTrust?: unknown }
 >;
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
@@ -159,9 +163,22 @@ export function mapVenueListLensPrice(
 function mapVenueListPintPriceLabel(
   venue: Venue,
   venueSignals: MapVenueListVenueSignals | null,
+  zoneIndex: ZonePintIndex | null,
 ): string {
   const price = mapVenueListPintPrice(venue, venueSignals);
-  return price !== null ? formatGbp(price) : "Price TBD";
+  if (price !== null) return formatGbp(price);
+  if (!isPubVenueKind(venue.kind)) return "Price TBD";
+  // A pub with no recorded price reads its zone estimate, "est." and all.
+  const signal = venueSignals?.get(venue.id);
+  const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, zoneIndex));
+  if (lane && lane.lane !== "estimate") {
+    const recordedPrice = venuePriceLaneObservedGbp(lane);
+    return recordedPrice !== null ? formatGbp(recordedPrice) : "Price TBD";
+  }
+  if (signal?.pintTrust && signal.pintTrust !== "none") return "Price TBD";
+  return (lane?.lane === "estimate"
+    ? priceStandingFigure(priceStandingFor({ estimate: lane.estimate }))
+    : null) ?? "Price TBD";
 }
 
 /**
@@ -201,6 +218,7 @@ export function buildMapVenueListModel(
   lensStatus: CategoryPriceIndexStatus = "ready",
   sortMode: MapVenueListSortMode = "nearest",
   venueSignals: MapVenueListVenueSignals | null = null,
+  zoneIndex: ZonePintIndex | null = null,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -224,7 +242,7 @@ export function buildMapVenueListModel(
           const pint = hasPintPriceSemantics(item) ? mapVenueListPintPrice(item, venueSignals) : null;
           return {
             ...row,
-            priceLabel: mapVenueListPintPriceLabel(item, venueSignals),
+            priceLabel: mapVenueListPintPriceLabel(item, venueSignals, zoneIndex),
             priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
           };
         })

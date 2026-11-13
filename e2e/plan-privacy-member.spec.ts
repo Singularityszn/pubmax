@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { test, expect } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -16,7 +17,7 @@ import { randomUUID } from "node:crypto";
 const BASE_URL = `http://localhost:${process.env.PW_PORT ?? 3100}`;
 
 test("host and joined guest both see the route; a stranger sees the preview", async ({ request, playwright }) => {
-  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).slice(0, 3);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {

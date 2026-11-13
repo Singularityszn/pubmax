@@ -311,7 +311,7 @@ for (const viewport of [DESKTOP, PHONE]) {
         const frames = page.locator(".profileCoverImage");
         await expect(frames).toHaveCount(reducedMotion === "reduce" ? 1 : 2);
         const active = page.locator(".profileCoverImageActive");
-        await expect(active).toHaveAttribute("src", new RegExp(GENERATIONS[0]!));
+        await expect(active).toHaveAttribute("data-cover-src", new RegExp(GENERATIONS[0]!));
         const transition = await frames.first().evaluate((frame) => ({
           duration: getComputedStyle(frame).transitionDuration,
           property: getComputedStyle(frame).transitionProperty,
@@ -321,7 +321,7 @@ for (const viewport of [DESKTOP, PHONE]) {
           expect(transition.duration).toBe("0.9s");
         }
         await page.clock.runFor(PROFILE_COVER_ROTATION_MS + 1);
-        await expect(active).toHaveAttribute("src", new RegExp(GENERATIONS[reducedMotion === "reduce" ? 0 : 1]!));
+        await expect(active).toHaveAttribute("data-cover-src", new RegExp(GENERATIONS[reducedMotion === "reduce" ? 0 : 1]!));
         if (reducedMotion === "reduce") {
           await expect(frames).toHaveCount(1);
           expect(await active.evaluate((frame) => ({

@@ -100,25 +100,30 @@ async function assertNoAliasCycle(root, ukAliases) {
 
 /**
  * Every base id the previous shard rows held and the next ones do not, with
- * the id the same pub carries now: its new base id, else the still-listed
- * curated venue that owned the row, else null when it left OSM.
+ * the id the same pub carries now: the node a way was merged into as its
+ * twin (`twins`, from scripts/lib/ukBaseOsmTwins.mjs), else its new base id,
+ * else the still-listed curated venue that owned the row, else null when it
+ * left OSM.
  *
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} previousRows
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} nextRows
  * @param {ReadonlySet<string>} liveCuratedIds
+ * @param {ReadonlyMap<string, string>} [twins] merged-away OSM ref → the node ref kept
  * @returns {Array<{ pub: { osmId: string, name: string, address: string, lat: number, lng: number, curatedVenueId: string }, from: string, to: string | null }>}
  */
-export function ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds) {
+export function ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds, twins = new Map()) {
   return venueIdDepartures(
     ukBaseIdOf,
     previousRows.map(rowPub),
     nextRows.map(rowPub),
     SUCCESSOR_METERS,
-  ).map((departure) =>
-    departure.to === null && liveCuratedIds.has(departure.pub.curatedVenueId)
+  ).map((departure) => {
+    const twin = twins.get(departure.pub.osmId);
+    if (twin) return { ...departure, to: `venue-uk-${twin}` };
+    return departure.to === null && liveCuratedIds.has(departure.pub.curatedVenueId)
       ? { ...departure, to: departure.pub.curatedVenueId }
-      : departure,
-  );
+      : departure;
+  });
 }
 
 /**
@@ -134,10 +139,11 @@ export function ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds) {
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} previousRows
  * @param {ReadonlyArray<ReadonlyArray<unknown>>} nextRows
  * @param {ReadonlySet<string>} liveCuratedIds
+ * @param {ReadonlyMap<string, string>} [twins] see `ukBaseIdDepartures`
  * @returns {Promise<{ superseded: Array<{ from: string, to: string }>, retired: Array<{ id: string }>, doc: Record<string, unknown> | null }>}
  */
-export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds) {
-  const departed = ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds);
+export async function planUkBaseVenueIdAliases(root, previousRows, nextRows, liveCuratedIds, twins) {
+  const departed = ukBaseIdDepartures(previousRows, nextRows, liveCuratedIds, twins);
   const superseded = departed.flatMap(({ from, to }) => (to ? [{ from, to }] : []));
   const retired = departed.flatMap(({ pub, from, to }) =>
     to

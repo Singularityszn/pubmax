@@ -5,14 +5,14 @@ import type { PriceReadAllowance } from "./cheapestPriceReadFence";
 export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]> = {
   "lib/ask/conciergeTools.server.ts": [
     {"owner": "toPricedPoints", "count": 1, "reason": "Carries the selected slim evidence into the Near ranker."},
-    {"owner": "toolCheapestPintNear", "count": 3, "reason": "Prints and transports cards returned by the qualified Near rankers."},
+    {"owner": "toolCheapestPintNear", "count": 5, "reason": "Prints and transports cards returned by the qualified Near rankers, and joins each card to its own venue evidence only when the amounts match."},
     {"owner": "venueDrinkAnswerHint", "count": 3, "reason": "Describes a named venue rather than selecting a cheapest winner."},
     {"owner": "toolVenueDrinks", "count": 6, "reason": "Displays a requested venue and its recorded drink evidence."},
   ],
   "lib/ask/tools.ts": [
     {"owner": "venueCard", "count": 3, "reason": "Prints a selected venue and its receipt."},
     {"owner": "toolSearchVenues", "count": 1, "reason": "Transports results after the pint policy and budget filter."},
-    {"owner": "toolVenuePrices", "count": 6, "reason": "Displays the requested venue record and corroborated reports."},
+    {"owner": "toolVenuePrices", "count": 1, "reason": "Displays the requested venue record and corroborated reports, and asks for a zone estimate only when no pint is recorded."},
     {"owner": "toolProposePlan", "count": 1, "reason": "Transports stops after the shared concierge ranker."},
   ],
   "lib/boroughNeighbourhoodLinks.ts": [
@@ -65,6 +65,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/lastRideRoute.ts": [
     {"owner": "nearestPubsToStation", "count": 2, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
+  ],
+  "lib/lazyVenueDetail.ts": [
+    {"owner": "mergeLazyDetailPins", "count": 3, "reason": "Carries a priced slim pin's complete evidence onto an unpriced detail without ranking."},
   ],
   "lib/lastTrain.server.ts": [
     {"owner": "nearestPubsToStation", "count": 1, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
@@ -182,13 +185,16 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/scrapedPubs.server.ts": [
     {"owner": "readScrapedPubs", "count": 1, "reason": "Transports ordinary scraped venue display data."},
   ],
+  "lib/slimListingPrices.mjs": [
+    {"owner": "applySlimListingPrices", "count": 4, "reason": "Fills only unpriced pins and selects the minimum listing after comparablePint admits its complete evidence."},
+  ],
   "lib/slimPins.ts": [
     {"owner": "slimVenueToPin", "count": 1, "reason": "Preserves price and evidence during projection."},
     {"owner": "pinToSlimVenue", "count": 1, "reason": "Preserves price and evidence during reverse projection."},
   ],
   "lib/thenVsNow.ts": [
     {"owner": "computeThenVsNow", "count": 1, "reason": "Compares historical baselines with community reports."},
-    {"owner": "computeVenuePriceStory", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
+    {"owner": "selectedPriceRecord", "count": 1, "reason": "Builds a selected venue history without choosing a cheapest winner."},
   ],
   "lib/tonightAnswers.ts": [
     {"owner": "tonightCheapestAnswer", "count": 2, "reason": "Prints the qualified nearby winner."},
@@ -229,8 +235,14 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/wildPriceGlass.ts": [
     {"owner": "boroughMedians", "count": 1, "reason": "Computes area medians outside cheapest-answer scope."},
   ],
-  "lib/zonePintIndex.server.ts": [
-    {"owner": "load", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+  "lib/zonePriceEstimate.ts": [
+    {"owner": "zonePintIndexFromSlimPayload", "count": 1, "reason": "Transports ordinary zone statistics inputs."},
+  ],
+  "lib/planVenueOptions.ts": [
+    {"owner": "planVenueOptions", "count": 1, "reason": "Preserves recorded-price availability so a chosen pub cannot receive a zone estimate."},
+  ],
+  "lib/slimPayload.ts": [
+    {"owner": "rowsFromSlimPayload", "count": 1, "reason": "Restores recorded-price availability from the slim transport without ranking prices."},
   ],
   "lib/zones.ts": [
     {"owner": "computeZonePintIndex", "count": 1, "reason": "Computes zone medians outside cheapest-answer scope."},
@@ -294,7 +306,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "PalChatBody", "count": 1, "reason": "Matches a qualified Near glance to its source venue."},
   ],
   "components/pubs/PubsGallery.tsx": [
-    {"owner": "PubsGallery", "count": 3, "reason": "Preserves user-selected general gallery browsing."},
+    {"owner": "PubsGallery", "count": 5, "reason": "Preserves user-selected general gallery browsing, and joins each card to its own price evidence only when the amounts match."},
   ],
   "components/tonight/useTonightAnswerReads.ts": [
     {"owner": "useTonightNearbyVenues", "count": 1, "reason": "Carries serving and evidence into the Tonight ranker."},
@@ -310,9 +322,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "app/borough/[slug]/page.tsx": [
     {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
-  ],
-  "app/crawls/routeSummary.ts": [
-    {"owner": "crawlPriceRange", "count": 1, "reason": "Estimates a predetermined route without cheapest selection."},
   ],
   "app/invite/[token]/opengraph-image.tsx": [
     {"owner": "loadStops", "count": 4, "reason": "Displays the explicitly shared plan stops."},
@@ -331,6 +340,9 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "scripts/build_price_bands.mjs": [
     {"owner": "readCityPintPrices", "count": 4, "reason": "Computes ordinary price band statistics outside cheapest-answer scope."},
+  ],
+  "scripts/build_slim_index.mjs": [
+    {"owner": "slimBundlePriceCoverage", "count": 1, "reason": "Publishes bundle-price availability for unpriced slim rows without ranking prices."},
   ],
   "scripts/lib/slimShards.mjs": [
     {"owner": "pricedRatio", "count": 2, "reason": "Measures shard coverage without ranking."},

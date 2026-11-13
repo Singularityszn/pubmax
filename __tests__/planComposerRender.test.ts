@@ -158,7 +158,7 @@ describe("PlanComposer rendered UI", () => {
 
     const html409 = renderToStaticMarkup(createElement(PlanComposerErrorNotice, { message: copy409 as string }));
     expect(html409).toContain('role="alert"');
-    expect(html409).toMatch(/already locked/i);
+    expect(html409).toMatch(/refresh|regenerate/i);
   });
 
   it("never claims an earlier route in the error notice when no route is on screen", () => {
@@ -278,19 +278,9 @@ describe("PlanComposer rendered UI", () => {
   it("states the release without claiming the route is gone", () => {
     expect(releasedAcceptanceStatus({
       venueName: "The Coach & Horses",
-      routeStale: false,
     })).toBe("Released The Coach & Horses. Stop 1 is yours to change.");
     expect(releasedAcceptanceStatus({
       venueName: null,
-      routeStale: false,
     })).toBe("Released this pub. Stop 1 is yours to change.");
-  });
-
-  it("keeps a stale-route reason instead of overwriting it on release", () => {
-    expect(releasedAcceptanceStatus({
-      venueName: "The Coach & Horses",
-      routeStale: true,
-      staleStatus: "Route needs refreshing after that context change.",
-    })).toBe("Route needs refreshing after that context change.");
   });
 });

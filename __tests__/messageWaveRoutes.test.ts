@@ -1,5 +1,6 @@
 // The messaging wave through its REAL doors: opening a group, leaving one,
-// sending each new attachment kind, and answering a poll.
+// sending each new attachment kind, answering a poll, unsending a message and
+// deleting a chat.
 //
 // The store's own rules are pinned in messageGroupThreads / messagePolls /
 // messageAttachmentKinds. What is pinned HERE is the part only a route can
@@ -42,8 +43,9 @@ vi.mock("@/lib/messagesBroadcast.server", () => ({
 
 import { POST as POST_INBOX, GET as GET_INBOX } from "@/app/api/messages/route";
 import { GET as GET_THREAD, POST as POST_THREAD } from "@/app/api/messages/[id]/route";
-import { GROUP_MEMBER_FLOOR_LINE } from "@/lib/messageGroupThread";
-import { __resetMemoryMessages } from "@/lib/messagesStore";
+import { GROUP_LEFT_LINE } from "@/lib/messageGroupThread";
+import { MESSAGE_UNSENT_LINE } from "@/lib/messageRemovals";
+import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 // Messaging asks the one adult gate, so every seeded account has answered it.
@@ -195,20 +197,39 @@ describe("a group thread carries every member on its signal", () => {
 });
 
 describe("leaving a group", () => {
-  it("lets a member out and refuses at the floor", async () => {
-    const opened = await openGroup(["sam", "jen", "ali"]);
+  it("lets any member out, even when two are left behind", async () => {
+    const opened = await openGroup(["sam", "jen"]);
     const { conversationId } = (await opened.json()) as { conversationId: string };
 
-    asUser("user-ali");
-    const left = await postThread(conversationId, { action: "leave", handle: "ali" });
-    expect(left.status).toBe(200);
-    // The way in is gone; the words stay.
-    expect((await getThread(conversationId, "ali")).status).toBe(404);
-
     asUser("user-jen");
-    const floored = await postThread(conversationId, { action: "leave", handle: "jen" });
-    expect(floored.status).toBe(409);
-    expect(((await floored.json()) as { error: string }).error).toBe(GROUP_MEMBER_FLOOR_LINE);
+    const left = await postThread(conversationId, { action: "leave", handle: "jen" });
+    expect(left.status).toBe(200);
+    expect(((await left.json()) as { line: string }).line).toBe(GROUP_LEFT_LINE);
+    // The way in is gone; the words stay.
+    expect((await getThread(conversationId, "jen")).status).toBe(404);
+
+    asUser("user-ken");
+    const read = await getThread(conversationId, "ken");
+    expect(read.status).toBe(200);
+    const body = (await read.json()) as { conversation?: { members: string[] } };
+    expect(body.conversation?.members).toEqual(["ken", "sam"]);
+  });
+
+  it("answers a second leave the way it answered the first", async () => {
+    const opened = await openGroup(["sam", "jen"]);
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    asUser("user-jen");
+    expect((await postThread(conversationId, { action: "leave", handle: "jen" })).status).toBe(200);
+    expect((await postThread(conversationId, { action: "leave", handle: "jen" })).status).toBe(200);
+  });
+
+  it("refuses a stranger the way it refuses an unknown thread", async () => {
+    const opened = await openGroup(["sam", "jen"]);
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    __seedMemoryOwnedProfile("mallory", "user-mal"); void memoryAdultSelfAssertionStore.record("user-mal");
+    asUser("user-mal");
+    const res = await postThread(conversationId, { action: "leave", handle: "mallory" });
+    expect(res.status).toBe(404);
   });
 
   it("refuses to let anybody leave a DIRECT conversation", async () => {
@@ -217,6 +238,216 @@ describe("leaving a group", () => {
     const { conversationId } = (await opened.json()) as { conversationId: string };
     const res = await postThread(conversationId, { action: "leave", handle: "ken" });
     expect(res.status).toBe(404);
+  });
+});
+
+type ThreadMessage = {
+  id: string;
+  senderHandle: string;
+  body: string;
+  unsent?: boolean;
+  read: boolean;
+  attachment?: unknown;
+};
+
+async function readMessages(id: string, handle: string): Promise<ThreadMessage[]> {
+  asUser(`user-${handle}`);
+  const res = await getThread(id, handle);
+  expect(res.status).toBe(200);
+  return ((await res.json()) as { messages: ThreadMessage[] }).messages;
+}
+
+async function readInbox(handle: string): Promise<
+  Array<{ id: string; lastBody?: string; unread?: number }>
+> {
+  asUser(`user-${handle}`);
+  const res = await GET_INBOX(new Request(`${BASE}?handle=${handle}`));
+  return ((await res.json()) as {
+    conversations: Array<{ id: string; lastBody?: string; unread?: number }>;
+  }).conversations;
+}
+
+async function sendAs(id: string, handle: string, body: Record<string, unknown>): Promise<string> {
+  asUser(`user-${handle}`);
+  const res = await postThread(id, { action: "send", handle, ...body });
+  expect(res.status).toBe(201);
+  return ((await res.json()) as { message: { id: string } }).message.id;
+}
+
+describe("unsending a message", () => {
+  it("removes it for everyone and leaves one line in its place", async () => {
+    const opened = await openGroup(["sam", "jen"]);
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    await sendAs(conversationId, "sam", { body: "who's in?" });
+    const messageId = await sendAs(conversationId, "ken", { body: "meet at the Harp at 8" });
+    signals.sent = [];
+
+    asUser("user-ken");
+    const res = await postThread(conversationId, { action: "unsend", handle: "ken", messageId });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ unsent: true, messageId });
+
+    for (const reader of ["ken", "sam", "jen"]) {
+      const unsent = (await readMessages(conversationId, reader)).find((m) => m.id === messageId);
+      expect(unsent, reader).toMatchObject({ unsent: true, body: "", senderHandle: "ken" });
+      expect(unsent?.attachment, reader).toBeUndefined();
+    }
+    const row = (await readInbox("jen")).find((c) => c.id === conversationId);
+    expect(row?.lastBody).toBe(MESSAGE_UNSENT_LINE);
+    // Every open thread and inbox is told, so the words go from every screen.
+    expect(signals.sent.at(-1)?.handles.sort()).toEqual(["jen", "ken", "sam"]);
+  });
+
+  it("refuses anybody but the sender, with the answer an outsider gets", async () => {
+    const opened = await openGroup(["sam", "jen"]);
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    const messageId = await sendAs(conversationId, "ken", { body: "first round's mine" });
+
+    asUser("user-sam");
+    const theirs = await postThread(conversationId, { action: "unsend", handle: "sam", messageId });
+    expect(theirs.status).toBe(404);
+
+    __seedMemoryOwnedProfile("mallory", "user-mal"); void memoryAdultSelfAssertionStore.record("user-mal");
+    asUser("user-mal");
+    const stranger = await postThread(conversationId, {
+      action: "unsend",
+      handle: "mallory",
+      messageId,
+    });
+    expect(stranger.status).toBe(404);
+
+    asUser("user-ken");
+    const unknown = await postThread(conversationId, {
+      action: "unsend",
+      handle: "ken",
+      messageId: "m999",
+    });
+    expect(unknown.status).toBe(404);
+
+    const kept = (await readMessages(conversationId, "sam")).find((m) => m.id === messageId);
+    expect(kept).toMatchObject({ body: "first round's mine" });
+    expect(kept?.unsent).toBeUndefined();
+  });
+
+  it("answers a second unsend the way it answered the first", async () => {
+    asUser("user-ken");
+    const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    const messageId = await sendAs(conversationId, "ken", { body: "oops" });
+    asUser("user-ken");
+    const first = await postThread(conversationId, { action: "unsend", handle: "ken", messageId });
+    const second = await postThread(conversationId, { action: "unsend", handle: "ken", messageId });
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+  });
+
+  it("takes a poll's ballot and every answer with it", async () => {
+    asUser("user-ken");
+    const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    const messageId = await sendAs(conversationId, "ken", {
+      body: "",
+      poll: { question: "Where first?", options: ["The Harp", "The Blackfriar"] },
+    });
+    asUser("user-sam");
+    await postThread(conversationId, { action: "vote", handle: "sam", messageId, optionIndex: 0 });
+
+    asUser("user-ken");
+    await postThread(conversationId, { action: "unsend", handle: "ken", messageId });
+
+    const read = await readMessages(conversationId, "sam");
+    expect(JSON.stringify(read)).not.toContain("The Harp");
+    asUser("user-sam");
+    const vote = await postThread(conversationId, {
+      action: "vote",
+      handle: "sam",
+      messageId,
+      optionIndex: 1,
+    });
+    expect(vote.status).toBe(404);
+  });
+
+  it("takes a write budget like every other write", async () => {
+    asUser("user-ken");
+    const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    const messageId = await sendAs(conversationId, "ken", { body: "oops" });
+    limitState.limited = true;
+    asUser("user-ken");
+    const res = await postThread(conversationId, { action: "unsend", handle: "ken", messageId });
+    expect(res.status).toBe(429);
+  });
+});
+
+async function openDirect(): Promise<string> {
+  asUser("user-ken");
+  const opened = await postInbox({ action: "open", handle: "ken", other: "sam" });
+  return ((await opened.json()) as { conversationId: string }).conversationId;
+}
+
+describe("deleting a chat", () => {
+  it("takes it out of the deleter's inbox and nobody else's", async () => {
+    const id = await openDirect();
+    await sendAs(id, "ken", { body: "pint?" });
+    await sendAs(id, "sam", { body: "go on then" });
+
+    asUser("user-ken");
+    const res = await postThread(id, { action: "delete", handle: "ken" });
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ deleted: true });
+
+    expect((await readInbox("ken")).map((c) => c.id)).not.toContain(id);
+    expect(await readMessages(id, "ken")).toEqual([]);
+    expect((await readInbox("sam")).map((c) => c.id)).toContain(id);
+    expect((await readMessages(id, "sam")).map((m) => m.body)).toEqual(["pint?", "go on then"]);
+  });
+
+  it("comes back with only what was said after the delete", async () => {
+    const id = await openDirect();
+    await sendAs(id, "sam", { body: "still on for tonight?" });
+    asUser("user-ken");
+    await postThread(id, { action: "delete", handle: "ken" });
+
+    await sendAs(id, "sam", { body: "hello?" });
+    const row = (await readInbox("ken")).find((c) => c.id === id);
+    expect(row).toMatchObject({ lastBody: "hello?", unread: 1 });
+    expect((await readMessages(id, "ken")).map((m) => m.body)).toEqual(["hello?"]);
+  });
+
+  it("clears a group for one member and keeps them in it", async () => {
+    const opened = await openGroup(["sam", "jen"], "Friday");
+    const { conversationId } = (await opened.json()) as { conversationId: string };
+    await sendAs(conversationId, "sam", { body: "who's in?" });
+
+    asUser("user-jen");
+    expect((await postThread(conversationId, { action: "delete", handle: "jen" })).status).toBe(200);
+    expect((await readInbox("jen")).map((c) => c.id)).not.toContain(conversationId);
+    expect((await readInbox("ken")).map((c) => c.id)).toContain(conversationId);
+
+    await sendAs(conversationId, "ken", { body: "me" });
+    expect((await readMessages(conversationId, "jen")).map((m) => m.body)).toEqual(["me"]);
+  });
+
+  it("refuses a stranger the way it refuses an unknown thread", async () => {
+    const id = await openDirect();
+    __seedMemoryOwnedProfile("mallory", "user-mal"); void memoryAdultSelfAssertionStore.record("user-mal");
+    asUser("user-mal");
+    expect((await postThread(id, { action: "delete", handle: "mallory" })).status).toBe(404);
+    expect((await postThread("c999", { action: "delete", handle: "mallory" })).status).toBe(404);
+  });
+
+  it("answers a second delete the way it answered the first", async () => {
+    const id = await openDirect();
+    asUser("user-ken");
+    expect((await postThread(id, { action: "delete", handle: "ken" })).status).toBe(200);
+    expect((await postThread(id, { action: "delete", handle: "ken" })).status).toBe(200);
+  });
+
+  it("takes a write budget like every other write", async () => {
+    const id = await openDirect();
+    limitState.limited = true;
+    asUser("user-ken");
+    expect((await postThread(id, { action: "delete", handle: "ken" })).status).toBe(429);
   });
 });
 
@@ -349,4 +580,38 @@ describe("the three new attachment kinds, through the send door", () => {
     expect(attachment).not.toContain("sam");
     expect(attachment).not.toContain("voter");
   });
+});
+
+it.each(["direct", "group"] as const)("marks only restored %s history as read for the deleter", async (kind) => {
+  const id = kind === "direct"
+    ? await openDirect()
+    : ((await (await openGroup(["sam", "jen"])).json()) as { conversationId: string }).conversationId;
+  await sendAs(id, "sam", { body: "before deletion" });
+  asUser("user-ken");
+  await postThread(id, { action: "delete", handle: "ken" });
+  await sendAs(id, "sam", { body: "after deletion" });
+  await readMessages(id, "ken");
+  const senderView = await readMessages(id, "sam");
+  expect(senderView.map((message) => ({ body: message.body, read: message.read }))).toEqual([
+    { body: "before deletion", read: false },
+    { body: "after deletion", read: true },
+  ]);
+});
+
+it("does not move a memory deletion mark backwards when the clock retreats", async () => {
+  vi.useFakeTimers();
+  try {
+    vi.setSystemTime(new Date("2030-01-01T19:00:00Z"));
+    const id = (await memoryMessagesStore.openConversation("ken", "sam"))!;
+    await memoryMessagesStore.send(id, "sam", "old");
+    vi.setSystemTime(new Date("2030-01-01T22:00:00Z"));
+    await memoryMessagesStore.deleteConversationForViewer(id, "ken");
+    vi.setSystemTime(new Date("2030-01-01T20:00:00Z"));
+    await memoryMessagesStore.deleteConversationForViewer(id, "ken");
+    vi.setSystemTime(new Date("2030-01-01T21:00:00Z"));
+    await memoryMessagesStore.send(id, "sam", "still before the original deletion");
+    await expect(memoryMessagesStore.listMessages(id, "ken")).resolves.toEqual([]);
+  } finally {
+    vi.useRealTimers();
+  }
 });

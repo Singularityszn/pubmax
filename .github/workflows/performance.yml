@@ -116,6 +116,9 @@ jobs:
           git rev-parse --verify "refs/remotes/origin/$BUDGET_BASE_BRANCH" >/dev/null
           node scripts/check-budget-ratchet.mjs "origin/$BUDGET_BASE_BRANCH"
 
+      - name: Restore Playwright's browsers
+        uses: ./.github/actions/pubmax-playwright-browsers
+
       # Chromium only: the budget is measured in one engine on purpose, so a run
       # is comparable to the one before it.
       - name: Install Chromium
@@ -228,6 +231,9 @@ jobs:
         run: |
           npm ci
           npm run deps:install-scripts
+
+      - name: Restore Playwright's browsers
+        uses: ./.github/actions/pubmax-playwright-browsers
 
       - name: Install Chromium
         run: npx playwright install --with-deps chromium

@@ -1,8 +1,14 @@
 "use client";
 
 import type { SocialCrewPublicPreviewDTO } from "@/lib/socialCrew";
+import ReportPerson from "@/components/social/ReportPerson";
 import { displayHandle } from "@/lib/handleDisplay";
 import { crewStartsCaption } from "@/lib/socialCrewsUi";
+import {
+  formatOpenCrawlShareSpendBand,
+  openCrawlShareAreaLine,
+  openCrawlSharePlacesLine,
+} from "@/lib/openCrawlShareCard";
 
 export type PublicCrewJoinState = "none" | "pending" | "declined";
 
@@ -20,6 +26,9 @@ export default function PublicCrewPreview({
   onAskToJoin: () => void;
 }) {
   const starts = crewStartsCaption(preview.startsAt);
+  const area = openCrawlShareAreaLine(preview.area);
+  const places = openCrawlSharePlacesLine(preview.placesLeft);
+  const band = preview.spendBand ? formatOpenCrawlShareSpendBand(preview.spendBand) : null;
   return (
     <>
       <header className="crewPage__head">
@@ -34,7 +43,13 @@ export default function PublicCrewPreview({
         <h2 id="public-crew-meeting-point" className="crews__title">
           Meet at
         </h2>
-        <p className="crews__note">{preview.meetingPoint.name}</p>
+        <p className="crews__note">
+          {preview.meetingPoint.name}
+          {area ? ` · ${area}` : null}
+        </p>
+        {places || band ? (
+          <p className="crews__muted">{[places, band].filter(Boolean).join(" · ")}</p>
+        ) : null}
       </section>
 
       {problem ? (
@@ -63,6 +78,7 @@ export default function PublicCrewPreview({
           </button>
         </section>
       )}
+      <ReportPerson handles={[preview.hostHandle]} />
     </>
   );
 }

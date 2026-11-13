@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
 
 import { BRAND_NAME } from "@/lib/brandNaming";
@@ -8,8 +9,10 @@ import { buildVenueClaims } from "@/lib/ledger";
 import { CITIES } from "@/lib/cities";
 import { cityIdFromVenueId, isNationalBaseVenueId } from "@/lib/cityVenueIds";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { redirectMergedVenueId } from "@/lib/venuePermalinkRedirect";
 import { getVenueIndex, venueMapUrl } from "@/lib/venueIndex";
 import { ledgerTitleName } from "@/lib/ledgerTitle";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { venueAreaLabel } from "@/lib/venueDisplay";
 import { type Venue } from "@/lib/venues";
 import JsonLd from "@/components/seo/JsonLd";
@@ -27,6 +30,8 @@ import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
+import { withZoneEstimate } from "@/lib/zonePriceEstimate";
+import { loadVenueZone, loadZonePintIndex } from "@/lib/zonePintIndex.server";
 import { ukPriceBundleRowsFor } from "@/lib/ukPriceBundle.server";
 import rawPriceUpdates from "@/public/data/price_updates/latest.json";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -58,8 +63,9 @@ type PageProps = {
   params: Promise<{ id: string }>;
 };
 
-// missing is the not-found card, and it may be held: the dataset only changes
-// on a deploy. A read we could not RUN is never held: the page throws, so ISR
+// missing is notFound(), a 404 that may be held: the dataset only changes on
+// a deploy (./not-found.tsx draws the card). A read we could not RUN is never
+// held: the page throws, so ISR
 // keeps the last good copy (or holds nothing) and the next request reads
 // again, and app/ledger/[id]/error.tsx draws the read-unavailable card.
 
@@ -79,7 +85,8 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   // The layout's template adds the brand to the document title. The share
   // card is not templated, so it keeps the branded form.
-  const title = `The Ledger: ${ledgerTitleName(venue, await getVenueIndex())}`;
+  const [index, bundledVenues] = await Promise.all([getVenueIndex(), getPricedVenues()]);
+  const title = `The Ledger: ${ledgerTitleName(venue, index, bundledVenues)}`;
   const cardTitle = `${title}. ${BRAND_NAME}`;
   const description = `The story of ${venue.name} in ${venueAreaLabel(venue)}. Heritage notes and the pub's logbook of visits, in large print.`;
   // Canonicalise onto the surviving canonical venue id (D1) so a merged/alias
@@ -160,38 +167,15 @@ function venueJsonLd(venue: Venue, listed: ListedBuilding | null) {
   };
 }
 
-function NotInTheLedger() {
-  return (
-    <main id="main" className="ledgerPage ledgerPage--empty">
-      <div className="ledgerEmptyCard">
-        <Link className="ledgerHomeLink" href="/">
-          PUBMAXX
-        </Link>
-        <p className="ledgerEyebrow">The Ledger</p>
-        <h1 className="ledgerEmptyTitle">This pub isn&rsquo;t in the ledger</h1>
-        <p className="ledgerEmptyBody">
-          It may have moved, or the link is wrong. Every mapped pub still has a home.
-        </p>
-        <Link prefetch={false} className="ledgerPrimaryLink" href="/map">
-          Back to the map
-        </Link>
-      </div>
-    </main>
-  );
-}
-
 export default async function LedgerPage({ params }: PageProps) {
   const { id } = await params;
   // Three answers, and the order is the rule: a read we could not run is
   // answered BEFORE the not-found card, or the card swallows it.
   const read = await lookupVenueDetail(id);
   if (read.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  if (read.status !== "found") return <NotInTheLedger />;
+  if (read.status !== "found") notFound();
   const { venue } = read;
-  // Everything below reads/links off the canonical venue id (D1) so a merged
-  // alias URL and the surviving canonical URL share the same logbook, Family
-  // Table, and ratings, never the raw route param, which may be a losing
-  // duplicate id.
+  redirectMergedVenueId("/ledger", id, venue.id);
   const canonicalId = venue.id;
 
   const curation = venue.curation;
@@ -219,7 +203,11 @@ export default async function LedgerPage({ params }: PageProps) {
   )[0]!;
   const bundleRead = await ukPriceBundleRowsFor(canonicalId);
   if (bundleRead.status === "unavailable") throw new Error(LEDGER_READ_UNAVAILABLE);
-  const bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  let bundle = bundlePricesForCategory(bundleRead.rows, BUNDLE_DEFAULT_CATEGORY);
+  if (isPubVenueKind(venue.kind)) {
+    const [zone, zoneIndex] = await Promise.all([loadVenueZone(canonicalId), loadZonePintIndex()]);
+    bundle = withZoneEstimate(bundle, zone, zoneIndex);
+  }
   const hasPubOrBarSchema = isPubVenueKind(venue.kind) || venue.kind === "bar";
 
   return (

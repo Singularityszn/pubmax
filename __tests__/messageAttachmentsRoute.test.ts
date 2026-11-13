@@ -238,6 +238,50 @@ beforeEach(() => {
 });
 
 describe("sending a photo", () => {
+  it("returns the committed photo when redundant upload cleanup throws", async () => {
+    const id = await openConversation();
+    const storage = deps();
+    const photo = await jpeg();
+    const post = { handle: "ken", body: "look at this", clientMessageId: crypto.randomUUID() };
+    const first = await postPhoto(id, photo, post);
+    expect(first.status).toBe(201);
+    const original = (await first.json()).message;
+    const remove = storage.remove.bind(storage);
+    storage.remove = async (paths) => {
+      if (paths.some((path) => !path.endsWith(".staging.jpg"))) throw new Error("cleanup unavailable");
+      await remove(paths);
+    };
+
+    const retry = await postPhoto(id, photo, post);
+    expect(retry.status).toBe(201);
+    expect((await retry.json()).message.id).toBe(original.id);
+    expect((await (await getThread(id, "ken")).json()).messages).toHaveLength(1);
+    expect((await getPhoto(id, original.id, "ken")).status).toBe(200);
+  });
+
+  it("returns the committed photo on retry and keeps deliberate sends distinct", async () => {
+    const id = await openConversation();
+    const storage = deps();
+    const photo = await jpeg();
+    const post = { handle: "ken", body: "look at this", clientMessageId: crypto.randomUUID() };
+
+    const first = await postPhoto(id, photo, post);
+    expect(first.status).toBe(201);
+    const original = (await first.json()).message;
+    const retry = await postPhoto(id, photo, post);
+    expect(retry.status).toBe(201);
+    expect((await retry.json()).message.id).toBe(original.id);
+    expect(storage.keys()).toEqual([messagePhotoServingKey(id, original.id)]);
+    expect((await getPhoto(id, original.id, "ken")).status).toBe(200);
+    expect((await (await getThread(id, "ken")).json()).messages).toHaveLength(1);
+
+    const next = await postPhoto(id, photo, { ...post, clientMessageId: crypto.randomUUID() });
+    expect(next.status).toBe(201);
+    expect((await next.json()).message.id).not.toBe(original.id);
+    expect((await (await getThread(id, "ken")).json()).messages).toHaveLength(2);
+    expect(storage.keys()).toHaveLength(2);
+  });
+
   it("takes a photo with no caption, keys it to the conversation, and strips EXIF", async () => {
     const id = await openConversation();
     const storage = deps();
@@ -363,6 +407,68 @@ describe("reading a photo", () => {
     const thread = await (await getThread(id, "ken")).json();
     expect(thread.messages[0].attachment).toBeUndefined();
     expect(thread.messages[0].flagged).toBe(true);
+  });
+});
+
+describe("unsending a photo", () => {
+  async function sendPhoto(id: string): Promise<{ messageId: string; storage: ReturnType<typeof memoryStorage> }> {
+    const storage = deps();
+    asUser("user-ken");
+    const res = await postPhoto(id, await jpeg(), { handle: "ken", body: "" });
+    const { message } = (await res.json()) as { message: { id: string } };
+    return { messageId: message.id, storage };
+  }
+
+  it("deletes the bytes, so nobody can open it again", async () => {
+    const id = await openConversation();
+    const { messageId, storage } = await sendPhoto(id);
+    expect(storage.keys()).toEqual([messagePhotoServingKey(id, messageId)]);
+
+    asUser("user-ken");
+    const res = await postJson(id, { action: "unsend", handle: "ken", messageId });
+    expect(res.status).toBe(200);
+
+    expect(storage.keys()).toEqual([]);
+    asUser("user-sam");
+    expect((await getPhoto(id, messageId, "sam")).status).toBe(404);
+    const thread = await (await getThread(id, "sam")).json();
+    expect(thread.messages[0]).toMatchObject({ id: messageId, unsent: true, body: "" });
+    expect(thread.messages[0].attachment).toBeUndefined();
+  });
+
+  it("keeps a reported photo for the moderator, and still takes it off the thread", async () => {
+    const id = await openConversation();
+    const { messageId, storage } = await sendPhoto(id);
+    asUser("user-sam");
+    await postJson(id, { action: "report", handle: "sam", messageId });
+
+    asUser("user-ken");
+    const res = await postJson(id, { action: "unsend", handle: "ken", messageId });
+    expect(res.status).toBe(200);
+
+    // The report is evidence. Unsending cannot be a way to destroy it.
+    expect(storage.keys()).toEqual([messagePhotoServingKey(id, messageId)]);
+    expect((await getPhoto(id, messageId, "ken")).status).toBe(404);
+    const thread = await (await getThread(id, "ken")).json();
+    expect(thread.messages[0]).toMatchObject({ id: messageId, unsent: true, body: "" });
+  });
+
+  it("keeps a reported message's words for the moderator, and shows nobody them", async () => {
+    const id = await openConversation();
+    asUser("user-ken");
+    const sent = await postJson(id, { action: "send", handle: "ken", body: "something nasty" });
+    const { message } = (await sent.json()) as { message: { id: string } };
+    asUser("user-sam");
+    await postJson(id, { action: "report", handle: "sam", messageId: message.id });
+    asUser("user-ken");
+    await postJson(id, { action: "unsend", handle: "ken", messageId: message.id });
+
+    for (const reader of ["ken", "sam"]) {
+      asUser(`user-${reader}`);
+      const thread = await (await getThread(id, reader)).json();
+      expect(JSON.stringify(thread), reader).not.toContain("something nasty");
+      expect(thread.messages[0]).toMatchObject({ unsent: true, body: "" });
+    }
   });
 });
 

@@ -140,7 +140,7 @@ export function createMemorySocialPostVideoStore(options: { now?: () => Date } =
     },
     async review(postId, decision) {
       const video = videos.get(postId);
-      if (!video) return false;
+      if (!video || video.reviewState !== "held") return false;
       video.reviewState = decision;
       return true;
     },

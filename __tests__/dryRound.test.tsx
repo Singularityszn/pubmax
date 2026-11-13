@@ -1,12 +1,8 @@
 // @vitest-environment jsdom
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
-import ts from "typescript";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -281,35 +277,16 @@ describe("the Dry round door on Tonight", () => {
   });
 });
 
-// THE NAME FENCE. Every word that names the dry round says "alcohol-free" or
-// "Dry round", never "0.0" and never "zero". It reads the copy a reader can
-// meet, string literals and JSX text through the AST, so a comment or an
-// identifier is not copy. A drink's own name from its source is not ours to
-// rename, which the ledger test above pins.
 const NAMING = /0\.0|\bzero\b/i;
 
-function copyIn(file: string): string[] {
-  const source = readFileSync(join(process.cwd(), file), "utf8");
-  const tree = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith(".tsx") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const copy: string[] = [];
-  const visit = (node: ts.Node) => {
-    if (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) return;
-    if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isTemplateHead(node)
-      || ts.isTemplateMiddle(node) || ts.isTemplateTail(node)) copy.push(node.text);
-    if (ts.isJsxText(node) && node.text.trim()) copy.push(node.text.trim());
-    ts.forEachChild(node, visit);
-  };
-  visit(tree);
-  return copy;
-}
-
 describe("the dry round is named in words", () => {
-  it("keeps 0.0 and zero out of every string its own files can show", () => {
-    for (const file of ["lib/dryRound.ts", "components/plan/PlanDryRoundLedger.tsx"]) {
-      const copy = copyIn(file);
-      expect(copy.length, `${file} has no copy to read`).toBeGreaterThan(3);
-      expect(copy.filter((text) => NAMING.test(text)), file).toEqual([]);
-    }
+  it("names the rendered ledger and price labels in words", () => {
+    const ledger = renderLedger();
+    expect(ledger.querySelector("h2")?.textContent).toBe("Your dry round");
+    expect([...ledger.querySelectorAll(".planDryRound__kind")].map((label) => label.textContent)).toEqual([
+      "Alcohol-free", "Pint", "Alcohol-free", "Pint",
+    ]);
+    expect(ledger.textContent).not.toMatch(NAMING);
   });
 
   it("says alcohol-free or Dry round in every line that names it", () => {

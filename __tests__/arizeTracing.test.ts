@@ -90,8 +90,8 @@ describe("Arize personal-data masking", () => {
     expect(maskPersonalData("anthropic/claude-sonnet-4-5")).toBe(
       "anthropic/claude-sonnet-4-5",
     );
-    expect(maskPersonalData("https://openrouter.ai/api/v1/chat/completions")).toBe(
-      "https://openrouter.ai/api/v1/chat/completions",
+    expect(maskPersonalData("https://api.anthropic.com/v1/messages")).toBe(
+      "https://api.anthropic.com/v1/messages",
     );
     expect(maskPersonalData("pint 4.50 in Camden")).toBe("pint 4.50 in Camden");
   });

@@ -118,7 +118,7 @@ export default async function TonightPage() {
     londonHuntPints,
   ] =
     await Promise.all([
-      getPricedVenues(),
+      getPricedVenues().catch(() => []),
       loadHistoricPubs(),
       loadMapSelectableVenueIds(),
       // The pubs Londoners keep recommending. Read here rather than in the browser:

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 
 import RouteThumbnail from "@/app/crawls/RouteThumbnail";
 import InvitePageView from "@/components/plan/InvitePageView";
@@ -20,6 +21,8 @@ import {
 } from "@/lib/shareArtifacts";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
+import { openCrawlCrewIdForPlan } from "@/lib/openCrawlInvite.server";
+import { crewPath, isCrewId } from "@/lib/socialCrewsUi";
 
 import "./invite.css";
 
@@ -36,11 +39,26 @@ import "./invite.css";
 // Scope: this page supports classic (non-Crew) Plans only. planStateResult
 // resolves a Crew-bound (Social-owned) plan as { plan: null } by design — the
 // same boundary other public-read surfaces already hold — so a Crew plan's
-// invite token reads as "not valid" rather than leaking that it exists.
+// invite token reads as "not valid" rather than leaking that it exists. The
+// one exception is a plan the host opened up ("Open it up"): its Open Crew is
+// public by choice, so the old invite link redirects to that crew's page
+// (lib/openCrawlInvite.server.ts) and a link the host already shared keeps
+// working.
 
 type PageProps = {
   params: Promise<{ token: string }>;
 };
+
+/**
+ * A Crew-bound plan whose crew is OPEN redirects to that crew's page; this call
+ * then never returns. Otherwise it answers whether the crew lookup could run.
+ */
+async function followOpenCrawl(planId: string): Promise<"unavailable" | "none"> {
+  const crew = await openCrawlCrewIdForPlan(planId);
+  if (!crew.ok) return "unavailable";
+  if (crew.crewId && isCrewId(crew.crewId)) redirect(crewPath(crew.crewId));
+  return "none";
+}
 
 type InviteStop = {
   venueId: string;
@@ -158,6 +176,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const stateResult = await planStateResult(planId);
   const state = stateResult.ok ? stateResult.plan : null;
+  if (stateResult.ok && !state) await followOpenCrawl(planId);
   if (!state) {
     return {
       title: "This invite link isn't valid",
@@ -236,7 +255,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
 
   const stateResult = await planStateResult(lookup.planId);
   if (!stateResult.ok) return <InviteUnavailable />;
-  if (!stateResult.plan) return <InviteNotFound />;
+  if (!stateResult.plan) {
+    return (await followOpenCrawl(lookup.planId)) === "unavailable" ? <InviteUnavailable /> : <InviteNotFound />;
+  }
 
   const state = stateResult.plan;
   const [stops, summaries] = await Promise.all([

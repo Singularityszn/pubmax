@@ -2,6 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
+vi.mock("next/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("next/server")>()),
+  after: vi.fn(),
+}));
+
 import type { PlanState } from "@/lib/plan";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { OPEN_PLAN_PLACE_REFUSED_LINE } from "@/lib/openSocialCrew";

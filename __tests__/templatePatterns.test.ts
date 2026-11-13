@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 //                          glyph excepted: it is the rating, not a bullet
 //   card-in-card           a card whose child is another card
 //   three-column-grid      repeat(3, ...) or 1fr 1fr 1fr of identical cells
-//   gamified-level         Level N, mastery points, XP
+//   gamified-level         XP, mastery points, "level up"
 //
 // CSS is read as text with comments stripped. TSX and TS are read through the
 // TypeScript AST: copy is a string literal, a template literal or JSX text,
@@ -290,7 +290,7 @@ const EMOJI_BULLET = /^\s*\p{Extended_Pictographic}/u;
 const RATING_GLYPH = /^[\s★☆]+$/u;
 // A dated copyright notice is legal copy, not a decorative bullet.
 const COPYRIGHT_NOTICE = /^\s*\u00a9\s+\d{4}\b/u;
-const GAMIFIED = /\bLevel\s+\d|^\s*Level\s*$|\bmastery points?\b|\bXP\b|\blevel up\b/i;
+const GAMIFIED = /\bmastery points?\b|\bXP\b|\blevel up\b/i;
 const NUMBERED_INDEX = /\b0\$?\{\s*(?:index|idx|i)\s*\+\s*1\s*\}/;
 
 export function sourceFindings(rel: string, raw: string): Finding[] {
@@ -387,7 +387,7 @@ describe("template-pattern ban (docs/VOICE.md)", () => {
       '    <div className="innerCard">',
       "      <p>Whether you're out or in, look no further.</p>",
       "      <p>🍺 Cheap pints</p>",
-      "      <span>Level {n}</span>",
+      "      <span>Earn XP {n}</span>",
       '      <span>{"01"}{"02"}{"03"}</span>',
       "    </div>",
       "  </div>",

@@ -40,8 +40,18 @@ const POSTGREST_MAX_ROWS = 1000;
 function rpcBuilder() {
   let from = 0;
   let to = Number.POSITIVE_INFINITY;
+  let handle: string | null = null;
   const chain: Record<string, unknown> = {};
   chain.order = () => chain;
+  chain.eq = (column: string, value: string) => {
+    if (column !== "handle") throw new Error(`Unexpected filter: ${column}`);
+    handle = value;
+    return chain;
+  };
+  chain.limit = (count: number) => {
+    to = count - 1;
+    return chain;
+  };
   chain.range = (start: number, end: number) => {
     from = start;
     to = end;
@@ -49,8 +59,11 @@ function rpcBuilder() {
   };
   chain.then = (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => {
     const { data, error } = fake.rpc;
-    const answer = Array.isArray(data)
-      ? { data: data.slice(from, Math.min(to + 1, from + POSTGREST_MAX_ROWS)), error }
+    const rows = Array.isArray(data) && handle !== null
+      ? data.filter((row) => row.handle === handle)
+      : data;
+    const answer = Array.isArray(rows)
+      ? { data: rows.slice(from, Math.min(to + 1, from + POSTGREST_MAX_ROWS)), error }
       : { data, error };
     return Promise.resolve(answer).then(resolve, reject);
   };
@@ -59,33 +72,35 @@ function rpcBuilder() {
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  const admin = {
+    rpc: () => {
+      fake.rpcCalls += 1;
+      return rpcBuilder();
+    },
+    from: (table: string) => builder(table),
+    auth: {
+      admin: {
+        listUsers: async () => {
+          fake.listUsersCalls += 1;
+          return { data: { users: [] }, error: null };
+        },
+        getUserById: async (id: string) => {
+          fake.getUserByIdCalls.push(id);
+          fake.authInFlight += 1;
+          fake.authMaxInFlight = Math.max(fake.authMaxInFlight, fake.authInFlight);
+          for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
+          fake.authInFlight -= 1;
+          if (fake.getUserByIdError) return { data: { user: null }, error: fake.getUserByIdError };
+          return { data: { user: { id, banned_until: fake.bans[id] ?? null } }, error: null };
+        },
+      },
+    },
+  };
   return {
     ...actual,
     isSupabaseConfigured: () => true,
-    getSupabaseAdmin: () => ({
-      rpc: () => {
-        fake.rpcCalls += 1;
-        return rpcBuilder();
-      },
-      from: (table: string) => builder(table),
-      auth: {
-        admin: {
-          listUsers: async () => {
-            fake.listUsersCalls += 1;
-            return { data: { users: [] }, error: null };
-          },
-          getUserById: async (id: string) => {
-            fake.getUserByIdCalls.push(id);
-            fake.authInFlight += 1;
-            fake.authMaxInFlight = Math.max(fake.authMaxInFlight, fake.authInFlight);
-            for (let tick = 0; tick < 5; tick += 1) await Promise.resolve();
-            fake.authInFlight -= 1;
-            if (fake.getUserByIdError) return { data: { user: null }, error: fake.getUserByIdError };
-            return { data: { user: { id, banned_until: fake.bans[id] ?? null } }, error: null };
-          },
-        },
-      },
-    }),
+    getSupabaseAdmin: () => admin,
+    requireSupabaseAdmin: () => admin,
   };
 });
 
@@ -100,6 +115,7 @@ import {
   __resetMemoryProfileWithdrawals,
   withdrawnHandles,
 } from "@/lib/accountPublicAccess.server";
+import { messageSuspendedRefusal } from "@/lib/messageSafety.server";
 
 const FUTURE = "2126-01-01T00:00:00.000Z";
 
@@ -243,5 +259,41 @@ describe("withdrawn set before migration 0157 is applied", () => {
 
     fake.tables.private_social_accounts = { data: [], error: null };
     await expect(withdrawnHandles(["karansdad"])).resolves.toEqual(new Set(["karansdad"]));
+  });
+});
+
+describe("message authorisation uses fresh withdrawal state", () => {
+  it.each(["alice", "nikhil_old"])("refuses %s immediately after suspension despite a cached active display", async (handle) => {
+    fake.rpc = { data: [], error: null };
+    expect(await withdrawnHandles([handle])).toEqual(new Set());
+    await expect(messageSuspendedRefusal(handle)).resolves.toBeNull();
+
+    fake.rpc.data = [{ profile_id: "profile-alice", handle }];
+    const refused = await messageSuspendedRefusal(handle);
+    expect(refused?.status).toBe(403);
+    expect(await refused?.json()).toMatchObject({ code: "ACCOUNT_SUSPENDED" });
+    expect(await withdrawnHandles([handle])).toEqual(new Set());
+  });
+
+  it("admits a send immediately after reinstatement despite a cached suspended display", async () => {
+    fake.rpc = { data: [{ profile_id: "profile-alice", handle: "alice" }], error: null };
+    expect(await withdrawnHandles(["alice"])).toEqual(new Set(["alice"]));
+    expect((await messageSuspendedRefusal("alice"))?.status).toBe(403);
+
+    fake.rpc.data = [{ profile_id: "profile-banned", handle: "karansdad" }];
+    await expect(messageSuspendedRefusal("ALICE")).resolves.toBeNull();
+    expect(await withdrawnHandles(["alice"])).toEqual(new Set(["alice"]));
+  });
+
+  it("refuses an unreadable fresh check despite a cached active display and recovers on the next read", async () => {
+    fake.rpc = { data: [], error: null };
+    expect(await withdrawnHandles(["alice"])).toEqual(new Set());
+    fake.rpc = { data: null, error: { message: "withdrawal read unavailable" } };
+    const unavailable = await messageSuspendedRefusal("alice");
+    expect(unavailable?.status).toBe(503);
+    expect(await unavailable?.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+
+    fake.rpc = { data: [], error: null };
+    await expect(messageSuspendedRefusal("alice")).resolves.toBeNull();
   });
 });

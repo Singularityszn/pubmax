@@ -1,6 +1,6 @@
 // The London pubs the NHLE listed-building join reads beyond the curated
-// dataset: every OpenStreetMap pub in the London box that no curated venue
-// owns, keyed by the `venue-uk-<osmRef>` id its base-layer sheet opens under
+// dataset: OpenStreetMap pubs in the London box that the published shards
+// retain and no curated venue owns, keyed by their `venue-uk-<osmRef>` ids
 // (lib/ukBasePubs.ts). A pub a curated venue owns is matched once, under the
 // curated id, so one building never carries two listings.
 //
@@ -42,11 +42,27 @@ export function baseRowOwners(shardBodies) {
 }
 
 /**
- * `{ id, name, lat, lng }` for every named London-box pub in the UK seed pack
- * (data/osm/uk/uk_osm_pubs.json) that carries no `curatedRef` and whose OSM
- * ref is not in `ownedBy` (the base layer's owners, see `baseRowOwners`).
+ * Every OSM ref ("n123") the published uk_base shard bodies draw. A seed pub
+ * missing from it has no pin, such as the way of a pub OSM maps twice, which
+ * the base layer merges into the node (scripts/lib/ukBaseOsmTwins.mjs).
  */
-export function londonBaseVenues(seedPubs, { box = LONDON_BOX, ownedBy = new Map() } = {}) {
+export function baseRowRefs(shardBodies) {
+  const refs = new Set();
+  for (const body of Array.isArray(shardBodies) ? shardBodies : []) {
+    for (const row of Array.isArray(body?.pubs) ? body.pubs : []) {
+      if (Array.isArray(row) && typeof row[0] === "string") refs.add(row[0]);
+    }
+  }
+  return refs;
+}
+
+/**
+ * `{ id, name, lat, lng }` for every named London-box pub in the UK seed pack
+ * (data/osm/uk/uk_osm_pubs.json) that carries no `curatedRef`, whose OSM ref
+ * is not in `ownedBy` (the base layer's owners, see `baseRowOwners`) and, when
+ * `drawn` is given, is in it (see `baseRowRefs`).
+ */
+export function londonBaseVenues(seedPubs, { box = LONDON_BOX, ownedBy = new Map(), drawn = null } = {}) {
   const venues = [];
   const seen = new Set();
   for (const pub of Array.isArray(seedPubs) ? seedPubs : []) {
@@ -56,7 +72,8 @@ export function londonBaseVenues(seedPubs, { box = LONDON_BOX, ownedBy = new Map
     if (!name || !Number.isFinite(lat) || !Number.isFinite(lng)) continue;
     if (lat < box.minLat || lat > box.maxLat || lng < box.minLng || lng > box.maxLng) continue;
     const id = baseVenueIdFor(pub.osmId);
-    if (!id || seen.has(id) || ownedBy.has(id.slice("venue-uk-".length))) continue;
+    const ref = id?.slice("venue-uk-".length);
+    if (!id || seen.has(id) || ownedBy.has(ref) || (drawn && !drawn.has(ref))) continue;
     seen.add(id);
     venues.push({ id, name, lat, lng });
   }

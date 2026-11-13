@@ -23,7 +23,7 @@ async function delayScripts(page: Page) {
 for (const control of [
   { path: "/plan", name: "Import a pub list", result: "Import a pub list" },
   { path: "/plan", name: "More pages", result: "More pages" },
-  { path: "/plan", name: "Open command palette", result: "Search & jump" },
+  { path: "/plan", name: "Open command palette ⌘K", result: "Search & jump" },
   { path: "/pal", name: "Meet your Pub Pal", result: "pal-setup" },
   { path: "/near", name: "Soho →", result: "near-patch" },
   { path: "/today", name: "Pick an area instead", result: "train-area" },
@@ -43,7 +43,7 @@ for (const control of [
         await expect(page.getByRole("menu", { name: control.result, exact: true })).toBeVisible();
       } else if (control.result === "pal-setup") {
         await expect(page.getByRole("checkbox", { name: /18 or over/ })).toBeVisible();
-      } else if (control.name === "Open command palette") {
+      } else if (control.name === "Open command palette ⌘K") {
         await expect(page.getByRole("dialog")).toBeVisible();
       } else if (control.result === "near-patch") {
         await expect(page.getByRole("heading", { name: "Cheapest listed around Soho" })).toBeVisible();

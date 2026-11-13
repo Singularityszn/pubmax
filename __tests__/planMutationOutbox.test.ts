@@ -168,6 +168,28 @@ describe("planMutationOutbox", () => {
     const results = await flushPlanMutationOutbox({ planId: "plan-1" });
     expect(results[0]?.outcome).toBe("conflict");
     expect(listPlanMutationOutbox("plan-1")[0]?.status).toBe("conflict");
+    expect(results[0]?.routeChanged).toBeUndefined();
+  });
+
+  it("carries a route-change conflict through to the night surface", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify({
+        error: "The route changed. Review the stops and try again.", code: "PLAN_ROUTE_CHANGED", retryable: false,
+      }), { status: 409 })),
+    );
+    await enqueueNightCrawlAction({
+      expectedRouteRevision: 1,
+      planId: "plan-1",
+      type: "arrived",
+      stop,
+      idempotencyKey: "key-route",
+      fingerprint: "fp-route",
+      previousCursor: 0,
+      optimisticCursor: 1,
+    });
+    const results = await flushPlanMutationOutbox({ planId: "plan-1" });
+    expect(results[0]).toMatchObject({ outcome: "conflict", routeChanged: true });
   });
 
   it("one tap sends one POST when notify re-enters flush during markEntry", async () => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import { ChevronDown, RefreshCw, Send } from "lucide-react";
 
@@ -23,19 +23,24 @@ import { isPricedWrite } from "@/lib/pintDropReceipt";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
-import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
+import PintDropMessage from "@/components/map/PintDropMessage";
 import { ComposerFields } from "@/components/map/composer/ComposerFields";
 import { ComposerPriceStep } from "@/components/map/composer/ComposerPriceStep";
 import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
 import { SpillDesktopCapture } from "@/components/map/composer/SpillDesktopCapture";
 import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
 import { SpillReceiptStep } from "@/components/map/composer/SpillReceiptStep";
+import { SpillStarField } from "@/components/map/composer/SpillStarField";
 import { useActiveRound } from "@/components/map/composer/useActiveRound";
 import { useIsMobileComposer } from "@/components/map/composer/useIsMobileComposer";
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { pintDropDoorHref } from "@/lib/landingHero";
+import {
+  readDeviceAccountSessionRevision,
+  subscribeDeviceAccountSession,
+} from "@/lib/deviceAccountIdentity";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -49,7 +54,16 @@ type PintDropComposerProps = {
   lastTrainDecision?: LastPintDecision | null;
 };
 
-export default function PintDropComposer({
+export default function PintDropComposer(props: PintDropComposerProps) {
+  const revision = useSyncExternalStore(
+    subscribeDeviceAccountSession,
+    readDeviceAccountSessionRevision,
+    () => 0,
+  );
+  return <AccountPintDropComposer key={revision} {...props} />;
+}
+
+function AccountPintDropComposer({
   venueId,
   state,
   venueName,
@@ -67,6 +81,8 @@ export default function PintDropComposer({
     vibeTags,
     setVibeTags,
     toggleVibeTag,
+    rating,
+    setRating,
     visibility,
     setVisibility,
     pintPhoto,
@@ -256,6 +272,8 @@ export default function PintDropComposer({
         lastKnownPrice={lastKnownPrice}
       />
 
+      <SpillStarField rating={rating} setRating={setRating} />
+
       {/* THE BILL, under the price and never behind the disclosure, because it
           is evidence about this figure and nothing else. OPTIONAL since
           captain decision 9 (1 Nov 2026): Log it never waits for it, and its
@@ -298,7 +316,7 @@ export default function PintDropComposer({
             Sign in to post
           </Link>
         ) : (
-          <button type="submit" disabled={submitting || !author.canSubmit || !hasSubmissionEvidence}>
+          <button type="submit" disabled={submitting || Boolean(dropMsg?.retry) || !author.canSubmit || !hasSubmissionEvidence}>
             <Send size={14} /> {submitting ? SPILL_LOG_ACTION_BUSY_LABEL : SPILL_LOG_ACTION_LABEL}
           </button>
         )}
@@ -315,22 +333,7 @@ export default function PintDropComposer({
           </button>
         ) : null}
         {dropMsg ? (
-          <span
-            role={dropMsg.ok ? "status" : "alert"}
-            className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
-          >
-            {dropMsg.text}
-            <PintDropAgeRecovery recovery={dropMsg.ageRecovery} onAsserted={state.ageAsserted} />
-            {dropMsg.links && dropMsg.links.length > 0 ? (
-              <span className="composerMsgLinks">
-                {dropMsg.links.map((link) => (
-                  <Link key={link.href} href={link.href} className="composerMsgLink">
-                    {link.label}
-                  </Link>
-                ))}
-              </span>
-            ) : null}
-          </span>
+          <PintDropMessage msg={dropMsg} onAgeAsserted={state.ageAsserted} />
         ) : null}
       </div>
 

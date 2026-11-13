@@ -84,7 +84,7 @@ export async function readLedgerLog(
     handle: trust.drop.handle,
     state: trust.state,
     split: trust.split,
-    // A typed price with no bill is named as such on the record (decision 9).
+    // Keep the record's wording consistent with the server-owned evidence.
     ...(isUncheckedPrice(trust.drop) ? { unchecked: true as const } : {}),
   } : null;
   // The Family Table (issue #27): LEGACY drops, read via the ledger-only

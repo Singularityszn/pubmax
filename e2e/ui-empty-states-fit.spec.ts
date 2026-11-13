@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -37,7 +38,7 @@ test.describe("UI empty states and layout fit", () => {
     const venueResponse = await request.get("/data/venues_slim.json");
     const venues = (
       (await venueResponse.json()) as { rows: Array<{ id: string; name: string }> }
-    ).rows.slice(0, 3);
+    ).rows.filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
     const createdResponse = await request.post("/api/plans", {
       headers: { "idempotency-key": randomUUID() },
       data: {
@@ -92,7 +93,7 @@ test.describe("UI empty states and layout fit", () => {
     const venueResponse = await request.get("/data/venues_slim.json");
     const venues = (
       (await venueResponse.json()) as { rows: Array<{ id: string; name: string }> }
-    ).rows.slice(0, 2);
+    ).rows.filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 2);
     const createdResponse = await request.post("/api/plans", {
       headers: { "idempotency-key": randomUUID() },
       data: {

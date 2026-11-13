@@ -42,6 +42,30 @@ afterEach(() => {
 });
 
 describe("authedFetch (Wave I2)", () => {
+  it("sends an explicit seat capability without reading account credentials", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const controller = new AbortController();
+    await authedFetch("/api/plans/seat/live-location", {
+      signal: controller.signal,
+      headers: { authorization: "Bearer unrelated-account" },
+    }, { requiresIdentity: false, bearerCapability: "plan-seat" });
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer plan-seat");
+    expect(getAccessToken).not.toHaveBeenCalled();
+    controller.abort();
+    expect(init.signal?.aborted).toBe(true);
+  });
+
+  it("removes account credentials from public requests without a capability", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    await authedFetch("/api/public", {
+      headers: { authorization: "Bearer unrelated-account" },
+    }, { requiresIdentity: false });
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBeNull();
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
   it("attaches Authorization Bearer when a token is available", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     await authedFetch("/api/messages?handle=ken", {}, { requiresIdentity: true });

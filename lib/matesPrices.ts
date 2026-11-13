@@ -9,6 +9,7 @@
 import {
   cleanDrinkMeasure,
   cleanDrinkMeasureLabel,
+  DRINK_MEASURE_LABEL,
   measureNamedInDrinkText,
   type DrinkMeasure,
 } from "@/lib/drinkMeasure";
@@ -64,20 +65,23 @@ export function matesPriceDay(loggedAt: string, now: Date = new Date()): string 
 }
 
 /**
- * What the price bought, in the words the mate logged it with. A drink that
- * already names its measure ("Half of lager") reads as written; a half or a
- * named measure is said beside the drink, and a pint is the default nobody
- * says out loud.
+ * Wine, bottle and spirit labels must name the recorded measure, even when
+ * the drink text names a different serving. A generic word such as "small"
+ * cannot replace a recorded volume. A pint is the implicit default.
  */
 export function matesPriceDrink(price: Pick<MatesPrice, "drink" | "measure" | "measureLabel">): string {
   const drink = price.drink.replace(/\s+/g, " ").trim();
   const measure = cleanDrinkMeasure(price.measure);
   const label = cleanDrinkMeasureLabel(price.measureLabel).toLowerCase();
-  if (drink && measureNamedInDrinkText(drink)) return drink;
+  if (drink && (measure === "pint" || measure === "half" || measure === "other") && measureNamedInDrinkText(drink)) return drink;
   if (measure === "half") return drink ? `a half of ${drink}` : "a half";
   if (measure === "other") {
     if (drink) return label ? `${drink} (${label})` : drink;
     return label ? `a ${label}` : "a drink";
   }
-  return drink || "a pint";
+  if (measure === "pint") return drink || "a pint";
+  const named = DRINK_MEASURE_LABEL[measure].toLowerCase();
+  if (drink && new RegExp(`\\b${measure.replace("ml", "\\s*ml")}\\b`, "i").test(drink)) return drink;
+  if (drink) return `${drink} (${named})`;
+  return /ml$/.test(measure) ? `a ${named} glass` : `a ${named}`;
 }

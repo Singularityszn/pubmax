@@ -3,7 +3,7 @@
 //
 // FOUR STANDINGS, AND THE GAP BETWEEN TWO OF THEM IS THE WHOLE POINT. A
 // `listed` price was published by a public source and carries the URL and
-// the day it was read. An `estimate` was MODELLED here and was never published
+// its observation date. An `estimate` was MODELLED here and was never published
 // by anybody, so it may never be printed as a bare figure: it says "est. £X",
 // it carries the basis it was modelled from, and it links to the method. A
 // surface that formats a standing's price itself can drop that "est.", which is
@@ -59,7 +59,7 @@ export type ConfirmedPriceInput = {
   observedAt: string;
 };
 
-/** A publicly listed price, with its source link and the day that source was read. */
+/** A publicly listed price with its source link and observation date, including a publisher-dated price record. */
 export type ListedPriceInput = {
   priceGbp: number;
   sourceUrl: string;

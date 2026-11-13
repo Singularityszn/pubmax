@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
+import { JSDOM } from "jsdom";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -164,7 +165,10 @@ describe("the unnamed pub's sheet", () => {
     expect(html).toContain("unverifiedPubName");
     expect(html).toContain(">Pub</h2>");
     expect(html).toContain("We don’t know this pub’s name yet.");
-    expect(html).toContain("Be the first");
+    const sheet = JSDOM.fragment(html);
+    const priceInput = sheet.querySelector<HTMLInputElement>('input[inputmode="decimal"]');
+    expect(priceInput).not.toBeNull();
+    expect(priceInput?.disabled).toBe(false);
   });
 
   it("says nothing of the sort on a named pub", () => {

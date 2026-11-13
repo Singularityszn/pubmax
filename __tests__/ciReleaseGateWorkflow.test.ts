@@ -1,5 +1,6 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -13,100 +14,42 @@ const HEAP = "--max-old-space-size=6144";
 
 type WorkflowStep = { job: string; name: string; run: string; env: Record<string, string> };
 
-/**
- * The workflow's steps as GitHub reads them: which job, which step, what it
- * runs and what environment it declares.
- *
- * Counting matches of a string over the file cannot say WHICH step carries the
- * heap, so a heap moved off the merge-base build onto an unrelated step keeps
- * the count and loses the build.
- */
-function parseSteps(yaml: string): WorkflowStep[] {
-  const steps: WorkflowStep[] = [];
-  let job = "";
-  let step: WorkflowStep | null = null;
-  let block: { key: "run"; indent: number } | null = null;
-  let inEnv = false;
-  for (const line of yaml.split("\n")) {
-    const indent = line.length - line.trimStart().length;
-    const text = line.trim();
-
-    if (block && line.trim() !== "" && indent > block.indent) {
-      if (step) step.run = `${step.run}\n${text}`;
-      continue;
-    }
-    if (block) block = null;
-
-    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
-    if (jobHeader) {
-      job = defined(jobHeader[1]);
-      step = null;
-      inEnv = false;
-      continue;
-    }
-    if (/^\s*- /.test(line) && indent >= 4) {
-      step = { job, name: "", run: "", env: {} };
-      steps.push(step);
-      inEnv = false;
-    }
-    if (!step) continue;
-
-    const entry = /^\s*(?:- )?([A-Za-z0-9_-]+):\s?(.*)$/.exec(line);
-    if (!entry) continue;
-    const [, key, value] = entry;
-    if (inEnv && !["name", "run", "uses", "with", "if", "env", "id"].includes(defined(key))) {
-      step.env[defined(key)] = defined(value).replace(/^"|"$/g, "");
-      continue;
-    }
-    inEnv = key === "env";
-    if (key === "name") step.name = defined(value);
-    if (key === "run") {
-      step.run = value === ">-" || value === "|" ? "" : defined(value);
-      if (value === ">-" || value === "|") block = { key: "run", indent };
-    }
-  }
-  return steps;
-}
-
-/**
- * Each job's `needs` list, as GitHub reads it. A job with no needs starts on
- * its own. The scalar, flow and block forms all parse to the same list.
- */
-function parseJobNeeds(yaml: string): Record<string, string[]> {
-  const { jobs } = parse(yaml) as { jobs: Record<string, { needs?: string | string[] }> };
-  return Object.fromEntries(
-    Object.entries(jobs).map(([job, { needs }]) => [
-      job,
-      needs === undefined ? [] : Array.isArray(needs) ? needs : [needs],
-    ]),
+function parseSteps(source: string): WorkflowStep[] {
+  const { jobs } = parse(source) as {
+    jobs: Record<string, { steps?: { name?: string; run?: string; env?: Record<string, string> }[] }>;
+  };
+  return Object.entries(jobs).flatMap(([job, { steps = [] }]) =>
+    steps.map(({ name = "", run = "", env = {} }) => ({ job, name, run, env })),
   );
 }
 
-function jobAncestors(job: string, needs: Record<string, string[]>): Set<string> {
-  const seen = new Set<string>();
-  const walk = (name: string) => {
-    if (seen.has(name)) return;
-    seen.add(name);
-    for (const dep of needs[name] ?? []) walk(dep);
-  };
-  walk(job);
-  return seen;
+function parseJobNeeds(source: string): Record<string, string[]> {
+  const { jobs } = parse(source) as { jobs: Record<string, { needs?: string | string[] }> };
+  return Object.fromEntries(Object.entries(jobs).map(([id, { needs }]) =>
+    [id, needs === undefined ? [] : Array.isArray(needs) ? needs : [needs]],
+  ));
 }
 
-/** Each job's own wall, in minutes, as GitHub reads it. */
-function parseJobWalls(yaml: string): Record<string, number> {
-  const walls: Record<string, number> = {};
-  let job = "";
-  for (const line of yaml.split("\n")) {
-    const jobHeader = /^ {2}([A-Za-z0-9_-]+):$/.exec(line);
-    if (jobHeader) {
-      job = defined(jobHeader[1]);
-      continue;
-    }
-    const wall = /^ {4}timeout-minutes: (\d+)$/.exec(line);
-    if (wall && job) walls[job] = Number(wall[1]);
+function parseJobWalls(source: string): Record<string, number> {
+  const { jobs } = parse(source) as { jobs: Record<string, { "timeout-minutes": number }> };
+  return Object.fromEntries(Object.entries(jobs).map(([id, job]) => [id, job["timeout-minutes"]]));
+}
+
+function runStepOutput(run: string, outputVariable: string): Record<string, string> {
+  const scratch = mkdtempSync(join(tmpdir(), "pubmax-release-workflow-"));
+  const output = join(scratch, "output");
+  try {
+    writeFileSync(output, "");
+    execFileSync("bash", ["-e", "-c", run], {
+      env: { ...process.env, [outputVariable]: output },
+    });
+    return Object.fromEntries(readFileSync(output, "utf8").trim().split("\n").map((line) => {
+      const equals = line.indexOf("=");
+      return [line.slice(0, equals), line.slice(equals + 1)];
+    }));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
   }
-  return walls;
 }
 
 describe("clean-main CI release gate", () => {
@@ -118,19 +61,16 @@ describe("clean-main CI release gate", () => {
   const steps = [...parseSteps(workflow), ...parseSteps(performanceWorkflow)];
 
   it("runs a dedicated production build", () => {
-    expect(workflow).toContain("name: Production build");
-    expect(workflow).toMatch(/production-build:[\s\S]*run: npm run build/);
+    const build = defined(ciJobs()["production-build"], "production-build job");
+    expect(build.name).toBe("Production build");
+    expect(jobStep(build, "Build").run?.trim()).toBe("npm run build");
   });
 
   it("does not persist the workflow token in build checkouts", () => {
-    const checkouts = workflow.match(/uses: actions\/checkout@[0-9a-f]{40} # v\S+/g) ?? [];
-    const protectedCheckouts =
-      workflow.match(
-        /uses: actions\/checkout@[0-9a-f]{40} # v\S+\n\s+with:\n\s+persist-credentials: false/g,
-      ) ?? [];
-
+    const checkouts = Object.values(ciJobs()).flatMap((job) => job.steps ?? [])
+      .filter((step) => step.uses?.startsWith("actions/checkout@"));
     expect(checkouts.length).toBeGreaterThan(0);
-    expect(protectedCheckouts).toHaveLength(checkouts.length);
+    for (const checkout of checkouts) expect(checkout.with?.["persist-credentials"]).toBe(false);
   });
 
   it("gives every step that builds or typechecks enough heap", () => {
@@ -167,22 +107,23 @@ describe("clean-main CI release gate", () => {
 
   it("records the job's start before anything can spend the wall", () => {
     const [first] = steps.filter((step) => step.job === "performance-budget");
-    expect(defined(first).run).toContain("PUBMAX_PERF_AB_JOB_STARTED_MS");
-    expect(defined(first).run).toContain("GITHUB_ENV");
+    const before = Math.floor(Date.now() / 1000) * 1000;
+    const output = runStepOutput(defined(first).run, "GITHUB_ENV");
+    const started = Number(output.PUBMAX_PERF_AB_JOB_STARTED_MS);
+    expect(started).toBeGreaterThanOrEqual(before);
+    expect(started).toBeLessThanOrEqual(Date.now());
   });
 
-  it("does not let the freshness calendar skip the build, unit shards or coverage", () => {
+  it("starts the build, unit shards, data validation and TypeScript 6 check on their own", () => {
     const needs = parseJobNeeds(workflow);
-    for (const job of ["production-build", "unit-tests", "coverage"]) {
-      expect(jobAncestors(job, needs).has("freshness"), job).toBe(false);
-    }
     // The build starts beside lint (captain, 2 Nov 2026): it reads nothing
     // lint makes, and waiting put the two end to end on the slowest chain.
     expect(needs["production-build"]).toEqual([]);
     expect(needs.coverage).toEqual(["unit-tests"]);
-    expect(needs.freshness).toEqual([]);
-    expect(needs["validate-data"]).toEqual([]);
-    expect(needs["typecheck-ts6"]).toEqual([]);
+    // The merge queue proof runs only on a main push, so on a pull request
+    // these jobs still start at once.
+    expect(needs["validate-data"]).toEqual(["queue-proof"]);
+    expect(needs["typecheck-ts6"]).toEqual(["queue-proof"]);
   });
 
   it("validates every bundled dataset in its own job", () => {
@@ -220,7 +161,10 @@ describe("clean-main CI release gate", () => {
     expect(String(restore.with?.key)).not.toContain("github.sha");
     const day = jobStep(build, "Name the build cache for today");
     expect(names.indexOf(day.name)).toBeLessThan(names.indexOf(restore.name));
-    expect(day.run).toContain("date -u +%Y-%m-%d");
+    const before = new Date().toISOString().slice(0, 10);
+    const output = runStepOutput(defined(day.run), "GITHUB_OUTPUT");
+    const after = new Date().toISOString().slice(0, 10);
+    expect([before, after]).toContain(output.day);
     expect(String(restore.with?.["restore-keys"])).toContain("hashFiles('package-lock.json')");
     expect(restore.if).toBe("steps.scope.outputs.scope == 'code'");
     expect(save.if).toBe(
@@ -277,20 +221,31 @@ describe("clean-main CI release gate", () => {
 
     // A Vercel dashboard variable reaches Vercel builds too, so the skip is
     // refused on Vercel and a deploy build always type-checks.
-    const nextConfig = readFileSync(join(process.cwd(), "next.config.mjs"), "utf8");
-    expect(nextConfig).toContain(
-      'ignoreBuildErrors: process.env.PUBMAX_CI_SKIP_BUILD_TYPECHECK === "1" && !process.env.VERCEL,',
-    );
+    for (const [skip, vercel, expected] of [
+      ["", "", false],
+      ["1", "", true],
+      ["", "1", false],
+      ["1", "1", false],
+    ] as const) {
+      const output = execFileSync(process.execPath, ["--input-type=module", "-e",
+        'import config from "./next.config.mjs"; console.log(JSON.stringify(config.typescript.ignoreBuildErrors));',
+      ], {
+        cwd: process.cwd(),
+        encoding: "utf8",
+        env: { ...process.env, PUBMAX_CI_SKIP_BUILD_TYPECHECK: skip, VERCEL: vercel },
+      });
+      expect(JSON.parse(output.trim()), `skip=${skip}, VERCEL=${vercel}`).toBe(expected);
+    }
   });
 
   it("starts the unit shards at once and in parallel", () => {
     // The shards build their own slim data and read nothing lint or the
     // production build make, so waiting on them only lengthens the path.
-    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual([]);
+    expect(parseJobNeeds(workflow)["unit-tests"]).toEqual(["queue-proof"]);
     expect(ciJobs()["unit-tests"]?.strategy?.["max-parallel"]).toBeUndefined();
   });
 
-  it("gates coverage on the merged shards and freshness independently", () => {
+  it("gates coverage on the merged shards", () => {
     // Each of the three shards (captain, 2 Nov 2026) collects coverage for
     // its third and writes a blob. A third cannot meet the whole-suite
     // thresholds, so a shard turns them off and the Coverage job enforces
@@ -314,7 +269,7 @@ describe("clean-main CI release gate", () => {
       expect(env.PUBMAX_RLS_NO_PG, `shard ${shard}`).toBe("1");
     }
 
-    // The Coverage name is the required check branch protection reads.
+    // The CI check needs Coverage by its job id; the name is what a reader sees.
     const coverage = defined(ciJobs().coverage, "coverage job");
     expect(coverage.name).toBe("Coverage");
     expect(jobStep(coverage, "Download coverage blobs").with?.path).toBe("blob-reports");
@@ -322,14 +277,5 @@ describe("clean-main CI release gate", () => {
     expect(merge).toEqual(["npx", "vitest", "--merge-reports=blob-reports", "--coverage"]);
     const coverageWords = (coverage.steps ?? []).flatMap((step) => step.run?.trim().split(/\s+/) ?? []);
     expect(coverageWords.filter((word) => word.startsWith("--coverage.thresholds"))).toEqual([]);
-    const freshness = defined(ciJobs().freshness, "freshness job");
-    expect(freshness.name).toBe("Freshness release gate");
-    const freshnessCommands = (freshness.steps ?? []).flatMap((step) =>
-      (step.run ?? "").split("\n").map((line) => line.trim()).filter(Boolean),
-    );
-    expect(freshnessCommands).toEqual([
-      "node scripts/check_freshness.mjs --artifacts-only",
-      "node scripts/check-production-store-freshness.mjs",
-    ]);
   });
 });

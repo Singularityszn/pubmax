@@ -15,6 +15,16 @@ export function venueMapUrl(id: string): Route {
 }
 
 /**
+ * "Ask this pub for a table" deep link: the browse link plus the crew size the
+ * reader named. The selected pub's action card reads and validates `table`
+ * against the form's own doors (lib/tableRequestIntent.ts), so an out-of-range
+ * value opens nothing; this builder stays a light leaf every surface can import.
+ */
+export function venueTableRequestUrl(id: string, partySize: number): Route {
+  return `${venueMapUrl(id)}&table=${partySize}` as Route;
+}
+
+/**
  * The four surfaces that can hand a pub off as an EXPLICIT acceptance (a pin tap
  * or a plain `?sel=` link is browse-only and never appears here — see §4.8).
  */

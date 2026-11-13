@@ -57,7 +57,8 @@ The seed and teardown refuse production Vercel environments. CI also refuses rem
 
 ## Disposable Plan recovery
 
-`npm run test:e2e:plan-auth` runs `e2e/plan-capability-recovery.spec.ts` against a temporary local Supabase project.
+`npm run test:e2e:plan-auth` runs Plan capability recovery and new-account logging cases against a temporary local Supabase project.
+The cases live in `e2e/plan-capability-recovery.spec.ts` and `e2e/log-intent-composer.spec.ts`.
 The runner requires Docker, the Supabase CLI, the project dependencies, and Playwright Chromium.
 `DOCKER_HOST` must name an existing local Unix socket with an absolute `unix://` path.
 Docker context and TLS overrides must be unset.
@@ -74,21 +75,27 @@ It creates local accounts with generated credentials and verifies their sessions
 It requires no existing account credentials or production data.
 The browser process uses the temporary project's keys.
 Its child environment blanks checkout environment-file variables before it sets local test values.
-The runner builds and serves the app in its own `.next-pubmax-auth-*` directory.
+The runner builds and serves the app in its own `.next-pubmax-auth-*` directory for the Plan journeys.
+The new-account journeys run on `next dev` in a separate directory.
+A production build starts email sign-in on pubmaxxing.com, and its CSP blocks a local GoTrue.
+They submit the real email form, read the link from the project's Mailpit catcher, and follow it.
 
-The spec covers these journeys:
+The specs cover these journeys:
 
 - A signed-in host restores a lost Plan cookie on page entry.
 - A signed-in host restores a lost Plan cookie after a mounted status action, then saves the status with another tap.
 - A signed-out browser sends no account recovery write after cookie loss.
+- A new account goes from the home page's "Log what you paid" to a public Pint Drop, through each login door.
 
 The mounted journey checks that recovery causes no document navigation.
 The signed-in journeys are skipped in the normal keyless suite.
 Shared keyless authentication doubles do not verify these account recovery paths.
 
-On exit, the runner stops its child processes and removes its local Supabase project without a backup.
-It removes the temporary configuration and build directories after their dependent processes stop.
-If backend cleanup fails, it reports the project and preserves its configuration directory for recovery.
+After its child processes stop, the runner calls `supabase stop --no-backup`.
+It then checks for leftover Docker containers, volumes, and networks, even when `supabase stop` succeeds.
+It removes only resources with the `supabase_` prefix and the exact `_<projectId>` suffix.
+If resources remain or Docker cleanup cannot be confirmed, the runner reports the project, exits unsuccessfully, and preserves its configuration directory for recovery.
+It removes build output after its child processes stop and configuration only after backend cleanup succeeds.
 Playwright results remain in `test-results/`.
 
 ## PostgreSQL test contention

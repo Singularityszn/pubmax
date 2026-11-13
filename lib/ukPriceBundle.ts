@@ -1,12 +1,8 @@
 // ONE BUNDLE, EVERY PRICE WE HOLD, AND EACH ROW SAYS WHAT IT IS WORTH.
 //
-// Prices reach this tree down several lanes: a drinker's Pint Drop, a chain's
-// own published menu, a first-party harvest of a pub's own site, and a figure
-// modelled here that nobody published at all. Each lane already has an owner,
-// and each owner already decides its own thing. What did not exist was ONE
-// place a reader could ask "what do we hold about this pub, and how good is
-// it", so a coverage question could only be answered by counting four files by
-// hand.
+// public/data/uk_prices/README.md owns the lane producers and row reference.
+// Each lane owns its reading rules. The bundle lets a reader ask what we hold
+// about one pub without combining the lane files itself.
 //
 // THE BUNDLE INVENTS NOTHING. Every row is a row one of those lanes already
 // produced, carried through with its own source URL and its own observation
@@ -54,6 +50,9 @@ export const UK_PRICE_BUNDLE_LANES = [
   "site-harvest",
   // The reviewed drink-price publish, public/data/drink_price_updates.
   "drink-price-update",
+  // A third party's price index read under its own registry exception
+  // (lib/harvest/sourceRegistry.ts, kind `price-listing`). Listed, never confirmed.
+  "listing-site",
   // Modelled here from lib/priceEstimate.ts. Never published by anybody.
   "estimate",
 ] as const;
@@ -101,8 +100,8 @@ export type UkPriceBundleRow = {
 };
 
 /**
- * These reviewed claims have a printed item that contradicts the assigned
- * category or insufficient evidence of a full pint. Keep the observations
+ * These reviewed claims have a category contradiction, insufficient evidence
+ * of a full pint, or a truncated price. Keep the observations
  * in site_harvest.jsonl for audit. Match the source and printed item as well
  * as category and price so other drinks on these menus still publish.
  */
@@ -116,17 +115,11 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.theguardhousewoolwich.co.uk/food-and-drink/", category: "cocktail", priceGbp: 8, drinkLabel: "Berry Hugo 0.0% Three Spirit Livener 0.0%, Watermelon, Elderflower, Soda 93kcal" },
   { sourceUrl: "https://georgeanddragonacton.co.uk/drinks-menu", category: "wine", priceGbp: 3, drinkLabel: "Frobishers Juice (250ml)" },
   { sourceUrl: "https://www.spreadeaglewandsworth.co.uk/food-drinks/", category: "wine", priceGbp: 5.4, drinkLabel: "Raspberry Elderflower, apple juice, Fever-Tree raspberry & orange blossom soda" },
-  { sourceUrl: "https://www.kingsarmsoxford.co.uk/food-drink/", category: "wine", priceGbp: 4.85, drinkLabel: ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.owlandpussycatshoreditch.com/food-drink/", category: "wine", priceGbp: 5.5, drinkLabel: "Elderflower & Raspberry Cooler Orange Blossom, Raspberry, Elderflower, and Soda" },
-  { sourceUrl: "https://www.windmillclapham.co.uk/food-drink/", category: "wine", priceGbp: 5.4, drinkLabel: ".40 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
-  { sourceUrl: "https://www.tellersarmsfarnham.co.uk/food-drinks/", category: "wine", priceGbp: 5.15, drinkLabel: ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
-  { sourceUrl: "https://www.groveexmouth.co.uk/food-drink/", category: "wine", priceGbp: 4.85, drinkLabel: ".85 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.whitehart-ford.com/food-drink/", category: "wine", priceGbp: 4.6, drinkLabel: "60 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88 kcal" },
   { sourceUrl: "https://www.almawandsworth.com/food-drink/", category: "wine", priceGbp: 5.4, drinkLabel: "Elderflower & Raspberry Orange blossom, elderflower, raspberry, soda / 88 Kcal" },
-  { sourceUrl: "https://www.thebullditchling.com/food-drink/", category: "wine", priceGbp: 5.15, drinkLabel: ".15 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", category: "wine", priceGbp: 4, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
   { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "wine", priceGbp: 4.45, drinkLabel: "om, Raspberry, Elderflower, Soda 88kcal Light & Sparkling (AF) Raspberry & Rose" },
-  { sourceUrl: "https://www.orangetreerichmond.co.uk/food-drink/", category: "wine", priceGbp: 5.35, drinkLabel: ".35 Elderflower & Raspberry Orange Blossom, Raspberry, Elderflower, Soda 88kcal" },
   { sourceUrl: "https://www.theprideofpaddington.co.uk/food-drink/", category: "wine", priceGbp: 3.95, drinkLabel: "50 Elderflower & Raspberry Cooler Orange Blossom, Raspbberry, Elderflower, Soda" },
   // Exa-found London sites, 2026-10-18. A spirit, a water and an energy drink
   // filed under a beer heading, and the half column of a "½ Pint Pint" pair the
@@ -184,7 +177,6 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "vodka", priceGbp: 7.4 },
   { sourceUrl: "https://imperialarmschislehurst.co.uk/wp-content/uploads/2026/03/TP251592-Imperial-Drinks-Menu-Final.pdf", category: "whisky", priceGbp: 7.4 },
   { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "alcohol-free", priceGbp: 8 },
-  { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "cocktail", priceGbp: 20, drinkLabel: `.50 Baked Camembert Youngs Sourdough, Caramelised Onion Chutney, Grapes 974Kcal` },
   { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "coffee", priceGbp: 6, drinkLabel: `Puddings Affogato Roasted arabica coffee (v) 111kcal` },
   { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "soft-drink", priceGbp: 4.5, drinkLabel: `While You Wait Mixed Pitted Olives 118Kcal` },
   { sourceUrl: "https://www.thegreyhoundhotel.com/food-drink/", category: "wine", priceGbp: 4.3, drinkLabel: `Corona Cero` },
@@ -203,7 +195,6 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "cocktail", priceGbp: 12, drinkLabel: `Bodegas Barbadillo, Sanlucar de Barrameda Jerez, Spain 2024 15%abv 100ml glass` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "gin", priceGbp: 14.5, drinkLabel: `50 Organic Matcha green tea, Salcolmbe Gin, Fever Tree tonic Classic Caiparinha` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "gin", priceGbp: 15.5, drinkLabel: `y Gin, elderflower, lemon juice, Fever Tree soda Matcha Green Tea Gin and Tonic` },
-  { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "whisky", priceGbp: 15, drinkLabel: `.50 Holladay Soft Red Wheat whiskey, brown sugar, Angostura bitters Tom Collins` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "whisky", priceGbp: 5.5, drinkLabel: `Brazil, Yellow Bourbon Single` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "whisky", priceGbp: 7.5, drinkLabel: `Double` },
   { sourceUrl: "https://www.thedysartpetersham.co.uk/wine-drink/", category: "whisky", priceGbp: 15, drinkLabel: `Sapling Vodka, Triple Sec, cranberry and fresh citrus Whisky, Botivo and Ginger` },
@@ -285,14 +276,35 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://venue5.com/banquet-hall-menu/", category: "soft-drink", priceGbp: 2.75, drinkLabel: `Soft Drinks Package ${String.fromCodePoint(0x2014)} Non-Veg Non-Veg Coke` },
   { sourceUrl: "https://venue5.com/banquet-hall-menu/", category: "soft-drink", priceGbp: 2.75, drinkLabel: "Water" },
   { sourceUrl: "https://www.northwestwardho.co.uk/menu", category: "beer", priceGbp: 2.1, drinkLabel: "1/3" },
+  // Whole-pound figures from readings that cut a printed "£X.Y" to £X. The
+  // live menu prints each only with pence, or no longer prints it at all.
+  { sourceUrl: "https://blacklionkilburn.co.uk/drink-menu/", category: "rum", priceGbp: 3 },
+  { sourceUrl: "https://blacklionkilburn.co.uk/drink-menu/", category: "whisky", priceGbp: 3, drinkLabel: "KENTUCKY STRAIGHT BOURBON BUSHMILL’S BLACK BUSH" },
+  { sourceUrl: "https://www.theprincealfred.com/food-drinks?menu=spritz", category: "cocktail", priceGbp: 9, drinkLabel: "t Blue Vodka, Montzi Passionfruit & Yuzu, Prosecco, Lemonade Amalfi Spritz (AF)" },
+  { sourceUrl: "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", category: "cocktail", priceGbp: 8 },
+  { sourceUrl: "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", category: "cocktail", priceGbp: 9, drinkLabel: "t Blue Vodka, Montzi Passionfruit & Yuzu, Prosecco, Lemonade Amalfi Spritz 0.0%" },
+  { sourceUrl: "https://www.thedukeofwellingtonpub.com/food-and-drinks?menu=spritz", category: "wine", priceGbp: 8, drinkLabel: "Plymouth Gin, Elderflower, Prosecco, Soda Berry Hugo 0.0%" },
+  { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "cocktail", priceGbp: 9, drinkLabel: "é, Burnt Faith Peach Liqueur, Fever-Tree Mediterannean Tonic Amalfi Spritz 0.0%" },
+  { sourceUrl: "https://www.cockandbottlew11.com/food-drink?menu=spritz-menu", category: "vodka", priceGbp: 11, drinkLabel: "erry & Hibiscus Vodka, Beesou Honey, Fever-Tree Blood Orange Soda White Sangria" },
+  { sourceUrl: "https://www.artichokeonthegreen.co.uk/drinks", category: "coffee", priceGbp: 3 },
+  { sourceUrl: "https://www.artichokeonthegreen.co.uk/drinks", category: "wine", priceGbp: 3 },
+  { sourceUrl: "https://www.thefeathers.co.uk/drinks", category: "coffee", priceGbp: 3 },
+  { sourceUrl: "https://www.thefeathers.co.uk/drinks", category: "wine", priceGbp: 3 },
 ];
+
+/**
+ * A leading decimal fragment can come from a legacy price split that also
+ * misassigns the drink. Preserve the ledger evidence rather than infer a price
+ * or drink from the fragment.
+ */
+const TRUNCATED_PRICE_LABEL = /^\.\d/;
 
 export function isCategoryQuarantined(row: UkPriceBundleRow): boolean {
   return row.lane === "site-harvest" && row.standing === "listed" &&
-    CATEGORY_QUARANTINE.some((item) =>
+    (TRUNCATED_PRICE_LABEL.test(row.drinkLabel ?? "") || CATEGORY_QUARANTINE.some((item) =>
       item.sourceUrl === row.sourceUrl && item.category === row.category &&
       item.priceGbp === row.priceGbp && item.drinkLabel === row.drinkLabel,
-    );
+    ));
 }
 
 function isNonEmptyString(value: unknown): value is string {

@@ -281,6 +281,7 @@ export type CommunityPriceStore = {
     id: string,
     hidden: boolean,
     note?: string,
+    expected?: { submittedAt: number; priceGbp: number; roundSource?: RoundPriceSource },
   ): Promise<ModerationStateResult>;
   /**
    * The moderation queue: reported and/or hidden observations of either shape,
@@ -314,7 +315,7 @@ export type ModerationStateResult =
   | {
       status: "ok";
       changed: boolean;
-      kind: ModerationObservationKind;
+      kind?: ModerationObservationKind;
     }
   | {
       status: "not-found" | "unavailable";
@@ -951,105 +952,115 @@ function priceContributionRecord(
   };
 }
 
+export function submitMemoryCommunityPrice(
+  input: CommunityPriceWrite,
+  now: number,
+  commitPair?: (price: CommunityPrice, previous: CommunityPrice | null) => CommunityPrice | null,
+): CommunityPriceWriteResult {
+  const key = normalize(input);
+  if (!key) return { price: null };
+  const roundSource = cleanRoundPriceSource(input.roundSource);
+  const stored: StoredPrice = {
+    ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
+    id: randomUUID(),
+    actor: input.actor ?? null,
+    contributorHandle: normalizeHandle(input.contributorHandle) || null,
+    roundSource,
+    hidden: false,
+    reportCount: 0,
+  };
+  const rows = venues.get(key.venueId) ?? [];
+  if (roundSource) {
+    if (!stored.actor) return { price: null };
+    const sourceStatus = roundPriceSourceStatus(
+      roundSource,
+      stored.actor,
+      stored.venueId,
+      stored.drinkCategory,
+    );
+    if (sourceStatus === "promoted") {
+      const owned = rows.find(
+        (row) =>
+          row.actor === stored.actor &&
+          row.drinkCategory === stored.drinkCategory &&
+          sameRoundPriceSource(row.roundSource, roundSource),
+      );
+      return owned
+        ? { price: published(owned), sourceBecameOwner: true }
+        : { price: null };
+    }
+    if (sourceStatus !== "ready") return { price: null };
+  }
+  // One live observation per (venue, category, actor): a contributor correcting
+  // its own entry replaces it rather than stacking a second row, so one
+  // person can't weight a venue's community price twice.
+  const isOwnEarlier = (row: StoredPrice) =>
+    row.drinkCategory === stored.drinkCategory &&
+    row.actor !== null &&
+    row.actor === stored.actor;
+  const replaced = rows.find(isOwnEarlier);
+  if (replaced && replaced.submittedAt > stored.submittedAt) {
+    const sourceBecameOwner = sameRoundPriceSource(
+      replaced.roundSource,
+      roundSource,
+    );
+    if (roundSource && stored.actor) {
+      if (sourceBecameOwner) {
+        markRoundPriceSourcePromoted(roundSource, stored.actor);
+      } else {
+        markRoundPriceSourceSuperseded(roundSource, stored.actor);
+      }
+    }
+    return {
+      price: published(replaced),
+      ...(roundSource ? { sourceBecameOwner } : {}),
+    };
+  }
+  const kept = rows.filter((row) => !isOwnEarlier(row));
+  // Moderation survives the correction. The durable backend's upsert writes
+  // only the price columns, so `hidden_at` and the report metadata stay put
+  // there; the memory backend has to carry them across deliberately, or a
+  // hidden submitter could wash their price simply by logging it again -
+  // and the two backends would disagree about whether that works.
+  if (replaced) {
+    stored.hidden = replaced.hidden;
+    stored.reportCount = replaced.reportCount;
+    stored.reportedAt = replaced.reportedAt;
+    stored.reportReason = replaced.reportReason;
+    stored.moderatorNote = replaced.moderatorNote;
+    stored.moderatedAt = replaced.moderatedAt;
+    stored.reporters = replaced.reporters;
+    // Keeping the id keeps a moderator's outstanding queue entry pointing at
+    // a row that still exists, exactly as the durable upsert does.
+    stored.id = replaced.id;
+  }
+  const replayPrice = commitPair?.(published(stored), replaced ? published(replaced) : null);
+  if (replayPrice) return { price: replayPrice };
+  if (
+    replaced?.roundSource &&
+    !sameRoundPriceSource(replaced.roundSource, roundSource) &&
+    replaced.actor
+  ) {
+    markRoundPriceSourceSuperseded(
+      replaced.roundSource,
+      replaced.actor,
+    );
+  }
+  kept.push(stored);
+  venues.set(key.venueId, kept);
+  if (roundSource && stored.actor) {
+    markRoundPriceSourcePromoted(roundSource, stored.actor);
+  }
+  evictIfNeeded();
+  return {
+    price: published(stored),
+    ...(roundSource ? { sourceBecameOwner: true } : {}),
+  };
+}
+
 export const memoryCommunityPriceStore: CommunityPriceStore = {
   async submit(input, now = Date.now()) {
-    const key = normalize(input);
-    if (!key) return { price: null };
-    const roundSource = cleanRoundPriceSource(input.roundSource);
-    const stored: StoredPrice = {
-      ...toPrice(key.venueId, key.drinkCategory, key.pennies, now),
-      id: randomUUID(),
-      actor: input.actor ?? null,
-      contributorHandle: normalizeHandle(input.contributorHandle) || null,
-      roundSource,
-      hidden: false,
-      reportCount: 0,
-    };
-    const rows = venues.get(key.venueId) ?? [];
-    if (roundSource) {
-      if (!stored.actor) return { price: null };
-      const sourceStatus = roundPriceSourceStatus(
-        roundSource,
-        stored.actor,
-        stored.venueId,
-        stored.drinkCategory,
-      );
-      if (sourceStatus === "promoted") {
-        const owned = rows.find(
-          (row) =>
-            row.actor === stored.actor &&
-            row.drinkCategory === stored.drinkCategory &&
-            sameRoundPriceSource(row.roundSource, roundSource),
-        );
-        return owned
-          ? { price: published(owned), sourceBecameOwner: true }
-          : { price: null };
-      }
-      if (sourceStatus !== "ready") return { price: null };
-    }
-    // One live observation per (venue, category, actor): a contributor correcting
-    // its own entry replaces it rather than stacking a second row, so one
-    // person can't weight a venue's community price twice.
-    const isOwnEarlier = (row: StoredPrice) =>
-      row.drinkCategory === stored.drinkCategory &&
-      row.actor !== null &&
-      row.actor === stored.actor;
-    const replaced = rows.find(isOwnEarlier);
-    if (replaced && replaced.submittedAt > stored.submittedAt) {
-      const sourceBecameOwner = sameRoundPriceSource(
-        replaced.roundSource,
-        roundSource,
-      );
-      if (roundSource && stored.actor) {
-        if (sourceBecameOwner) {
-          markRoundPriceSourcePromoted(roundSource, stored.actor);
-        } else {
-          markRoundPriceSourceSuperseded(roundSource, stored.actor);
-        }
-      }
-      return {
-        price: published(replaced),
-        ...(roundSource ? { sourceBecameOwner } : {}),
-      };
-    }
-    const kept = rows.filter((row) => !isOwnEarlier(row));
-    // Moderation survives the correction. The durable backend's upsert writes
-    // only the price columns, so `hidden_at` and the report metadata stay put
-    // there; the memory backend has to carry them across deliberately, or a
-    // hidden submitter could wash their price simply by logging it again -
-    // and the two backends would disagree about whether that works.
-    if (replaced) {
-      if (
-        replaced.roundSource &&
-        !sameRoundPriceSource(replaced.roundSource, roundSource) &&
-        replaced.actor
-      ) {
-        markRoundPriceSourceSuperseded(
-          replaced.roundSource,
-          replaced.actor,
-        );
-      }
-      stored.hidden = replaced.hidden;
-      stored.reportCount = replaced.reportCount;
-      stored.reportedAt = replaced.reportedAt;
-      stored.reportReason = replaced.reportReason;
-      stored.moderatorNote = replaced.moderatorNote;
-      stored.moderatedAt = replaced.moderatedAt;
-      stored.reporters = replaced.reporters;
-      // Keeping the id keeps a moderator's outstanding queue entry pointing at
-      // a row that still exists, exactly as the durable upsert does.
-      stored.id = replaced.id;
-    }
-    kept.push(stored);
-    venues.set(key.venueId, kept);
-    if (roundSource && stored.actor) {
-      markRoundPriceSourcePromoted(roundSource, stored.actor);
-    }
-    evictIfNeeded();
-    return {
-      price: published(stored),
-      ...(roundSource ? { sourceBecameOwner: true } : {}),
-    };
+    return submitMemoryCommunityPrice(input, now);
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1198,9 +1209,14 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
-  async moderateWithState(id, hidden, note) {
+  async moderateWithState(id, hidden, note, expected) {
     const row = findMemoryRow(id);
     if (!row) return { status: "not-found", changed: false };
+    if (expected !== undefined &&
+      (!("drinkCategory" in row) || row.submittedAt !== expected.submittedAt || row.priceGbp !== expected.priceGbp ||
+        (expected.roundSource ? !sameRoundPriceSource(row.roundSource, expected.roundSource) : row.roundSource !== null))) {
+      return { status: "ok", changed: false };
+    }
     const changed = row.hidden !== hidden;
     row.hidden = hidden;
     row.moderatedAt = nextModerationStamp();
@@ -1856,7 +1872,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async moderateWithState(id, hidden, note) {
+  async moderateWithState(id, hidden, note, expected) {
     if (!id) return { status: "not-found", changed: false };
     return guard<ModerationStateResult>({
       context: "moderate-with-state",
@@ -1865,7 +1881,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
       onError: () => ({ status: "unavailable", changed: false }),
       run: async () => {
         const cleaned = cleanReason(note);
-        const query = admin()
+        let query = admin()
           .from("community_prices")
           .update({
             hidden_at: hidden ? new Date().toISOString() : null,
@@ -1874,6 +1890,13 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           })
           .eq("id", id)
           .select("id, drink_category");
+        if (expected !== undefined) {
+          query = query.eq("submitted_at", new Date(expected.submittedAt).toISOString())
+            .eq("price_pennies", Math.round(expected.priceGbp * 100));
+          query = expected.roundSource
+            ? query.eq("round_spend_id", expected.roundSource.spendId).eq("round_line_index", expected.roundSource.lineIndex)
+            : query.is("round_spend_id", null).is("round_line_index", null);
+        }
         const { data, error } = hidden
           ? await query.is("hidden_at", null)
           : await query.not("hidden_at", "is", null);
@@ -1887,12 +1910,20 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
         }
         const { data: existing, error: lookupError } = await admin()
           .from("community_prices")
-          .select("id, drink_category")
+          .select("id, drink_category, submitted_at, price_pennies, round_spend_id, round_line_index")
           .eq("id", id)
           .limit(1);
         if (lookupError) throw new Error(lookupError.message);
         if (!Array.isArray(existing) || existing.length === 0) {
           return { status: "not-found", changed: false };
+        }
+        const row = existing[0];
+        if (!row) return { status: "not-found", changed: false };
+        if (expected && (Date.parse(row.submitted_at ?? "") !== expected.submittedAt ||
+          row.price_pennies !== Math.round(expected.priceGbp * 100) ||
+          (row.round_spend_id ?? null) !== (expected.roundSource?.spendId ?? null) ||
+          (row.round_line_index ?? null) !== (expected.roundSource?.lineIndex ?? null))) {
+          return { status: "ok", changed: false };
         }
         return {
           status: "ok",
@@ -2295,9 +2326,10 @@ export function moderateCommunityPriceWithState(
   id: string,
   hidden: boolean,
   note?: string,
+  expected?: { submittedAt: number; priceGbp: number; roundSource?: RoundPriceSource },
 ): Promise<ModerationStateResult> {
   return droppingCategoryIndexMemo(() =>
-    communityPriceStore().moderateWithState(id, hidden, note),
+    communityPriceStore().moderateWithState(id, hidden, note, expected),
   );
 }
 

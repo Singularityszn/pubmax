@@ -5,7 +5,10 @@ import { join } from "node:path";
 const state = vi.hoisted(() => ({ owner: "owner-a" as string | null, unavailable: false, inferred: false, limited: false, authReads: 0, memoryReads: 0 }));
 vi.mock("@/lib/authServer", () => ({ callerUserId: async () => { state.authReads += 1; return state.owner; } }));
 vi.mock("@/lib/supabase", async (original) => ({ ...await original<typeof import("@/lib/supabase")>(), isSupabaseConfigured: () => false }));
-vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: async () => null }));
+vi.mock("@/lib/palTaste.server", async (original) => ({
+  ...await original<typeof import("@/lib/palTaste.server")>(),
+  readPalTaste: async () => null,
+}));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: vi.fn(async () => state.limited) }));
 vi.mock("@/lib/pubPalStore", async (original) => {
   const actual = await original<typeof import("@/lib/pubPalStore")>();

@@ -14,7 +14,6 @@ import "server-only";
 
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { averagePriceGbp } from "@/lib/pintSavings";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
@@ -114,13 +113,11 @@ export function computeAboutStats(
 // concurrent first requests share one read instead of racing several.
 let cachedStats: Promise<AboutStats> | null = null;
 
-// The loader: reads the real bundled datasets (defensive — each source already
-// returns []/empty on failure, so a missing file degrades to zeroed stats
-// rather than crashing the page), once.
+// The loader: reads the real bundled datasets once. A failed price read
+// rejects rather than counting zero prices, and the rejection is not
+// remembered, so the next request reads again. A page that prints these
+// figures says they are unavailable instead.
 export function loadAboutStats(): Promise<AboutStats> {
-  // A rejection must not be remembered: every read below is already fail-soft,
-  // so a throw here means something unexpected, and the next request deserves a
-  // fresh attempt rather than a permanently poisoned figure.
   cachedStats ??= readAboutStats().catch((error) => {
     cachedStats = null;
     throw error;
@@ -140,42 +137,24 @@ export function resetAboutStatsForTests(): void {
 }
 
 async function readAboutStats(): Promise<AboutStats> {
-  const [historic, pricedVenues] = await Promise.all([
-    loadHistoricPubs(),
-    getPricedVenues(),
-  ]);
+  const [historic, rows] = await Promise.all([loadHistoricPubs(), loadPriceRows()]);
 
-  // getPricedVenues returns grouped Venue[]; re-read the raw rows for the
-  // observation-level counts (cheapest/dearest/average/price count). Reuse the
-  // same file path via a light read to keep this module the single source.
-  const rows = await loadPriceRows();
-
-  const stats = computeAboutStats(rows, {
+  return computeAboutStats(rows, {
     historicPubsCited: historic.length,
     citiesCovered: listEnabledCities().length,
   });
-
-  // If the raw read failed but the grouped venues loaded, fall back to the
-  // grouped count so "pubs tracked" is never wrongly zero.
-  if (stats.pubsTracked === 0 && pricedVenues.length > 0) {
-    return { ...stats, pubsTracked: pricedVenues.length };
-  }
-  return stats;
 }
 
 async function loadPriceRows(): Promise<VenuePrice[]> {
-  try {
-    const { promises: fs } = await import("fs");
-    const path = await import("path");
-    const file = path.join(
-      process.cwd(),
-      "public",
-      "data",
-      "pint_prices_app_dataset.json",
-    );
-    const parsed = JSON.parse(await fs.readFile(file, "utf8"));
-    return Array.isArray(parsed) ? (parsed as VenuePrice[]) : [];
-  } catch {
-    return [];
-  }
+  const { promises: fs } = await import("fs");
+  const path = await import("path");
+  const file = path.join(
+    process.cwd(),
+    "public",
+    "data",
+    "pint_prices_app_dataset.json",
+  );
+  const parsed: unknown = JSON.parse(await fs.readFile(file, "utf8"));
+  if (!Array.isArray(parsed)) throw new Error("pint_prices_app_dataset.json is not a list of price rows");
+  return parsed as VenuePrice[];
 }

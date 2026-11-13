@@ -21,6 +21,7 @@ import {
 } from "@/lib/foundingMembers";
 import { normalizeHandle, toPublicProfile, type PublicProfile } from "@/lib/profiles";
 import {
+  moderatorCoverPreviewPath,
   PROFILE_IMAGE_SLOTS,
   profileImageServePath,
   type ProfileImageSlot,
@@ -58,7 +59,7 @@ export type ModeratorProfileImage = {
   reportReason?: string;
   moderatedAt?: string;
   moderatorNote?: string;
-  /** Public serve path while the image is still approved; absent once hidden. */
+  /** Preview path while approved. Cover previews require moderator access and an undecided report. */
   previewUrl?: string;
 };
 
@@ -282,9 +283,9 @@ function withProfileImageState(
 }
 
 /**
- * Public served path for an approved owned image in one slot. Absent, pending,
- * flagged, or hidden images yield undefined so callers fall back to initials
- * (avatar) or the brass treatment (cover).
+ * Reader path for an approved owned image in one slot. The serve route checks
+ * access. Absent, pending, flagged, or hidden images yield undefined so callers
+ * fall back to initials (avatar) or the brass treatment (cover).
  */
 export function publicOwnedImageUrl(
   profile: ProfileRecord,
@@ -505,7 +506,7 @@ export type ProfileStore = {
     action: "hide" | "restore",
     note?: string,
   ): Promise<boolean>;
-  /** Reported, still-public owned images awaiting a moderator decision. */
+  /** Reported, approved owned images awaiting a moderator decision. */
   listReportedImages(
     slot: ProfileImageSlot,
     limit?: number,
@@ -696,7 +697,10 @@ function toModeratorImage(
 ): ModeratorProfileImage | null {
   const state = profileImageState(profile, slot);
   if (!state.generation || !state.moderationState || !state.objectKey) return null;
-  const previewUrl = publicOwnedImageUrl(profile, slot);
+  const previewUrl =
+    slot === "cover" && state.moderationState === "approved"
+      ? moderatorCoverPreviewPath(profile.id, state.generation)
+      : publicOwnedImageUrl(profile, slot);
   return {
     slot,
     handle: profile.handle,
@@ -712,7 +716,7 @@ function toModeratorImage(
   };
 }
 
-function isReportedImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
+export function isReportedImageQueueRow(profile: ProfileRecord, slot: ProfileImageSlot): boolean {
   const state = profileImageState(profile, slot);
   const reports = state.reportCount ?? state.reportActors?.length ?? 0;
   return (

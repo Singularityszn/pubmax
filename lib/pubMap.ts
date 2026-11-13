@@ -532,38 +532,6 @@ export function drinkFiltersActiveFor(input: {
   );
 }
 
-/**
- * The one overlay the phone shell is showing.
- *
- * The Drop picker, the venue sheet and the planner each own the surface
- * outright while they are up, so they answer ahead of whatever chip the reader
- * last opened.
- */
-export function coordinatedMapOverlay(input: {
-  logIntentFallbackVisible: boolean;
-  detailOpen: boolean;
-  planningOpen: boolean;
-  /**
-   * The landmark story is a surface the reader is ON, so it answers here like
-   * the venue and the planner do: it hides the phone's "Describe the outing"
-   * pill (which used to paint under the opaque story sheet) and it enters the
-   * Back trail, so a pub opened from the story has the story as its parent.
-   * A venue pick still retires the story on screen; the trail keeps it.
-   */
-  storyOpen?: boolean;
-  mapOverlay: MapOverlay;
-}): MapOverlay {
-  return input.logIntentFallbackVisible
-    ? "moment"
-    : input.detailOpen
-      ? "venue"
-      : input.planningOpen
-        ? "planner"
-        : input.storyOpen
-          ? "landmark"
-          : input.mapOverlay;
-}
-
 /** Where the reader IS, for the Back/Home trail. List view is a surface too. */
 export function mapSurfaceIdFor(
   coordinatedMobileOverlay: MapOverlay,
@@ -815,7 +783,6 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
   cityId: CityId;
   search: string;
   shouldOpenPlanningInitially: (
-    builtIds: string[],
     mode: MapSeed["mode"],
     search: string,
   ) => boolean;
@@ -841,7 +808,7 @@ export function restoredSessionFrame<NightAreaSlug extends string = string>(inpu
       !seed.selectedVenueId &&
       restoredSession?.openSheet !== "venue" &&
       (restoredSession?.openSheet === "planner" ||
-        input.shouldOpenPlanningInitially(seed.builtIds, seed.mode, search)),
+        input.shouldOpenPlanningInitially(seed.mode, search)),
   };
 }
 
@@ -1186,7 +1153,7 @@ export function peekPriceChip(
   // The chip carries the same state the Overview chip carries, read from the
   // signal rather than re-derived: the peek holds no confirmation of its own.
   const trust = trustChipStateFor(lane, pintTrust === "confirmed" ? "confirmed" : "none");
-  // A TYPED PRICE WITH NO BILL (captain decision 9) keeps its figure and loses
+  // An unchecked price (lib/pintDropReceipt.ts) keeps its figure and loses
   // its band: `priceGbp` is what the chip bands, so it is withheld exactly as
   // a split withholds it. The in-window one names its drinker as "not checked";
   // an aged one keeps the aged line, which already says it needs a drinker.
@@ -1228,7 +1195,7 @@ const PEEK_LANE_CAPTION: Record<
   anchor: "listed anchor price",
   contributor: "current recorded price",
   sourced: "sourced price on record",
-  listed: "listed by the pub",
+  listed: "published price",
   provisional: PROVISIONAL_PRICE_LINE,
   // Never reached: the split branch above answers before the table is asked,
   // because its caption names the pub's own figures. The key is here so the

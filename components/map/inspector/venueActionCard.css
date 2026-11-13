@@ -1,14 +1,13 @@
 /* THE VENUE SHEET'S ACTION CARD (VenueActionCard.tsx; launch plan 1 Nov 2026,
    section 5). One card at every width: the price with its date, the walk and
-   the ONE plan door on the first row, "Ask for a table" and Share under it.
+   the ONE coral door on the first row, "Ask for a table" and Share under it.
 
    On a phone it is the portal sheet's footer (a flex child below the scroll
    body), so it is always in view and sits above the safe area the portal
    already reserves. From 641px it is the sticky top of the drawer, under the
-   drawer's own head, so it stays in view while the Overview scrolls. Its plan
-   door is the sheet's one coral fill at every width; everything else on the
-   card is a ghost, and the Overview's price door is drawn in ink
-   (app/globals.css `.priceDoor`). */
+   drawer's own head, so it stays in view while the Overview scrolls. Primary
+   and secondary actions follow the action-card rule in
+   docs/rules/components-venue-plan-and-message-surfaces.md. */
 
 .venueActionCard {
   display: grid;
@@ -39,6 +38,97 @@
     flex: 0 0 auto;
     padding-inline: var(--control-pad-x);
   }
+}
+
+/* THREE GHOSTS SHARE ONE ROW BY SHARE GIVING UP ITS WORD. When the coral asks
+   for a price, the plan door joins the row as a ghost. On a phone the three
+   labels need more than the row, and a wrap would stack a lone ghost on a
+   third line of the footer. Share keeps its icon and its accessible name
+   ("Share <pub>") and drops the visible word, so the two longer labels keep
+   theirs. The query is in em, so it follows the reader's text size. */
+@container venue-actions (max-width: calc(22em + 96px)) {
+  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] {
+    flex: 0 0 auto;
+    min-width: var(--control-height);
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] > span {
+    display: none;
+  }
+}
+
+/* On the narrowest phones even that is too wide, and Share fell to a line of
+   its own. The two labels break between words instead, inside their own
+   ghosts, so the row stays one row. Their icons go: a wrapped label keeps the
+   width of the line it could not fill, which parked the icon far from the
+   words. */
+@container venue-actions (max-width: calc(18em + 60px)) {
+  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost {
+    padding-inline: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+    display: none;
+  }
+}
+
+/* A PUB ALSO OFFERS "SUMMON MATES", SO ITS ROW CARRIES ONE MORE GHOST.
+   Measured at 390px with 1x text: "Ask for a table", "Summon mates" and the
+   Share icon need about 340px of a 356px row, and Share's word would need 36px
+   more. The queries are in em plus the px of padding, icons and gaps, so they
+   follow the reader's text size. */
+@container venue-actions (max-width: calc(18em + 140px)) {
+  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] {
+    flex: 0 0 auto;
+    min-width: var(--control-height);
+  }
+
+  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] > span {
+    display: none;
+  }
+}
+
+/* Large text: the two labels break between words inside their own ghosts,
+   as the plan door's row does, so Share never falls to a line of its own. */
+@container venue-actions (max-width: calc(15em + 142px)) {
+  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost {
+    padding-inline: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+    display: none;
+  }
+}
+
+/* FOUR GHOSTS ARE TWO ROWS OF TWO. When the coral asks for a price, the plan
+   door joins a pub's row and four commands cannot share one line on a phone
+   or in the drawer. Each ghost takes half the wrapping row (the row's gap is
+   6px), so no ghost is left alone on a line and none reads as the primary.
+   Share has half a row here, so it keeps its word. */
+@container venue-actions (max-width: calc(25em + 190px)) {
+  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) > .venueSheetStickyGhost {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) [data-venue-share] > span {
+    display: inline;
+  }
+}
+
+/* A summon link's time, under the price row: ink, one line, no card. */
+.venueSummonArrival {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.3;
 }
 
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */

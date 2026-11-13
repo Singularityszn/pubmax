@@ -22,12 +22,6 @@ dist/
 !.env.example
 *.env
 *.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/before-recipes.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/after-recipes-first-attempt.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-config-failure.log
-!/docs/proof/skills-packages-2026-10-07/review-r5-r6/browser-cwd-failure.log
 *.tsbuildinfo
 scripts/__pycache__/
 .agents/skills/*/scripts/__pycache__/
@@ -40,7 +34,6 @@ test-results/
 playwright-report/
 evals/pal/scoreboard/
 evals/pal/memory/scoreboard/
-evals/askRouterModel/scoreboard/
 artifacts/
 .tmp-evidence/
 /coverage/
@@ -168,3 +161,9 @@ data/places_enrichment_uk_cities_extras.json.tmp
 *.dump
 *.dump.partial
 /pubmax-backups/
+
+# PR evidence (screenshots, proof sheets, videos, logs) goes on the PR, never
+# into the repository. __tests__/trackedBuildArtifacts.test.ts holds this.
+/docs/proof/
+/docs/screenshots/
+/docs/evidence/

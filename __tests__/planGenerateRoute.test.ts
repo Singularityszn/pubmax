@@ -26,7 +26,15 @@ import {
   verifyPlanGroundingProof,
   walkRouteStoreMock,
 } from "./helpers/planGenerateRoute";
+import { STALE_AFTER_DAYS } from "@/lib/priceConfidence";
+import { DAY_MS } from "@/lib/dayMs";
+import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
+import { groupVenuePrices } from "@/lib/venues";
+import dataset from "@/public/data/pint_prices_app_dataset.json";
 import type { LngLat } from "@/lib/walkRoute";
+import { buildPlanGenerationIntakeBody, createPlanIntakeDraft, planIntakeNightContextPatch, skipRemainingPlanIntake } from "@/lib/planIntake";
+import { mergeSubmittedNightContext, nightAreaFromPlanQuery, reconcileGeneratedNightContext, syncPlanIntakeAreaFromQuery } from "@/lib/planComposerChipFill";
+import { memoryPlanStore } from "@/lib/planStore";
 
 // POST /api/plans/generate: drink rates, pint ceilings, structured limits and
 // the end-to-end route contract.
@@ -34,9 +42,160 @@ import type { LngLat } from "@/lib/walkRoute";
 describe("POST /api/plans/generate", () => {
   installPlanGenerateRouteHooks();
 
+  async function westEndVenues() {
+    const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
+    const venues = await actual.loadConciergeVenues("london");
+    const named = (name: string) => {
+      const venue = venues.find((row) => row.name === name);
+      if (!venue) throw new Error(`missing ${name}`);
+      return venue;
+    };
+    return {
+      soho: ["The Dog & Duck", "Coach & Horses", "The Crown & Two Chairmen", "The Nellie Dean", "Shakespeares Head (Soho)"].map(named),
+      hercules: named("Hercules Pillars"),
+      threeCrowns: named("Three Crowns (Picaddilly)"),
+    };
+  }
+
+  async function generate(input: unknown) {
+    const response = await POST(new Request("http://localhost/api/plans/generate", { method: "POST", body: JSON.stringify(input) }));
+    return { status: response.status, body: await response.json() };
+  }
+
+  function offeredVenueIds(body: { stops: { venueId: string; alternatives: { venueId: string }[] }[]; endingRecommendations: { kind: string; options: { id: string }[] }[] }) {
+    const extensions = body.endingRecommendations.find((ending) => ending.kind === "keep_going")?.options ?? [];
+    return [...body.stops, ...body.stops.flatMap((stop) => stop.alternatives)].map(({ venueId }) => venueId)
+      .concat(extensions.map(({ id }) => id));
+  }
+
+  it.each([
+    { areaFocus: "soho", lat: 51.5136, lng: -0.1338 },
+    { areaFocus: "piccadilly", lat: 51.5101, lng: -0.1342 },
+    { areaFocus: null, lat: 51.511, lng: -0.134 },
+    { areaFocus: undefined, lat: 51.511, lng: -0.134 },
+  ])("measures candidate distance from the requested geography: %j", async ({ areaFocus, lat, lng }) => {
+    loadConciergeVenuesMock.mockResolvedValueOnce([generatedVenue("origin", { lat, lng })]);
+    const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify({ context: { nightArea: "piccadilly-soho", areaFocus } }),
+    }), PLAN_GENERATION_TEST_NOW);
+
+    if (!("prepared" in result)) throw new Error(JSON.stringify(await result.response.json()));
+    expect(result.prepared.candidates).toHaveLength(1);
+    expect(result.prepared.candidates[0]?.distance).toBe(0);
+  });
+
+  it.each([
+    { query: "Cheap pints in Soho for 3" },
+    { query: "Cheap pints in Soho for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { query: "Cheap pints in Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" } },
+    { context: { nightArea: "piccadilly-soho", areaFocus: "soho" }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+  ])("keeps a Soho request's stops, alternatives and extra stops in Soho: %j", async (input) => {
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+    const { status, body } = await generate(input);
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: "soho" });
+    expect(body.stops).toHaveLength(3);
+    for (const id of offeredVenueIds(body)) expect(soho.map(({ id }) => id)).toContain(id);
+
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), hercules, threeCrowns]);
+    const shortfall = await generate(input);
+    // The honest shortfall names Soho and never pads from the rest of the area.
+    expect(shortfall.status).toBe(422);
+    expect(["GROUNDED_VENUES_INSUFFICIENT", "GROUNDED_CONSTRAINTS_UNSATISFIED"]).toContain(shortfall.body.code);
+    expect(shortfall.body.details.availableVenueCount).toBe(2);
+    expect(JSON.stringify(shortfall.body)).toContain("Soho");
+    expect(JSON.stringify(shortfall.body)).not.toContain("Piccadilly");
+  });
+
+  it.each([
+    { query: "Cheap pints in Piccadilly for 3" },
+    { query: "Cheap pints in Piccadilly for 3", intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { query: "Cheap pints in Piccadilly & Soho for 3" },
+    { query: "Cheap pints in Piccadilly and Soho for 3", context: { nightArea: "piccadilly-soho", areaFocus: "soho" } },
+    { context: { nightArea: "piccadilly-soho", groupSize: 3 } },
+    { context: { nightArea: "piccadilly-soho", areaFocus: null }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+    { context: { nightArea: "piccadilly-soho", areaFocus: "piccadilly" }, intake: generationIntake({ area: { kind: "night-patch", id: "soho" }, groupSize: 3 }) },
+  ])("keeps Three Crowns for Piccadilly and whole-area requests: %j", async (input) => {
+    const { soho, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho.slice(0, 2), threeCrowns]);
+    const { status, body } = await generate(input);
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
+  });
+
+  it("keeps a Piccadilly request off Hercules Pillars", async () => {
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    loadConciergeVenuesMock.mockResolvedValueOnce([...soho, hercules, threeCrowns]);
+    const { status, body } = await generate({ query: "Cheap pints in Piccadilly for 3" });
+    expect(status, JSON.stringify(body)).toBe(200);
+    expect(body.inferredContext.areaFocus).toBe("piccadilly");
+    expect(offeredVenueIds(body)).not.toContain(hercules.id);
+  });
+
+  it.each([
+    { query: "", focus: "soho", wholeArea: false },
+    { query: "Cheap pints in Soho for 3", focus: "soho", wholeArea: false },
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly", wholeArea: false },
+    { query: "", focus: undefined, wholeArea: true },
+    { query: "Cheap pints for 3", focus: undefined, wholeArea: true },
+    { query: "Cheap pints in Soho for 3", focus: "soho", wholeArea: true },
+    { query: "Cheap pints in Piccadilly for 3", focus: "piccadilly", wholeArea: true },
+    { query: "Cheap pints in Piccadilly and Soho for 3", focus: undefined, wholeArea: true },
+  ])("keeps the selected Plan geography through lock and regeneration for $query (whole area: $wholeArea)", async ({ query, focus, wholeArea }) => {
+    const { planSummaryGenerationBody } = await import("@/components/plan/PlanSummary");
+    const { composerCreatePayload } = await import("@/components/plan/PlanComposer");
+    const { slidingDoorsGenerationBody } = await import("@/lib/slidingDoorsClient");
+    const { soho, hercules, threeCrowns } = await westEndVenues();
+    const allowed = focus === "soho" ? soho : [...soho.slice(0, 2), threeCrowns];
+    const candidates = focus === undefined ? allowed : [...allowed, hercules, ...(focus === "soho" ? [threeCrowns] : [])];
+    const draft = skipRemainingPlanIntake(wholeArea
+      ? syncPlanIntakeAreaFromQuery(createPlanIntakeDraft({ kind: "patch", id: "camden" }), "Piccadilly & Soho")
+      : createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    const submitted = mergeSubmittedNightContext(
+      { nightArea: "piccadilly-soho", areaFocus: wholeArea ? null : "soho" },
+      planIntakeNightContextPatch(draft),
+      nightAreaFromPlanQuery(query),
+    );
+    expect(submitted.areaFocus).toBe(wholeArea ? null : "soho");
+    const input = buildPlanGenerationIntakeBody(draft, query, null, submitted);
+    expect(input.context).toMatchObject({ nightArea: "piccadilly-soho", areaFocus: wholeArea ? null : "soho" });
+    loadConciergeVenuesMock.mockResolvedValueOnce(candidates);
+    const generated = await generate(input);
+    expect(generated.status, JSON.stringify(generated.body)).toBe(200);
+    expect(generated.body.inferredContext.areaFocus).toBe(focus);
+    for (const id of offeredVenueIds(generated.body)) expect(allowed.map(({ id }) => id)).toContain(id);
+    if (focus !== "soho") expect(generated.body.stops.map((stop: { venueId: string }) => stop.venueId)).toContain(threeCrowns.id);
+    const context = reconcileGeneratedNightContext(generated.body.inferredContext, submitted, generated.body.stops.length);
+    const created = await memoryPlanStore.create(composerCreatePayload({
+      title: "West End night",
+      creatorName: "Karan",
+      startTime: "2026-11-11T19:00:00.000Z",
+      stops: generated.body.stops,
+      context,
+    }));
+    if (!created.ok) throw new Error(created.error);
+    const locked = await memoryPlanStore.get(created.plan.plan.id);
+    if (!locked) throw new Error("Locked Plan was not stored");
+    expect(locked.context?.areaFocus).toBe(focus);
+
+    for (const body of [
+      planSummaryGenerationBody(locked),
+      slidingDoorsGenerationBody(locked, "shorter-walk"),
+      slidingDoorsGenerationBody(locked, "plot-twist"),
+    ]) {
+      loadConciergeVenuesMock.mockResolvedValueOnce(candidates);
+      const regenerated = await generate(body);
+      expect(regenerated.status, JSON.stringify(regenerated.body)).toBe(200);
+      expect(regenerated.body.inferredContext.areaFocus).toBe(focus);
+      for (const id of offeredVenueIds(regenerated.body)) expect(allowed.map(({ id }) => id)).toContain(id);
+    }
+  });
+
   it.each(drinkRatePhrases(5).flatMap(drinkRateInputs))(
     "enforces every accepted drink price through preparation and selection: %j", async ({ total, ...input }) => {
-      const now = Date.parse("2026-10-15T12:00:00Z");
+      const now = PLAN_GENERATION_TEST_NOW;
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
       try {
         const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
@@ -88,7 +247,7 @@ describe("POST /api/plans/generate", () => {
 
   it.each(drinkRatePhrases(1).flatMap(drinkRateInputs))(
     "refuses impossible drink prices through selection: %j", async ({ total, ...input }) => {
-      const now = Date.parse("2026-10-15T12:00:00Z");
+      const now = PLAN_GENERATION_TEST_NOW;
       const clock = vi.spyOn(Date, "now").mockReturnValue(now);
       try {
         loadConciergeVenuesMock.mockResolvedValueOnce(await cappedTestVenues());
@@ -243,7 +402,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, under£20 per person, pints under£6", foodNeeds: ["salad, pub route budget of£15", "pints under£5"], total: 1500 },
     { query: "3 pubs in Clapham, under£15 per person, pints under£5", foodNeeds: ["salad, pub route budget of£20", "pints under£6"], total: 1500 },
   ])("retains strictest structured limits on returned stops and alternatives: %j", async ({ query, foodNeeds, total }) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const actual = await vi.importActual<typeof import("@/lib/concierge/venues.server")>("@/lib/concierge/venues.server");
@@ -324,17 +483,39 @@ describe("POST /api/plans/generate", () => {
     expect(result).toHaveProperty("prepared");
   });
 
-  it("excludes stale canonical evidence from standalone pint-cap candidates", async () => {
+  it.each([
+    { query: "3 pubs in Clapham, maximum £5 per pint" },
+    { query: "3 pubs in Clapham", context: { foodNeeds: ["maximum £5 per pint"] } },
+  ])("excludes stale canonical evidence from standalone pint-cap candidates: %j", async (input) => {
+    const now = PLAN_GENERATION_TEST_NOW + (STALE_AFTER_DAYS + 1) * DAY_MS;
+    const staleUnderCap = new Set(groupVenuePrices(dataset).filter((venue) => {
+      return venue.cheapestPrice !== null && venue.cheapestPrice <= 5 && venue.prices.length > 0
+        && venue.prices.every((row) => {
+          const day = priceRowReadDay(row);
+          return day !== null && now - Date.parse(`${day}T12:00:00Z`) > STALE_AFTER_DAYS * DAY_MS;
+        });
+    }).map((venue) => venue.id));
+    expect(staleUnderCap.size).toBeGreaterThan(0);
+
+    const fresh = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST", body: JSON.stringify(input),
+    }), PLAN_GENERATION_TEST_NOW);
+    if (!("prepared" in fresh)) throw new Error("Expected fresh preparation before route selection");
+    expect(fresh.prepared.candidates.some(({ venue }) => staleUnderCap.has(venue.id))).toBe(true);
+
     const result = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
-      method: "POST", body: JSON.stringify({ query: "3 pubs in Clapham, maximum £5 per pint" }),
-    }), Date.parse("2026-10-15T12:00:00Z"));
+      method: "POST", body: JSON.stringify(input),
+    }), now);
     if (!("prepared" in result)) throw new Error("Expected preparation before route selection");
     expect(result.prepared.context.budgetLimitPence).toBeNull();
-    expect(result.prepared.candidates.map(({ venue }) => venue.name)).not.toContain("Junction (Clapham)");
+    expect(result.prepared.candidates.filter(({ venue }) => staleUnderCap.has(venue.id))).toEqual([]);
     const evidence = await planPriceEvidenceForVenues(result.prepared.candidates.map(({ venue }) => venue), result.prepared.requestNow);
     for (const candidate of result.prepared.candidates) {
-      expect(priceEvidenceUsableForCeiling(evidence.get(candidate.venue.id)!)).toBe(true);
-      expect(evidence.get(candidate.venue.id)!.pence).toBeLessThanOrEqual(500);
+      const price = evidence.get(candidate.venue.id)!;
+      expect(price.source).not.toBeNull();
+      expect(now - Date.parse(price.source!.observedAt)).toBeLessThanOrEqual(STALE_AFTER_DAYS * DAY_MS);
+      expect(price.pence).toBeGreaterThan(0);
+      expect(price.pence).toBeLessThanOrEqual(500);
     }
   });
 
@@ -342,7 +523,7 @@ describe("POST /api/plans/generate", () => {
     { query: "3 pubs in Clapham, maximum £5 per pint" },
     { query: "3 pubs in Clapham", context: { foodNeeds: ["maximum £5 per pint"] } },
   ])("keeps canonical pint ceilings on selected stops and alternatives: %j", async (input) => {
-    const now = Date.parse("2026-10-15T12:00:00Z");
+    const now = PLAN_GENERATION_TEST_NOW;
     const clock = vi.spyOn(Date, "now").mockReturnValue(now);
     try {
       const prepared = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {

@@ -5,7 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 // /compass at phone size. The location is Soho's night-patch centre and the
 // heading is a synthetic orientation event, so the spec drives the same
 // listeners a phone does without a sensor. Shots land in the gitignored
-// artifacts folder; the PR copies the ones it shows into docs/proof.
+// artifacts folder. Upload selected shots to the PR.
 
 const SOHO = { latitude: 51.5136, longitude: -0.1365 };
 const SHOTS = "artifacts/pint-compass";

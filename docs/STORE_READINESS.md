@@ -130,55 +130,10 @@ submission pack.
 
 ## 2. Description
 
-ONE body, taken by both stores. It used to be a short version and a long
-version, which is two originals and therefore two things to keep true. Apple
-does not index the description, so length costs nothing there; Google Play
-indexes it heavily, so length is the only place several target terms can
-honestly live. Both stores allow 4000 characters and this uses 2238.
-
-It lives in `lib/storeListing.ts`. The text below is a copy for pasting, and
-the module is what the test measures.
-
-> PUBMAXX tells you what a pint costs before you walk in.
->
-> You have left work. You want a decent pint that does not cost a fortune, somewhere close, without reading forty reviews first. PUBMAXX opens on the map, works out where you are, and puts the nearest pubs in front of you with the price we hold for each one. Ask for more than one and it lays out a crawl you can actually walk.
->
-> Find a pint
->
-> - The nearest London pubs, ranked by how far you actually have to walk.
-> - Pint prices with the day we last saw them, so you know how fresh the number is.
-> - Beer, wine, spirits, cocktails and no alcohol, each priced on its own.
-> - Opening hours, so you do not arrive at a locked door.
->
-> Log what you paid
->
-> - Paid for a pint? Log the price. That is where these numbers come from, and it is how the cheap ones get found.
-> - A price only moves the map once a second drinker confirms it, so one wrong figure cannot drag a pub up or down on its own.
-> - The Pint Index publishes what London is charging, month by month, with the day each price was seen.
->
-> Plan the night
->
-> - Say where, how many and what budget, and get a pub crawl back in order, with the walking kept honest.
-> - What is on tonight, from named sources, with the date we read them.
-> - The last train, so the night has an ending you chose.
->
-> Meet your Pub Pal
->
-> - A companion who helps you find a pub, sort a plan and keep the night. Pick its form and give it a name. It is yours and it stays on your account.
->
-> Straight answers on prices
->
-> Pubs change their prices and we are not standing at the bar. We show the best figure we have and when we last saw it. Treat it as a steer, not a promise.
->
-> Privacy
->
-> Full GPS precision stays on your phone. Ask for something nearby and the app sends a rounded point for that one request. Analytics stay off until you turn them on. There are no adverts, and nothing is sold on. A photo is public only where you post it: a pub wall and the feed are public by design, and a Moment stays on your phone until you publish it.
->
-> Where it works
->
-> Pubs across the UK are on the map. Pint prices are London for now, because a price is only worth showing once drinkers here have checked it. Other cities follow the same way.
->
-> PUBMAXX is free. You do not need an account to find a pint.
+Both stores use `STORE_LISTING_FIELDS.description` from
+[`lib/storeListing.ts`](../lib/storeListing.ts). Use that value for submission.
+`STORE_LISTING_LIMITS.description` owns the length limit.
+`__tests__/storeAssets.test.ts` checks that the description fits.
 
 ### What this pass changed, and why
 
@@ -277,7 +232,7 @@ itself must answer before submission: see section 8, "Before either store".
 | Does the app contain references to alcohol, tobacco, or drugs? | **Yes, references to alcohol** (finding and pricing alcoholic drinks is the core function) |
 | Promotes or facilitates the purchase of alcohol? | No (we do not sell or take orders) |
 | Gambling, violence, sexual content, language | No / None |
-| Does the app share the user's location with other users? | No |
+| Does the app share the user's location with other users? | **Yes.** Only when a member turns on live location for one night, and only with the current members of that Plan or Open Crew. |
 | Users interact / share content? | **Yes.** Social, Messages, Visit Reports, community prices, venue reports, recommendations and public Moments can carry user content. Reporting, moderation, blocking, account deletion and the public support contact must work in the submitted build. |
 
 The IARC questionnaire produces its own bands per region and this pack does not
@@ -297,7 +252,7 @@ These are derived from the actual code, not aspirations. File references are inl
 
 | Data | Collected? | Linked to identity? | Used for tracking? | Purpose | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Precise location | **Yes, only when the user asks for a location feature.** Full GPS precision stays on the device. The app rounds a viewer point to three decimal places before network egress. That is about 70 to 110 metres in London and still falls within Apple and Google Play's precise-location definitions. Request handlers use it ephemerally for nearby listings, conditions, transport, and journey options. | No | No | App functionality | `lib/geo.ts` owns the one three-decimal egress seam. `/api/whats-on`, `/api/tonight-conditions`, `/api/last-train`, `/api/tfl-disruption`, and `/api/citymcp/journey` process the rounded point. TfL, CityMCP, and a user-opened Google Maps journey can receive that rounded point for the requested result. `app/privacy/page.tsx` lists each path. |
+| Precise location | **Yes, only when the user asks for a location feature.** For nearby listings, conditions, transport and journey options, the app rounds a viewer point to three decimal places before network egress. That is about 70 to 110 metres in London and still falls within Apple and Google Play's precise-location definitions. Request handlers use it ephemerally. Crew live location sends the full fix. The [privacy policy](../app/privacy/page.tsx) owns its consent, access and retention rules. | Yes for crew live location (an Open Crew seat is bound to an account). No for the rounded requests. | No | App functionality | `lib/geo.ts` owns the three-decimal egress seam. `/api/whats-on`, `/api/tonight-conditions`, `/api/last-train`, `/api/tfl-disruption`, and `/api/citymcp/journey` process the rounded point. TfL, CityMCP, and a user-opened Google Maps journey can receive that rounded point for the requested result. Crew live location is `lib/planLiveLocationShare.ts`, `/api/plans/[id]/live-location` and migration 0226. `app/privacy/page.tsx` lists each path. |
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
@@ -310,21 +265,21 @@ These are derived from the actual code, not aspirations. File references are inl
 - No advertising SDKs, no ad identifiers, no cross-app tracking. Nothing on this list is used to track the user across other companies' apps or sites.
 - No selling or sharing of personal data with data brokers.
 - No account required to find a pint. Identity is optional and prompted contextually, not at launch.
-- No background location access. Full-precision viewer coordinates stay on the device. Rounded coordinates are not shown to other users and are used only to answer a location request.
+- No background location access. Full-precision viewer coordinates stay on the device, except crew live location, which a member turns on for one night. Rounded coordinates are not shown to other users and are used only to answer a location request.
 
 ### Apple App Privacy label (App Store Connect > App Privacy)
 
 Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
-- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality. User Content > Audio Data (Pub Pal voice, streamed to ElevenLabs as the conversation provider), purpose App Functionality.
-- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
-- **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
+- **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (a published Moment, a pub wall or Drink Wall photo, or a photo on a logged price), purpose App Functionality. User Content > Audio Data (Pub Pal voice, streamed to ElevenLabs as the conversation provider), purpose App Functionality. Location > Precise Location (crew live location, only when a member turns it on for a night), purpose App Functionality.
+- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics.
+- **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres, and because crew live location sends the full fix. Mark it optional, linked, not used for tracking, and used for App Functionality. Confirm current processor retention terms in App Store Connect before submission.
 
 ### Google Play Data safety form
 
 - **Does your app collect or share any of the required user data types?** Yes.
-- **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
+- **Precise location:** Collected, optional, purpose App functionality, not used for tracking. Not processed ephemerally because crew live location retains a latest fix. See the privacy policy linked above for retention. In the Data safety flow, identify the service-provider and user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.mjs`.
 - **Photos and videos:** Collected, purpose App functionality. Answer **shared: yes** for pub wall and Drink Wall photos. A wall photo is PUBLIC by design: it appears on that pub's page and on `/wall` when it is in the city grid, and the pub-wall composer offers a crosspost to the public feed. Saying "not shared publicly by default" would be a wrong answer on the form, not a cautious one. Moment drafts stay on the device and are collected only on publish.
 - **Audio > Voice or sound recordings:** Collected, not shared, optional, purpose App functionality. Do not answer "processed ephemerally" unless the live provider settings confirm no retention. See this section's Audio (voice) row for the check.
@@ -333,7 +288,7 @@ Declare the following. Everything else: Not Collected.
 - **Is all data encrypted in transit?** Yes (HTTPS only, the shell loads `https://pubmaxxing.com`).
 - **Can users request data deletion?** Yes. Account deletion covers account-linked data, including Night Memories and their Moment photos; the public contact in `lib/siteContact.mjs` handles other requests, including an optional area-demand address.
 
-**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see the AGENTS.md privacy-notice entry for the keep-it-honest rule.
+**Privacy policy URL:** required by both stores. Use `https://pubmaxxing.com/privacy`. The site publishes it (with `/terms`) from `app/privacy` / `app/terms`; see [the privacy-notice rule](rules/app-landing-city-and-listing-pages.md#the-privacy-notice-is-part-of-the-data-path-not-marketing-copy).
 
 **Account deletion URL:** required by Play's Data safety form, which asks for a page anybody can open WITHOUT signing in. Use `https://pubmaxxing.com/account/delete` (`app/account/delete/page.tsx`). It describes the in-app path and does not offer a second delete door: a deletion control a stranger can reach is an account-takeover surface however it is worded.
 
@@ -575,7 +530,7 @@ entitlements file, so the built app carries neither push nor associated domains
 however correct `App.entitlements` is), the camera sheet, and push delivery.
 
 Evidence from the runs that landed these scripts is in
-`docs/proof/ios-shell-build/`.
+[the historical iOS build record](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/ios-shell-build/).
 
 ### Android (no Play account)
 
@@ -635,7 +590,7 @@ Not provable on an emulator, and therefore device steps in section 8: push
 delivery, App Links verification, and the camera sheet.
 
 Evidence from the run that landed these scripts is in
-`docs/proof/android-shell-build/`.
+[the historical Android build record](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/android-shell-build/).
 
 ---
 
@@ -969,14 +924,9 @@ English (United Kingdom), app not game, free. Category **Food & Drink**.
 (Setup, App integrity). Recommended: Google holds the app signing key, your
 upload key stays replaceable if it is ever lost. Accept it.
 
-**8. Content rating (IARC questionnaire).** Answers are section 4 of this
-document. The short version: category Utility or Reference; **yes, references to
-alcohol** (finding and pricing alcoholic drinks is the whole app); **no** to
-promoting or facilitating the purchase of alcohol, because nothing is sold or
-ordered here; no to gambling, violence, sexual content and language; **no** to
-sharing the user's location with other users; **yes** to users interacting and
-sharing content. Do not undersell the alcohol answer, an under-rating is a
-takedown risk.
+**8. Content rating (IARC questionnaire).** Use the answers in
+[section 4](#4-age-rating). Do not understate the alcohol
+answer. An under-rating risks a takedown.
 
 **9. Target audience and content.** Set target age to **18 and over** only. Do
 not tick any band under 18 and do not opt into Designed for Families.
@@ -987,10 +937,8 @@ not tick any band under 18 and do not opt into Designed for Families.
 - Is all of the user data collected by your app encrypted in transit? **Yes.**
 - Do you provide a way for users to request that their data is deleted? **Yes.**
 - **Location > Approximate location:** not collected.
-- **Location > Precise location:** collected, not shared. Optional. Purpose: App
-  functionality. Processed ephemerally. Full GPS precision stays on the device;
-  the app rounds to three decimal places before anything leaves it, which is
-  still precise location by Play's definition.
+- **Location > Precise location:** use the Google Play Data safety answers in
+  [section 5](#5-privacy-questionnaire-answers).
 - **Personal info > Email address:** collected, not shared. Optional. Purpose:
   App functionality (sign-in, and the optional area-demand contact).
 - **Photos and videos > Photos:** collected AND **shared**. Purpose: App

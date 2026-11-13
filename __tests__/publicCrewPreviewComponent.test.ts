@@ -16,6 +16,9 @@ const preview = {
     lat: 51.541,
     lng: -0.142,
   },
+  area: null,
+  placesLeft: null,
+  spendBand: null,
 };
 
 describe("public Open Crew preview", () => {
@@ -36,6 +39,26 @@ describe("public Open Crew preview", () => {
     expect(html).toContain('>Ask to join<');
     expect(html).not.toContain("memberCount");
     expect(html).not.toContain("Who is in");
+  });
+
+  it("prints the area, places left and price band the link preview prints", () => {
+    const html = renderToStaticMarkup(
+      createElement(PublicCrewPreview, {
+        preview: {
+          ...preview,
+          area: { name: "Camden Town", relation: "inside" as const },
+          placesLeft: 3,
+          spendBand: { minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-11-03", sourceKind: "listed" },
+        },
+        joinState: "none",
+        busy: false,
+        problem: "",
+        onAskToJoin: () => {},
+      }),
+    );
+
+    expect(html).toContain("Camden Arms · in Camden Town");
+    expect(html).toContain("3 places left · £4.50–£6.20 per pint, listed prices seen 3 Nov 2026");
   });
 
   it("replaces join action with deterministic request state", () => {

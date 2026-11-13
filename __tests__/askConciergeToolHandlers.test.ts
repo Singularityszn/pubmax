@@ -4,9 +4,11 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import type { DeskVenueRead } from "@/lib/ask/deskVenues.server";
+import type { Venue } from "@/lib/venues";
 
 const state = {
   venues: [] as ConciergeVenue[],
+  pricedVenues: [] as Venue[],
   prices: { prices: [] as CommunityPrice[], degraded: false },
   whatsOn: { rows: [] as WhatsOnRow[], kindObservedAt: {} },
   whatsOnThrows: false,
@@ -16,6 +18,11 @@ const state = {
 
 vi.mock("@/lib/concierge/venues.server", () => ({
   loadConciergeVenues: vi.fn(async () => state.venues),
+}));
+
+vi.mock("@/lib/venuePriceIndex", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/venuePriceIndex")>(),
+  getPricedVenues: vi.fn(async () => state.pricedVenues),
 }));
 
 vi.mock("@/lib/communityPriceStore", () => ({
@@ -99,6 +106,7 @@ function price(overrides: Partial<CommunityPrice> = {}): CommunityPrice {
 
 beforeEach(() => {
   state.venues = [];
+  state.pricedVenues = [];
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
   state.whatsOnThrows = false;
@@ -129,6 +137,22 @@ describe("original-question tool authority", () => {
 });
 
 describe("cheapest_pint_near", () => {
+  it("serialises grounded coordinates even when priced records use different coordinate names", async () => {
+    state.venues = [
+      venue({ id: "priced", name: "The Crown", lat: 51.54, lng: -0.14, cheapestPrice: 4 }),
+      venue({ id: "listed", name: "The Ship", lat: 51.55, lng: -0.15, cheapestPrice: 5 }),
+    ];
+    state.pricedVenues = [{
+      id: "priced", latitude: 51.54, longitude: -0.14, cheapestPrice: 4,
+    } as Venue];
+    const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx());
+    expect(result.cards.map((card) => card.venueId)).toEqual(["priced", "listed"]);
+    expect(JSON.parse(JSON.stringify(result.data)).venues).toEqual([
+      { id: "priced", lat: 51.54, lng: -0.14 },
+      { id: "listed", lat: 51.55, lng: -0.15 },
+    ]);
+  });
+
   it.each([{ area: "Camden" }, { area: "London" }, { venueName: "The Lamb" }])("uses the supplied price clock for %j", async (args) => {
     state.venues = [
       venue({ id: "anchor", name: "The Lamb", cheapestPrice: null }),
@@ -150,8 +174,25 @@ describe("cheapest_pint_near", () => {
     expect(result.cards.map((card) => card.venueId)).toEqual(["near-cheap", "near-dear"]);
     expect(result.answerHint).toContain("The Crown at £4.50");
     for (const card of result.cards) {
-      expect(card.provenance?.label).toBe("On record");
+      expect(card.provenance?.label).toBe("Pub menu. Source read 1 January 2026. Link unavailable.");
+      expect(card.note).toContain("Drink not recorded · Serving not recorded");
     }
+  });
+
+  it("keeps equal-price pubs with their own drink, stated serving, publisher and day", async () => {
+    state.venues = [
+      venue({ id: "first", name: "First Arms", cheapestPrice: 5, cheapestPint: "First lager", measure: "pint", priceSource: "First menu", priceObservedAt: "2026-01-12" }),
+      venue({ id: "second", name: "Second Arms", cheapestPrice: 5, cheapestPint: "Second ale", priceSource: "Second menu", priceObservedAt: "2026-02-14" }),
+    ];
+    const result = await runAskTool("cheapest_pint_near", { area: "Camden" }, ctx());
+    expect(result.cards.map((card) => [card.venueId, card.price])).toEqual([["first", 5], ["second", 5]]);
+    expect(result.cards[0]).toMatchObject({ note: "First lager · Pint", provenance: { label: "First menu. Source read 12 January 2026. Link unavailable." } });
+    expect(result.cards[1]).toMatchObject({ note: "Second ale · Serving not recorded", provenance: { label: "Second menu. Source read 14 February 2026. Link unavailable." } });
+    expect(result.provenance.map((source) => source.label)).toEqual([
+      "First menu. Source read 12 January 2026. Link unavailable.",
+      "Second menu. Source read 14 February 2026. Link unavailable.",
+    ]);
+    expect(result.proposals.every((proposal) => proposal.kind === "open_venue")).toBe(true);
   });
 
   it("answers an area ask from the borough list", async () => {
@@ -461,6 +502,16 @@ describe("venue_drinks", () => {
   });
 
   it.each([
+    [{ priceObservedAt: "2026-07-03" }, "Pub menu. Source read 3 July 2026."],
+    [{ priceSource: undefined, priceObservedAt: undefined }, "Publisher not recorded. Source read date unknown."],
+    [{ priceObservedAt: "2026-08-16" }, "Pub menu. Source read date unknown."],
+  ])("dates the listed pint card from its own row: %o", async (evidence, label) => {
+    state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5, ...evidence })];
+    const result = await runAskTool("venue_drinks", { venueName: "The Lamb" }, ctx({ query: "Drink prices at The Lamb" }));
+    expect(result.cards.find((card) => card.key === "v1:listed")?.provenance).toEqual({ kind: "directory", label });
+  });
+
+  it.each([
     "Wine prices at The Lamb", "Prices for wine at The Lamb", "Wine costs at The Lamb", "Costs of wine at The Lamb",
     "Wine prices at The Lamb this evening?", "Wine prices now at The Lamb?", "Wine later prices at The Lamb?",
   ])("routes raw provider-selected pint pricing to recorded wine for %s", async (query) => {
@@ -619,7 +670,7 @@ describe("venue_drinks", () => {
     expect(result.cards[0]?.note).toContain("two people agree on this figure");
     expect(result.cards[0]?.note).not.toContain("map");
     expect(result.cards[1]?.note).toContain("stays on this pub's page");
-    expect(result.cards[2]?.provenance?.label).toBe("On record");
+    expect(result.cards[2]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 
   it("resolves a routed short pub name but never a borough", async () => {
@@ -659,7 +710,7 @@ describe("venue_drinks", () => {
     expect(result.degraded).toBe(true);
     expect(result.answerHint).toContain("couldn't read what people have logged");
     expect(result.cards.map((card) => card.price)).toEqual([5]);
-    expect(result.cards[0]?.provenance?.label).toBe("On record");
+    expect(result.cards[0]?.provenance?.label).toBe("Pub menu. Source read 1 January 2026.");
   });
 });
 
@@ -805,5 +856,51 @@ describe("report_occupancy", () => {
       ctx(),
     );
     expect(result.answerHint).toBe("Is The Lamb empty, some seats, or full?");
+  });
+});
+
+
+describe("venue_prices read availability", () => {
+  it.each([false, true])("requires a complete community read before estimating when degraded=%s", async (degraded) => {
+    state.venues = [venue({ id: "unpriced-test-pub", name: "Unpriced Arms", cheapestPrice: null, zone: 2 })];
+    state.prices = { prices: [], degraded };
+    const result = await runAskTool("venue_prices", { venueId: "unpriced-test-pub" }, ctx());
+    expect(result.data).toMatchObject({
+      communityDegraded: degraded,
+      zoneEstimate: degraded ? null : { estimateGbp: 5.75, zone: 2, sampleSize: 301 },
+    });
+    if (degraded) {
+      expect(result.degraded).toBe(true);
+      expect(result.answerHint).toContain("couldn't read");
+      expect(result.answerHint).not.toContain("no corroborated");
+      expect(result.cards[0]?.note).toContain("couldn't read");
+      expect(result.cards[0]?.note).not.toContain("No recorded pint");
+    } else {
+      expect(result.answerHint).toContain("Estimate £5.75");
+    }
+  });
+
+  it("retains recorded prices when a community read fails", async () => {
+    state.venues = [venue({ id: "priced-test-pub", name: "Listed Arms", cheapestPrice: 5, zone: 2 })];
+    state.prices = { prices: [], degraded: true };
+    const result = await runAskTool("venue_prices", { venueId: "priced-test-pub" }, ctx());
+    expect(result.data).toMatchObject({ curatedPrice: 5, zoneEstimate: null });
+    expect(result.cards[0]?.price).toBe(5);
+    expect(result.answerHint).toContain("couldn't read");
+    expect(result.answerHint).toContain("listed pint £5.00");
+    expect(result.answerHint).not.toContain("no corroborated");
+  });
+
+  it("dates a people-logged price by its London day", async () => {
+    vi.useFakeTimers({ toFake: ["Date"], now: NOW });
+    try {
+      state.venues = [venue({ id: "v1", name: "The Lamb", cheapestPrice: 5 })];
+      // 00:30 BST on 15 August is still 14 August in UTC.
+      state.prices = { prices: [price({ submittedAt: Date.parse("2026-08-14T23:30:00.000Z") })], degraded: false };
+      const result = await runAskTool("venue_prices", { venueId: "v1" }, ctx());
+      expect(result.cards.map((card) => card.note)).toContain("beer · people-logged 2026-08-15");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

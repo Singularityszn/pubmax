@@ -32,7 +32,7 @@ const meta = mapOpeningSnapshot as unknown as MapOpeningSnapshotMeta;
 const REGENERATE = "stale: run npm run build:map-opening-snapshot (see scripts/build_map_opening_snapshot.mjs)";
 
 /** The wire ceiling for one picture: it is fetched before the pins are. */
-const MAX_PICTURE_BYTES = 120 * 1024;
+const MAX_PICTURE_BYTES = 88 * 1024;
 
 describe("the committed opening basemap picture", () => {
   it("was captured for the camera a cold first visit opens on", () => {

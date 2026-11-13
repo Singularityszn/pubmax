@@ -50,7 +50,7 @@
 	<key>NSCameraUsageDescription</key>
 	<string>PUBMAXXING uses the camera so you can photograph a price board, a pub, or your own night.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>PUBMAXXING uses your location while the app is open to find nearby pubs and calculate walk times.</string>
+	<string>PUBMAXXING uses your location while the app is open to find nearby pubs, calculate walk times and, only when you turn it on for a night, show your crew where you are.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>PUBMAXXING uses your microphone only while you talk to Pub Pal or dictate a note or a plan.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

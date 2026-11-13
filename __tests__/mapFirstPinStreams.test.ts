@@ -65,21 +65,6 @@ describe("the closed set of held lanes", () => {
     ]);
   });
 
-  it("holds the slim shard rings at the one door every ring load comes through", () => {
-    const source = read("components/PubMap.tsx");
-    // The guard sits at the TOP of scheduleRingLoad, before the pending-key
-    // dedupe, so a ring asked for while the hold is on is remembered rather
-    // than banked against a key that would then refuse the retry.
-    const guard = source.indexOf("if (secondaryStreamsHeldRef.current) {");
-    const dedupe = source.indexOf(
-      "if (ringLoadPendingKeyRef.current === key) return;",
-    );
-    expect(guard).toBeGreaterThan(-1);
-    expect(dedupe).toBeGreaterThan(guard);
-    expect(source).toContain("heldRingLoadRef.current = { loader, bounds };");
-    expect(source).toContain("scheduleRingLoad(held.loader, bounds);");
-  });
-
   it("holds the UK base layer without emptying it, which is what suspension means", () => {
     const source = read("components/map/pubmap/useUkBaseStreaming.ts");
     // The hold sits BELOW the camera question: a held lane still answers

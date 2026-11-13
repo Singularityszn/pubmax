@@ -35,6 +35,7 @@ const state = vi.hoisted(() => ({
   deferredJoin: [] as Array<(response: Response) => void>,
   deferredPrivate: [] as Array<(response: Response) => void>,
   actionCalls: [] as string[],
+  analyticsPayloads: [] as Array<{ name: string; props: Record<string, unknown>; analyticsConsent: boolean }>,
 }));
 
 function preview(crewId: string, title = crewId === CREW_A ? "Friday in Camden" : "Saturday in Soho") {
@@ -50,6 +51,9 @@ function preview(crewId: string, title = crewId === CREW_A ? "Friday in Camden" 
       lat: 51.541,
       lng: -0.142,
     },
+    area: null,
+    placesLeft: null,
+    spendBand: null,
   };
 }
 
@@ -128,6 +132,12 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 vi.mock("@/lib/responseBody", () => responseBody);
 
+vi.mock("@/lib/posthogClient", () => ({
+  capturePosthogPageview: vi.fn(),
+  posthogSessionId: () => null,
+  syncPosthogConsent: vi.fn(),
+}));
+
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => state.socialLaunchEnabled,
 }));
@@ -158,6 +168,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import PublicCrewRouteClient from "@/components/social/PublicCrewRouteClient";
+import { setAnalyticsConsent } from "@/lib/analytics";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -190,11 +201,19 @@ beforeEach(() => {
   state.deferredJoin = [];
   state.deferredPrivate = [];
   state.actionCalls = [];
+  state.analyticsPayloads = [];
+  localStorage.clear();
+  setAnalyticsConsent(false);
+  vi.stubGlobal("navigator", { doNotTrack: "0" });
   responseBody.discardBody.mockReset();
   vi.stubGlobal(
     "fetch",
-    vi.fn((input: RequestInfo | URL) => {
+    vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
       const url = String(input);
+      if (url === "/api/events") {
+        state.analyticsPayloads.push(JSON.parse(String(init?.body)));
+        return Promise.resolve(new Response(null, { status: 204 }));
+      }
       state.publicCalls.push(url);
       const crewId = url.includes(CREW_B) ? CREW_B : CREW_A;
       if (state.publicResponses.get(crewId) === "deferred") {
@@ -215,7 +234,48 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  setAnalyticsConsent(false);
+  localStorage.clear();
   vi.unstubAllGlobals();
+});
+
+describe("public open-crawl request analytics", () => {
+  // P0 item 7 counts a first successful request only, with analytics consent.
+  // Driving the rendered button rejects instrumentation on the wrong page.
+  it.each([
+    { consent: true, replayed: false, status: 200, expected: 1 },
+    { consent: true, replayed: true, status: 200, expected: 0 },
+    { consent: false, replayed: false, status: 200, expected: 0 },
+    { consent: true, replayed: false, status: 503, expected: 0 },
+  ])("sends $expected events with consent=$consent, replayed=$replayed, status=$status", async ({ consent, replayed, status, expected }) => {
+    setAnalyticsConsent(consent);
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    const ask = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "Ask to join",
+    );
+    expect(ask).not.toBeUndefined();
+    await act(async () => ask?.click());
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+    expect(state.deferredJoin).toHaveLength(1);
+    await act(async () => state.deferredJoin[0]?.(Response.json(
+      { code: status === 200 ? "requested" : "unavailable", replayed },
+      { status },
+    )));
+    await settle();
+
+    if (status === 200) expect(container.textContent).toContain("Request sent. The host decides.");
+    else expect(container.textContent).not.toContain("Request sent. The host decides.");
+    expect(state.analyticsPayloads).toHaveLength(expected);
+    if (expected) expect(state.analyticsPayloads[0]).toMatchObject({
+      name: "crew_join_requested",
+      props: {},
+      analyticsConsent: true,
+    });
+  });
 });
 
 describe("PublicCrewRouteClient identity and crew boundaries", () => {

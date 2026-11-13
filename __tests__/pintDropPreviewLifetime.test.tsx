@@ -3,7 +3,7 @@
 // A PREVIEW URL LIVES AS LONG AS SOMETHING SHOWS IT (review findings CMP-2 and
 // NEW-1). Changing one photo slot may not revoke another slot's preview,
 // posting may not revoke the previews the optimistic row is about to render,
-// and unmount revokes whatever is still held.
+// and unmount preserves photos retained for a stored retry.
 
 import { act, createElement, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -27,13 +27,14 @@ vi.mock("@/components/map/composer/useSpeechDictation", () => ({
 }));
 vi.mock("@/components/map/composer/useActiveRound", () => ({ useActiveRound: () => false }));
 vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
-vi.mock("@/components/map/inspector/PintDropsList", () => ({ default: () => null }));
 
 import { usePintDrops, type PintDropsState } from "@/components/map/usePintDrops";
 import { PintDropAgeRecovery } from "@/components/map/PintDropAgeRecovery";
+import { useOptimisticSpillRetry } from "@/components/feed/useOptimisticSpillRetry";
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
+import PintDropsList from "@/components/map/inspector/PintDropsList";
 import { ADULT_ASSERTED_EVENT } from "@/lib/contributionGateStatus";
-import { readOptimisticSpills } from "@/lib/optimisticSpillPost";
+import { buildOptimisticSpillRetryFormData, readOptimisticSpills } from "@/lib/optimisticSpillPost";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -48,12 +49,29 @@ function DropProbe() {
   }) : null;
 }
 
+function RetryProbe({ id }: { id: string }) {
+  const retry = useOptimisticSpillRetry();
+  return createElement("button", { onClick: () => retry(id) }, "Retry");
+}
+
 function ComposerProbe({ open }: { open: boolean }) {
   const state = usePintDrops();
   useEffect(() => { drops = state; }, [state]);
   return createElement(VenuePintsTab, {
     venue: { id: "venue-1", name: "The Crown" } as never,
     tab: "pints", pintDrops: { ...state, composerOpen: open }, drops: [], lastTrainDecision: null,
+  });
+}
+
+function DropListProbe() {
+  const state = usePintDrops();
+  useEffect(() => { drops = state; }, [state]);
+  return createElement(PintDropsList, {
+    venue: { id: "venue-1", name: "The Crown" } as never,
+    drops: state.dropsByVenueId.get("venue-1") ?? [],
+    lastTrainDecision: null,
+    reportDrop: state.reportDrop,
+    withSummaries: new Map(),
   });
 }
 
@@ -72,6 +90,11 @@ beforeEach(async () => {
   localStorage.setItem("pubmax_handle", "alice");
   minted = 0;
   io.post.mockReset();
+  vi.stubGlobal("ResizeObserver", class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  });
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({ drops: [] }) }));
   vi.stubGlobal("URL", Object.assign(class extends URL {}, {
     createObjectURL: vi.fn(() => `blob:preview-${++minted}`),
@@ -91,6 +114,36 @@ afterEach(async () => {
 });
 
 describe("Pint Drop preview URL lifetime", () => {
+  it("keeps a rejected price visibly unsaved after a later unpriced save", async () => {
+    await act(async () => root.render(createElement(DropListProbe)));
+    io.post.mockResolvedValue(new Response("{}", { status: 200 }));
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({
+      error: "Sign in to post a price under your name.",
+    }), { status: 401 }));
+    await act(async () => drops.setDropForm((form) => ({ ...form, price: "4.73", drink: "Guinness" })));
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const assertUnsaved = () => {
+      const row = [...container.querySelectorAll(".dropCard")].find((card) => card.textContent?.includes("£4.73"))!;
+      expect(row).toBeTruthy();
+      expect.soft(row.textContent).toContain("Not saved");
+      expect.soft(row.textContent).not.toContain("Contributor");
+      expect.soft(drops.venueSignals.get("venue-1")?.pintTrust).toBe("none");
+      expect.soft(drops.venueSignals.get("venue-1")?.provisionalContributorPrice).toBeNull();
+    };
+    assertUnsaved();
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({ drop: {
+      id: "saved-note", venueId: "venue-1", handle: "alice", priceGbp: null,
+      drink: "", passedDownNote: "A note without a price", era: "", vibeTags: [],
+      visibility: "public", provenance: "anecdote", status: "visible",
+      createdAt: new Date().toISOString(), pintPhotoUrl: null, venuePhotoUrl: null,
+    } }), { status: 201 }));
+    await act(async () => drops.setDropForm((form) => ({ ...form, price: "", note: "A note without a price" })));
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    expect(drops.dropMsg).toMatchObject({ ok: true });
+    expect(container.textContent).toContain("A note without a price");
+    assertUnsaved();
+  });
+
   // Account ownership applies to the displayed refusal, not only its action.
   it.each([
     [true, "adult_check_required", "Confirm you are 18 or over before contributing."],
@@ -112,40 +165,43 @@ describe("Pint Drop preview URL lifetime", () => {
     expect(io.post).toHaveBeenCalledTimes(1);
   });
 
-  it.each([true, false])("requires an explicit price retry after the shared assertion (bill: %s)", async (withBill) => {
+  it.each([true, false])("finishes the refused price as the same request after the adult tap (bill: %s)", async (withBill) => {
     io.post.mockResolvedValue(new Response("{}", { status: 200 }));
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({
       status: "adult_check_required", error: "Confirm you are 18 or over before contributing.",
     }), { status: 409 }));
     await act(async () => {
       if (withBill) drops.pickPhoto("receipt", photo("bill.jpg"), null);
-      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
+      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale", measure: "half" }));
     });
     await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    expect(drops.dropForm.price).toBe("");
     io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
-    await act(async () => { container.querySelector("button")!.click(); });
-    expect(io.post.mock.calls.map(([url]) => url)).toEqual(["/api/pint-drops", "/api/identity/adult-assertion"]);
-    expect(drops.dropMsg?.text).toBe("Age confirmation saved. Submit your price again.");
-    expect(container.querySelector("button")).toBeNull();
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({ drop: {
-      id: "drop-retried", venueId: "venue-1", handle: "alice", priceGbp: 5.5,
-      drink: "Pale ale", passedDownNote: "", era: "", vibeTags: [],
+      id: "drop-finished", venueId: "venue-1", handle: "alice", priceGbp: 5.5,
+      drink: "Pale ale", measure: "half", passedDownNote: "", era: "", vibeTags: [],
       visibility: "public", provenance: "contributor", status: "visible",
       createdAt: new Date().toISOString(), pintPhotoUrl: null, venuePhotoUrl: null,
-      priceEvidence: withBill ? "receipt" : "unchecked",
+      priceEvidence: "unchecked",
     } }), { status: 201 }));
-    await act(async () => {
-      if (withBill) drops.pickPhoto("receipt", photo("bill.jpg"), null);
-      drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" }));
-    });
-    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
-    expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(2);
-    expect(io.post.mock.calls.filter(([url]) => url === "/api/identity/adult-assertion")).toHaveLength(1);
+    await act(async () => { container.querySelector("button")!.click(); });
+    expect(io.post.mock.calls.map(([url]) => url).slice(0, 3)).toEqual([
+      "/api/pint-drops", "/api/identity/adult-assertion", "/api/pint-drops",
+    ]);
+    const refused = io.post.mock.calls[0]![1].body as FormData;
+    const finished = io.post.mock.calls[2]![1].body as FormData;
+    expect(finished.get("clientRequestId")).toBe(refused.get("clientRequestId"));
+    expect(finished.get("priceGbp")).toBe("5.50");
+    expect(finished.get("measure")).toBe("half");
+    expect(finished.get("drink")).toBe("Pale ale");
+    expect(finished.has("receipt_photo")).toBe(withBill);
     expect(drops.dropMsg?.ok).toBe(true);
-    expect(drops.dropsByVenueId.get("venue-1")?.some((drop) => drop.id === "drop-retried")).toBe(true);
+    expect(container.querySelector("button")).toBeNull();
+    expect(drops.dropsByVenueId.get("venue-1")?.map((drop) => drop.id)).toEqual(["drop-finished"]);
+    expect(readOptimisticSpills(localStorage).map(({ drop }) => drop.id)).toEqual(["drop-finished"]);
   });
 
-  it("keeps a refused assertion retryable without posting another price", async () => {
+  it("posts the held price only after an assertion the server accepted", async () => {
     io.post.mockResolvedValueOnce(new Response(JSON.stringify({ status: "adult_check_required" }), { status: 409 }));
     await act(async () => { drops.setDropForm((form) => ({ ...form, price: "5.50", drink: "Pale ale" })); });
     await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
@@ -153,10 +209,11 @@ describe("Pint Drop preview URL lifetime", () => {
     await act(async () => { container.querySelector("button")!.click(); });
     expect(container.querySelector('[role="alert"]')?.textContent).toBe("We could not save that just now. Try again.");
     expect(container.querySelector("button")?.disabled).toBe(false);
-    io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
-    await act(async () => { container.querySelector("button")!.click(); });
-    expect(container.querySelector("button")).toBeNull();
     expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(1);
+    io.post.mockResolvedValueOnce(new Response("{}", { status: 200 }));
+    io.post.mockResolvedValueOnce(new Response(JSON.stringify({ status: "adult_check_required" }), { status: 409 }));
+    await act(async () => { container.querySelector("button")!.click(); });
+    expect(io.post.mock.calls.filter(([url]) => url === "/api/pint-drops")).toHaveLength(2);
   });
 
   it.each([[201, false], [201, true], [409, false], [409, true]] as const)(
@@ -270,6 +327,7 @@ describe("Pint Drop preview URL lifetime", () => {
       expect(asserted).not.toHaveBeenCalled();
       expect(container.querySelector('[role="alert"]')).toBeNull();
       expect(drops.dropMsg).toBeNull();
+      expect(io.post).toHaveBeenCalledTimes(2);
     } finally {
       window.removeEventListener(ADULT_ASSERTED_EVENT, asserted);
     }
@@ -299,6 +357,54 @@ describe("Pint Drop preview URL lifetime", () => {
       }
     },
   );
+
+  it("retries a failed half with its original bill after leaving Map", async () => {
+    // A live bill must survive retry, even when CSP blocks blob fetches.
+    const bill = new File(["original bill bytes"], "bill.jpg", { type: "image/jpeg" });
+    io.post.mockRejectedValueOnce(new TypeError("Offline"));
+    await act(async () => {
+      drops.pickPhoto("receipt", bill, null);
+      drops.setDropForm((form) => ({ ...form, price: "3.40", drink: "Guinness", measure: "half" }));
+    });
+    await act(async () => { await drops.submitDrop({ preventDefault() {} } as never, "venue-1"); });
+    const entry = readOptimisticSpills(localStorage)[0]!;
+    expect(entry.drop.optimistic?.state).toBe("failed");
+    vi.mocked(fetch).mockRejectedValue(new TypeError("Blocked by connect-src CSP"));
+
+    const form = await buildOptimisticSpillRetryFormData(entry.retry!);
+    expect(form.get("measure")).toBe("half");
+    expect(form.get("priceGbp")).toBe("3.40");
+    const receipt = form.get("receipt_photo") as File;
+    expect(receipt.size).toBe(bill.size);
+    expect(await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(receipt);
+    })).toBe("original bill bytes");
+
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    io.post.mockResolvedValueOnce(Response.json({ drop: {
+      ...entry.drop, id: "recovered-drop", optimistic: undefined,
+    } }));
+    await act(async () => root.render(createElement(RetryProbe, { id: entry.clientRequestId })));
+    await act(async () => container.querySelector("button")!.click());
+    expect(io.post).toHaveBeenCalledTimes(2);
+    const retried = io.post.mock.calls[1]![1].body as FormData;
+    expect(retried.get("clientRequestId")).toBe(entry.clientRequestId);
+    expect(retried.get("measure")).toBe("half");
+    expect(retried.get("priceGbp")).toBe("3.40");
+    expect(await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsText(retried.get("receipt_photo") as File);
+    })).toBe("original bill bytes");
+    expect(readOptimisticSpills(localStorage)[0]?.drop.id).toBe("recovered-drop");
+    expect(revoked()).toEqual(["blob:preview-1"]);
+    await expect(buildOptimisticSpillRetryFormData(entry.retry!)).rejects.toThrow("Photo preview is no longer available.");
+  });
 
   it("changing the receipt slot revokes only the receipt it replaced", async () => {
     await act(async () => { drops.pickPhoto("pint", photo("pint.jpg"), null); });

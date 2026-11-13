@@ -1,11 +1,22 @@
 import type { Route } from "next";
 
-// Physical QR poster arrival (PLG Wave 2). Printed codes point at
-// `/?src=poster` (optional utm_* tags). The home route sends that arrival to
-// `/near` with the same campaign query kept, so a scan opens nearby prices
-// rather than the marketing landing. See docs/growth/POSTER_SPEC.md.
+// Printed-link destinations and attribution rules live in
+// docs/growth/POSTER_SPEC.md. lib/posterCodes.ts resolves short links.
 
 export const POSTER_LANDING_SRC = "poster";
+
+/** The printed things a scan can come from. `utm_medium` carries one of them. */
+const POSTER_MEDIA = ["poster", "beermat"] as const;
+export type PosterMedium = (typeof POSTER_MEDIA)[number];
+
+export function isPosterMedium(value: unknown): value is PosterMedium {
+  return typeof value === "string" && (POSTER_MEDIA as readonly string[]).includes(value);
+}
+
+const POSTER_MEDIUM_NOUNS: Record<PosterMedium, string> = {
+  poster: "a pub poster",
+  beermat: "a beer mat",
+};
 
 /** Session flag so /near still knows the arrival after a later URL rewrite. */
 export const POSTER_LANDING_SESSION_KEY = "pubmax:poster-landing";
@@ -63,27 +74,34 @@ export function posterNearHref(from: SearchParamRecord | URLSearchParams): Route
   return query ? `/near?${query}` : `/near?src=${POSTER_LANDING_SRC}`;
 }
 
-/** One honest orientation line for a poster scan that landed on /near. */
-export function posterLandingOrientation(): string {
-  return "You scanned a pub poster. Compare listed pint prices near you, cheapest first.";
+/** One honest orientation line for a scan that landed on /near. */
+export function posterLandingOrientation(medium: PosterMedium = "poster"): string {
+  return `You scanned ${POSTER_MEDIUM_NOUNS[medium]}. Listed pint prices near you are below.`;
 }
 
-export function rememberPosterLandingSession(): void {
+export function rememberPosterLandingSession(medium: PosterMedium = "poster"): void {
   if (typeof sessionStorage === "undefined") return;
   try {
-    sessionStorage.setItem(POSTER_LANDING_SESSION_KEY, "1");
+    sessionStorage.setItem(POSTER_LANDING_SESSION_KEY, medium);
   } catch {
     // Private mode / quota: orientation still works from the query flag.
   }
 }
 
-export function readPosterLandingSession(): boolean {
-  if (typeof sessionStorage === "undefined") return false;
+/** The medium this tab arrived from, or null. A tab from an older build holds "1", a poster. */
+export function readPosterLandingMedium(): PosterMedium | null {
+  if (typeof sessionStorage === "undefined") return null;
   try {
-    return sessionStorage.getItem(POSTER_LANDING_SESSION_KEY) === "1";
+    const stored = sessionStorage.getItem(POSTER_LANDING_SESSION_KEY);
+    if (stored === "1") return "poster";
+    return isPosterMedium(stored) ? stored : null;
   } catch {
-    return false;
+    return null;
   }
+}
+
+export function readPosterLandingSession(): boolean {
+  return readPosterLandingMedium() !== null;
 }
 
 export function clearPosterLandingSession(): void {

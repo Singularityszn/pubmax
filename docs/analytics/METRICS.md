@@ -46,7 +46,7 @@ Two rules ride with it.
 A kept action is an outcome the server already wrote down. Only these ride the
 verified delivery lane, which mints a signed token from the durable subject, claims a
 receipt before the event is forwarded, and refuses a repeat of the same subject:
-`plan_draft_saved`, `plan_accepted`, `crew_committed`, `plan_completed`, and
+`plan_draft_saved`, `plan_accepted`, `crew_committed`, `crew_arrived`, `plan_completed`, and
 `meaningful_core_action` with `action` of `plan_accepted` or `plan_completed`
 (`app/api/events/route.ts`, `lib/verifiedAnalytics.server.ts`,
 `lib/analyticsReceiptStore.ts`).
@@ -55,8 +55,8 @@ Three consequences.
 
 - A failed or cancelled action mints no token, so it can never reach these figures.
 - A retried delivery reports the same night once. `crew_committed` is keyed on the
-  plan and its night, `plan_completed` on the completion, so a repeat is refused as
-  already delivered.
+  plan and its night, `crew_arrived` on the plan, its night and the band, and
+  `plan_completed` on the completion, so a repeat is refused as already delivered.
 - Every other event is an impression or an attempt. An impression may be half of a
   ratio. It is never a kept action.
 
@@ -239,6 +239,43 @@ The [invite delivery notes](../METRICS_FUNNEL.md#2-invites-per-planner-and-invit
 
 These corrections change documentation only. Existing saved reports require owner review before their names or definitions change.
 Keep old report exports with their original definition and reporting dates.
+
+### 3.3 The host loop and hosted-night arrivals
+
+The launch metric is hosted nights where 4 or more people other than the host
+arrived. `crew_arrived` measures arrivals on private hosted plans and open crawls.
+Count events with `guestsArrived = 4+`.
+
+- `crew_arrived` counts guests currently marked "Here" on a private hosted plan page
+  or by active open-crawl members on their crew page.
+  The host is the first seat by join order and is never a guest.
+  Open-crawl writes exclude inactive members from the guest count.
+- Each qualifying band counts once for the plan's scheduled London date.
+  Count one band. Never add the bands together.
+  A later status change does not remove a delivered event.
+- Every member's successful status write can carry the receipts, including the host's write.
+  A consented device can deliver them. Another member's later copy can retry a failed delivery.
+
+The receipt window starts at London midnight on the plan's scheduled date.
+`crewArrivedEventToken` in `lib/verifiedAnalytics.server.ts` defines its expiry.
+The [crew-status guards](../API_CONTRACTS_THE_LOCAL.md#crew-status) apply throughout this window and beyond it.
+Successful status writes within the window can report arrivals beyond the scheduled evening.
+Outside this window, successful private Plan status writes carry no arrival receipts.
+Open-crawl writes use the shorter window in the
+[arrival API contract](../WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89).
+
+| Measure | Numerator | Denominator | Limits |
+|---|---|---|---|
+| Hosted nights with 4 or more guests | `crew_arrived` with `guestsArrived = 4+` | Not a rate | At least four guests must be marked "Here" in the same status-write response. Consent and successful receipt delivery are required |
+| Join acceptances | `crew_join_accepted` count | Not a rate | Includes open crawls and friends crews. Declines, cancels and time to answer are not measured |
+| Requests per opened crawl | `crew_join_requested` count | `open_crawl_opened` count | Open-crawl requests only. Two weekly totals, not unique crawls or a matched cohort. Each event requires the acting device's consent |
+
+`crew_committed` rides only the joining guest's browser, and it sends nothing
+without that guest's analytics consent. On 7 November 2026 production held two
+plans that had reached two members (5 September and 23 October). The receipt
+table was empty and PostHog had no `crew_committed` row, and no consented event
+of any kind arrived around the 23 October join. A zero means no delivered,
+consented event. It does not prove that nobody joined or consented.
 
 ## 4. What this file will not define
 

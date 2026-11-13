@@ -15,9 +15,9 @@ const SOCIAL_POST_COMMENT_POLICIES = ["open", "friends", "locked"] as const;
 
 type SocialPostKind = (typeof SOCIAL_POST_KINDS)[number];
 export type SocialPostVisibility = (typeof SOCIAL_POST_VISIBILITIES)[number];
-type SocialPostStatus = "visible" | "hidden" | "removed";
+export type SocialPostStatus = "visible" | "hidden" | "removed";
 export type SocialPostCommentPolicy = (typeof SOCIAL_POST_COMMENT_POLICIES)[number];
-type SocialPostModerationState = "pending" | "approved" | "needs_review";
+export type SocialPostModerationState = "pending" | "approved" | "needs_review";
 
 export type SocialPostPhoto = {
   mediaId: string;
@@ -44,10 +44,18 @@ export type SocialPostFields = {
   nameHidden: boolean;
 };
 
-type SocialPostFeatureRequest = {
+export type SocialPostFeatureRequest = {
   status: "submitted" | "planned" | "shipped" | "declined";
   staffResponse: string | null;
 };
+
+/**
+ * A feature request reads its latest staff update, or "submitted" when it has none. A post that turns into a
+ * standard post and back keeps that history. Migration 0236 holds the same rule in SQL.
+ */
+export function featureRequestFromLatestUpdate(latest: SocialPostFeatureRequest | undefined): SocialPostFeatureRequest {
+  return latest ? { ...latest } : { status: "submitted", staffResponse: null };
+}
 
 export type SocialPost = SocialPostFields & {
   id: string;

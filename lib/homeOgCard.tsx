@@ -38,9 +38,10 @@ import {
 // absent: a zeroed figure is dropped rather than printed as "0 pubs", which is
 // the same guard the landing footer applies (components/landing/LandingPage
 // footerFacts). London is the flagship, so the cities figure is stated as the
-// capital plus the rest.
-export function homeCardCoverage(stats: AboutStats): string[] {
+// capital plus the rest. With no stats (a failed read) the line is empty.
+export function homeCardCoverage(stats: AboutStats | null): string[] {
   const bits: string[] = [];
+  if (!stats) return bits;
   if (stats.pubsTracked > 0) {
     bits.push(`${stats.pubsTracked.toLocaleString("en-GB")} pubs tracked`);
   }
@@ -73,7 +74,7 @@ const HOME_PALETTE = {
   coral: OG.coral,
 } as const;
 
-export function HomeOgCard({ stats }: { stats: AboutStats }) {
+export function HomeOgCard({ stats }: { stats: AboutStats | null }) {
   const coverageBits = homeCardCoverage(stats);
 
   return (
@@ -228,11 +229,13 @@ export function HomeOgCard({ stats }: { stats: AboutStats }) {
 }
 
 export async function renderHomeOgCard() {
-  const stats = await loadAboutStats();
+  const stats = await loadAboutStats().catch(() => null);
 
+  // A card drawn without its counts must not be held by a CDN or a crawler,
+  // or the preview stays countless after the read recovers.
   return new ImageResponse(<HomeOgCard stats={stats} />, {
     ...OG_SIZE,
     fonts: loadOgFonts(),
-    headers: OG_CACHE_HEADERS,
+    headers: stats ? OG_CACHE_HEADERS : { "cache-control": "no-store" },
   });
 }

@@ -14,6 +14,8 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
 
+import { browserJobExpression } from "@/__tests__/helpers/browserJobCondition";
+
 const ROOT = process.cwd();
 
 type Step = { name?: string; run?: string };
@@ -82,15 +84,13 @@ describe("browser jobs on their runners", () => {
   // with cancel-in-progress off. A per-ref group dropped main pushes that way
   // (16 Oct 2026), so a pull request shares a group only with its own heads.
   // Browser tests is the one exception (captain, 19 Oct 2026): its main pushes
-  // share one group, so only the newest push waits for the macOS layout pins.
-  // Each push holds 3 of the free plan's 5 macOS runners, and on 19 Oct the
-  // merges of one day queued 66 of those jobs ahead of every pull request.
-  // A main push is never cancelled while it runs, and the schedule and a
-  // dispatch still get a group of their own.
+  // share one group, so only the newest push waits behind the one running.
+  // It was set when each push started the macOS layout pins; since 9 Nov 2026
+  // they run only in the merge queue and on a labelled pull request.
+  // A main push is never cancelled while it runs, and a dispatch still
+  // gets a group of its own.
   const OWN_RUN_GROUP =
     "${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}";
-  const MAIN_PUSH_GROUP =
-    "${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.event_name == 'push' && 'main-push' || format('run-{0}', github.run_id) }}";
 
   it("supersedes an older head of the same pull request, and an older waiting main push of the browser tests", () => {
     const pullRequestWorkflows = workflows.filter(({ parsed }) =>
@@ -99,14 +99,48 @@ describe("browser jobs on their runners", () => {
     expect(pullRequestWorkflows.map(({ file }) => file)).toEqual([
       "ci.yml",
       "e2e.yml",
+      "freshness.yml",
       "rls-session.yml",
       "security-ci.yml",
     ]);
     for (const { file, parsed } of pullRequestWorkflows) {
-      expect(parsed.concurrency, file).toEqual({
-        group: file === "e2e.yml" ? MAIN_PUSH_GROUP : OWN_RUN_GROUP,
+      if (file !== "e2e.yml") expect(parsed.concurrency, file).toEqual({
+        group: OWN_RUN_GROUP,
         "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
       });
+    }
+  });
+
+  it("gives all five required workflows separate merge queue runs", () => {
+    const required = ["ci.yml", "e2e.yml", "freshness.yml", "rls-session.yml", "security-ci.yml"];
+    for (const file of required) {
+      const parsed = workflows.find((entry) => entry.file === file)?.parsed;
+      expect(parsed?.on, file).toHaveProperty("merge_group");
+      if (file !== "e2e.yml") expect(parsed?.concurrency, file).toEqual({
+        group: OWN_RUN_GROUP,
+        "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+      });
+    }
+  });
+
+  it.each([
+    { event: "pull_request", expectedGroup: "pr-7", cancel: true },
+    { event: "pull_request", action: "labeled", label: "layout-pins", expectedGroup: "pr-7", cancel: true },
+    { event: "pull_request", action: "labeled", label: "needs-triage", expectedGroup: "run-123", cancel: false },
+    { event: "push", expectedGroup: "main-push", cancel: false },
+    { event: "merge_group", expectedGroup: "run-123", cancel: false },
+    { event: "workflow_dispatch", expectedGroup: "run-123", cancel: false },
+  ] as const)("applies browser concurrency for $event $label", ({ expectedGroup, cancel, ...context }) => {
+    const concurrency = workflows.find(({ file }) => file === "e2e.yml")?.parsed.concurrency;
+    expect(concurrency).toBeDefined();
+    const group = (concurrency?.group ?? "").replace(/\$\{\{([\s\S]*?)\}\}/g, (expression) =>
+      String(browserJobExpression(expression, context)));
+    expect(group).toBe(`Browser tests-${expectedGroup}`);
+    expect(browserJobExpression(String(concurrency?.["cancel-in-progress"]), context)).toBe(cancel);
+    if (expectedGroup === "run-123") {
+      const nextGroup = (concurrency?.group ?? "").replace(/\$\{\{([\s\S]*?)\}\}/g, (expression) =>
+        String(browserJobExpression(expression, { ...context, runId: 124 })));
+      expect(nextGroup).toBe("Browser tests-run-124");
     }
   });
 

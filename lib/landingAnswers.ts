@@ -50,6 +50,8 @@ export type TonightListingFacts = {
   unread: boolean;
   /** How many dated pub events the merged lanes hold for tonight. */
   count: number;
+  /** How many of those dated events are quizzes. */
+  quizCount?: number;
   hasDeals?: boolean;
   /**
    * The same recommendation pack and page limit as /tonight. These pubs are
@@ -68,7 +70,10 @@ export function tonightAnswer(listings: TonightListingFacts, stamp: string): Lan
   }
   const dealNote = listings.hasDeals ? " See recurring deals." : "";
   if (listings.count >= 1) {
-    const events = listings.count === 1 ? "1 pub event" : `${listings.count} pub events`;
+    const [one, many] = listings.quizCount === listings.count
+      ? ["pub quiz", "pub quizzes"]
+      : ["pub event", "pub events"];
+    const events = listings.count === 1 ? `1 ${one}` : `${listings.count} ${many}`;
     return { line: `${events} listed in London tonight.${dealNote}`, stamp, measured: true };
   }
   const hyped = listings.hypedCount ?? 0;

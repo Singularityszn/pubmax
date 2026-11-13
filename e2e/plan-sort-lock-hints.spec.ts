@@ -35,7 +35,7 @@ for (const viewport of [
     await query.fill("Quiet in Clapham for 4, not pricey");
     await expect(page.locator(".planDescribeFirst__empty")).toHaveCount(0);
     await page.getByRole("button", { name: "Plan it", exact: true }).click();
-    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
+    await expect(page.getByText("Route ready. Review the preview")).toBeVisible({
       timeout: HOST_ACTION_BUDGET_MS,
     });
 

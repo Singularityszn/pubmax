@@ -25,7 +25,9 @@ import type { SocialPostCommentPolicy, SocialPostDTO, SocialPostVisibility } fro
 import {
   cleanSocialText,
   emptyInteractionSummary,
-  payloadDigest,
+  interactionModerationOutcome,
+  SOCIAL_REPORT_KINDS,
+  SOCIAL_REPORT_REASONS,
   validIdempotencyKey,
   type SocialCommentDTO,
   type SocialCommentInput,
@@ -37,16 +39,21 @@ import {
   type SocialFeatureUpdateInput,
   type SocialInteractionActor,
   type SocialInteractionSummary,
-  type SocialModerationState,
   type SocialNotificationDTO,
   type SocialQuoteInput,
   type SocialRelationship,
+  type SocialReportKind,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
 import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { requireSupabaseAdmin, requiresSupabaseStore, hashActor } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+import type { Database } from "@/types/database";
+
+function payloadDigest(value: unknown): string {
+  return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
 
 export type { SocialInteractionActor } from "@/lib/socialInteractions";
 
@@ -106,7 +113,7 @@ export type SocialInteractionStore = {
   markNotificationRead(viewer: SocialInteractionActor, id: string, read: boolean): Promise<void>;
   updateFeatureRequest(actor: SocialInteractionActor, postId: string, input: SocialFeatureUpdateInput): Promise<SocialFeatureUpdateDTO>;
   featureHistory(viewer: SocialInteractionActor, postId: string, page: PageInput): Promise<Page<SocialFeatureUpdateDTO> & { currentStatus: SocialFeatureStatus }>;
-  report(actor: SocialInteractionActor, input: { kind: "post" | "comment" | "quote"; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
+  report(actor: SocialInteractionActor, input: { kind: SocialReportKind; id: string; reason: SocialReportReason }): Promise<{ id: string; createdAt: string }>;
   reportQueue(actor: SocialInteractionActor, page: PageInput): Promise<Page<SocialContentReportDTO>>;
   resolveReport(actor: SocialInteractionActor, id: string): Promise<void>;
   moderate(actor: SocialInteractionActor, input: { kind: "comment" | "quote"; id: string; action: "hide" | "restore" }): Promise<void>;
@@ -349,9 +356,11 @@ export function createMemorySocialInteractionStore(options: {
 
   async function reportableContent(
     actor: SocialInteractionActor,
-    kind: "post" | "comment" | "quote",
+    kind: SocialReportKind,
     contentId: string,
   ): Promise<boolean> {
+    // A person can be reported by anyone but themselves, blocked or not (0224).
+    if (kind === "profile") return contentId !== actor.profileId;
     if (kind === "post") return Boolean(await visiblePost(contentId, actor));
     if (kind === "quote") {
       const target = quotes.get(contentId);
@@ -569,20 +578,13 @@ export function createMemorySocialInteractionStore(options: {
         result.processed += 1;
         try {
           const moderation = await adapter.moderate({ postId: job.id, text: job.text });
-          if (job.kind === "comment") {
-            const row = comments.get(job.id);
-            if (row) {
-              row.moderationState = moderation.decision;
-              if (moderation.decision === "approved") {
-                addNotification(job.sourceAuthorProfileId, row.authorProfileId, "comment", row.postId);
-              }
-            }
-          } else {
-            const row = quotes.get(job.id);
-            if (row) {
-              row.moderationState = moderation.decision;
-              if (moderation.decision === "approved") addNotification(row.sourceAuthorProfileId, row.authorProfileId, "quote", row.sourcePost.id);
-            }
+          const outcome = interactionModerationOutcome(moderation.decision);
+          const row = job.kind === "comment" ? comments.get(job.id) : quotes.get(job.id);
+          if (row) {
+            row.moderationState = outcome.moderationState;
+            if (outcome.hidden) row.status = "hidden";
+            else if ("postId" in row) addNotification(job.sourceAuthorProfileId, row.authorProfileId, "comment", row.postId);
+            else addNotification(row.sourceAuthorProfileId, row.authorProfileId, "quote", row.sourcePost.id);
           }
           jobs.delete(`${job.kind}:${job.id}`);
           if (moderation.decision === "approved") result.approved += 1;
@@ -696,7 +698,7 @@ export function createMemorySocialInteractionStore(options: {
     },
 
     async report(actor, input) {
-      if (!["post", "comment", "quote"].includes(input.kind) || !["harassment", "hate", "threat", "doxxing", "spam", "other"].includes(input.reason)) {
+      if (!SOCIAL_REPORT_KINDS.includes(input.kind) || !SOCIAL_REPORT_REASONS.includes(input.reason)) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report details are not valid.");
       }
       if (!await reportableContent(actor, input.kind, input.id)) {
@@ -704,7 +706,10 @@ export function createMemorySocialInteractionStore(options: {
       }
       const key = createHash("sha256").update(`${actor.profileId}:${input.kind}:${input.id}:${input.reason}`).digest("hex");
       const prior = reports.get(key);
-      if (prior) return { id: prior.id, createdAt: prior.createdAt };
+      if (prior) {
+        if (input.kind === "profile" && prior.state === "resolved") prior.state = "queued";
+        return { id: prior.id, createdAt: prior.createdAt };
+      }
       const row: ReportRow = {
         id: randomUUID(),
         reporterProfileId: actor.profileId,
@@ -792,6 +797,37 @@ function row(value: unknown): Record<string, unknown> {
   return value as Record<string, unknown>;
 }
 
+/** PostgREST's "no such function" (PGRST202) or PostgreSQL's 42883. */
+function isMissingFunction(error: { code?: string }): boolean {
+  return error.code === "PGRST202" || error.code === "42883";
+}
+
+/**
+ * 0236 adds the claim that returns a lease token. Before it is applied, or after its rollback, the tokenless claim
+ * is the only door. Its lease is settled only by the tokenless completion, so the two doors never mix.
+ */
+async function claimInteractionModerationJobs(limit: number): Promise<unknown[]> {
+  const admin = requireSupabaseAdmin();
+  const leased = await admin.rpc("claim_social_interaction_moderation_leases", { p_limit: limit });
+  if (!leased.error) return leased.data ?? [];
+  if (!isMissingFunction(leased.error)) throw leased.error;
+  const legacy = await admin.rpc("claim_social_interaction_moderation_jobs", { p_limit: limit });
+  if (legacy.error) throw legacy.error;
+  return legacy.data ?? [];
+}
+
+/** A claim's token selects the lease-bound completion. A tokenless claim needs the tokenless completion. */
+type InteractionJobCompletion = Database["public"]["Functions"]["complete_social_interaction_moderation_job"]["Args"];
+
+function interactionJobCompletion(
+  claim: Record<string, unknown>,
+  outcome: Pick<InteractionJobCompletion, "p_decision" | "p_error_code" | "p_retry_at">,
+): InteractionJobCompletion {
+  const lease = typeof claim.lease_token === "string" ? { p_lease_token: claim.lease_token } : {};
+  // Before 0236 the key must be absent: PostgREST matches a function by its argument names.
+  return { p_kind: String(claim.content_kind), p_content_id: String(claim.content_id), ...lease, ...outcome } as InteractionJobCompletion;
+}
+
 function commentFromRow(value: unknown): SocialCommentDTO {
   const valueRow = row(value);
   return {
@@ -799,9 +835,7 @@ function commentFromRow(value: unknown): SocialCommentDTO {
     postId: String(valueRow.post_id),
     body: String(valueRow.body),
     author: { handle: String(valueRow.author_handle) },
-    moderationState: valueRow.moderation_state === "approved" || valueRow.moderation_state === "needs_review"
-      ? valueRow.moderation_state
-      : "pending",
+    moderationState: valueRow.moderation_state === "approved" ? "approved" : "pending",
     createdAt: String(valueRow.created_at),
   };
 }
@@ -1082,7 +1116,7 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
         body: String(value.body),
         visibility: value.visibility as SocialPostVisibility,
         author: { handle: String(value.author_handle) },
-        moderationState: (value.moderation_state ?? "pending") as SocialModerationState,
+        moderationState: value.moderation_state === "approved" ? "approved" as const : "pending" as const,
         createdAt: String(value.created_at),
       };
     }, () => memorySocialInteractionStore.createQuote(actor, postId, input), true);
@@ -1122,25 +1156,18 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
 
   async processModerationQueue(adapter, requestedLimit = 20) {
     return durableOrMemory(async () => {
-      const { data, error } = await requireSupabaseAdmin().rpc("claim_social_interaction_moderation_jobs", {
-        p_limit: Math.min(Math.max(requestedLimit, 1), 50),
-      });
-      if (error) throw error;
+      const claimed = await claimInteractionModerationJobs(Math.min(Math.max(requestedLimit, 1), 50));
       const result: ModerationResult = { processed: 0, approved: 0, needsReview: 0, retried: 0, terminalErrors: 0 };
-      const settlements = await Promise.allSettled((data ?? []).map(async (value: unknown) => {
+      const settlements = await Promise.allSettled(claimed.map(async (value: unknown) => {
         const valueRow = row(value);
-        const kind = String(valueRow.content_kind);
-        const contentId = String(valueRow.content_id);
         result.processed += 1;
         try {
-          const moderation = await adapter.moderate({ postId: contentId, text: String(valueRow.moderation_claim) });
-          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", {
-            p_kind: kind,
-            p_content_id: contentId,
+          const moderation = await adapter.moderate({ postId: String(valueRow.content_id), text: String(valueRow.moderation_claim) });
+          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", interactionJobCompletion(valueRow, {
             p_decision: moderation.decision,
             p_error_code: null,
             p_retry_at: null,
-          });
+          }));
           if (completion.error) throw completion.error;
           if (completion.data !== true) return;
           if (moderation.decision === "approved") result.approved += 1;
@@ -1151,13 +1178,11 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
           const retryAt = retryable
             ? new Date(Date.now() + moderationRetryBackoffMs(attempts)).toISOString()
             : null;
-          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", {
-            p_kind: kind,
-            p_content_id: contentId,
+          const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", interactionJobCompletion(valueRow, {
             p_decision: null,
             p_error_code: moderationError instanceof Error ? moderationError.name.slice(0, 120) : "provider_error",
             p_retry_at: retryAt,
-          });
+          }));
           if (completion.error) throw completion.error;
           if (completion.data !== true) return;
           if (retryable) result.retried += 1;

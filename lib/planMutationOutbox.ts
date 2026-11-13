@@ -21,8 +21,7 @@ type PlanMutationOutboxStatus =
   | "pending"
   | "conflict"
   | "forbidden"
-  | "rejected"
-  | "failed";
+  | "rejected";
 
 export type PlanMutationOutboxEntry = {
   version: 1;
@@ -44,12 +43,16 @@ export type PlanMutationOutboxEntry = {
   lastAttemptAt?: number;
   status: PlanMutationOutboxStatus;
   lastHttpStatus?: number;
+  /** The replay was refused because the route changed after the tap. */
+  routeChanged?: true;
 };
 
 export type PlanMutationFlushResult = {
   planId: string;
   entryId: string;
   outcome: NightCrawlOutcome | "conflict";
+  /** A conflict because the route changed after the tap (PLAN_ROUTE_CHANGED). */
+  routeChanged?: boolean;
   plan?: PlanState;
   type: NightCrawlActionType;
   stopPosition: number;
@@ -160,7 +163,7 @@ export function hasPendingPlanMutation(planId: string, scope?: string): boolean 
   );
 }
 
-export function removePlanMutationOutboxEntry(id: string): void {
+function removePlanMutationOutboxEntry(id: string): void {
   hydrate();
   if (!inMemory.delete(id)) return;
   persist();
@@ -313,8 +316,10 @@ export function flushPlanMutationOutbox(options?: {
             const status = response.status;
             const body = (await response.json().catch(() => null)) as PlanState | null;
             if (status === 409) {
-              markEntry(entry, { status: "conflict", lastHttpStatus: status });
-              results.push(resultFromEntry(entry, "conflict"));
+              const routeChanged = (body as { code?: unknown } | null)?.code === "PLAN_ROUTE_CHANGED";
+              const refusal = routeChanged ? { routeChanged: true as const } : {};
+              markEntry(entry, { status: "conflict", lastHttpStatus: status, ...refusal });
+              results.push({ ...resultFromEntry(entry, "conflict"), ...refusal });
               continue;
             }
             const outcome = classifyActionOutcome(status);
@@ -363,6 +368,26 @@ export function flushPlanMutationOutbox(options?: {
   return flushPromise.then((results) =>
     options?.planId ? results.filter((row) => row.planId === options.planId) : results,
   );
+}
+
+/**
+ * Hand over this plan's refused replays and drop them from the outbox. A
+ * refused row stays put until Night mode takes it, so a refusal the site-wide
+ * host replayed on another page is still shown once when the drinker is back.
+ */
+export function takeRefusedPlanMutations(planId: string): PlanMutationFlushResult[] {
+  const refused = listPlanMutationOutbox(planId).filter(
+    (row): row is PlanMutationOutboxEntry & { status: "conflict" | "forbidden" | "rejected" } =>
+      row.status === "conflict" || row.status === "forbidden" || row.status === "rejected",
+  );
+  if (refused.length === 0) return [];
+  for (const row of refused) inMemory.delete(row.id);
+  persist();
+  notify();
+  return refused.map((row) => ({
+    ...resultFromEntry(row, row.status),
+    ...(row.routeChanged ? { routeChanged: true } : {}),
+  }));
 }
 
 /**

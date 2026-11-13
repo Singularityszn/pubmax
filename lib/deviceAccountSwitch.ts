@@ -32,6 +32,7 @@ import {
   rememberDeviceAccount,
 } from "@/lib/deviceAccountSessions";
 import { discardBody } from "@/lib/responseBody";
+import { stopLiveLocationBeforeAccountDeparture } from "@/lib/planLiveLocationShare";
 
 const MINT_TIMEOUT_MS = 10_000;
 
@@ -55,7 +56,7 @@ export type MintOutcome =
 
 export type DeviceAccountSwitchOutcome =
   | { status: "switched"; userId: string }
-  | { status: "needs_sign_in"; userId: string }
+  | { status: "needs_sign_in"; userId: string; banned?: true }
   | { status: "unavailable" };
 
 export type DeviceAccountSwitchDeps = {
@@ -161,7 +162,7 @@ export async function activateDeviceAccount(
   const minted = await mintSessionFromRefreshToken(row.refreshToken, deps);
   if (minted.status === "refused") {
     markDeviceAccountNeedsSignIn(deps.storage, userId);
-    return { status: "needs_sign_in", userId };
+    return minted.banned ? { status: "needs_sign_in", userId, banned: true } : { status: "needs_sign_in", userId };
   }
   if (minted.status === "unavailable") return { status: "unavailable" };
 
@@ -199,6 +200,7 @@ export function browserDeviceAccountSwitchDeps(): DeviceAccountSwitchDeps {
     async setSession(session) {
       const supabase = await ensureSupabaseBrowser().catch(() => null);
       if (!supabase) return { ok: false };
+      await stopLiveLocationBeforeAccountDeparture();
       const { error } = await supabase.auth.setSession({
         access_token: session.access_token,
         refresh_token: session.refresh_token,

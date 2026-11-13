@@ -157,6 +157,13 @@ describe("Playwright isolated build configuration", () => {
     expect(source).not.toContain("NEXT_DIST_DIR=.next-e2e npm run build");
   });
 
+  it("keeps test scratch copies outside the typecheck", () => {
+    // A killed vitest run leaves CLI scratch copies of lib/ under
+    // test-results/runner-recovery. Typecheck must not read them.
+    const tsconfig = JSON.parse(readFileSync(path.join(ROOT, "tsconfig.json"), "utf8")) as { exclude?: string[] };
+    expect(tsconfig.exclude).toContain("test-results");
+  });
+
   it("keeps isolated build directories outside lint and git inputs", () => {
     const eslintSource = readFileSync(path.join(ROOT, "eslint.config.mjs"), "utf8");
     const gitignorePath = path.join(ROOT, ".gitignore");
@@ -561,6 +568,40 @@ describe("assert-no-conditional-e2e-skips", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("no E2E specs");
+  });
+
+  it.each([
+    {
+      scenario: "admits a quarantined test under its tracking issue",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7 the drawer\n[chromium] › red.spec.ts › x\n",
+      problem: null,
+    },
+    {
+      scenario: "refuses a quarantined test with no tracking issue",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7\n[chromium] › red.spec.ts › x\n\n[chromium] › red.spec.ts › y\n",
+      problem: 'no tracking issue above "[chromium] › red.spec.ts › y"',
+    },
+    {
+      scenario: "refuses a quarantined spec that does not exist",
+      list: "# https://github.com/Singularityszn/pubmax/issues/7\n[chromium] › gone.spec.ts:4:5 › x\n",
+      problem: "gone.spec.ts does not exist",
+    },
+  ])("$scenario", ({ list, problem }) => {
+    const directory = tempDirectory();
+    writeFileSync(
+      path.join(directory, "red.spec.ts"),
+      'import { test } from "@playwright/test";\ntest("x", () => {});\ntest("y", () => {});\n',
+    );
+    writeFileSync(path.join(directory, "full-suite-quarantine.txt"), list);
+
+    const result = run("assert-no-conditional-e2e-skips.mjs", [directory]);
+
+    if (problem === null) {
+      expect(result.status, result.stderr).toBe(0);
+    } else {
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(problem);
+    }
   });
 });
 

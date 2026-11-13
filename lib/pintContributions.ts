@@ -8,11 +8,11 @@
 // lib/pintDropShared.ts as the browser-safe twin of a server domain.
 //
 // DUTY OF CARE: every streak/tally here rewards the CONTRIBUTION — days you
-// added a price observation to the map — and never the drinking. The reward is
-// visible impact ("you mapped 12 pints in Hackney"), never a points economy.
-// Copy must stay on the mapping framing.
+// added a price observation to the map, never the drinking. This module reports
+// mapping activity. lib/points.ts owns points. Copy must stay on the mapping framing.
 
 import { DAY_MS } from "@/lib/dayMs";
+import { londonDayKey as londonDayKeyOf } from "@/lib/londonHour";
 
 /**
  * The calendar day (YYYY-MM-DD) an instant falls on in Europe/London — the one
@@ -24,13 +24,7 @@ import { DAY_MS } from "@/lib/dayMs";
 export function londonDayKey(iso: string | Date): string {
   const date = typeof iso === "string" ? new Date(iso) : iso;
   if (Number.isNaN(date.getTime())) return "";
-  // en-CA formats as YYYY-MM-DD, so the key sorts lexicographically = chronologically.
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone: "Europe/London",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(date);
+  return londonDayKeyOf(date);
 }
 
 /** Whole days between two YYYY-MM-DD London day keys (b - a), calendar-day exact. */

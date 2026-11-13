@@ -8,6 +8,9 @@ name: CI
 
 on:
   pull_request:
+  # The merge queue tests the exact commit that will land on main
+  # (docs/CI_RUNBOOK.md, "The required checks and the merge queue").
+  merge_group:
   push:
     branches: [main]
   workflow_dispatch:
@@ -24,6 +27,38 @@ concurrency:
 
 
 jobs:
+  # docs/CI_RUNBOOK.md owns the merge queue proof policy and its exceptions.
+  queue-proof:
+    name: Merge queue proof
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      passed: ${{ steps.proof.outputs.passed }}
+    steps:
+      - name: Find a green merge queue run of this workflow for this commit
+        id: proof
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WORKFLOW_REF: ${{ github.workflow_ref }}
+          SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          path="${WORKFLOW_REF#"$REPO/"}"
+          path="${path%%@*}"
+          passed=false
+          if runs="$(gh api "repos/$REPO/actions/runs?event=merge_group&status=success&head_sha=$SHA&per_page=100")" &&
+            count="$(jq --arg path "$path" '[.workflow_runs[] | select(.path == $path)] | length' <<< "$runs")"; then
+            if [ "$count" -gt 0 ]; then passed=true; fi
+          else
+            echo "::warning::Could not read the merge queue runs for $SHA, so every job runs."
+          fi
+          echo "passed=$passed" >> "$GITHUB_OUTPUT"
+          echo "Merge queue proof for $path at $SHA: $passed"
+
   review-scope:
     name: Review scope
     runs-on: ubuntu-latest
@@ -56,6 +91,8 @@ jobs:
 
   lint-and-types:
     name: Lint and typecheck
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 31
     steps:
@@ -126,6 +163,8 @@ jobs:
   # typegen` writes the route types it reads. `npx tsc` is TypeScript 7.
   typecheck-ts6:
     name: Typecheck (TypeScript 6)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 16
     steps:
@@ -294,6 +333,8 @@ jobs:
   # whole-suite gate.
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/3)
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 22
     strategy:
@@ -416,6 +457,7 @@ jobs:
   coverage:
     name: Coverage
     needs: [unit-tests]
+    if: ${{ !cancelled() && needs.unit-tests.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -477,33 +519,16 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=6144"
         run: npx vitest --merge-reports=blob-reports --coverage
 
-  freshness:
-    name: Freshness release gate
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - name: Setup Node
-        timeout-minutes: 5
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-      - name: Check every tracked feed
-        run: |
-          node scripts/check_freshness.mjs --artifacts-only
-          node scripts/check-production-store-freshness.mjs
-
   # The bundled datasets and city packs, held to scripts/validate-data.mjs on
   # every pull request and every push to main. Before this job the validator
   # ran only inside a local `npm run verify`, so a pack change that skipped it
-  # reached main unchecked. It runs on its own, like the freshness gate.
+  # reached main unchecked. It runs on its own.
   # PUBMAX_VERIFY_COMMITTED_DATA=1 skips the rebuild, so the committed packs are
   # checked as they ship. Only the gitignored venue detail files are generated.
   validate-data:
     name: Data validation
+    needs: [queue-proof]
+    if: ${{ !cancelled() && needs.queue-proof.outputs.passed != 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -527,3 +552,29 @@ jobs:
         env:
           PUBMAX_VERIFY_COMMITTED_DATA: "1"
         run: npm run validate-data
+
+  # THE REQUIRED CHECK (docs/CI_RUNBOOK.md, "The required checks and the merge
+  # queue"). The main ruleset requires this one check by name, not each job,
+  # so a job can be added, split or resharded with no settings change. It needs
+  # every other job in this workflow (__tests__/ciSummaryCheck.test.ts) and is
+  # red when any of them failed or was cancelled. `always()` makes it report
+  # even then: a summary that was skipped would count as passed. A job skipped
+  # by its own `if` (Review scope outside a pull request or a main push) passes.
+  check:
+    name: CI check
+    if: ${{ always() }}
+    needs: [queue-proof, review-scope, lint-and-types, typecheck-ts6, production-build, unit-tests, coverage, validate-data]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi

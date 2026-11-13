@@ -8,6 +8,7 @@ import { describe, expect, it } from "vitest";
 import TodayPintsCard from "@/app/today/TodayPintsCard";
 import PintIndexArrival from "@/components/pintindex/PintIndexArrival";
 import {
+  formatObservedDate,
   formatPintDatasetAsOf,
   formatPintDatasetSnapshot,
   PINT_DATASET_OBSERVED_AT,
@@ -71,7 +72,7 @@ describe("public pint-price clock", () => {
     );
 
     expect(todayHtml).toContain(snapshotCaption);
-    expect(todayHtml).toContain("Records from 2 October 2026");
+    expect(todayHtml).toContain(`Records from ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`);
     expect(todayHtml).not.toContain("today's price");
     expect(todayHtml).not.toContain(asOf);
     expect(pintIndexHtml).toContain(asOf);

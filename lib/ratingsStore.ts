@@ -29,6 +29,7 @@ import {
   type RatingSummary,
   type RatingValue,
 } from "@/lib/ratings";
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { normalizeHandle } from "@/lib/profiles";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import {
@@ -52,6 +53,7 @@ type RateInput = {
 };
 
 export type RatingsStore = {
+  countDrinkReviews(ownerHandle: string): Promise<number>;
   /** Upsert one handle's rating of one item; returns the item's fresh
    *  summary. THROWS on storage failure (the route maps it to 503). */
   rate(input: RateInput): Promise<RatingSummary>;
@@ -136,6 +138,25 @@ function newestVotePerHandle(
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 const supabaseRatingsStore: RatingsStore = {
+  async countDrinkReviews(ownerHandle) {
+    const identity = await identityHandleStore().wornHandles(ownerHandle);
+    const handles = [...new Set([normalizeHandle(ownerHandle), ...(identity?.handles ?? [])])].filter(Boolean);
+    if (!handles.length) return 0;
+    const refs = new Set<string>();
+    let afterId: string | undefined;
+    for (;;) {
+      let query = admin().from("drink_ratings").select("id,drink_ref")
+        .in("handle", handles).order("id", { ascending: true }).limit(500);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (data === null) throw new Error("Drink review count unavailable");
+      if (!data.length) break;
+      for (const row of data) refs.add(row.drink_ref);
+      afterId = data[data.length - 1]!.id;
+    }
+    return refs.size;
+  },
   async rate(input) {
     const handle = normalizeHandle(input.handle);
     if (!handle) throw new Error("A rating needs a handle.");
@@ -218,6 +239,14 @@ const memoryVotes: Record<RatingKind, Map<string, Map<string, RatingRecord>>> = 
 };
 
 export const memoryRatingsStore: RatingsStore = {
+  async countDrinkReviews(ownerHandle) {
+    const identity = await identityHandleStore().wornHandles(ownerHandle);
+    const handles = new Set([normalizeHandle(ownerHandle), ...(identity?.handles ?? [])]);
+    return [...memoryVotes.drink.values()].reduce(
+      (total, votes) => total + Number([...votes.keys()].some((handle) => handles.has(handle))),
+      0,
+    );
+  },
   async rate(input) {
     const handle = normalizeHandle(input.handle);
     if (!handle) throw new Error("A rating needs a handle.");

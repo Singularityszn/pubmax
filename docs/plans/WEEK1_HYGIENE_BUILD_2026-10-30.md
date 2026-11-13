@@ -51,7 +51,7 @@ Each row below says what PUBMAXX has, which fence applies, and what round 2 does
 | Match score with friends | none | No inferred compatibility | Explicit overlap only: "Pubs you both rank in your top five" and "Pubs you both want to try" on a mate's profile. No percentage. |
 | Two scores per place | Mutuals-only "your lot's" average on the pub page (`PubLotReviews`); no predicted score | No aggregate score, no venue average on the map, no "top rated" (ADR 0017) | Keep the mutuals read. Do not build a predicted score. |
 | Recommendations | Suggested venues from conditions and the planner | Only from explicit facts; label the reason | Pub twins (idea D7): same price band, same era, same amenities, within a zone, with the reasons printed. |
-| Leaderboards by count | Contributor record (prices logged, visits written, recommendations) | No consumption leaderboard, no "most places" board (MASTER_PRD, #1522) | Do not build. Borough bingo (idea D8) is breadth, not volume, and stays on the owner's own card. |
+| Leaderboards by count | See [README features](../../README.md#features) for the current mates board. | The former refusal is superseded. | Follow the README. |
 | Streaks | none | Refused (VOICE.md, MASTER_PRD) | Do not build. |
 | Invite unlocks | Referral mark on the owner's card | A referral is a mark of honour, never a feature | Do not build. |
 | Paste from TikTok and Instagram | Wanted paste of a name or link | No scraping or oEmbed fetch of closed platforms | Keep paste. Add the native share target so a shared link lands in Wanted (PlanAstra 8.4). |

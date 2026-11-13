@@ -1,4 +1,5 @@
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
+import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
 // The app is deliberately keyless/offline and reads these JSON files directly,
@@ -1333,7 +1334,9 @@ function validateSlimVenues() {
       .map((p) => p.price_gbp)
       .filter((p) => typeof p === "number" && Number.isFinite(p));
     const kind = legacyOsmVenueKind(prices);
-    expected.set(stableVenueIdFromKey(key), {
+    const id = stableVenueIdFromKey(key);
+    expected.set(id, {
+      id,
       name: String(first.pub_name),
       lat: Number(first.latitude),
       lng: Number(first.longitude),
@@ -1347,6 +1350,7 @@ function validateSlimVenues() {
   const priceBands = famousPriceBands(liveFamousRows);
   for (const row of liveFamousRows) {
     expected.set(row.id, {
+      id: row.id,
       name: row.name,
       lat: row.lat,
       lng: row.lng,
@@ -1355,6 +1359,15 @@ function validateSlimVenues() {
       kind: row.kind,
       priceBand: priceBands.get(row.id),
     });
+  }
+
+  const bundlePath = join(UK_PRICE_BUNDLE_DIR, "rows.json");
+  if (existsSync(bundlePath)) {
+    try {
+      applySlimListingPrices([...expected.values()], JSON.parse(readFileSync(bundlePath, "utf8")));
+    } catch (error) {
+      errs.add(`could not read price bundle for slim parity: ${error.message}`);
+    }
   }
 
   // The rebuilt index can only be a true parity check when heritage seed
@@ -2830,7 +2843,7 @@ function validateUkPriceBundle() {
   }
 
   const STANDINGS = new Set(["confirmed", "listed", "estimate"]);
-  const LANES = new Set(["site-harvest", "drink-price-update", "estimate"]);
+  const LANES = new Set(["site-harvest", "drink-price-update", "listing-site", "estimate"]);
   rows.forEach((row, i) => {
     const where = `rows.json[${i}]`;
     if (typeof row !== "object" || row === null) { errs.add(`${where}: not an object`); return; }

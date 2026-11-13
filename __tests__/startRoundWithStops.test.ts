@@ -61,6 +61,7 @@ describe("startRoundWithStops", () => {
         kind: "account",
         auth: { userId: "user-ken", accessToken: "token-ken" },
       },
+      clientRequestId: "round-request-0001",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 
@@ -68,7 +69,7 @@ describe("startRoundWithStops", () => {
     expect(calls).toHaveLength(3);
     expect(calls[0]).toEqual({
       url: "/api/rounds",
-      body: { handle: "ken", title: "River walk" },
+      body: { handle: "ken", title: "River walk", clientRequestId: "round-request-0001" },
       authorization: "Bearer token-ken",
     });
     expect(calls[1]).toEqual({
@@ -113,6 +114,7 @@ describe("startRoundWithStops", () => {
       handle: "ken",
       seedStops: [],
       identity: { kind: "anonymous" },
+      clientRequestId: "round-request-0001",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 
@@ -131,6 +133,7 @@ describe("startRoundWithStops", () => {
     const result = await startRoundWithStops({
       handle: "",
       identity: { kind: "anonymous" },
+      clientRequestId: "round-request-0001",
       fetchImpl: fetchImpl as unknown as typeof fetch,
     });
 

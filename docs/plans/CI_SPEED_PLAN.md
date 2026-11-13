@@ -1,8 +1,8 @@
 # CI speed plan
 
-Status: LEVERS 1 TO 4 SHIPPING, CAPTAIN DECIDES THE REST. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 to 7 wait for the captain.
+Status: LEVERS 1 TO 4 SHIPPING. Lever 1 ships in the pull request that adds this plan. On 2 Nov 2026 the captain approved levers 2, 3 and 4 (three unit shards), and they ship in the same pull request. Levers 5 and 6 wait for the captain. See lever 7 for browser-work status.
 
-Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `.agents/skills/ci-speedup`, `.agents/skills/ci-score` and `.agents/skills/ci-secure` ([provenance](../../.agents/skills/SOURCES.md)).
+Rule: [CI SPEED WORK STARTS FROM A MEASURED CRITICAL PATH](../rules/scripts-ci-gates-and-audits.md#ci-speed-work-starts-from-a-measured-critical-path). Skills: `ci-speedup`, `ci-score` and `ci-secure`, user-level skills installed in `~/.agents/skills` (provenance in the git history of [`.agents/skills/SOURCES.md`](../../.agents/skills/SOURCES.md)).
 
 ## 1. What happened
 
@@ -16,7 +16,7 @@ The skills are now project skills. A rule in `docs/rules/scripts-ci-gates-and-au
 
 ## 2. What a pull request waits for today
 
-A code pull request waits for `CI` and `Browser tests`. The table shows `CI` for the last three green code pull requests. Times are minutes and seconds, read from the GitHub Actions job timings.
+The [CI runbook](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) owns the current merge requirements. The table shows `CI` for three green code pull requests measured on 2 Nov 2026. Times are minutes and seconds, read from the GitHub Actions job timings.
 
 | Pull request and run | Total | Wait for a runner | Lint and typecheck job | Production build job (starts after lint) | Slower unit shard | Faster unit shard |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -48,7 +48,7 @@ Each playbook comes from one company's public posts and pull requests. The table
 | [Shopify](https://starsling.dev/ci-playbooks/shopify) | Let an agent iterate against one CI metric | **Adopted as the rule.** The one metric is the slowest chain's minutes. "Let tests start without waiting for lint" is done. "Run expensive checks when a draft becomes ready" is refused: agents open every pull request as a draft. |
 | [Spotify](https://starsling.dev/ci-playbooks/spotify) | Build arm64 on native arm64 runners | **Does not apply.** We build no images. "Cap hung test jobs with timeouts" is done. |
 | [Stripe](https://starsling.dev/ci-playbooks/stripe) | Run only the tests a change can reach | **Refused** for CI (same owner decision as Anthropic). "Cancel superseded pull request runs" is done. "Balance shards and keep a catch-all for new tests" is lever 4. |
-| [Uber](https://starsling.dev/ci-playbooks/uber) | Build the likely merge-queue speculations | **Does not apply.** This repository has no merge queue. "Persist the build cache between runners" is lever 1. |
+| [Uber](https://starsling.dev/ci-playbooks/uber) | Build the likely merge-queue speculations | See the [CI runbook](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) for queue configuration. "Persist the build cache between runners" is lever 1. |
 
 The twelve techniques that appear in the most playbooks, and where this repository stands:
 
@@ -65,7 +65,7 @@ The twelve techniques that appear in the most playbooks, and where this reposito
 | Run only the affected apps | 5 of 10 | Done in our own way: each job reads the change scope (docs, data or code). |
 | Cancel superseded runs | 5 of 10 | Done on every pull request workflow. Main pushes of `Browser tests` share one group. |
 | Set job timeouts | 5 of 10 | Done on every job. |
-| Cache large downloads | 4 of 10 | Partly: Chromium downloads in 11 to 18 seconds per browser job (lever 7). |
+| Cache large downloads | 4 of 10 | See the [Mac cache policy](../CI_RUNBOOK.md#self-hosted-mac-runners). |
 
 `ci-score` gives this repository 75 out of 100. Its two failed checks are decisions, not defects: no `paths` filter (a filtered workflow leaves a required check waiting for ever, so each job reads the change scope instead), and `fetch-depth: 0` on Review scope (it diffs the whole branch).
 
@@ -78,10 +78,10 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 | 1. Restore the Next.js build cache | about 0.3 to 0.5 | Ships in this pull request |
 | 2. Type-check the app code once, not twice | about 3 | Approved 2 Nov 2026, ships in this pull request |
 | 3. Start the production build beside lint | 1 to 2 now, more after lever 2 | Approved 2 Nov 2026, ships in this pull request |
-| 4. Balance the unit shards | 2.5 to 3 off the unit chain | Approved 2 Nov 2026 as three shards, ships in this pull request; the captain updates the required checks |
+| 4. Balance the unit shards | 2.5 to 3 off the unit chain | Approved 2 Nov 2026 as three shards, ships in this pull request |
 | 5. Cache ESLint's work | up to about 2 | Captain decides |
 | 6. Spread Dependabot over the day | up to 5 of queue, only in a burst | Captain decides |
-| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | Captain decides |
+| 7. Smaller wins in Browser tests | 0.2 to 2.5 per browser job | See lever 7 below |
 
 ### Lever 1. Restore the Next.js build cache (ships in this pull request)
 
@@ -96,7 +96,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 - **Change:** the CI build skips its own type check, because the CI TypeScript 6 check already checks a superset with the same compiler; since lever B it runs in its own job, `Typecheck (TypeScript 6)`. The CI `Build` step sets `PUBMAX_CI_SKIP_BUILD_TYPECHECK=1`, and `next.config.mjs` then sets `typescript.ignoreBuildErrors`. `next.config.mjs` ignores the variable on Vercel, so a deploy build keeps the check.
 - **Measured on this machine:** the whole `next build` took 83 seconds with the skip, against 377 seconds cold with the check. The log says `Skipping validation of types`.
 - **Saving:** about 3 minutes off the slowest chain on every code pull request (the measured `Running TypeScript` phase).
-- **What it gives up:** the CI build no longer proves the types on its own. A type error still fails `Typecheck (TypeScript 6)`. That check must be required in branch protection (section 7, item 1); until it is, a TypeScript 6 error could merge green and then fail the Vercel deploy build.
+- **What it gives up:** the CI build no longer proves the types on its own. The [CI runbook](../CI_RUNBOOK.md#build-cache-and-type-check) explains the separate type check and its merge enforcement.
 - **Why the captain decides:** it changes what a check proves, even though nothing new can go red.
 
 ### Lever 3. Start the production build beside lint (approved 2 Nov 2026)
@@ -109,7 +109,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 - **Change:** three shards instead of two (the captain's choice). The Coverage job merges all three blobs, so the whole-suite coverage gate is unchanged.
 - **Saving:** the slower shard ran 2.5 to 3 minutes longer than the faster one in two of three runs. Three shards would bring each to about 5 to 6 minutes of tests.
-- **Cost:** about 1 extra runner minute per run for the third job's setup. The check names change from `Unit tests (1/2)` and `(2/2)` to `Unit tests (1/3)`, `(2/3)` and `(3/3)`. The captain updates branch protection when this merges.
+- **Cost:** about 1 extra runner minute per run for the third job's setup. See the [CI runbook](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue) for the required checks.
 
 ### Lever 5. Cache ESLint's work between runs (captain decides)
 
@@ -125,8 +125,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 ### Lever 7. Smaller wins in Browser tests (captain decides)
 
-- Balance the three macOS layout-pin shards by duration. Playwright splits by test count, and one shard ran at least 2.5 minutes longer than another.
-- Cache the Playwright Chromium download (11 to 18 seconds per job).
+- Balance the three macOS layout-pin shards by duration. Done (captain, 9 Nov 2026): see the [CI runbook](../CI_RUNBOOK.md#timeouts-and-job-shape).
 - Shorten fixed waits in browser specs: `ci-speedup` counts about 65 seconds of `waitForTimeout` across 76 spec files.
 
 ### Also found (not speed)
@@ -137,7 +136,7 @@ Today the slowest chain is lint and typecheck (5:02 to 8:14), then the productio
 
 1. Read the step timings of three green code pull requests with the GitHub MCP `actions_list` tool (`list_workflow_jobs`), or run `ci-speedup` where `gh` is signed in.
 2. Name the slowest chain, then compare it with section 2.
-3. Run `python3 .agents/skills/ci-score/scripts/collect_config.py --repo . --out <scratch>/score.json` to re-score the configuration.
+3. Run `python3 ~/.agents/skills/ci-score/scripts/collect_config.py --repo . --out <scratch>/score.json` to re-score the configuration.
 
 ## 6. After the first measurement (2 Nov 2026)
 
@@ -155,7 +154,7 @@ The captain approved both fixes:
 
 Decided on 2 Nov 2026: levers 2 and 3, lever 4 as three unit shards, balanced shards, and a separate TypeScript 6 job.
 
-1. Branch protection: when this merges, replace the required checks `Unit tests (1/2)` and `Unit tests (2/2)` with `Unit tests (1/3)`, `Unit tests (2/3)` and `Unit tests (3/3)`, and add `Typecheck (TypeScript 6)`.
+1. Merge enforcement follows the [CI runbook](../CI_RUNBOOK.md#the-required-checks-and-the-merge-queue). Its ruleset procedure replaces the earlier raw-job requirements.
 2. Lever 5: may CI cache ESLint's work from `main`?
 3. Lever 6: spread Dependabot over the day?
 4. Faster paid runners (Linear, Ramp, Mastra): not now, or try one job?

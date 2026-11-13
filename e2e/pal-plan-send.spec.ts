@@ -44,7 +44,7 @@ async function palToLockedPlan(page: Page) {
   const answer = page.locator(".palChatRow--pal").last();
   await answer.getByRole("link", { name: "Open in Plan" }).click();
   await expect(page).toHaveURL(/\/plan\?/);
-  await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
+  await expect(page.getByText("Route ready. Review the preview")).toBeVisible({
     timeout: 30_000,
   });
   const nameField = page.getByLabel("Your name");

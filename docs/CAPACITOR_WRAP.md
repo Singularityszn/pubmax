@@ -39,7 +39,7 @@ The current iOS shell does not expose `navigator.serviceWorker`, so it cannot
 register that fallback. The app-bound opt-in remains withheld until usable
 offline behavior is proven. The bundled outage page remains the iOS fallback.
 WebKit's HTTP cache does not prove worker registration.
-The [lane A simulator record](proof/ios-shell-lane-a/README.md#the-withdrawn-service-worker-experiment)
+The [lane A simulator record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/ios-shell-lane-a/README.md#the-withdrawn-service-worker-experiment)
 contains the withdrawn worker experiment and its offline dependency failures.
 
 On Android, "Try again" returns to the page that failed, so a shared plan link
@@ -245,7 +245,7 @@ Before sync, hash or copy intentional native files (`AppDelegate.swift`,
 `SceneDelegate.swift`, `Info.plist`, `AndroidManifest.xml`, and
 `MainActivity.java`), then compare them afterward. The 2026-07-20 Gate Z
 refresh did this for four of them and sync preserved all four;
-see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
+see [the historical Gate Z record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md).
 
 ### Reviewing a local build in the shells
 
@@ -338,8 +338,8 @@ is the ordered checklist to work through, with one command per step.
    `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
    seam never writes to the gallery (`saveToGallery` stays at its `false`
    default in `lib/nativeCamera.ts`) — add the key only if that changes.
-   Foreground location is also declared on both platforms for existing
-   nearby-pub and walk-time actions. iOS carries
+   Foreground location is also declared on both platforms for
+   nearby-pub, walk-time and opt-in crew live location actions. iOS carries
    `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine
    location together. Neither platform requests background location.
 3. **iOS push (APNs)**

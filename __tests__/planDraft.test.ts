@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parsePlanDraft, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
+import { parsePlanDraft, parsePlanDraftEnvelope, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 
 describe("parsePlanDraft", () => {
   it("recovers bounded editable plan fields", () => {
@@ -180,6 +180,68 @@ describe("request drafts without stops", () => {
     const legacy = parsePlanDraft(JSON.stringify({ ...draft, groundingProof: "forged" }), now);
     expect(legacy).not.toHaveProperty("groundingProof");
     expect(legacy?.stops).toEqual([]);
+  });
+});
+
+describe("provisional Stop 1 requests", () => {
+  const now = Date.parse("2026-11-03T12:00:00.000Z");
+  const v1 = "pubmaxx:plan-draft:v1";
+  const v2 = "pubmax:plan-draft:v2";
+  const request = {
+    title: "Tonight, sorted", creatorName: "Captain", startTime: "", conciergeQuery: "",
+    stops: [{ key: 1, venueId: "pub-a", venueName: "Pub A" }],
+    provisionalStop: true as const, routeReference: null,
+  };
+
+  it.each([false, true])("round trips a released provisional pub when V2 refusal is %s", (refuseV2) => {
+    const values = new Map<string, string>();
+    const storage = {
+      getItem: (key: string) => values.get(key) ?? null,
+      setItem: (key: string, value: string) => {
+        if (refuseV2 && key === v2) throw new Error("blocked");
+        values.set(key, value);
+      },
+    };
+    expect(writePlanDraftEnvelope(request, "manual", storage, now)).toMatchObject({ v1: true, v2: !refuseV2 });
+    const written = { ...request, provisionalSavedAt: new Date(now).toISOString() };
+    expect(parsePlanDraft(values.get(v1) ?? null, now)).toEqual(written);
+    expect(readPlanDraftEnvelope(storage, now)).toMatchObject({
+      legacy: refuseV2, savedAt: refuseV2 ? null : written.provisionalSavedAt, draft: written,
+    });
+    if (!refuseV2) expect(JSON.parse(values.get(v2)!)).toMatchObject({ savedAt: written.provisionalSavedAt, draft: written });
+    expect(values.has(v2)).toBe(!refuseV2);
+  });
+
+  it("rejects invalid provisional date provenance", () => {
+    for (const provisionalSavedAt of ["bad", new Date(now + 6 * 60_000).toISOString()]) {
+      expect(parsePlanDraft(JSON.stringify({ ...request, provisionalSavedAt }), now)).toBeNull();
+    }
+    const provisionalSavedAt = new Date(now - 1).toISOString();
+    expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: undefined, provisionalSavedAt }), now)).toBeNull();
+    const result = writePlanDraftEnvelope({ ...request, provisionalSavedAt }, "manual", { getItem: () => null, setItem: () => {} }, now);
+    expect(result.envelope?.draft.provisionalSavedAt).toBe(new Date(now).toISOString());
+    expect(parsePlanDraftEnvelope(JSON.stringify({
+      ...result.envelope, draft: { ...request, provisionalSavedAt },
+    }), null, now)).toBeNull();
+  });
+
+  it("rejects a provisional marker on a generated reference, a multi-stop route or an empty pub", () => {
+    const storage = { getItem: () => null, setItem: () => { throw new Error("invalid draft reached storage"); } };
+    const reference = { savedAt: new Date(now).toISOString(), operationKey: "generated-operation" };
+    const invalid = [
+      { ...request, routeReference: reference },
+      { ...request, stops: [...request.stops, { key: 2, venueId: "pub-b", venueName: "Pub B" }] },
+      { ...request, stops: [{ key: 1, venueId: "", venueName: "" }] },
+    ];
+    for (const draft of invalid) {
+      expect(parsePlanDraft(JSON.stringify({ ...draft, provisionalSavedAt: new Date(now).toISOString() }), now)).toBeNull();
+      expect(writePlanDraftEnvelope(draft, "manual", storage, now)).toEqual({ v1: false, v2: false, envelope: null });
+    }
+    expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: false, provisionalSavedAt: new Date(now).toISOString() }), now)).toBeNull();
+    expect(parsePlanDraft(JSON.stringify({ ...request, provisionalStop: undefined }), now)).toEqual({
+      title: request.title, creatorName: request.creatorName, startTime: request.startTime,
+      conciergeQuery: request.conciergeQuery, stops: request.stops, routeReference: null,
+    });
   });
 });
 

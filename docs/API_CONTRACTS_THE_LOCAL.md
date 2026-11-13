@@ -76,6 +76,26 @@ Most THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `pub
 
 `cityId` is validated by `parseCityId` (`lib/cities.ts`); `DEFAULT_CITY_ID = "london"`. A Night Area belongs to exactly one city; generate returns `422` if the selected area's `cityId` ≠ the request `cityId`. IMPLEMENTED LOCALLY.
 
+### 1.4 Public venue eligibility
+
+[`isNonPublicVenueName`](../lib/venueKindFilters.ts) detects names that indicate access for members, students or staff.
+This name check does not confirm current admission rules.
+
+The affected paths apply these checks.
+
+- Plan generation excludes matching venues from its candidates, including swap alternatives and ending extensions.
+- Pub Pal's `propose_plan` excludes matching venues before ranking its draft stops.
+- The Plan pub picker uses `isPublicRankablePub`, which also checks [venue kind](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n).
+- **Host this on a date** first omits story stops whose supplied names match, through `planStopsFromStory`.
+- Plan creation and route replacement resolve each venue ID through [`planStopResolver`](../lib/planRoute.ts) before checking its canonical name.
+  A public-looking caller label cannot bypass this check.
+  Creation returns `400 PLAN_VENUES_INVALID` with "Choose listed venues." for a refused stop.
+  Route replacement returns `400 PLAN_ROUTE_INVALID` for a refused stop.
+  Both reject the request rather than save a shortened route.
+  Listed `place:<poi id>` meeting points retain their separate resolver path.
+
+Regression coverage: `__tests__/planNonPublicVenueFence.test.ts`, `__tests__/palProposePlanNonPublicVenue.test.ts`, `__tests__/planVenueOptions.test.ts`, and `__tests__/planStopPublicEligibility.test.ts`.
+
 ---
 
 ## 2. Core lifecycle types (per #252 TL-1)
@@ -183,7 +203,7 @@ Creation hashes canonical submitted intent, including the cleaned hint, independ
 
 Accepted proposals copy their proposal-time evidence only when it matches the current drink category and the context is not zero-proof. Durable acceptance checks that context while holding the Plan row lock. Completion records preserve saved stop evidence as history, so later live-route edits do not rewrite the completion. These operations do not refresh the historical report date. Anchor-only generation can return selected-drink evidence; the map-to-Plan transfer still omits it.
 
-The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
+The SQL in [`supabase/migrations/`](../supabase/migrations/) and its matching [rollbacks](../supabase/migrations/rollback/) owns durable storage, lifecycle writes, and database value constraints. `plans.night_context` holds planning intent, not per-stop price evidence; proposal and completion snapshots have their own lifecycles. A missing-column read can fall back to the legacy route without evidence; an older write RPC can return a route without saving evidence. Inspect the returned state before claiming a report was saved. Applying migrations to shared infrastructure remains an operator decision. The [local proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/wine-intent/saved-plan-price-persistence-blocker.md) records checks, not deployment state.
 
 ### 2.4 NightArea catalogue
 
@@ -247,7 +267,7 @@ The endpoint supports keyless generation. It produces a grounded draft route fro
 type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
-  context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  context?: Partial<NightContext> | NightContext; // see reconciliation below; MUST resolve a nightArea
   planStartIso?: string;
   anchor?: {                    // the accepted pub, when the person kept one first
     venueId: string;
@@ -273,7 +293,7 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 `anchor-conflict` is a `200` with no Stops, so a caller must branch on
 `outcome` before it treats an empty `stops` array as no match.
 
-[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
+[`reconcilePlanContext`](../lib/planGenerationContext.ts) applies query inference, explicit context corrections, then completed intake fields in that order. Area focus follows the [specific precedence below](#area-focus). Recognised price limits can tighten the resulting budget as described below. `context.nightArea` must resolve. A `null` area returns `422`.
 
 The optional `planStartIso` request field carries the displayed **First pint** time as a canonical UTC ISO timestamp.
 If present, an invalid value, including `null`, returns `400 MALFORMED_REQUEST` with "Plan start time is invalid."
@@ -285,6 +305,27 @@ Coverage: `__tests__/planAutomaticStart.test.ts` and `__tests__/planGenerationRe
 The composer always includes `context` through [`buildPlanGenerationIntakeBody`](../lib/planIntake.ts). It derives transport requirements from the current description, including empty or whitespace-only text. Removing transport wording removes the previous inferred requirement. An `explicitContext.transportConstraints` override still takes precedence. Recovered drink, food, and atmosphere choices remain intact.
 
 The composer sends requested stop intent through the [stop-count and draft recovery contract](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary). Request and component coverage live in `__tests__/planIntake.test.ts` and `__tests__/planComposerDescribeLink.test.ts`.
+
+### Area focus
+
+`piccadilly-soho` remains one Night Area. Its optional `context.areaFocus` distinguishes its sub-areas without changing the area slug.
+[`nightAreaFocus.ts`](../lib/nightAreaFocus.ts) owns the accepted values, geographic boundaries and focus labels.
+
+Focus precedence is:
+
+1. Query words naming Soho or Piccadilly decide the focus. Naming both selects the whole area.
+2. Otherwise, explicit `context.areaFocus` decides. A `null` value selects the whole area.
+3. Without either input, generation uses the whole area. The intake patch alone never establishes focus.
+
+Reconciliation removes a focus that does not belong to the resolved Night Area.
+The composer sends focus explicitly on every generation request, using description words, wizard or Tune choices, or recovered context.
+A whole-area Tune choice sends `null`. A later wizard choice replaces that choice.
+The composer persists its explicit choice with the draft and accepts the server-reconciled focus for the generated route.
+An area choice made during generation keeps priority over the response and marks that result stale.
+
+[`preparePlanGeneration`](../lib/planGeneration.server.ts) filters the shared candidate pool by focus and measures distance from its centre.
+The [Crawl planner guide](../README.md#features) owns the user-visible scope, shortfall and regeneration behaviour.
+Coverage: `__tests__/planGenerateRoute.test.ts`, `__tests__/planComposerChipIntent.test.ts` and `__tests__/planComposerAccountBoundary.test.tsx`.
 
 ### Response `200`
 
@@ -391,7 +432,10 @@ type PatchPlanRequest = {
 ```
 
 Rules:
-- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`.
+  `canonicalPlanRoute` requires distinct IDs and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  Each ID must resolve under the [public venue eligibility rules](#14-public-venue-eligibility), which return canonical names.
+  Replacing the route increments `routeRevision`.
 - Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
 - The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
@@ -445,6 +489,7 @@ type PlanActionRequest = {
 
 New Night mode requests include both binding fields, including requests queued offline.
 The stores check the route revision and venue before inserting a bound action.
+For a Plan that accepts new actions, an authorised stale binding returns a conflict even if the host removed the tapped stop.
 An identical accepted retry returns its original action even after a safe route revision.
 Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.
 Only bound arrivals can fulfil a signed-in owner's Wanted entry.
@@ -460,15 +505,22 @@ Full `PlanState` (with the new action in `actions[]`). Side effect: recording an
 | `404` | bad/unknown plan id |
 | `400` | malformed body, invalid action or binding, or missing/invalid idempotency key |
 | `403` | member token cannot update this Plan |
-| `409` | stale route or venue binding, or the same key reused for another payload |
+| `409` | `PLAN_CLOSED` for a new action on a completed or abandoned Plan, with `retryable: false` |
+| `409` | `PLAN_ROUTE_CHANGED` when the route revision or the venue in that slot changed since the tap; `PLAN_IDEMPOTENCY_CONFLICT` when the same key is reused for another payload |
 | `429` | action request limit reached |
 | `503` | Plan storage unavailable |
+
+After a bound action conflicts, the handler reads the current Plan to classify the conflict.
+If that read cannot confirm a route change, the response keeps `PLAN_IDEMPOTENCY_CONFLICT`.
+`PLAN_ROUTE_CHANGED` has `retryable: false` and the message "The route changed. Review the stops and try again."
+Night mode displays this message when it handles the refused tap or its queued replay while mounted.
 
 ### Idempotency
 
 Each request requires an `Idempotency-Key` header or a body `idempotencyKey`.
 The [mutation key helper](../lib/planMutationHttp.ts) defines precedence and validation.
-Identical retries return the saved action without another insertion. A different payload with the same key returns `409`.
+Identical retries return the saved action without another insertion, including after the Plan completes or is abandoned.
+A different payload with the same key returns `409`.
 
 ### Rate limit
 
@@ -492,7 +544,14 @@ type CompletePlanRequest = {
 
 - `POST` → `{ plan, completion }`. HTTP `201` when newly created, `200` when already completed (**idempotent** via `complete_plan_atomic` returning `already_completed`).
 - `GET /api/plans/:id/complete` → `{ completion: PlanCompletionDTO | null }` (public read).
-- Errors: `404` unknown plan; `400` invalid/malformed/missing terminal-for-food/`finalPintDropId` present; `403` member cannot complete; `409` route revision changed; `503` store error.
+- Errors include `404` for an unknown Plan, `400` for invalid input, `403` for a member who cannot complete, and `503` for unavailable storage.
+- Invalid input includes malformed requests, missing food terminals, a supplied `finalPintDropId`, or no qualifying arrival (`PLAN_ARRIVAL_REQUIRED`).
+- A changed route revision returns `409 PLAN_ROUTE_CONFLICT`.
+- An abandoned Plan refuses a new completion with `409 PLAN_CLOSED` and `retryable: false`.
+- After the qualifying arrival check, a new completion must pass [`canTransitionPlannedNight(status, "completed")`](../lib/plan.ts).
+  A refused transition returns `409 PLAN_CLOSED` with `retryable: false`.
+  The memory store and both SQL overloads follow this rule.
+  [`planEndedRefusesActionsMigrationEffective.test.ts`](../__tests__/planEndedRefusesActionsMigrationEffective.test.ts) checks SQL parity and completion replays.
 - Completion writes the chosen ending, ending action, completion record, and terminal status atomically (Supabase RPC `complete_plan_atomic`). A completion without `endingSelection` is rejected.
 
 **Safety invariant (#252):** the default/encouraged endings are `food` and `get_home`; `keep_going` exists but the product must never frame more drinking as success. Food terminals are late-food places, never pint-price pins (see §10).
@@ -502,6 +561,19 @@ type CompletePlanRequest = {
 The [README](../README.md#features) owns user instructions.
 The [permission matrix](security/PERMISSION_MATRIX.md#cells) owns the private read and host-write permissions.
 The routes resolve member capabilities through [the shared capability reader](../lib/planMemberCapability.ts).
+
+#### Crew status
+
+`POST /api/plans/:id/presence` and open-crawl arrival use the service-role-only `set_crew_status` RPC in Supabase.
+The RPC rejects revoked seats and, for account-bound seats, requires active social membership for the same Plan, seat and account.
+Legacy token access cannot update a social crew's Plan.
+After authority checks, a completed or abandoned Plan refuses every crew-status write without changing the seat.
+An ending Plan still accepts status writes.
+
+The private Plan endpoint returns `409 PLAN_CLOSED` with `retryable: false` when the Plan has ended.
+Open-crawl arrival returns `409 SOCIAL_CREW_CONFLICT` for the same refusal.
+The memory Plan store also refuses status writes on completed or abandoned Plans.
+The [arrival contract](WRITE_SURFACE_CERTIFICATION.md#appapisocialcrewscrewidarrival-route-89) owns the open-crawl request and time window.
 
 #### Grounded route proposals
 
@@ -555,7 +627,7 @@ Migrations `0213`, `0214` and `0215` and their matching [rollbacks](../supabase/
 Migration `0213` adds nullable arrival bindings without backfilling historical actions.
 Revert the application before rolling back these migrations.
 Rollback removes table signs, mystery settings and proposal proof metadata, while retaining saved routes and proposals.
-The captain controls migration application. The [proof record](proof/v1-night-features/README.md) records local checks, not production migration state.
+The captain controls migration application. The [proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/v1-night-features/README.md) records local checks, not production migration state.
 
 ---
 

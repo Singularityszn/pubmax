@@ -11,7 +11,10 @@
 // honest and PII-free even as new events are added.
 
 import { CONTRIBUTION_GATE_STATUSES } from "@/lib/contributionGateStatus";
+import { findPosterCode } from "@/lib/posterCodes";
+import { isPosterMedium } from "@/lib/posterLanding";
 import { NIGHT_AREA_SLUGS } from "@/lib/nightAreaSlugs";
+import { CREW_ARRIVED_BANDS } from "@/lib/crew";
 import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import { RSVP_STATUSES } from "@/lib/planInvite";
 import { REACTION_KEYS } from "@/lib/reactions";
@@ -33,6 +36,14 @@ import type { DrinkCategory } from "@/lib/drinks";
  * followed.
  */
 export const ANALYTICS_EVENTS = {
+  pub_comparison_viewed: [],
+  pub_comparison_ready: [],
+  pub_comparison_incomplete: [],
+  pub_comparison_map_requested: [],
+  pub_comparison_share_requested: [],
+  pub_comparison_links_copied: [],
+  pub_comparison_poll_requested: [],
+  pub_comparison_poll_sent: [],
   // R3 cycle metrics rail (carried over from the original Vercel-backed
   // trackEvent; ported onto this self-owned registry so the same closed set
   // of ~10 named events keeps working under the D0 beacon).
@@ -41,6 +52,7 @@ export const ANALYTICS_EVENTS = {
   lane_to_plan: ["source", "stops"],
   night_mode_active: [],
   booking_click: ["tier"],
+  table_request_sent: ["source", "outcome"],
   whats_on_filter: [],
   // Wave F · F3 — concierge-as-map-home
   concierge_ask: [],
@@ -81,6 +93,14 @@ export const ANALYTICS_EVENTS = {
   map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
   crew_committed: ["source", "participants", "routeReady"],
+  // No props on purpose: a crew id, a capacity or a meeting pub would narrow
+  // toward one night and one person. lib/hostLoopAnalytics.ts owns eligibility.
+  open_crawl_opened: [],
+  crew_join_requested: [],
+  crew_join_accepted: [],
+  // A band avoids sending an exact roster size or a per-plan key.
+  // docs/analytics/METRICS.md section 3.3 owns the counting rules and limits.
+  crew_arrived: ["guestsArrived"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
   // PostHog wizard adoption. Auth state and successful writes carry no account,
@@ -126,9 +146,10 @@ export const ANALYTICS_EVENTS = {
   // Wave D — sharing is a return-loop signal; alcohol quantity is never
   // represented as progression telemetry.
   poster_shared: ["surface"],
-  // PLG Wave 2 physical QR: a drinker landed on /near from /?src=poster.
-  // No props — the closed name is the whole signal (no free text, no UTM).
-  poster_landing: [],
+  // A drinker landed on /near from a printed QR (/get/<code> or /?src=poster).
+  // `medium` is poster or beermat. `code` is sent only when it is a minted code
+  // in lib/posterCodes.json, so it names a print run and never free text.
+  poster_landing: ["medium", "code"],
   // Metrics funnel (Wave M) — nights planned/week reuses plan_created (create)
   // and crew_committed (join, source: "shared-plan") from R3/Wave F above; see
   // docs/METRICS_FUNNEL.md for the full computation. The events below are new.
@@ -315,8 +336,7 @@ export const ANALYTICS_EVENTS = {
   // says WHICH area or topic is muted, because a mute list is a small set that
   // names a person's own patch. `briefing_opened` carries no props at all: it
   // fires only on an arrival from the daily-brief notification itself
-  // (lib/briefingArrival.ts), so the closed name is the whole signal, the same
-  // reading poster_landing takes.
+  // (lib/briefingArrival.ts), so the closed name is the whole signal.
   briefing_viewed: ["personalized", "muted"],
   briefing_opened: [],
   // A Pub Pal voice session really connected. No props on purpose: a session
@@ -443,15 +463,22 @@ export const ROUTE_OPENED_SURFACES = ["map", "plan"] as const;
  * not, because there was no fix or no crawl-ready area near it.
  */
 const PLAN_ONE_TAP_OUTCOMES = ["remembered", "located", "no-location", "out-of-range"] as const;
-export const VOICE_END_REASONS = ["user", "disconnect", "cap", "error"] as const;
+export const VOICE_END_REASONS = ["user", "background", "disconnect", "cap", "error"] as const;
 export type VoiceEndReason = (typeof VOICE_END_REASONS)[number];
 export const CONTENT_SHARE_CHANNELS = ["copy", "native", "whatsapp", "x", "sms", "instagram", "tiktok"] as const;
-export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "year", "other"] as const;
+export const CONTENT_SHARE_SURFACES = ["plan", "recap", "poster", "tonight", "pint", "receipt", "been", "year", "other"] as const;
 export type ContentShareSurface = (typeof CONTENT_SHARE_SURFACES)[number];
 export const ERROR_SHOWN_SURFACES = [
   "landing", "home", "map", "tonight", "plan", "you", "pal", "recap", "near", "other",
 ] as const;
 export const ERROR_SHOWN_KINDS = ["network", "auth", "validation", "server", "unknown"] as const;
+
+// A completed table request: where the ask began (a Pal answer's handoff or
+// the venue sheet's own button) and how it ended (PUBMAXX emailed the pub, or
+// the reader was handed the pub's own contact). Never the venue, the size, or
+// a name.
+const TABLE_REQUEST_SOURCES = ["pal", "sheet"] as const;
+const TABLE_REQUEST_OUTCOMES = ["sent", "not_sent"] as const;
 
 /**
  * How many reviewed late-food terminals the food-ending shortlist held.
@@ -613,6 +640,8 @@ const SAFE_STRING_VALUES = new Set([
   ...ROUTE_OPENED_SURFACES,
   ...PLAN_ONE_TAP_OUTCOMES,
   ...VOICE_END_REASONS,
+  ...TABLE_REQUEST_SOURCES,
+  ...TABLE_REQUEST_OUTCOMES,
   ...CONTENT_SHARE_CHANNELS,
   ...CONTENT_SHARE_SURFACES,
   ...ERROR_SHOWN_SURFACES,
@@ -620,6 +649,7 @@ const SAFE_STRING_VALUES = new Set([
 ]);
 
 const TRUSTED_HANDOFF_REQUIRED_KEYS = {
+  table_request_sent: ["source", "outcome"],
   pub_list_import_started: ["input_kind"],
   pub_list_import_matched: ["count_matched", "count_ambiguous", "count_unmatched"],
   pub_list_import_routed: ["stops"],
@@ -633,6 +663,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
   crew_committed: ["source", "participants", "routeReady"],
+  crew_arrived: ["guestsArrived"],
   message_attach_selected: ["kind"],
   meaningful_core_action: ["action"],
   // The funnel is a ratio, so a step with no drink category would be an
@@ -713,6 +744,12 @@ function isAllowedVerifiedOutcomeProp(
   return key === "routeReady" && typeof value === "boolean";
 }
 
+function isAllowedTableRequestProp(key: string, value: string | number | boolean): boolean {
+  return key === "source"
+    ? includesValue(TABLE_REQUEST_SOURCES, value)
+    : key === "outcome" && includesValue(TABLE_REQUEST_OUTCOMES, value);
+}
+
 function isAllowedTrustedHandoffEventProp(
   name: AnalyticsEventName,
   key: string,
@@ -722,6 +759,8 @@ function isAllowedTrustedHandoffEventProp(
     return isAllowedVerifiedOutcomeProp(name, key, value);
   }
   switch (name) {
+    case "table_request_sent":
+      return isAllowedTableRequestProp(key, value);
     case "pub_list_import_started":
       return key === "input_kind" && value === "pasted_text";
     case "pub_list_import_matched":
@@ -800,6 +839,13 @@ const CUSTOM_PROP_VALIDATORS: Partial<Record<string, (value: unknown) => value i
   // `target` is landing_cta_clicked's closed CTA enum; isAllowedLandingCtaProp
   // below owns that check.
 };
+
+/** poster_landing's props are checked against the medium list and the minted codes. */
+function isAllowedPosterLandingProp(key: string, value: unknown): boolean {
+  if (key === "medium") return isPosterMedium(value);
+  if (key === "code") return typeof value === "string" && findPosterCode(value) !== null;
+  return false;
+}
 
 function isAllowedLandingCtaProp(
   name: AnalyticsEventName,
@@ -914,6 +960,16 @@ function isAllowedInviteLoopProp(
     if (key === "active") return typeof value === "boolean";
   }
   return true;
+}
+
+/** The night's arrival band: one of the three bands `lib/crew.ts` owns. */
+function isAllowedCrewArrivedProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (name !== "crew_arrived") return true;
+  return key === "guestsArrived" && includesValue(CREW_ARRIVED_BANDS, value);
 }
 
 function isAllowedMessageAttachProp(
@@ -1038,6 +1094,8 @@ export function sanitizeEvent(
         : key === "target" && name === "landing_cta_clicked"
           ? typeof value === "string"
             && isAllowedLandingCtaProp(name, key, value)
+          : name === "poster_landing"
+            ? isAllowedPosterLandingProp(key, value)
           : customValidator
             ? customValidator(value)
             : isSafeValue(value)
@@ -1049,6 +1107,7 @@ export function sanitizeEvent(
               && isAllowedContributionGateProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)
+              && isAllowedCrewArrivedProp(name, key, value)
               && isAllowedMessageAttachProp(name, key, value)
               && isAllowedLandingCtaProp(name, key, value)
               && isAllowedVenueSheetProp(name, key, value)

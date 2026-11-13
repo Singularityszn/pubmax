@@ -171,7 +171,7 @@ test("venue sheet offers a start-a-crawl affordance in build mode (non-canvas jo
   // by its accessible name, the way a user finds it.
   const addToCrawl = page
     .locator(".venueActionCard")
-    .getByRole("button", { name: /^Plan stop$|^In plan$|^Make .+ Stop 1$/ });
+    .getByRole("button", { name: /^Plan stop$|^In plan$|^Make it Stop 1: .+$/ });
   // The add-to-crawl button is build-mode-only (its aria-pressed toggle is the
   // "start a crawl here" journey entry). ?mode=build should seed build mode, but
   // if the seed didn't take (e.g. a shared-crawl restore overrode it), the

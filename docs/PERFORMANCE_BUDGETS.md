@@ -163,9 +163,9 @@ Decoded KB, so parse cost rather than transfer:
 
 Three things this settles.
 
-MapLibre is on `/map` and nowhere else, and Supabase is on every route as the
-same ~341 KB lazily fetched after paint by `ensureSupabaseBrowser`. Entry-point
-isolation is already correct for both.
+In this sweep, MapLibre loaded only on `/map`, and each route loaded the same
+~341 KB Supabase chunk. See the [browser auth loading rule](../lib/authClientTurn.ts)
+for current loading conditions.
 
 `/about` and `/pubs` were carrying 1900 and 1950 KB ceilings against 1081 and
 1092 KB measured. There was no accidental import to split: no MapLibre, no
@@ -187,8 +187,8 @@ deployment. A session, a caller's identity, a store read that can change
 between two requests, or a URL that can carry the viewer's own coordinates all
 disqualify it.
 
-One named exception stands, by the captain's ruling of 2026-10-03:
-`/api/auth/providers`. Its body is a store read, the Supabase Auth provider
+`/api/auth/providers` is a named exception, by the captain's ruling of
+2026-10-03. Its body is a store read, the Supabase Auth provider
 flags, so it fails the bar as written. It is allowed because the answer is the
 same for every caller and changes only when someone edits the Supabase
 dashboard. The shared copy is fresh for five minutes (`s-maxage=300`, plus a
@@ -197,10 +197,22 @@ to show or hide a button. Before OAuth starts, the client rechecks with
 `?fresh=1`, which is never cached. The exception covers this route alone. It
 does not loosen the bar for any other remote read.
 
+`/api/pint-drops/census` is the other named exception, by the captain's ruling of
+2026-11-11. It returns only the
+public aggregate count, never individual drops or author details. Its explicit
+fresh and stale windows live in the [census route](../app/api/pint-drops/census/route.ts).
+The count can lag behind submissions and removals within those windows.
+The same ruling permits the home page (`app/page.tsx`) to read the census count
+at prerender and hold it for its ISR window. The page stamps the count with
+when it was counted.
+The [census policy](../lib/dutyCensus.ts) owns count eligibility and suppression.
+This exception permits no other mutable community read.
+
 | class | contract | verdict |
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
 | Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller; `?fresh=1` is the pre-OAuth recheck | Cached five minutes; `?fresh=1` no-store |
+| Pint price census | Public aggregate only | Cached under the named exception above |
 | Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
 | What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
 | Everything actor-gated | Answer differs per caller | No-store, by law |
@@ -952,6 +964,11 @@ software WebGL, not acceptance.
 `/press` and `/pub-crawl-cost` joined on 30 October 2026 with the backlink
 playbook (`docs/growth/BACKLINK_PLAYBOOK.md`). Both are seeded in family with
 `/how-we-estimate` and come down at the next sweep.
+
+`/tools` joined on 7 November 2026: the pub comparison form
+(`docs/PUB_COMPARISON.md`). It is sitemap-listed and loads no map or voice
+SDK. Its row is seeded unmeasured in family with the planner and comes down at
+the next isolated production sweep.
 
 The rule they close is that **a route the sitemap advertises carries a budget**,
 and `__tests__/sitemap.test.ts` enforces it per family. The gap it found was

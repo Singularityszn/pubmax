@@ -308,13 +308,11 @@ for (const viewport of VIEWPORTS) {
     await expect(activeTab).toBeVisible();
     expect((await readPaintState(activeTab)).backgroundImage).toBe("none");
     measurements.sheetActiveTab = await expectRenderedTextContrast(activeTab);
-    // The sheet's one painted primary is the action card's plan door
-    // (lib/venuePlanDoor.ts, components/map/inspector/VenueActionCard.tsx),
-    // flat like every other primary; the price door beside it is drawn in ink.
+    // Without a fresh drinker price, the card's logging door is the primary.
     // It arrives with the venue panel rather than with the sheet, and
     // measuring before it paints returns no colour pairs at all, which reports
     // as "expected 0 to be greater than 0" and names the timing badly.
-    const sheetPrimary = sheet.locator(".venueActionCard .mobileVenuePeekPlanDoor");
+    const sheetPrimary = sheet.locator(".venueActionCard [data-log-door]");
     await expect(sheetPrimary).toBeVisible({ timeout: 45_000 });
     measurements.sheetPrimary = await expectRenderedTextContrast(sheetPrimary);
 

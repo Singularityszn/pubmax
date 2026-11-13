@@ -167,6 +167,20 @@ export function isActiveLocalAuthAttempt(
   }
 }
 
+/** True while a sign-in this browser started is live and its return is not yet claimed. */
+export function hasPendingAuthAttempt(
+  persistentStorage: AuthFragmentStorage | null | undefined,
+  now: number = Date.now(),
+): boolean {
+  if (!persistentStorage) return false;
+  try {
+    const active = readActiveAttempt(persistentStorage);
+    return !!active && active.expiresAt > now && !active.callbackClaimed;
+  } catch {
+    return false;
+  }
+}
+
 export type CapturedAuthCallback = {
   attempt: AuthCallbackAttempt;
   cleanUrl: string;

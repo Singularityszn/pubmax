@@ -12,6 +12,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
+import { isPintDropRating, type PintDropRating } from "@/lib/pintDropRating";
 import { HANDLE_MAX, normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";
 import type { CityId } from "@/lib/cities";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
@@ -184,6 +185,13 @@ export function validatePintDrop(input: unknown): ValidationResult {
     return { ok: false, error: MEASURE_ASK_LINE };
   }
 
+  let rating: PintDropRating | undefined;
+  if (raw.rating !== undefined && raw.rating !== null && raw.rating !== "") {
+    const parsed = typeof raw.rating === "string" ? Number(raw.rating) : raw.rating;
+    if (!isPintDropRating(parsed)) return { ok: false, error: "Pick 1 to 5 stars." };
+    rating = parsed;
+  }
+
   const provenance: Provenance = priceGbp !== null ? "contributor" : "anecdote";
 
   // Vibe tags are supporting metadata, not a standalone signal: they never
@@ -220,6 +228,7 @@ export function validatePintDrop(input: unknown): ValidationResult {
       measure,
       ...(measureLabel ? { measureLabel } : {}),
       priceGbp,
+      ...(rating !== undefined ? { rating } : {}),
       passedDownNote: note,
       era: clean(raw.era, MAX_ERA),
       ...(vibeTags.length ? { vibeTags } : {}),
@@ -499,6 +508,11 @@ export function listAllVisiblePintDrops(cityId?: CityId | null): PintDrop[] {
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
+/** Every stored drop in every city, any status, with no demo seeds. */
+export function listAllStoredPintDrops(): PintDrop[] {
+  return Array.from(drops.values()).flat();
+}
+
 // ── Visibility gating (issue #29) ────────────────────────────────────────────
 // Pure predicates over the (drop, viewer) pair. The STORE applies these after a
 // moderation-status filter, so a hidden drop never reaches them. Kept pure +
@@ -739,6 +753,20 @@ export function confirmPintDrop(
   if (!hit) return false;
   if (confirmationIsLive(hit.confirmation, now)) return false;
   hit.confirmation = confirmation;
+  return true;
+}
+
+/**
+ * The bill check found this drop's price on its bill (lib/billCheck.server.ts),
+ * so its evidence moves from `unchecked` to `receipt`. Only an organic priced
+ * drop that is still `unchecked` moves: a demo seed, a note and a drop already
+ * billed all answer false, because nothing here changed.
+ */
+export function grantPintDropReceipt(id: string): boolean {
+  const hit = findDrop(id);
+  if (!hit || typeof hit.priceGbp !== "number") return false;
+  if (hit.priceEvidence !== "unchecked") return false;
+  hit.priceEvidence = "receipt";
   return true;
 }
 

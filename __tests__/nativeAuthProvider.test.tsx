@@ -12,9 +12,11 @@ const h = vi.hoisted(() => ({
   authenticate: vi.fn(), setSession: vi.fn(), signOut: vi.fn(), cancel: vi.fn(), openBrowser: vi.fn(),
   clearPersistedSession: vi.fn(async () => {}),
   session: null as Session | null,
+  bootstrapOffline: false,
+  clientOffline: false,
   subscriber: null as null | ((event: string, session: Session | null) => void),
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.navigate }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => window.location.pathname, useRouter: () => ({ push: h.navigate }) }));
 vi.mock("@/components/auth/ArrivalWelcome", () => ({ default: () => null }));
 vi.mock("@/components/identity/AccountOnboarding", () => ({ default: () => null }));
 vi.mock("@/components/identity/IdentityNudge", () => ({ default: () => null }));
@@ -27,11 +29,10 @@ vi.mock("@/lib/nativeAuthSession", async (original) => ({
   authenticateNativeSession: h.authenticate,
   cancelNativeAuthSession: h.cancel,
 }));
-vi.mock("@/lib/authClient", async (original) => ({
-  ...await original<typeof import("@/lib/authClient")>(),
-  createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
-  isAuthConfigured: () => true,
-  ensureSupabaseBrowser: async () => ({ auth: {
+vi.mock("@/lib/authClient", async (original) => {
+  // This suite drives native account events, not load timing: the fake client
+  // is ready for every caller, so AuthProvider subscribes at once.
+  const browser = async () => ({ auth: {
     signInWithOAuth: h.canonicalOAuth, setSession: h.setSession, signOut: h.signOut,
     getSession: h.getSession,
     onAuthStateChange: (callback: typeof h.subscriber) => {
@@ -39,11 +40,22 @@ vi.mock("@/lib/authClient", async (original) => ({
       queueMicrotask(() => callback?.("INITIAL_SESSION", h.session));
       return { data: { subscription: { unsubscribe: () => { h.subscriber = null; } } } };
     },
-  } }),
-}));
+  } });
+  return {
+    ...await original<typeof import("@/lib/authClient")>(),
+    createNativeAuthClient: async () => ({ auth: { signInWithOAuth: h.nativeOAuth, exchangeCodeForSession: h.exchange, getUser: h.verify, stopAutoRefresh: async () => {} } }),
+    isAuthConfigured: () => true,
+    ensureSupabaseBrowser: vi.fn(async () => {
+      if (h.clientOffline) throw new Error("offline");
+      return browser();
+    }),
+    ensureSupabaseBrowserForSession: browser,
+  };
+});
 vi.mock("@/lib/authSessionBootstrap", () => ({
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS: 20_000,
-  bootstrapAuthSession: async () => h.session ? ({ status: "local", session: h.session }) : ({ status: "none" }),
+  bootstrapAuthSession: vi.fn(async () => h.bootstrapOffline ? ({ status: "unavailable" })
+    : h.session ? ({ status: "local", session: h.session }) : ({ status: "none" })),
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   loadSocialAuthProviders: async () => ({ google: true, apple: true, microsoft: true }),
@@ -62,13 +74,20 @@ vi.mock("@/lib/identityClient", () => ({
   resolveCanonicalIdentity: async () => null,
 }));
 vi.mock("@/lib/authSessionResumeClient", () => ({
+  fetchResumeHint: async () => ({ status: h.bootstrapOffline ? "unavailable" : "absent" }),
   clearPersistedSession: h.clearPersistedSession, persistSessionForResume: async () => "stored", markResumePersisted: () => {},
   resumeAlreadyPersisted: () => true, requestResumeLink: vi.fn(),
 }));
 import { bindDeviceAccountOwner, deviceAccountOwner, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
+import { ensureSupabaseBrowser } from "@/lib/authClient";
+import { bootstrapAuthSession } from "@/lib/authSessionBootstrap";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
-import { setProviderAuthState } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal, readProviderAuthState, setProviderAuthState } from "@/lib/authProviderRevision";
 import { PLAN_HOST_NAME_KEY, readRememberedPlanHostName, rememberPlanHostName } from "@/lib/planHostName";
+import { liveLocationRequest, liveShareSnapshot, reconcileLiveLocationShare, startLiveLocationShare, stopLiveLocationShare } from "@/lib/planLiveLocationShare";
+import { memoryPlanStore } from "@/lib/planStore";
+import { operatePlanLiveLocation } from "@/lib/planLiveLocationStore";
+import { memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
 
 const token = ["e30", Buffer.from(JSON.stringify({ exp: Math.floor(Date.now() / 1000) + 3600 })).toString("base64url"), "unsigned"].join(".");
@@ -85,7 +104,7 @@ let container: HTMLDivElement;
 beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
-  h.platform = "ios"; h.session = null; h.available = true;
+  h.platform = "ios"; h.session = null; h.available = true; h.bootstrapOffline = false; h.clientOffline = false;
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.getSession.mockImplementation(async () => ({ data: { session: h.session }, error: null }));
@@ -122,6 +141,80 @@ describe("tab-local private state across account events", () => {
     { roundId: "round-a", names: ["Sam", "Priya"], current: 1 },
   ] });
 
+  it.each([
+    ["sign out", "active"], ["switch account", "active"],
+    ["sign out", "reloaded"], ["switch account", "reloaded"],
+  ])("revokes the old seat before %s retires credentials with a %s share", async (action, state) => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-11-09T20:00:00Z"));
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    const ownerSignal = readProviderAccountSignal();
+    const created = await memoryPlanStore.create({ title: "Our night", startTime: new Date().toISOString(), creatorName: "Host", stops: [{ venueId: "a", venueName: "Pub a", position: 0 }] });
+    if (!created.ok) throw new Error("Could not create the test Plan.");
+    const id = created.plan.plan.id;
+    const memberId = created.plan.crew[0]!.id;
+    const authority = { kind: "plan" as const, token: created.memberToken };
+    const seat = { planId: id, via: "plan" as const, memberToken: created.memberToken };
+    let fix!: PositionCallback;
+    const clearWatch = vi.fn();
+    const watchPosition = vi.fn((success: PositionCallback) => { fix = success; return 7; });
+    const geolocation = {
+      watchPosition,
+      clearWatch,
+      getCurrentPosition: vi.fn(),
+    } as unknown as Geolocation;
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const fetcher = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input).includes("/live-location")) {
+        expect(new Headers(init?.headers).get("authorization")).toBe(`Bearer ${created.memberToken}`);
+        expect(h.session?.user.id).toBe(original.user.id);
+        expect(ownerSignal.aborted).toBe(false);
+        const result = await operatePlanLiveLocation(id, authority, init?.method === "DELETE" ? "stop" : init?.method === "GET" ? "read" : "share", init?.body ? JSON.parse(String(init.body)) : {});
+        return Response.json(result.ok ? result.view : result, { status: result.ok ? 200 : 503 });
+      }
+      return Response.json({ access_token: replacement.access_token, refresh_token: replacement.refresh_token });
+    });
+    vi.stubGlobal("fetch", fetcher);
+    try {
+      if (state === "reloaded") {
+        expect((await operatePlanLiveLocation(id, authority, "share", { latitude: 51.5, longitude: -0.13, accuracyM: 10 })).ok).toBe(true);
+        expect(liveShareSnapshot(id).status).toBe("off");
+        reconcileLiveLocationShare(seat, await (await liveLocationRequest(seat, "GET")).json());
+      } else {
+        startLiveLocationShare(seat, { geolocation });
+        fix({ coords: { latitude: 51.5, longitude: -0.13, accuracy: 10 } } as GeolocationPosition);
+        await vi.waitFor(() => expect(liveShareSnapshot(id).status).toBe("on"));
+      }
+      expect(memoryPlanLiveLocations.get(id)?.has(memberId)).toBe(true);
+      if (action === "switch account") {
+        const real = await vi.importActual<typeof import("@/lib/deviceAccountSwitch")>("@/lib/deviceAccountSwitch");
+        rememberDeviceAccount(localStorage, { userId: replacement.user.id, refreshToken: replacement.refresh_token }, Date.now());
+        h.switchAccount.mockImplementationOnce((userId: string) => real.activateDeviceAccount(userId, {
+          ...real.browserDeviceAccountSwitchDeps(), authConfig: { url: "https://auth.example", key: "publishable-key" },
+        }));
+      }
+      await act(async () => {
+        if (action === "sign out") await actions.signOut("device");
+        else expect(await actions.switchAccount(replacement.user.id)).toEqual({ status: "switched", userId: replacement.user.id });
+      });
+      expect(ownerSignal.aborted).toBe(true);
+      if (state === "reloaded") {
+        expect(watchPosition).not.toHaveBeenCalled();
+        expect(geolocation.getCurrentPosition).not.toHaveBeenCalled();
+        expect(fetcher.mock.calls.filter(([, init]) => init?.method === "PUT")).toHaveLength(0);
+      } else expect(clearWatch).toHaveBeenCalledWith(7);
+      expect(memoryPlanLiveLocations.has(id)).toBe(false);
+      expect(memoryPlanLiveLocationStops.get(id)?.get(memberId)).toMatchObject({ stoppedAt: Date.now() });
+      expect(await operatePlanLiveLocation(id, authority, "share", { latitude: 51.6, longitude: -0.13, accuracyM: 10 })).toEqual({ ok: false, error: "stopped" });
+      expect(container.textContent).toBe(action === "sign out" ? "signed-out" : replacement.user.id);
+    } finally {
+      await stopLiveLocationShare(seat, { request: async () => new Response("{}") });
+      visibility.mockRestore();
+      vi.unstubAllGlobals();
+      vi.useRealTimers();
+    }
+  });
+
   it("clears recovered Plan inputs on provider sign-out before another account signs in", async () => {
     await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
     const planKeys = ["pubmaxx:plan-route-draft:v1", "pubmax:plan-route-draft:v2", "pubmax:plan-intake:v1"];
@@ -145,6 +238,13 @@ describe("tab-local private state across account events", () => {
     expect(readRememberedPlanHostName(localStorage)).toBe("");
     expect(localStorage.getItem("pubmaxx:plan-route-draft:v1")).toBeNull();
     expect(localStorage.getItem("pubmax:plan-intake:v1")).toBeNull();
+  });
+
+  it("signs out of this device only, never the account's other devices", async () => {
+    await act(async () => { h.session = original; h.subscriber?.("SIGNED_IN", original); });
+    await act(async () => { await actions.signOut(); });
+    expect(h.signOut).toHaveBeenCalledWith({ scope: "local" });
+    expect(h.signOut).not.toHaveBeenCalledWith();
   });
 
   it("clears Plan inputs before the provider and cookie sign-out requests finish", async () => {
@@ -321,6 +421,92 @@ describe("AuthProvider's installed iPhone OAuth consumer", () => {
     expect(h.nativeOAuth).not.toHaveBeenCalled();
     expect(h.setSession).not.toHaveBeenCalled();
     expect(container.textContent).toBe("original");
+  });
+
+  it.each([
+    ["client", "online"], ["client", "visible"], ["client", "focus"],
+    ["session", "online"], ["session", "visible"], ["session", "focus"],
+    ["session retry", "online"], ["session retry", "visible"], ["session retry", "focus"],
+  ])("retains %s recovery from %s while the attempt is pending", async (stage, event) => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.bootstrapOffline = stage === "session retry";
+    let failBootstrap!: (error: Error) => void;
+    const pendingBootstrap = new Promise<never>((_resolve, reject) => { failBootstrap = reject; });
+    if (stage === "client") {
+      vi.mocked(ensureSupabaseBrowser).mockImplementationOnce(() => new Promise(() => {}));
+    } else if (stage === "session") {
+      vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+    }
+    root = createRoot(container);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+      });
+      if (stage === "session retry") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        vi.mocked(bootstrapAuthSession).mockReturnValueOnce(pendingBootstrap);
+        await act(async () => { window.dispatchEvent(new Event("focus")); });
+        h.bootstrapOffline = false;
+      }
+      await act(async () => {
+        if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+        else window.dispatchEvent(new Event(event));
+        await vi.runAllTimersAsync();
+      });
+      if (stage !== "client") {
+        expect(readProviderAuthState("supabase")).toBe("unavailable");
+        await act(async () => { failBootstrap(new Error("offline resume read")); });
+      }
+      expect(readProviderAuthState("supabase")).toBe("signed-out");
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+      expect(container.textContent).toBe("replacement");
+      expect(h.authenticate).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
+  });
+
+  it.each([
+    ["client", "online"], ["client", "visible"], ["client", "focus"],
+    ["session", "online"], ["session", "visible"], ["session", "focus"],
+  ])("recovers native sign-in after an offline %s boot on %s", async (stage, event) => {
+    await act(async () => root.unmount());
+    setProviderAuthState("supabase", "unresolved");
+    h.clientOffline = stage === "client";
+    h.bootstrapOffline = stage === "session";
+    root = createRoot(container);
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+    const wake = () => {
+      if (event === "visible") document.dispatchEvent(new Event("visibilitychange"));
+      else window.dispatchEvent(new Event(event));
+    };
+    try {
+      await act(async () => {
+        root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(Probe)));
+      });
+      await act(async () => { await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("unavailable");
+      await act(async () => { wake(); await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("unavailable");
+
+      h.clientOffline = false;
+      h.bootstrapOffline = false;
+      await act(async () => { expect((await actions.signInWithApple()).error).toMatch(/could not be confirmed/); });
+      expect(h.authenticate).not.toHaveBeenCalled();
+      await act(async () => { wake(); await vi.runAllTimersAsync(); });
+      expect(readProviderAuthState("supabase")).toBe("signed-out");
+      await act(async () => { expect(await actions.signInWithApple()).toEqual({ error: null }); });
+      expect(container.textContent).toBe("replacement");
+      expect(h.authenticate).toHaveBeenCalledTimes(1);
+    } finally {
+      visibility.mockRestore();
+      vi.useRealTimers();
+    }
   });
 
   it("keeps the signed-out state when the user cancels the native session", async () => {

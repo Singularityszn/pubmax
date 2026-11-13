@@ -11,11 +11,14 @@ import FirstActionsRow from "@/components/profile/FirstActionsRow";
 import FollowButton from "@/components/profile/FollowButton";
 import ProfileMessageButton from "@/components/messages/ProfileMessageButton";
 import ProfileMuteBlock from "@/components/social/ProfileMuteBlock";
+import ReportPerson from "@/components/social/ReportPerson";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
 import OutTonightBoard from "@/components/profile/OutTonightBoard";
 import OutTonightCrewLine from "@/components/profile/OutTonightCrewLine";
 import OutTonightToggle from "@/components/profile/OutTonightToggle";
 import PintPassport from "@/components/profile/PintPassport";
+import ChallengesCard from "@/components/profile/ChallengesCard";
+import PointsCard from "@/components/profile/PointsCard";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileSectionNav from "@/components/profile/ProfileSectionNav";
@@ -148,7 +151,7 @@ type PublicDrop = ProfileDrop & {
   createdAt?: string;
 };
 
-type LoadState = "loading" | "ready" | "error" | "gone";
+type LoadState = "loading" | "ready" | "error" | "retrying" | "gone";
 
 type ProfileGeographyRead = {
   key: string;
@@ -248,10 +251,7 @@ async function localSavedDTOs(
   return groups;
 }
 
-// "you" is the sentinel handle the nav uses (/u/you) before a viewer handle is
-// known. It is NOT a real person's handle - it means "the current viewer". A
-// signed-in account handle or signed-out device handle redirects /u/you to the
-// real profile; without either, /u/you renders the first-run passport (story 30).
+// "you" is the nav's sentinel for the current viewer, never a real person's handle.
 const YOU_SENTINEL = "you";
 
 /**
@@ -291,7 +291,7 @@ export function profileSurfaceFor({
     return "identity-loading";
   }
   if (state === "gone") return "gone";
-  if (state === "error") return "error";
+  if (state === "error" || state === "retrying") return "error";
   return "profile";
 }
 
@@ -508,6 +508,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [geographyRead, setGeographyRead] = useState<ProfileGeographyRead | null>(null);
   const { drops, areas: passportAreas } = profileGeographyForRead(geographyRead, geographyReadKey);
   const [state, setState] = useState<LoadState>("loading");
+  const [pintsReadAttempt, setPintsReadAttempt] = useState(0);
   // Saved venues render as DTOs (venue NAME + map url). Durable when this handle has
   // server-side saves (/api/saved-pubs); otherwise the localStorage fallback
   // (savedByList) mapped into DTOs. Null until this handle's read answers for
@@ -720,7 +721,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
     void load();
     return () => controller.abort();
-  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle]);
+  }, [accountRevision, geographyIdentityReady, geographyReadKey, geographyUserId, routeHandle, pintsReadAttempt]);
 
   // A carry of the first-run Been here taps moves this account's lists, so the
   // saved read below asks again when it lands (lib/beenHere.ts).
@@ -869,10 +870,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle, unlistedLimit, viewerHandle]);
 
-  // /u/you resolution: once viewer identity is known, redirect the sentinel
-  // route to its real profile. With no signed-out fallback, /u/you stays put and
-  // renders the anonymous first-run passport below. Preserve any hash (e.g.
-  // #night-memories from the landing CTA) so the destination can honour it.
+  // Preserve the hash, such as #night-memories from the landing CTA, so the
+  // destination can honour it.
   useEffect(() => {
     if (!isYouRoute) return;
     if (viewerHandle && viewerHandle !== YOU_SENTINEL) {
@@ -1238,6 +1237,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       {socialFriendsLaunchEnabled ? (
         <ProfileMuteBlock targetHandle={routeHandle} viewerHandle={viewerHandle} />
       ) : null}
+      {/* Report this person, folded shut. Reports stay open while Social is
+          paused, as the report route does. */}
+      <ReportPerson handles={[routeHandle]} viewerHandle={viewerHandle} />
     </>
     );
   }
@@ -1360,9 +1362,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           following={visibleSocialData.counts?.following}
           actions={headerActions}
         />
-        <p className="profileEmpty">
-          Couldn&apos;t load pints right now. Try again.
-        </p>
+        <EmptyState
+          title="Couldn't load pints right now."
+          action={
+            <Button type="button" variant="secondary" disabled={state === "retrying"} aria-busy={state === "retrying"} onClick={() => {
+              setState("retrying");
+              setPintsReadAttempt((attempt) => attempt + 1);
+            }}>Retry</Button>
+          }
+        />
       </div>
     );
   }
@@ -1662,6 +1670,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           </div>
         ) : null}
 
+        {isOwnProfile ? <PointsCard handle={routeHandle} /> : null}
+        {isOwnProfile ? <ChallengesCard handle={routeHandle} /> : null}
+
         {isOwnProfile ? (
           <YourContributionsCard
             handle={routeHandle}
@@ -1696,12 +1707,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <OutTonightCrewLine ownerHandle={routeHandle} viewerHandle={viewerHandle} />
         ) : null}
 
-        {/* Quest chips (Loop 2): next-badge progress for the viewed handle.
-            NextBadgeChips fetches public drops and filters by handle — works
-            for any profile with drops; renders nothing when empty. Own
-            profile also surfaces local "Crawls walked" from crawlCompletion. */}
         {routeHandle && routeHandle !== YOU_SENTINEL ? (
-          <NextBadgeChips handle={routeHandle} showCrawlsWalked={isOwnProfile} />
+          <NextBadgeChips handle={routeHandle} drops={drops} showCrawlsWalked={isOwnProfile} />
         ) : null}
 
         {seasonalBadgeSection()}

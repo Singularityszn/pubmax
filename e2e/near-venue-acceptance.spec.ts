@@ -127,16 +127,16 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
-    .getByRole("button", { name: /^Make .+ Stop 1$/ });
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
+    .getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
   // The receipt names ONE door, and the phone sheet has exactly one: the
-  // peek's coral plan door (lib/venuePlanDoor.ts), never a footer ghost too.
+  // card's plan door (lib/venuePlanDoor.ts), regardless of its action priority.
   await expect(
     page
       .locator('.mobileSheetPortal[data-sheet-kind="venue"]')
-      .getByRole("button", { name: /^Make .+ Stop 1$/ }),
+      .getByRole("button", { name: /^Make it Stop 1: .+$/ }),
   ).toHaveCount(1);
   // The acceptance markers must survive the Venue detail load. Canonicalising
   // the selected id is the SAME pub resolving its own name, never a switch to
@@ -144,7 +144,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
   await expect(page).toHaveURL(/[?&]src=near(&|$)/);
   await page.screenshot({
-    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-light.png"),
+    path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-map-390-light.png"),
   });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
@@ -163,7 +163,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
     });
   });
   await page.screenshot({
-    path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-map-390-dark.png"),
+    path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-map-390-dark.png"),
   });
   const stored = await page.evaluate((key) => {
     const raw = window.sessionStorage.getItem(key);
@@ -233,8 +233,8 @@ test("Map rejects forged Near acceptance markers", async ({ page }) => {
   await page.goto(forgedUrl.toString());
 
   const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .mobileVenuePeekSummary')
-    .getByRole("button", { name: /^Make .+ Stop 1$/ });
+    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
+    .getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 45_000 });
   await expect(page.locator(".venueAcceptanceReceipt")).toHaveCount(0);
 

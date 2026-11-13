@@ -12,7 +12,7 @@
 The V1 implementation extends the existing Plan and active-night views.
 The [README](../../README.md#features) owns usage instructions for Sliding Doors, Find our table, London Clue Hunt and Mystery Envelopes.
 The [Plan API reference](../API_CONTRACTS_THE_LOCAL.md#55-night-feature-contracts) owns their request and persistence contracts.
-The [proof record](../proof/v1-night-features/README.md) records local verification and its limits, including unverified physical-device acceptance.
+The [proof record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/v1-night-features/README.md) records local verification and its limits, including unverified physical-device acceptance.
 
 The later ideas remain deferred: Fork and rejoin, Pub Radio, The Morning After Gazette, and Rewalk My London.
 
@@ -124,7 +124,7 @@ Signup only at the contribution gate, with one clear bargain: “Log tonight’s
 - Reduce time from “saw a pub” → signed-in → first price logged
 - Provisional mark already exists; keep authority gates; improve empty-state honesty
 - Borough / Pint Index challenges: “Camden needs 20 corroborated pints this month” (status, not gamified spam)
-- Poster / beer-mat physical QR ([docs/growth/POSTER_SPEC.md](docs/growth/POSTER_SPEC.md)) into `/near` or map with UTM — distribution as product design (Thiel)
+- Use the [QR poster and beer-mat spec](../growth/POSTER_SPEC.md#qr-code-spec-both-pieces) for physical distribution.
 
 **Done when:** corroborated coverage rises week-on-week in 3+ boroughs without paid ads.
 
@@ -188,8 +188,8 @@ Public comps are not “Twitter for pubs.” Closer economic story: **category-d
 
 ## Wave 0: execution pack price slice
 
-The [5 November weekly evidence](../evidence/search-growth-2026-11-05/weekly.md) records the search, venue and plan checks and the remaining source gaps.
-The [29 October implementation record](../evidence/uk-execution-2026-10-29/implementation.md) tracks the first UK pack slice.
+The [5 November weekly evidence](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/search-growth-2026-11-05/weekly.md) records the search, venue and plan checks and the remaining source gaps.
+The [29 October implementation record](https://github.com/Singularityszn/pubmax/blob/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/evidence/uk-execution-2026-10-29/implementation.md) tracks the first UK pack slice.
 The [README basket guidance](../../README.md#features) owns the user instructions and subtotal limits.
 `lib/outingQuote.ts` owns the reviewed offer contract. No synthetic offer enters published data.
 Complete result-card and plan quotes depend on approved branch terms, fees and availability.

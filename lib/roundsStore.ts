@@ -23,6 +23,7 @@ import {
   cleanNewRoundSpend,
   cleanNewStop,
   generateRoundCode,
+  type NewRound,
   normalizeRoundCode,
   resolveRoundPromotionStatus,
   type RoundDTO,
@@ -37,7 +38,7 @@ import {
 import { isDrinkCategory } from "@/lib/drinks";
 import { normalizeHandle } from "@/lib/profiles";
 import { log } from "@/lib/log";
-import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, uploadPhoto } from "@/lib/pintDropsStore";
+import { deletePhotos, isMissingReceiptColumnError, PhotoRefusalError, preparePhoto, uploadPreparedPhoto } from "@/lib/pintDropsStore";
 import { admin, selectStore } from "@/lib/storeBackend";
 
 // How many times to retry a code collision before giving up. A 6-char code over a
@@ -50,8 +51,23 @@ const CODE_MINT_ATTEMPTS = 6;
 export type RoundWriteError = "not_found" | "closed" | "invalid" | "forbidden" | "error";
 
 type CreateResult =
-  | { ok: true; state: RoundState }
-  | { ok: false; error: RoundWriteError };
+  | { ok: true; state: RoundState; created: boolean }
+  | { ok: false; error: RoundWriteError | "conflict" };
+
+type NewRoundInput = {
+  title?: unknown;
+  createdByHandle?: unknown;
+  /** A keyed create's id. A second create with it answers the first Round. */
+  id?: string;
+};
+
+/** A keyed retry matches only the Round the same person started with the same title. */
+function sameRoundRequest(
+  prior: { title: string; createdByHandle: string },
+  clean: NewRound,
+): boolean {
+  return prior.createdByHandle === clean.createdByHandle && prior.title === clean.title;
+}
 
 type JoinResult =
   | { ok: true; state: RoundState }
@@ -66,7 +82,7 @@ type CloseResult =
   | { ok: false; error: RoundWriteError };
 
 type RecordSpendResult =
-  | { ok: true; state: RoundState; created: boolean }
+  | { ok: true; state: RoundState; created: boolean; receipt?: File }
   | { ok: false; error: RoundWriteError };
 
 type TransitionSpendPromotionsResult =
@@ -82,8 +98,9 @@ type ReconcilePromotionKeysResult =
   | { ok: false; error: "not_found" | "forbidden" | "error" };
 
 export type RoundsStore = {
-  create(input: { title?: unknown; createdByHandle?: unknown }): Promise<CreateResult>;
+  create(input: NewRoundInput): Promise<CreateResult>;
   getByCode(code: string): Promise<RoundState | null>;
+  getSpendById(id: string): Promise<RoundSpendDTO | null>;
   join(code: string, handle: string): Promise<JoinResult>;
   addStop(
     code: string,
@@ -132,18 +149,19 @@ async function uploadRoundReceipt(
   venueId: string,
   spendId: string,
   receipt?: File | null,
-): Promise<string | undefined> {
-  if (!receipt) return undefined;
+): Promise<{ receiptPhotoKey?: string; receipt?: File }> {
+  if (!receipt) return {};
+  const bytes = await preparePhoto("receipt", venueId, spendId, receipt);
+  const prepared = new File([new Uint8Array(bytes)], "bill.jpg", { type: "image/jpeg" });
   try {
-    return await uploadPhoto("receipt", venueId, spendId, receipt);
+    return { receiptPhotoKey: await uploadPreparedPhoto("receipt", venueId, spendId, bytes), receipt: prepared };
   } catch (error) {
-    if (error instanceof PhotoRefusalError) throw error;
     log("warn", "rounds.receipt_upload_failed", {
       venueId,
       spendId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return undefined;
+    return { receipt: prepared };
   }
 }
 
@@ -226,27 +244,58 @@ const supabaseRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const complete = async (
+      row: { id: string; code: string; title: string; created_by_handle: string },
+      created: boolean,
+    ): Promise<CreateResult> => {
+      if (!sameRoundRequest({ title: row.title, createdByHandle: row.created_by_handle }, clean)) {
+        return { ok: false, error: "conflict" };
+      }
+      const { error } = await admin()
+        .from(MEMBERS)
+        .upsert({ round_id: row.id, handle: clean.createdByHandle }, { onConflict: "round_id,handle", ignoreDuplicates: true });
+      if (error) throw new Error(error.message);
+      const state = await this.getByCode(row.code);
+      return state?.members.some((member) => member.handle === clean.createdByHandle)
+        ? { ok: true, state, created }
+        : { ok: false, error: "error" };
+    };
+    const keyed = async (id: string): Promise<CreateResult | null> => {
+      const { data, error } = await admin()
+        .from(ROUNDS)
+        .select("id, code, title, created_by_handle")
+        .eq("id", id)
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) return null;
+      return complete(data as { id: string; code: string; title: string; created_by_handle: string }, false);
+    };
     try {
+      const prior = input.id ? await keyed(input.id) : null;
+      if (prior) return prior;
       // Mint a unique code, retrying on the (rare) unique-violation collision.
       for (let attempt = 0; attempt < CODE_MINT_ATTEMPTS; attempt += 1) {
         const code = generateRoundCode();
         const { data, error } = await admin()
           .from(ROUNDS)
-          .insert({ code, title: clean.title, created_by_handle: clean.createdByHandle })
+          .insert({
+            ...(input.id ? { id: input.id } : {}),
+            code,
+            title: clean.title,
+            created_by_handle: clean.createdByHandle,
+          })
           .select("id, code, title, created_by_handle, created_at, closed_at")
           .single();
         if (!error && data) {
-          // The creator is the first member of their own Round.
-          await admin()
-            .from(MEMBERS)
-            .insert({ round_id: (data as { id: string }).id, handle: clean.createdByHandle });
-          const state = await this.getByCode(code);
-          return state ? { ok: true, state } : { ok: false, error: "error" };
+          return await complete(data as { id: string; code: string; title: string; created_by_handle: string }, true);
         }
         // 23505 = unique_violation → a code collision; retry with a new code.
         if (error && (error as { code?: string }).code !== "23505") {
           throw new Error(error.message);
         }
+        // Or the same keyed create landed first, in flight beside this one.
+        const raced = input.id ? await keyed(input.id) : null;
+        if (raced) return raced;
       }
       return { ok: false, error: "error" };
     } catch (err) {
@@ -287,6 +336,12 @@ const supabaseRoundsStore: RoundsStore = {
       console.error("[rounds] getByCode failed:", err instanceof Error ? err.message : err);
       return null;
     }
+  },
+
+  async getSpendById(id) {
+    const { data, error } = await admin().from(SPENDS).select("*").eq("id", id).maybeSingle();
+    if (error) throw new Error(error.message);
+    return data ? spendFromRow(data as Record<string, unknown>) : null;
   },
 
   async join(code, handle) {
@@ -364,7 +419,8 @@ const supabaseRoundsStore: RoundsStore = {
         return { ok: true, state, created: false };
       }
       const id = crypto.randomUUID();
-      let receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      const uploaded = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+      let { receiptPhotoKey } = uploaded;
       // Storage can finish after closure. This read avoids an unnecessary insert.
       // Migration 0221 must be applied to guard closure between this read and insert.
       const { data: current, error: currentError } = await admin()
@@ -418,7 +474,7 @@ const supabaseRoundsStore: RoundsStore = {
       }
       const next = await this.getByCode(code);
       return next
-        ? { ok: true, state: next, created: !error }
+        ? { ok: true, state: next, created: !error, ...(!error && uploaded.receipt ? { receipt: uploaded.receipt } : {}) }
         : { ok: false, error: "error" };
     } catch (err) {
       if (err instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
@@ -607,6 +663,14 @@ export const memoryRoundsStore: RoundsStore = {
   async create(input) {
     const clean = cleanNewRound(input);
     if (!clean) return { ok: false, error: "invalid" };
+    const prior = input.id
+      ? [...memoryRounds.values()].find((round) => round.id === input.id)
+      : undefined;
+    if (prior) {
+      return sameRoundRequest(prior, clean)
+        ? { ok: true, state: stateFrom(prior), created: false }
+        : { ok: false, error: "conflict" };
+    }
     let code = generateRoundCode();
     for (let attempt = 0; memoryRounds.has(code) && attempt < CODE_MINT_ATTEMPTS; attempt += 1) {
       code = generateRoundCode();
@@ -614,7 +678,7 @@ export const memoryRoundsStore: RoundsStore = {
     if (memoryRounds.has(code)) return { ok: false, error: "error" };
     memorySeq += 1;
     const round: MemoryRound = {
-      id: `r${memorySeq}`,
+      id: input.id ?? `r${memorySeq}`,
       code,
       title: clean.title,
       createdByHandle: clean.createdByHandle,
@@ -627,7 +691,7 @@ export const memoryRoundsStore: RoundsStore = {
       promotionOwners: new Map(),
     };
     memoryRounds.set(code, round);
-    return { ok: true, state: stateFrom(round) };
+    return { ok: true, state: stateFrom(round), created: true };
   },
 
   async getByCode(code) {
@@ -635,6 +699,14 @@ export const memoryRoundsStore: RoundsStore = {
     if (!key) return null;
     const round = memoryRounds.get(key);
     return round ? stateFrom(round) : null;
+  },
+
+  async getSpendById(id) {
+    for (const round of memoryRounds.values()) {
+      const spend = stateFrom(round).spends.find((row) => row.id === id);
+      if (spend) return spend;
+    }
+    return null;
   },
 
   async join(code, handle) {
@@ -691,9 +763,10 @@ export const memoryRoundsStore: RoundsStore = {
     }
     const id = crypto.randomUUID();
     let receiptPhotoKey: string | undefined;
+    let receipt: File | undefined;
     if (!round.spends.some((spend) => spend.clientRef === clean.clientRef)) {
       try {
-        receiptPhotoKey = await uploadRoundReceipt(clean.venueId, id, input.receipt);
+        ({ receiptPhotoKey, receipt } = await uploadRoundReceipt(clean.venueId, id, input.receipt));
       } catch (error) {
         if (error instanceof PhotoRefusalError) return { ok: false, error: "invalid" };
         throw error;
@@ -737,7 +810,7 @@ export const memoryRoundsStore: RoundsStore = {
         return { ok: false, error: "forbidden" };
       }
     }
-    return { ok: true, state: stateFrom(round), created };
+    return { ok: true, state: stateFrom(round), created, ...(created && receipt ? { receipt } : {}) };
   },
 
   async claimSpendPromotionOwner(code, clientRef, actor) {

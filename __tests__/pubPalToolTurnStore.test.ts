@@ -4,11 +4,9 @@ import {
   __resetPubPalToolTurnStore,
   appendOwnedPubPalUserTurn,
   bindPubPalToolTurn,
-  hasStoredPubPalToolTurnForTest,
   appendPubPalToolTurn,
   PUB_PAL_TOOL_TURN_TTL_MS,
   PubPalToolTurnAccessError,
-  purgeExpiredPubPalToolTurns,
   readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
@@ -26,7 +24,6 @@ type FakeRow = Record<string, unknown> & { conversation_id: string; expires_at: 
 
 const durable = vi.hoisted(() => ({
   configured: false,
-  deletes: [] as Array<{ table: string; column: string; value: string }>,
   rows: new Map<string, FakeRow>(),
 }));
 
@@ -41,13 +38,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
     isSupabaseConfigured: () => durable.configured,
     requiresSupabaseStore: () => false,
     requireSupabaseAdmin: () => ({
-      from: (table: string) => ({
-        delete: () => ({
-          lt: async (column: string, value: string) => {
-            durable.deletes.push({ table, column, value });
-            return { error: null };
-          },
-        }),
+      from: () => ({
         select: () => {
           const filters: Array<[string, string]> = [];
           const query = {
@@ -187,18 +178,14 @@ describe("pubPalToolTurnStore (memory backend)", () => {
       ownerId: OWNER_ID,
     });
     vi.setSystemTime(new Date(Date.now() + PUB_PAL_TOOL_TURN_TTL_MS + 1));
-    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(true);
-    await purgeExpiredPubPalToolTurns();
-    expect(hasStoredPubPalToolTurnForTest(CONVERSATION_ID)).toBe(false);
     expect(await readOwnedPubPalToolTurn(CONVERSATION_ID, OWNER_ID)).toBeNull();
   });
 });
 
-describe("pubPalToolTurnStore (durable backend purge)", () => {
+describe("pubPalToolTurnStore (durable backend)", () => {
   afterEach(() => {
     vi.useRealTimers();
     durable.configured = false;
-    durable.deletes = [];
     durable.rows.clear();
     __resetPubPalToolTurnStore();
   });
@@ -274,17 +261,5 @@ describe("pubPalToolTurnStore (durable backend purge)", () => {
     expect(turn?.toolsUsed).toEqual(["propose_plan"]);
     expect(turn?.hints).toEqual(["Proposed draft."]);
     expect(turn?.query).toBe("somewhere cheaper");
-  });
-
-  it("deletes every row whose expires_at has passed", async () => {
-    durable.configured = true;
-    vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-02T12:00:00.000Z"));
-
-    await purgeExpiredPubPalToolTurns();
-
-    expect(durable.deletes).toEqual([
-      { table: "pub_pal_tool_turns", column: "expires_at", value: "2026-10-02T12:00:00.000Z" },
-    ]);
   });
 });

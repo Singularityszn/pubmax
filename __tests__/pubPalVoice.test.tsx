@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactNode } from "react";
+import { act, createElement, Fragment, type ComponentProps, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -11,6 +11,7 @@ const voice = vi.hoisted(() => ({
   startSession: vi.fn(),
   endSession: vi.fn(),
   sendUserMessage: vi.fn(),
+  sendContextualUpdate: vi.fn(),
 }));
 
 const requests = vi.hoisted(() => ({
@@ -23,10 +24,31 @@ const analytics = vi.hoisted(() => ({
 
 const navigation = vi.hoisted(() => ({
   push: vi.fn(),
+  pathname: "/pal",
+  search: "",
 }));
 
 const sounds = vi.hoisted(() => ({
   play: vi.fn(),
+}));
+
+const native = vi.hoisted(() => ({
+  enabled: false,
+  listeners: new Map<string, (state?: { isActive: boolean }) => void>(),
+}));
+
+vi.mock("@/lib/nativePlatform", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/nativePlatform")>()),
+  isNativeApp: () => native.enabled,
+}));
+
+vi.mock("@capacitor/app", () => ({
+  App: {
+    addListener: async (event: string, listener: (state?: { isActive: boolean }) => void) => {
+      native.listeners.set(event, listener);
+      return { remove: async () => { native.listeners.delete(event); } };
+    },
+  },
 }));
 
 vi.mock("@elevenlabs/react", () => ({
@@ -35,12 +57,14 @@ vi.mock("@elevenlabs/react", () => ({
     startSession: voice.startSession,
     endSession: voice.endSession,
     sendUserMessage: voice.sendUserMessage,
+    sendContextualUpdate: voice.sendContextualUpdate,
   }),
   useConversationMode: () => ({
     isListening: voice.isListening,
     isSpeaking: voice.isSpeaking,
   }),
   useConversationStatus: () => ({ status: voice.status }),
+  useConversationClientTool: () => {},
 }));
 
 vi.mock("next/link", () => ({
@@ -50,6 +74,8 @@ vi.mock("next/link", () => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: navigation.push }),
+  usePathname: () => navigation.pathname,
+  useSearchParams: () => new URLSearchParams(navigation.search),
 }));
 
 vi.mock("@/components/pubpal/palVoiceSounds", () => ({
@@ -65,12 +91,12 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: requests.authedActionFetch,
 }));
 
+const venuesRead = vi.hoisted(() => ({ read: vi.fn() }));
+
 // The listed pubs a "take me there" or "where is" ask is read against.
 vi.mock("@/lib/venuesSlim", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/venuesSlim")>()),
-  loadSlimVenuesForCity: async () => [
-    { id: "venue-lamb", name: "The Lamb", lat: 0, lng: 0, cheapestPrice: 5.2, borough: "Camden" },
-  ],
+  loadSlimVenuesForCity: venuesRead.read,
 }));
 
 vi.mock("@/lib/analytics", async (importOriginal) => ({
@@ -78,8 +104,10 @@ vi.mock("@/lib/analytics", async (importOriginal) => ({
   trackEvent: analytics.trackEvent,
 }));
 
-import PubPalVoice from "@/components/pubpal/PubPalVoice";
-import { clearActivePlan, writeActivePlan } from "@/lib/activePlan";
+import PubPalVoiceGate from "@/components/pubpal/PubPalVoice";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
+import { revokePalVoiceCall } from "@/lib/palVoiceHost";
+import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 
 const NIGHT_PLAN_ID = "11111111-1111-4111-8111-111111111111";
 import {
@@ -90,9 +118,19 @@ import {
   PAL_MICROPHONE_PERMISSION_ERROR,
   PAL_VOICE_LINE_DROPPED_ERROR,
   PAL_VOICE_START_ERROR,
+  PAL_VOICE_START_TIMEOUT_ERROR,
+  PAL_VOICE_START_TIMEOUT_MS,
 } from "@/lib/pubPalVoiceSession";
 import { PAL_VOICE_MAP_DELAY_MS } from "@/lib/palVoiceTranscript";
 import { defined } from "@/__tests__/helpers/defined";
+import { applyPalMapCommand, groundPalMapResult, readPalMapState } from "@/lib/palMapCommands";
+import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import { PAL_VOICE_RESUME_GREETING, PAL_VOICE_WRAP_UP_SECONDS } from "@/lib/palVoiceCall";
+
+// The /pal gate draws a slot and the shell's host draws the call into it.
+function PubPalVoice({ panelVisible = true, ...props }: ComponentProps<typeof PubPalVoiceGate> & { panelVisible?: boolean }) {
+  return createElement(Fragment, null, panelVisible ? createElement(PubPalVoiceGate, props) : null, createElement(PalVoiceHost));
+}
 
 let container: HTMLDivElement;
 let root: Root | null;
@@ -154,10 +192,18 @@ beforeEach(() => {
   voice.startSession.mockReset();
   voice.endSession.mockReset();
   voice.sendUserMessage.mockReset();
+  voice.sendContextualUpdate.mockReset();
   requests.authedActionFetch.mockReset();
   analytics.trackEvent.mockReset();
+  venuesRead.read.mockReset().mockResolvedValue([
+    { id: "venue-lamb", name: "The Lamb", lat: 0, lng: 0, cheapestPrice: 5.2, borough: "Camden" },
+  ]);
   navigation.push.mockReset();
+  navigation.pathname = "/pal";
+  navigation.search = "";
   sounds.play.mockReset();
+  native.enabled = false;
+  native.listeners.clear();
   requests.authedActionFetch.mockResolvedValue(new Response(null, { status: 204 }));
 
   vi.stubGlobal(
@@ -179,7 +225,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  clearActivePlan();
+  localStorage.removeItem(ACTIVE_PLAN_KEY);
   planRead.read.mockReset();
   unmount();
   container.remove();
@@ -188,11 +234,11 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
-  it.each(["species", "agent-default"])("discloses the %s fallback without changing provider overrides", async (voiceSource) => {
+  it.each(["species", "agent-default"])("discloses a missing picked voice on the %s fallback without changing provider overrides", async (voiceSource) => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
     requests.authedActionFetch.mockResolvedValueOnce(Response.json({
       signedUrl: "wss://voice.example/session",
-      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource },
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: true },
     }));
     await mountAvailable();
     expect(container.textContent).not.toContain("Your chosen voice isn't available");
@@ -201,7 +247,23 @@ describe("Pub Pal voice controls", () => {
     expect(container.querySelector('[role="status"].palVoiceHint')?.textContent).toBe(
       "Your chosen voice isn't available. Using your Pal's default voice.",
     );
-    expect(JSON.stringify(defined(voice.startSession.mock.calls[0])[0])).not.toContain("voiceSource");
+    const sent = JSON.stringify(defined(voice.startSession.mock.calls[0])[0]);
+    expect(sent).not.toContain("voiceSource");
+    expect(sent).not.toContain("pickedVoiceMissing");
+  });
+
+  // With no picked voice on offer, the Pal's own voice is the only voice, so there is nothing to apologise for.
+  it.each(["species", "agent-default"])("says nothing about a pick on the %s voice when no picked voice is offered", async (voiceSource) => {
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/session",
+      overrides: { voiceId: voiceSource === "species" ? "voice-fox" : null, firstMessage: "Hi, I'm Ripley.", voiceSource, pickedVoiceMissing: false },
+    }));
+    await mountAvailable();
+    await act(async () => container.querySelector<HTMLButtonElement>("button")?.click());
+    await settle();
+    expect(container.textContent).not.toContain("Your chosen voice isn't available");
+    expect(voice.startSession).toHaveBeenCalledOnce();
   });
 
   it.each(["selected", "unknown", undefined])("does not claim a fallback for %s selection metadata", async (voiceSource) => {
@@ -215,6 +277,22 @@ describe("Pub Pal voice controls", () => {
     await settle();
     expect(container.textContent).not.toContain("Your chosen voice isn't available");
     expect(voice.startSession).toHaveBeenCalledOnce();
+  });
+
+  it.each([true, false])("offers voice only after the probe confirms availability: %s", async (available) => {
+    const probe = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(() => probe.promise));
+    await act(async () => { root?.render(createElement(PubPalVoice)); });
+    expect(container.querySelector("input")).toBeNull();
+    expect(container.querySelector("button")).toBeNull();
+    expect(container.querySelector('a[href="/pal/chat"]')).not.toBeNull();
+    await act(async () => { probe.resolve(Response.json({ available })); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(container.querySelector("input") !== null).toBe(available);
+    expect(container.querySelector("button") !== null).toBe(available);
+    if (!available) expect(container.querySelector('a[href="/pal/chat"]')).not.toBeNull();
+    expect(getUserMedia).not.toHaveBeenCalled();
   });
 
   it("offers writing immediately and leaves a stalled availability probe after eight seconds", async () => {
@@ -320,6 +398,45 @@ describe("Pub Pal voice controls", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/pal/chat?ask=Quiet+pubs+in+Soho");
   });
 
+  it.each(["mute", "delete"] as const)("ends a live call after %s revokes voice", async (action) => {
+    await startLiveSession();
+    await act(async () => {
+      if (action === "delete") revokePalVoiceCall();
+      root?.render(createElement(PubPalVoice, { muted: action === "mute", panelVisible: action !== "delete" }));
+    });
+    await settle();
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(container.querySelector(".palVoiceBar")).toBeNull();
+    expect(requests.authedActionFetch).toHaveBeenLastCalledWith(
+      "/api/pub-pal/voice-token",
+      expect.objectContaining({ body: JSON.stringify({ action: "release", conversationId: "conv_voiceSession1" }) }),
+      { requiresIdentity: true },
+    );
+  });
+
+  it("cancels a pending microphone request when muted", async () => {
+    const permission = deferred<MediaStream>();
+    const stopTrack = vi.fn();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    await act(async () => { root?.render(createElement(PubPalVoice, { muted: true })); });
+    await act(async () => { permission.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream); });
+    await settle();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
+  it("keeps a cold map free of voice controls and availability requests", async () => {
+    navigation.pathname = "/map";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    await settle();
+    expect(container.childElementCount).toBe(0);
+    expect(fetch).not.toHaveBeenCalled();
+    expect(getUserMedia).not.toHaveBeenCalled();
+  });
+
   it("does not probe or offer voice while the Pal is muted", async () => {
     const availabilityFetch = vi.fn(async () => Response.json({ available: true }));
     vi.stubGlobal("fetch", availabilityFetch);
@@ -416,7 +533,7 @@ describe("Pub Pal voice controls", () => {
   });
 
   it.each([
-    [429, "VOICE_ALLOWANCE_USED", "You've used this month's trial voice allowance."],
+    [429, "VOICE_ALLOWANCE_USED", "You've used this month's voice allowance."],
     [503, "UNAVAILABLE", "Voice isn't set up yet."],
   ])("does not release a parsed non-ok grant response (%s)", async (status, code, error) => {
     const stopTrack = vi.fn();
@@ -644,6 +761,380 @@ describe("Pub Pal voice controls", () => {
     expect(ended).toEqual([["voice_ended", { reason: "user" }]]);
   });
 
+  describe("when the page goes to the background", () => {
+    let visibility: DocumentVisibilityState;
+
+    beforeEach(() => {
+      visibility = "visible";
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => visibility });
+    });
+
+    afterEach(() => {
+      Reflect.deleteProperty(document, "visibilityState");
+    });
+
+    async function goLive() {
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceHidden1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+        onConnect?: () => void;
+        onDisconnect?: () => void;
+        onMessage?: (message: { role: string; message: string }) => void;
+      };
+      voice.endSession.mockImplementation(() => session.onDisconnect?.());
+      await act(async () => {
+        session.onStatusChange?.({ status: "connected" });
+        session.onConnect?.();
+        session.onMessage?.({ role: "agent", message: "Evening. Where are we drinking?" });
+      });
+      voice.status = "connected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      await settle();
+      return session;
+    }
+
+    function hidePage(type: "visibilitychange" | "pagehide" | "pause") {
+      act(() => {
+        if (type === "pause") {
+          defined(native.listeners.get("pause"))();
+          return;
+        }
+        visibility = "hidden";
+        if (type === "pagehide") window.dispatchEvent(new Event("pagehide"));
+        else document.dispatchEvent(new Event("visibilitychange"));
+      });
+    }
+
+    it.each(["visibilitychange", "pagehide", "pause"] as const)("ends the call and releases the grant on %s", async (type) => {
+      native.enabled = type === "pause";
+      await goLive();
+      hidePage(type);
+      await settle();
+
+      expect(voice.endSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.filter(([, init]) =>
+        String((init as RequestInit | undefined)?.body ?? "").includes("release"));
+      expect(releases).toHaveLength(1);
+      expect(JSON.parse(String((defined(releases[0])[1] as RequestInit).body))).toEqual({
+        action: "release",
+        conversationId: "conv_voiceHidden1",
+      });
+      const ended = analytics.trackEvent.mock.calls.filter(([name]) => name === "voice_ended");
+      expect(ended).toEqual([["voice_ended", { reason: "background" }]]);
+    });
+
+    it("keeps the first start through a foreground microphone permission prompt", async () => {
+      native.enabled = true;
+      const permission = deferred<{ getTracks: () => { stop: () => void }[] }>();
+      getUserMedia.mockReturnValueOnce(permission.promise);
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+
+      act(() => { native.listeners.get("appStateChange")?.({ isActive: false }); });
+      expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(true);
+      await act(async () => {
+        native.listeners.get("appStateChange")?.({ isActive: true });
+        permission.resolve({ getTracks: () => [{ stop: vi.fn() }] });
+      });
+      await settle();
+
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onConnect?: () => void };
+      await act(async () => { session.onConnect?.(); });
+      voice.status = "connected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      expect(container.querySelector("button")?.textContent).toContain("End");
+      expect(voice.endSession).not.toHaveBeenCalled();
+    });
+
+    it.each(["visibilitychange", "pause"] as const)("cancels a pending microphone request on lock or background via %s", async (type) => {
+      native.enabled = true;
+      const permission = deferred<{ getTracks: () => { stop: () => void }[] }>();
+      const stopTrack = vi.fn();
+      getUserMedia.mockReturnValueOnce(permission.promise);
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledOnce();
+
+      hidePage(type);
+      await act(async () => { permission.resolve({ getTracks: () => [{ stop: stopTrack }] }); });
+      await settle();
+
+      expect(stopTrack).toHaveBeenCalledOnce();
+      expect(requests.authedActionFetch).not.toHaveBeenCalled();
+      expect(voice.startSession).not.toHaveBeenCalled();
+      expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+    });
+
+    it("stops the SDK microphone at once when the page hides during SDK startup", async () => {
+      type Stream = { getTracks: () => { stop: () => void }[] };
+      const sdkStop = vi.fn();
+      const lateStop = vi.fn();
+      const late = deferred<Stream>();
+      const retryPermission = deferred<Stream>();
+      const retryProbeStop = vi.fn();
+      const retrySdkStop = vi.fn();
+      const retryGrant = deferred<Response>();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: sdkStop }] })
+        .mockReturnValueOnce(late.promise)
+        .mockReturnValueOnce(retryPermission.promise)
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: retrySdkStop }] });
+      requests.authedActionFetch
+        .mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session", conversationId: "conv_voiceStartup1" }))
+        .mockResolvedValue(new Response(null, { status: 204 }));
+      // The SDK opens the microphone itself and cannot be cancelled until its
+      // socket finishes, so endSession only marks the pending start.
+      let sdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation((options: { onStatusChange?: (event: { status: string }) => void }) => {
+        voice.status = "connecting";
+        options.onStatusChange?.({ status: "connecting" });
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      await settle();
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(3);
+
+      const session = defined(voice.startSession.mock.calls[0])[0] as { onStatusChange?: (event: { status: string }) => void };
+      voice.status = "disconnected";
+      visibility = "visible";
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        root?.render(createElement(PubPalVoice));
+      });
+      requests.authedActionFetch.mockReturnValueOnce(retryGrant.promise);
+      let retrySdkInput: Promise<Stream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        retrySdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => { retryPermission.resolve({ getTracks: () => [{ stop: retryProbeStop }] }); });
+      expect(retryProbeStop).toHaveBeenCalledOnce();
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+
+      await act(async () => {
+        retryGrant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_voiceStartup2" }));
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(4);
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      await expect(defined(retrySdkInput)).resolves.toBeDefined();
+      await act(async () => { late.resolve({ getTracks: () => [{ stop: lateStop }] }); });
+      expect(lateStop).toHaveBeenCalledOnce();
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+      hidePage("visibilitychange");
+      expect(retrySdkStop).toHaveBeenCalledOnce();
+      const retrySession = defined(voice.startSession.mock.calls[1])[0] as { onStatusChange?: (event: { status: string }) => void };
+      act(() => { retrySession.onStatusChange?.({ status: "disconnected" }); });
+      expect(getUserMedia).toHaveBeenCalledTimes(5);
+    });
+
+    it("refuses late SDK input after a cancelled startup reports disconnected", async () => {
+      const sdkStop = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockResolvedValue({ getTracks: () => [{ stop: sdkStop }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/session", conversationId: "conv_lateInput",
+      }));
+      voice.startSession.mockImplementation(() => {
+        void navigator.mediaDevices.getUserMedia({ audio: true });
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      const session = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      expect(sdkStop).toHaveBeenCalledOnce();
+      await act(async () => { session.onStatusChange?.({ status: "disconnected" }); });
+
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "visible";
+      await expect(navigator.mediaDevices.getUserMedia({ audio: true })).rejects.toMatchObject({ name: "AbortError" });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops an SDK stream that resolves while hidden before the visibility event", async () => {
+      const input = deferred<MediaStream>();
+      const stopTrack = vi.fn();
+      getUserMedia
+        .mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] })
+        .mockReturnValueOnce(input.promise);
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+      let sdkInput: Promise<MediaStream> | undefined;
+      voice.startSession.mockImplementation(() => {
+        sdkInput = navigator.mediaDevices.getUserMedia({ audio: true });
+        sdkInput.catch(() => undefined);
+      });
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      visibility = "hidden";
+      await act(async () => { input.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream); });
+
+      await expect(defined(sdkInput)).rejects.toMatchObject({ name: "AbortError" });
+      expect(stopTrack).toHaveBeenCalledOnce();
+    });
+
+    it.each(["cancel", "timeout", "unmount"] as const)("never starts a waiting retry after %s", async (ending) => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_waitFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_waitRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      if (ending === "unmount") unmount();
+      else if (ending === "cancel") {
+        await act(async () => { container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click(); });
+      } else {
+        await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+        expect(container.textContent).toContain(PAL_VOICE_START_TIMEOUT_ERROR);
+      }
+      await settle();
+      await act(async () => { first.onStatusChange?.({ status: "disconnected" }); });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_waitFirst", "conv_waitRetry"]);
+    });
+
+    it("allows a new start after unmount between claiming a retry token and starting the SDK", async () => {
+      vi.useFakeTimers();
+      getUserMedia.mockResolvedValue({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/first", conversationId: "conv_claimFirst",
+      }));
+      await mountAvailable();
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      const first = defined(voice.startSession.mock.calls[0])[0] as {
+        onStatusChange?: (event: { status: string }) => void;
+      };
+      hidePage("visibilitychange");
+      await settle();
+      visibility = "visible";
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/retry", conversationId: "conv_claimRetry",
+      }));
+      await act(async () => {
+        document.dispatchEvent(new Event("visibilitychange"));
+        container.querySelector<HTMLButtonElement>("button")?.click();
+      });
+      expect(getUserMedia).toHaveBeenCalledTimes(2);
+      expect(voice.startSession).toHaveBeenCalledOnce();
+
+      await act(async () => {
+        first.onStatusChange?.({ status: "disconnected" });
+        queueMicrotask(() => {
+          root?.unmount();
+          root = null;
+        });
+      });
+      expect(voice.startSession).toHaveBeenCalledOnce();
+      const releases = requests.authedActionFetch.mock.calls.flatMap(([, init]) => {
+        const body = JSON.parse(String((init as RequestInit | undefined)?.body ?? "{}"));
+        return body.action === "release" ? [body.conversationId] : [];
+      });
+      expect(releases).toEqual(["conv_claimFirst", "conv_claimRetry"]);
+
+      root = createRoot(container);
+      await mountAvailable();
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+        signedUrl: "wss://voice.example/next", conversationId: "conv_claimNext",
+      }));
+      await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(defined(voice.startSession.mock.calls[1])[0]).toMatchObject({
+        signedUrl: "wss://voice.example/next",
+      });
+    });
+
+    it("keeps the transcript and offers Carry on when the page returns", async () => {
+      await goLive();
+      hidePage("visibilitychange");
+      voice.status = "disconnected";
+      await act(async () => { root?.render(createElement(PubPalVoice)); });
+      act(() => {
+        visibility = "visible";
+        document.dispatchEvent(new Event("visibilitychange"));
+      });
+      await settle();
+
+      expect(container.textContent).toContain("Evening. Where are we drinking?");
+      const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")]
+        .find((button) => button.textContent?.includes("Carry on"));
+      expect(carryOn).toBeTruthy();
+
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again" }));
+      await act(async () => { carryOn?.click(); });
+      await settle();
+      expect(voice.startSession).toHaveBeenCalledTimes(2);
+      expect(container.textContent).toContain("Evening. Where are we drinking?");
+    });
+
+    it("does nothing when the page hides with no call", async () => {
+      await mountAvailable();
+      hidePage("visibilitychange");
+      await settle();
+      expect(voice.endSession).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain("Carry on");
+    });
+
+    it("asks the SDK to hold a screen wake lock for the call", async () => {
+      await goLive();
+      expect(defined(voice.startSession.mock.calls[0])[0]).toMatchObject({ useWakeLock: true });
+    });
+  });
+
   it("ignores stale callbacks from attempt A while attempt B owns its grant", async () => {
     vi.useFakeTimers();
     const stopTrackA = vi.fn();
@@ -677,11 +1168,13 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     const sessionA = defined(voice.startSession.mock.calls[0])[0] as {
+      onStatusChange?: (event: { status: string }) => void;
       onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
     await act(async () => {
+      sessionA.onStatusChange?.({ status: "connected" });
       sessionA.onConnect?.();
       sessionA.onError?.(new Error("attempt A failed"));
       await Promise.resolve();
@@ -703,6 +1196,8 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
 
     await act(async () => {
       sessionA.onDisconnect?.();
@@ -711,6 +1206,7 @@ describe("Pub Pal voice controls", () => {
       await Promise.resolve();
     });
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
 
     await act(async () => {
       vi.advanceTimersByTime(1_000);
@@ -762,7 +1258,8 @@ describe("Pub Pal voice controls", () => {
       session.onConnect?.();
       await Promise.resolve();
     });
-    expect(vi.getTimerCount()).toBe(1);
+    // The cap and the wrap-up warning before it.
+    expect(vi.getTimerCount()).toBe(2);
 
     await act(async () => {
       session.onError?.(new Error("socket failed"));
@@ -1030,7 +1527,9 @@ describe("Pub Pal voice controls", () => {
 
 type LiveSession = {
   onConnect?: () => void;
+  onStatusChange?: (event: { status: string }) => void;
   onDisconnect?: (details?: unknown) => void;
+  onError?: (error: string) => void;
   onMessage?: (message: { role: string; message: string; event_id?: number }) => void;
   onAgentToolRequest?: (event: { tool_call_id: string; event_id: number; tool_name: string }) => void;
   onAgentToolResponse?: (event: { tool_call_id: string; event_id: number; tool_name: string; is_error: boolean; is_called: boolean; full_tool_result: string }) => void;
@@ -1038,11 +1537,12 @@ type LiveSession = {
   onDebug?: (event: unknown) => void;
 };
 
-async function startLiveSession(): Promise<LiveSession> {
+async function startLiveSession(grant: Record<string, unknown> = {}): Promise<LiveSession> {
   getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
   requests.authedActionFetch.mockResolvedValueOnce(Response.json({
     signedUrl: "wss://voice.example/session",
     conversationId: "conv_voiceSession1",
+    ...grant,
   }));
   await act(async () => {
     root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
@@ -1060,6 +1560,7 @@ async function startLiveSession(): Promise<LiveSession> {
   voice.status = "connected";
   voice.isListening = true;
   await act(async () => {
+    session.onStatusChange?.({ status: "connected" });
     session.onConnect?.();
     root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
   });
@@ -1073,14 +1574,312 @@ function transcriptLines(): string[] {
 }
 
 describe("Pub Pal voice transcript", () => {
+  it.each(["stop", "disconnect", "error"])("forgets map picks after %s while the panel stays mounted", async (ending) => {
+    const session = await startLiveSession();
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+    await act(async () => {
+      if (ending === "disconnect") session.onDisconnect?.();
+      else if (ending === "error") session.onError?.("Socket failed");
+      else container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click();
+    });
+    expect(readPalMapState().picks).toEqual([]);
+    expect(applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] })).toBe(false);
+  });
+
+  async function endLiveCall(session: LiveSession, ending: "cap" | "pal"): Promise<void> {
+    await act(async () => {
+      if (ending === "cap") vi.advanceTimersByTime(PAL_VOICE_MAX_SESSION_SECONDS * 1000);
+      else {
+        vi.advanceTimersByTime(61_000);
+        session.onDisconnect?.({ reason: "agent", closeCode: 1000 });
+      }
+    });
+    voice.status = "disconnected";
+    voice.isListening = false;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley" })); });
+    await settle();
+  }
+
+  it.each([["the cap", "cap", 21], ["the Pal hanging up", "pal", 21]] as const)(
+    "keeps the picks and transcript after %s and offers Carry on with the minutes left",
+    async (_label, ending, minutesLeft) => {
+      vi.useFakeTimers();
+      const session = await startLiveSession({ usedMinutes: 9 });
+      await act(async () => { session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 }); });
+      groundPalMapResult(["venue-lamb"]);
+      applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+      await endLiveCall(session, ending);
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
+      expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
+      expect(container.textContent).toContain(`At least ${minutesLeft} minutes of voice left this month`);
+      // Closing the call's last screen takes the kept picks with it.
+      act(() => { root?.unmount(); root = null; });
+      expect(readPalMapState().picks).toEqual([]);
+    },
+  );
+
+  it.each(["/pal", "/map"])("keeps the transcript beside a zero allowance and lets the server decide on %s", async (surface) => {
+    vi.useFakeTimers();
+    const session = await startLiveSession({ usedMinutes: 30 });
+    await act(async () => { session.onMessage?.({ role: "agent", message: "The Lamb has a listed pint." }); });
+    await endLiveCall(session, "pal");
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    const screen = surface === "/map" ? document.body : container;
+    expect(screen.textContent).toContain("The Lamb has a listed pint.");
+    expect(screen.textContent).toContain("At least 0 minutes of voice left this month");
+    if (surface === "/map") {
+      expect(screen.querySelector(".palVoiceBarCaption")?.textContent).toBe("The Lamb has a listed pint.");
+      expect(screen.querySelector(".palVoiceBarAllowance")?.textContent).toBe("At least 0 minutes of voice left this month");
+    }
+    const carryOn = [...screen.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn?.disabled).toBe(false);
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ error: "Monthly voice allowance reached" }, { status: 429 }));
+    const calls = requests.authedActionFetch.mock.calls.length;
+    await act(async () => { carryOn?.click(); });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(calls + 1);
+    expect(screen.querySelector('[role="alert"]')?.textContent).toBe("Monthly voice allowance reached");
+  });
+
+  it.each([
+    ["permission-denied", undefined, 21],
+    ["permission-cancel", undefined, 21],
+    ["grant-failure", undefined, 21],
+    ["grant-cancel", 12, 18],
+    ["sdk-error", 12, 18],
+    ["sdk-disconnect", 12, 18],
+    ["sdk-cancel", 12, 18],
+    ["sdk-timeout", 12, 18],
+    ["sdk-error", null, null],
+    ["sdk-error", undefined, null],
+  ] as const)(
+    "preserves the ended call through %s with grant usage %s and retries with its asks and cards",
+    async (failure, usedMinutes, minutesLeft) => {
+      vi.useFakeTimers();
+      const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+      venuesRead.read.mockReturnValue(new Promise(() => {}));
+      const session = await startLiveSession({ usedMinutes: 9 });
+      await act(async () => {
+        session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 });
+        session.onAgentToolRequest?.({ tool_call_id: "kept", event_id: 2, tool_name: "search_venues" });
+        session.onAgentToolResponse?.({
+          tool_call_id: "kept", event_id: 2, tool_name: "search_venues", is_error: false, is_called: true,
+          full_tool_result: JSON.stringify({ result: {
+            ok: true, tool: "search_venues", answerHint: "Listed pubs.",
+            cards: [{ key: "kept", venueId: "venue-lamb", title: "The Lamb", place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+            data: { venues: [{ id: "venue-lamb", lat: 51.5, lng: -0.1 }] },
+          } }),
+        });
+      });
+      await endLiveCall(session, "cap");
+      const clickCarryOn = async () => {
+        const button = [...container.querySelectorAll<HTMLButtonElement>("button")].find((item) => item.textContent?.includes("Carry on"));
+        expect(button).toBeTruthy();
+        await act(async () => { button?.click(); });
+        await act(async () => { await vi.dynamicImportSettled(); });
+      };
+      const permission = deferred<MediaStream>();
+      const grant = deferred<Response>();
+      if (failure === "permission-denied") getUserMedia.mockRejectedValueOnce(new DOMException("Denied", "NotAllowedError"));
+      else if (failure === "permission-cancel") getUserMedia.mockReturnValueOnce(permission.promise);
+      else getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      if (failure === "grant-failure") requests.authedActionFetch.mockResolvedValueOnce(Response.json({ error: "Try again" }, { status: 503 }));
+      else if (failure === "grant-cancel") requests.authedActionFetch.mockReturnValueOnce(grant.promise);
+      else if (failure.startsWith("sdk-")) requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry", usedMinutes }));
+      voice.endSession.mockImplementation(() => {
+        voice.status = "disconnected";
+        const pendingSession = voice.startSession.mock.calls.at(-1)?.[0] as LiveSession | undefined;
+        pendingSession?.onStatusChange?.({ status: "disconnected" });
+      });
+      await clickCarryOn();
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      await act(async () => {
+        const retry = voice.startSession.mock.calls.at(1)?.[0] as LiveSession | undefined;
+        if (failure === "sdk-error") retry?.onError?.("Socket failed");
+        else if (failure === "sdk-disconnect") {
+          retry?.onStatusChange?.({ status: "disconnected" });
+          retry?.onDisconnect?.({ reason: "error", closeCode: 1006 });
+        }
+        else if (failure === "sdk-timeout") vi.advanceTimersByTime(PAL_VOICE_START_TIMEOUT_MS);
+        else if (failure.endsWith("cancel")) container.querySelector<HTMLButtonElement>('button[aria-label="Cancel voice startup"]')?.click();
+      });
+      await settle();
+      if (failure === "grant-cancel") await act(async () => { grant.resolve(Response.json({ signedUrl: "wss://voice.example/retry", conversationId: "conv_failedRetry", usedMinutes })); });
+      if (failure === "permission-cancel") await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
+      await settle();
+      expect(container.textContent).toContain("Time's up for this call");
+      if (minutesLeft === null) expect(container.textContent).not.toContain("of voice left this month");
+      else expect(container.textContent).toContain(`At least ${minutesLeft} minutes of voice left this month`);
+      expect(transcriptLines().join(" ")).toContain("Cheap pints in Soho");
+      expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("The Lamb");
+      expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again", conversationId: "conv_successRetry" }));
+      await clickCarryOn();
+      const resumed = defined(voice.startSession.mock.calls.at(-1))[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
+      expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
+      voice.status = "connected";
+      await act(async () => {
+        resumed.onStatusChange?.({ status: "connected" });
+        resumed.onConnect?.();
+        root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+      });
+      expect(voice.sendContextualUpdate.mock.calls.some(([text]) => String(text).includes("Cheap pints in Soho"))).toBe(true);
+      expect(container.textContent).not.toContain("Time's up for this call");
+      expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("The Lamb");
+      await act(async () => { container.querySelector<HTMLButtonElement>(".palVoiceActions button")?.click(); });
+      expect(readPalMapState().picks).toEqual([]);
+      canvas.mockRestore();
+    },
+  );
+
+  it("tells the Pal to wrap up before the cap and counts the last seconds down", async () => {
+    vi.useFakeTimers();
+    await startLiveSession();
+    expect(container.querySelector('[role="timer"]')).toBeNull();
+    await act(async () => { vi.advanceTimersByTime((PAL_VOICE_MAX_SESSION_SECONDS - PAL_VOICE_WRAP_UP_SECONDS) * 1000); });
+    expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 30 seconds are left in this call. Finish the answer in one short sentence.");
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:30");
+    await act(async () => { vi.advanceTimersByTime(10_000); });
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+  });
+
+  it.each(["/pal", "/map"])("keeps a delayed warning and countdown tied to the cap on %s", async (surface) => {
+    vi.useFakeTimers();
+    await startLiveSession();
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    const clock = Date.now.bind(Date);
+    const delayedClock = vi.spyOn(Date, "now").mockImplementation(() => clock() + 10_000);
+    try {
+      await act(async () => { vi.advanceTimersByTime(150_000); });
+      expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 20 seconds are left in this call. Finish the answer in one short sentence.");
+      const screen = surface === "/map" ? document.body : container;
+      expect(screen.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+      await act(async () => { vi.advanceTimersByTime(10_000); });
+      expect(screen.querySelector('[role="timer"]')?.textContent).toBe("0:10");
+    } finally {
+      delayedClock.mockRestore();
+    }
+  });
+
+  it("warns with the actual time left when the granted call is shorter than thirty seconds", async () => {
+    vi.useFakeTimers();
+    await startLiveSession({ maxSessionSeconds: 20 });
+    await act(async () => { vi.advanceTimersByTime(0); });
+    expect(voice.sendContextualUpdate).toHaveBeenCalledWith("About 20 seconds are left in this call. Finish the answer in one short sentence.");
+    expect(container.querySelector('[role="timer"]')?.textContent).toBe("0:20");
+  });
+
+  it.each([
+    ["/pal", "cap", true],
+    ["/pal", "pal", false],
+    ["/map", "cap", false],
+    ["/map", "pal", true],
+  ] as const)("carries on without earlier asks using the normal opener on %s after %s with overrides %s", async (surface, ending, withOverrides) => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await endLiveCall(session, ending);
+    navigation.pathname = surface;
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley", panelVisible: surface === "/pal" })); });
+    await settle();
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    const overrides = withOverrides
+      ? { firstMessage: "Hello, what kind of night are you planning?", voiceId: "voice-ripley" }
+      : undefined;
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2", overrides,
+    }));
+    const screen = surface === "/map" ? document.body : container;
+    const carryOn = [...screen.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn).toBeTruthy();
+    await act(async () => { carryOn?.click(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & {
+      overrides?: { agent?: { firstMessage?: string }; tts?: { voiceId: string } };
+    };
+    if (withOverrides) {
+      expect(resumed.overrides).toEqual({
+        agent: { firstMessage: "Hello, what kind of night are you planning?" },
+        tts: { voiceId: "voice-ripley" },
+      });
+    } else expect(resumed.overrides).toBeUndefined();
+    voice.sendContextualUpdate.mockClear();
+    voice.status = "connected";
+    await act(async () => { resumed.onConnect?.(); });
+    expect(voice.sendContextualUpdate).not.toHaveBeenCalled();
+  });
+
+  it("carries on with a short greeting and the earlier asks, keeping the picks", async () => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 });
+      session.onMessage?.({ role: "agent", message: "The Lamb has one at five twenty." });
+    });
+    groundPalMapResult(["venue-lamb"]);
+    applyPalMapCommand({ kind: "showPicks", picks: [{ venueId: "venue-lamb", name: "The Lamb", lat: 51.5, lng: -0.1, number: 1 }] });
+    await endLiveCall(session, "cap");
+    getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({
+      signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2",
+      overrides: { firstMessage: "Hi, I'm Ripley. What kind of night are you planning?", voiceId: null },
+    }));
+    const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+    expect(carryOn).toBeTruthy();
+    await act(async () => { carryOn?.click(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    const resumed = defined(voice.startSession.mock.calls[1])[0] as LiveSession & { overrides?: { agent?: { firstMessage?: string } } };
+    expect(resumed.overrides?.agent?.firstMessage).toBe(PAL_VOICE_RESUME_GREETING);
+    voice.status = "connected";
+    await act(async () => { resumed.onConnect?.(); });
+    const updates = voice.sendContextualUpdate.mock.calls.map(([text]) => String(text));
+    expect(updates.some((text) => text.includes("Cheap pints in Soho"))).toBe(true);
+    expect(updates.some((text) => text.includes("five twenty"))).toBe(false);
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
+  });
+
+  it("lets a later Carry on start when the earlier-asks summary never loads", async () => {
+    vi.useFakeTimers();
+    const session = await startLiveSession();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 }); });
+    await endLiveCall(session, "cap");
+    // The summary chunk request stalls, so this Carry on reaches the startup timeout.
+    vi.doMock("@/lib/palSessionSummary", () => new Promise(() => {}));
+    const tapCarryOn = async () => {
+      getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
+      requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2" }));
+      const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+      expect(carryOn).toBeTruthy();
+      await act(async () => { carryOn?.click(); });
+      await settle();
+    };
+    await tapCarryOn();
+    await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    vi.doUnmock("@/lib/palSessionSummary");
+    vi.resetModules();
+    await tapCarryOn();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    await settle();
+    expect(voice.startSession).toHaveBeenCalledTimes(2);
+  });
+
   it.each(["search_venues", "cheapest_pint_near"])("retains choices until a completed %s replaces them and rejects stale responses", async (replacementTool) => {
     const canvas = vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    venuesRead.read.mockReturnValue(new Promise(() => {}));
     const session = await startLiveSession();
     const result = (id: string, eventId: number, name: string) => ({
       tool_call_id: id, event_id: eventId, tool_name: "search_venues", is_error: false, is_called: true,
       full_tool_result: JSON.stringify({ result: {
         ok: true, tool: "search_venues", answerHint: "Listed pubs.",
         cards: [{ key: id, venueId: "venue-lamb", title: name, place: "Camden", note: "", price: 5.2, provenance: { kind: "directory", label: "Source read 2 October 2026" } }],
+        data: { venues: [{ id: "venue-lamb", lat: 51.5, lng: -0.1 }] },
       } }),
     });
     await act(async () => {
@@ -1089,6 +1888,7 @@ describe("Pub Pal voice transcript", () => {
       session.onAgentToolResponse?.(result("first", 4, "The Lamb"));
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"] a')?.textContent).toContain("The Lamb");
+    expect(readPalMapState().picks.map((pick) => pick.venueId)).toEqual(["venue-lamb"]);
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')?.textContent).toContain("Source read 2 October 2026");
     await act(async () => {
       session.onMessage?.({ role: "user", message: "Thanks", event_id: 5 });
@@ -1107,6 +1907,7 @@ describe("Pub Pal voice transcript", () => {
       } }) });
     });
     expect(container.querySelector('[aria-label="Pubs from the voice answer"]')).toBeNull();
+    expect(readPalMapState().picks).toEqual([]);
     await act(async () => {
       session.onAgentToolRequest?.({ tool_call_id: "second", event_id: 7, tool_name: "search_venues" });
       session.onDisconnect?.();
@@ -1208,6 +2009,43 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map");
   });
 
+  it("chimes on the tap, while the line is still starting", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(sounds.play.mock.calls).toEqual([["start"]]);
+    expect(voice.startSession).not.toHaveBeenCalled();
+  });
+
+  it("stops the tap chime before a fast SDK connection can play the greeting", async () => {
+    const { playPalVoiceSound } = await vi.importActual<typeof import("@/components/pubpal/palVoiceSounds")>("@/components/pubpal/palVoiceSounds");
+    sounds.play.mockImplementation(playPalVoiceSound);
+    const cues: { src: string; paused: boolean }[] = [];
+    vi.stubGlobal("Audio", class {
+      paused = true;
+      volume = 1;
+      constructor(readonly src: string) { cues.push(this); }
+      play() { this.paused = false; return Promise.resolve(); }
+      pause() { this.paused = true; }
+    });
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/session" }));
+    const playbackAtSdkStart: boolean[] = [];
+    voice.startSession.mockImplementation(() => { playbackAtSdkStart.push(cues.some(cue => !cue.paused)); });
+    await mountAvailable();
+    await act(async () => { container.querySelector<HTMLButtonElement>("button")?.click(); });
+    expect(cues).toHaveLength(1);
+    expect(cues[0]).toMatchObject({ src: "/sounds/pal/voice-start.mp3", paused: false });
+
+    await act(async () => { permission.resolve({ getTracks: () => [{ stop: vi.fn() }] } as unknown as MediaStream); });
+    await settle();
+
+    // Audit item 10 forbids overlap even when the provider greets immediately.
+    expect(playbackAtSdkStart).toEqual([false]);
+  });
+
   it("chimes once when the line opens and once when it closes", async () => {
     const session = await startLiveSession();
     expect(sounds.play.mock.calls).toEqual([["start"]]);
@@ -1242,7 +2080,24 @@ describe("Pub Pal voice transcript", () => {
   });
 
   it.each([
-    ["the agent ended the call", { reason: "agent", closeCode: 1000 }],
+    ["the agent's end_call", { reason: "agent", context: { type: "end_call", reason: "Agent ended the call" } }],
+    ["the provider's silence close", { reason: "agent", context: { type: "close", code: 1000 }, closeCode: 1000 }],
+  ])("shows a friendly end with Carry on after %s", async (_label, details) => {
+    const session = await startLiveSession();
+    await act(async () => {
+      session.onMessage?.({ role: "agent", message: "I'll leave you to it. Tap me when you want another pub." });
+      voice.status = "disconnected";
+      session.onDisconnect?.(details);
+      root?.render(createElement(PubPalVoice, { palName: "Ripley" }));
+    });
+    await settle();
+    expect(container.querySelector('[role="alert"]')).toBeNull();
+    expect(container.querySelector(".palVoiceStatus")?.textContent).toBe("Ripley ended the call");
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent?.includes("Carry on"))).toBe(true);
+    expect(transcriptLines().at(-1)).toContain("I'll leave you to it.");
+  });
+
+  it.each([
     ["the provider's session cap", { reason: "error", message: "max", context: { type: "max_duration_exceeded" } }],
   ])("stays quiet when %s", async (_label, details) => {
     const session = await startLiveSession();
@@ -1253,7 +2108,7 @@ describe("Pub Pal voice transcript", () => {
     });
     await settle();
     expect(container.querySelector('[role="alert"]')).toBeNull();
-    expect(container.textContent).toContain("Start voice chat");
+    expect(container.textContent).toContain("Carry on");
   });
 
   it("never moves on the Pal's own words", async () => {
@@ -1389,24 +2244,61 @@ describe("Pub Pal voice transcript", () => {
     expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-c");
   });
 
-  it("opens nothing when the plan read lands after the person left /pal", async () => {
+  it.each([false, true])("retires a next-stop read on navigation, already on map: %s", async (alreadyOnMap) => {
     vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
     writeActivePlan({ id: NIGHT_PLAN_ID, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0 });
-    let land: (body: unknown) => void = () => {};
-    planRead.read.mockReturnValue(new Promise((resolve) => { land = resolve; }));
+    const read = deferred<unknown>();
+    planRead.read.mockReturnValueOnce(read.promise);
     const session = await startLiveSession();
+    if (alreadyOnMap) {
+      navigation.pathname = "/map";
+      navigation.search = "sel=venue-a";
+      await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    }
+    await act(async () => { session.onMessage?.({ role: "user", message: "What's next?" }); });
+    navigation.pathname = "/map";
+    navigation.search = "sel=venue-manual";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
     await act(async () => {
-      session.onMessage?.({ role: "user", message: "What's next?" });
-      await Promise.resolve();
+      read.resolve({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
     });
-    await act(async () => root?.unmount());
-    root = null;
-    await act(async () => {
-      land({ stops: [{ venueId: "venue-a", venueName: "The Nellie Dean", position: 0 }, { venueId: "venue-b", venueName: "The Crown", position: 1 }] });
-      await Promise.resolve();
-    });
-    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS * 2); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
     expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(container.querySelector(".palVoiceBar")?.getAttribute("data-live")).toBe("true");
+  });
+
+  it("retires a pub lookup when the live call returns from the map to the Pal", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    navigation.pathname = "/map";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    const read = deferred<unknown[]>();
+    venuesRead.read.mockReturnValueOnce(read.promise);
+    await act(async () => { session.onMessage?.({ role: "user", message: "Where is The Lamb?" }); });
+    expect(venuesRead.read).toHaveBeenCalledOnce();
+    navigation.pathname = "/pal";
+    await act(async () => { root?.render(createElement(PubPalVoice, { palName: "Ripley" })); });
+    await act(async () => { read.resolve([{ id: "venue-lamb", name: "The Lamb" }]); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    expect(container.querySelector('[role="log"]')).not.toBeNull();
+  });
+
+  it("cancels a delayed map redirect after manual navigation and accepts a new ask", async () => {
+    vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+    const session = await startLiveSession();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Show me the map" }); });
+    navigation.pathname = "/map";
+    navigation.search = "sel=venue-manual";
+    await act(async () => { root?.render(createElement(PubPalVoice, { panelVisible: false })); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).not.toHaveBeenCalled();
+    expect(voice.endSession).not.toHaveBeenCalled();
+    await act(async () => { session.onMessage?.({ role: "user", message: "Where is The Lamb?" }); });
+    await act(async () => { vi.advanceTimersByTime(PAL_VOICE_MAP_DELAY_MS); });
+    expect(navigation.push).toHaveBeenCalledExactlyOnceWith("/map?sel=venue-lamb");
   });
 
   it("opens only the stop from the newest ask when two reads land out of order", async () => {

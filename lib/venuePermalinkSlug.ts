@@ -13,10 +13,15 @@ export function slugifyVenueName(name: string): string {
   return kebabSlug(name.replace(/&/g, " and "));
 }
 
+/** Outward half of a whole postcode in the text, lowercased. A lone outward token does not count. */
+export function fullPostcodeOutward(text: string): string | null {
+  return text.match(POSTCODE_OUTWARD_RE)?.[1]?.toLowerCase() ?? null;
+}
+
 /** Outward postcode token from search text or address, lowercased. */
 export function postcodeOutwardFromText(text: string): string | null {
-  const full = text.match(POSTCODE_OUTWARD_RE);
-  if (full?.[1]) return full[1].toLowerCase();
+  const full = fullPostcodeOutward(text);
+  if (full) return full;
   const outward = text.match(OUTWARD_ONLY_RE);
   return outward?.[1]?.toLowerCase() ?? null;
 }

@@ -6,8 +6,6 @@
 // (`AuthProvider.updateSession`). A second binder here would be a second chance
 // to name the wrong person.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEVICE_IDENTITY_LOCAL_KEYS } from "@/lib/deviceAccountIdentity";
@@ -184,6 +182,19 @@ describe("activating a remembered account", () => {
     expect(row?.refreshToken).toBeNull();
   });
 
+  it("says when the refused account is banned, so the switcher can show the ban notice", async () => {
+    const outcome = await activateDeviceAccount(
+      "b",
+      deps({
+        storage: local,
+        fetchImpl: (async () => jsonResponse({ code: 403, error_code: "user_banned", msg: "User is banned" }, 403)) as typeof fetch,
+      }),
+    );
+
+    expect(outcome).toEqual({ status: "needs_sign_in", userId: "b", banned: true });
+    expect(readDeviceAccounts(local)[0]?.refreshToken).toBeNull();
+  });
+
   it("keeps a token it could not ask about, and installs nothing", async () => {
     const setSession = vi.fn(async () => ({ ok: true }));
     const outcome = await activateDeviceAccount(
@@ -225,84 +236,40 @@ describe("activating a remembered account", () => {
   });
 });
 
-/**
- * The module with its comments removed. The header explains at length what this
- * code deliberately does NOT call, so a fence reading raw source would fail on
- * the very sentence that documents the rule.
- */
-function codeOnly(file: string): string {
-  return readFileSync(join(process.cwd(), file), "utf8")
-    .replace(/\/\*[\s\S]*?\*\//g, "")
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//"))
-    .join("\n");
-}
-
 describe("the switch never binds identity itself", () => {
-  const source = codeOnly("lib/deviceAccountSwitch.ts");
+  let local: ReturnType<typeof fakeStorage>;
 
-  it("writes no device identity artifact and stamps no owner", () => {
-    for (const key of DEVICE_IDENTITY_LOCAL_KEYS) {
-      expect(source).not.toContain(`"${key}"`);
-    }
-    expect(source).not.toContain("bindDeviceAccountOwner");
-    expect(source).not.toContain("releaseDeviceAccountOwner");
-    expect(source).not.toContain("pubmax_account_owner");
+  beforeEach(() => {
+    local = fakeStorage();
+    rememberDeviceAccount(local, { userId: "b", refreshToken: STORED_TOKEN }, 2_000);
   });
 
-  it("touches neither the durable resume cookie nor its route", () => {
+  it("writes only its own lane row and stamps no owner", async () => {
+    const before = [...local.values.keys()];
+    await activateDeviceAccount("b", deps({ storage: local }));
+
+    // The one device-identity pass belongs to `AuthProvider.updateSession`,
+    // which a switch reaches through the SIGNED_IN that `setSession` fires.
+    expect([...local.values.keys()]).toEqual(before);
+    for (const key of DEVICE_IDENTITY_LOCAL_KEYS) expect(local.values.has(key)).toBe(false);
+  });
+
+  it("asks only the token endpoint, never the durable resume cookie route", async () => {
     // The cookie mirrors the ACTIVE account only, and it follows a switch the
-    // same way it follows every other sign-in: `setSession` fires SIGNED_IN and
-    // AuthProvider re-persists. A second writer here could mirror the account
-    // being left behind.
-    expect(source).not.toContain("/api/auth/session");
-    expect(source).not.toContain("persistSessionForResume");
-    expect(source).not.toContain("clearPersistedSession");
-  });
-
-  it("leaves the one binder where it already was", () => {
-    const provider = codeOnly("components/auth/AuthProvider.tsx");
-
-    // `updateSession` is THE boundary: it binds the device owner before any
-    // child re-renders on the new session. A switch reaches it the ordinary way,
-    // through the auth event, so this call must stay exactly one call.
-    expect(provider.match(/bindDeviceAccountOwner\(/g) ?? []).toHaveLength(1);
-    // The lane is written where the durable cookie is written, on the same
-    // events, because both mirror the same refresh token.
-    expect(provider).toContain("rememberDeviceAccount(");
-    expect(provider).toContain("persistSessionWithRetry(");
-  });
-
-  it("finishes the cookie delete before handing the device on", () => {
-    const provider = codeOnly("components/auth/AuthProvider.tsx");
-
-    // An account sign-out may activate the next remembered account, whose
-    // SIGNED_IN persists a new cookie. A DELETE still in flight would land after
-    // that persist and leave the device with no durable session at all.
-    expect(provider).toContain("await clearPersistedSession()");
-    expect(provider).not.toContain("void clearPersistedSession()");
-
-    const signedOutAt = provider.indexOf("await supabase.auth.signOut()");
-    const activatedAt = provider.indexOf("await activateDeviceAccount(");
-    expect(signedOutAt).toBeGreaterThan(-1);
-    expect(activatedAt).toBeGreaterThan(signedOutAt);
-  });
-
-  it("scopes the way out to this account or to the whole device", () => {
-    const provider = codeOnly("components/auth/AuthProvider.tsx");
-
-    expect(provider).toContain("forgetAllDeviceAccounts(");
-    expect(provider).toContain("forgetDeviceAccount(");
-    // A device-wide sign-out empties the lane and stops there: activating a next
-    // account would undo the very thing that was asked for.
-    expect(provider).toContain('if (scope === "device") return;');
-  });
-
-  it("does not refresh through the live client, which could tear it down", () => {
-    // `auth.refreshSession` removes the stored session when a refresh fails and
-    // the access token has already expired, so a dead token on the account being
-    // switched TO would sign the person out of the account they are switching
-    // FROM. A bare exchange cannot reach the live session at all.
-    expect(source).not.toContain("refreshSession");
+    // way it follows every sign-in: AuthProvider re-persists on SIGNED_IN.
+    const fetchImpl = vi.fn(async () => jsonResponse(mintedBody()));
+    const globalFetch = vi.spyOn(globalThis, "fetch");
+    try {
+      await activateDeviceAccount(
+        "b",
+        deps({ storage: local, fetchImpl: fetchImpl as unknown as typeof fetch }),
+      );
+      expect(fetchImpl.mock.calls.map((call) => String((call as unknown[])[0]))).toEqual([
+        "https://project.supabase.co/auth/v1/token?grant_type=refresh_token",
+      ]);
+      expect(globalFetch).not.toHaveBeenCalled();
+    } finally {
+      globalFetch.mockRestore();
+    }
   });
 });

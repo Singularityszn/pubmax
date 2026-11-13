@@ -3,6 +3,7 @@ import "server-only";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanPlanUsualDrink } from "@/lib/planUsualDrink";
+import { clearMemoryPlanLiveLocation, memoryPlanLiveLocations, memoryPlanLiveLocationStops } from "@/lib/planLiveLocationMemory";
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { canTransitionPlannedNight, cleanCreatePlan, cleanEndingSelection, isPlanId, type CleanPlanInput, type CrawlEnding, type CreatePlanInput, type EndingSelection, type PlanActionDTO, type PlanAnchorMetadata, type PlanCompletionDTO, type PlanDTO, type PlanMemberRole, type PlannedNightStatus, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
@@ -34,7 +35,7 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
-export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
+export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "closed" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type MemoryPlanInviteMembershipResult =
@@ -442,11 +443,14 @@ export const supabasePlanStore: PlanStore = {
     if (!lookup.ok) return { ok: false, error: "error" };
     if (!lookup.plan) return { ok: false, error: "not_found" };
     try {
-      const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
-        .update({ status: rawStatus, updated_at: new Date().toISOString() })
-        .eq("plan_id", id).eq("token_hash", hashPlanMemberToken(rawToken)).select("id").maybeSingle();
+      const { data, error } = await requireSupabaseAdmin().rpc("set_crew_status", {
+        p_plan_id: id,
+        p_status: rawStatus,
+        p_token_hash: hashPlanMemberToken(rawToken),
+      });
       if (error) throw new Error(error.message);
-      if (!data) return { ok: false, error: "forbidden" };
+      if (data === "forbidden" || data === "not_found" || data === "closed" || data === "invalid") return { ok: false, error: data };
+      if (data !== "ok") return { ok: false, error: "error" };
       const plan = await this.get(id);
       return plan ? { ok: true, plan } : { ok: false, error: "error" };
     } catch (error) {
@@ -533,14 +537,12 @@ export const supabasePlanStore: PlanStore = {
     if (action.type === "ending") return { ok: false, error: "invalid" };
     const currentResult = await planStateResult(id);
     if (!currentResult.ok) return { ok: false, error: "error" };
-    const current = currentResult.plan;
-    if (!current) return { ok: false, error: "not_found" };
+    if (!currentResult.plan) return { ok: false, error: "not_found" };
     const identityResult = await planMemberIdentityResult(id, rawToken);
     if (!identityResult.ok) return { ok: false, error: "error" };
     const identity = identityResult.identity;
     if (!identity?.collaborationAuthorized || (action.type === "swapped" && identity.role !== "host")) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !current.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition)) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
@@ -565,6 +567,7 @@ export const supabasePlanStore: PlanStore = {
     if (data === "forbidden") return { ok: false, error: "forbidden" };
     if (data === "not_found") return { ok: false, error: "not_found" };
     if (data === "conflict") return { ok: false, error: "conflict" };
+    if (data === "closed") return { ok: false, error: "closed" };
     if (data === "invalid") return { ok: false, error: "invalid" };
     if (data !== "applied" && data !== "replayed") return { ok: false, error: "error" };
     const plan = await this.get(id);
@@ -605,7 +608,7 @@ export const supabasePlanStore: PlanStore = {
         p_completed_at: new Date().toISOString(),
       });
       if (error) throw new Error(error.message);
-      if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };
+      if (data !== "completed" && data !== "already_completed") return { ok: false, error: data === "forbidden" ? "forbidden" : data === "conflict" ? "conflict" : data === "closed" ? "closed" : data === "not_found" ? "not_found" : data === "arrival_required" ? "arrival_required" : "invalid" };
       const [plan, completion] = await Promise.all([this.get(id), this.getCompletion(id)]);
       return plan && completion ? { ok: true, plan, completion, created: data === "completed" } : { ok: false, error: "error" };
     } catch (error) {
@@ -822,6 +825,7 @@ export const memoryPlanStore: PlanStore = {
     if (!plan) return { ok: false, error: "not_found" };
     const member = plan.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (!member) return { ok: false, error: "forbidden" };
+    if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     member.status = rawStatus;
     member.updatedAt = stamp();
     return { ok: true, plan: publicState(plan) };
@@ -877,6 +881,7 @@ export const memoryPlanStore: PlanStore = {
     }
     if (update.status && !canTransitionPlannedNight(plan.plan.status ?? "draft", update.status)) return { ok: false, error: "invalid" };
     if (update.status) plan.plan.status = update.status;
+    if (update.status === "ending" || update.status === "completed" || update.status === "abandoned") clearMemoryPlanLiveLocation(id);
     if (update.context) {
       plan.context = structuredClone(update.context);
       for (const stop of plan.stops) {
@@ -895,8 +900,7 @@ export const memoryPlanStore: PlanStore = {
     if (!plan) return { ok: false, error: "not_found" };
     const actorIndex = plan.crew.findIndex((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
     if (actorIndex < 0 || !plan.crew[actorIndex]?.collaborationAuthorized || (action.type === "swapped" && actorIndex !== 0)) return { ok: false, error: "forbidden" };
-    if (!Number.isInteger(action.stopPosition)
-      || !plan.stops.some((stop) => stop.position === action.stopPosition)) {
+    if (!Number.isInteger(action.stopPosition)) {
       return { ok: false, error: "invalid" };
     }
     const key = action.idempotencyKey.trim();
@@ -910,12 +914,16 @@ export const memoryPlanStore: PlanStore = {
     if (replay) {
       return replay.requestHash === requestHash ? { ok: true, plan: publicState(plan) } : { ok: false, error: "conflict" };
     }
+    if (plan.plan.status === "completed" || plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const bound = action.expectedRouteRevision !== undefined || action.venueId !== undefined;
     if (bound && (!Number.isInteger(action.expectedRouteRevision) || action.expectedRouteRevision! < 1
       || typeof action.venueId !== "string" || !action.venueId.trim())) return { ok: false, error: "invalid" };
     if (bound && (action.expectedRouteRevision !== routeRevisionOf(plan.plan)
       || !plan.stops.some((stop) => stop.position === action.stopPosition && stop.venueId === action.venueId))) {
       return { ok: false, error: "conflict" };
+    }
+    if (!plan.stops.some((stop) => stop.position === action.stopPosition)) {
+      return { ok: false, error: "invalid" };
     }
     const actionId = planIdempotentUuid(`plan-action:${id}:${plan.crew[actorIndex]!.id}`, key);
     plan.actions.push({ id: actionId, type: action.type, stopPosition: action.stopPosition ?? null, ending: action.ending ?? null, createdAt: stamp(), ...(bound ? { routeRevision: action.expectedRouteRevision, venueId: action.venueId } : {}) });
@@ -943,12 +951,14 @@ export const memoryPlanStore: PlanStore = {
     if (plan.completion) {
       return { ok: true, plan: publicState(plan), completion: publicCompletion(plan.completion), created: false };
     }
+    if (plan.plan.status === "abandoned") return { ok: false, error: "closed" };
     const qualifyingArrival = plan.actions.find((action) => (
       action.type === "arrived"
       && action.stopPosition !== null
       && plan.stops.some((stop) => stop.position === action.stopPosition)
     ));
     if (!qualifyingArrival || qualifyingArrival.stopPosition === null) return { ok: false, error: "arrival_required" };
+    if (!canTransitionPlannedNight(plan.plan.status ?? "draft", "completed")) return { ok: false, error: "closed" };
     if (input.ending === "food" && !input.terminalVenueId) return { ok: false, error: "invalid" };
     if (input.terminalVenueId && !plan.stops.some((stop) => stop.venueId === input.terminalVenueId)) return { ok: false, error: "invalid" };
     const completedAt = stamp();
@@ -973,6 +983,7 @@ export const memoryPlanStore: PlanStore = {
     // completion record become visible together or not at all.
     plan.actions.push({ id: randomUUID(), type: "ending", stopPosition: null, ending: input.ending, createdAt: completedAt });
     plan.plan.status = "completed";
+    clearMemoryPlanLiveLocation(id);
     plan.ending = input.ending;
     plan.completion = completion;
     return { ok: true, plan: publicState(plan), completion: publicCompletion(completion), created: true };
@@ -1141,6 +1152,7 @@ export function removeMemoryPlanInviteRsvpMember(id: string, memberId: string): 
   if (!plan) return true;
   const memberIndex = plan.crew.findIndex((member) => member.id === memberId);
   if (memberIndex === 0) return false;
+  memoryPlanLiveLocations.get(id)?.delete(memberId);
   if (memberIndex > 0) plan.crew.splice(memberIndex, 1);
   for (const [requestKey, request] of planMemory.joinRequests) {
     if (requestKey.startsWith(`${id}:`) && request.memberId === memberId) {
@@ -1242,6 +1254,8 @@ export function planStore(): PlanStore {
 
 export function __resetMemoryPlans(): void {
   memoryPlans.clear();
+  memoryPlanLiveLocations.clear();
+  memoryPlanLiveLocationStops.clear();
   planMemory.createRequests.clear();
   planMemory.joinRequests.clear();
   planMemory.actionRequests.clear();

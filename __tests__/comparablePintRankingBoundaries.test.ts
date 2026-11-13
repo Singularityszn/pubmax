@@ -24,6 +24,11 @@ import { mergePriceUpdates } from "@/lib/priceUpdates";
 import { bundlePricesForCategory, parseUkPriceBundleRows, type UkPriceBundleRow } from "@/lib/ukPriceBundle";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import { pintFactStats } from "@/lib/pintFacts";
+import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
+import { priceRowReadDay } from "@/lib/priceReadDay.mjs";
+import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
+
+const STATIONS = [{ name: "Oxford Circus", lat: 51.5152, lng: -0.1419, zone: 1 }];
 
 const NOW = new Date("2026-11-01T12:00:00Z");
 const evidence = { priceSource: "Pub menu", priceObservedAt: "2026-10-01" };
@@ -108,8 +113,8 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
         source: { label: "Archive", url: "https://archive.example/pub", licence: "quoted" },
       })),
     };
-    expect(buildLandingPubCard(venues, history, { now: NOW.getTime() })).toMatchObject({ id: "pint", priceGbp: 5 });
-    expect(buildLandingAnchorRail(venues, { id: "anchor", primaryBorough: "Westminster" }, {}).map((row) => row.id)).toEqual(["pint"]);
+    expect(buildLandingPubCard(venues, history, { now: NOW.getTime(), stations: STATIONS })).toMatchObject({ id: "pint", priceGbp: 5 });
+    expect(buildLandingAnchorRail(venues, { id: "anchor" }, {}, STATIONS).map((row) => row.id)).toEqual(["pint"]);
     const photo = { ...defined(LONDON_COLLAGE_PHOTOS[0]), area: "test", spot: [51.5136, -0.1365] as const };
     expect(buildLondonCollageAreaPrices(venues, [photo])).toEqual({ test: { cheapestPrice: 5, pubName: "pint", pubCount: 1 } });
     expect(venues[0]?.cheapestPrice).toBe(change.cheapestPrice ?? 2.49);
@@ -187,6 +192,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   });
 
   it("keeps the published Red Lion eligible before and after its detail loads", () => {
+    vi.setSystemTime(PINT_DATASET_TEST_NOW);
     const published = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as { rows: SlimVenue[] };
     const slim = slimVenueToPin(defined(published.rows.find((row) => row.id === "venue-1iyj2h1")));
     const artifact = defined(readFileSync("data/generated/venue_details.jsonl", "utf8").trim().split("\n")
@@ -194,7 +200,8 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
     const detail = defined(groupVenuePrices(artifact.rows)[0]);
     const hydrated = defined(mergeLazyDetailPins([slim], new Map([[detail.id, detail]]))[0]);
     expect(hydrated.priceSource).toBeUndefined();
-    expect(hydrated.priceObservedAt).toBe("2026-10-02");
+    const selected = defined(artifact.rows.find((row) => isLivePriceRow(row) && row.price_gbp === 5));
+    expect(hydrated.priceObservedAt).toBe(priceRowReadDay(selected));
     for (const pub of [slim, detail, hydrated]) {
       expect(comparableVenuePint(pub)).toBe(5);
       expect(mapSplitListPrice(pub, undefined).rankGbp).toBe(5);
@@ -227,6 +234,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   });
 
   it("keeps the published TânVân bottle visible while refusing it in server and map answers", async () => {
+    vi.setSystemTime(PINT_DATASET_TEST_NOW);
     const published = JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as { rows: SlimVenue[] };
     const bottle = defined(published.rows.find((row) => row.id === "venue-16crofi"));
     expect(bottle).toMatchObject({ cheapestPrice: 5, cheapestPint: "BOTTLED BEER" });

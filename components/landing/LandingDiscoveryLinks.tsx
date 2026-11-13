@@ -7,6 +7,7 @@ export default function LandingDiscoveryLinks({ drinks }: { drinks: readonly Lan
       <h2 id="lp-discovery-title">Find your next pub</h2>
       <ul className="lpDiscoveryLinks" role="list">
         <li><Link prefetch={false} className="lpDiscoveryLink" href="/borough">Pubs by borough</Link></li>
+        <li><Link prefetch={false} className="lpDiscoveryLink" href="/guides">Pub of the week</Link></li>
         <li><Link prefetch={false} className="lpDiscoveryLink" href="/historic">Historic pubs</Link></li>
         <li><Link prefetch={false} className="lpDiscoveryLink" href="/crawls">Pub crawl routes</Link></li>
       </ul>

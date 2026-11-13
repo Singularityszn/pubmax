@@ -16,15 +16,41 @@ import {
 } from "@/lib/whatson/eventNormalise.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
-const fullers = contextDevEventSources().find((source) => source.id === "fullers-event-finder-events");
+vi.mock("@/lib/harvest/sourceRegistry.ts", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/harvest/sourceRegistry")>();
+  const { PUBCO_EVENTS_SOURCE } = await import("@/__tests__/helpers/contextDevEventSourceFixture");
+  return { ...actual, HARVEST_SOURCES: [...actual.HARVEST_SOURCES, PUBCO_EVENTS_SOURCE] };
+});
+
+const pubco = contextDevEventSources().find((source) => source.id === "example-pubco-events");
 const observedAt = "2026-08-16T09:00:00.000Z";
 
 describe("contextDevEventSources register gate", () => {
   it("lists allowed FIRST-PARTY venue-events pages only", () => {
     const sources = contextDevEventSources();
-    expect(sources.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
+    expect(sources.some((source) => source.id === "example-pubco-events")).toBe(true);
     expect(sources.every((source) => source.firstParty)).toBe(true);
     expect(sources.every((source) => source.access.allowed)).toBe(true);
+  });
+
+  it("never asks Context.dev for a pub group's page its terms refuse", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      url: pubco?.url,
+      markdown: { requested: true, success: true, data: "# Events" },
+      json: { requested: true, success: true, data: { events: [] } },
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: { fetchImpl: fetchImpl as unknown as typeof fetch },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(fetchImpl).toHaveBeenCalled();
+    expect(JSON.stringify(fetchImpl.mock.calls)).not.toContain("fullers.co.uk");
+    expect(result.sourcesRun.map((source) => source.sourceId)).not.toContain("fullers-event-finder-events");
   });
 
   it("refuses every allowed venue-events source that is not first party", () => {
@@ -44,7 +70,7 @@ describe("contextDevEventSources register gate", () => {
 
 describe("normaliseContextDevEventRow", () => {
   it("refuses an off-host event link instead of crediting it to the registered publisher", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { row, drop } = normaliseContextDevEventRow(
       {
         title: "Invented quiz",
@@ -53,7 +79,7 @@ describe("normaliseContextDevEventRow", () => {
         sourceUrl: "https://example.com/event/quiz",
         startsDate: "2026-08-18",
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(row).toBeNull();
@@ -61,46 +87,46 @@ describe("normaliseContextDevEventRow", () => {
   });
 
   it("credits the page actually scraped when no event-specific URL was stated", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { row } = normaliseContextDevEventRow(
       { title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-08-18" },
-      fullers,
+      pubco,
       { observedAt },
     );
-    expect(row?.source).toEqual({ label: "Fuller's", url: fullers.url });
+    expect(row?.source).toEqual({ label: "Example Pub Co", url: pubco.url });
   });
 
   it("credits the registered page actually scraped", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { row } = normaliseContextDevEventRow(
       {
         title: "Live music",
         placeName: "The Dove",
         kind: "music",
-        sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/1",
+        sourceUrl: "https://www.example-pubco.co.uk/pubs/the-dove/event/1",
         startsAt: "2026-08-16T20:00:00Z",
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(row?.source).toEqual({
-      label: "Fuller's",
-      url: fullers.url,
+      label: "Example Pub Co",
+      url: pubco.url,
     });
     expect(isValidWhatsOnRow(row, Date.parse(observedAt))).toBe(true);
   });
 
   it("keeps date-only rows honest and never invents startsAt", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { row } = normaliseContextDevEventRow(
       {
         title: "Comedy night",
         placeName: "The Anchor",
         kind: "event",
-        sourceUrl: "https://www.fullers.co.uk/pubs/the-anchor/event/2",
+        sourceUrl: "https://www.example-pubco.co.uk/pubs/the-anchor/event/2",
         startsDate: "2026-08-17",
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(row?.startsAt).toBeUndefined();
@@ -109,7 +135,7 @@ describe("normaliseContextDevEventRow", () => {
   });
 
   it("drops rows with unknown kinds", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { drop } = normaliseContextDevEventRow(
       {
         title: "Film night",
@@ -118,7 +144,7 @@ describe("normaliseContextDevEventRow", () => {
         sourceUrl: "https://example.com/e/3",
         startsAt: "2026-08-16T19:00:00Z",
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(drop).toBe("noKind");
@@ -127,9 +153,9 @@ describe("normaliseContextDevEventRow", () => {
 
 describe("runContextDevEventsLane", () => {
   async function capturedEvent(markdown: string, event: Record<string, string> | Record<string, string>[]) {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
+      url: pubco.url,
       markdown: { requested: true, success: true, data: markdown },
       json: { requested: true, success: true, data: { events: Array.isArray(event) ? event : [event] } },
     }), { status: 200, headers: { "content-type": "application/json" } }));
@@ -151,12 +177,12 @@ describe("runContextDevEventsLane", () => {
   });
 
   it("retains complete prices and explicitly labelled publisher ids", async () => {
-    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Tickets £4.50. Event ID: fullers-42", {
+    const result = await capturedEvent("Quiz at The Dove on 18 December 2026. Tickets £4.50. Event ID: pubco-42", {
       title: "Quiz", placeName: "The Dove", kind: "event", startsDate: "2026-12-18",
-      priceText: "£4.50", sourceId: "fullers-42",
+      priceText: "£4.50", sourceId: "pubco-42",
     });
     expect(result.rows).toHaveLength(1);
-    expect(result.rows[0]).toMatchObject({ priceGbp: 4.5, sourceId: "fullers-42" });
+    expect(result.rows[0]).toMatchObject({ priceGbp: 4.5, sourceId: "pubco-42" });
   });
 
   it("does not deduplicate unrelated events by an incidental year", async () => {
@@ -347,7 +373,7 @@ describe("runContextDevEventsLane", () => {
       { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
     );
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco?.id)).toBe(true);
   });
 
   it("does not treat an ordinary section heading as one event card", async () => {
@@ -356,7 +382,7 @@ describe("runContextDevEventsLane", () => {
       { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
     );
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco?.id)).toBe(true);
   });
 
   it("accepts a complete event line beneath an ordinary section heading", async () => {
@@ -373,7 +399,7 @@ describe("runContextDevEventsLane", () => {
       { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
     );
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco?.id)).toBe(true);
   });
 
   it.each([
@@ -395,7 +421,7 @@ describe("runContextDevEventsLane", () => {
       { title: "Open mic", placeName: "The Dove", kind: "music", startsAt: "2026-08-18T19:00:00Z" },
     );
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers?.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco?.id)).toBe(true);
   });
 
   it.each([
@@ -457,9 +483,9 @@ describe("runContextDevEventsLane", () => {
   });
 
   it("refuses a shape-valid event whose facts are absent from scraped page text", async () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
+      url: pubco.url,
       markdown: { requested: true, success: true, data: "# Events\n\nThe Dove hosts Open mic on 18 August 2026." },
       json: { requested: true, success: true, data: { events: [{
         title: "Invented quiz",
@@ -478,13 +504,13 @@ describe("runContextDevEventsLane", () => {
     });
 
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco.id)).toBe(true);
   });
 
   it("accepts a stated event and strips unstated price and publisher id", async () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
+      url: pubco.url,
       markdown: { requested: true, success: true, data: "# Events\n\nOpen mic at The Dove on 18 August 2026 at 20:00." },
       json: { requested: true, success: true, data: { events: [{
         title: "Open mic", placeName: "The Dove", kind: "music",
@@ -507,9 +533,9 @@ describe("runContextDevEventsLane", () => {
   });
 
   it("does not combine a title from one listing with another listing's venue and date", async () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
-      url: fullers.url,
+      url: pubco.url,
       markdown: { requested: true, success: true, data:
         "# Events\n\nOpen mic at The Swan on 19 August 2026.\n\nQuiz at The Dove on 18 August 2026." },
       json: { requested: true, success: true, data: { events: [{
@@ -526,13 +552,13 @@ describe("runContextDevEventsLane", () => {
     });
 
     expect(result.rows).toEqual([]);
-    expect(result.failures.some((failure) => failure.sourceId === fullers.id)).toBe(true);
+    expect(result.failures.some((failure) => failure.sourceId === pubco.id)).toBe(true);
   });
 
   it("sends optional fields and refuses off-host JSON attribution through the installed SDK", async () => {
     const fetchImpl = vi.fn<(input: unknown, init?: RequestInit) => Promise<Response>>(async () =>
       new Response(JSON.stringify({
-        url: fullers?.url,
+        url: pubco?.url,
         json: {
           requested: true,
           success: true,
@@ -610,20 +636,20 @@ describe("runContextDevEventsLane", () => {
   it("normalises extract payloads from registered sources", async () => {
     const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
-      url: "https://www.fullers.co.uk/event-finder",
+      url: "https://www.example-pubco.co.uk/event-finder",
       data: {
         events: [
           {
             title: "Quiz",
             placeName: "The Counting House",
             kind: "event",
-            sourceUrl: "https://www.fullers.co.uk/pubs/counting-house/event/quiz",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/counting-house/event/quiz",
             startsDate: "2026-08-18",
           },
         ],
       },
       markdown: "# Events\nQuiz at The Counting House on 18 August 2026.",
-      urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
+      urlsAnalyzed: ["https://www.example-pubco.co.uk/event-finder"],
     });
 
     const result = await runContextDevEventsLane({
@@ -644,15 +670,15 @@ describe("row identity", () => {
     title: "Quiz night",
     placeName: "The Dove",
     kind: "event",
-    sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz",
+    sourceUrl: "https://www.example-pubco.co.uk/pubs/the-dove/event/quiz",
     startsAt: "2026-08-18T19:00:00Z",
   };
 
   it("names an id the shared dedupe can use when the page numbers nothing", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows } = normaliseContextDevExtract(
       { events: [duplicatedEvent, { ...duplicatedEvent }] },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(rows).toHaveLength(2);
@@ -661,7 +687,7 @@ describe("row identity", () => {
   });
 
   it("keeps two events apart when the page answers a BLANK id", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows } = normaliseContextDevExtract(
       {
         events: [
@@ -669,7 +695,7 @@ describe("row identity", () => {
           { ...duplicatedEvent, sourceId: "", title: "Live music" },
         ],
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(rows).toHaveLength(2);
@@ -678,7 +704,7 @@ describe("row identity", () => {
   });
 
   it("treats a whitespace-only id the same way", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows } = normaliseContextDevExtract(
       {
         events: [
@@ -686,24 +712,24 @@ describe("row identity", () => {
           { ...duplicatedEvent, sourceId: "   ", title: "Live music" },
         ],
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
   });
 
   it("keeps the publisher's own id when the page states one", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows } = normaliseContextDevExtract(
-      { events: [{ ...duplicatedEvent, sourceId: "  fullers-42  " }] },
-      fullers,
+      { events: [{ ...duplicatedEvent, sourceId: "  pubco-42  " }] },
+      pubco,
       { observedAt },
     );
-    expect(rows[0]?.sourceId).toBe("fullers-42");
+    expect(rows[0]?.sourceId).toBe("pubco-42");
   });
 
   it("gives two different events two different identities", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows } = normaliseContextDevExtract(
       {
         events: [
@@ -711,7 +737,7 @@ describe("row identity", () => {
           { ...duplicatedEvent, title: "Open mic" },
         ],
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
@@ -791,7 +817,7 @@ describe("run request budget", () => {
 
 describe("normaliseContextDevExtract batching", () => {
   it("counts drops across a payload", () => {
-    if (!fullers) throw new Error("missing fullers register entry");
+    if (!pubco) throw new Error("missing pubco register entry");
     const { rows, dropped } = normaliseContextDevExtract(
       {
         events: [
@@ -799,19 +825,19 @@ describe("normaliseContextDevExtract batching", () => {
             title: "Ok row",
             placeName: "Pub A",
             kind: "event",
-            sourceUrl: "https://www.fullers.co.uk/pubs/a/event/ok",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/a/event/ok",
             startsAt: "2026-08-16T19:00:00Z",
           },
           {
             title: "Bad kind",
             placeName: "Pub B",
             kind: "quiz",
-            sourceUrl: "https://www.fullers.co.uk/pubs/b/event/bad",
+            sourceUrl: "https://www.example-pubco.co.uk/pubs/b/event/bad",
             startsAt: "2026-08-16T19:00:00Z",
           },
         ],
       },
-      fullers,
+      pubco,
       { observedAt },
     );
     expect(rows).toHaveLength(1);

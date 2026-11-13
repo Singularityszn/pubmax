@@ -1,4 +1,4 @@
-import { isHarvestableOperatorUrl } from "../../lib/harvest/sourcePolicy.ts";
+import { isHarvestableOperatorUrl, isPublicHttpUrl } from "../../lib/harvest/sourcePolicy.ts";
 import { haversineMeters, namesLikelySamePub, normalizeVenueIdentityName } from "./venueCanonicalization.mjs";
 
 const text = (value) => typeof value === "string" ? value.trim() : "";
@@ -14,7 +14,12 @@ export function postcodeIn(value) {
 }
 
 export function allowedEvidenceUrl(value) {
-  if (!isHarvestableOperatorUrl(value)) return false;
+  return isHarvestableOperatorUrl(value) && attributableEvidenceUrl(value);
+}
+
+/** Attribution of a stored URL is independent of permission for another read. */
+export function attributableEvidenceUrl(value) {
+  if (!isPublicHttpUrl(value)) return false;
   const url = new URL(value);
   const host = url.hostname.toLowerCase().replace(/^www\./, "").replace(/\.$/, "");
   return !/(^|\.)(?:google\.[a-z.]+|googleapis\.com|googleusercontent\.com|goo\.gl|g\.co|facebook\.com|instagram\.com|tiktok\.com|x\.com|twitter\.com)$/.test(host)

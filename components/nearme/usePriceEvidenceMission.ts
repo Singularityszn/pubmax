@@ -1,8 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  readDeviceAccountSessionRevision,
+  subscribeDeviceAccountSession,
+} from "@/lib/deviceAccountIdentity";
 import { trackEvent } from "@/lib/analytics";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
@@ -42,7 +46,17 @@ export function usePriceEvidenceMission(input: {
 } {
   const { user, identityResolved } = useAuth();
   const signedIn = Boolean(identityResolved && user);
+  const revision = useSyncExternalStore(
+    subscribeDeviceAccountSession,
+    readDeviceAccountSessionRevision,
+    () => 0,
+  );
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [dismissedRevision, setDismissedRevision] = useState(revision);
+  if (dismissedRevision !== revision) {
+    setDismissedRevision(revision);
+    setDismissed(readDismissedMissions(safeSessionStorage()));
+  }
   useEffect(() => {
     // Session storage is the only owner of skip state across this tab.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -59,8 +73,9 @@ export function usePriceEvidenceMission(input: {
   const enabled = input.enabled && signedIn && Boolean(requestUrl);
   const [resolved, setResolved] = useState<{
     requestUrl: string;
+    revision: number;
     view: PriceEvidenceMissionView;
-  }>({ requestUrl: "", view: { status: "idle" } });
+  }>({ requestUrl: "", revision: -1, view: { status: "idle" } });
   const generationRef = useRef(0);
   const viewedKey = useRef<string | null>(null);
 
@@ -71,7 +86,7 @@ export function usePriceEvidenceMission(input: {
     }
     // External read owns this paint. The last answer stays until this one lands.
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setResolved({ requestUrl, view: { status: "loading" } });
+    setResolved({ requestUrl, revision, view: { status: "loading" } });
     const accountBoundFetch = (input: RequestInfo | URL, init?: RequestInit) =>
       authedActionFetch(input, init ?? {}, { requiresIdentity: true });
     const request = startPriceEvidenceMissionRequest(
@@ -83,9 +98,10 @@ export function usePriceEvidenceMission(input: {
     const read = readPriceEvidenceMissionWithDeadline(request);
     void read.settled.then((outcome) => {
       if (outcome.outcome === "abandoned") return;
-      if (generation !== generationRef.current) return;
+      if (generation !== generationRef.current || revision !== readDeviceAccountSessionRevision()) return;
       setResolved({
         requestUrl,
+        revision,
         view:
           outcome.outcome === "read"
             ? outcome.read
@@ -95,11 +111,11 @@ export function usePriceEvidenceMission(input: {
     return () => {
       read.cancel();
     };
-  }, [enabled, requestUrl]);
+  }, [enabled, requestUrl, revision]);
 
   const view: PriceEvidenceMissionView = !enabled
     ? { status: "idle" }
-    : resolved.requestUrl === requestUrl
+    : resolved.revision === revision && resolved.requestUrl === requestUrl
       ? resolved.view
       : { status: "loading" };
   const mission = view.status === "ready" || view.status === "degraded"
@@ -108,14 +124,15 @@ export function usePriceEvidenceMission(input: {
 
   useEffect(() => {
     if (!mission) return;
-    const key = `${input.surface}:${mission.venueId}:${mission.reason}:${mission.drinkCategory ?? ""}`;
+    const key = `${revision}:${input.surface}:${mission.venueId}:${mission.reason}:${mission.drinkCategory ?? ""}`;
     if (viewedKey.current === key) return;
     viewedKey.current = key;
     trackEvent("mission_viewed", missionAnalyticsProps(input.surface, mission));
-  }, [input.surface, mission]);
+  }, [input.surface, mission, revision]);
 
   const dismiss = useCallback(
     (current: PriceEvidenceMission) => {
+      if (revision !== readDeviceAccountSessionRevision()) return;
       const next = dismissPriceEvidenceMission(
         current,
         safeSessionStorage(),
@@ -126,7 +143,7 @@ export function usePriceEvidenceMission(input: {
         missionAnalyticsProps(input.surface, current),
       );
     },
-    [input.surface],
+    [input.surface, revision],
   );
 
   // A logged price ANSWERS the mission, so the card leaves the way a dismissal
@@ -135,13 +152,14 @@ export function usePriceEvidenceMission(input: {
   // `mission_dismissed`, because nothing was skipped; the composer's own
   // `mission_submitted` is the event for this moment.
   const complete = useCallback((current: PriceEvidenceMission) => {
+    if (revision !== readDeviceAccountSessionRevision()) return;
     setDismissed(
       completePriceEvidenceMission(
         current,
         safeSessionStorage(),
       ),
     );
-  }, []);
+  }, [revision]);
 
   return { mission, status: view.status, dismiss, complete };
 }

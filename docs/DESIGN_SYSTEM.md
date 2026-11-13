@@ -88,8 +88,8 @@ refuses, and add your assertion there rather than minting a second gate.
 | Copy voice: no em dash, British spelling, no hedge line | `docs/VOICE.md` | `__tests__/emDashLaw.test.ts`, `__tests__/frictionVoice.test.ts` |
 
 Open design debt and raised design decisions live in
-[`docs/design/BACKLOG.md`](./design/BACKLOG.md), never in a `docs/proof/`
-directory: a proof records one finished measurement and nobody re-reads one.
+[`docs/design/BACKLOG.md`](./design/BACKLOG.md). Finished measurements follow
+the [PR evidence policy](../AGENTS.md#pull-requests).
 
 ### Tools for checking a page
 
@@ -144,9 +144,9 @@ hairlines for structure (see "Edges: the de-box rule").
 `--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
 `--brass-accessible` is the login primary alone. A Screen paints exactly one
 control with `--accent-action`; nothing else on that screen wears it. On the
-venue sheet that control is the action card's plan door at every width
-(`components/map/inspector/VenueActionCard.tsx`), so the Overview's price
-door is drawn in ink beside it.
+venue sheet the action card owns that control at every width. The
+[action-card rule](rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)
+owns its priority and the treatment of secondary actions.
 
 **Coral as a fill and coral as a word are two tokens.** `--brass` is 2.5:1 to
 2.9:1 as TEXT on the light elevation ladder, below AA at every step, so accent
@@ -618,7 +618,7 @@ second stamp: no tilt, no coral at rest. The well's radius is the rail's minus
 `--tab-inset`, so the two curves stay concentric at every width; glyphs are
 20px in a 22px box over the 11px label floor, idle words at 600 and the
 current page at 750. The [primary row rule](rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) owns the five tabs and the foot clearance, and the [Pal door rule](rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab) owns where the Pal sits now that it has left the dock.
-Before and after: `docs/proof/tab-bar-pressed-rail/`.
+[Historical before and after captures](https://github.com/Singularityszn/pubmax/tree/9ca837207f9bca5e8bba45dc967656d9d1bc7384/docs/proof/tab-bar-pressed-rail/).
 
 `__tests__/tablistKeyboard.test.tsx` sweeps every `role="tab"` under `app/`
 and `components/` for the roving index and the key handler, and
@@ -732,9 +732,9 @@ of the day. A stored choice from the theme control always wins. The rule is
 own copy of the two times, held to the module by
 `__tests__/themeNight.test.tsx`). `components/ThemeAttribute.tsx` asks again
 every minute and when a tab comes back, so an open page turns dark at 21:30
-and light at 04:00. A tap on the theme control is the reader's choice even
-when storage refuses to keep it, and the night rule stands down for the rest
-of that page's life. `html[data-night-theme="1"]` marks a page that is dark
+and returns to the OS appearance at 04:00. The [Appearance guide](../README.md#features)
+owns manual choices, persistence and tab synchronisation.
+`html[data-night-theme="1"]` marks a page that is dark
 because of the night rule rather than a choice.
 
 Both themes flip from the same token names — `app/theme.css` only

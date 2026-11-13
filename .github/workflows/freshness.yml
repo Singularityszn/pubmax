@@ -1,0 +1,99 @@
+name: Freshness release gate
+
+on:
+  pull_request:
+  merge_group:
+  schedule:
+    - cron: "47 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('run-{0}', github.run_id) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  change-scope:
+    name: Freshness change scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.scope.outputs.run }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 2
+      - name: Fetch the queue range
+        if: github.event_name == 'merge_group'
+        env:
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+        run: git fetch --no-tags --depth=1 origin "$BASE_SHA" "$HEAD_SHA"
+      - name: Classify the freshness change
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.merge_group.base_sha }}
+          HEAD_SHA: ${{ github.event.merge_group.head_sha }}
+        run: |
+          set -euo pipefail
+          run=false
+          if [ "$EVENT_NAME" = schedule ] || [ "$EVENT_NAME" = workflow_dispatch ]; then
+            run=true
+          else
+            if [ "$EVENT_NAME" = pull_request ]; then
+              base=HEAD^1
+              head=HEAD
+            else
+              base="$BASE_SHA"
+              head="$HEAD_SHA"
+            fi
+            run="$(git diff --no-renames --name-only "$base" "$head" | awk '
+              /^data\// || /^public\/data\// { changed=1 }
+              END { print changed ? "true" : "false" }')"
+          fi
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+  freshness:
+    needs: change-scope
+    if: ${{ always() && (needs.change-scope.result != 'success' || needs.change-scope.outputs.run == 'true') }}
+    name: Freshness release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+      - name: Check every tracked feed
+        run: |
+          node scripts/check_freshness.mjs --artifacts-only
+          node scripts/check-production-store-freshness.mjs
+
+  check:
+    name: Freshness check
+    if: ${{ always() }}
+    needs: [change-scope, freshness]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fail when a needed job failed or was cancelled
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          printf '%s' "$NEEDS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          red="$(printf '%s' "$NEEDS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')"
+          if [ -n "$red" ]; then
+            echo "::error::Not green: $red"
+            exit 1
+          fi

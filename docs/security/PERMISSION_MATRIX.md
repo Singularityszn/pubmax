@@ -44,7 +44,10 @@ admits `public` rows only, so an unlisted crawl's slug never lists.
 `operator_facts` (0217) is a public read by design: anon and authenticated
 hold SELECT on the public columns of a published row only (`withdrawn_at is
 null`), never `account_id`, `proposal_id` or `withdrawn_at`, and no browser
-write. The one writer is the moderator branch of `/api/operator-proposals`.
+write. The moderator branch of `/api/operator-proposals` calls
+`public.decide_operator_proposal(text, text, text)` (0235) through the service role.
+Only `service_role` can execute that function. `PUBLIC`, `anon` and
+`authenticated` have no execute grant.
 
 **Three rules every denied cell is held to.** A refusal answers the honest
 status. It discloses no protected value, asserted over the whole serialized
@@ -64,7 +67,7 @@ one that belongs to somebody else, or the refusal is an existence oracle.
 | blocked user (carol) | a mutual follower of the owner whom the owner has blocked |
 | guest (device RSVP) | a Plan seat with a capability token and no account behind it |
 | capability | a Plan member token or invite token, which is not an identity |
-| staff (moderator) | the `ADMIN_TOKEN` credential, never ownership |
+| staff (moderator) | the `ADMIN_TOKEN` credential through a header or admin session, never account ownership |
 
 Carol differs from Bob by the block alone: both are mutual followers of the
 owner, so a cell that refuses Carol is measuring the block rather than a
@@ -90,10 +93,13 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Plan beacon and mystery reads (`GET /api/plans/[id]/beacon`, `presentation`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token only |
 | Plan beacon PUT/DELETE and mystery PUT | denied | denied with a bare bearer | denied with a bare bearer | host only, with current route checks |
 | Plan beacon and mystery tables or RPCs | denied | denied | denied | browser roles denied, service-mediated routes only |
+| Crew live location read (`GET /api/plans/[id]/live-location`) | denied | denied with a bare bearer | denied with a bare bearer | live collaboration-authorised member token, or `?via=crew` with the verified account of an active Open Crew seat: the other sharing members' latest fix, during the night only |
+| Crew live location PUT/DELETE | denied | denied with a bare bearer | denied with a bare bearer | its own position only; PUT requires the read authority above; DELETE permits a current seat to stop even when collaboration or account eligibility prevents reads; Stop revokes uploads across clients until a new tap after Stop; a stopped share or a share outside the night is 409 |
+| Crew live location tables or RPC (`plan_live_locations`, `plan_live_location_stops`, `plan_live_location`) | denied | denied | denied | browser roles denied, service-mediated route only |
 | Read A's crew Pals (`GET /api/plans/[id]/pals`, "Crew Pals") | preview only | preview only | preview only with a bare account bearer | host or guest member token: the Pals of the OTHER members whose owners set `pub_pals.crew_visible` and did not hide them, by Pal name and look only, never an account id, seat id or handle |
 | Another member's Pal at the table (`pub_pals`, including `crew_visible`) | denied | no rows | own row only | n/a |
 | Invite acceptance (`POST /api/plans/[id]/join`, a Going RSVP at `POST /api/invite/[token]/rsvp`) | invite required: a bare plan id is 403 `PLAN_INVITE_REQUIRED` | one seat per account, spent invite refused | n/a | the host's current invite token: ONE guest capability, a seat that may vote, propose, add a need and check in, never edit; a rotated token lets nobody new in |
-| Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence refused |
+| Removed member | n/a | preview at the route and no rows at the table, immediately | n/a | revoked token: preview, presence and live location refused, and their shared position deleted |
 | Unfurler (`/api/plan-card`) | PNG from the preview only | same | same | same |
 | List Night Memories (`GET /api/night-memories`) | 401 | own only | own only | n/a |
 | A's Moments (`GET /api/night-memories/[id]/moments`) | 401 | empty list | own rows | n/a |
@@ -113,6 +119,11 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Hidden rows and `actor` or `hidden_at` columns at the table | denied | denied | denied | n/a |
 | Pint Drop and structured visit rows at the table, including an anonymous author's handle and moderator notes | denied | denied | denied | n/a |
 | `community_prices.contributor_handle` at the table | denied | denied | denied | n/a |
+| Read Social reports or flagged DMs, resolve a report, review a DM, suspend or reinstate (`/api/admin/social-safety`) | 403 | 403 | 403 | Both an admin credential (`ADMIN_TOKEN` header or admin session) and an active moderator staff role are required. Suspension and reinstatement require a reason. Each state change writes its audit row in the same transaction. |
+| View a flagged DM attachment (`POST /api/admin/social-safety`, `view_message_evidence`) | 403 | 403 | 403 | Moderator access only. Reported content remains available after an unsend. Each read covers one flagged message and records an audit row. Photo URLs expire after 180 seconds. |
+| View reported content (`POST /api/admin/social-safety`, `view_report_evidence`) | 403 | 403 | 403 | Moderator access only. Only the post, comment or quote named by an open report is available. Evidence includes its full text and, for posts, the primary photo, every carousel photo and video. Parent threads and other items by the author are excluded. Every read writes an audit row. Media URLs expire after 180 seconds. |
+| `social_report_evidence_audit` at the table | denied | denied | denied | RLS on with no policy or browser grant; service role can only select and insert |
+| `message_flag_reviews`, `message_flag_evidence_audit`, `social_account_moderation_audit` at the table | denied | denied | denied | RLS is on with no policy or browser grant. The service role can only select and insert. |
 | Moderator confirm, restore, review lanes, hide a price | 403 | 403 | 403 | `ADMIN_TOKEN` only |
 | Delete account (`DELETE /api/account`) | 401 | own account only, whatever the body names | own account only | n/a |
 | Export account data (`GET /api/account/export`) | 401 | own account only, whatever the query names | own account only | not an identity: 401 |
@@ -141,14 +152,19 @@ no side effect, as above.
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Raise a Crew over a Plan (`POST /api/social/crews`) | denied | denied, Plan untouched | n/a | n/a | n/a | n/a | host seat only |
 | Read a Crew (`GET /api/social/crews/[crewId]`) | denied | denied | denied | denied | allowed | denied, immediately | allowed |
+| Set own open-crawl arrival (`POST .../arrival`) | denied | denied | denied | denied | own seat during the night only | denied | own seat only, excluded from guest receipts |
 | Invite to a Crew | denied | denied | may not be invited | denied | denied | denied | allowed |
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
-| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | participant rows, SELECT only |
-| A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | participant only |
+| `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). |
+| Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
+| Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |
+| Leave a group (`action: "leave"`) | denied | denied | denied | n/a | allowed | repeated leave succeeds without restoring membership | Allowed. Direct conversations cannot be left. |
+| `conversation_deletions` and `delete_conversation_for_viewer` at the database | denied | denied | denied | n/a | denied | denied | Denied. Service role only. |
+| A message photo (`GET .../photo/[messageId]`) | denied | denied | denied | n/a | n/a | n/a | Participant only. Unsent photos are refused. |
 | A reported message's attachment | gone from the thread and from the serving door, for its own participants |||||||
 | Photo tag inbox (`GET /api/social/tags`) | 401 | own lane only | own lane only | n/a | n/a | n/a | own lane only |
 | Read a Wanted (`GET /api/wanted`) | 401 | own list only | own list only | n/a | n/a | n/a | own list only |
@@ -186,12 +202,13 @@ no side effect, as above.
    although no copy existed before `0124`; it now drops it and leaves the
    `pubmax_private` helper (0075's body, with its legacy-only guard) untouched.
 2. **Plan writes require member authority.** The matrix asserts 400 or 403
-   for a foreign Plan write. After request parsing and rate limiting, a
+   for a foreign legacy Plan write. After request parsing and rate limiting, a
    presence request without member authority answers 401 `PLAN_PRESENCE_REQUIRED`.
    This includes the page's HttpOnly marker without its cookie.
-   With a valid status on an existing Plan, a foreign member token answers
+   With a valid status on an existing legacy Plan, a foreign member token answers
    403 `PLAN_PRESENCE_FORBIDDEN`.
    These responses let a mounted Plan distinguish missing access from refused access.
+   The [crew-status contract](../API_CONTRACTS_THE_LOCAL.md#crew-status) owns the restrictions for social crew Plans and ended Plans.
 3. **Account deletion takes the bearer alone.** The audit's expected policy
    names a reauthenticated owner; the route deletes the account the verified
    bearer names and reads no target from the body. Recorded as a policy
@@ -220,10 +237,8 @@ no side effect, as above.
    nobody's inbox.
 3. **`conversations` and `messages` are no longer deny-all.** Migration 0019
    created them RLS-on with no policy and says so in its own comment; 0066 then
-   granted SELECT to `authenticated` behind two participant policies. The cell
-   asserts the live rule: a participant reads their own thread, an outsider
-   reads nothing, and SELECT is the whole grant, so the route stays the only way
-   a message is written. The 0019 comment is now the older half of the story.
+   granted SELECT to `authenticated` behind two participant policies. The
+   [matrix](#cells-added-for-the-wider-roles) records current access and its exceptions.
 4. **An owner policy filters a statement, it does not error it.** A stranger's
    `update` on somebody's saves succeeded against zero rows. A table cell must
    therefore assert that nothing MOVED rather than that the statement failed.

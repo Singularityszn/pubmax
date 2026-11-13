@@ -122,6 +122,20 @@ describe("loadLandingAnswers Tonight tile", () => {
     expect((await loadLandingAnswers(now)).tonight.line).toBe("1 pub event listed in London tonight.");
   });
 
+  it("names the events as pub quizzes only when every dated event is a quiz", async () => {
+    const quiz: WhatsOnRow = {
+      ...gig, id: "quiz", kind: "quiz", title: "Pub quiz",
+      source: { label: "Question One", url: "https://questionone.com/venues/example/" },
+    };
+    whatsOnRows.push(quiz);
+    expect((await loadLandingAnswers(now)).tonight.line).toBe("1 pub quiz listed in London tonight.");
+    whatsOnRows.push({ ...quiz, id: "quiz-2", venueId: "venue-other", placeName: "The Other" }, deal);
+    expect((await loadLandingAnswers(now)).tonight.line)
+      .toBe("2 pub quizzes listed in London tonight. See recurring deals.");
+    whatsOnRows.push(gig);
+    expect((await loadLandingAnswers(now)).tonight.line).toBe("3 pub events listed in London tonight. See recurring deals.");
+  });
+
   it("mentions a recurring deal separately from dated events", async () => {
     whatsOnRows.push(deal);
     expect((await loadLandingAnswers(now)).tonight.line)

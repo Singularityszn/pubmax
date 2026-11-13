@@ -11,6 +11,7 @@ import MobileTabBar, {
   MobileTabBarClearanceFallback,
 } from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
+import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import OfflineReady from "@/components/OfflineReady";
 import { AuthProvider } from "@/components/auth/AuthProvider";
@@ -30,6 +31,7 @@ import ThemeAttribute from "@/components/ThemeAttribute";
 import A2HSTracking from "@/components/A2HSTracking";
 import AnalyticsConsentPrompt from "@/components/AnalyticsConsentPrompt";
 import PosthogPageviews from "@/components/PosthogPageviews";
+import PosterLandingAnalytics from "@/components/PosterLandingAnalytics";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
@@ -433,6 +435,9 @@ export default async function RootLayout({
                       native push explainer all render nothing on first paint, so they
                       load lazily after hydration — see DeferredShellExtras. */}
                   <DeferredShellExtras />
+                  {/* One Pal voice call across /pal and /map. Renders nothing
+                      until an available /pal voice panel mounts. */}
+                  <PalVoiceHost />
                   {/* Silent offline SW registration (issue #32) — renders nothing,
                       production-only, registers after load. */}
                   <OfflineReady />
@@ -459,6 +464,7 @@ export default async function RootLayout({
                   <MobileTabBar />
                 </Suspense>
                 <DeferredShellExtras />
+                <PalVoiceHost />
                 <OfflineReady />
                 <ClientErrorReporter />
                 <DailyActivityPulse />
@@ -478,6 +484,7 @@ export default async function RootLayout({
         <ConsentAwareVercelSpeedInsights />
         <Suspense fallback={null}>
           <PosthogPageviews />
+          <PosterLandingAnalytics />
         </Suspense>
         <AnalyticsConsentPrompt />
         <DeploymentSkewRecovery />

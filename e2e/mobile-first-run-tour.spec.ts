@@ -50,11 +50,35 @@ test.describe("mobile first-run tour", () => {
     await expect(tour.getByText(priceBandLegendLabel("expensive"))).toBeVisible();
     await expectTappable(tour.getByRole("button", { name: "Skip the tour" }), "tour close");
     await expectTappable(tour.getByRole("button", { name: "Skip", exact: true }), "tour skip");
-    await expectTappable(tour.getByRole("button", { name: "Got it", exact: true }), "tour confirm");
+    await expectTappable(tour.getByRole("button", { name: "Next", exact: true }), "tour next");
     await expectNoHorizontalOverflow(page);
 
     await tour.getByRole("button", { name: "Skip the tour" }).click();
     await expect(tour).toBeHidden();
+    await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBe("1");
+  });
+
+  test("walks the four steps and is done for good", async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map");
+
+    const card = page.locator(".tourCard");
+    await expect(page.getByRole("dialog", { name: "Pint price colours" })).toBeVisible();
+    for (const title of [
+      "Paid for a pint? Log it",
+      "Tick off your pubs",
+      "One link for your mates",
+    ]) {
+      await card.getByRole("button", { name: "Next", exact: true }).click();
+      await expect(page.getByRole("dialog", { name: title })).toBeVisible();
+      await expectTappable(card.getByRole("button", { name: "Back", exact: true }), "tour back");
+      await expectNoHorizontalOverflow(page);
+    }
+
+    await expectTappable(card.getByRole("button", { name: "Got it", exact: true }), "tour confirm");
+    await card.getByRole("button", { name: "Got it", exact: true }).click();
+    await expect(card).toBeHidden();
     await expect.poll(() => page.evaluate(() => window.localStorage.getItem("pubmax-tour-v2-done"))).toBe("1");
   });
 

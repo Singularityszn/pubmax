@@ -32,13 +32,12 @@ test.beforeEach(async ({ page }) => {
 test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }, testInfo) => {
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  // With no crawl in progress the phone sheet's ONE plan door is the peek's
-  // coral `Make it Stop 1` (lib/venuePlanDoor.ts); the footer bar has none.
+  // The plan door stays in the card when logging takes the first row.
   const accept = portal
-    .locator(".mobileVenuePeekSummary")
-    .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+    .locator(".venueActionCard")
+    .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(accept).toBeVisible({ timeout: 30_000 });
-  await expect(portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` })).toHaveCount(1);
+  await expect(portal.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` })).toHaveCount(1);
 
   const [box, overflow] = await Promise.all([
     accept.boundingBox(),
@@ -63,21 +62,17 @@ test("390px Map acceptance persists before Plan receives Stop 1", async ({ page 
     localStorage.setItem("pubmax-theme", "light");
     document.documentElement.dataset.theme = "light";
   });
-  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-light.png") });
+  await page.screenshot({ path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-plan-390-light.png") });
   await page.evaluate(() => {
     localStorage.setItem("pubmax-theme", "dark");
     document.documentElement.dataset.theme = "dark";
   });
-  await page.screenshot({ path: proofShotPath(testInfo, "docs/proof/venue-acceptance/accepted-plan-390-dark.png") });
+  await page.screenshot({ path: proofShotPath(testInfo, "artifacts/proof/venue-acceptance/accepted-plan-390-dark.png") });
 });
 
 /**
- * ONE PLAN DOOR, AND IT FITS (owner decision option C, 16 Oct 2026). The phone
- * footer bar is Share alone, and a lone ghost is the size of its label rather
- * than an edge-to-edge slab (components/map/venueSheet.css). The peek's
- * `Make it Stop 1` is the longest label the plan door carries, so it is the one
- * measured at 320 with large text: Android's system font scale is a root font
- * size, the same emulation e2e/mobile-large-text.spec.ts uses.
+ * The logging primary and secondary plan door must both fit at narrow widths
+ * and large text. Android's system font scale is emulated with the root size.
  */
 for (const width of [320, 390] as const) {
   for (const textScale of [1, 1.5, 2] as const) {
@@ -103,12 +98,12 @@ for (const width of [320, 390] as const) {
       }).toPass({ timeout: 10_000 });
       const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
       await expect(share).toBeVisible();
-      // "Ask for a table" and Share: the action card's second row.
-      await expect(toolbar.getByRole("button")).toHaveCount(2);
+      await expect(toolbar.getByRole("button")).toHaveText(["Make it Stop 1", "Ask for a table", "Summon mates", "Share"]);
+      await expect(portal.locator(".venueActionCard [data-log-door]")).toBeVisible();
 
       const door = portal
-        .locator(".mobileVenuePeekSummary")
-        .getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+        .locator(".venueActionCard")
+        .getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
       await expect(door).toHaveText("Make it Stop 1");
       await page.evaluate(() => document.fonts.ready);
 
@@ -119,53 +114,59 @@ for (const width of [320, 390] as const) {
         };
         const portalRoot = document.querySelector('.mobileSheetPortal[data-sheet-kind="venue"]')!;
         const row = portalRoot.querySelector(".mobileVenuePeekSummary")!;
-        const door = row.querySelector(".mobileVenuePeekPlanDoor")!;
+        const door = portalRoot.querySelector(".venueActionCard [data-plan-door]")!;
+        const primary = row.querySelector("[data-log-door]")!;
         const label = document.createRange();
         label.selectNodeContents(door);
         const bar = portalRoot.querySelector(".venueSheetStickyBar")!;
         const share = bar.querySelector('button[aria-label^="Share"]')!;
+        const summon = bar.querySelector("[data-venue-summon]")!;
         const [price, walk] = Array.from(row.querySelectorAll(":scope > span, :scope > .mobileVenuePeekDrop"));
         return {
-          row: box(row),
-          cells: [box(price), box(walk), box(door)],
+          cells: [box(price), box(walk), box(primary)],
           door: box(door),
           label: box(label),
           labelClipped: door.scrollWidth > door.clientWidth + 1,
           bar: box(bar),
           share: box(share),
+          summon: box(summon),
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
 
-      // The door's label sits inside the door, and the door inside its row and the phone.
+      // The plan label fits inside its button and the toolbar.
       expect(geometry.labelClipped).toBe(false);
       expect(geometry.label.left).toBeGreaterThanOrEqual(geometry.door.left - 0.5);
       expect(geometry.label.right).toBeLessThanOrEqual(geometry.door.right + 0.5);
       expect(geometry.label.top).toBeGreaterThanOrEqual(geometry.door.top - 0.5);
       expect(geometry.label.bottom).toBeLessThanOrEqual(geometry.door.bottom + 0.5);
-      expect(geometry.door.right).toBeLessThanOrEqual(geometry.row.right + 0.5);
+      expect(geometry.door.right).toBeLessThanOrEqual(geometry.bar.right + 0.5);
       expect(geometry.door.right).toBeLessThanOrEqual(width);
       expect(geometry.door.height).toBeGreaterThanOrEqual(44);
-      // No cell of the peek is drawn over another: large text moves the door to
-      // its own line rather than squeezing the price plaque under the walk.
+      // The price, walk and logging primary must not overlap at large text sizes.
       const [price, walk, doorCell] = geometry.cells;
       const apart = (a: typeof price, b: typeof price) =>
         a.right <= b.left + 0.5 || b.right <= a.left + 0.5 || a.bottom <= b.top + 0.5 || b.bottom <= a.top + 0.5;
       expect(apart(price, walk), "price and walk").toBe(true);
       expect(apart(walk, doorCell), "walk and door").toBe(true);
       expect(apart(price, doorCell), "price and door").toBe(true);
-      // Share shares its row with "Ask for a table": a thumb target, never the
+      // Share shares its row with another ghost: a thumb target, never the
       // whole width of the card.
       expect(geometry.share.height).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeLessThan(geometry.bar.width);
+      // Summon mates is a thumb target inside the card at every width and text size.
+      expect(geometry.summon.height).toBeGreaterThanOrEqual(44);
+      expect(geometry.summon.width).toBeGreaterThanOrEqual(44);
+      expect(geometry.summon.left).toBeGreaterThanOrEqual(geometry.bar.left - 0.5);
+      expect(geometry.summon.right).toBeLessThanOrEqual(geometry.bar.right + 0.5);
       expect(geometry.overflow).toBeLessThanOrEqual(1);
 
       if (textScale === 1 || textScale === 2) {
         await page.screenshot({
           path: proofShotPath(
             testInfo,
-            `docs/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
+            `artifacts/proof/one-plan-door/stop-1-${width}${textScale === 1 ? "" : "-large-text"}.png`,
           ),
         });
       }
@@ -197,7 +198,7 @@ test("1440px accepted arrival keeps receipt, focus, and Near provenance", async 
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible({
     timeout: 30_000,
   });
-  const accept = page.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` });
+  const accept = page.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` });
   await expect(accept).toBeVisible();
   await accept.focus();
   await expect(accept).toBeFocused();
@@ -231,7 +232,7 @@ test("storage denial stays on Venue and emits no acceptance events", async ({ pa
 
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await portal.getByRole("button", { name: `Make ${VENUE_NAME} Stop 1` }).click();
+  await portal.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` }).click();
 
   await expect(page).toHaveURL(new RegExp(`/map\\?sel=${VENUE_ID}$`));
   await expect(portal.getByRole("alert")).toHaveText(

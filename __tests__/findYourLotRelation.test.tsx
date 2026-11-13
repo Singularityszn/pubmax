@@ -31,8 +31,8 @@ vi.mock("@/lib/useSocialFriendsLaunch", () => ({
   useSocialFriendsLaunch: () => true,
 }));
 
-const follow = vi.hoisted(() => ({ request: vi.fn() }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: follow.request }));
+const follow = vi.hoisted(() => ({ request: vi.fn(), mayKnow: vi.fn() }));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: follow.request, authedFetch: follow.mayKnow }));
 
 import FindYourLot from "@/components/social/FindYourLot";
 
@@ -84,6 +84,8 @@ beforeEach(async () => {
   vi.stubGlobal("fetch", search);
   follow.request.mockReset();
   follow.request.mockResolvedValue(json({ following: true }));
+  follow.mayKnow.mockReset();
+  follow.mayKnow.mockResolvedValue(json({ people: [] }));
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -100,6 +102,24 @@ afterEach(() => {
 });
 
 describe("FindYourLot relation", () => {
+  it("lists people you may know with the mates you share, and hides them while searching", async () => {
+    follow.mayKnow.mockResolvedValue(
+      json({ people: [{ handle: "cat", via: ["amy", "ben"], relation: "follows_you" }] }),
+    );
+    act(() => root?.unmount());
+    root = createRoot(host);
+    await act(async () => root?.render(createElement(FindYourLot)));
+    await vi.waitFor(() => expect(rowFor("cat").textContent).toContain("Mates with @amy and @ben"));
+    expect(follow.mayKnow).toHaveBeenCalledWith("/api/profiles/may-know", expect.anything(), { requiresIdentity: true });
+    expect(buttonIn("cat").textContent).toBe("Follow back");
+    await act(async () => buttonIn("cat").click());
+    await vi.waitFor(() => expect(buttonIn("cat").textContent).toBe("Mates"));
+
+    await typeQuery("sam");
+    await vi.waitFor(() => expect(host.querySelectorAll("li.findLot__row")).toHaveLength(4));
+    expect(host.textContent).not.toContain("Mates with @amy");
+  });
+
   it("retries a failed search without making the person retype their handle", async () => {
     search.mockResolvedValueOnce(json({}, 503));
     await typeQuery("sam");

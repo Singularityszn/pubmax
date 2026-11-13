@@ -25,6 +25,12 @@ import {
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue } from "@/lib/venues";
+import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
+import { mapSplitListPrice } from "@/lib/mapSplitList";
+import { buildMapVenueListModel } from "@/lib/mapVenueList";
+import { pinsToSlimVenues, slimVenueToPin } from "@/lib/slimPins";
+import { zoneEstimatePinStandings } from "@/lib/zonePriceEstimate";
+import { computeZonePintIndex, MIN_PRICED_VENUES } from "@/lib/zones";
 
 const boroughData = vi.hoisted(() => ({ venues: [] as Venue[] }));
 
@@ -81,6 +87,7 @@ function makeVenue(overrides: Partial<Venue> = {}): Venue {
     visibleBoroughs: [],
     prices: [],
     cheapestPrice: null,
+    hasRecordedPrice: false,
     cheapestPint: "",
     averagePrice: null,
     hasStory: false,
@@ -416,6 +423,127 @@ describe("the bundle lanes", () => {
   });
 });
 
+// London pint prices move by fare zone, not pub by pub,
+// so a pub with no recorded price reads its zone's middle recorded price. It is
+// the lowest lane, and only the published index may produce one.
+describe("the fare-zone estimate", () => {
+  const PRICED_ZONE_2 = Array.from({ length: MIN_PRICED_VENUES }, (_, index) => ({
+    zone: 2,
+    cheapestPrice: 5 + index / 10,
+  }));
+  const PUBLISHED = {
+    ...computeZonePintIndex([...PRICED_ZONE_2, { zone: 3, cheapestPrice: 4 }]),
+    computedAt: "2026-11-10T00:00:00.000Z",
+  };
+
+  it("gives an unpriced pub its zone's middle recorded price, labelled an estimate", () => {
+    const lane = venuePriceLane(makeVenue({ zone: 2 }), null, null, venueBundlePrices(makeVenue({ zone: 2 }), PUBLISHED));
+    expect(lane).toEqual({
+      lane: "estimate",
+      estimate: { priceGbp: 5.45, basis: "zone_median", sampleSize: 10, computedAt: PUBLISHED.computedAt, zone: 2 },
+    });
+    expect(priceStandingFigure(priceStandingFor({ estimate: lane?.lane === "estimate" ? lane.estimate : null }))).toBe("est. £5.45");
+  });
+
+  it.each([true, undefined])("withholds estimates when recorded-price availability is %s", (hasRecordedPrice) => {
+    const pin = slimVenueToPin({
+      id: "venue-10x17k9", name: "The Kings Head", lat: 51.63, lng: -0.002,
+      borough: "Waltham Forest", zone: 2, cheapestPrice: null, hasRecordedPrice,
+    });
+    expect(zoneEstimatePinStandings([pin], new Map(), PUBLISHED)?.size).toBe(0);
+    expect(venueBundlePrices(pin, PUBLISHED)).toEqual({});
+    expect(buildMapVenueListModel([pin], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("Price TBD");
+    expect(mapSplitListPrice(pin, undefined, undefined, PUBLISHED).figure).toBeNull();
+    expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
+  });
+
+  it("keeps a confirmed empty price lane through saved slim pins", () => {
+    const pin = makeVenue({ zone: 2 });
+    const restored = slimVenueToPin(pinsToSlimVenues([pin])[0]!);
+    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBe(5.45);
+    expect(buildMapVenueListModel([restored], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
+    expect(mapSplitListPrice(restored, undefined, undefined, PUBLISHED).figure).toContain("5.45");
+  });
+
+  it("uses published bundle availability for pins whose shards carry no price metadata", () => {
+    const listed = makeVenue({ id: "listed", zone: 2, hasRecordedPrice: undefined });
+    const empty = makeVenue({ id: "empty", zone: 2, hasRecordedPrice: undefined });
+    const published = { ...PUBLISHED, recordedPintVenueIds: ["listed"] };
+    const standings = zoneEstimatePinStandings([listed, empty], new Map(), published);
+    expect(standings?.has("listed")).toBe(false);
+    expect(standings?.get("empty")?.priceGbp).toBe(5.45);
+    expect(venueBundlePrices(listed, published)).toEqual({});
+    expect(buildMapVenueListModel([listed, empty], null, 2, null, "this view", "ready", "nearest", null, published)
+      .rows.map((row) => row.priceLabel)).toEqual(["Price TBD", "est. £5.45"]);
+    expect(mapSplitListPrice(listed, undefined, undefined, published).figure).toBeNull();
+    expect(mapSplitListPrice(empty, undefined, undefined, published).figure).toContain("5.45");
+    expect(venueBundlePrices({ ...empty, hasRecordedPrice: true }, published)).toEqual({});
+  });
+
+  it("never displaces a recorded price", () => {
+    const priced = makeVenue({ zone: 2, cheapestPrice: 6.2 });
+    expect(venuePriceLane(priced, null, null, venueBundlePrices(priced, PUBLISHED))?.lane).toBe("baseline");
+    expect(venuePriceLane(makeVenue({ zone: 2 }), 5.9, null, venueBundlePrices(makeVenue({ zone: 2 }), PUBLISHED))?.lane)
+      .toBe("contributor");
+  });
+
+  it("estimates nothing from a thin zone, an unknown zone, a non-pub or a client roll-up", () => {
+    const rollUp = { ...PUBLISHED, computedAt: undefined };
+    expect(venueBundlePrices(makeVenue({ zone: 3 }), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue(), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue({ zone: 2, kind: "bar" }), PUBLISHED)).toEqual({});
+    expect(venueBundlePrices(makeVenue({ zone: 2 }), rollUp)).toEqual({});
+  });
+
+  it("replaces the borough baseline estimate, so a pub prints one estimate everywhere", () => {
+    const borough = { priceGbp: 6.63, basis: "regional_baseline:westminster", sampleSize: 40, computedAt: "2026-10-05T00:00:00.000Z" };
+    const chain = { ...borough, basis: "chain_menu" };
+    const withBundle = (estimate: typeof borough) =>
+      ({ ...makeVenue({ zone: 2 }), bundlePrices: { estimate } }) as Venue;
+    expect(venueBundlePrices(withBundle(borough), PUBLISHED).estimate).toMatchObject({ basis: "zone_median", priceGbp: 5.45 });
+    expect(venueBundlePrices(withBundle(chain), PUBLISHED).estimate).toEqual(chain);
+  });
+
+  it.each(["confirmed", "corroborated", "disputed", "logged-once", "unchecked", "aged-out"])(
+    "keeps a %s report ahead of the zone estimate",
+    (pintTrust) => {
+      const pub = makeVenue({ zone: 2 });
+      expect(zoneEstimatePinStandings([pub], new Map([[pub.id, { latestContributorPrice: null, pintTrust }]]), PUBLISHED)?.size)
+        .toBe(0);
+    },
+  );
+
+  it("keeps the pin estimate after a successful empty Pint Drop read", () => {
+    const pub = makeVenue({ zone: 2 });
+    const before = zoneEstimatePinStandings([pub], new Map(), PUBLISHED);
+    const after = zoneEstimatePinStandings([pub], new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]), PUBLISHED);
+    expect(after?.get(pub.id)).toEqual(before?.get(pub.id));
+    expect(after?.get(pub.id)).toMatchObject({ standing: "estimate", priceGbp: 5.45 });
+  });
+
+  it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
+    const pins = [
+      makeVenue({ id: "bare", zone: 2 }),
+      makeVenue({ id: "listed", zone: 2, cheapestPrice: 6.2 }),
+      makeVenue({ id: "logged", zone: 2 }),
+      makeVenue({ id: "reported", zone: 2 }),
+      makeVenue({ id: "empty-read", zone: 2 }),
+      { ...makeVenue({ id: "bundle-listed", zone: 2 }), bundlePrices: { listed: {
+        priceGbp: 6.45, sourceUrl: "https://guinndex.co.uk/pub/kings-head-chingford-london",
+        observedAt: "2026-11-07T18:27:36.845Z", publisher: "Guinndex",
+      } } },
+    ];
+    const signals = new Map([
+      ["logged", { latestContributorPrice: 5.9 }],
+      ["reported", { latestContributorPrice: null, pintTrust: "logged-once" }],
+      ["empty-read", { latestContributorPrice: null, pintTrust: "none" }],
+    ]);
+    const standings = zoneEstimatePinStandings(pins, signals, PUBLISHED);
+    expect([...(standings?.keys() ?? [])]).toEqual(["bare", "empty-read"]);
+    expect(standings?.get("bare")?.standing).toBe("estimate");
+  });
+});
+
 // The lane one drinker's report earns (issue #1426). Its whole job is to sit
 // between the listed row and the baseline, and to be reachable by a drop the
 // corroboration gate refuses.
@@ -550,10 +678,10 @@ describe("the base-pub price summary", () => {
     expect(view.textContent).not.toContain("Nobody has logged");
   });
 
-  it("claims no price only after a successful empty read", () => {
+  it("waits for listed prices even after an empty community read", () => {
     const ready = renderPrice([], "ready");
-    expect(ready.textContent).toContain("No price yet");
-    expect(ready.textContent).toContain("Nobody has logged");
+    expect(ready.textContent).not.toContain("No price yet");
+    expect(ready.textContent).not.toContain("Nobody has logged");
     for (const status of ["loading", "degraded"] as const) {
       const view = renderPrice([], status);
       expect(view.textContent).not.toContain("No price yet");

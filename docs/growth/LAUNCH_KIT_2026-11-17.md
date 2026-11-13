@@ -359,7 +359,7 @@ npm run e2e:cli -- -s=ph screenshot --filename=artifacts/playwright-cli/ph-2-map
 ```sh
 npm run e2e:cli -- -s=ph resize 390 844
 npm run e2e:cli -- -s=ph goto http://127.0.0.1:3417/plan
-npm run e2e:cli -- -s=ph run-code "async page => { await page.getByRole('textbox', { name: 'Where, how many, what budget' }).fill('Quiet in Clapham for 4, not pricey'); await page.getByRole('button', { name: 'Plan it', exact: true }).click(); await page.getByText('Route refreshed. Review the preview').waitFor({ timeout: 60000 }); await page.getByLabel('Your name').fill('[CAPTAIN: your first name]'); await page.getByRole('button', { name: 'Lock it in' }).click(); await page.waitForURL(/\/plan\/[0-9a-f-]{36}/); const exit = page.getByRole('button', { name: 'View full plan' }); if (await exit.isVisible()) await exit.click(); await page.getByRole('link', { name: 'Send on WhatsApp' }).scrollIntoViewIfNeeded(); }"
+npm run e2e:cli -- -s=ph run-code "async page => { await page.getByRole('textbox', { name: 'Where, how many, what budget' }).fill('Quiet in Clapham for 4, not pricey'); await page.getByRole('button', { name: 'Plan it', exact: true }).click(); await page.getByText('Route ready. Review the preview').waitFor({ timeout: 60000 }); await page.getByLabel('Your name').fill('[CAPTAIN: your first name]'); await page.getByRole('button', { name: 'Lock it in' }).click(); await page.waitForURL(/\/plan\/[0-9a-f-]{36}/); const exit = page.getByRole('button', { name: 'View full plan' }); if (await exit.isVisible()) await exit.click(); await page.getByRole('link', { name: 'Send on WhatsApp' }).scrollIntoViewIfNeeded(); }"
 npm run e2e:cli -- -s=ph screenshot --filename=artifacts/playwright-cli/ph-3-share-390.png
 npm run e2e:cli -- -s=ph eval "document.querySelector('a[href*=\"wa.me\"]')?.href"
 npm run e2e:cli -- -s=ph run-code "async page => { const id = page.url().match(/plan\/([0-9a-f-]{36})/)[1]; const state = await (await page.request.get('/api/plans/' + id)).json(); return { id, invite: '/invite/' + state.inviteToken, preview: '/invite/' + state.inviteToken + '/opengraph-image' }; }"
@@ -715,9 +715,10 @@ Thursday 19 November 2026, 19:00. Built on the open-crawl rules in
    > Cheapest Soho crawl: three pubs, listed prices on the plan. Meet at stop
    > one. Buy your own round, leave when you like.
 
-4. The crawl moves to a crew page anyone can find. The old invite link stops
-   working. People ask to join there, and the host says yes or no. It shows in
-   "Crawls you can join this week" on `/crawls` from seven days before.
+4. The crawl moves to a crew page anyone can find. See the
+   [shared invite guidance](../../README.md#features) for existing links and
+   join requests. It shows in "Crawls you can join this week" on `/crawls` from
+   seven days before.
 5. The host needs to be signed in, with a handle people can see.
 6. [CAPTAIN: open crawls need migration 0208 on production. The launch plan
    listed 0203 to 0216 as not applied on 1 November. Check before you post.]

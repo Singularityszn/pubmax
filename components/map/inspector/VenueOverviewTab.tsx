@@ -44,6 +44,7 @@ import {
   baselineTrustCaption,
   uncheckedPriceLine,
   venueBundlePrices,
+  venuePriceLaneEstimate,
   venuePriceLane,
   venuePriceFallbackPending,
   venuePriceLaneIsDrinkerLog,
@@ -63,6 +64,7 @@ import {
 } from "@/lib/firstDropNudge";
 import type { VenueDropReadStatus } from "@/components/map/usePintDrops";
 import VenueDrinkPrices from "@/components/map/VenueDrinkPrices";
+import ListedPriceLine from "./ListedPriceLine";
 import VenuePriceEntryPanel from "./VenuePriceEntryPanel";
 import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import OverviewFold from "./OverviewFold";
@@ -115,6 +117,7 @@ import { type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import { confirmPintActionName } from "@/lib/pintDropSecondDrinker";
 import type { ZonePintIndex } from "@/lib/zones";
+import { zoneEstimateBasisNote } from "@/lib/zonePriceEstimate";
 import SunChaserVenueLine from "@/components/map/sunChaser/SunChaserVenueLine";
 
 /**
@@ -353,7 +356,7 @@ function PriceDoorRow(props: Parameters<typeof PriceDoor>[0]) {
  * one colour. `priceStanding` is deliberately not consulted for any of the
  * three, because a drinker's log is not a published price.
  *
- * AN UNCHECKED LOG (a typed price with no bill, captain decision 9) prints in
+ * An unchecked log (as defined by lib/pintDropReceipt.ts) prints in
  * the same block, visibly weaker and in words rather than a colour: the
  * drinker is named as "Logged by @handle, not checked", the figure sits on the
  * NEUTRAL plaque, and the line says what it is waiting for. Colour means the
@@ -491,10 +494,11 @@ function VenuePriceSummary({
   // in on the venue from the UK price bundle, and `priceStandingFor` decides
   // which of them speaks rather than this component choosing.
   const bundle = venueBundlePrices(venue);
+  const estimate = venuePriceLaneEstimate(lane, bundle);
   const priceStanding = priceStandingFor({
     confirmed: confirmedPrice ?? null,
     listed: bundle.listed ?? null,
-    estimate: bundle.estimate ?? null,
+    estimate,
   });
   // THE TRUST CHIP. Every drop-lane row below carries `data-pint-trust`, the
   // one state lib/pintTrust.ts reads this lane as, so a browser test can hold
@@ -632,17 +636,7 @@ function VenuePriceSummary({
         {/* The pill says the figure and how far to trust it in ONE mark, and
             the words are the standing module's own. */}
         <TrustPill decision={priceStanding} area={bandArea} />
-        <small className={chromeRevealClass}>
-          {formatFreshness(lane.listed.observedAt)} ·{" "}
-          <a
-            className="priceSourceLink"
-            href={lane.listed.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            source
-          </a>
-        </small>
+        <ListedPriceLine listed={lane.listed} className={chromeRevealClass} />
         {door}
       </div>
     );
@@ -720,8 +714,13 @@ function VenuePriceSummary({
         {/* NO CLAIM BADGE. Nobody published this figure, so nothing here may
             wear the mark that says somebody did. The pill prints "est. £X" and
             carries the method link beside it, and the basis line is left to
-            /how-we-estimate rather than restated here in a second vocabulary. */}
-        <TrustPill decision={priceStanding} area={bandArea} />
+            /how-we-estimate rather than restated here in a second vocabulary.
+            A zone estimate names its zone, so a reader knows where it is from. */}
+        <TrustPill
+          decision={priceStanding}
+          area={bandArea}
+          basisNote={zoneEstimateBasisNote(estimate)}
+        />
         {door}
       </div>
     );
@@ -1125,7 +1124,7 @@ export default function VenueOverviewTab({
     venue,
     latestContributorPrice,
     sourcedPrice,
-    venueBundlePrices(venue),
+    venueBundlePrices(venue, zoneIndex),
     provisionalPrice,
     agedPrice,
     disputedPrice,
@@ -1367,6 +1366,12 @@ export default function VenueOverviewTab({
               {presenceState === "sending" ? "Checking in…" : "I'm here"}
             </button>
           )}
+          <p
+            className="description muted"
+            style={{ margin: "6px 0 0", fontSize: "0.82rem", textAlign: "center" }}
+          >
+            Only your mates see this, for two hours.
+          </p>
           {presenceState === "no-handle" && promptSlot.owner === "presence" ? (
             <p
               className="description muted"

@@ -51,7 +51,7 @@
 
 **Gen X (40-55) — Nostalgia, Reliability, Planning, Heritage**
 - "Golden Days" and "Then vs Now" price history exist only in seeds, not as first-class filters or venue page sections.
-- No offline mode or print/PDF export of crawls.
+- No print/PDF export of crawls. See the [README](../README.md#features) for current offline availability and limits.
 - No "Quiet Pint" or low-stimulation filters.
 - Heritage deep-dives are shallow; no sourced historical photos or era timelines.
 
@@ -67,7 +67,6 @@
 - Accessibility filters (step-free, seating, accessible toilets, quiet hours).
 - Real Supabase Auth + durable profiles (Magic Links).
 - Calendar integration ("Add crawl to Google/Apple Calendar").
-- Offline resilience (Service Worker + cached map + drops).
 - Granular privacy (friends-only, anonymous, public) on every drop/story.
 
 ---
@@ -110,7 +109,7 @@
 22. Structured logging + rate limits on all write endpoints.
 23. Run Playwright in CI; add visual regression snapshots (landing, map, feed, profile, crawl story).
 24. Update `docs/teach.md`, `README.md`, and archive old PRDs.
-25. Add offline support (Service Worker + IndexedDB cache for map + recent drops).
+25. Extend offline support to recent drops. See the [README](../README.md#features) for current offline availability and limits.
 
 ---
 

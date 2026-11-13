@@ -14,6 +14,8 @@ import { contributionAdultRefusal } from "@/lib/contributionGateStatus";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { billReaderKeyed, scheduleBillCheck } from "@/lib/billCheck.server";
+import { clientRequestRowId } from "@/lib/clientRequestKey.server";
 import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
@@ -30,6 +32,8 @@ import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
+import type { PintDrop } from "@/lib/pintDropShared";
+import { isTrustedSigningKeyUnavailableError } from "@/lib/trustedSigningKey.server";
 import {
   isLimited,
   validatePintDrop,
@@ -40,6 +44,7 @@ import {
   isPintDropDailyCapError,
   isUncheckedPriceNotStorableError,
   PhotoRefusalError,
+  PintDropReplayConflictError,
   pintDropsStore,
   type PintDropDTO,
   type PintDropPhotos,
@@ -365,6 +370,70 @@ async function settleConfirmation(
   return { confirmation: confirmationOutcome.confirmation, confirmationOutcome };
 }
 
+/**
+ * Hand a priced drop's bill to the background bill check, or nothing. Only a
+ * priced drop that arrived with a bill is read, and only a deployment with the
+ * vision key can read one; a keyless one leaves the price `unchecked` and says
+ * nothing about a read that will never happen.
+ */
+function scheduleDropBillCheck(
+  drop: PintDropDTO,
+  priceGbp: number | null,
+  receipt: File | null,
+): "reading" | null {
+  if (priceGbp === null || !receipt || !billReaderKeyed()) return null;
+  scheduleBillCheck({ photo: receipt, venueId: drop.venueId, priceGbp, drink: drop.drink, measure: drop.measure, measureLabel: drop.measureLabel, pintDropId: drop.id });
+  return "reading";
+}
+
+async function priceAdultRefusal(priceGbp: number | null, callerUserId: string | null): Promise<Response | null> {
+  if (priceGbp === null || !callerUserId) return null;
+  try {
+    const evidence = await accountAdultEvidence(callerUserId, { strict: true });
+    const refusal = contributionAdultRefusal({
+      isAdult: accountIsAdult(evidence),
+      needsSelfAssertion: needsAdultSelfAssertion(evidence),
+    });
+    return refusal
+      ? publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
+          compatibilityFields: { status: refusal.status },
+        })
+      : null;
+  } catch {
+    return publicApiError(
+      "We could not check your account just now. Try again.",
+      "IDENTITY_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+}
+
+function requestedRatingSaved(drop: PintDropDTO, requestedRating: PintDrop["rating"]): boolean {
+  return requestedRating === undefined || drop.rating === requestedRating;
+}
+
+// A RETRY IS ANSWERED, NOT COUNTED AGAIN. A keyed drop that already landed is
+// the same observation, so the drinker gets it back rather than a daily-cap
+// refusal or a second note. The lookup fails open: the id is still the keyed
+// one, so a missed replay cannot store a second row.
+async function keyedReplay(drop: PintDrop, photos: PintDropPhotos, mintedId: string): Promise<Response | null> {
+  if (drop.id === mintedId) return null;
+  try {
+    const prior = await pintDropsStore().findCreated(drop, photos);
+    if (prior === "conflict") {
+      return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
+    }
+    return prior ? jsonNoStore({ drop: prior, ratingSaved: requestedRatingSaved(prior, drop.rating) }, { status: 200 }) : null;
+  } catch (err) {
+    log("warn", "pint_drops.replay_check_failed", {
+      route: "POST /api/pint-drops",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return null;
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -465,36 +534,29 @@ export async function POST(request: Request): Promise<Response> {
       401,
     );
   }
-  if (canonicalDrop.priceGbp !== null && ownership.callerUserId) {
-    try {
-      const evidence = await accountAdultEvidence(ownership.callerUserId, { strict: true });
-      const refusal = contributionAdultRefusal({
-        isAdult: accountIsAdult(evidence),
-        needsSelfAssertion: needsAdultSelfAssertion(evidence),
-      });
-      if (refusal) {
-        return publicApiError(refusal.error, "ADULT_REQUIRED", 409, {
-          compatibilityFields: { status: refusal.status },
-        });
-      }
-    } catch {
-      return publicApiError(
-        "We could not check your account just now. Try again.",
-        "IDENTITY_UNAVAILABLE",
-        503,
-        { retryable: true },
-      );
-    }
-  }
+  const underage = await priceAdultRefusal(canonicalDrop.priceGbp, ownership.callerUserId);
+  if (underage) return underage;
   // A PRICE WITHOUT THE BILL IS UNCHECKED, NOT REFUSED (captain decision 9,
   // 1 Nov 2026, amending the 7 Sept bill rule at this door). The verified
   // actor above, the rate limit and the daily cap below all still apply to
-  // it. The store EARNS the drop's evidence from what arrived
-  // (lib/pintDropReceipt.ts `priceEvidenceFor`), so nothing here stamps it and
-  // no body field can claim a bill: a typed price lands `unchecked`, shows on
-  // the pub's own sheet, and reaches the pin only through a second drinker.
+  // it. The store STAMPS the drop's evidence (lib/pintDropReceipt.ts
+  // `priceEvidenceFor`), so nothing here stamps it and no body field can claim
+  // a bill: every price lands `unchecked`, shows on the pub's own sheet, and
+  // reaches the pin through a second drinker or through its bill. A price sent
+  // WITH the bill is read after the answer (captain 5 Nov 2026,
+  // lib/billCheck.server.ts), and only a bill that shows the price earns
+  // `receipt`.
+  let id: string;
+  try {
+    id = clientRequestRowId("pint-drop", ownership.callerUserId ?? ownership.handle, fields.clientRequestId)
+      ?? canonicalDrop.id;
+  } catch (err) {
+    if (!isTrustedSigningKeyUnavailableError(err)) throw err;
+    return publicApiErrorFromStatus("Could not save the Pint Drop. Try again.", 503);
+  }
   const dropPayload = {
     ...canonicalDrop,
+    id,
     handle: ownership.handle,
     // ANONYMITY IS DISPLAY, NOT ATTRIBUTION (#1436). The key is derived from
     // the signed-in account whatever lane the drinker chose to post in, so an
@@ -514,45 +576,15 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // Duplicate guard (feat/price-drops-v2): one PRICED observation per
-  // venue+identity+London-day. A second priced drop at the same pub the same day
-  // is a 409, not a silent overwrite — the first observation is kept, and one
-  // actor can't stack rows to skew a venue's median. Note-only anecdotes are
-  // exempt (a passed-down memory isn't a price observation).
-  //
-  // This is the SOFT pre-check, and it is deliberately fail-open: a store hiccup
-  // here must not block an otherwise-good drop. It cannot be the whole rule,
-  // because it cannot see a burst: concurrent requests all read "no price yet"
-  // before any row lands, which is exactly how the cap was walked through. The
-  // HARD guard is the store's own (pint_drops_priced_day_unique_idx, migration
-  // 0141), and its refusal lands in the catch below wearing this same sentence.
-  if (dropPayload.priceGbp !== null) {
-    try {
-      if (await pintDropsStore().hasPricedDropToday(dropPayload.venueId, ownership.handle)) {
-        return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
-      }
-    } catch (err) {
-      log("warn", "pint_drops.dedupe_check_failed", {
-        route: "POST /api/pint-drops",
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  }
+  const replay = await keyedReplay(dropPayload, photos, canonicalDrop.id);
+  if (replay) return replay;
 
   try {
-    // This lane is the one that STATES the daily cap, so it is the one that
-    // opts into it: the store then claims the London day for this drop and the
-    // unique index behind it (0141) refuses the burst the pre-check above
-    // cannot see. The community-price pairing lane writes without this and
-    // keeps its own rule.
-    const drop = await pintDropsStore().create(dropPayload, photos, {
+    const { created, ...drop } = await pintDropsStore().create(dropPayload, photos, {
       underDailyPriceCap: true,
     });
+    if (!created) return jsonNoStore({ drop, ratingSaved: requestedRatingSaved(drop, dropPayload.rating) }, { status: 200 });
     signalPintDropLanded();
-    // The second-reporter pass, awaited so the drinker's own answer carries the
-    // standing their report just earned. It never throws and never fails the
-    // drop: when it cannot read or write, the pill stays grey and the drop
-    // stands. Only a priced drop can complete a pair.
     const { confirmation, confirmationOutcome } = await settleConfirmation(
       drop,
       dropPayload.priceGbp,
@@ -561,19 +593,24 @@ export async function POST(request: Request): Promise<Response> {
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }
+    // THE BILL IS READ AFTER THE ANSWER, never before it: the drinker's 201
+    // does not wait on a vision model. `billCheck: "reading"` tells the
+    // composer to say so, and is said only when this deployment can read.
+    const billCheck = scheduleDropBillCheck(drop, dropPayload.priceGbp, photos.receipt);
     return jsonNoStore(
       {
         drop,
+        ratingSaved: requestedRatingSaved(drop, dropPayload.rating),
         ...(confirmation ? { confirmation } : {}),
         ...(confirmationOutcome ? { confirmationOutcome } : {}),
+        ...(billCheck ? { billCheck } : {}),
       },
       { status: 201 },
     );
   } catch (err) {
-    // The daily cap, refused by the database (migration 0141). A drinker who
-    // hits the hard guard and one who hits the pre-check above did the same
-    // thing, so they are told the same thing: one sentence, one status, no way
-    // to tell which enforcer answered.
+    if (err instanceof PintDropReplayConflictError) {
+      return publicApiError("That Pint Drop was already sent with other details.", "IDEMPOTENCY_CONFLICT", 409);
+    }
     if (isPintDropDailyCapError(err)) {
       return publicApiError(DAILY_PRICE_CAP_REFUSAL, "CONFLICT", 409);
     }

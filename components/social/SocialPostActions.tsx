@@ -6,6 +6,7 @@ import { useCallback, useEffect, useId, useRef, useState, type FormEvent } from 
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { relativeTime } from "@/lib/relativeTime";
+import { SOCIAL_REPORT_REASONS, SOCIAL_REPORT_REASON_LABELS, type SocialReportReason } from "@/lib/socialInteractions";
 
 type Summary = {
   cheered: boolean;
@@ -17,18 +18,9 @@ type Comment = {
   id: string;
   body: string;
   author: { handle: string };
-  moderationState: "pending" | "approved" | "needs_review";
+  moderationState: "pending" | "approved";
   createdAt: string;
 };
-
-const REPORT_REASONS = [
-  ["harassment", "Harassment"],
-  ["hate", "Hate"],
-  ["threat", "A threat"],
-  ["doxxing", "Shares private details"],
-  ["spam", "Spam"],
-  ["other", "Something else"],
-] as const;
 
 function requestKey(): string {
   return globalThis.crypto?.randomUUID?.() ?? `key-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -168,7 +160,7 @@ export default function SocialPostActions({
     }
   }
 
-  async function report(reason: (typeof REPORT_REASONS)[number][0]) {
+  async function report(reason: SocialReportReason) {
     setReportOpen(false);
     try {
       const response = await authedActionFetch("/api/social/interactions", {
@@ -242,8 +234,8 @@ export default function SocialPostActions({
       ) : null}
       {reportOpen ? (
         <div className="socialPostReport" role="group" aria-label="Why are you reporting this post?">
-          {REPORT_REASONS.map(([reason, label]) => (
-            <button key={reason} type="button" onClick={() => void report(reason)}>{label}</button>
+          {SOCIAL_REPORT_REASONS.map((reason) => (
+            <button key={reason} type="button" onClick={() => void report(reason)}>{SOCIAL_REPORT_REASON_LABELS[reason]}</button>
           ))}
         </div>
       ) : null}

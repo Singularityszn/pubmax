@@ -1,20 +1,21 @@
-// Notification model — the shared vocabulary + the best-effort EMIT helper the
-// write paths call. Types + validation live here (no store import), so a route
-// can import the emit seam without pulling the storage backend into scope until
-// it is actually used.
-//
-// A notification is keyed by the recipient's self-asserted `handle` (no auth yet
-// — same trust boundary as the rest of the social layer). It carries only signal
-// that is already public in the feed: someone followed you, reacted to your drop,
-// commented on your drop, or saved your crawl. No private content. See
-// supabase/migrations/0010_notifications.sql for the honest low-sensitivity note.
+// Notification vocabulary and validation. The store and emit helper live in
+// lib/notificationsStore.ts. Inbox ownership is enforced by
+// app/api/notifications/route.ts. Crew membership activity is recipient-private.
 
 import { normalizeHandle } from "@/lib/profiles";
 import { cleanText } from "@/lib/textClean";
 
-// The four event kinds a notification can carry. Kept in lockstep with the
-// notifications_kind_chk constraint in migration 0010.
-export const NOTIFICATION_KINDS = ["follow", "reaction", "comment", "crawl_save"] as const;
+// The event kinds a notification can carry. Kept in lockstep with the
+// notifications_kind_chk constraint (0010, widened by 0223). The two crew kinds
+// tell a host about a join request and a guest that the host let them in.
+export const NOTIFICATION_KINDS = [
+  "follow",
+  "reaction",
+  "comment",
+  "crawl_save",
+  "crew_join_request",
+  "crew_join_accepted",
+] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
 const KIND_SET: ReadonlySet<string> = new Set(NOTIFICATION_KINDS);
@@ -22,8 +23,8 @@ export function isNotificationKind(value: unknown): value is NotificationKind {
   return typeof value === "string" && KIND_SET.has(value);
 }
 
-// The public DTO a recipient's inbox renders. `subjectRef` is an opaque pointer
-// the read side turns into a link (a drop id, a crawl slug, the actor handle);
+// The DTO a recipient's inbox renders. `subjectRef` is an opaque pointer
+// the read side turns into a link.
 // `subjectLabel` is a short human hint (a pub name, a crawl title) resolved at
 // emit time so the read side never needs a second lookup.
 export type NotificationDTO = {

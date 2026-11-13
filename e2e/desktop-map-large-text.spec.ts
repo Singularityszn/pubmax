@@ -6,8 +6,11 @@ import type { WhatsOnRow } from "../lib/whatsOn";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { storeThemeChoice } from "./helpers/themeClock";
+import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 
-test.use({ serviceWorkers: "block" });
+// The first location prompt waits for painted pins, so this file needs a real
+// WebGL context. SwiftShader gives every box the same software one.
+test.use({ serviceWorkers: "block", launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
 
 for (const theme of ["light", "dark"] as const) for (const fontSize of [16, 32]) {
   test(`desktop toolbar controls remain separate at ${fontSize}px browser text in ${theme}`, async ({ page, context }, info) => {

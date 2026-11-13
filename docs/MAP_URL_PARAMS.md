@@ -74,9 +74,29 @@ hash stay with the landed entry, so a closed venue is not reopened by a stale
 write. This also applies when reopening an earlier sheet produced a trail of
 the same length.
 
+`plan=1` opens the planner on arrival. Otherwise, a seeded build mode or a
+`mode` parameter opens it, except for drink-shape, curated-crawl, and borough
+browse arrivals. A style preference or stop list alone does not open it.
+`lib/mapArrival.ts` owns these arrival rules.
+
+`mapSurfaceSearch` in `lib/mapSurfaceState.ts` removes `plan` and any `mode`
+that would reopen the planner whenever the visible sheet is not the planner.
+A planner earlier in the history trail does not count as visible.
+Surface navigation, debounced crawl writes, and landed-entry writes apply this rule.
+Planner arrivals retain their original URL on the planner entry, above a map
+root URL with no planner activation. Back can restore that planner entry.
+
+Closing the planner preserves style, other filters, and ordered stops.
+Style is a map preference, so a closed planner stays closed after reloading
+`/map?style=heritage&max=6`.
+Regression cases live in `__tests__/mapSurfaceHistory.test.ts` and
+`e2e/map-surface-history.spec.ts`.
+
 Separate route visits and earlier root entries keep their own URLs. A clean
 arrival restored from a saved session stays clean until the reader changes
-the crawl state. Saved session filters and area can return. A viewport returns
+the crawl state. Opening the planner locally does not add `plan=1` or end that
+hold. Saved session filters and area can return, including filters that
+`encodeCrawl` does not represent. A viewport returns
 only under the [saved map view rules](#saved-map-views-and-location-privacy). A
 saved venue selection does not reopen its sheet. Initial selection comes from
 the URL or a resume seed (`restoredSessionFrame` in `lib/pubMap.ts`).
@@ -184,7 +204,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | Param | Values | Owner file | What it does | Decode fallback behaviour | Round-trip |
 |---|---|---|---|---|---|
 | `area` | A published area slug for the route's city | `lib/mapAreaArrival.ts` | Opens the named area and its pubs. Its coordinates take precedence over saved viewports. | Unknown and wrong-city slugs have no area target. | Preserved by `components/map/useCrawlUrl.ts`. |
-| `mode` | `suggest` (default) or `build` | `lib/crawlUrl.ts` | Sets the crawl planner to suggestion mode or build mode. | Any other value is ignored. The state stays `suggest`. | Yes. `encodeCrawl` writes it back on every crawl-state change (debounced, `components/map/useCrawlUrl.ts`). Omitted when it is the default `suggest`. |
+| `mode` | `suggest` (default) or `build` | `lib/crawlUrl.ts` | Sets the crawl planner to suggestion mode or build mode. | Any other value is ignored. The state stays `suggest`. See [History and filter synchronisation](#history-and-filter-synchronisation) for planner opening rules. | `encodeCrawl` omits the default `suggest`. URL writes also apply the visible-sheet rule above. |
 | `style` | One of `balanced`, `cheapest`, `heritage`, `writerTrail`, `beerGarden`, `sports`, `dateNight` | `lib/crawlUrl.ts` | Picks the crawl-style filter preset. | A value outside this set is ignored. No style is applied. | Yes, same debounced sync as `mode`. |
 | `max` | Number | `lib/crawlUrl.ts` | Sets the maximum pint price filter. | Clamped to 4 to `NO_PINT_PRICE_CAP`. A non-numeric value is ignored. | Yes, same debounced sync. |
 | `stops` | Number | `lib/crawlUrl.ts` | Sets the number of crawl stops. | Clamped to 4 to 7 and rounded. | Yes, same debounced sync. |
@@ -202,12 +222,14 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `pubs` | Comma-separated venue ids | `lib/crawlUrl.ts` | The ordered stop list of a built crawl. | Split on comma, trimmed, blank entries dropped. | Yes, same debounced sync. |
 | `sel` | A venue id | `lib/crawlUrl.ts` (initial state), `components/map/pubmap/useSelParamSync.ts` (live sync), `components/map/pubmap/useMapSurfaceNavigation.ts` (history owner), `lib/mapSelectionHistory.ts` (URL and sentinel helpers), `lib/venueMapUrl.ts` (deep-link builder) | Selects the inspected venue on the map. | An id that does not resolve to a known venue never breaks the map. See "Fail-soft for an unknown `?sel=`" above. | `useMapSurfaceNavigation` owns selection history. `useSelParamSync` handles incoming client navigation, but leaves already-owned Back and Forward entries to that owner so restoration adds no duplicate entry. |
 | `band` | A story-band id | `lib/crawlUrl.ts` | Sets the active story-band. Not checked against the band list in this module; an unknown id simply shows no band elsewhere. | Trimmed only. No validation here. | Yes, same debounced sync. |
-| `landmark` | A landmark chapter id | `lib/crawlUrl.ts` | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Debounced crawl sync preserves an active story. Sheet-history restoration clears the parameter when the landed trail contains no story, including after Home. |
+| `landmark` | A landmark chapter id | `lib/crawlUrl.ts` (decoding), `components/map/pubmap/useMapSurfaceNavigation.ts` (history owner) | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Surface navigation writes the visible story's id when it commits the history entry. It clears the parameter when the visible sheet is not a story, including after Home. Debounced crawl sync preserves an active story. |
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
 | `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
 | `log` | `1` | `lib/mapUrlIntent.ts` (predicate), `lib/mapLogIntent.ts` (composer) | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
 | `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserves city, drink, and pub through sign-in. Bound to the first opened pub through deselection; form entry, Home, picker dismissal, or another pub outside the restored picker retires it. Back to the held price picker allows a new pub choice. |
-| `plan` | `1` | `lib/mapArrival.ts` | Forces the crawl planner drawer open on first paint. | Only the exact value `1` opens the planner from this param. Other values fall through to the ordinary open rules (built stops, `mode=build`, or `style=`/`mode=` present). | Preserved as an owned passthrough param during crawl-state rewrites. |
+| `table` | A digit-only crew size accepted by `parseTableRequestPartySize` in `lib/tableRequests.ts` | `lib/tableRequestIntent.ts` | With `sel`, opens the selected pub's table form with its crew size prefilled. `venueTableRequestUrl` preserves the pub's city map path. | An invalid size or a non-pub consumes `table` without opening the form. Without a matching `sel`, the sheet ignores it. | Crawl sync preserves it only for the same selection. Form entry or gate dismissal removes it. Sign-in and handle setup retain it through `/u/you?returnTo=`. A clean map entry or a new browse selection removes it, so another pub cannot inherit the request. |
+| `meet` | A 24-hour London time, `HH:MM` | `lib/summonMates.ts` | With `sel`, shows the summon line "Meet here at <time>." on the selected pub's action card. `venueSummonUrl` builds it beside the city-aware pub link. | A malformed time, a non-pub, or a `sel` for another pub shows nothing. | Same as `table`: crawl sync keeps it only for the same selection, and a new browse selection or a clean map entry removes it. |
+| `plan` | `1` | `lib/mapArrival.ts` (arrival), `lib/mapSurfaceState.ts` (visible-sheet URL rule) | Requests the planner on first paint. | See [History and filter synchronisation](#history-and-filter-synchronisation) for opening and closure rules. Other values fall through to the ordinary arrival rules. | Subject to the visible-sheet rule above. |
 | `accept` | `1` | `lib/mapAcceptance.ts` | Requests the accepted-arrival receipt for `sel`. URL text is not acceptance authority. | Counts only when `sel`, `src`, city, and a live stored PlanningIntent agree. A forged, mismatched, or expired marker is ordinary browsing. | Preserved while the same Venue remains selected. A switch or pin tap strips `accept` and `src`, so acceptance never leaks to another Venue. |
 | `src` | Either an acceptance source (`near`, `map-search`, `tonight`, `pal`) when `accept=1` is present, or a Tonight vertical token (`whats-on-quiz`, `whats-on-sport`, `whats-on-deal`, `whats-on-music`) read independently | `lib/mapAcceptance.ts` (acceptance source), `components/PubMap.tsx` (Tonight deep link) | With a verified accepted arrival, names where acceptance happened. On its own, opens the Tonight lane pre-filtered to that kind, London only. | Acceptance path: must match the stored PlanningIntent and `PLANNING_INTENT_SOURCES`. Tonight path: a value outside the four vertical tokens opens no forced lane. | Preserved with the verified same-Venue arrival. The Tonight lane can also be dismissed per value (`dismissedTonightSrc`). |
 | `at` | `<lat>,<lng>`, 4 decimal places | `lib/mapSelectionHistory.ts` | Carries a UK base pub's rounded coordinates alongside `sel`, so a shared or reloaded link knows which shard cell to stream and where to centre the camera. | Malformed input (wrong part count, non-finite numbers, or out-of-range lat/lng) is ignored; the hint is treated as absent. | Preserved as an owned passthrough param. Cleared whenever the selection changes to a non-base pub, so a stale hint never survives a switch. |

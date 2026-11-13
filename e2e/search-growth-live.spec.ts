@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { randomUUID } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
@@ -26,7 +27,7 @@ for (const consent of ["granted", "denied"] as const) {
       events.push(JSON.parse(route.request().postData() ?? "{}"));
       await route.fulfill({ status: 200, body: "{}" });
     });
-    const venues = (await (await page.request.get("/data/venues_slim.json")).json()).rows.slice(0, 3);
+    const venues = (await (await page.request.get("/data/venues_slim.json")).json()).rows.filter((venue: { name: string }) => !isNonPublicVenueName(venue.name)).slice(0, 3);
     const created = await page.request.post("/api/plans", {
       headers: { "idempotency-key": randomUUID() },
       data: {

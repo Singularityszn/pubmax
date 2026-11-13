@@ -114,6 +114,30 @@ describe("the proxy rewrite", () => {
   });
 });
 
+describe("a /map/<city> address for a city we do not serve", () => {
+  // app/map/loading.tsx starts the stream before app/map/[city]/page.tsx can
+  // call notFound(), and a started stream has already answered 200. The proxy
+  // must turn the request away before the render starts.
+  it.each(["/map/atlantis", "/map/not%20a%20city"])("%s is rewritten off the map routes", (path) => {
+    const target = rewriteTargetFor(`https://pubmaxxing.com${path}`);
+    expect(target).not.toBeNull();
+    expect(target).not.toMatch(/^\/map(\/|$)/);
+  });
+
+  it("is rewritten for a router prefetch too", () => {
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/map/atlantis", {
+        headers: { host: "pubmaxxing.com", "next-router-prefetch": "1" },
+      }),
+    );
+    expect(response.headers.get("x-middleware-rewrite")).toBeTruthy();
+  });
+
+  it.each(["/map/london", "/map/manchester", "/map/Bristol", "/map/arrival", "/map"])("%s is left alone", (path) => {
+    expect(rewriteTargetFor(`https://pubmaxxing.com${path}`)).toBeNull();
+  });
+});
+
 describe("the two halves stay one page", () => {
   it("renders the same shell from the same city", () => {
     const twin = readFileSync(

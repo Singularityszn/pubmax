@@ -7,9 +7,9 @@
 // release:prod` runs this with production credentials, and `latest` would run
 // whatever was published to npm that minute. Raise the pin on purpose, in its
 // own commit. 62.1.0 is a published release (npm, 1 Oct 2026) at least two
-// weeks old when pinned, and above the 53.0.0 floor the vendored
-// vercel-optimize skill requires (.agents/skills/vercel-optimize/lib/vercel.mjs
-// MIN_CLI_VERSION).
+// weeks old when pinned, and above the 53.0.0 floor the
+// vercel-optimize skill requires (its lib/vercel.mjs MIN_CLI_VERSION; it is now
+// a user-level skill, outside this repo).
 export const VERCEL_CLI_VERSION = "62.1.0";
 
 export function vercelCommand(args, env = process.env) {

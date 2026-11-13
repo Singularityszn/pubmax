@@ -1,82 +1,27 @@
 # Components, map canvas and the design system
 
-Rules whose subject is a rendered surface: the MapLibre canvas, the sheets and chrome, and the launch primitives.
+Rendered surfaces: the MapLibre canvas, the sheets and chrome, and the launch primitives. Repo-wide rules are in the root [AGENTS.md](../AGENTS.md).
 
-Repo-wide laws and the index of every other area file are in the root [AGENTS.md](../AGENTS.md).
+## Traps
 
-Long-form incident history, measured proof and review finding IDs live under [`docs/rules/`](../docs/rules/). Each line below names one invariant and links to its full rule. Write or change a rule in its detail file, and keep its title line here in step.
+- **Build a launch screen from the launch tokens and the four primitives.** `docs/DESIGN_SYSTEM.md` owns them, and tests fence template patterns. Pick a variant. Do not restyle a primitive in place.
+- **Coral is spent twice.** A selection reads in ink. Monospace is for figures. A fill colour and a text colour are two tokens.
+- **Do not grow the hotspot files.** `components/PubMap.tsx`, `components/PubMapCanvas.tsx` and `app/globals.css` are the most-fixed files in the repo. Extract from them. Map tests read some of their source, so move a fence with the code it guards.
+- **A camera move has an owner.** There is one compass.
+- **A pin's figure is the price.** Colour may only hint. An aging price looks aging, never fresh. A cluster reads "from" its cheapest price.
+- **The map's first paint is a contract.** Pins arrive during the arrival flight, never before the basemap. Nothing on `/map` waits for ever for a map that never mounts.
+- **No surface is a dead end.** A way in needs a way out, and the way out is one pattern.
+- **Phone chrome is measured, not eyeballed.** The resting phone map is three layers. The primary row is five doors. A trust caption never ellipses. The count of controls only comes down.
+- **A venue sheet says a fact once.** It has one action card, and that card spends the sheet's one coral.
+- **next/image drops a `srcSet` prop.** Resize a proxied photo through its loader.
+- **A wait is drawn from the real card.** Nothing moves when the answer lands.
+- **The product answers first.** The consent card arrives after the answer. The install ask waits for a price answer.
 
-## Map canvas and pins
+## Detail
 
-Full rules: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/components-map-canvas-and-pins.md).
+Read a detail file only for the rule you change. Each holds the full rules, pins and history:
 
-- [A camera move has an OWNER, and the map a reader is looking at loads first.](../docs/rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
-- [Nothing moves this camera but the reader, and there is ONE compass.](../docs/rules/components-map-canvas-and-pins.md#nothing-moves-this-camera-but-the-reader-and-there-is-one-compass)
-- [Map density is a contract, not a styling choice.](../docs/rules/components-map-canvas-and-pins.md#map-density-is-a-contract-not-a-styling-choice)
-- [Map decomposition keeps source fences with their owner.](../docs/rules/components-map-canvas-and-pins.md#a-god-component-is-decomposed-in-place-because-the-map-s-own-tests-read-its-sour)
-- [A pin's COLOUR may be a hint; a pin's FIGURE may not.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-colour-may-be-a-hint-a-pin-s-figure-may-not)
-- [A pin's fill says the price; its EDGE is what makes it findable, and dark mode needs two tones for that.](../docs/rules/components-map-canvas-and-pins.md#a-pin-s-fill-says-the-price-its-edge-is-what-makes-it-findable-and-dark-mode-nee)
-- [A CLUSTER IS A NEUTRAL DISC THAT READS "FROM" ITS CHEAPEST PRICE, AND A PRICED PIN IS A PILL FROM THE PIN FLOOR.](../docs/rules/components-map-canvas-and-pins.md#a-cluster-is-a-neutral-disc-that-reads-from-its-cheapest-price-and-a-priced-pin-)
-- [AN AGING PRICE LOOKS AGING, NEVER FRESH.](../docs/rules/components-map-canvas-and-pins.md#an-aging-price-looks-aging-never-fresh)
-- [THE MAP DRAWS ITS ICONS AT BUILD TIME, AND A PHONE DRAWS ONLY WHAT THE SPRITE CANNOT ANSWER FOR.](../docs/rules/components-map-canvas-and-pins.md#the-map-draws-its-icons-at-build-time-and-a-phone-draws-only-what-the-sprite-can)
-- [The live Pint Index arrival must full-load the map.](../docs/rules/components-map-canvas-and-pins.md#the-live-pint-index-arrival-must-full-load-the-map)
-- [A MAP THAT NEVER MOUNTS IS THE SHELL'S PROBLEM, AND NOTHING ON /map MAY WAIT FOR IT FOR EVER.](../docs/rules/components-map-canvas-and-pins.md#a-map-that-never-mounts-is-the-shell-s-problem-and-nothing-on-map-may-wait-for-i)
-- [THE PINS ARRIVE DURING THE ARRIVAL FLIGHT, NEVER BEFORE THE BASEMAP.](../docs/rules/components-map-canvas-and-pins.md#the-pins-arrive-during-the-arrival-flight-never-before-the-basemap)
-- [THE DOCUMENT DRAWS THE OPENING PRICES BEFORE THE ENGINE, AND ONLY THE ONES IT WILL DRAW.](../docs/rules/components-map-canvas-and-pins.md#the-document-draws-the-opening-prices-before-the-engine-and-only-the-ones-it-wil)
-- [THE CRAWL ROUTE READS LIKE DIRECTIONS, AND AN ESTIMATE STILL SAYS SO.](../docs/rules/components-map-canvas-and-pins.md#the-crawl-route-reads-like-directions-and-an-estimate-still-says-so)
-- [THE OPENING PRICES STAND ON A PICTURE OF THE OPENING STREETS, AND ONLY FOR THE CAMERA IT WAS TAKEN FROM.](../docs/rules/components-map-canvas-and-pins.md#the-opening-prices-stand-on-a-picture-of-the-opening-streets-and-only-for-the-ca)
-
-## Sheets, chrome and navigation
-
-Full rules: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/rules/components-sheets-chrome-and-navigation.md).
-
-- [No surface is a dead end, and the way out is one pattern.](../docs/rules/components-sheets-chrome-and-navigation.md#no-surface-is-a-dead-end-and-the-way-out-is-one-pattern)
-- [A MAP CONTROL BESIDE THE VENUE DRAWER IS AN EXEMPT SURFACE, NEVER A HOLE IN THE TRAP.](../docs/rules/components-sheets-chrome-and-navigation.md#a-map-control-beside-the-venue-drawer-is-an-exempt-surface-never-a-hole-in-the-t)
-- [A LANDMARK STORY LIVES IN THE FRAME EACH WIDTH ALREADY OWNS, and the canvas only reports the tap.](../docs/rules/components-sheets-chrome-and-navigation.md#a-landmark-story-lives-in-the-frame-each-width-already-owns-and-the-canvas-only-)
-- [A SHEET SAYS HOW MUCH OF ITSELF IS OFF SCREEN, ONCE, AND THE SHELL CANNOT BE SCROLLED.](../docs/rules/components-sheets-chrome-and-navigation.md#a-sheet-says-how-much-of-itself-is-off-screen-once-and-the-shell-cannot-be-scrol)
-- [THE VENUE TYPES ARE ONE CONTROL AT EVERY WIDTH, AND THE COUNT RIDES THE CLOSED ONE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-types-are-one-control-at-every-width-and-the-count-rides-the-closed-on)
-- [THE ARRIVAL ASK IS A STRIP, THE MAP UNDER IT IS LIVE, AND THE CHROME BEHIND IT IS EIGHT CONTROLS.](../docs/rules/components-sheets-chrome-and-navigation.md#the-arrival-ask-is-a-strip-the-map-under-it-is-live-and-the-chrome-behind-it-is-)
-- [THE MAP ARRIVES WITH ONE SLIGHT TURN, AND THEN HOLDS STILL.](../docs/rules/components-sheets-chrome-and-navigation.md#the-map-arrives-with-one-slight-turn-and-then-holds-still)
-- [THE PHONE MAP RESTS ON THREE LAYERS, AND THE BOTTOM CARD IS THE ANSWER.](../docs/rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-- [Phone chrome is measured, not eyeballed, and a trust caption never ellipses.](../docs/rules/components-sheets-chrome-and-navigation.md#phone-chrome-is-measured-not-eyeballed-and-a-trust-caption-never-ellipses)
-- [THE PRIMARY ROW IS FIVE DOORS, AND THE HEADER CARRIES ONLY WHAT HAS SOMETHING BEHIND IT.](../docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh)
-- [THE PUB PAL IS A DOOR IN THE TOP BAR AND ON THE MAP EDGE, NEVER A TAB.](../docs/rules/components-sheets-chrome-and-navigation.md#the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab)
-- [THE VENUE SHEET NAMES A TAB BY WHAT IT HOLDS, AND SAYS A FACT ONCE.](../docs/rules/components-sheets-chrome-and-navigation.md#the-venue-sheet-names-a-tab-by-what-it-holds-and-says-a-fact-once)
-- [FROM 1024PX THE LIST SITS BESIDE THE MAP, AND THE TWO MOVE TOGETHER.](../docs/rules/components-sheets-chrome-and-navigation.md#from-1024px-the-list-sits-beside-the-map-and-the-two-move-together)
-- [A LAZY PANEL IN A PHONE SHEET KEEPS THE SHEET AT ITS SNAP UNTIL IT LANDS.](../docs/rules/components-sheets-chrome-and-navigation.md#a-lazy-panel-in-a-phone-sheet-keeps-the-sheet-at-its-snap-until-it-lands)
-
-## Venue, plan and message surfaces
-
-Full rules: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs/rules/components-venue-plan-and-message-surfaces.md).
-
-- [Arrival is the moment of togetherness, never an admin form.](../docs/rules/components-venue-plan-and-message-surfaces.md#arrival-is-the-moment-of-togetherness-never-an-admin-form)
-- [THE OVERVIEW HAS ONE PRICE DOOR PER TRUST STATE, AND THE COMPOSER IS FOLDED BEHIND IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-overview-has-one-price-door-per-trust-state-and-the-composer-is-folded-behin)
-- [THE PINT NEEDLE POINTS WHERE THE PIN IS PAINTED, AND THE PAL ONLY WATCHES IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-needle-points-where-the-pin-is-painted-and-the-pal-only-watches-it)
-- [THE PINT COMPASS POINTS AT A LISTED PINT, AND THE PHONE KEEPS WHERE YOU STAND.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-pint-compass-points-at-a-listed-pint-and-the-phone-keeps-where-you-stand)
-- [THE VENUE SHEET HAS ONE ACTION CARD, AND IT SPENDS THE SHEET'S ONE CORAL.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral)
-- [THE BILL IS ASKED FOR IN FRONT OF THE PRICE, NEVER INSIDE THE DISCLOSURE.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-bill-is-asked-for-in-front-of-the-price-never-inside-the-disclosure)
-- [`/plan` opens on one describe-first question, not the wizard.](../docs/rules/components-venue-plan-and-message-surfaces.md#plan-opens-on-one-describe-first-question-not-the-wizard)
-- [A describe chip is a promise of a route, and the promise is made through the DESCRIBE-FIRST body.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-describe-chip-is-a-promise-of-a-route-and-the-promise-is-made-through-the-desc)
-- [THE PLAN RESULT IS A ROUTE, AND THE SETTINGS SIT BEHIND IT.](../docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it)
-- [A PLAN READ FOLLOWS THE CAPABILITY, AND THE INVITE TOKEN IS ONE LIVE VALUE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-plan-read-follows-the-capability-and-the-invite-token-is-one-live-value)
-- [A message bubble's WIDTH is the row's business, and a message photo is the one owned image that is not public.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-message-bubble-s-width-is-the-row-s-business-and-a-message-photo-is-the-one-ow)
-- [A THREAD READS LIKE A CONVERSATION, AND ITS COMPOSER IS PINNED OVER THE FOOT OF THE PAGE.](../docs/rules/components-venue-plan-and-message-surfaces.md#a-thread-reads-like-a-conversation-and-its-composer-is-pinned-over-the-foot-of-t)
-- [WAYS TO GET THERE SHOW TFL'S OWN TIMES, FARES AND PATHS, AND NEVER GUESS A FARE.](../docs/rules/components-venue-plan-and-message-surfaces.md#ways-to-get-there-show-tfl-s-own-times-fares-and-paths-and-never-guess-a-fare)
-
-## Design system and launch primitives
-
-Full rules: [`docs/rules/components-design-system-and-launch-primitives.md`](../docs/rules/components-design-system-and-launch-primitives.md).
-
-- [Pub Pal artwork follows the Circuit Robin family.](../docs/rules/components-design-system-and-launch-primitives.md#every-pub-pal-is-a-rendered-master-and-the-family-is-the-circuit-robin)
-- [THE FRONT DOOR SHOWS THE CHEAPEST PINT WE CAN FIND, THEN ANSWERS IN ONE TAP.](../docs/rules/components-design-system-and-launch-primitives.md#the-front-door-shows-london-then-answers-in-one-tap)
-- [A launch screen is built from the launch tokens and the four primitives, and template patterns are fenced.](../docs/rules/components-design-system-and-launch-primitives.md#a-launch-screen-is-built-from-the-launch-tokens-and-the-four-primitives-and-temp)
-- [CORAL IS A FILL AND CORAL IS A WORD, AND THOSE ARE TWO TOKENS.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-a-fill-and-coral-is-a-word-and-those-are-two-tokens)
-- [CORAL IS SPENT TWICE, A SELECTION READS IN INK, AND MONOSPACE IS FOR FIGURES.](../docs/rules/components-design-system-and-launch-primitives.md#coral-is-spent-twice-a-selection-reads-in-ink-and-monospace-is-for-figures)
-- [A TEXT BUTTON IS ONE ROW OF TOKENS, and the tablet bar is measured, not assumed.](../docs/rules/components-design-system-and-launch-primitives.md#a-text-button-is-one-row-of-tokens-and-the-tablet-bar-is-measured-not-assumed)
-- [THE PRODUCT ANSWERS FIRST, AND THE CONSENT CARD ARRIVES AFTER THE ANSWER, DOCKED.](../docs/rules/components-design-system-and-launch-primitives.md#the-product-answers-first-and-the-consent-card-arrives-after-the-answer-docked)
-- [THE INSTALL ASK WAITS FOR A PRICE ANSWER, AND ASKS AT MOST ONCE A FORTNIGHT.](../docs/rules/components-design-system-and-launch-primitives.md#the-install-ask-waits-for-a-price-answer-and-asks-at-most-once-a-fortnight)
-- [A CHIP READS THE SAME ROW, AND A NUMBER SQUARE IS ONE FAMILY.](../docs/rules/components-design-system-and-launch-primitives.md#a-chip-reads-the-same-row-and-a-number-square-is-one-family)
-- [NEXT/IMAGE DROPS A `srcSet` PROP, AND A PROXIED PHOTO IS RESIZED THROUGH ITS LOADER.](../docs/rules/components-design-system-and-launch-primitives.md#next-image-drops-a-srcset-prop-and-a-proxied-photo-is-resized-through-its-loader)
-- [EVERY FIRST-RUN QUESTION GIVES ITS REASON, AND ONLY THE ONES THE JOURNEY USES.](../docs/rules/components-design-system-and-launch-primitives.md#every-first-run-question-gives-its-reason-and-only-the-ones-the-journey-uses)
-- [A TAB ROW IS ONE TAB STOP, AND ITS SELECTION READS IN INK.](../docs/rules/components-design-system-and-launch-primitives.md#a-tab-row-is-one-tab-stop-and-its-selection-reads-in-ink)
-- [A WAIT IS DRAWN FROM THE REAL CARD, AND NOTHING MOVES WHEN THE ANSWER LANDS.](../docs/rules/components-design-system-and-launch-primitives.md#a-wait-is-drawn-from-the-real-card-and-nothing-moves-when-the-answer-lands)
+- Map canvas and pins: [`docs/rules/components-map-canvas-and-pins.md`](../docs/rules/components-map-canvas-and-pins.md)
+- Sheets, chrome and navigation: [`docs/rules/components-sheets-chrome-and-navigation.md`](../docs/rules/components-sheets-chrome-and-navigation.md)
+- Venue, plan and message surfaces: [`docs/rules/components-venue-plan-and-message-surfaces.md`](../docs/rules/components-venue-plan-and-message-surfaces.md)
+- Design system and launch primitives: [`docs/rules/components-design-system-and-launch-primitives.md`](../docs/rules/components-design-system-and-launch-primitives.md)

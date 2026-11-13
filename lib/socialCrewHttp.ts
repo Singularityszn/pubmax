@@ -169,23 +169,6 @@ export function socialCrewErrorResponse(error: unknown): Response {
   return socialCrewUnavailableResponse();
 }
 
-export function socialCrewPublicErrorResponse(error: unknown): Response {
-  if (error instanceof SocialCrewStoreError) {
-    if (error.code === "INVALID") {
-      return publicApiError("Social Crew request is not valid.", "INVALID_SOCIAL_CREW_REQUEST", 422, {
-        headers: { "Cache-Control": "no-store" },
-      });
-    }
-    if (error.code === "NOT_FOUND") return socialCrewPublicNotFoundResponse();
-    if (error.code === "CONFLICT") {
-      return publicApiError("Social Crew changed before this request.", "SOCIAL_CREW_CONFLICT", 409, {
-        headers: { "Cache-Control": "no-store" },
-      });
-    }
-  }
-  return socialCrewPublicUnavailableResponse();
-}
-
 export async function socialCrewMutation(
   operation: () => Promise<unknown>,
   status = 200,

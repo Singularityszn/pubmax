@@ -26,7 +26,7 @@ function defaultCheapPintPingSelectDeps(): CheapPintPingSelectDeps {
         return null;
       }
     },
-    listPricedVenues: getPricedVenues,
+    listPricedVenues: () => getPricedVenues().catch(() => []),
   };
 }
 

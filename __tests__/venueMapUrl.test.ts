@@ -1,6 +1,41 @@
 import { describe, expect, it } from "vitest";
 
-import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
+import { venueAcceptUrl, venueMapUrl, venueTableRequestUrl } from "@/lib/venueMapUrl";
+import { consumeTableRequestIntent } from "@/lib/tableRequestIntent";
+
+describe("table request map handoff", () => {
+  it("carries the selected pub and crew size, and accepts no plan stop", () => {
+    expect(venueTableRequestUrl("pub with spaces&x", 8))
+      .toBe("/map?sel=pub%20with%20spaces%26x&table=8");
+  });
+
+  it("keeps the city's map path", () => {
+    const id = "venue-mcr-1lwo5lo";
+    expect(venueTableRequestUrl(id, 12)).toBe("/map/manchester?sel=venue-mcr-1lwo5lo&table=12");
+  });
+
+  it("consumes only the table parameter once for the named venue", () => {
+    const arrival = "?sel=pub&table=8&drink=beer";
+    expect(consumeTableRequestIntent(arrival, "other", true)).toBeNull();
+    const consumed = consumeTableRequestIntent(arrival, "pub", true);
+    expect(consumed).toEqual({ partySize: 8, search: "sel=pub&drink=beer" });
+    expect(consumeTableRequestIntent(consumed!.search, "pub", true)).toBeNull();
+    expect(consumeTableRequestIntent("?table=8", "pub", true)).toBeNull();
+  });
+
+  it.each(["5", "21", "8.5", "0x8", "", "eight", "8e0"])(
+    "discards an invalid table parameter %s without opening",
+    (party) => {
+      expect(consumeTableRequestIntent(`?sel=pub&table=${party}`, "pub", true))
+        .toEqual({ partySize: null, search: "sel=pub" });
+    },
+  );
+
+  it("discards the intent for a non-pub", () => {
+    expect(consumeTableRequestIntent("?sel=cafe&table=8", "cafe", false))
+      .toEqual({ partySize: null, search: "sel=cafe" });
+  });
+});
 
 // The "see this pub on the map" contract: the link must carry ?sel=<id> so the
 // map selects the venue AND centres the camera on load (PubMapCanvas honours

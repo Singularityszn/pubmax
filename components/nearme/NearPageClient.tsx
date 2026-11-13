@@ -146,8 +146,8 @@ function NearPageBody({ guinnessPrices, drinkLanes, rouletteFacts = [] }: NearPa
       <SiteNav />
       <main id="main" className="nmnPageBody">
         {/* Physical QR arrival (PLG Wave 2): one honest orientation line when
-            the drinker scanned a bar poster into /near?src=poster. */}
-        <PosterLandingNote src={hydrated ? searchParams.get("src") : null} />
+            the drinker scanned a bar poster or beer mat into /near?src=poster. */}
+        <PosterLandingNote query={hydrated ? searchParams : null} />
         <NearModeSwitch value={mode} onChange={setMode} />
         {/* Idle-first on /near so patch chips are reachable without granting
             location. Shareable ?patch= deep links answer immediately. */}

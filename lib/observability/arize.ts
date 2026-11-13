@@ -4,11 +4,10 @@
 // WHAT IS TRACED: every paid-lane model call the app makes on the server:
 //  - the Vercel AI SDK (`ai` v7) `generateText` calls, bridged by
 //    `@ai-sdk/otel` (`registerTelemetry`), and
-//  - every direct model HTTP call in `lib/` (OpenRouter chat completions in
-//    the ask loop, heritage narrations and concierge intent; the OpenAI
-//    omni-moderation and OpenRouter vision calls in the two moderation
-//    adapters), wrapped by the `traceArizeModelCall` / `traceArizeModelLoop`
-//    helpers below.
+//  - every direct model call in `lib/` (Claude chat and Ask tool selection,
+//    the Claude JSON reads in lib/claudeJson.server.ts, and the OpenAI
+//    omni-moderation calls), wrapped by the `traceArizeModelCall` /
+//    `traceArizeModelLoop` helpers below.
 // Each span carries the model, token counts (when the provider reports
 // them), latency (the span duration), the provider and a static route tag
 // under `metadata.route`. `metadata` never holds a request URL, IP, handle or
@@ -20,9 +19,9 @@
 // so the AI SDK's own spans (whose prompts this module never sees) are
 // covered too. Moderation spans never carry the signed image URLs they send.
 //
-// INERT BY DEFAULT: nothing registers and nothing is sent unless BOTH
+// ARIZE IS INERT BY DEFAULT: nothing registers with or sends to Arize unless BOTH
 // `ARIZE_API_KEY` and `ARIZE_SPACE_KEY` are present, so local dev, tests,
-// CI and every keyless deployment stay silent. The space key is the Arize
+// CI and every keyless deployment send nothing to Arize. The space key is the Arize
 // SPACE ID (Arize's own tooling names it `ARIZE_SPACE_ID`); this app reads it
 // from `ARIZE_SPACE_KEY` so one naming convention covers local files and the
 // Vercel project. See docs/observability/arize.md for the operator setup.

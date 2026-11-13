@@ -8,11 +8,15 @@ import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
 import { HIDDEN_NAME_NO_TAGS_MESSAGE, hiddenNamePostRefusal } from "@/lib/socialHiddenName";
 import {
+  featureRequestFromLatestUpdate,
   socialPostModerationClaim,
   socialPostDTO,
   type SocialPost,
+  type SocialPostFeatureRequest,
   type SocialPostDTO,
   type SocialPostFields,
+  type SocialPostModerationState,
+  type SocialPostStatus,
 } from "@/lib/socialPosts";
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
@@ -636,6 +640,7 @@ export function createMemorySocialPostStore(options: {
   const rows = new Map<string, SocialPost>();
   const jobs = new Map<string, MemoryJob>();
   const removeRequests = new Map<string, string>();
+  const featureUpdates = new Map<string, SocialPostFeatureRequest>();
   const now = options.now ?? (() => new Date());
   const relationships = options.relationships ?? defaultRelationships;
 
@@ -689,9 +694,7 @@ export function createMemorySocialPostStore(options: {
       const post: SocialPost = {
         ...current,
         ...mergedFields,
-        featureRequest: mergedFields.kind === "feature_request"
-          ? current.featureRequest ?? { status: "submitted", staffResponse: null }
-          : null,
+        featureRequest: mergedFields.kind === "feature_request" ? featureRequestFromLatestUpdate(featureUpdates.get(id)) : null,
         revision: actualContentChange ? current.revision + 1 : current.revision,
         mutationVersion: current.mutationVersion + 1,
         editedAt: actualContentChange ? timestamp : current.editedAt,
@@ -803,9 +806,10 @@ export function createMemorySocialPostStore(options: {
       if (!post || post.status !== "visible" || post.kind !== "feature_request") {
         throw new SocialPostStoreError("NOT_FOUND", "Feature request not found.");
       }
+      featureUpdates.set(id, { status, staffResponse });
       rows.set(id, {
         ...post,
-        featureRequest: { status, staffResponse },
+        featureRequest: featureRequestFromLatestUpdate(featureUpdates.get(id)),
         updatedAt: now().toISOString(),
       });
     },
@@ -1404,8 +1408,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
           state?: string;
           created_at?: string;
           social_posts?:
-            | { moderation_state?: string; status?: string; created_at?: string }
-            | Array<{ moderation_state?: string; status?: string; created_at?: string }>;
+            | { moderation_state?: SocialPostModerationState; status?: SocialPostStatus; created_at?: string }
+            | Array<{ moderation_state?: SocialPostModerationState; status?: SocialPostStatus; created_at?: string }>;
         };
         const post = Array.isArray(row.social_posts) ? row.social_posts[0] : row.social_posts;
         if (!post || post.status !== "visible" || post.moderation_state !== "pending") continue;

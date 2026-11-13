@@ -1,3 +1,4 @@
+import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
@@ -41,7 +42,7 @@ type SeededPlan = { planId: string; inviteToken: string; venueNames: string[] };
 async function seedPlan(request: APIRequestContext): Promise<SeededPlan> {
   const venues = ((await (await request.get("/data/venues_slim.json")).json() as {
     rows: Array<{ id: string; name: string }>;
-  }).rows).slice(0, 3);
+  }).rows).filter((venue) => !isNonPublicVenueName(venue.name)).slice(0, 3);
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {

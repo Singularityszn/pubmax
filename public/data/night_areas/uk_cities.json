@@ -17,17 +17,6 @@
       "pubCount": 110
     },
     {
-      "slug": "manchester-shaw-heath",
-      "cityId": "manchester",
-      "name": "Shaw Heath",
-      "centre": {
-        "lat": 53.40095,
-        "lng": -2.1585
-      },
-      "radiusKm": 1.8,
-      "pubCount": 27
-    },
-    {
       "slug": "manchester-werneth",
       "cityId": "manchester",
       "name": "Werneth",
@@ -48,6 +37,17 @@
       },
       "radiusKm": 1.7,
       "pubCount": 25
+    },
+    {
+      "slug": "manchester-shaw-heath",
+      "cityId": "manchester",
+      "name": "Shaw Heath",
+      "centre": {
+        "lat": 53.4014,
+        "lng": -2.15921
+      },
+      "radiusKm": 1.8,
+      "pubCount": 24
     },
     {
       "slug": "manchester-chorlton-on-medlock",
@@ -87,11 +87,11 @@
       "cityId": "birmingham",
       "name": "Vauxhall",
       "centre": {
-        "lat": 52.47959,
-        "lng": -1.8749
+        "lat": 52.47951,
+        "lng": -1.87444
       },
       "radiusKm": 1.7,
-      "pubCount": 27
+      "pubCount": 26
     },
     {
       "slug": "birmingham-moseley",
