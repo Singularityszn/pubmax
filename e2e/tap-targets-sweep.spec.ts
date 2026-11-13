@@ -67,6 +67,34 @@ test("About inline and list links are 44px tall", async ({ page }) => {
     .locator("details.aboutDisclosure")
     .evaluateAll((all) => all.forEach((d) => ((d as HTMLDetailsElement).open = true)));
   await expectTall(page, "main#main .aboutLink", 20);
+  for (const link of await page.locator("main#main .aboutLink").all()) {
+    await link.scrollIntoViewIfNeeded();
+    const interceptedRows = await link.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const missed: number[] = [];
+      for (let offset = 1; offset < rect.height; offset += 1) {
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + offset);
+        if (!hit || !node.contains(hit)) missed.push(offset);
+      }
+      return missed;
+    });
+    expect(interceptedRows, await link.getAttribute("href") ?? "About link").toEqual([]);
+  }
+
+  const licenceUrl = "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/";
+  await page.context().route(licenceUrl, (route) => route.fulfill({
+    contentType: "text/html",
+    body: "<title>Open Government Licence</title>",
+  }));
+  const licence = page.locator(`a.aboutLink[href="${licenceUrl}"]`);
+  await licence.scrollIntoViewIfNeeded();
+  const box = await licence.boundingBox();
+  expect(box).not.toBeNull();
+  const popupPromise = page.waitForEvent("popup");
+  await licence.click({ position: { x: box!.width / 2, y: box!.height - 1 } });
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL(licenceUrl);
+  await popup.close();
 });
 
 test("the ledger masthead link and Run this pub trigger are 44px tall", async ({ page }) => {

@@ -217,29 +217,15 @@
   }
 }
 
-/* Touch target floor, on coarse pointers and phone widths only. The width
-   clause is not redundant: a 390px touch-emulated load can miss the pointer
-   query, and the floor must not hang on that one signal. 640px is the phone
-   breakpoint, where the press-kit row stacks. Links inside a sentence take
-   block padding: it paints the hit area without moving the line box, so the
-   prose keeps its measure. Links laid out as their own boxes (press kit,
-   closing row) take min-height instead, so the padding is off for them.
-   e2e/launch-phone-controls.spec.ts measures the press-kit row and
-   e2e/tap-targets-sweep.spec.ts measures the rest. */
+/* Inline padding does not reserve line height, so following text can intercept
+   the target. An inline flex box reserves the full touch height in prose. */
 @media (pointer: coarse), (max-width: 640px) {
   .aboutLink {
-    padding-block: max(0px, calc((var(--control-height) - 1em) / 2));
-  }
-
-  .aboutLogoLinks .aboutLink {
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);
-  }
-
-  .aboutLogoLinks .aboutLink,
-  .aboutCtaRow .aboutLink {
-    padding-block: 0;
+    max-width: 100%;
+    vertical-align: middle;
   }
 }
 
