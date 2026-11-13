@@ -3166,9 +3166,13 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
+  const venuePriceStatus = communityPrices.venuePriceStatus;
+  const venueDropStatus = pintDrops.venueDropStatus;
   const pinPriceStandings = useMemo(
-    () => favoritePint ? null : zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex),
-    [canvasVenues, venueSignals, zoneIndex, favoritePint],
+    () => favoritePint
+      ? null
+      : zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex, { price: venuePriceStatus, drops: venueDropStatus }),
+    [canvasVenues, venueSignals, zoneIndex, favoritePint, venuePriceStatus, venueDropStatus],
   );
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
