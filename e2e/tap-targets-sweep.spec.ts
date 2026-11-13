@@ -2,8 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The signed-out sweep measured controls under the 44px floor at 390px:
 // Historic borough links (324x19), Drink Wall chips (28 to 30px), the Places
-// search input (26px), the Spoons value pub links (15px, 790 of them) and the
-// "Run this pub?" trigger on a ledger page (97x24).
+// search input (26px), the Spoons value pub links (15px, 790 of them), the
+// "Run this pub?" trigger on a ledger page (97x24) and the About page's
+// inline and list links (16px).
 
 const FLOOR = 44;
 
@@ -57,6 +58,15 @@ test("Spoons value pub links are 44px tall without stretching the row", async ({
     .first()
     .evaluate((row) => row.getBoundingClientRect().height);
   expect(rowHeight).toBeLessThan(140);
+});
+
+test("About inline and list links are 44px tall", async ({ page }) => {
+  await page.goto("/about");
+  // Half the links live inside disclosures; open all three so every one is measured.
+  await page
+    .locator("details.aboutDisclosure")
+    .evaluateAll((all) => all.forEach((d) => ((d as HTMLDetailsElement).open = true)));
+  await expectTall(page, "main#main .aboutLink", 20);
 });
 
 test("the ledger masthead link and Run this pub trigger are 44px tall", async ({ page }) => {
