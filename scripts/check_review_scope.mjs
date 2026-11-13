@@ -92,6 +92,8 @@ export const REGENERATED_LANES = [
     output: /^public\/data\/uk_base\/(?!README\.md$).+/,
     inputs: [
       /^scripts\/build_uk_base_shards\.mjs$/,
+      /^scripts\/build_uk_base_overview\.mjs$/,
+      /^scripts\/lib\/ukBaseOverview\.mjs$/,
       /^scripts\/build_uk_place_index\.mjs$/,
       /^scripts\/build_uk_pub_search_index\.mjs$/,
       /^scripts\/lib\/ukBaseGrid\.mjs$/,
