@@ -21,7 +21,7 @@ describe("MapVenueList", () => {
   it("explains how to list pubs when the national map is below the shard zoom gate", () => {
     const html = renderToStaticMarkup(
       createElement(MapVenueList, {
-        model: { ...emptyBase, coverageNote: null },
+        model: { rows: [], total: 0, shown: 0, truncated: false, coverageNote: null },
         ukBaseModel: emptyBase,
         ukBaseStatus: "zoom_required",
         cityName: "UK",

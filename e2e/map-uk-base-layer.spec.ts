@@ -8,7 +8,7 @@ import { expectLayoutSettled } from "./helpers/layoutSettled";
 //
 //   1. ARRIVAL. London's intentional street-level camera crosses
 //      UK_BASE_MIN_ZOOM, so the base layer loads on normal Map entry. A camera
-//      below the gate remains fetch-free until it crosses back.
+//      below the gate reads the count overview without fetching pub shards.
 //   2. THE FLYWHEEL. Crossing the gate paints base pubs, and tapping one opens
 //      the unverified sheet with the price-submission card on it - an unpriced
 //      pub is where the first price is worth the most.
@@ -368,11 +368,13 @@ for (const pub of [
   });
 }
 
-test("a fresh national overview stays below the UK base gate and fetches no data", async ({
+test("a fresh national overview loads counts without pub shards and gives the phone list zoom guidance", async ({
   page,
 }) => {
-  test.setTimeout(120_000);
   const requests = ukBaseRequests(page);
+  const overviewRead = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/data/uk_base/overview.json" && response.ok(),
+  );
 
   const response = await page.goto("/map?uk=1");
   expect(response?.status()).toBe(200);
@@ -382,13 +384,21 @@ test("a fresh national overview stays below the UK base gate and fetches no data
   });
   await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
 
-  await page.waitForTimeout(1800);
-  // The national gazetteer (places.json) loads for search and browse; below the
-  // zoom gate the manifest and cell shards must stay unfetched.
+  await overviewRead;
+  await expectMapLoadingFrameReleased(page);
+  await page.getByRole("button", { name: "Show the pubs in this view as a list" }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Zoom in to list pubs" })).toBeVisible();
+  await expect(page.locator(".mapVenueList")).toContainText("Zoom in on the map to load pubs in this view.");
+  await page.getByRole("button", { name: "Close venue list" }).click();
+  await expect(page.locator(".mapVenueList")).toHaveCount(0);
+
+  // Count bubbles and the search gazetteer are available below the zoom gate.
+  // The pub manifest and cell shards must stay unfetched.
   expect(requests.filter((url) => url.endsWith("places.json"))).toHaveLength(1);
+  expect(requests.filter((url) => url.endsWith("overview.json"))).toHaveLength(1);
   expect(
     requests.filter(
-      (url) => !url.endsWith("places.json"),
+      (url) => !url.endsWith("places.json") && !url.endsWith("overview.json"),
     ),
   ).toEqual([]);
 });

@@ -574,7 +574,7 @@ describe("UK base overview", () => {
       {
         geometry: { type: "Point", coordinates: [-3.612, 56.361] },
         properties: { cluster_id: 7 },
-      } as MapGeoJSONFeature,
+      } as unknown as MapGeoJSONFeature,
       12,
       flyTo,
     );
@@ -588,7 +588,7 @@ describe("UK base overview", () => {
       {
         geometry: { type: "Point", coordinates: [-3.612, 56.361] },
         properties: { cluster_id: 7 },
-      } as MapGeoJSONFeature,
+      } as unknown as MapGeoJSONFeature,
       12,
       flyTo,
     );
@@ -614,7 +614,7 @@ describe("UK base overview", () => {
         {
           geometry: { type: "Point", coordinates: [-3.612, 56.361] },
           properties: { cluster_id: 7 },
-        } as MapGeoJSONFeature,
+        } as unknown as MapGeoJSONFeature,
         12,
         flyTo,
       );
