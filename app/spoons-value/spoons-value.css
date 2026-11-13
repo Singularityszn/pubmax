@@ -405,3 +405,10 @@
 .spoonsRoundDetails li { margin-block: var(--space-2); }
 .spoonsRoundDetails li span { display: block; }
 .spoonsRoundDetails p { margin-block: var(--space-2); }
+
+@media (max-width: 640px) {
+  .spoonsRoundDetails summary {
+    position: relative;
+    margin-block: calc(-1 * var(--space-2));
+  }
+}
