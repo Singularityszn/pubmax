@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
 import { Button } from "@/components/ui/button";
@@ -23,24 +24,21 @@ function safeDecode(value: string): string {
   }
 }
 
-export default function JoinLeagueClient({ code: raw }: { code: string }): React.JSX.Element {
+function JoinAction({ code, unresolved }: { code: string; unresolved: boolean }) {
   const router = useRouter();
-  const { signedOut } = useViewerSession();
-  const code = normalizeInviteCode(safeDecode(raw));
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
 
   async function join() {
-    if (!code) return;
     setBusy(true);
     setProblem(null);
     const reply = await leagueRequest("/api/leagues/join", { method: "POST", body: JSON.stringify({ code }) });
+    setBusy(false);
     const id = reply.kind === "ok" && reply.body && typeof reply.body === "object" ? (reply.body as { id?: unknown }).id : null;
     if (typeof id === "string") {
       router.replace(`/social/leagues/${encodeURIComponent(id)}` as Route);
       return;
     }
-    setBusy(false);
     setProblem(
       reply.kind === "refused" || reply.kind === "closed" ? reply.message
         : reply.kind === "not-open" ? LEAGUES_COPY.notOpen
@@ -49,6 +47,22 @@ export default function JoinLeagueClient({ code: raw }: { code: string }): React
     );
   }
 
+  return (
+    <>
+      <div className="leaguesActions">
+        <Button type="button" data-primary-action="" disabled={busy || unresolved} onClick={join}>
+          {LEAGUES_COPY.join}
+        </Button>
+      </div>
+      {problem ? <p className="leaguesError" role="alert">{problem}</p> : null}
+    </>
+  );
+}
+
+export default function JoinLeagueClient({ code: raw }: { code: string }): React.JSX.Element {
+  const { accountRevision } = useAuth();
+  const { signedOut, unresolved } = useViewerSession();
+  const code = normalizeInviteCode(safeDecode(raw));
   const signIn = code
     ? `/login?mode=signin&from=${encodeURIComponent(leagueInvitePath(code))}`
     : "/login?mode=signin";
@@ -72,18 +86,15 @@ export default function JoinLeagueClient({ code: raw }: { code: string }): React
             <section className="leaguesSection" aria-label={LEAGUES_COPY.joinTitle}>
               <p className="leaguesCode">{formatInviteCode(code)}</p>
               <p className="leaguesNote">{LEAGUES_COPY.joinNote}</p>
-              <div className="leaguesActions">
-                {signedOut ? (
+              {signedOut ? (
+                <div className="leaguesActions">
                   <Button asChild data-primary-action="">
                     <Link prefetch={false} href={signIn as Route}>Sign in to join</Link>
                   </Button>
-                ) : (
-                  <Button type="button" data-primary-action="" disabled={busy} onClick={join}>
-                    {LEAGUES_COPY.join}
-                  </Button>
-                )}
-              </div>
-              {problem ? <p className="leaguesError" role="alert">{problem}</p> : null}
+                </div>
+              ) : (
+                <JoinAction key={`${accountRevision}:${code}`} code={code} unresolved={unresolved} />
+              )}
             </section>
           )}
         </div>

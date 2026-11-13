@@ -1,8 +1,7 @@
 "use client";
 
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionJson } from "@/lib/authedFetch";
 import { LEAGUES_COPY } from "@/lib/leagues";
-import { discardBody } from "@/lib/responseBody";
 
 /** What a league request came back as, in the words the pages act on. */
 export type LeagueReply =
@@ -15,25 +14,23 @@ export type LeagueReply =
   | { kind: "refused"; status: number; code: string; message: string }
   | { kind: "error" };
 
-/** One /api/leagues request as the signed-in reader. Never throws, except an abort. */
+/** One /api/leagues request as the signed-in reader. Never throws. */
 export async function leagueRequest(path: string, init: RequestInit = {}): Promise<LeagueReply> {
   let response: Response;
+  let body: unknown;
   try {
-    response = await authedActionFetch(path, {
+    ({ response, body } = await authedActionJson(path, {
       cache: "no-store",
       credentials: "same-origin",
       ...init,
       headers: init.body ? { "Content-Type": "application/json", ...init.headers } : init.headers,
-    }, { requiresIdentity: true });
-  } catch (error) {
-    if (error instanceof DOMException && error.name === "AbortError") throw error;
+    }, { requiresIdentity: true }));
+  } catch {
     return { kind: "error" };
   }
   if (response.status === 401) {
-    discardBody(response);
     return { kind: "signed-out" };
   }
-  const body: unknown = await response.json().catch(() => null);
   if (response.ok) return { kind: "ok", status: response.status, body };
   const envelope = body && typeof body === "object" ? (body as { code?: unknown; error?: unknown }) : {};
   const code = typeof envelope.code === "string" ? envelope.code : "";
