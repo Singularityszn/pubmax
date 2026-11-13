@@ -358,72 +358,48 @@ Run `npm run ci` locally before every push. A Vercel build alone does not prove
 the full gate passed. If Actions fails before job allocation, restore runner or
 account allocation before calling the release gate green.
 
-### Manual deploy and promote
+### Production deployments
 
-Production ships through the [one release command](#one-release-command), `npm run release:prod`, or through the [gated API deploy](#gated-api-deploy). There is no other production path.
+Production ships only through the [gated API deploy](#gated-api-deploy). The captain forbids CLI production deploys, including `npm run release:prod` and `vercel promote`. Vercel automatic builds must remain disabled.
 
-Never promote a Preview build. `npm run deploy:preview` followed by `vercel promote <deployment-url>` puts a Preview-built artifact in front of production, and [promotion does not rebuild it](https://vercel.com/docs/rest-api/projects/point-production-traffic-to-a-given-deployment): it keeps `VERCEL_ENV=preview` and every Preview environment value. The release command stages with `scripts/deploy-vercel.mjs --prod --skip-domain` instead, so the artifact it promotes was built with Production values.
-
-`npm run deploy:preview` is for review deployments. It is `vercel deploy` plus the commit of the tree it is
-uploading. The [build identity reference](#which-commit-is-this-deploy-serving) owns the response fields and authentication requirements.
-The command forwards every argument.
-
-Deploying from a Mac is fine because the build runs in Vercel's cloud. Never pass `--prebuilt` from a Mac: the locally built sharp binary is darwin-arm64 and crashes the linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
+Never promote a Preview build. It keeps `VERCEL_ENV=preview` and its Preview environment values. Create a Production-target deployment through the API instead.
 
 `docs/SOFT_LAUNCH_RUNBOOK.md` section 1.2 owns the launch-day checks after a release.
 
-### One release command
-
-```sh
-npm run release:prod
-```
-
-This is the way to ship to production. It runs these steps in order and stops at the first failure:
-
-1. It refuses a dirty tree, and a `HEAD` that is not the tip of `origin/main`. The smoke run is dispatched on `main`, so the released commit has to be that tip.
-2. It runs `npm run check:migration-ledger` and refuses when production lacks a migration the repo ships.
-3. It runs the freshness gate, the same two commands as `.github/workflows/freshness.yml`, and refuses when a dataset is past its age budget. The [CI runbook](CI_RUNBOOK.md#the-freshness-gate) says why the gate runs here and not on every pull request.
-4. It stages a Production-target build with `scripts/deploy-vercel.mjs --prod --skip-domain`, so the build stamps the commit and reads Production environment values, and no domain moves yet.
-5. It reads `/api/version` on the new deployment, then runs `vercel promote`.
-6. It waits until `https://pubmaxxing.com/api/version` names the new deployment.
-7. It dispatches `.github/workflows/prod-smoke.yml` on `main` with the released deployment ID. It selects the matching run and waits with `gh run watch --exit-status`.
-
-The command selects the newest run that meets all these conditions:
-
-- Its `headSha` matches the released commit.
-- Its `displayTitle` exactly matches `Production smoke <deployment_id>` for the released deployment.
-- Its `createdAt` is no earlier than five seconds before dispatch.
-
-If no matching run appears within the lookup timeout, the command reports production as live and unverified. The [smoke runbook](../e2e/prod-smoke/README.md#after-every-deploy) owns dispatch inputs, deployment checks, and replacement failures.
-
-A failed smoke run exits non-zero. If the live deployment changed or cannot be read, the command reports the released deployment as unverified. If the released deployment remains live, inspect the run before you fix forward or roll back with `vercel rollback`.
-
-`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint and compares by migration NAME, never by version, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names only the ledger holds are listed and are not a failure. It needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
-
-The command needs `gh` signed in with permission to run workflows in `Singularityszn/pubmax`, and a Vercel CLI session (`PUBMAX_VERCEL_BIN` names an installed one; otherwise npx runs the exact version pinned in `scripts/lib/vercelCli.mjs`, never `latest`). The ordered steps are `scripts/lib/releaseProduction.mjs`. Pin: `__tests__/releaseProduction.test.ts`.
-
 ### Gated API deploy
 
-A deploy made through the Vercel API runs none of the release checks. Migrations apply before the deploy that needs them, so run the gate first:
+A Vercel API deploy does not run the release checks itself. Migrations must apply before the deploy that needs them. Use this sequence:
 
-1. Pick the main commit that the deploy will ship.
-2. Start the gate for that commit:
+1. Pick the full 40-character SHA at the tip of `main`.
+2. Start `.github/workflows/predeploy-gate.yml` for that SHA:
 
    ```sh
    gh workflow run predeploy-gate.yml --ref main -f sha=<40-character sha>
    ```
 
-3. Wait for the run named `Pre-deploy gate <sha>` to finish green. If it is red, do not deploy. A missing migration is applied first, on the captain's word.
-4. Deploy that same commit through the Vercel API.
-5. Wait until `https://pubmaxxing.com/api/version` names the new deployment. Then start the smoke run with that deployment ID:
+3. Wait for the run named `Pre-deploy gate <sha>` to finish green. If it is red, do not deploy. Apply a missing migration only on the captain's explicit instruction. Run the gate again after the correction.
+4. After the gate is green, deploy that same SHA through the Vercel API with the Production target. Restore any temporary Ignored Build Step change even if the deploy fails.
+5. Wait until `https://pubmaxxing.com/api/version` names the new deployment.
+6. Confirm that `main` still names the deployed SHA before you dispatch smoke. If `main` changed, stop because the dispatch would test different source.
+7. Start `.github/workflows/prod-smoke.yml` with that deployment ID:
 
    ```sh
    gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
    ```
 
-   The smoke run checks out the tip of `main`, so the deployed commit must be that tip. The [smoke runbook](../e2e/prod-smoke/README.md#after-every-deploy) owns the rest.
+8. Wait for the matching `Production smoke <deployment_id>` run to finish green. Check that its `headSha` matches the deployed SHA. If smoke fails, is missing, or tests another SHA, the deployment remains unverified. The [smoke runbook](../e2e/prod-smoke/README.md#after-every-deploy) owns deployment checks and replacement failures.
 
-`.github/workflows/predeploy-gate.yml` refuses a commit that `main` does not hold. Then it runs `npm run check:migration-ledger` and the freshness gate, the same commands as steps 2 and 3 of the release command. Both checks only read production. The ledger check needs the `SUPABASE_ACCESS_TOKEN` repository secret. Without it, the run is red.
+The workflow commands need `gh` signed in with permission to run workflows in `Singularityszn/pubmax`.
+
+`.github/workflows/predeploy-gate.yml` refuses a commit that `main` does not hold. It then runs `npm run check:migration-ledger` and the freshness gate. Both checks only read production. The [CI runbook](CI_RUNBOOK.md#the-freshness-gate) explains the freshness checks. The ledger check needs the `SUPABASE_ACCESS_TOKEN` repository secret. Without it, the run is red.
+
+`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint. It compares migration names, never versions, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names found only in the ledger are listed and do not cause failure. The command needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
+
+### Review deployments
+
+`npm run deploy:preview` is for review deployments. It is `vercel deploy` plus the commit of the tree it uploads. The [build identity reference](#which-commit-is-this-deploy-serving) owns the response fields and authentication requirements. The command forwards every argument. Never use it to deploy production.
+
+The build runs in Vercel's cloud, so you can deploy a preview from a Mac. Never pass `--prebuilt` from a Mac. The locally built sharp binary is darwin-arm64 and crashes the Linux runtime. `npm run deploy:preview:prod-env` refuses that flag for you.
 
 ### Uptime monitor
 
@@ -485,7 +461,7 @@ on it, so a preview that called itself production would be indexable.
 **Never `--prod`, never `--target`, never `--prebuilt`.** The command refuses
 all three. `--prod` promotes, and `--target production` (or `--target=…`, or
 `-t`) is the same production deploy by another name, one that would skip every
-check `npm run release:prod` runs; `--prebuilt` uploads a macOS build, whose
+check in the [gated API deploy](#gated-api-deploy). `--prebuilt` uploads a macOS build, whose
 sharp binaries are darwin-only and answer 500 on every route that imports them.
 
 Four failures in the earlier three-command recipe are fixed at their sources,
