@@ -27,6 +27,8 @@ describe("next.config redirects", () => {
     ["/coffee", "/map?drink=coffee"],
     ["/gardens", "/map?garden=1"],
     ["/year-in-pints", "/pal#year-in-pints"],
+    ["/signup", "/login"],
+    ["/join", "/login"],
   ])("sends the typed name %s to the page that holds it (live walk F21)", async (source, destination) => {
     const rule = (await loadRedirects()).find((entry) => entry.source === source);
     expect(rule).toMatchObject({ source, destination, permanent: false });

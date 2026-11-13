@@ -23,6 +23,12 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 /** The `lane` value `GET /api/social/posts` reads for the signed-out lane. */
 export const SOCIAL_LONDON_LANE = "london";
 
+/**
+ * Written once the lane has shown posts, or the first-visit line.
+ * Absent means this browser has not met the lane yet.
+ */
+export const SOCIAL_LONDON_LANE_SEEN_KEY = "pubmax:social-seen";
+
 /** How many posts one page of the lane asks for. */
 const SOCIAL_LONDON_LANE_PAGE = 20;
 
@@ -189,6 +195,7 @@ export const SOCIAL_LONDON_LANE_COPY = {
   line: "Public posts tagged a London patch. Newest first.",
   signIn: "Sign in to cheer or comment",
   emptyTitle: "No London posts yet.",
+  firstVisit: "Log what you paid. Your name and the date go on the map.",
   emptyLine: "When somebody posts a public night in a London patch, it lands here.",
   unavailable: "London posts are unavailable right now.",
   retry: "Retry",

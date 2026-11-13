@@ -11,19 +11,19 @@
 // this card as a sentence about the past and stops. It never touches the
 // card's current price, which is passed in from the priced venue index.
 //
-// Which pub: the CHEAPEST listed pint among pubs that carry both a listed
-// price and a history row (product decision 16 Oct 2026, after a UX audit).
-// The front door's one action says "Cheapest pints near me", so the pub under
-// it shows a cheap pint rather than a famous dear one: a hand-picked £6.50 pub
-// under that promise read as a contradiction. A pub whose figure stands as
-// `listed` (a named publisher read inside its window) beats one that does not,
-// so the card keeps its provenance line; ties go to the longer archive span,
-// then the name. Deterministic, so the prerendered document and its share card
-// agree, and derived, so a re-collected dataset moves the pick.
+// Which pub: a Zone 1 pint that needs a witness. Among pubs that already
+// qualify (a public rankable pub, a comparable pint, a history row, and a
+// listed price with a publisher page), a lager comes first. Lager means
+// drinkSubtypeFromText of the cheapest pint has id "beer-lager". If any lager
+// qualifies, the other drinks drop out. If none do, the listed non-lagers
+// stay, so the hero does not go blank. The remaining rows sort by the oldest
+// observedOn, then the name. The price is not the rank. A listed price still
+// beats one that is not listed. A row with no publisher page still yields no
+// card. Deterministic, so the prerendered document and its share card agree,
+// and derived, so a re-collected dataset moves the pick.
 //
 // Where: Zone 1 only (captain
-// decision D1 (a), 11 Nov 2026). Cheapest-anywhere put a Sutton pint under a
-// Kingsbury pint, both £2.43, so the London story started in the outer zones.
+// decision D1 (a), 11 Nov 2026).
 // A pub takes the zone of its nearest station (lib/nearestStationZone.mjs), the
 // same rule the map's zone lens uses, and the card names that station so the
 // approximation is on the page. No Zone 1 pub that qualifies means no card,
@@ -31,8 +31,11 @@
 
 import type { Route } from "next";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { DAY_MS } from "@/lib/dayMs";
 import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
 import { haystackMatchesBrand } from "@/lib/drinkBrands";
+import { drinkSubtypeFromText } from "@/lib/drinkSubtypes";
+import { londonDayKey } from "@/lib/londonHour";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
@@ -46,7 +49,6 @@ import {
   groupPriceHistoryByVenue,
   parsePriceHistory,
   venuePriceArc,
-  type PriceHistoryObservation,
 } from "@/lib/priceHistory";
 import { nearestStationZone, type StationZone } from "@/lib/nearestStationZone.mjs";
 import { priceMovementLine } from "@/lib/priceMovementLine";
@@ -93,6 +95,12 @@ export type LandingPubCardData = {
   publisher: { label: string; url: string } | null;
   /** ISO day the publisher's own row was last read at its source, or null when no row records one. */
   observedOn: string | null;
+  /**
+   * Whole London days from observedOn to opts.now. Null when the row records
+   * no day. The count uses the London calendar day, then UTC dates, so a
+   * London midnight matches the other price dates.
+   */
+  ageDays: number | null;
   /**
    * How far to trust the figure, decided by lib/priceTier.ts and never here:
    * a listed price with a public page inside its window reads `listed`; a
@@ -153,21 +161,20 @@ export function buildLandingPubCard(
     return station ? [{ venue, station }] : [];
   });
 
-  // Listed first, then cheapest, then the longest archive span, then the name.
   const ranked = candidates.map(({ venue, station }) => ({
     venue,
     station,
     listed: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).standing === "listed",
-    span: spanYears(history.get(venue.id), venue, now),
+    observedOn: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).observedOn,
   }));
-  ranked.sort(
+  const listed = ranked.filter((row) => row.listed);
+  const pool = preferLager(listed.length > 0 ? listed : ranked);
+  pool.sort(
     (a, b) =>
-      Number(b.listed) - Number(a.listed) ||
-      (a.venue.cheapestPrice as number) - (b.venue.cheapestPrice as number) ||
-      b.span - a.span ||
+      observedUtcDay(a.observedOn) - observedUtcDay(b.observedOn) ||
       a.venue.name.localeCompare(b.venue.name),
   );
-  const selected = ranked[0];
+  const selected = pool[0];
   if (!selected) return null;
   const { venue: chosen, station } = selected;
 

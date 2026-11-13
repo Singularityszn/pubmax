@@ -361,6 +361,9 @@ const nextConfig = {
       { source: "/gardens", destination: "/map?garden=1", permanent: false },
       // Reuse the Pal's year instead of adding a separate public page.
       { source: "/year-in-pints", destination: "/pal#year-in-pints", permanent: false },
+      // Account names people type. Temporary, so a real page can take the path later.
+      { source: "/signup", destination: "/login", permanent: false },
+      { source: "/join", destination: "/login", permanent: false },
     ];
   },
   async headers() {

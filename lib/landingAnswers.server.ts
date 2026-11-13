@@ -17,6 +17,7 @@ import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import { tonightLedeComposition } from "@/lib/tonightOutListings";
 import { musicLaneRows } from "@/lib/whatsOn";
 import { BRIEF_DEFAULT_AREA } from "@/lib/todayBrief";
+import { londonDayLabel } from "@/lib/londonHour";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { observationFacts } from "@/lib/weatherObservationCopy";
 import { latestWeatherForArea } from "@/lib/weatherSnapshots";
@@ -32,19 +33,12 @@ import { latestWeatherForArea } from "@/lib/weatherSnapshots";
 
 export type { LandingAnswers } from "@/lib/landingAnswers";
 
-const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
-  weekday: "long",
-  day: "numeric",
-  month: "long",
-  timeZone: "Europe/London",
-});
-
 // app/page.tsx `revalidate`: how long one rendered copy of the front door is held.
 const LANDING_HOLD_MS = 3_600_000;
 
 /** Both cards, from one pass over the weather store and the listing lanes. */
 export async function loadLandingAnswers(now: Date = new Date()): Promise<LandingAnswers> {
-  const stamp = LONDON_DAY.format(now);
+  const stamp = londonDayLabel(now);
   const [weatherSnapshot, whatsOn, out, hyped] = await Promise.all([
     loadFreshWeatherSnapshot({ now }).catch(() => null),
     loadTodayWhatsOnAnswer(now.getTime()),

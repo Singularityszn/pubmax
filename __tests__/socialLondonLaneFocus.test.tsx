@@ -39,6 +39,7 @@ function mountWithFieldAt(position: "below" | "above"): HTMLInputElement {
 }
 
 beforeEach(() => {
+  localStorage.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
   container = document.createElement("div");
   document.body.append(container);
   scrollCalls = [];

@@ -61,6 +61,22 @@ export function londonDayKey(at: Date | number): string {
   return dayKeyFormatter.format(at);
 }
 
+let dayLabelFormatter: Intl.DateTimeFormat | null = null;
+
+/**
+ * The Europe/London date a person reads, for example "Friday 13 November".
+ * Held once, like the clock above: the landing stamp asks for it on mount.
+ */
+export function londonDayLabel(at: Date | number): string {
+  dayLabelFormatter ??= new Intl.DateTimeFormat("en-GB", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    timeZone: "Europe/London",
+  });
+  return dayLabelFormatter.format(at);
+}
+
 /** The hour-of-day, 0 to 23, in the Europe/London wall clock. */
 export function londonHour(date: Date): number {
   return Math.floor(londonMsSinceMidnight(date) / (60 * 60 * 1000));
