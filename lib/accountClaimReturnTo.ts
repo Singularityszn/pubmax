@@ -91,6 +91,17 @@ export function safeStillTrueReturnTo(raw: string | null | undefined): Route | n
   }
 }
 
+/** How long a tap on "I'll be there" waits for the sign-in to come back. */
+export const STILL_TRUE_DOOR_TTL_MS = 30 * 60_000;
+
+/**
+ * The device marker for one night's tap (lib/doorMarker.ts). The return flag
+ * alone is no consent: anyone can share a link that carries it.
+ */
+export function stillTrueDoorKey(crewId: string): string | null {
+  return STILL_TRUE_CREW_PATH.test(`/social/crews/${crewId}`) ? `pubmax:still-true-door:v1:${crewId.toLowerCase()}` : null;
+}
+
 /** True only for the return flag, with nothing else in the query. */
 export function stillTrueJoinPending(search: string): boolean {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);

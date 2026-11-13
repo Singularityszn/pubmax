@@ -18,6 +18,7 @@ import type { FollowRelation } from "@/lib/followRelation";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
 import { safePintDropDoorReturnTo, safeStillTrueReturnTo } from "@/lib/accountClaimReturnTo";
+import { consumeDoorTaken, markDoorTaken, peekDoorTaken, type DoorMarkerStorage } from "@/lib/doorMarker";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -93,30 +94,11 @@ export function addLinkAwareDestination(
   return arrivalDestination(intent, from, claimNext);
 }
 
-/**
- * Whether the surface should perform the add on this render.
- *
- * ONCE is the whole point, so `attemptedAccountIds` is the guard the component
- * holds in a ref: a re-render, a re-focus or a second effect pass may not write
- * a second time for the same account. Identity is TRI-STATE like everywhere
- * else here - an unresolved session answers nothing, and a viewer with no
- * handle has nothing to add anybody with.
- */
-export type AddLinkStorage = Pick<Storage, "getItem" | "setItem" | "removeItem">;
+export type AddLinkStorage = DoorMarkerStorage;
 
 const DOOR_MARKER_PREFIX = "pubmax:add-link-door:v1:";
 
-/**
- * How long a taken door still counts as this device's own return.
- *
- * The marker lives in localStorage, not sessionStorage, because a magic link
- * opens in a FRESH TAB from the email client: a per-tab marker is absent by the
- * time the person lands back, so the one journey the add link exists for would
- * never auto-add. It is keyed by the TARGET handle, so a door taken to add one
- * friend can never perform an add for somebody else's crafted `?auto=1`, and it
- * is one-shot plus TTL-bounded, so a leftover marker cannot auto-follow
- * tomorrow.
- */
+/** How long a taken door still counts as this device's own return (lib/doorMarker.ts). */
 export const ADD_LINK_DOOR_TTL_MS = 30 * 60_000;
 
 function doorMarkerKey(target: string): string | null {
@@ -130,59 +112,16 @@ export function markAddLinkDoorTaken(
   now: number,
   target: string,
 ): void {
-  const key = doorMarkerKey(target);
-  if (!storage || !key) return;
-  try {
-    storage.setItem(key, JSON.stringify({ at: now }));
-  } catch {
-    // Storage blocked: the person can still tap Add on the way back.
-  }
+  markDoorTaken(storage, doorMarkerKey(target), now);
 }
 
-/**
- * Peek at a live door marker without consuming it. The add effect may run
- * before identity resolves, so the caller clears it only when the add starts.
- */
+/** Peek at a live door marker for `target` without consuming it. */
 export function peekAddLinkDoorTaken(
   storage: AddLinkStorage | null,
   now: number,
   target: string,
 ): boolean {
-  const key = doorMarkerKey(target);
-  if (!storage || !key) return false;
-  let raw: string | null;
-  try {
-    raw = storage.getItem(key);
-  } catch {
-    return false;
-  }
-  if (!raw) return false;
-  let marker: unknown;
-  try {
-    marker = JSON.parse(raw);
-  } catch {
-    clearAddLinkDoorTaken(storage, target);
-    return false;
-  }
-  const at = (marker as { at?: unknown } | null)?.at;
-  if (typeof at !== "number" || now - at >= ADD_LINK_DOOR_TTL_MS) {
-    clearAddLinkDoorTaken(storage, target);
-    return false;
-  }
-  return true;
-}
-
-function clearAddLinkDoorTaken(
-  storage: AddLinkStorage | null,
-  target: string,
-): void {
-  const key = doorMarkerKey(target);
-  if (!storage || !key) return;
-  try {
-    storage.removeItem(key);
-  } catch {
-    // The TTL bounds an unreadable marker anyway.
-  }
+  return peekDoorTaken(storage, doorMarkerKey(target), now, ADD_LINK_DOOR_TTL_MS);
 }
 
 /** Consume a live door marker. One-shot, so a crafted ?auto=1 cannot reuse it. */
@@ -191,11 +130,18 @@ export function consumeAddLinkDoorTaken(
   now: number,
   target: string,
 ): boolean {
-  const live = peekAddLinkDoorTaken(storage, now, target);
-  if (live) clearAddLinkDoorTaken(storage, target);
-  return live;
+  return consumeDoorTaken(storage, doorMarkerKey(target), now, ADD_LINK_DOOR_TTL_MS);
 }
 
+/**
+ * Whether the surface should perform the add on this render.
+ *
+ * ONCE is the whole point, so `attemptedAccountIds` is the guard the component
+ * holds in a ref: a re-render, a re-focus or a second effect pass may not write
+ * a second time for the same account. Identity is TRI-STATE like everywhere
+ * else here - an unresolved session answers nothing, and a viewer with no
+ * handle has nothing to add anybody with.
+ */
 export function shouldAutoAdd(input: {
   auto: boolean;
   accountId: string | null;

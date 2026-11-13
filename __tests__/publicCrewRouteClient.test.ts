@@ -179,6 +179,8 @@ vi.mock("@/lib/authedFetch", () => ({
   }),
 }));
 
+import { stillTrueDoorKey } from "@/lib/accountClaimReturnTo";
+import { markDoorTaken } from "@/lib/doorMarker";
 import PublicCrewRouteClient from "@/components/social/PublicCrewRouteClient";
 import { setAnalyticsConsent } from "@/lib/analytics";
 
@@ -538,6 +540,7 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
 
   it("posts the join once when the person returns from the email door", async () => {
     state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    markDoorTaken(localStorage, stillTrueDoorKey(CREW_A), Date.now());
     window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
     await act(async () => {
       root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
@@ -546,5 +549,18 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
 
     expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
     expect(window.location.search).not.toContain("there");
+    expect(localStorage.getItem(stillTrueDoorKey(CREW_A) ?? "")).toBeNull();
+  });
+
+  it("sends nothing for a shared return link this device never tapped", async () => {
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    markDoorTaken(localStorage, stillTrueDoorKey(CREW_B), Date.now());
+    window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.actionCalls.filter((call) => call.includes("join-requests"))).toHaveLength(0);
   });
 });
