@@ -51,6 +51,14 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The board checks your first 50 mutual follows by handle and says when that limit applies. If some records fail to load, it warns that totals may be low. A failed relationship or moderation check makes the board unavailable. **Back to Social** returns to Social.
 
+  Open **Your leagues** from the mates' board to reach `/social/leagues`. Start a league or join one with an invite code. A league holds up to 20 people, and you can be in up to 10. Each league page ranks visible members by points and shows the invite code and a link to copy. To invite someone through Messages, choose **Invite a mate**. Select a mutual mate and choose **Send invite**.
+
+  Blocks and mutes either way prevent invitation delivery, and the app checks them again when you send. An invitation link keeps its destination through sign-in, signup and handle claiming. The owner can swap the code, which stops the old code and link, or delete the league. Other members can leave. Blocks and mutes either way hide a member, and a private profile shows only to its mates.
+
+  The map colours London postcode districts by the visible member who visited the most listed pubs there. Tap a district to read who leads it. A positive tied count means a shared lead. A district with no visits has no leader. If any visible member's records are incomplete, the page warns that totals may be low and withholds the map and district-lead counts. A failed London pub-list read also withholds the map.
+
+  **Download your data** includes the names and creation dates of leagues you own, plus league names and your joining dates for memberships. These league records exclude invite codes and other members. Supabase-backed leagues remain unavailable until migration 0239 is applied.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.

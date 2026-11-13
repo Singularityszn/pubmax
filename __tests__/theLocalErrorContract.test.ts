@@ -151,6 +151,7 @@ describe("app/api public error envelope (tree-wide)", () => {
 // `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
+// `leagueDoor` in lib/leagueHttp.server.ts checks the account and per-actor budget.
 // A COMMENT IS NOT A LIMITER AND NEITHER IS AN IMPORT. The sweep below decides
 // on code, and on a CALL, so a route that only NAMES a limiter in prose or on
 // its import line cannot answer for a call it does not make.
@@ -221,7 +222,7 @@ function consultsLimiter(source: string): boolean {
 }
 
 const LIMITER_TOKENS =
-  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
+  /(?:\bisLimited|[a-zA-Z]+RateLimited|\bis[A-Z][a-zA-Z]*Limited|\bpreparePlanGeneration|\bsocialCrewActor|\bleagueDoor|\bhandleProfileImage(?:Upload|Delete|Report)|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report))\s*\(/;
 
 // A ROUTE THAT ONLY EVER REFUSES SPENDS NO BUDGET.
 //

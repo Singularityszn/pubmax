@@ -52,6 +52,8 @@ beforeEach(async () => {
 
 describe("nativeDeepLinkPath", () => {
   it.each([
+    ["https://pubmaxxing.com/social/leagues/join/ABCDEFGH", "/social/leagues/join/ABCDEFGH"],
+    ["pubmaxx://social/leagues/join/ABCDEFGH", "/social/leagues/join/ABCDEFGH"],
     ["https://pubmaxxing.com/plan/abc", "/plan/abc"],
     ["https://pubmaxxing.com/rounds/invite?from=push", "/rounds/invite?from=push"],
     ["https://pubmaxxing.com/p/pub-1#prices", "/p/pub-1#prices"],

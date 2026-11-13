@@ -299,6 +299,10 @@ _Avoid_: Drinking streak, consumption score, recommendation tier
 What a Pubmaxxer earns from their own records: a pub on their Been list, a price they logged, a price a bill or a Second Drinker checked, a logged drink review, a London postcode letter area where every listed district is finished, a London postcode district where they have been to every pub we list, a pub they added or fixed once a person accepted it, and a finished Challenge. Points set a Level. A logged drink review earns points, never days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
 _Avoid_: XP, mastery points, a streak
 
+**League**:
+A private group of Pubmaxxers ranked by Points. A league holds no score of its own. See [league usage](README.md#features) for invitations, limits, visibility and district maps. `lib/leagues.ts` owns the limits and the map, and `lib/leagues.server.ts` owns the reads.
+_Avoid_: club, team, squad
+
 **Challenge**:
 A set of targets built from listed London pubs. A Pubmaxxer finishes a target when any of its pubs is on their Been list. See [profile challenges](README.md#features) for usage. `lib/challenges.ts` owns the sets and the monthly rotation.
 _Avoid_: quest, mission, a streak

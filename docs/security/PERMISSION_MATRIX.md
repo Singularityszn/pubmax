@@ -2,8 +2,8 @@
 
 What each actor may do with a private Plan, a Social Crew, a private
 conversation and its attachment, a private Moment and its upload object, a
-photo tag, a save, a price observation and its confirmation, moderator actions,
-account deletion and the data export. The executable owner is
+photo tag, a save, a private league, a price observation and its confirmation,
+moderator actions, account deletion and the data export. The executable owner is
 `__tests__/permissionMatrixEffective.test.ts` (run by `npm run test:rls`): it
 boots PostgreSQL 16 plus PostgREST, applies every migration in production
 order, and asserts every cell below at the API route and, where a browser JWT
@@ -185,6 +185,37 @@ no side effect, as above.
 | Carry the first-run "Been here" taps (`POST /api/saved-pubs` with `action: "carryBeenHere"`) | 401, after the 403 and 404 above | adds to their OWN "Been here" list, never the named one; adds only, never toggles, never another list ||||| adds to their own "Been here" list |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
+
+## Private leagues (migration 0239)
+
+These cells use Alice as the owner, Bob as a member, and Dave as an unrelated
+signed-in user. Every allowed route requires a verified Social account.
+
+| Cell | anonymous | owner (Alice) | member (Bob) | unrelated user (Dave) |
+| --- | --- | --- | --- | --- |
+| List leagues (`GET /api/leagues`) | 401 | own memberships only, without codes | own memberships only, without codes | own memberships only, empty for this league |
+| Create (`POST /api/leagues`) | 401 | creates for the caller | creates for the caller | creates for the caller, ignoring asserted owner fields |
+| Read the board (`GET /api/leagues/[id]`) | 401 | allowed | allowed | 404 |
+| Join by code (`POST /api/leagues/join`) | 401 | existing membership, no duplicate | existing membership, no duplicate | joins with the current code |
+| Leave (`POST /api/leagues/[id]/leave`) | 401 | 409, must delete instead | removes only the caller's membership | 404 |
+| Delete (`DELETE /api/leagues/[id]`) | 401 | deletes the league and its memberships | 404 | 404 |
+| New code (`POST /api/leagues/[id]/code`) | 401 | allowed, old code stops working | 404 | 404 |
+| Invite a mate (`GET`, `POST /api/leagues/[id]/invite`) | 401 | lists eligible mates and sends a direct message | same as owner | 404 |
+| Read or write `leagues` and `league_members` directly | denied | denied | denied | denied |
+| Call `create_league` or `join_league` directly | denied | denied | denied | denied |
+
+The board includes the current invite code for members, but never account or
+profile IDs. An unknown or rotated code answers 404 without changing membership.
+An unknown league ID answers exactly like an inaccessible league ID for each
+denied route. After leaving, a former member loses reads and all league actions.
+
+Invitations require a mutual mate with no block or mute in either direction.
+The send checks this again, even after the picker listed the recipient.
+A refused recipient answers 400 without creating a conversation or message.
+Every denied cell returns only its error envelope, discloses no private league
+data, and leaves league, membership, conversation, and message records unchanged.
+Both tables have RLS enabled and no browser grants. The service role alone can
+read or write them and execute the two league functions.
 
 ## Findings from the first run
 

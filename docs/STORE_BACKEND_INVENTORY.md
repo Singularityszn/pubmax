@@ -59,6 +59,7 @@ silently stale.
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
 | kitchenReportsStore | factory-ready | "Still serving" and "Kitchen closed" taps on a pub's food row: 90 minute read window, one confirmation by another account. |
+| leagueStore | factory-ready | Private leagues and their members (migration 0239). The member and league limits live in the create and join functions. A missing table reads as "not open yet", never as memory. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
 | nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
@@ -194,6 +195,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/handlePasswordSignIn.ts",
     "lib/harvestOverlayStore.ts",
     "lib/identityHandleStore.ts",
+    "lib/leagues.server.ts",
     "lib/ledgerLog.server.ts",
     "lib/mapSearchEvents.server.ts",
     "lib/matesActivity.server.ts",
@@ -284,7 +286,7 @@ and Supabase implementations keep their existing fail-soft behavior.
 
 The current branch also has `createDualBackendStore` in
 `adultSelfAssertionStore`, `billCheckStore`, `diaryStore`, `feedFreshnessStore`,
-`harvestOverlayStore`, `kitchenReportsStore`, `occupancyStore`, `operatorFactsStore`, `priceTrustEventStore`,
+`harvestOverlayStore`, `kitchenReportsStore`, `leagueStore`, `occupancyStore`, `operatorFactsStore`, `priceTrustEventStore`,
 `pubPalToolTurnStore`, `regularNightReportsStore`, `stepOutNudgeStore`, `tableRequestsStore`, `venueCorrectionsStore`, `venueSubmissionStore`,
 `walkRouteStore` and `wantedStore`. This inventory records that current state; it does not require
 other stores to migrate.

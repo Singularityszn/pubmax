@@ -79,7 +79,7 @@ import {
 } from "@/lib/messageSendAttempt";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
 import {
-  linkifyMentions,
+  linkifyMessageBody,
   MAX_MESSAGE_BODY,
   otherHandleFromThreadRead,
   threadHeaderPrimaryLine,
@@ -188,10 +188,9 @@ function getMobileViewportSnapshot(): boolean {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }
 
-// Render a message body with @-mentions linkified to /u/<handle>. Pure segments
-// from lib/messages — text as-is, mentions as brass links.
+// lib/messages validates league invitation links before they become app navigation.
 function MessageBody({ body }: { body: string }): React.JSX.Element {
-  const segments = useMemo(() => linkifyMentions(body), [body]);
+  const segments = useMemo(() => linkifyMessageBody(body), [body]);
   return (
     <>
       {segments.map((seg, i) =>
@@ -199,6 +198,8 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
           <Link key={i} href={`/u/${encodeURIComponent(seg.handle)}`} className="messageMention">
             {seg.raw}
           </Link>
+        ) : seg.type === "league-invite" ? (
+          <Link key={i} href={seg.href} className="messageMention">{seg.text}</Link>
         ) : (
           <span key={i}>{seg.text}</span>
         ),
