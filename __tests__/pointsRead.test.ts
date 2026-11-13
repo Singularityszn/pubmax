@@ -6,7 +6,7 @@ import { promises as fs } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { readPointsBreakdown, readProfilePoints, type PointsDeps } from "@/lib/points.server";
+import { readPointsBreakdown, readPointsStanding, readProfilePoints, type PointsDeps } from "@/lib/points.server";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import * as venueIndex from "@/lib/venueIndex";
@@ -149,6 +149,51 @@ describe("readPointsBreakdown", () => {
       indexRead.mockRestore();
       resetVenueAliasesForTests();
     }
+  });
+});
+
+describe("readPointsStanding", () => {
+  // October in London starts at midnight BST, 23:00 UTC on 30 September.
+  const SINCE = "2026-09-30T23:00:00.000Z";
+  // The pub added was accepted in October; both fixes were resolved before it.
+  const dated = (overrides: Partial<PointsDeps> = {}) =>
+    deps("u-owner", {
+      // A wrong month start finds nothing this month.
+      addedPubs: async (_owner, since) => (since === undefined || since === SINCE ? 1 : 0),
+      fixedPubs: async (_owner, since) => (since === undefined ? 2 : 0),
+      ...overrides,
+    });
+
+  it("counts this month only from records dated inside it", async () => {
+    const standing = await readPointsStanding(OWNER, "2026-10-01", dated());
+    expect(standing).toMatchObject({ status: "ready", total: 1150, level: 6 });
+    // The Lamb (diary 1 Oct) and the Seven Stars (drop 7 Oct) are new pubs:
+    // 20. Two priced drops: 10, one checked: 10. WC1 finished this month: 50,
+    // and with it the WC area: 1,000. The pub accepted in October: 20.
+    // The September plan, the undated Been here save, both earlier fixes and
+    // the drink reviews earn nothing this month.
+    expect(standing.monthTotal).toBe(1110);
+  });
+
+  it("gives a month with no dated records nothing", async () => {
+    const standing = await readPointsStanding(OWNER, "2026-11-01", dated({ addedPubs: async (_owner, since) => (since ? 0 : 1) }));
+    expect(standing).toMatchObject({ total: 1150, monthTotal: 0 });
+  });
+
+  it("marks the standing degraded and credits no month points when a dated count fails", async () => {
+    const standing = await readPointsStanding(
+      OWNER,
+      "2026-10-01",
+      dated({
+        addedPubs: async (_owner, since) => {
+          if (since) throw new Error("submissions unavailable");
+          return 1;
+        },
+      }),
+    );
+    expect(standing.status).toBe("degraded");
+    expect(standing.total).toBe(1150);
+    expect(standing.monthTotal).toBe(1090);
   });
 });
 

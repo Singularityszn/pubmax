@@ -28,3 +28,15 @@
 .matesActivityMore {
   justify-self: start;
 }
+
+/* The door to the mates' board, a quiet link in ink like the night links. */
+.matesActivityBoard {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

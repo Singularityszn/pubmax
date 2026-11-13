@@ -131,3 +131,17 @@
   margin: 0;
   color: var(--color-text-muted);
 }
+
+/* The door to the mates' board: a quiet link in ink, a full tap target. */
+.pointsBoardLink {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height);
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  font-weight: 650;
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}

@@ -5,6 +5,8 @@
 // A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
 // the records; this module only counts them.
 
+import { londonDayKey } from "@/lib/londonHour";
+
 const POINTS_EACH = {
   /** A pub on the Been list: diary, Pint Drop, finished plan or Been here. */
   been: 10,
@@ -50,6 +52,19 @@ export type PointsBreakdown = {
   /** The finished London postcode districts, in order. */
   districts: string[];
 };
+
+/** A total, its level and what this month's records earned: what the mates' board ranks. */
+export type PointsStanding = {
+  status: PointsBreakdown["status"];
+  total: number;
+  level: number;
+  monthTotal: number;
+};
+
+/** The first day of the London calendar month `now` falls in, YYYY-MM-01. */
+export function pointsMonthStart(now: Date): string {
+  return `${londonDayKey(now).slice(0, 7)}-01`;
+}
 
 // ── Levels ──────────────────────────────────────────────────────────────────
 

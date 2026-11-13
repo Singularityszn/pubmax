@@ -5,7 +5,10 @@
 // prints what came back and nothing else. It stays hidden until an answer
 // arrives. A failed refresh keeps the previous answer for the same account.
 
+import Link from "next/link";
+
 import Kicker from "@/components/ui/kicker";
+import { MATES_BOARD_COPY } from "@/lib/matesBoard";
 import { POINTS_COPY, type PointsBreakdown } from "@/lib/points";
 
 import { usePassportRead } from "./PassportData";
@@ -55,6 +58,9 @@ export default function PointsCard({ handle }: { handle: string }) {
       ) : (
         <p className="pointsNext">The top level. Nothing left to climb.</p>
       )}
+      <Link prefetch={false} href="/social/leaderboard" className="pointsBoardLink">
+        {MATES_BOARD_COPY.door}
+      </Link>
 
       <ul className="pointsLines">
         {points.lines.map((line) => (
