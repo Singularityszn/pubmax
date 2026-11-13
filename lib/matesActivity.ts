@@ -1,12 +1,8 @@
 // BROWSER-SAFE LEAF. Mates' activity on the Social Following lane: the pints
 // the reader's mutual friends logged, newest first, each as that mate logged it.
 //
-// Only Pint Drops feed it. The "Been here" list stays the owner's own
-// (lib/profilePassport.ts), and a Pint Drop carries no star rating, so neither
-// appears here. Nothing is added across people (ADR 0017): each row is one
-// mate's one drop on one day.
-
 import { cleanDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
+import { CHALLENGE_IDS, type ChallengeId } from "@/lib/challenges";
 import { cleanPriceEvidence, type PriceEvidence } from "@/lib/pintDropReceipt";
 
 /** The most rows one read returns. */
@@ -14,6 +10,7 @@ export const MATES_ACTIVITY_LIMIT = 20;
 
 /** One mate's one visible Pint Drop. */
 export type MatesActivityPint = {
+  kind?: "pint";
   id: string;
   handle: string;
   venueId: string;
@@ -29,7 +26,16 @@ export type MatesActivityPint = {
   loggedAt: string;
 };
 
-export type MatesActivityAnswer = { items: MatesActivityPint[] };
+export type MatesActivityChallenge = {
+  kind: "challenge_finished";
+  id: string;
+  handle: string;
+  challengeId: ChallengeId;
+  loggedAt: string;
+};
+
+export type MatesActivityItem = MatesActivityPint | MatesActivityChallenge;
+export type MatesActivityAnswer = { items: MatesActivityItem[] };
 
 const BILL_LINE: Record<PriceEvidence, string> = {
   receipt: "Checked against the bill",
@@ -47,10 +53,18 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 /** The answer's rows, or null when the body is not a mates' activity answer. */
-export function parseMatesActivity(body: unknown): MatesActivityPint[] | null {
+export function parseMatesActivity(body: unknown): MatesActivityItem[] | null {
   if (!isRecord(body) || !Array.isArray(body.items)) return null;
-  const items: MatesActivityPint[] = [];
+  const items: MatesActivityItem[] = [];
   for (const row of body.items) {
+    if (isRecord(row) && row.kind === "challenge_finished") {
+      if (typeof row.id !== "string" || typeof row.handle !== "string" || !row.handle ||
+        typeof row.loggedAt !== "string" || Number.isNaN(Date.parse(row.loggedAt)) ||
+        !CHALLENGE_IDS.includes(row.challengeId as ChallengeId)) return null;
+      items.push({ kind: "challenge_finished", id: row.id, handle: row.handle,
+        challengeId: row.challengeId as ChallengeId, loggedAt: row.loggedAt });
+      continue;
+    }
     if (
       !isRecord(row) ||
       typeof row.id !== "string" ||

@@ -21,10 +21,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { GET } from "@/app/api/social/mates-activity/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
-import { MATES_ACTIVITY_LIMIT, type MatesActivityPint } from "@/lib/matesActivity";
+import { MATES_ACTIVITY_LIMIT, parseMatesActivity, type MatesActivityItem } from "@/lib/matesActivity";
 import { readMatesActivity } from "@/lib/matesActivity.server";
+import * as pointsReader from "@/lib/points.server";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
-import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile, profileStore } from "@/lib/profileStore";
 import {
   clearSocialMemoryBlocks,
   setSocialMemoryBlock,
@@ -61,9 +62,9 @@ async function mutual(handle: string) {
   await followStore().follow(handle, ME);
 }
 
-async function ask(): Promise<{ status: number; items: MatesActivityPint[] }> {
+async function ask(): Promise<{ status: number; items: MatesActivityItem[] }> {
   const response = await GET(new Request("http://localhost/api/social/mates-activity"));
-  const body = (await response.json()) as { items?: MatesActivityPint[] };
+  const body = (await response.json()) as { items?: MatesActivityItem[] };
   return { status: response.status, items: body.items ?? [] };
 }
 
@@ -155,7 +156,7 @@ describe("GET /api/social/mates-activity", () => {
     expect(items[0]).toMatchObject({ handle: "mate_b", priceGbp: null, venueName: "The Lamb" });
     expect(items[0]).not.toHaveProperty("priceEvidence");
     expect(items[1]).toMatchObject({ handle: "mate_a", priceGbp: 6.2, priceEvidence: "unchecked", venueId: THE_LAMB });
-    expect(items[1]?.venueMapUrl).toContain(THE_LAMB);
+    expect(items[1]).toHaveProperty("venueMapUrl", expect.stringContaining(THE_LAMB));
   });
 
   it("leaves out a mate the reader muted and a mate blocked either way", async () => {
@@ -229,5 +230,52 @@ describe("GET /api/social/mates-activity", () => {
     const { items } = await ask();
     expect(items).toHaveLength(MATES_ACTIVITY_LIMIT);
     expect(items[0]?.id).toBe(`busy-${String(MATES_ACTIVITY_LIMIT + 2).padStart(2, "0")}`);
+  });
+
+  it("shows a dated challenge finish among real pints and parses it for the client", async () => {
+    seed("finisher");
+    await mutual("finisher");
+    addPintDrop(drop("older-pint", "finisher", "2026-08-01T19:00:00.000Z"));
+    const points = await pointsReader.readPointsBreakdown({ handle: "", userId: undefined });
+    vi.spyOn(pointsReader, "readPointsBreakdown").mockResolvedValue({
+      ...points,
+      status: "ready",
+      challenges: [{ id: "red-lion", done: 2, total: 2, finished: true, doubled: true,
+        finishedAt: "2026-09-01T19:00:00.000Z", left: [] }],
+    });
+    const answer = await ask();
+    expect(answer.status).toBe(200);
+    expect(answer.items[0]).toMatchObject({
+      kind: "challenge_finished", handle: "finisher", challengeId: "red-lion", loggedAt: "2026-09-01T19:00:00.000Z",
+    });
+    expect(answer.items[0]).not.toHaveProperty("total");
+    expect(answer.items[0]).not.toHaveProperty("userId");
+    expect(answer.items[1]?.id).toBe("older-pint");
+    expect(parseMatesActivity({ items: answer.items })).toEqual(answer.items);
+  });
+
+  it.each(["private", "muted", "blocked", "blocked-by-mate", "degraded", "undated"])(
+    "omits a challenge finish when the mate is %s",
+    async (reason) => {
+      const mate = seed("finisher");
+      await mutual("finisher");
+      if (reason === "private") await profileStore().update("finisher", { visibility: "private" });
+      if (reason === "muted") setSocialMemoryMute(me.id, mate.id, true);
+      if (reason === "blocked") setSocialMemoryBlock(me.id, mate.id, true);
+      if (reason === "blocked-by-mate") setSocialMemoryBlock(mate.id, me.id, true);
+      const points = await pointsReader.readPointsBreakdown({ handle: "" });
+      vi.spyOn(pointsReader, "readPointsBreakdown").mockResolvedValue({
+        ...points,
+        status: reason === "degraded" ? "degraded" : "ready",
+        challenges: [{ id: "red-lion", done: 2, total: 2, finished: true, doubled: false,
+          finishedAt: reason === "undated" ? null : "2026-09-01T19:00:00.000Z", left: [] }],
+      });
+      expect((await ask()).items).toEqual([]);
+    },
+  );
+
+  it("rejects an unknown challenge in the activity response", () => {
+    expect(parseMatesActivity({ items: [{ kind: "challenge_finished", id: "finish", handle: "mate",
+      challengeId: "invented", loggedAt: "2026-09-01T19:00:00.000Z" }] })).toBeNull();
   });
 });

@@ -64,17 +64,58 @@ describe("buildChallengeSet", () => {
       { label: "SE1", venueIds: ["ship"] },
     ]);
   });
+
+  it("builds trades from pub signs without counting unrelated names or bars", () => {
+    const trades = buildChallengeSet([
+      { id: "brick", name: "The Bricklayer’s Arms" },
+      { id: "carpenter", name: "Carpenters Arms", borough: "Camden" },
+      { id: "carpenter", name: "Carpenters Arms", borough: "Camden" },
+      { id: "other", name: "The Carpenters Workshop" },
+      { id: "bar", name: "Bricklayers Arms", kind: "bar" },
+    ]).get("trades");
+    expect(trades?.flatMap((target) => target.venueIds).sort()).toEqual(["brick", "carpenter"]);
+  });
+
+  it("uses one stored pub per supported Monopoly street and omits unsupported streets", () => {
+    const board = buildChallengeSet([
+      { id: "kent", name: "The Windsor", borough: "Southwark", searchText: "the windsor 888 old kent rd london se15 1nq" },
+      { id: "fleet-b", name: "Second", borough: "City of London", searchText: "second 1 fleet street london ec4a 2lt" },
+      { id: "fleet-a", name: "First", borough: "City of London", searchText: "first 2 fleet st london ec4a 2lt" },
+      { id: "brand", name: "Piccadilly Arms", borough: "Westminster", searchText: "piccadilly arms 5 other road london" },
+      { id: "wrong-regent", name: "Parlour", borough: "Brent", searchText: "parlour 5 regent street london nw10 5lg" },
+      { id: "not-pub", name: "Bar", kind: "bar", borough: "Westminster", searchText: "bar 1 whitehall london" },
+    ]).get("monopoly");
+    expect(board).toEqual([
+      { label: "Old Kent Road: The Windsor", venueIds: ["kent"], mapVenueId: "kent" },
+      { label: "Fleet Street: First", venueIds: ["fleet-a"], mapVenueId: "fleet-a" },
+    ]);
+  });
+
+  it("uses the nearest pub within 150 metres of a stored street address", () => {
+    const board = buildChallengeSet([
+      { id: "address", name: "Restaurant", kind: "restaurant", borough: "Westminster", searchText: "restaurant 1 pall mall london", lat: 51.506, lng: -0.135 },
+      { id: "near", name: "Near Pub", borough: "Westminster", lat: 51.5061, lng: -0.135 },
+      { id: "further", name: "Further Pub", borough: "Westminster", lat: 51.507, lng: -0.135 },
+      { id: "far-address", name: "Other Restaurant", kind: "restaurant", borough: "Westminster", searchText: "other restaurant 1 vine street london", lat: 51.51, lng: -0.14 },
+    ]).get("monopoly");
+    expect(board).toEqual([{ label: "Pall Mall: Near Pub", venueIds: ["near"], mapVenueId: "near" }]);
+  });
 });
 
 describe("challengeOfTheMonth", () => {
   it("gives every challenge a turn, one month each", () => {
-    const months = ["2026-09", "2026-10", "2026-11", "2026-12", "2027-01"];
-    expect(months.map(challengeOfTheMonth)).toEqual([...CHALLENGE_IDS, CHALLENGE_IDS[0]]);
+    const months = ["2026-09", "2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"];
+    expect(months.map(challengeOfTheMonth)).toEqual([
+      "red-lion", "kings-head", "ship", "every-district", "trades", "monopoly", "red-lion",
+    ]);
+    expect(new Set(months.map(challengeOfTheMonth)).size).toBe(CHALLENGE_IDS.length);
   });
 
   it("has no challenge for a month it cannot read", () => {
     expect(challengeOfTheMonth("")).toBeNull();
     expect(challengeOfTheMonth("2026-11-13")).toBeNull();
+    expect(challengeOfTheMonth("2026-00")).toBeNull();
+    expect(challengeOfTheMonth("2026-13")).toBeNull();
   });
 });
 
@@ -104,7 +145,7 @@ describe("challengeProgress", () => {
     e1b: null,
     n1: "2026-12",
   };
-  const month = (venueId: string) => months[venueId] ?? null;
+  const month = (venueId: string) => months[venueId] ? `${months[venueId]}-01T19:00:00.000Z` : null;
   const progress = (visited: string[]) =>
     Object.fromEntries(challengeProgress(set, new Set(visited), month).map((entry) => [entry.id, entry]));
 
@@ -119,7 +160,9 @@ describe("challengeProgress", () => {
   });
 
   it("doubles a challenge finished inside its own month", () => {
-    expect(progress(["a", "b"])["red-lion"]).toMatchObject({ finished: true, doubled: true });
+    expect(progress(["a", "b"])["red-lion"]).toMatchObject({
+      finished: true, doubled: true, finishedAt: "2026-09-01T19:00:00.000Z",
+    });
   });
 
   it("does not double a finish in another month", () => {

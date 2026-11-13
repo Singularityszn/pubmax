@@ -10,15 +10,16 @@
 // district challenge has every listed pub in that district.
 
 import { londonDayKey } from "@/lib/londonHour";
+import { haversineKm } from "@/lib/haversine";
 import { londonDistricts, type DistrictVenue } from "@/lib/points";
 
-export const CHALLENGE_IDS = ["red-lion", "kings-head", "ship", "every-district"] as const;
+export const CHALLENGE_IDS = ["red-lion", "kings-head", "ship", "every-district", "trades", "monopoly"] as const;
 export type ChallengeId = (typeof CHALLENGE_IDS)[number];
 
 type ChallengeTarget = { label: string; venueIds: string[]; mapVenueId?: string };
 export type ChallengeSet = ReadonlyMap<ChallengeId, readonly ChallengeTarget[]>;
 
-export type ChallengeVenue = DistrictVenue & { name: string; borough?: string };
+export type ChallengeVenue = DistrictVenue & { name: string; sourceName?: string; borough?: string; lat?: number; lng?: number };
 
 /** A target still to do. A pub opens on the map; a district has no one pub to open. */
 type ChallengeLeft = { label: string; venueId?: string };
@@ -30,6 +31,7 @@ export type ChallengeProgress = {
   finished: boolean;
   /** Finished inside a month when it was the challenge of the month. */
   doubled: boolean;
+  finishedAt: string | null;
   left: ChallengeLeft[];
 };
 
@@ -40,6 +42,37 @@ const NAMED: ReadonlyArray<readonly [ChallengeId, string]> = [
   ["red-lion", "red lion"],
   ["kings-head", "kings head"],
   ["ship", "ship"],
+];
+
+const TRADES = new Set([
+  "bricklayers arms", "carpenters arms", "masons arms", "blacksmiths arms",
+  "builders arms", "coopers arms", "brewers arms", "bakers arms", "butchers arms",
+  "weavers arms", "coachmakers arms",
+]);
+
+const MONOPOLY_STREETS: ReadonlyArray<readonly [string, string, readonly string[]]> = [
+  ["Old Kent Road", "old kent road", ["Southwark"]],
+  ["Whitechapel Road", "whitechapel road", ["Tower Hamlets"]],
+  ["The Angel Islington", "islington high street", ["Islington"]],
+  ["Euston Road", "euston road", ["Camden", "Westminster"]],
+  ["Pentonville Road", "pentonville road", ["Islington"]],
+  ["Pall Mall", "pall mall", ["Westminster"]],
+  ["Whitehall", "whitehall", ["Westminster"]],
+  ["Northumberland Avenue", "northumberland avenue", ["Westminster"]],
+  ["Bow Street", "bow street", ["Westminster"]],
+  ["Marlborough Street", "marlborough street", ["Westminster"]],
+  ["Vine Street", "vine street", ["Westminster"]],
+  ["Strand", "strand", ["Westminster"]],
+  ["Fleet Street", "fleet street", ["City of London", "Westminster"]],
+  ["Trafalgar Square", "trafalgar square", ["Westminster"]],
+  ["Leicester Square", "leicester square", ["Westminster"]],
+  ["Coventry Street", "coventry street", ["Westminster"]],
+  ["Piccadilly", "piccadilly", ["Westminster"]],
+  ["Regent Street", "regent street", ["Westminster"]],
+  ["Oxford Street", "oxford street", ["Westminster"]],
+  ["Bond Street", "bond street", ["Westminster"]],
+  ["Park Lane", "park lane", ["Westminster"]],
+  ["Mayfair", "mayfair", ["Westminster"]],
 ];
 
 const PUB_WORDS = "(?:pub|inn|tavern|hotel)";
@@ -78,6 +111,32 @@ function pubLabel(venue: ChallengeVenue, district: string | null): string {
   return where ? `${venue.name}, ${where}` : venue.name;
 }
 
+function monopolyTargets(venues: readonly ChallengeVenue[], pubs: readonly ChallengeVenue[]): ChallengeTarget[] {
+  return MONOPOLY_STREETS.flatMap(([street, streetAddress, boroughs]) => {
+    const onStreet = (pub: ChallengeVenue) => {
+      if (!boroughs.includes(pub.borough ?? "")) return false;
+      const name = fold(pub.sourceName ?? pub.name);
+      let address = fold(pub.searchText ?? "");
+      if (!address.startsWith(`${name} `)) return false;
+      address = address.slice(name.length + 1);
+      address = address.replace(/\brd\b/g, "road").replace(/\bst\b/g, "street").replace(/\bave\b/g, "avenue");
+      return ` ${address} `.includes(` ${streetAddress} `);
+    };
+    const point = (venue: ChallengeVenue): [number, number] | null =>
+      Number.isFinite(venue.lat) && Number.isFinite(venue.lng) ? [venue.lng!, venue.lat!] : null;
+    const anchors = venues.filter(onStreet).map(point).filter((value) => value !== null);
+    const choices = pubs.flatMap((pub) => {
+      if (onStreet(pub)) return [{ pub, distance: 0 }];
+      const location = point(pub);
+      if (!location || !anchors.length) return [];
+      const distance = Math.min(...anchors.map((anchor) => haversineKm(anchor, location)));
+      return distance <= 0.15 ? [{ pub, distance }] : [];
+    });
+    const venue = choices.sort((a, b) => a.distance - b.distance || a.pub.id.localeCompare(b.pub.id, "en-GB"))[0]?.pub;
+    return venue ? [{ label: `${street}: ${venue.name}`, venueIds: [venue.id], mapVenueId: venue.id }] : [];
+  });
+}
+
 /** Every challenge's targets, from the pubs we list in London. */
 export function buildChallengeSet(venues: readonly ChallengeVenue[]): ChallengeSet {
   const pubs = venues.filter((venue) => venue.id && (venue.kind === undefined || venue.kind === "pub"));
@@ -98,6 +157,12 @@ export function buildChallengeSet(venues: readonly ChallengeVenue[]): ChallengeS
       .sort((a, b) => a.label.localeCompare(b.label, "en-GB"));
     set.set(id, targets);
   }
+  const trades = [...new Map(pubs.filter((pub) => TRADES.has(namePlate(pub.name, pub.borough)))
+    .map((pub) => [pub.id, pub])).values()];
+  set.set("trades", trades.map((pub) => ({
+    label: pubLabel(pub, districtOf.get(pub.id) ?? null), venueIds: [pub.id], mapVenueId: pub.id,
+  })).sort((a, b) => a.label.localeCompare(b.label, "en-GB")));
+  set.set("monopoly", monopolyTargets(venues, pubs));
   set.set(
     "every-district",
     [...districts]
@@ -118,8 +183,11 @@ const MONTH_KEY = /^(\d{4})-(\d{2})$/;
 export function challengeOfTheMonth(monthKey: string): ChallengeId | null {
   const match = MONTH_KEY.exec(monthKey);
   if (!match) return null;
-  const months = Number(match[1]) * 12 + Number(match[2]) - 1;
-  return CHALLENGE_IDS[months % CHALLENGE_IDS.length]!;
+  const month = Number(match[2]);
+  if (month < 1 || month > 12) return null;
+  const months = Number(match[1]) * 12 + month - 1;
+  if (months < 2027 * 12) return CHALLENGE_IDS[months % 4]!;
+  return CHALLENGE_IDS[(months - 2027 * 12 + 4) % CHALLENGE_IDS.length]!;
 }
 
 /** The challenge of the month in London at `at`. */
@@ -131,7 +199,7 @@ export function challengeOfTheMonthAt(at: Date): ChallengeId | null {
 
 /**
  * Progress on every challenge. `visited` holds the Been list's current venue
- * ids. `firstMonth` gives the London month a pub was first logged, if known.
+ * ids. `firstLoggedAt` gives the timestamp a pub was first logged, if known.
  * A challenge is doubled when the month its last target was first logged is
  * a month it was the challenge of the month. A target with no known month
  * leaves the finish month unknown, so it is never doubled.
@@ -139,14 +207,14 @@ export function challengeOfTheMonthAt(at: Date): ChallengeId | null {
 export function challengeProgress(
   set: ChallengeSet,
   visited: ReadonlySet<string>,
-  firstMonth: (venueId: string) => string | null,
+  firstLoggedAt: (venueId: string) => string | null,
 ): ChallengeProgress[] {
   return CHALLENGE_IDS.map((id) => {
     const targets = set.get(id) ?? [];
     const left: ChallengeLeft[] = [];
     const doneIn: Array<string | null> = [];
     for (const target of targets) {
-      const months = target.venueIds.filter((venueId) => visited.has(venueId)).map(firstMonth);
+      const months = target.venueIds.filter((venueId) => visited.has(venueId)).map(firstLoggedAt);
       if (!months.length) {
         left.push(target.mapVenueId ? { label: target.label, venueId: target.mapVenueId } : { label: target.label });
         continue;
@@ -157,9 +225,10 @@ export function challengeProgress(
     }
     const total = targets.length;
     const finished = total > 0 && left.length === 0;
-    const finishMonth = doneIn.every(Boolean) ? (doneIn as string[]).sort().at(-1) : undefined;
+    const finishedAt = finished && doneIn.every(Boolean) ? (doneIn as string[]).sort().at(-1) ?? null : null;
+    const finishMonth = finishedAt ? londonDayKey(new Date(finishedAt)).slice(0, 7) : undefined;
     const doubled = finished && finishMonth !== undefined && challengeOfTheMonth(finishMonth) === id;
-    return { id, done: total - left.length, total, finished, doubled, left };
+    return { id, done: total - left.length, total, finished, doubled, finishedAt, left };
   });
 }
 
@@ -173,18 +242,24 @@ export const CHALLENGE_COPY = {
     "kings-head": "Every King's Head",
     ship: "Every Ship",
     "every-district": "One pub in every postcode district",
+    trades: "Pubs named after trades",
+    monopoly: "The London Monopoly board",
   } satisfies Record<ChallengeId, string>,
   deks: {
     "red-lion": "Every pub called the Red Lion that we list in London.",
     "kings-head": "Every pub called the King's Head that we list in London.",
     ship: "Every pub called the Ship that we list in London.",
     "every-district": "One pub in each London postcode district where we list a pub.",
+    trades: "The Bricklayers Arms, Carpenters Arms and other trade names on our London pub list.",
+    monopoly: "One listed pub on each street, or within 150 metres of a listed address there. Streets we cannot place are left out.",
   } satisfies Record<ChallengeId, string>,
   units: {
     "red-lion": "pubs",
     "kings-head": "pubs",
     ship: "pubs",
     "every-district": "districts",
+    trades: "pubs",
+    monopoly: "streets",
   } satisfies Record<ChallengeId, string>,
   monthly: "Challenge of the month. Finish it this month for double points.",
   doubled: "Finished in its month. Double points.",

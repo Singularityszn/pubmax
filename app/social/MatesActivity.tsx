@@ -11,10 +11,12 @@ import { RowList, RowListItem } from "@/components/ui/row-list";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { formatGbp } from "@/lib/formatGbp";
 import { MATES_BOARD_COPY } from "@/lib/matesBoard";
+import { CHALLENGE_COPY } from "@/lib/challenges";
 import {
   matesActivityBillLine,
   parseMatesActivity,
   type MatesActivityPint,
+  type MatesActivityItem,
 } from "@/lib/matesActivity";
 import { matesPriceDay, matesPriceDrink } from "@/lib/matesPrices";
 import { discardBody } from "@/lib/responseBody";
@@ -25,7 +27,7 @@ const FIRST_ROWS = 5;
 
 type State =
   | { status: "loading" }
-  | { status: "ready"; items: MatesActivityPint[] }
+  | { status: "ready"; items: MatesActivityItem[] }
   | { status: "error" };
 
 function PintRow({ item, now }: { item: MatesActivityPint; now: Date }) {
@@ -86,9 +88,9 @@ export default function MatesActivity() {
       aria-busy={state.status === "loading"}
     >
       <header>
-        <h2 id="mates-activity-title">Your mates&apos; pints</h2>
+        <h2 id="mates-activity-title">Your mates&apos; pints and challenges</h2>
         <p className="matesActivityLine">
-          Pints your mates logged in London, newest first. Each price is as they logged it.
+          Pints logged and challenges finished, newest first. Each price is as your mate logged it.
         </p>
         <Link prefetch={false} href="/social/leaderboard" className="matesActivityBoard">
           {MATES_BOARD_COPY.door}
@@ -110,18 +112,23 @@ export default function MatesActivity() {
         />
       ) : state.items.length === 0 ? (
         <p className="matesActivityLine" role="status">
-          No pints from your mates yet. When a mate logs a pint, it lands here.
+          No pints or finished challenges from your mates yet.
         </p>
       ) : (
         <>
-          <RowList label="Pints your mates logged">
+          <RowList label="Pints and challenges from your mates">
             {(showAll ? state.items : state.items.slice(0, FIRST_ROWS)).map((item) => (
-              <PintRow key={item.id} item={item} now={now} />
+              item.kind === "challenge_finished" ? (
+                <RowListItem key={item.id} href={`/u/${encodeURIComponent(item.handle)}` as Route}
+                  title={CHALLENGE_COPY.titles[item.challengeId]}
+                  meta={<>@{item.handle} finished a challenge <time dateTime={item.loggedAt}>{matesPriceDay(item.loggedAt, now)}</time></>}
+                />
+              ) : <PintRow key={item.id} item={item} now={now} />
             ))}
           </RowList>
           {!showAll && state.items.length > FIRST_ROWS ? (
             <Button type="button" variant="ghost" className="matesActivityMore" onClick={() => setShowAll(true)}>
-              Show more of your mates&apos; pints
+              Show more from your mates
             </Button>
           ) : null}
         </>

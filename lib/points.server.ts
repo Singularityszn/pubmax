@@ -29,7 +29,6 @@ import {
   type PassportDeps,
   type PassportResult,
 } from "@/lib/profilePassport.server";
-import { passportDay } from "@/lib/profilePassport";
 import { normalizeHandle } from "@/lib/profiles";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { ratingsStore } from "@/lib/ratingsStore";
@@ -70,18 +69,13 @@ async function settle<T>(read: () => Promise<T>, fallback: T): Promise<{ value: 
 
 const none = <T>(value: T) => settle(async () => value, value);
 
-/** A London month "YYYY-MM" for a day or a timestamp, or null when there is none. */
-function monthOf(value: string | undefined): string | null {
+function loggedAt(value: string | undefined): string | null {
   if (!value || !(Date.parse(value) > 0)) return null;
-  return passportDay(value).slice(0, 7) || null;
+  return new Date(value).toISOString();
 }
 
-/**
- * The London month each pub was first logged, on current venue ids. A Been
- * here row counts from the day it was ticked.
- */
-function firstMonths(
-  rows: ReadonlyArray<{ venueId: string; month: string | null }>,
+function firstLoggedDates(
+  rows: ReadonlyArray<{ venueId: string; date: string | null }>,
   canonical: (venueId: string) => string,
 ): (venueId: string) => string | null {
   const first = new Map<string, string | null>();
@@ -89,7 +83,7 @@ function firstMonths(
     const id = canonical(row.venueId);
     const held = first.get(id);
     if (held === null) continue;
-    first.set(id, row.month === null ? null : held && held < row.month ? held : row.month);
+    first.set(id, row.date === null ? null : held && held < row.date ? held : row.date);
   }
   return (venueId) => first.get(venueId) ?? null;
 }
@@ -125,15 +119,16 @@ export async function readPointsBreakdown(
   const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical].some(
     (read) => read.failed,
   );
-  const logged = firstMonths(
+  const completeHistory = [diary, drops, plans, beenHere, canonical].every((read) => !read.failed);
+  const logged = firstLoggedDates(
     [
-      ...[...diary.value, ...plans.value].map((row) => ({ venueId: row.venueId, month: monthOf(row.date) })),
-      ...drops.value.map((drop) => ({ venueId: drop.venueId, month: monthOf(drop.createdAt) })),
-      ...beenHere.value.map((row) => ({ venueId: row.venueId, month: monthOf(row.savedAt) })),
+      ...[...diary.value, ...plans.value].map((row) => ({ venueId: row.venueId, date: loggedAt(row.date) })),
+      ...drops.value.map((drop) => ({ venueId: drop.venueId, date: loggedAt(drop.createdAt) })),
+      ...beenHere.value.map((row) => ({ venueId: row.venueId, date: loggedAt(row.savedAt) })),
     ],
     canonical.value,
   );
-  const challenges = challengeProgress(challengeSet.value, visited, logged);
+  const challenges = challengeProgress(challengeSet.value, visited, completeHistory ? logged : () => null);
 
   return buildPointsBreakdown(
     {
@@ -218,6 +213,9 @@ const londonVenues = (index: Map<string, IndexedVenue>) =>
   [...index.values()].map(({ slimVenue }) => ({
     id: slimVenue.id,
     name: slimVenue.name,
+    sourceName: slimVenue.sourceName,
+    lat: slimVenue.lat,
+    lng: slimVenue.lng,
     kind: slimVenue.kind,
     borough: slimVenue.borough,
     searchText: slimVenue.filterHints?.searchText,
