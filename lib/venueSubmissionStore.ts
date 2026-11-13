@@ -58,6 +58,7 @@ type VenueSubmissionListResult = {
 type NewVenueSubmissionFile = Omit<VenueSubmissionFile, "createdAt">;
 
 export type VenueSubmissionStore = {
+  countAcceptedForOwner(ownerUserId: string): Promise<number>;
   create(fields: VenueSubmissionFields, now?: number): Promise<VenueSubmissionCreateResult>;
   /** The owner's own submissions, newest first. Fail-soft (degraded, []). */
   listForOwner(ownerUserId: string): Promise<VenueSubmissionListResult>;
@@ -93,6 +94,9 @@ function copy(row: VenueSubmission): VenueSubmission {
 }
 
 export const memoryVenueSubmissionStore: VenueSubmissionStore = {
+  async countAcceptedForOwner(ownerUserId) {
+    return [...byId.values()].filter((row) => row.ownerUserId === ownerUserId && row.status === "accepted").length;
+  },
   async create(fields, now = Date.now()) {
     const pending = [...byId.values()].filter(
       (row) => row.ownerUserId === fields.ownerUserId && row.status === "pending",
@@ -306,6 +310,17 @@ const supabaseVenueSubmissionStore: VenueSubmissionStore = {
         return { status: "created" as const, submission };
       },
     });
+  },
+
+  async countAcceptedForOwner(ownerUserId) {
+    const { count, error } = await admin()
+      .from(TABLE)
+      .select("id", { count: "exact", head: true })
+      .eq("owner_user_id", ownerUserId)
+      .eq("status", "accepted");
+    if (error) throw new Error(error.message);
+    if (count === null) throw new Error("Owner contribution count unavailable");
+    return count;
   },
 
   async listForOwner(ownerUserId) {

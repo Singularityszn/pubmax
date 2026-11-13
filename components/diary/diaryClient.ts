@@ -8,6 +8,7 @@ import {
 } from "@/lib/accountBoundFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { emitBeenHereChanged } from "@/lib/beenHere";
 import {
   readContributionGateStatus,
   type ContributionGateStatus,
@@ -57,6 +58,7 @@ export async function postDiaryEntry(
       ...(status ? { status } : {}),
     };
   }
+  emitBeenHereChanged();
   return {
     ok: true,
     entry: body.entry,
@@ -110,6 +112,7 @@ export async function updateDiaryEntry(
         error: offlineOrMessage(errorMessageFrom(body, "Couldn't save that change just now.")),
       };
     }
+    emitBeenHereChanged();
     return {
       ok: true,
       entry: body.entry,
@@ -141,6 +144,7 @@ export async function deleteDiaryEntry(
         error: offlineOrMessage(errorMessageFrom(body, "Couldn't remove that entry just now.")),
       };
     }
+    emitBeenHereChanged();
     return { ok: true };
   } catch {
     return { ok: false, error: offlineOrMessage("Couldn't remove that entry just now.") };

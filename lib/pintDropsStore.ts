@@ -176,6 +176,13 @@ type PintDropCreateOptions = {
   readonly communityPrice?: { actor: string; submittedAt: number };
 };
 
+type OwnDropContribution = Pick<PintDrop, "venueId" | "createdAt" | "priceGbp" | "priceEvidence" | "confirmation">;
+
+function ownDropContribution(drop: PintDrop): OwnDropContribution {
+  const { venueId, createdAt, priceGbp, priceEvidence, confirmation } = drop;
+  return { venueId, createdAt, priceGbp, priceEvidence, confirmation };
+}
+
 /** The one seam the API route talks to. Both implementations below. */
 export type PintDropStore = {
   /**
@@ -236,6 +243,7 @@ export type PintDropStore = {
    */
   listOwnVenueIds(authorHandle: string, cityId?: CityId | null): Promise<string[]>;
   cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
+  listOwnContributions(authorHandle: string): Promise<OwnDropContribution[]>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -998,6 +1006,13 @@ export const memoryPintDropStore: PintDropStore = {
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
     return attributedAuthorVenueIds(rows, author, viewer);
+  },
+  async listOwnContributions(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return [];
+    return asAuthorDrops(listAllStoredPintDrops(), author)
+      .filter((drop) => drop.status === "visible" && visibilityOf(drop) !== "legacy")
+      .map(ownDropContribution);
   },
   async listOwnVenueIds(authorHandle, cityId) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -1777,6 +1792,29 @@ export const supabasePintDropStore: PintDropStore = {
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
     return durableAuthorVenueIds(authorHandle, viewer, cityId, venueId, false);
+  },
+  async listOwnContributions(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    if (!author) return [];
+    const records: OwnDropContribution[] = [];
+    let afterId: string | undefined;
+    for (;;) {
+      let query = admin().from(TABLE).select("*")
+        .eq("status", "visible")
+        .in("handle", wornHandleList(author))
+        .order("id", { ascending: true }).limit(MAX_PUBLIC_DROPS);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (!data?.length) break;
+      records.push(...data.map(fromRow)
+        .filter((drop) => visibilityOf(drop) !== "legacy")
+        .map(ownDropContribution));
+      const nextId = data[data.length - 1]!.id;
+      if (!nextId || (afterId && nextId <= afterId)) throw new Error("Owner drop read did not advance");
+      afterId = nextId;
+    }
+    return records;
   },
   async listOwnVenueIds(authorHandle, cityId) {
     return durableAuthorVenueIds(authorHandle, undefined, cityId ?? null, undefined, true);

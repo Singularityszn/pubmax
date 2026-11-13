@@ -56,6 +56,18 @@ beforeEach(() => {
 });
 
 describe("memory venue submission store", () => {
+  it("counts accepted owner submissions beyond the display window", async () => {
+    for (let i = 0; i < 101; i++) {
+      const row = await created(ALICE, `Accepted ${i}`);
+      await store.decide(row.id, { status: "accepted", note: null });
+    }
+    await created(ALICE, "Pending");
+    const other = await created(BOB);
+    await store.decide(other.id, { status: "accepted", note: null });
+    expect(await store.countAcceptedForOwner(ALICE)).toBe(101);
+    expect(await store.countAcceptedForOwner(BOB)).toBe(1);
+  });
+
   it("creates a pending submission and lists it for its owner alone", async () => {
     const submission = await created();
     expect(submission).toMatchObject({ status: "pending", duplicateOfVenueId: null, files: [] });

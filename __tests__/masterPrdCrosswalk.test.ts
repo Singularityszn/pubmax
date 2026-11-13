@@ -39,6 +39,6 @@ describe("MASTER_PRD legacy crosswalk", () => {
   });
 
   it("declares the rejected progression mechanics explicitly", () => {
-    expect(MASTER).toContain("There are no streaks, freezes, drinking counts, or consumption-based rewards.");
+    expect(MASTER).toContain("There are no streaks or freezes. The [Points definition](../CONTEXT.md) governs points and levels.");
   });
 });

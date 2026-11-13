@@ -109,7 +109,7 @@ Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI 
 | `emoji-bullet` | A line that opens with an emoji standing in for a bullet. The star rating glyph is excepted: a string of nothing but stars IS the rating, not a bullet. | Words. A pint glass icon is not punctuation. |
 | `card-in-card` | A bordered card whose child is another bordered card. | The de-box rule: a heading with controls under it is already a section. One edge at most, and usually none. |
 | `three-column-grid` | `repeat(3, 1fr)` of identical cells, each with an icon, a title and a sentence. | One column that reads top to bottom, the same on a phone and a desktop. |
-| `gamified-level` | Level 3, mastery points, XP, a progress track for being a person. | Nothing. A referral is a mark of honour and a Pal is a companion; neither has a level. |
+| `gamified-level` | XP, mastery points, "level up". | Points and a plain level ("Level 3", "140 points"). See the [Points definition](../CONTEXT.md). A referral is a mark of honour and a Pal is a companion; neither earns points. |
 
 Two things the fence deliberately leaves alone. A comment about a banned phrase is not copy, because the scan reads the AST. And the sheet material over the map keeps its blur, because a movable overlay needs to show what is under it.
 

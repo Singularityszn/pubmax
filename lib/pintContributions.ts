@@ -8,9 +8,8 @@
 // lib/pintDropShared.ts as the browser-safe twin of a server domain.
 //
 // DUTY OF CARE: every streak/tally here rewards the CONTRIBUTION — days you
-// added a price observation to the map — and never the drinking. The reward is
-// visible impact ("you mapped 12 pints in Hackney"), never a points economy.
-// Copy must stay on the mapping framing.
+// added a price observation to the map, never the drinking. This module reports
+// mapping activity. lib/points.ts owns points. Copy must stay on the mapping framing.
 
 import { DAY_MS } from "@/lib/dayMs";
 import { londonDayKey as londonDayKeyOf } from "@/lib/londonHour";

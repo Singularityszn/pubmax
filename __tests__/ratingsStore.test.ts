@@ -8,6 +8,8 @@ import {
 } from "@/lib/ratingsStore";
 import type { RatingValue } from "@/lib/ratings";
 import { defined } from "@/__tests__/helpers/defined";
+import { __resetMemoryIdentityHandles, memoryIdentityHandleStore } from "@/lib/identityHandleStore";
+import { __resetMemoryProfiles } from "@/lib/profileStore";
 
 // Memory-store contract coverage: upsert semantics and batch summaries.
 // Supabase env cleared per convention so ratingsStore() deterministically
@@ -16,6 +18,8 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryRatings();
+  __resetMemoryIdentityHandles();
+  __resetMemoryProfiles();
 });
 
 async function cast(ref: string, handle: string, rating: RatingValue, kind: "drink" | "venue" = "venue") {
@@ -38,6 +42,32 @@ describe("ratingsStore() seam", () => {
 });
 
 describe("memory store — rate() upsert semantics", () => {
+  it("counts distinct drinks across an owner's handle rename", async () => {
+    expect((await memoryIdentityHandleStore.claim("owner", "old_reviewer")).ok).toBe(true);
+    await cast("drink-a", "old_reviewer", 4, "drink");
+    await cast("drink-b", "old_reviewer", 3, "drink");
+    expect((await memoryIdentityHandleStore.rename("owner", "new_reviewer")).ok).toBe(true);
+    await cast("drink-a", "new_reviewer", 5, "drink");
+    await cast("drink-c", "new_reviewer", 4, "drink");
+    await cast("venue-a", "new_reviewer", 5, "venue");
+    await cast("drink-d", "another_reviewer", 5, "drink");
+
+    expect(await memoryRatingsStore.countDrinkReviews("new_reviewer")).toBe(3);
+    expect(await memoryRatingsStore.countDrinkReviews("old_reviewer")).toBe(3);
+    expect(await memoryRatingsStore.countDrinkReviews("another_reviewer")).toBe(1);
+    expect(await memoryRatingsStore.countDrinkReviews("no_reviews")).toBe(0);
+  });
+
+  it("counts only the owner's stored drink reviews, once per stored review", async () => {
+    await cast("drink-a", "review_owner", 4, "drink");
+    await cast("drink-a", "review_owner", 5, "drink");
+    await cast("drink-b", "review_owner", 3, "drink");
+    await cast("venue-a", "review_owner", 4, "venue");
+    await cast("drink-c", "another_reviewer", 5, "drink");
+    expect(await memoryRatingsStore.countDrinkReviews("review_owner")).toBe(2);
+    expect(await memoryRatingsStore.countDrinkReviews("another_reviewer")).toBe(1);
+  });
+
   it("a handle's re-rating REPLACES its old vote (count stays 1)", async () => {
     await cast("venue-1", "ken", 2);
     const after = await cast("venue-1", "ken", 5);

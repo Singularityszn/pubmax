@@ -230,7 +230,7 @@ async function dropSightings(
 const identity = (venueId: string) => venueId;
 
 /** The alias map, or the identity when it cannot be read. */
-async function canonicalizer(deps: PassportDeps): Promise<(venueId: string) => string> {
+async function canonicalizer(deps: Pick<PassportDeps, "venueAliases">): Promise<(venueId: string) => string> {
   try {
     return await deps.venueAliases();
   } catch {
@@ -258,13 +258,47 @@ function rankedOnCurrentIds(rows: readonly PassportRankedRow[], canonical: (venu
     });
 }
 
-async function named(sightings: BeenSighting[], deps: PassportDeps): Promise<BeenSighting[]> {
+async function named(sightings: BeenSighting[], deps: Pick<PassportDeps, "venue">): Promise<BeenSighting[]> {
   return Promise.all(
     sightings.map(async (sighting) => {
       if (sighting.venueName) return sighting;
       const venue = await deps.venue(sighting.venueId).catch(() => null);
       return { ...sighting, venueName: venue?.name ?? "" };
     }),
+  );
+}
+
+type BeenRecords = {
+  diary: BeenSighting[];
+  drops: ReadonlyArray<{ venueId: string; createdAt: string }>;
+  plans: BeenSighting[];
+  beenHere: PassportVenue[];
+};
+
+/**
+ * The passport's Been list and the points read share the same canonicalisation
+ * and deduplication rules, even when their readers supply different records.
+ */
+export async function foldBeenVenues(
+  records: BeenRecords,
+  canonical: (venueId: string) => string,
+  deps: Pick<PassportDeps, "venue">,
+): Promise<BeenVenue[]> {
+  const dropRows: BeenSighting[] = records.drops.map((drop) => ({
+    venueId: drop.venueId,
+    venueName: "",
+    date: drop.createdAt,
+    source: "pint_drop",
+  }));
+  // A Been here row carries no day, and is never given one.
+  const beenHereRows: BeenSighting[] = records.beenHere.map((venue) => ({
+    venueId: venue.venueId,
+    venueName: venue.venueName,
+    date: "",
+    source: "been_here",
+  }));
+  return aggregateBeen(
+    await named(onCurrentIds([...records.diary, ...dropRows, ...records.plans, ...beenHereRows], canonical), deps),
   );
 }
 
@@ -298,21 +332,10 @@ async function foldBeen(
     canonicalizer(deps),
   ]);
 
-  const dropRows: BeenSighting[] = drops.value.map((drop) => ({
-    venueId: drop.venueId,
-    venueName: "",
-    date: drop.createdAt,
-    source: "pint_drop",
-  }));
-  // A Been here row carries no day, and is never given one.
-  const beenHereRows: BeenSighting[] = beenHere.value.map((venue) => ({
-    venueId: venue.venueId,
-    venueName: venue.venueName,
-    date: "",
-    source: "been_here",
-  }));
-  const venues = aggregateBeen(
-    await named(onCurrentIds([...diary.value, ...dropRows, ...plans.value, ...beenHereRows], canonical), deps),
+  const venues = await foldBeenVenues(
+    { diary: diary.value, drops: drops.value, plans: plans.value, beenHere: beenHere.value },
+    canonical,
+    deps,
   );
   return {
     venues,
@@ -521,8 +544,6 @@ export async function readPassportRanked(
 
 // ── The real stores ─────────────────────────────────────────────────────────
 
-const PLAN_READ_CAP = 200;
-
 type PlanSightingsReader = (ownerUserId: string) => Promise<BeenSighting[]>;
 
 // The memory plan store keeps no account index, so a keyless demo has no
@@ -532,44 +553,62 @@ const memoryPlanSightings: PlanSightingsReader = async () => [];
 
 const supabasePlanSightings: PlanSightingsReader = async (ownerUserId) => {
   const db = requireSupabaseAdmin();
-  const [seats, owned] = await Promise.all([
-    db.from("plan_crew_members").select("plan_id").eq("user_id", ownerUserId).limit(PLAN_READ_CAP),
-    db.from("plans").select("id").eq("owner_user_id", ownerUserId).limit(PLAN_READ_CAP),
-  ]);
-  if (seats.error) throw new Error(seats.error.message);
-  if (owned.error) throw new Error(owned.error.message);
-  const allIds = [
-    ...new Set([
-      ...(seats.data ?? []).map((row) => String(row.plan_id)),
-      ...(owned.data ?? []).map((row) => String(row.id)),
-    ]),
-  ];
-  let capped =
-    (seats.data ?? []).length >= PLAN_READ_CAP || (owned.data ?? []).length >= PLAN_READ_CAP || allIds.length > PLAN_READ_CAP;
-  const finish = (rows: BeenSighting[]): BeenSighting[] => {
-    if (capped) throw new CappedRead(rows);
-    return rows;
-  };
-  const planIds = allIds.slice(0, PLAN_READ_CAP);
-  if (!planIds.length) return finish([]);
-  const done = await db.from("plan_completions").select("plan_id, completed_at").in("plan_id", planIds);
-  if (done.error) throw new Error(done.error.message);
-  const completedAt = new Map((done.data ?? []).map((row) => [String(row.plan_id), String(row.completed_at)]));
-  if (!completedAt.size) return finish([]);
-  const stops = await db
-    .from("plan_stops")
-    .select("plan_id, venue_id, venue_name")
-    .in("plan_id", [...completedAt.keys()]);
-  if (stops.error) throw new Error(stops.error.message);
-  if ((stops.data ?? []).length >= POSTGREST_ROW_CAP) capped = true;
-  return finish(
-    (stops.data ?? []).map((row) => ({
-      venueId: String(row.venue_id),
-      venueName: String(row.venue_name ?? ""),
-      date: passportDay(completedAt.get(String(row.plan_id)) ?? ""),
-      source: "plan" as const,
-    })),
-  );
+  const planIds = new Set<string>();
+  let afterSeat: string | undefined;
+  for (;;) {
+    let query = db.from("plan_crew_members").select("id, plan_id")
+      .eq("user_id", ownerUserId).order("id", { ascending: true }).limit(500);
+    if (afterSeat) query = query.gt("id", afterSeat);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data?.length) break;
+    for (const row of data) planIds.add(row.plan_id);
+    const nextId = data[data.length - 1]!.id;
+    if (!nextId || (afterSeat && nextId <= afterSeat)) throw new Error("Owner plan seats did not advance");
+    afterSeat = nextId;
+  }
+  let afterPlan: string | undefined;
+  for (;;) {
+    let query = db.from("plans").select("id")
+      .eq("owner_user_id", ownerUserId).order("id", { ascending: true }).limit(500);
+    if (afterPlan) query = query.gt("id", afterPlan);
+    const { data, error } = await query;
+    if (error) throw new Error(error.message);
+    if (!data?.length) break;
+    for (const row of data) planIds.add(row.id);
+    const nextId = data[data.length - 1]!.id;
+    if (!nextId || (afterPlan && nextId <= afterPlan)) throw new Error("Owner plans did not advance");
+    afterPlan = nextId;
+  }
+  const sightings: BeenSighting[] = [];
+  const ids = [...planIds];
+  for (let offset = 0; offset < ids.length; offset += 100) {
+    const done = await db.from("plan_completions")
+      .select("plan_id, completed_at", { count: "exact" }).in("plan_id", ids.slice(offset, offset + 100));
+    if (done.error) throw new Error(done.error.message);
+    if (!done.data || done.count !== done.data.length) throw new Error("Incomplete plan completions");
+    const completedAt = new Map(done.data.map((row) => [row.plan_id, row.completed_at]));
+    if (!completedAt.size) continue;
+    let afterStop: number | undefined;
+    for (;;) {
+      let query = db.from("plan_stops").select("id, plan_id, venue_id, venue_name")
+        .in("plan_id", [...completedAt.keys()]).order("id", { ascending: true }).limit(500);
+      if (afterStop !== undefined) query = query.gt("id", afterStop);
+      const { data, error } = await query;
+      if (error) throw new Error(error.message);
+      if (!data?.length) break;
+      sightings.push(...data.map((row) => ({
+        venueId: row.venue_id,
+        venueName: row.venue_name ?? "",
+        date: passportDay(completedAt.get(row.plan_id) ?? ""),
+        source: "plan" as const,
+      })));
+      const nextId = data[data.length - 1]!.id;
+      if (afterStop !== undefined && nextId <= afterStop) throw new Error("Owner plan stops did not advance");
+      afterStop = nextId;
+    }
+  }
+  return sightings;
 };
 
 async function venueFacts(venueId: string): Promise<PassportVenueFacts | null> {

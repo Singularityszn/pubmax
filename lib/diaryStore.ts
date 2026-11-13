@@ -285,18 +285,23 @@ const supabaseDiaryStore: DiaryStore = {
       onError: async () => ({ status: "degraded" as const, entries: [] }),
       message: "list failed",
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("*")
-          .eq("owner_user_id", ownerUserId)
-          .order("visited_on", { ascending: false })
-          .order("created_at", { ascending: false });
-        if (error) throw new Error(error.message);
-        const entries = (data ?? [])
-          .map((row) => fromRow(row as Record<string, unknown>))
-          .filter((row): row is DiaryEntry => row !== null)
-          .sort(compareDiaryEntries)
-          .map(toDTO);
+        const stored: DiaryEntry[] = [];
+        let afterId: string | undefined;
+        for (;;) {
+          let query = admin().from(TABLE).select("*")
+            .eq("owner_user_id", ownerUserId)
+            .order("id", { ascending: true }).limit(500);
+          if (afterId) query = query.gt("id", afterId);
+          const { data, error } = await query;
+          if (error) throw new Error(error.message);
+          if (!data?.length) break;
+          stored.push(...data.map((row) => fromRow(row as Record<string, unknown>))
+            .filter((row): row is DiaryEntry => row !== null));
+          const nextId = data[data.length - 1]!.id;
+          if (!nextId || (afterId && nextId <= afterId)) throw new Error("Owner diary read did not advance");
+          afterId = nextId;
+        }
+        const entries = stored.sort(compareDiaryEntries).map(toDTO);
         return { status: "ready" as const, entries };
       },
     });

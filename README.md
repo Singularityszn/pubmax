@@ -41,6 +41,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If you logged a qualifying public pint, the card includes your cheapest one across all cities, with its receipt and logged day. Anonymous and friends-only drops are excluded. A hidden, deleted or restricted drop loses its receipt from the card. The dated count stays. Old links follow a handle rename. Withdrawn or deleted accounts no longer show a card. Sharing opens the device's share sheet or copies the text and link. If sharing fails after preparing the link, tap again to share the retained link.
 
+  Your own profile also shows **Points**, your level, and the points needed for the next level. Open **How points work** for the scoring rules from [`lib/points.ts`](lib/points.ts). Only you can read your breakdown. If some records fail to load, the card warns that the total may be low.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.

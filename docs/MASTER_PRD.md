@@ -47,7 +47,7 @@ evidence limitations behind confident copy.
   cyberpunk characters.
 - Pub Pal is optional, account-owned, interruptible, and subordinate to the shared
   factual, recommendation, moderation, and safety engines.
-- There are no streaks, freezes, drinking counts, or consumption-based rewards.
+- There are no streaks or freezes. The [Points definition](../CONTEXT.md) governs points and levels.
 - PUBMAXX identity remains canonical. X, Instagram, and TikTok are optional
   integrations, never identity authorities.
 - The [persistence decision](#persistence) governs backend authority and migration scope.
