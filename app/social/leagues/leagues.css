@@ -182,7 +182,7 @@ html[data-theme="dark"] .leaguesShell {
   grid-template-columns: minmax(0, 1fr);
 }
 
-@media (min-width: 640px) {
+@media (min-width: 641px) {
   .leagueMap {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
