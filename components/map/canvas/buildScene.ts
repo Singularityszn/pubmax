@@ -101,8 +101,7 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 //
 //   • it never joins a curated cluster, so no base pub can inflate a curated
 //     cluster's count or tint its donut. Below the pin floor it draws its own
-//     count bubbles (ukBaseOverviewLayers.ts) only outside the area the curated
-//     clusters cover;
+//     count bubbles of named pubs and bars across the UK (ukBaseOverviewLayers.ts);
 //   • it carries no price, so it never enters the price-bucket colour system;
 //   • it renders UNDER every curated layer, which is also what makes a curated
 //     pin win the collision (MapLibre places the topmost symbol layer first),

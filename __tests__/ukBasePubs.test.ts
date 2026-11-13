@@ -502,14 +502,21 @@ describe("pan residency helpers", () => {
 });
 
 describe("UK base overview", () => {
-  const LONDON = { west: -0.6, south: 51.2, east: 0.4, north: 51.8 };
-
-  it("counts every published row at a member pub's position", () => {
+  it("counts named pubs and bars at a named member's position", () => {
     const overview = buildUkBaseOverview(
-      { urlPrefix: "/data/uk_base/packs/0123456789abcdef/", generatedFrom: { count: 3 } },
+      { urlPrefix: "/data/uk_base/packs/0123456789abcdef/", generatedFrom: { count: 5 } },
       [
-        { id: "b", rows: [["n3", "C", "", 53.4, -2.2, ""]] },
-        { id: "a", rows: [["n1", "A", "", 51.5, -0.2, ""], ["n2", "B", "", 51.6, -0.1, "", "bar"]] },
+        { id: "b", rows: [["n3", "C", "", 53.4, -2.2, "", "bar"]] },
+        {
+          id: "a",
+          rows: [
+            ["n0", "", "", 51.4, -0.3, ""],
+            ["n1", "A", "", 51.5, -0.2, ""],
+            ["n2", "B", "", 51.6, -0.1, "", "bar"],
+          ],
+        },
+        { id: "c", rows: [["n4", "", "", 57.59819, -7.15917, ""]] },
+        { id: "d", rows: [] },
       ],
     );
     expect(overview.count).toBe(3);
@@ -517,13 +524,26 @@ describe("UK base overview", () => {
       [51.5, -0.2, 2],
       [53.4, -2.2, 1],
     ]);
+    expect(ukBaseOverviewToGeoJSON(parseUkBaseOverview(overview) ?? []).features).toEqual([
+      { type: "Feature", geometry: { type: "Point", coordinates: [-0.2, 51.5] }, properties: { n: 2 } },
+      { type: "Feature", geometry: { type: "Point", coordinates: [-2.2, 53.4] }, properties: { n: 1 } },
+    ]);
+  });
+
+  it("omits cells with only unnamed pubs", () => {
+    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 1 } }, [
+      { id: "57.50_-7.25", rows: [["n5240171445", "", "", 57.59819, -7.15917, ""]] },
+    ]);
+    expect(overview.count).toBe(0);
+    expect(overview.cells).toEqual([]);
   });
 
   it("opens a real pub from the sparse Scottish cell", async () => {
-    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 2 } }, [
+    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 3 } }, [
       {
         id: "56.25_-3.75",
         rows: [
+          ["n0", "", "", 56.4, -3.6, ""],
           ["n1", "A", "", 56.29587, -3.70691, ""],
           ["n2", "B", "", 56.4256, -3.51784, ""],
         ],
@@ -531,7 +551,7 @@ describe("UK base overview", () => {
     ]);
     const points = parseUkBaseOverview(overview);
     expect(points).not.toBeNull();
-    const feature = defined(ukBaseOverviewToGeoJSON(points ?? [], null).features[0]);
+    const feature = defined(ukBaseOverviewToGeoJSON(points ?? []).features[0]);
     const flyTo = vi.fn();
     await zoomIntoUkBaseOverview(
       { getSource: () => undefined } as unknown as MapLibreMap,
@@ -605,7 +625,7 @@ describe("UK base overview", () => {
   it("refuses to build an overview that disagrees with the manifest's count", () => {
     expect(() =>
       buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 5 } }, [
-        { id: "a", rows: [["n1", "A", "", 51.5, -0.2, ""]] },
+        { id: "a", rows: [["n0", "", "", 51.4, -0.3, ""], ["n1", "A", "", 51.5, -0.2, ""]] },
       ]),
     ).toThrow(/manifest states 5/);
   });
@@ -619,19 +639,5 @@ describe("UK base overview", () => {
     expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 1.5]] })).toBeNull();
     expect(parseUkBaseOverview({ version: 1, cells: [[95, -0.1, 3]] })).toBeNull();
     expect(parseUkBaseOverview(null)).toBeNull();
-  });
-
-  it("stands down inside the area the curated clusters cover", () => {
-    const points = [
-      { lat: 51.5, lng: -0.1, count: 4000 },
-      { lat: 53.48, lng: -2.24, count: 2200 },
-    ];
-    const withCurated = ukBaseOverviewToGeoJSON(points, LONDON);
-    expect(withCurated.features.map((feature) => feature.properties)).toEqual([{ n: 2200 }]);
-    const nothingCurated = ukBaseOverviewToGeoJSON(points, null);
-    expect(nothingCurated.features.map((feature) => feature.properties)).toEqual([
-      { n: 4000 },
-      { n: 2200 },
-    ]);
   });
 });

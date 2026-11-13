@@ -3,7 +3,7 @@
 // country reads as empty while it holds tens of thousands of pubs. The client
 // clusters these points into count bubbles (lib/ukBaseOverview.ts). It reads
 // the PUBLISHED shards rather than the OSM packs, so a bubble counts exactly
-// the rows a reader finds after zooming in. No price is derived from it.
+// the named pubs and bars visible at zoom 12. No price is derived from it.
 //
 // Run after scripts/build_uk_base_shards.mjs (wired into `npm run build:uk-base`).
 

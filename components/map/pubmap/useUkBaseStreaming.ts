@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 
 import { PIN_MIN_ZOOM as UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
@@ -15,7 +15,6 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { discardBody } from "@/lib/responseBody";
-import { curatedClusterBounds } from "@/lib/ukBaseOverview";
 import { useUkBaseOverview } from "./useUkBaseOverview";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
@@ -54,8 +53,6 @@ type Options = {
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   /** The count bubbles below the gate, reseeded the same way. */
   ukBaseOverviewDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
-  /** The loaded city's box: the bubbles stand down there while curated pins draw. */
-  cityBounds: [[number, number], [number, number]];
   drawableVenueIds: ReadonlySet<string>;
   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
   provisionalVenueIds?: ReadonlySet<string> | null;
@@ -243,7 +240,6 @@ export function useUkBaseStreaming({
   applyToMap,
   ukBaseDataRef,
   ukBaseOverviewDataRef,
-  cityBounds,
   drawableVenueIds,
   provisionalVenueIds = null,
   spoonsValue = null,
@@ -273,11 +269,6 @@ export function useUkBaseStreaming({
     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
   const publishedModeRef = useRef({ scopeKey, suspended });
-  const curatedDrawable = drawableVenueIds.size > 0;
-  const curatedBounds = useMemo(
-    () => curatedClusterBounds(cityBounds, curatedDrawable),
-    [cityBounds, curatedDrawable],
-  );
   useUkBaseOverview({
     mapRef,
     mapReady,
@@ -286,7 +277,6 @@ export function useUkBaseStreaming({
     minZoom: UK_BASE_MIN_ZOOM,
     held,
     suspended,
-    curatedBounds,
   });
 
   const publish = useCallback(

@@ -4155,7 +4155,6 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     applyToMap,
     ukBaseDataRef,
     ukBaseOverviewDataRef,
-    cityBounds,
     drawableVenueIds,
     provisionalVenueIds,
     // The Spoons value lens rides THIS layer: most of the pubs it ranks are

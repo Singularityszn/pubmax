@@ -1,5 +1,5 @@
-// The UK base layer seen from above its zoom gate: one point per published
-// shard with the number of pubs and bars in it, clustered by MapLibre into
+// The UK base layer seen from above its zoom gate: one point per shard with
+// named pubs or bars, clustered by MapLibre into
 // count bubbles (components/map/canvas/ukBaseOverviewLayers.ts).
 //
 // Below UK_BASE_MIN_ZOOM no shard is fetched, so this ~4 KB file is what stops
@@ -7,11 +7,9 @@
 // camera first goes below the gate and the priced pins have painted.
 // scripts/build_uk_base_overview.mjs writes it from the published shards.
 //
-// A count is a count of OSM places, never of prices. Where the curated layer
-// draws its own clusters, the overview stands down so one area never shows two
-// bubbles.
+// A count is a count of named OSM places, never of prices. The overview covers
+// the whole UK, including areas with curated clusters.
 
-import type { MapBounds } from "@/lib/slimShards";
 import { discardBody } from "@/lib/responseBody";
 
 const UK_BASE_OVERVIEW_PATH = "/data/uk_base/overview.json";
@@ -45,26 +43,11 @@ export function parseUkBaseOverview(value: unknown): UkBaseOverviewPoint[] | nul
   return cells.map(([lat, lng, count]) => ({ lat, lng, count }));
 }
 
-function inside(point: UkBaseOverviewPoint, bounds: MapBounds): boolean {
-  return (
-    point.lat >= bounds.south &&
-    point.lat <= bounds.north &&
-    point.lng >= bounds.west &&
-    point.lng <= bounds.east
-  );
-}
-
-/**
- * The overview's GeoJSON. `curatedBounds` is the area the curated layer is
- * drawing clusters over; a point inside it is left out.
- */
 export function ukBaseOverviewToGeoJSON(
   points: readonly UkBaseOverviewPoint[],
-  curatedBounds: MapBounds | null,
 ): GeoJSON.FeatureCollection {
   const features: GeoJSON.Feature[] = [];
   for (const point of points) {
-    if (curatedBounds && inside(point, curatedBounds)) continue;
     features.push({
       type: "Feature",
       geometry: { type: "Point", coordinates: [point.lng, point.lat] },
@@ -94,17 +77,4 @@ export function loadUkBaseOverview(): Promise<UkBaseOverviewPoint[] | null> {
       });
   }
   return overviewPromise;
-}
-
-/**
- * The area the curated clusters cover: the loaded city's box while any curated
- * venue is drawable, or null when the curated layer draws nothing.
- */
-export function curatedClusterBounds(
-  cityBounds: [[number, number], [number, number]],
-  curatedDrawable: boolean,
-): MapBounds | null {
-  if (!curatedDrawable) return null;
-  const [[west, south], [east, north]] = cityBounds;
-  return { west, south, east, north };
 }

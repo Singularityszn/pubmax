@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 
 import { UK_BASE_OVERVIEW_SOURCE } from "@/components/map/canvas/ukBaseOverviewLayers";
-import type { MapBounds } from "@/lib/slimShards";
 import {
   loadUkBaseOverview,
   ukBaseOverviewToGeoJSON,
@@ -22,8 +21,6 @@ type Options = {
   minZoom: number;
   held: boolean;
   suspended: boolean;
-  /** The area the curated clusters cover, or null when they draw nothing. */
-  curatedBounds: MapBounds | null;
 };
 
 // The base layer's count bubbles below its zoom gate (lib/ukBaseOverview.ts).
@@ -37,7 +34,6 @@ export function useUkBaseOverview({
   minZoom,
   held,
   suspended,
-  curatedBounds,
 }: Options): void {
   const [points, setPoints] = useState<UkBaseOverviewPoint[] | null>(null);
 
@@ -60,10 +56,10 @@ export function useUkBaseOverview({
   }, [held, mapReady, mapRef, minZoom, points, suspended]);
 
   useEffect(() => {
-    const data = points && !suspended ? ukBaseOverviewToGeoJSON(points, curatedBounds) : EMPTY;
+    const data = points && !suspended ? ukBaseOverviewToGeoJSON(points) : EMPTY;
     dataRef.current = data;
     applyToMap("uk-base-overview:data", (map) => {
       (map.getSource(UK_BASE_OVERVIEW_SOURCE) as maplibregl.GeoJSONSource | undefined)?.setData(data);
     });
-  }, [applyToMap, curatedBounds, dataRef, points, suspended]);
+  }, [applyToMap, dataRef, points, suspended]);
 }

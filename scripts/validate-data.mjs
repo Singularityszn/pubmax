@@ -2055,7 +2055,7 @@ function validateUkPlaceIndex() {
   return errors;
 }
 
-// The zoomed-out count bubbles must count exactly the published shards, so the
+// The zoomed-out count bubbles must count the published shards' named rows, so the
 // file is rebuilt here and compared whole. A shard build without an overview
 // build fails on the generation it names.
 function validateUkBaseOverview(manifest, shardRows) {
@@ -2080,7 +2080,7 @@ function validateUkBaseOverview(manifest, shardRows) {
   }
   if (!isDeepStrictEqual(published, expected)) {
     errors.push(
-      `${UK_BASE_OVERVIEW_FILE} does not match the published shards - run node scripts/build_uk_base_overview.mjs`,
+      `${UK_BASE_OVERVIEW_FILE} does not match the published shards' named rows - run node scripts/build_uk_base_overview.mjs`,
     );
   }
   return errors;
