@@ -927,6 +927,7 @@ async function main() {
       } catch (error) {
         result = { outcome: "unreachable", evidence: String(error).slice(0, 160), pagesRead: 0, rows: [] };
       }
+      if (result.pagesRead === 0 && spent >= PAGE_BUDGET) continue;
       pdfsSeen += result.pdfSeen ?? 0;
       pdfsRead += result.pdfRead ?? 0;
       pdfsUnread += result.pdfUnread ?? 0;

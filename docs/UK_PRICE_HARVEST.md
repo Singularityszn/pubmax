@@ -88,6 +88,7 @@ city selection cannot make a shared host look like one pub's own website
 The document lane refuses a run that combines `--city` and `--london`.
 With `--recheck`, existing findings remain until the selected host completes its crawl.
 City selection, host filters and run limits leave findings for uncrawled hosts unchanged.
+If another worker spends the last page during a host's robots check, that host keeps its existing finding and does not count as crawled.
 For chain menus, use the [rendered lane](#lane-two-the-browser) with `--city`
 and without `--pub-sites`.
 

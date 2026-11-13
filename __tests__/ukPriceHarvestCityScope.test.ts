@@ -85,7 +85,11 @@ describe("uk price harvest city scope", () => {
     { limits: ["--only", "glasgow.example"], crawls: false },
     { limits: ["--exa-sites-only"], crawls: false },
     { limits: [], crawls: true },
-  ])("preserves findings outside completed crawls with $limits", ({ limits, crawls }) => {
+    { limits: ["--pages", "1"], crawls: true, raceRules: "Allow: /" },
+    { limits: ["--pages", "1"], crawls: true, raceRules: "Disallow: /" },
+    { limits: ["--pages", "1"], crawls: true, raceRules: "Allow: /", national: true },
+    { limits: ["--pages", "1"], crawls: true, raceRules: "Disallow: /", national: true },
+  ])("preserves findings outside completed crawls with $limits", ({ limits, crawls, raceRules, national }) => {
     const root = mkdtempSync(path.join(process.cwd(), ".harvest-recheck-"));
     try {
       const snapshotDir = path.join(root, "data/osm/uk");
@@ -94,29 +98,61 @@ describe("uk price harvest city scope", () => {
       mkdirSync(ledgerDir, { recursive: true });
       writeFileSync(path.join(snapshotDir, "uk_osm_pubs.json"), JSON.stringify([
         { ...MANCHESTER_PUB, osmId: "n1", website: "https://manchester.example" },
-        { name: "Glasgow pub", osmId: "n2", lat: 55.86, lng: -4.25, website: "https://glasgow.example" },
+        ...(raceRules
+          ? [{ ...MANCHESTER_PUB, osmId: "n2", website: "https://second-manchester.example" }]
+          : [{ name: "Glasgow pub", osmId: "n2", lat: 55.86, lng: -4.25, website: "https://glasgow.example" }]),
       ]));
       const ledger = {
         version: 1,
         hosts: {
           "manchester.example": { outcome: "robots-unreadable", pubs: 1, checkedAt: "2026-11-01" },
           "glasgow.example": { outcome: "robots-unreadable", pubs: 1, checkedAt: "2026-11-02" },
+          ...(raceRules ? {
+            "second-manchester.example": { outcome: "robots-unreadable", pubs: 1, checkedAt: "2026-11-03" },
+          } : {}),
         },
       };
       const ledgerPath = path.join(ledgerDir, "hosts.json");
       writeFileSync(ledgerPath, JSON.stringify(ledger));
       const transportPath = path.join(root, "transport.mjs");
       writeFileSync(transportPath,
-        'globalThis.fetch = async () => new Response("User-agent: *\\nDisallow: /\\n", { headers: { "content-type": "text/plain" } });\n',
+        raceRules ? `
+let releaseFirstRobots;
+const secondRobotsStarted = new Promise(resolve => { releaseFirstRobots = resolve; });
+let releaseSecondRobots;
+const firstHomeStarted = new Promise(resolve => { releaseSecondRobots = resolve; });
+globalThis.fetch = async (input) => {
+  const url = new URL(input);
+  if (url.pathname === "/robots.txt") {
+    if (url.hostname === "manchester.example") {
+      await secondRobotsStarted;
+      return new Response("User-agent: *\\nAllow: /\\n");
+    }
+    releaseFirstRobots();
+    await firstHomeStarted;
+    return new Response(${JSON.stringify(`User-agent: *\n${raceRules}\n`)});
+  }
+  releaseSecondRobots();
+  return new Response("Not found", { status: 404 });
+};
+` : 'globalThis.fetch = async () => new Response("User-agent: *\\nDisallow: /\\n", { headers: { "content-type": "text/plain" } });\n',
       );
       execFileSync(process.execPath, [
         "--import", "tsx", "--import", transportPath, path.join(process.cwd(), "scripts/harvest/uk-prices/run.mjs"),
-        "--city", "manchester", "--recheck", "robots-unreadable", "--menu-urls", "none", ...limits,
+        ...(national ? [] : ["--city", "manchester"]),
+        "--recheck", "robots-unreadable", "--menu-urls", "none", ...limits,
       ], { cwd: root, stdio: "pipe" });
       const saved = JSON.parse(readFileSync(ledgerPath, "utf8"));
       if (crawls) {
-        expect(saved.hosts["manchester.example"].outcome).toBe("robots-disallowed");
+        expect(saved.hosts["manchester.example"].outcome).toBe(raceRules ? "unreachable" : "robots-disallowed");
         expect(saved.hosts["glasgow.example"]).toEqual(ledger.hosts["glasgow.example"]);
+        if (raceRules) {
+          expect(saved.hosts["second-manchester.example"]).toEqual(ledger.hosts["second-manchester.example"]);
+          expect(saved.hosts["manchester.example"].pagesRead).toBe(1);
+          const report = JSON.parse(readFileSync(path.join(root, "data/uk_prices/harvest_report.json"), "utf8"));
+          expect(report.hostsCrawledThisRun).toBe(1);
+          expect(report.pagesRead).toBe(1);
+        }
       } else {
         expect(saved).toEqual(ledger);
       }
