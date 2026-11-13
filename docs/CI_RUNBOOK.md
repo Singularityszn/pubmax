@@ -464,8 +464,8 @@ failures from 3 to 7 Nov 2026. So it left `ci.yml` for its own workflow,
 
 - every day at 07:47 UTC, and by hand (`workflow_dispatch`);
 - on a pull request or merge group that changes a file under `data/` or `public/data/`;
-- before every production release, as a preflight of `npm run release:prod`.
-  A red gate refuses the release before anything is uploaded.
+- before every production release, through the
+  [gated API deploy](DEPLOYMENT.md#gated-api-deploy).
 
 The workflow starts on every pull request and merge group so the required `Freshness check` always reports.
 A Linux job detects data changes before the freshness job starts.
@@ -481,9 +481,9 @@ A scheduled failure posts through `alert-on-failure.yml`.
 The job installs Node without the npm cache or the application dependencies.
 Both scripts use only Node built-ins. The first checks committed candidate
 artifacts. The second reads production store observations through
-`https://pubmaxxing.com/api/freshness`. `FRESHNESS_GATE_COMMANDS` in
-`scripts/lib/releaseProduction.mjs` is the one list of the two commands, and
-`__tests__/ciSummaryCheck.test.ts` checks both commands independently in the workflow and release preflight.
+`https://pubmaxxing.com/api/freshness`. `.github/workflows/freshness.yml`
+defines the scheduled commands. The pre-deploy workflow runs the same checks
+for the selected release commit.
 
 A shard cannot finish before its slowest test file. Vitest gives each file to
 one worker and does not divide the tests in a file. So a test file that grows

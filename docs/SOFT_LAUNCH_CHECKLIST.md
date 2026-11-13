@@ -15,10 +15,10 @@ relaunch map [#1354](https://github.com/Singularityszn/pubmax/issues/1354).
 
 Two owners, and no third.
 
-- **Captain.** Merges, promotes, holds every secret, authorises migrations, sends the
+- **Captain.** Merges, releases, holds every secret, authorises migrations, sends the
   invites, reads the weekly dashboard, decides a rollback.
 - **Fleet.** Ships the product, runs the gates, collects the evidence, reports a
-  finding. The fleet never promotes. Migration roles follow the
+  finding. The fleet never releases to production. Migration roles follow the
   [migration apply policy](../supabase/AGENTS.md#traps).
 
 A step with no dated proof is not done. Record each proof against its row in section 5.
@@ -120,8 +120,8 @@ Nothing in section 2 starts until the captain says so. The order is the point.
 | 2.1 | Confirm section 1 is complete and dated | Captain | Every row in section 5 carries a date. | This file, section 5 |
 | 2.2 | Apply outstanding migrations | See migration policy | The ledger shows the release set. Runbook 1.3 owns reconciliation. | [Migration apply policy](../supabase/AGENTS.md#traps) |
 | 2.3 | Confirm the production environment | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off`, `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, every secret set. Runbook 1.4. | Vercel, Project, Settings, Environment Variables |
-| 2.4 | Release | Captain | The [release command](DEPLOYMENT.md#one-release-command) ends with `[release] Released <sha> as <deploymentId>. The production smoke suite passed.` It builds with Production values, promotes, and waits for the smoke verdict. Never promote a Preview build. | `npm run release:prod` |
-| 2.5 | Record the release | Captain | The commit and deployment id from the final line of step 2.4, recorded in section 5. | Output of step 2.4 |
+| 2.4 | Release | Captain | The release meets the [gated API deploy](DEPLOYMENT.md#gated-api-deploy) requirements. | [Production release procedure](DEPLOYMENT.md#gated-api-deploy) |
+| 2.5 | Record the release | Captain | The released commit, deployment ID, and matching green smoke run are recorded in section 5. | Evidence from step 2.4 |
 | 2.6 | Both hosts resolve to the release | Fleet | The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`: the first response redirects to the apex with its path and query intact. | `curl -sS -o /dev/null -w '%{http_code}\n' https://pubmaxxing.com/map` and `curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxing.com/map?sel=venue-xjf3n0'` |
 | 2.7 | Production smoke | Fleet | Every row of the runbook smoke grid passes on the production host. | Runbook section 2 |
 | 2.8 | The title markers answer | Fleet | Both greps match. | `curl --fail --silent --location https://pubmaxxing.com/map \| grep -F '<title>Map · PUBMAXXING</title>'` |
@@ -238,9 +238,9 @@ Decide fast. Each trigger has one lever. The commands live in runbook section 3.
 
 | Trigger | Lever | Owner | Command |
 |---|---|---|---|
-| A bad release, any cause | Promote the previous known-good Production deployment, never a Preview build | Captain | `vercel promote <previous-deployment-url>` |
-| A Social incident | Set the launch flag to `0`, then release again. A changed value reaches only a new build, so promoting an existing deployment would not carry it. | Captain | `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel Production, then `npm run release:prod` |
-| A price surface reading wrong | Promote back first, then hide the offending rows from the moderation queue | Captain | `vercel promote <previous-deployment-url>`, then `/admin` |
+| A bad release, any cause | Release compatible rollback code | Captain | [Application rollback](SOFT_LAUNCH_RUNBOOK.md#31-application-code) |
+| A Social incident | Set the launch flag to `0`, then release again. A changed value reaches only a new build. | Captain | `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel Production, then the [gated API deploy](DEPLOYMENT.md#gated-api-deploy) |
+| A price surface reading wrong | Release rollback code first, then hide the offending rows from the moderation queue | Captain | [Application rollback](SOFT_LAUNCH_RUNBOOK.md#31-application-code), then `/admin` |
 | A schema fault | Run the matching rollback SQL by hand | Captain | `supabase/migrations/rollback/` |
 
 Three facts about a rollback here.
@@ -271,8 +271,8 @@ from the owning service.
 | Freshness | Fleet | Section 1.5 complete, with the `/api/freshness` body | |
 | Seed density | Captain | Two boroughs reading as priced | |
 | Search Console and Bing | Captain | Verified property, submitted sitemap, successful fetch | |
-| Demo content off | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off` in Production, with the promoted deployment id | |
-| Release | Captain | The commit and deployment id from the last line of `npm run release:prod` | |
+| Demo content off | Captain | `NEXT_PUBLIC_DEMO_CONTENT=off` in Production, with the released deployment ID | |
+| Release | Captain | The released commit, deployment ID, and matching green smoke run from step 2.4 | |
 | Production smoke | Fleet | Every runbook smoke row passing on the production host | |
 | Analytics live | Captain | The weekly dashboard, with all six insights | |
 | First cohort | Captain | 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | |

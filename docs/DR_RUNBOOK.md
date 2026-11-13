@@ -16,7 +16,7 @@ Facts to start from:
 | --- | --- |
 | Production database | Supabase project `iankajxliutqogqkmvdg`, region eu-west-2, free plan |
 | Storage bucket | `pint-drops`, private |
-| Hosting | Vercel project `chengdu`, team `pubmax69`, Git deploys are ignored, releases go through `npm run release:prod` |
+| Hosting | Vercel project `chengdu`, team `pubmax69`. Follow the [production release procedure](DEPLOYMENT.md#gated-api-deploy). |
 | Domains | `pubmaxxing.com` (production), `pubmaxxing.co.uk` (redirect), registrar GoDaddy |
 | Scratch project for drills | `pubmax-pentest`, paused. Resume it, use it, pause it again |
 | Escalation list | [`OPS_FREEZE_RUNBOOK.md`](OPS_FREEZE_RUNBOOK.md) "Escalation list". Fill it in |
@@ -170,7 +170,7 @@ Use when data is lost or corrupt. The target is either the production project
    - `npm run check:migration-ledger` passes against the restored project.
    - `curl https://<host>/api/health` answers 200 with `"database":"ok"` once the app points at it.
 6. Restore bucket files: for each file under `bucket/pint-drops/`, upload it to the same path in the `pint-drops` bucket with the dashboard or the Storage API. Keep the bucket private.
-7. Lift the freeze, redeploy with `npm run release:prod`, and watch the smoke run.
+7. Lift the freeze and follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy).
 
 ## 3. Rebuild from zero
 
@@ -184,7 +184,7 @@ no dump for the application itself. A dump only brings the data back.
 4. **Auth.** Re-enter the Supabase auth settings the dashboard holds and the migrations cannot: site URL, redirect allow-list (production hosts only), email provider, password rules. Clerk keeps its own settings, see section 5.
 5. **Vercel.** Create the project, link it with `vercel link --project <name>`, then set every Production variable named in [`.env.example`](../.env.example). The keys that matter most are `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, `NEXT_PUBLIC_SITE_URL`, `CRON_SECRET`, `ADMIN_TOKEN`, `RATE_LIMIT_SALT`, `PLAN_IDEMPOTENCY_SECRET` and the Clerk pair. Salts and secrets can be new values, with the effects in section 5.
 6. **Domain.** Add `pubmaxxing.com` and `www.pubmaxxing.com` to the project. See section 6 for DNS.
-7. **Release.** `npm run release:prod`. It deploys, promotes and runs the production smoke suite.
+7. **Release.** Follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy).
 8. **GitHub.** Repository secrets: `SMOKE_USER_HANDLE`, `SMOKE_USER_PASSWORD`, `PUBMAX_ALERT_WEBHOOK_URL`, plus the harvest keys the scheduled workflows name. Recreate the smoke account as [`e2e/prod-smoke/README.md`](../e2e/prod-smoke/README.md) describes.
 9. **Monitoring.** `.github/workflows/uptime.yml` checks `/api/health` and `/api/version` every five minutes from the default branch, and alerts through the `PUBMAX_ALERT_WEBHOOK_URL` repository secret from step 8. It reads the origin from `PRODUCTION_SITE_ORIGIN` in `lib/siteUrlConfig.mjs`, so a replacement domain (section 6) changes that constant too. Set `PUBMAX_ALERT_WEBHOOK_URL` in Vercel too. An external monitor is optional (see [`DEPLOYMENT.md`](DEPLOYMENT.md) "Uptime monitor").
 10. **Backups.** Re-point `PUBMAX_BACKUP_DB_URL` and the bucket variables at the new project and run one backup.
@@ -198,7 +198,7 @@ a copy off the device.
 | Account | If you are locked out |
 | --- | --- |
 | GitHub (`Singularityszn`) | Use a recovery code or a registered security key. A second organisation owner can restore access. Without either, GitHub support needs proof of ownership, which takes days. Until then the deployed site keeps running. |
-| Vercel (`pubmax69`) | Use the recovery code or sign in with the linked Git provider. A second team owner can reset. The site keeps serving the last promoted deployment. |
+| Vercel (`pubmax69`) | Use the recovery code or sign in with the linked Git provider. A second team owner can reset. The site keeps serving the last released deployment. |
 | Supabase | Use the recovery code or the SSO provider. A second organisation owner can restore access. Backups on the Mac are the way back to the data. |
 | Clerk | Use the recovery code. Sign-in for drinkers fails without the Clerk keys, so a lockout is an incident. |
 | Domain registrar (GoDaddy) | Recover through the registered email, then phone. Do this before the domain expires, see section 6. |
@@ -215,7 +215,7 @@ exposure, and a short outage while you replace it is cheaper.
 ### Order
 
 Work down the table. Within a row: revoke at the provider, create the new value,
-set it in Vercel Production, redeploy with `npm run release:prod`, confirm
+set it in Vercel Production, follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy), confirm
 `/api/health` and the smoke run, then update the copy in the password manager and
 `keys.env`. Put the date in the rotation table.
 
@@ -269,5 +269,5 @@ If the domain is lost or expired:
 1. Check the registrar. An expired domain is usually recoverable during the grace period, often with a fee. Pay it. Do nothing else first.
 2. If the registrar account is lost, recover it per section 4. If the domain is hijacked, contact the registrar's abuse line with proof of ownership and say that the name hosts a live service.
 3. While it is down, the app still answers on its Vercel URL. Set `NEXT_PUBLIC_SITE_URL` only after a replacement domain is settled, and redeploy.
-4. Replacement domain: buy it, add it to the Vercel project, point DNS at Vercel, set `NEXT_PUBLIC_SITE_URL`, add it to the Supabase auth redirect allow-list and the Clerk allowed origins, then run `npm run release:prod`. The native apps load the web origin, so read [`ios/AGENTS.md`](../ios/AGENTS.md) and [`android/AGENTS.md`](../android/AGENTS.md) before changing it.
+4. Replacement domain: buy it, add it to the Vercel project, point DNS at Vercel, set `NEXT_PUBLIC_SITE_URL`, add it to the Supabase auth redirect allow-list and the Clerk allowed origins, then follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy). The native apps load the web origin, so read [`ios/AGENTS.md`](../ios/AGENTS.md) and [`android/AGENTS.md`](../android/AGENTS.md) before changing it.
 5. Redirect the old name to the new one if it comes back.

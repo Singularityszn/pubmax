@@ -1,6 +1,6 @@
 # Horizon 0 ops checklist
 
-Soft-launch London night OS. Captain-owned promote and cohort invite; agents
+Soft-launch London night OS. Captain-owned release and cohort invite; agents
 ship the product and keep this checklist current. Strategy:
 [`docs/plans/PLG_STRATEGY.md`](../plans/PLG_STRATEGY.md). Scoreboard:
 [`docs/growth/V1_INVITE_SCOREBOARD.md`](V1_INVITE_SCOREBOARD.md). Runbook §6:
@@ -23,7 +23,7 @@ passed on a local production build of `main` at `734b39e`. The old markers
 in `app/layout.tsx` is now `%s | PUBMAXX`. The full browser walk of runbook §2 is
 in [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §7.
 
-Captain owns the production release (`npm run release:prod`) and the human WhatsApp cohort. PR #747 (the runner change) closed unmerged; runbook §1.1 says the captain decides runner changes. Agents keep product + this checklist current.
+Captain owns the [production release](../DEPLOYMENT.md#gated-api-deploy) and the human WhatsApp cohort. PR #747 (the runner change) closed unmerged; runbook §1.1 says the captain decides runner changes. Agents keep product + this checklist current.
 
 ## Product Hunt launch, 17 November 2026
 
@@ -49,12 +49,12 @@ reads the committed packs and writes nothing.
 - Market non-London city packs for optics
 - Claim “we beat Stripe” in any copy
 
-## Merge and promote
+## Merge and release
 
 1. DONE (2026-08-07): V1 invite-ready product work merged ([#816](https://github.com/Singularityszn/pubmax/pull/816)).
 2. Merge CI runner fix ([#747](https://github.com/Singularityszn/pubmax/pull/747)) so quality gates are real.
 3. Confirm migrations through `0084_crew_snapshot_wetherspoons_flag` are live (runbook §1.3; applied 2026-08-08).
-4. Release to production with `npm run release:prod` ([release procedure](../DEPLOYMENT.md#one-release-command)). It builds with Production values, promotes that build and waits for the smoke run. Never promote a Preview build: promotion does not rebuild, so it keeps its Preview environment values.
+4. Follow the [gated API deploy](../DEPLOYMENT.md#gated-api-deploy) for the production release.
 5. Smoke:
 
 ```sh

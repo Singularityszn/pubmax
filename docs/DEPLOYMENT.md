@@ -370,11 +370,11 @@ Never promote a Preview build. It keeps `VERCEL_ENV=preview` and its Preview env
 
 A Vercel API deploy does not run the release checks itself. Migrations must apply before the deploy that needs them. Use this sequence:
 
-1. Pick the full 40-character SHA at the tip of `main`.
+1. Set `SHA` to the full 40-character commit at the tip of `main`.
 2. Start `.github/workflows/predeploy-gate.yml` for that SHA:
 
    ```sh
-   gh workflow run predeploy-gate.yml --ref main -f sha=<40-character sha>
+   gh workflow run predeploy-gate.yml --ref main -f sha="$SHA"
    ```
 
 3. Wait for the run named `Pre-deploy gate <sha>` to finish green. If it is red, do not deploy. Apply a missing migration only on the captain's explicit instruction. Run the gate again after the correction.
@@ -393,7 +393,7 @@ The workflow commands need `gh` signed in with permission to run workflows in `S
 
 `.github/workflows/predeploy-gate.yml` refuses a commit that `main` does not hold. It then runs `npm run check:migration-ledger` and the freshness gate. Both checks only read production. The [CI runbook](CI_RUNBOOK.md#the-freshness-gate) explains the freshness checks. The ledger check needs the `SUPABASE_ACCESS_TOKEN` repository secret. Without it, the run is red.
 
-`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint. It compares migration names, never versions, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names found only in the ledger are listed and do not cause failure. The command needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. `SUPABASE_PROJECT_REF` overrides the production project.
+`npm run check:migration-ledger` is read-only. It reads `supabase_migrations.schema_migrations` through the Supabase Management API read-only query endpoint. It compares migration names, never versions, because the live versions differ from the file timestamps. A repo file counts as applied when the ledger holds its full name (`0161_plan_selected_drink_evidence`) or its bare slug. Names found only in the ledger are listed and do not cause failure. The command needs `SUPABASE_ACCESS_TOKEN`, a personal access token from the captain's Supabase account, in the environment. The check never includes the token in errors. `SUPABASE_PROJECT_REF` overrides the production project.
 
 ### Review deployments
 

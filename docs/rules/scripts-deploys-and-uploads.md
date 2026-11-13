@@ -16,11 +16,11 @@ Moved from [`scripts/AGENTS.md`](../../scripts/AGENTS.md). Authoritative policy 
 
 <a id="a-production-release-is-one-command-and-it-ends-at-the-smoke-verdict"></a>
 
-- **A PRODUCTION RELEASE IS ONE COMMAND, AND IT ENDS AT THE SMOKE VERDICT.** Use the [release procedure](../DEPLOYMENT.md#one-release-command) for staging, promotion, smoke-run selection, and failure handling. Never promote a Preview build. Promotion does not rebuild the artifact, so Preview environment values would remain in production. Every release effect arrives through `deps`, so tests can check the order and refusals without network access. Pin: `__tests__/releaseProduction.test.ts`.
+- The [gated API deploy](../DEPLOYMENT.md#gated-api-deploy) owns production release checks, deployment, smoke selection, and failure handling.
 
 <a id="the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names"></a>
 
-- **THE RELEASE REFUSES WHEN PRODUCTION LACKS A MIGRATION, AND THE CHECK COMPARES NAMES.** The audit of 6 October 2026 found 192 repo files against 196 ledger rows with 88 matching versions: the captain applies migrations by hand, under other timestamps and sometimes bare names, so a version comparison reports noise. `npm run check:migration-ledger` (`scripts/check-migration-ledger.mjs`, rule in `scripts/lib/migrationLedger.mjs`) reads the live ledger and fails when a repo file's full name and bare slug are both absent. `npm run release:prod` runs it before any upload. THREE rules. (1) READ-ONLY: one fixed `select` through the Management API's read-only query endpoint. (2) A NAME THE LEDGER ALONE HOLDS IS REPORTED, NEVER A FAILURE: writing those bodies into the repo is separate work. (3) NO TOKEN MEANS NO RELEASE: `SUPABASE_ACCESS_TOKEN` unset refuses, and the token never appears in an error. Pin: `__tests__/migrationLedger.test.ts`.
+- The [migration ledger reference](../DEPLOYMENT.md#gated-api-deploy) owns the read-only check, name matching, and credentials. Implementation: `scripts/lib/migrationLedger.mjs`. Pin: `__tests__/migrationLedger.test.ts`.
 
 <a id="production-is-asked-every-five-minutes-and-only-a-route-that-fails-twice-is-an-outage"></a>
 

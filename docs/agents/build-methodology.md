@@ -48,7 +48,8 @@ prose you did not touch.
 
 Some steps only work on the captain's machine. Supabase's connector holds a destructive statement
 (`DROP`, `REVOKE`, `DELETE`) for an approval a cloud session cannot show, so the call times out.
-`npm run release:prod` needs `VERCEL_TOKEN` and `SUPABASE_ACCESS_TOKEN`. See
+The [gated API deploy](../DEPLOYMENT.md#gated-api-deploy) owns production
+release access and checks. See also
 [deployment checks and build-policy limits](../DEPLOYMENT.md#known-github-check-sources).
 When a cloud session reaches a blocker:
 

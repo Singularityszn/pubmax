@@ -91,8 +91,8 @@ someone sees it. Timeouts allow for real network latency instead.
 `.github/workflows/prod-smoke.yml` runs the suite when Vercel reports a
 successful Production deployment to GitHub. It checks out the deployed commit,
 so the specs match the code they test. Vercel's Git integration sends that
-report. A `vercel deploy --prod` from a laptop does not. Use the
-[release procedure](../../docs/DEPLOYMENT.md#one-release-command) for CLI releases.
+report. The [gated API deploy](../../docs/DEPLOYMENT.md#gated-api-deploy)
+owns production releases and their smoke dispatch.
 For a separate manual check, start the workflow with the deployment that the
 live site must serve:
 
@@ -100,7 +100,7 @@ live site must serve:
 gh workflow run prod-smoke.yml --ref main -f deployment_id=dpl_...
 ```
 
-Replace `dpl_...` with the deployment ID printed by `npm run release:prod`.
+Replace `dpl_...` with the deployment ID from the Vercel API response.
 A dispatched run tests its selected ref. Use a ref whose commit
 matches the deployment.
 
