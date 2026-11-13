@@ -109,20 +109,18 @@ export const stillTrueCountReader = {
   async read(crewId: string): Promise<{ saidYes: number; markedHere: number | null } | null> {
     try {
       const admin = requireDynamicSupabaseAdmin();
-      const [pending, members] = await Promise.all([
-        admin
-          .from("social_crew_join_requests")
-          .select("requester_account_id")
-          .eq("crew_id", crewId)
-          .eq("state", "pending")
-          // Expiry is recorded lazily, so a stale request can still read pending.
-          .gt("expires_at", new Date().toISOString()),
-        admin
-          .from("social_crew_members")
-          .select("social_account_id, plan_member_id, role")
-          .eq("crew_id", crewId)
-          .eq("state", "active"),
-      ]);
+      const pending = await admin
+        .from("social_crew_join_requests")
+        .select("requester_account_id")
+        .eq("crew_id", crewId)
+        .eq("state", "pending")
+        // Expiry is recorded lazily, so a stale request can still read pending.
+        .gt("expires_at", new Date().toISOString());
+      const members = await admin
+        .from("social_crew_members")
+        .select("social_account_id, plan_member_id, role")
+        .eq("crew_id", crewId)
+        .eq("state", "active");
       if (pending.error || members.error || !pending.data || !members.data) return null;
       const memberRows = members.data as CountRow[];
       const saidYes = stillTrueSaidYesCount(
