@@ -18,7 +18,7 @@ import {
   type MatesBoardRow,
 } from "@/lib/matesBoard";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
-import { pointsMonthStart, type PointsStanding } from "@/lib/points";
+import type { PointsStanding } from "@/lib/points";
 import { readPointsStanding } from "@/lib/points.server";
 import { profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { isUnmutedMate, type MateViewer } from "@/lib/socialMutual.server";
@@ -33,7 +33,7 @@ export type MatesBoardDependencies = {
   /** The handles moderation withdrew from public view. Throws when it cannot tell. */
   withdrawn(handles: readonly string[]): Promise<ReadonlySet<string>>;
   profile(handle: string): Promise<ProfileRecord | null>;
-  standing(owner: ProfileRecord, monthStart: string): Promise<PointsStanding>;
+  standing(owner: ProfileRecord): Promise<PointsStanding>;
 };
 
 const defaultDependencies = (): MatesBoardDependencies => ({
@@ -41,7 +41,7 @@ const defaultDependencies = (): MatesBoardDependencies => ({
   isMate: (viewer, handle) => isUnmutedMate(viewer, handle),
   withdrawn: withdrawnHandles,
   profile: (handle) => profileStore().getByHandle(handle),
-  standing: (owner, monthStart) => readPointsStanding(owner, monthStart),
+  standing: readPointsStanding,
 });
 
 async function inTurns<T, R>(items: readonly T[], read: (item: T) => Promise<R>): Promise<R[]> {
@@ -57,17 +57,11 @@ async function inTurns<T, R>(items: readonly T[], read: (item: T) => Promise<R>)
   return results;
 }
 
-/**
- * The reader's own row and one row per mate, by handle. The client ranks them
- * for this month or all time (lib/matesBoard.ts).
- */
 export async function readMatesBoard(
   viewer: MateViewer,
-  now: Date,
   dependencies: Partial<MatesBoardDependencies> = {},
 ): Promise<MatesBoardAnswer> {
   const deps = { ...defaultDependencies(), ...dependencies };
-  const monthStart = pointsMonthStart(now);
   const self = normalizeViewerHandle(viewer.handle);
 
   const candidates = [...new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle))]
@@ -81,7 +75,7 @@ export async function readMatesBoard(
 
   const people = (await Promise.all([self, ...mates].map((handle) => deps.profile(handle))))
     .filter((profile): profile is ProfileRecord => profile !== null);
-  const standings = await inTurns(people, (profile) => deps.standing(profile, monthStart));
+  const standings = await inTurns(people, (profile) => deps.standing(profile));
 
   const rows: MatesBoardRow[] = people.map((profile, index) => {
     const standing = standings[index]!;
@@ -91,11 +85,9 @@ export async function readMatesBoard(
       self: handle === self,
       total: standing.total,
       level: standing.level,
-      monthTotal: standing.monthTotal,
     };
   });
   return {
-    monthStart,
     status: standings.some((standing) => standing.status === "degraded") ? "degraded" : "ready",
     capped: candidates.length > checked.length,
     rows,

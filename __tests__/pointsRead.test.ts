@@ -153,47 +153,37 @@ describe("readPointsBreakdown", () => {
 });
 
 describe("readPointsStanding", () => {
-  // October in London starts at midnight BST, 23:00 UTC on 30 September.
-  const SINCE = "2026-09-30T23:00:00.000Z";
-  // The pub added was accepted in October; both fixes were resolved before it.
-  const dated = (overrides: Partial<PointsDeps> = {}) =>
-    deps("u-owner", {
-      // A wrong month start finds nothing this month.
-      addedPubs: async (_owner, since) => (since === undefined || since === SINCE ? 1 : 0),
-      fixedPubs: async (_owner, since) => (since === undefined ? 2 : 0),
-      ...overrides,
+  it("ranks all records with the existing points and level", async () => {
+    const standing = await readPointsStanding(OWNER, deps("u-owner"));
+    expect(standing).toEqual({ status: "ready", total: 1150, level: 6 });
+  });
+
+  it("preserves points when a dated visit is also saved to Been here", async () => {
+    const records = deps("u-owner", {
+      diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-11-13", source: "diary" }],
+      drops: async () => [],
+      plans: async () => [],
+      beenHere: async () => [],
+      addedPubs: async () => 0,
+      fixedPubs: async () => 0,
+      drinkReviews: async () => 0,
+      londonDistricts: async () => new Map(),
     });
-
-  it("counts this month only from records dated inside it", async () => {
-    const standing = await readPointsStanding(OWNER, "2026-10-01", dated());
-    expect(standing).toMatchObject({ status: "ready", total: 1150, level: 6 });
-    // The Lamb (diary 1 Oct) and the Seven Stars (drop 7 Oct) are new pubs:
-    // 20. Two priced drops: 10, one checked: 10. WC1 finished this month: 50,
-    // and with it the WC area: 1,000. The pub accepted in October: 20.
-    // The September plan, the undated Been here save, both earlier fixes and
-    // the drink reviews earn nothing this month.
-    expect(standing.monthTotal).toBe(1110);
+    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 10, level: 1 });
+    records.beenHere = async () => [{ venueId: "lamb", venueName: "The Lamb" }];
+    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 10, level: 1 });
   });
 
-  it("gives a month with no dated records nothing", async () => {
-    const standing = await readPointsStanding(OWNER, "2026-11-01", dated({ addedPubs: async (_owner, since) => (since ? 0 : 1) }));
-    expect(standing).toMatchObject({ total: 1150, monthTotal: 0 });
-  });
-
-  it("marks the standing degraded and credits no month points when a dated count fails", async () => {
+  it("preserves degraded status when a record read fails", async () => {
     const standing = await readPointsStanding(
       OWNER,
-      "2026-10-01",
-      dated({
-        addedPubs: async (_owner, since) => {
-          if (since) throw new Error("submissions unavailable");
-          return 1;
+      deps("u-owner", {
+        addedPubs: async () => {
+          throw new Error("submissions unavailable");
         },
       }),
     );
-    expect(standing.status).toBe("degraded");
-    expect(standing.total).toBe(1150);
-    expect(standing.monthTotal).toBe(1090);
+    expect(standing).toEqual({ status: "degraded", total: 1130, level: 6 });
   });
 });
 

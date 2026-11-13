@@ -49,8 +49,7 @@ type VenueCorrectionListResult = {
 };
 
 export type VenueCorrectionsStore = {
-  /** Resolved fixes, or those resolved at or after `since` (an ISO instant). */
-  countResolvedForOwner(ownerUserId: string, since?: string): Promise<number>;
+  countResolvedForOwner(ownerUserId: string): Promise<number>;
   /** Store one note. THROWS on a hard durable failure. */
   create(fields: NewVenueCorrection, now?: number): Promise<VenueCorrection>;
   /** Moderator queue: rows in a status, newest first. Fail-soft ([]). */
@@ -72,13 +71,8 @@ function byNewest(left: { createdAt: string }, right: { createdAt: string }): nu
 const byId = new Map<string, VenueCorrection>();
 
 export const memoryVenueCorrectionsStore: VenueCorrectionsStore = {
-  async countResolvedForOwner(ownerUserId, since) {
-    return [...byId.values()].filter(
-      (row) =>
-        row.ownerUserId === ownerUserId &&
-        row.status === "resolved" &&
-        (since === undefined || (row.resolvedAt !== null && row.resolvedAt >= since)),
-    ).length;
+  async countResolvedForOwner(ownerUserId) {
+    return [...byId.values()].filter((row) => row.ownerUserId === ownerUserId && row.status === "resolved").length;
   },
   async create(fields, now = Date.now()) {
     const row: VenueCorrection = {
@@ -221,14 +215,12 @@ const supabaseVenueCorrectionsStore: VenueCorrectionsStore = {
     });
   },
 
-  async countResolvedForOwner(ownerUserId, since) {
-    let query = admin()
+  async countResolvedForOwner(ownerUserId) {
+    const { count, error } = await admin()
       .from(TABLE)
       .select("id", { count: "exact", head: true })
       .eq("owner_user_id", ownerUserId)
       .eq("status", "resolved");
-    if (since !== undefined) query = query.gte("resolved_at", since);
-    const { count, error } = await query;
     if (error) throw new Error(error.message);
     if (count === null) throw new Error("Owner contribution count unavailable");
     return count;

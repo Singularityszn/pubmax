@@ -17,11 +17,6 @@ const NO_STORE = { "Cache-Control": "private, no-store" };
 const READ_LIMIT = 10;
 const READ_WINDOW_MS = 60_000;
 
-/**
- * GET /api/social/mates-board: the reader and their mutual mates, each with
- * their points all time and this month, answered to the reader alone. A reader
- * with no verified Social session gets the access answer (401 signed out).
- */
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);
   if (!access.ok) {
@@ -38,7 +33,7 @@ export async function GET(request: Request): Promise<Response> {
     }), access.resumeCookie);
   }
   try {
-    const answer = await readMatesBoard(access.actor, new Date());
+    const answer = await readMatesBoard(access.actor);
     return withAuthResumeCookie(jsonNoStore(answer, { headers: NO_STORE }), access.resumeCookie);
   } catch (err) {
     log("error", "mates_board.read_failed", {

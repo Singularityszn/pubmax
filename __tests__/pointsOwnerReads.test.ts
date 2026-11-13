@@ -31,10 +31,6 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
                 ? Number(row[key]) > value : String(row[key]) > value);
               return query;
             },
-            gte(key: string, value: string) {
-              predicates.push((row) => typeof row[key] === "string" && String(row[key]) >= value);
-              return query;
-            },
             order() { return query; },
             limit(value: number) { limit = Math.min(value, 200); return query; },
             then(resolve: (result: unknown) => unknown) {
@@ -140,20 +136,13 @@ describe("complete server owner reads for points", () => {
   });
 
   it("counts accepted and resolved rows before provider display limits", async () => {
-    // The first 10 of each were decided this month; the rest in October.
-    const decided = (i: number) => (i < 10 ? "2026-11-03T09:00:00Z" : "2026-10-20T09:00:00Z");
     database.tables.venue_submissions = Array.from({ length: 301 }, (_, i) => ({
       id: id(i), owner_user_id: i === 300 ? "other" : "owner", status: i < 250 ? "accepted" : "pending",
-      reviewed_at: i < 250 ? decided(i) : null,
     }));
     database.tables.venue_corrections = Array.from({ length: 401 }, (_, i) => ({
       id: id(i), owner_user_id: i === 400 ? "other" : "owner", status: i < 350 ? "resolved" : "open",
-      resolved_at: i < 350 ? decided(i) : null,
     }));
     expect(await venueSubmissionStore().countAcceptedForOwner("owner")).toBe(250);
     expect(await venueCorrectionsStore().countResolvedForOwner("owner")).toBe(350);
-    const since = "2026-11-01T00:00:00.000Z";
-    expect(await venueSubmissionStore().countAcceptedForOwner("owner", since)).toBe(10);
-    expect(await venueCorrectionsStore().countResolvedForOwner("owner", since)).toBe(10);
   });
 });

@@ -9,16 +9,13 @@ import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
   MATES_BOARD_COPY,
-  MATES_BOARD_WINDOWS,
   parseMatesBoard,
   rankMatesBoard,
   type MatesBoardAnswer,
-  type MatesBoardWindow,
 } from "@/lib/matesBoard";
 import { discardBody } from "@/lib/responseBody";
 
@@ -35,46 +32,27 @@ function nf(value: number): string {
   return value.toLocaleString("en-GB");
 }
 
-function isWindow(value: string): value is MatesBoardWindow {
-  return (MATES_BOARD_WINDOWS as readonly string[]).includes(value);
-}
-
 function Board({ board }: { board: MatesBoardAnswer }) {
-  const [range, setRange] = useState<MatesBoardWindow>("month");
   const hasMates = board.rows.some((row) => !row.self);
   return (
     <>
-      <Tabs value={range} onValueChange={(value) => isWindow(value) && setRange(value)}>
-        <TabsList aria-label="Which points" className="matesBoardTabs">
-          {MATES_BOARD_WINDOWS.map((value) => (
-            <TabsTrigger key={value} value={value}>
-              {MATES_BOARD_COPY.windows[value]}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-        {MATES_BOARD_WINDOWS.map((value) => (
-          <TabsContent key={value} value={value} className="matesBoardPanel">
-            {value === "month" ? <p className="matesBoardNote">{MATES_BOARD_COPY.monthNote(board.monthStart)}</p> : null}
-            <RowList label={`${MATES_BOARD_COPY.title}, ${MATES_BOARD_COPY.windows[value].toLowerCase()}`}>
-              {rankMatesBoard(board.rows, value).map((row) => (
-                <RowListItem
-                  key={row.handle}
-                  href={profilePath(row.handle)}
-                  className={row.self ? "matesBoardSelf" : undefined}
-                  lead={<span className="matesBoardPlace">{row.place}</span>}
-                  title={row.self ? `@${row.handle} (${MATES_BOARD_COPY.you})` : `@${row.handle}`}
-                  meta={`Level ${row.level}`}
-                  trailing={
-                    <span className="matesBoardPoints">
-                      <span className="matesBoardFigure">{nf(row.points)}</span> {row.points === 1 ? "point" : "points"}
-                    </span>
-                  }
-                />
-              ))}
-            </RowList>
-          </TabsContent>
+      <RowList label={MATES_BOARD_COPY.title}>
+        {rankMatesBoard(board.rows).map((row) => (
+          <RowListItem
+            key={row.handle}
+            href={profilePath(row.handle)}
+            className={row.self ? "matesBoardSelf" : undefined}
+            lead={<span className="matesBoardPlace">{row.place}</span>}
+            title={row.self ? `@${row.handle} (${MATES_BOARD_COPY.you})` : `@${row.handle}`}
+            meta={`Level ${row.level}`}
+            trailing={
+              <span className="matesBoardPoints">
+                <span className="matesBoardFigure">{nf(row.points)}</span> {row.points === 1 ? "point" : "points"}
+              </span>
+            }
+          />
         ))}
-      </Tabs>
+      </RowList>
       {!hasMates ? (
         <EmptyState title={MATES_BOARD_COPY.noMatesTitle} action={<Link prefetch={false} href="/social">Find your lot</Link>}>
           {MATES_BOARD_COPY.noMatesBody}
@@ -92,13 +70,20 @@ function Board({ board }: { board: MatesBoardAnswer }) {
 
 export default function MatesBoardClient(): React.JSX.Element {
   const { accountRevision } = useAuth();
-  const [state, setState] = useState<State>({ status: "loading" });
+  const [result, setResult] = useState<{ revision: number; value: State }>({
+    revision: accountRevision,
+    value: { status: "loading" },
+  });
+  const state: State = result.revision === accountRevision ? result.value : { status: "loading" };
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     const controller = new AbortController();
+    const update = (value: State) => {
+      if (!controller.signal.aborted) setResult({ revision: accountRevision, value });
+    };
     void Promise.resolve().then(() => {
-      if (!controller.signal.aborted) setState({ status: "loading" });
+      update({ status: "loading" });
     });
     authedActionFetch("/api/social/mates-board", {
       cache: "no-store",
@@ -108,12 +93,12 @@ export default function MatesBoardClient(): React.JSX.Element {
       .then(async (response) => {
         if (response.status === 401) {
           discardBody(response);
-          setState({ status: "signed-out" });
+          update({ status: "signed-out" });
           return;
         }
         if (response.status === 403) {
           const body = (await response.json().catch(() => null)) as { error?: unknown } | null;
-          setState({ status: "closed", message: typeof body?.error === "string" ? body.error : MATES_BOARD_COPY.error });
+          update({ status: "closed", message: typeof body?.error === "string" ? body.error : MATES_BOARD_COPY.error });
           return;
         }
         if (!response.ok) {
@@ -122,11 +107,11 @@ export default function MatesBoardClient(): React.JSX.Element {
         }
         const board = parseMatesBoard(await response.json());
         if (!board) throw new Error("Mates' board malformed");
-        if (!controller.signal.aborted) setState({ status: "ready", board });
+        update({ status: "ready", board });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError")) return;
-        setState({ status: "error" });
+        update({ status: "error" });
       });
     return () => controller.abort();
   }, [accountRevision, attempt]);

@@ -6,7 +6,7 @@ import MatesBoardClient from "./MatesBoardClient";
 // for a crawler.
 export const metadata: Metadata = {
   title: "You and your mates",
-  description: "You and your mates on PUBMAXX, ranked by points this month and all time.",
+  description: "You and your mates on PUBMAXX, ranked by total points.",
   robots: { index: false, follow: false },
 };
 
