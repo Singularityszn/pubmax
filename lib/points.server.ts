@@ -93,6 +93,25 @@ export async function readPointsBreakdown(
   owner: PointsOwner,
   deps: PointsDeps = defaultPointsDeps(),
 ): Promise<PointsBreakdown> {
+  return (await readPointsRecords(owner, deps)).breakdown;
+}
+
+/** A standing, and the pubs on the owner's Been list by canonical venue id. */
+export type PointsStandingWithVisits = PointsStanding & { visited: ReadonlySet<string> };
+
+/** The owner's standing and the pubs it counted. Leagues colour their map from these. */
+export async function readPointsStandingWithVisits(
+  owner: PointsOwner,
+  deps: PointsDeps = defaultPointsDeps(),
+): Promise<PointsStandingWithVisits> {
+  const { breakdown, visited } = await readPointsRecords(owner, deps);
+  return { status: breakdown.status, total: breakdown.total, level: breakdown.level, visited };
+}
+
+async function readPointsRecords(
+  owner: PointsOwner,
+  deps: PointsDeps,
+): Promise<{ breakdown: PointsBreakdown; visited: ReadonlySet<string> }> {
   const handle = normalizeHandle(owner.handle);
   const userId = owner.userId?.trim() || "";
   const [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical] = await Promise.all([
@@ -130,7 +149,7 @@ export async function readPointsBreakdown(
   );
   const challenges = challengeProgress(challengeSet.value, visited, completeHistory ? logged : () => null);
 
-  return buildPointsBreakdown(
+  const breakdown = buildPointsBreakdown(
     {
       been: venues.length,
       priceLogged: priced.length,
@@ -147,6 +166,7 @@ export async function readPointsBreakdown(
     degraded ? "degraded" : "ready",
     { progress: challenges, ofTheMonth: challengeOfTheMonthAt(new Date()) },
   );
+  return { breakdown, visited };
 }
 
 export async function readPointsStanding(
@@ -221,7 +241,8 @@ const londonVenues = (index: Map<string, IndexedVenue>) =>
     searchText: slimVenue.filterHints?.searchText,
   }));
 
-const readLondonDistricts = londonIndexRead((index) => londonDistricts(londonVenues(index)));
+/** The pubs we list in each London postcode district, by venue id. Throws when London is unavailable. */
+export const readLondonDistrictPubs = londonIndexRead((index) => londonDistricts(londonVenues(index)));
 export const readChallengeSet = londonIndexRead((index) => buildChallengeSet(londonVenues(index)));
 
 function defaultPointsDeps(): PointsDeps {
@@ -255,7 +276,7 @@ function defaultPointsDeps(): PointsDeps {
     addedPubs: (ownerUserId) => venueSubmissionStore().countAcceptedForOwner(ownerUserId),
     fixedPubs: (ownerUserId) => venueCorrectionsStore().countResolvedForOwner(ownerUserId),
     drinkReviews: (ownerHandle) => ratingsStore().countDrinkReviews(ownerHandle),
-    londonDistricts: readLondonDistricts,
+    londonDistricts: readLondonDistrictPubs,
     challenges: readChallengeSet,
   };
 }

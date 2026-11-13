@@ -51,6 +51,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The board checks your first 50 mutual follows by handle and says when that limit applies. If some records fail to load, it warns that totals may be low. A failed relationship or moderation check makes the board unavailable. **Back to Social** returns to Social.
 
+  Open **Your leagues** from the mates' board to reach `/social/leagues`. Start a league or join one with an invite code. A league holds up to 20 people, and you can be in up to 10. Each league page ranks its members by points, shows the invite code and a link to copy, and colours each London postcode district by the member who has been to the most of the pubs we list there. Tap a district to read who leads it. The owner can swap the code, which stops the old one, or delete the league. Other members can leave. Blocks and mutes either way hide a member, and a private profile shows only to its mates. Until migration 0239 is applied, the pages say leagues aren't open yet.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.
