@@ -186,8 +186,7 @@ export function challengeOfTheMonth(monthKey: string): ChallengeId | null {
   const month = Number(match[2]);
   if (month < 1 || month > 12) return null;
   const months = Number(match[1]) * 12 + month - 1;
-  if (months < 2027 * 12) return CHALLENGE_IDS[months % 4]!;
-  return CHALLENGE_IDS[(months - 2027 * 12 + 4) % CHALLENGE_IDS.length]!;
+  return CHALLENGE_IDS[months % CHALLENGE_IDS.length]!;
 }
 
 /** The challenge of the month in London at `at`. */

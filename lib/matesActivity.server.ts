@@ -16,7 +16,7 @@ import { challengeProgress } from "@/lib/challenges";
 import { followStore } from "@/lib/followStore";
 import { MATES_ACTIVITY_LIMIT, type MatesActivityPint, type MatesActivityChallenge, type MatesActivityItem } from "@/lib/matesActivity";
 import { normalizeViewerHandle, visibilityOf, type ViewerContext } from "@/lib/pintDrops";
-import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
+import { pintDropsStore, type PintDropDTO, type VisibleDropHistory } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
 import { firstLoggedDates, readChallengeSet } from "@/lib/points.server";
 import { socialMemoryMutes } from "@/lib/socialBlockMemory";
@@ -32,7 +32,7 @@ export type MatesActivityDependencies = {
   listMutuals(handle: string): Promise<string[]>;
   isMuted(profileId: string, mateHandle: string): Promise<boolean>;
   /** One mate's drops as this reader may read them, newest first. */
-  listMateDrops(mateHandle: string, viewer: ViewerContext): Promise<PintDropDTO[]>;
+  listMateDrops(mateHandle: string, viewer: ViewerContext): Promise<VisibleDropHistory>;
   listMateChallenges(mateHandle: string, drops: readonly PintDropDTO[]): Promise<MatesActivityChallenge[]>;
   /** True only when the pair is still mutual and neither side blocks the other. */
   stillMutual(viewer: MutualViewer, mateHandle: string): Promise<boolean>;
@@ -60,7 +60,7 @@ const defaultDependencies = (): MatesActivityDependencies => ({
       },
     )();
   },
-  listMateDrops: (mateHandle, viewer) => pintDropsStore().listVisible(undefined, viewer, mateHandle, null),
+  listMateDrops: (mateHandle, viewer) => pintDropsStore().listVisibleHistory(undefined, viewer, mateHandle, null),
   listMateChallenges: async (mateHandle, drops) => {
     const mate = await profileStore().getByHandle(mateHandle);
     if (!mate?.userId || mate.tombstonedAt || accountIsPrivate(mate.visibility)) return [];
@@ -120,12 +120,14 @@ export async function readMatesActivity(
   if (mates.size === 0) return [];
 
   const readerContext: ViewerContext = { handle: self, mutualHandles: mates };
-  const drops = (await Promise.all([...mates].map((mate) => deps.listMateDrops(mate, readerContext))))
-    .flat()
+  const histories = await Promise.all([...mates].map(async (mate) => ({
+    mate, ...await deps.listMateDrops(mate, readerContext),
+  })));
+  const drops = histories.flatMap((history) => history.drops)
     .filter(shareableDrop)
     .filter((drop) => mates.has(normalizeViewerHandle(drop.handle)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
-  const finishes = (await Promise.all([...mates].map((mate) => deps.listMateChallenges(
+  const finishes = (await Promise.all(histories.filter((history) => history.complete).map(({ mate }) => deps.listMateChallenges(
     mate, drops.filter((drop) => normalizeViewerHandle(drop.handle) === mate),
   )))).flat().filter((finish) => mates.has(normalizeViewerHandle(finish.handle)));
 

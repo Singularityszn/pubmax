@@ -211,12 +211,12 @@ describe("GET /api/social/mates-activity", () => {
   it("does not read or return drops when a candidate mute check fails", async () => {
     seed("mate_a");
     await mutual("mate_a");
-    const listMateDrops = vi.fn(async () => [{
+    const listMateDrops = vi.fn(async () => ({ complete: true, drops: [{
       ...drop("mate-drop", "mate_a", "2026-11-11T20:00:00.000Z"),
       pintPhotoUrl: null,
       venuePhotoUrl: null,
       receiptPhotoUrl: null,
-    }]);
+    }] }));
 
     await expect(readMatesActivity({ profileId: me.id, handle: ME }, {
       isMuted: async () => { throw new Error("Mute read unavailable"); },
@@ -276,6 +276,34 @@ describe("GET /api/social/mates-activity", () => {
     expect(answer.items[0]?.id).toBe("repeat-pint");
     expect(parseMatesActivity({ items: answer.items })).toEqual(answer.items);
   });
+
+  it.each(["public", "anonymous"] as const)(
+    "omits a finish when a capped history contains newer %s drops",
+    async (visibility) => {
+      seed("finisher");
+      seed("other_finisher");
+      await mutual("finisher");
+      await mutual("other_finisher");
+      const pubs = challengePubs();
+      for (const pub of pubs) {
+        addPintDrop(drop(`august-${pub.id}`, "finisher", "2026-08-01T19:00:00.000Z", { venueId: pub.id }));
+        addPintDrop(drop(`other-${pub.id}`, "other_finisher", "2026-11-14T19:00:00.000Z", { venueId: pub.id }));
+      }
+      for (let index = 0; index < 500; index += 1) {
+        addPintDrop(drop(`repeat-${index}`, "finisher", "2026-11-13T19:00:00.000Z", {
+          venueId: pubs[index % 2]!.id,
+          visibility: index < 2 ? "public" : visibility,
+        }));
+      }
+
+      const answer = await ask();
+      expect(answer.status).toBe(200);
+      expect(answer.items.some((item) => item.handle === "finisher" && item.kind !== "challenge_finished")).toBe(true);
+      expect(answer.items.filter((item) => item.handle === "finisher" && item.kind === "challenge_finished")).toEqual([]);
+      expect(answer.items.find((item) => item.handle === "other_finisher" && item.kind === "challenge_finished"))
+        .toMatchObject({ challengeId: "red-lion", loggedAt: "2026-11-14T19:00:00.000Z" });
+    },
+  );
 
   it.each(["diary", "anonymous", "plan", "been-here"])(
     "keeps a challenge finished through private %s records in the owner's progress alone",

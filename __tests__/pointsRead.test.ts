@@ -112,16 +112,14 @@ describe("readPointsBreakdown", () => {
     const breakdown = await readPointsBreakdown(
       OWNER,
       deps("u-owner", {
+        diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-08-01", source: "diary" }],
+        plans: async () => [{ venueId: "mitre", venueName: "Ye Olde Mitre", date: "2026-07-01", source: "plan" }],
         beenHere: async () => [{ venueId: "anchor-old", venueName: "Anchor", savedAt: "2026-11-02T20:00:00.000Z" }],
         challenges: async () =>
           new Map([
-            // Mitre's plan is September 2026, the Red Lion's month.
             ["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]],
-            // The Lamb's first record is its 1 October diary day, the King's Head's month.
             ["kings-head", [{ label: "Lamb", venueIds: ["lamb"] }]],
-            // Finished in October, which is not the Ship's month.
             ["ship", [{ label: "Lamb", venueIds: ["lamb"] }, { label: "Mitre", venueIds: ["mitre"] }]],
-            // The Anchor was ticked on its old id in November, not December.
             ["every-district", [{ label: "SE1", venueIds: ["anchor"] }, { label: "N1", venueIds: ["nowhere"] }]],
           ]),
       }),
@@ -157,27 +155,27 @@ describe("readPointsBreakdown", () => {
   });
 
   it.each([
-    ["diary", "2026-08-20", 0],
-    ["drops", "2026-09-01", 1],
-    ["plans", "2026-09-01", 1],
-    ["beenHere", "2026-09-01", 1],
-    ["venueAliases", "2026-09-01", 1],
+    ["diary", "2026-06-20", 0],
+    ["drops", "2026-07-01", 1],
+    ["plans", "2026-07-01", 1],
+    ["beenHere", "2026-07-01", 1],
+    ["venueAliases", "2026-07-01", 1],
   ] as const)(
-    "withholds the September bonus when %s cannot be read",
+    "withholds the July bonus when %s cannot be read",
     async (failedRead, diaryDate, healthyBonuses) => {
       const records: Partial<PointsDeps> = {
         diary: async () => [{ venueId: "last", venueName: "Last Red Lion", date: diaryDate, source: "diary" }],
         plans: async () => [
-          { venueId: "first", venueName: "First Red Lion", date: "2026-07-01", source: "plan" },
-          { venueId: "last", venueName: "Last Red Lion", date: "2026-09-01", source: "plan" },
+          { venueId: "first", venueName: "First Red Lion", date: "2026-06-01", source: "plan" },
+          { venueId: "last", venueName: "Last Red Lion", date: "2026-07-01", source: "plan" },
         ],
         beenHere: async () => [
-          { venueId: "first", venueName: "First Red Lion", savedAt: "2026-07-01T19:00:00.000Z" },
-          { venueId: "last", venueName: "Last Red Lion", savedAt: "2026-09-01T19:00:00.000Z" },
+          { venueId: "first", venueName: "First Red Lion", savedAt: "2026-06-01T19:00:00.000Z" },
+          { venueId: "last", venueName: "Last Red Lion", savedAt: "2026-07-01T19:00:00.000Z" },
         ],
         drops: async () => [
-          { venueId: "first", createdAt: "2026-07-01T19:00:00.000Z", priced: false, checked: false },
-          { venueId: "last", createdAt: "2026-09-01T19:00:00.000Z", priced: false, checked: false },
+          { venueId: "first", createdAt: "2026-06-01T19:00:00.000Z", priced: false, checked: false },
+          { venueId: "last", createdAt: "2026-07-01T19:00:00.000Z", priced: false, checked: false },
         ],
         venueAliases: async () => (id) => id,
         challenges: async () => new Map([["red-lion", [

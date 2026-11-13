@@ -56,6 +56,22 @@ afterEach(() => {
 });
 
 describe("supabasePintDropStore withdrawal", () => {
+  it.each([
+    { count: 499, complete: true },
+    { count: 500, complete: false },
+  ])("marks a $count-row history complete=$complete before anonymous rows are filtered", async ({ count, complete }) => {
+    table.rows = Array.from({ length: count }, (_, index) => row(
+      `drop-${index}`, "alice", index < 2 ? "public" : "anonymous",
+    ));
+
+    const history = await supabasePintDropStore.listVisibleHistory(
+      "withdrawal-test-venue", { handle: "reader" }, "alice",
+    );
+
+    expect(history.complete).toBe(complete);
+    expect(history.drops.map((drop) => drop.id).sort()).toEqual(["drop-0", "drop-1"]);
+  });
+
   it("withholds a withdrawn author's named and anonymous drops from venue reads", async () => {
     __setMemoryProfileWithdrawn(__seedMemoryOwnedProfile("karansdad", "user-karansdad").id, true);
     table.rows = [

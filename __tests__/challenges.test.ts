@@ -104,11 +104,14 @@ describe("buildChallengeSet", () => {
 
 describe("challengeOfTheMonth", () => {
   it("gives every challenge a turn, one month each", () => {
-    const months = ["2026-09", "2026-10", "2026-11", "2026-12", "2027-01", "2027-02", "2027-03"];
+    const months = ["2026-01", "2026-02", "2026-03", "2026-04", "2026-05", "2026-06", "2026-07"];
     expect(months.map(challengeOfTheMonth)).toEqual([
       "red-lion", "kings-head", "ship", "every-district", "trades", "monopoly", "red-lion",
     ]);
     expect(new Set(months.map(challengeOfTheMonth)).size).toBe(CHALLENGE_IDS.length);
+    expect(["2025-01", "2027-01", "2028-01"].map(challengeOfTheMonth)).toEqual([
+      "red-lion", "red-lion", "red-lion",
+    ]);
   });
 
   it("has no challenge for a month it cannot read", () => {
@@ -121,7 +124,6 @@ describe("challengeOfTheMonth", () => {
 
 describe("challengeProgress", () => {
   const set: ChallengeSet = new Map([
-    // Red Lion is the challenge of the month in September 2026.
     [
       "red-lion",
       [
@@ -129,7 +131,6 @@ describe("challengeProgress", () => {
         { label: "Red Lion B", venueIds: ["b"], mapVenueId: "b" },
       ],
     ],
-    // The district challenge is the challenge of the month in December 2026.
     [
       "every-district",
       [
@@ -139,11 +140,11 @@ describe("challengeProgress", () => {
     ],
   ]);
   const months: Record<string, string | null> = {
-    a: "2026-08",
-    b: "2026-09",
-    e1a: "2026-12",
+    a: "2026-06",
+    b: "2026-07",
+    e1a: "2026-10",
     e1b: null,
-    n1: "2026-12",
+    n1: "2026-10",
   };
   const month = (venueId: string) => months[venueId] ? `${months[venueId]}-01T19:00:00.000Z` : null;
   const progress = (visited: string[]) =>
@@ -161,7 +162,7 @@ describe("challengeProgress", () => {
 
   it("doubles a challenge finished inside its own month", () => {
     expect(progress(["a", "b"])["red-lion"]).toMatchObject({
-      finished: true, doubled: true, finishedAt: "2026-09-01T19:00:00.000Z",
+      finished: true, doubled: true, finishedAt: "2026-07-01T19:00:00.000Z",
     });
   });
 
