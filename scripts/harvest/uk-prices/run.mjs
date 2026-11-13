@@ -884,26 +884,17 @@ async function main() {
     return;
   }
 
-  if (RECHECK.length > 0) {
-    let dropped = 0;
-    for (const [host, entry] of Object.entries(ledger.hosts)) {
-      if (!RECHECK.includes(entry.outcome)) continue;
-      // `--only` NARROWS THE RECHECK, it does not narrow a crawl of everything
-      // the recheck already forgot. Dropping a host the run then filters out
-      // loses its finding silently and leaves it looking never-crawled.
-      if (ONLY && !host.includes(ONLY)) continue;
-      delete ledger.hosts[host];
-      dropped += 1;
-    }
-    console.log(`re-asking ${dropped} host(s) recorded as ${RECHECK.join(", ")}`);
-  }
-
   const pending = hosts
     .filter((entry) => (ONLY ? entry.host.includes(ONLY) : true))
     .filter((entry) => (EXA_SITES_ONLY ? entry.exaSite === true : true))
-    .filter((entry) => !ledger.hosts[entry.host])
+    .filter((entry) => !ledger.hosts[entry.host] || RECHECK.includes(ledger.hosts[entry.host].outcome))
     .sort((a, b) => b.pubs.length - a.pubs.length)
     .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : hosts.length);
+
+  if (RECHECK.length > 0) {
+    const rechecks = pending.filter((entry) => ledger.hosts[entry.host]).length;
+    console.log(`re-asking ${rechecks} host(s) recorded as ${RECHECK.join(", ")}`);
+  }
 
   let spent = 0;
   let pdfsSeen = 0;

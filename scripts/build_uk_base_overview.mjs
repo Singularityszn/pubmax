@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Build the zoomed-out overview of the UK base layer: one point per published
-// shard, at the mean position of the rows in it, with the row count.
-//
 // Below UK_BASE_MIN_ZOOM the map fetches no shard, so without this file the
 // country reads as empty while it holds tens of thousands of pubs. The client
 // clusters these points into count bubbles (lib/ukBaseOverview.ts). It reads

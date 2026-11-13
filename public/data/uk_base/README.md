@@ -101,7 +101,7 @@ parser [`lib/slimShards.ts`](../../../lib/slimShards.ts) already defines, so
 the curated slim manifest keeps its required per-shard URLs and validation.
 
 `overview.json` is what the map draws below the zoom gate, where no shard is
-fetched: one point per shard at the mean position of its rows, with the row
+fetched: one point per shard at a member pub's exact position, with the row
 count, which MapLibre clusters into count bubbles. It is generated from the
 published shards by `scripts/build_uk_base_overview.mjs` (inside
 `npm run build:uk-base`), and `scripts/validate-data.mjs` rebuilds it and fails

@@ -22,6 +22,8 @@ import {
 } from "@/lib/ukBasePubs";
 import { parseUkBaseOverview, ukBaseOverviewToGeoJSON } from "@/lib/ukBaseOverview";
 import { buildUkBaseOverview } from "../scripts/lib/ukBaseOverview.mjs";
+import { zoomIntoUkBaseOverview } from "@/components/map/canvas/ukBaseOverviewLayers";
+import type { Map as MapLibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import { defined } from "@/__tests__/helpers/defined";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
@@ -502,7 +504,7 @@ describe("pan residency helpers", () => {
 describe("UK base overview", () => {
   const LONDON = { west: -0.6, south: 51.2, east: 0.4, north: 51.8 };
 
-  it("counts every published row at its shard's mean position", () => {
+  it("counts every published row at a member pub's position", () => {
     const overview = buildUkBaseOverview(
       { urlPrefix: "/data/uk_base/packs/0123456789abcdef/", generatedFrom: { count: 3 } },
       [
@@ -512,10 +514,93 @@ describe("UK base overview", () => {
     );
     expect(overview.count).toBe(3);
     expect(overview.cells).toEqual([
-      [51.55, -0.15, 2],
+      [51.5, -0.2, 2],
       [53.4, -2.2, 1],
     ]);
   });
+
+  it("opens a real pub from the sparse Scottish cell", async () => {
+    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 2 } }, [
+      {
+        id: "56.25_-3.75",
+        rows: [
+          ["n1", "A", "", 56.29587, -3.70691, ""],
+          ["n2", "B", "", 56.4256, -3.51784, ""],
+        ],
+      },
+    ]);
+    const points = parseUkBaseOverview(overview);
+    expect(points).not.toBeNull();
+    const feature = defined(ukBaseOverviewToGeoJSON(points ?? [], null).features[0]);
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => undefined } as unknown as MapLibreMap,
+      feature as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.70691, 56.29587], 12);
+    expect(feature.properties).toEqual({ n: 2 });
+  });
+
+  it.each([12, 13])("opens a cluster member when expansion reaches zoom %i", async (zoom) => {
+    const source = {
+      getClusterExpansionZoom: async () => zoom,
+      getClusterLeaves: async () => [{ geometry: { type: "Point", coordinates: [-3.70691, 56.29587] } }],
+    };
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => source } as unknown as MapLibreMap,
+      {
+        geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+        properties: { cluster_id: 7 },
+      } as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.70691, 56.29587], 12);
+  });
+
+  it("keeps expanding the cluster below the pin threshold", async () => {
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => ({ getClusterExpansionZoom: async () => 10 }) } as unknown as MapLibreMap,
+      {
+        geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+        properties: { cluster_id: 7 },
+      } as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.612, 56.361], 10);
+  });
+
+  it.each(["source", "expansion", "leaves", "empty"])(
+    "keeps the overview when the %s lookup fails",
+    async (failure) => {
+      const flyTo = vi.fn();
+      const source = {
+        getClusterExpansionZoom: async () => {
+          if (failure === "expansion") throw new Error("missing cluster");
+          return 12;
+        },
+        getClusterLeaves: async () => {
+          if (failure === "leaves") throw new Error("missing cluster");
+          return [];
+        },
+      };
+      await zoomIntoUkBaseOverview(
+        { getSource: () => failure === "source" ? undefined : source } as unknown as MapLibreMap,
+        {
+          geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+          properties: { cluster_id: 7 },
+        } as MapGeoJSONFeature,
+        12,
+        flyTo,
+      );
+      expect(flyTo).not.toHaveBeenCalled();
+    },
+  );
 
   it("refuses to build an overview that disagrees with the manifest's count", () => {
     expect(() =>

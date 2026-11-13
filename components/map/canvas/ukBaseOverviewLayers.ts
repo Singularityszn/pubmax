@@ -107,12 +107,22 @@ export function zoomIntoUkBaseOverview(
   if (!center) return;
   const clusterId = feature.properties?.cluster_id;
   const source = map.getSource(UK_BASE_OVERVIEW_SOURCE) as maplibregl.GeoJSONSource | undefined;
-  if (typeof clusterId !== "number" || !source) {
+  if (typeof clusterId !== "number") {
     flyTo(center, pinMinZoom);
     return;
   }
-  void source
+  if (!source) return;
+  return source
     .getClusterExpansionZoom(clusterId)
-    .then((zoom) => flyTo(center, Math.min(zoom, pinMinZoom)))
-    .catch(() => flyTo(center, pinMinZoom));
+    .then(async (zoom) => {
+      if (zoom < pinMinZoom) {
+        flyTo(center, zoom);
+        return;
+      }
+      const [member] = await source.getClusterLeaves(clusterId, 1, 0);
+      if (member?.geometry.type !== "Point") return;
+      const memberCenter = lngLatOf(member.geometry.coordinates);
+      if (memberCenter) flyTo(memberCenter, pinMinZoom);
+    })
+    .catch(() => undefined);
 }
