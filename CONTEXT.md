@@ -300,7 +300,7 @@ What a Pubmaxxer earns from their own records: a pub on their Been list, a price
 _Avoid_: XP, mastery points, a streak
 
 **League**:
-A private group of up to 20 Pubmaxxers ranked by Points, joined with an invite code that its owner can replace. Its map colours each London postcode district by the member who has been to the most of the pubs we list there. A league holds no score of its own. A member sees another only when neither blocks or mutes the other, and a private account only when the two are mates. `lib/leagues.ts` owns the limits and the map, `lib/leagues.server.ts` the reads.
+A private group of Pubmaxxers ranked by Points. A league holds no score of its own. See [league usage](README.md#features) for invitations, limits, visibility and district maps. `lib/leagues.ts` owns the limits and the map, and `lib/leagues.server.ts` owns the reads.
 _Avoid_: club, team, squad
 
 **Challenge**:

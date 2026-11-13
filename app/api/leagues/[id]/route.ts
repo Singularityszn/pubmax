@@ -1,5 +1,5 @@
 // One league.
-//   GET    → the board: members ranked by points and who leads each district
+//   GET    → visible member standings and available district leaders
 //   DELETE → deletes it, for its owner
 // A league that is gone and one the reader is not in answer the same 404.
 

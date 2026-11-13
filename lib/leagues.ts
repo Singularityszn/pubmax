@@ -142,7 +142,7 @@ export type LeagueBoard = {
   /** "degraded" when somebody's records did not all load, so a total may be low. */
   status: "ready" | "degraded";
   rows: LeagueRow[];
-  /** Null when the London pub list did not load. */
+  /** Null when the London pub list failed or any visible member's standing is degraded. */
   districts: LeagueDistrict[] | null;
 };
 

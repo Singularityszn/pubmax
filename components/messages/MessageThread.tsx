@@ -188,8 +188,7 @@ function getMobileViewportSnapshot(): boolean {
   return window.matchMedia(MOBILE_MEDIA_QUERY).matches;
 }
 
-// Render a message body with @-mentions linkified to /u/<handle>. Pure segments
-// from lib/messages — text as-is, mentions as brass links.
+// lib/messages validates league invitation links before they become app navigation.
 function MessageBody({ body }: { body: string }): React.JSX.Element {
   const segments = useMemo(() => linkifyMessageBody(body), [body]);
   return (

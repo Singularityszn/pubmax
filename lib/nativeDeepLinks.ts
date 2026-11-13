@@ -29,7 +29,7 @@ const APP_ORIGIN = "https://pubmaxxing.com";
  * `/map/` and the two venue permalinks are here because they are what a person
  * actually shares from this app: a pub, and the city someone is drinking in.
  *
- * `/add/` and `/r/` are the two links a person hands to somebody else, and they
+ * `/add/` and `/r/` are links a person hands to somebody else, and they
  * are the reason the installed app has to take them: an invite that opens
  * Safari asks the one person most likely to install to sign in twice. `/r/` is
  * a 307 onto the home page's own referral fragment (app/r/[code]/route.ts), and
