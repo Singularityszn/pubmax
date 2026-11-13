@@ -47,7 +47,7 @@ function Board({ board }: { board: MatesBoardAnswer }) {
             meta={`Level ${row.level}`}
             trailing={
               <span className="matesBoardPoints">
-                <span className="matesBoardFigure">{nf(row.points)}</span> {row.points === 1 ? "point" : "points"}
+                <span className="matesBoardFigure">{nf(row.total)}</span> {row.total === 1 ? "point" : "points"}
               </span>
             }
           />
