@@ -1246,6 +1246,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  const ukBaseOverviewDataRef = useRef<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
   const poisDataRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -2609,6 +2610,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         pubsData: pubsDataRef.current,
         userLocationData: userLocationDataRef.current,
         ukBaseData: ukBaseDataRef.current,
+        ukBaseOverviewData: ukBaseOverviewDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         coffeePilotData: coffeePilotDataRef.current,
@@ -2693,6 +2695,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               pubsData: pubsDataRef.current,
               userLocationData: userLocationDataRef.current,
               ukBaseData: ukBaseDataRef.current,
+              ukBaseOverviewData: ukBaseOverviewDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
               coffeePilotData: coffeePilotDataRef.current,
@@ -4151,6 +4154,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     mapReady,
     applyToMap,
     ukBaseDataRef,
+    ukBaseOverviewDataRef,
+    cityBounds,
     drawableVenueIds,
     provisionalVenueIds,
     // The Spoons value lens rides THIS layer: most of the pubs it ranks are

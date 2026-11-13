@@ -416,13 +416,19 @@ export default function MapSplitList({
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
   const total = groups.total;
-  const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
+  // Below the base layer's gate a view with no curated pub has nothing to
+  // count yet, so it says how to get a list rather than waiting for ever.
+  const zoomForList = total === 0 && loaded && ukBaseStatus === "zoom_required";
+  const awaiting =
+    total === 0 && !zoomForList && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
   const status = awaiting
     ? "Counting them up…"
     : total === 0
       ? ukBaseStatus === "unavailable"
         ? "Unlisted pubs unavailable"
-        : "Nothing in view"
+        : zoomForList
+          ? "Zoom in to list pubs"
+          : "Nothing in view"
       : `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`;
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
@@ -539,7 +545,7 @@ export default function MapSplitList({
 
       <div className="mapSplitListScroll" ref={scrollRef} onKeyDown={onRowsKeyDown}>
         {total === 0 ? (
-          awaiting ? null : (
+          awaiting || zoomForList ? null : (
             <p className="mapSplitListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."

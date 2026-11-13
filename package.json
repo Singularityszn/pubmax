@@ -77,7 +77,7 @@
     "promote:london-osm": "node --import tsx scripts/promote_london_osm_pubs.mjs",
     "build:city-slim": "node scripts/build_city_slim_index.mjs",
     "build:pubmaxxing-seed": "node scripts/build_pubmaxxing_seed.mjs",
-    "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
+    "build:uk-base": "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_base_overview.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     "build:uk-pub-search": "node scripts/build_uk_pub_search_index.mjs",
     "build:osm-pub-facts": "node scripts/build_osm_pub_facts.mjs",
     "build:last-orders": "node scripts/build_last_orders_pack.mjs",

@@ -6641,9 +6641,9 @@ export default function PubMap({
         viewportCenter={mapViewport.center}
         reader={userLocation}
         loaded={
-          loaded &&
-          loadedCityId === cityId &&
-          visibleVenueState?.cityId === cityId
+          // /map?uk=1 reads no curated index, so there is nothing to wait for.
+          ukNationalBrowse ||
+          (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
         }
         viewLanding={viewShardsLanding}
         map={liveMap}

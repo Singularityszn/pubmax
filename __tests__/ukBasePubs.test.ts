@@ -20,6 +20,8 @@ import {
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
 } from "@/lib/ukBasePubs";
+import { parseUkBaseOverview, ukBaseOverviewToGeoJSON } from "@/lib/ukBaseOverview";
+import { buildUkBaseOverview } from "../scripts/lib/ukBaseOverview.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
@@ -494,5 +496,57 @@ describe("pan residency helpers", () => {
     const picked = selectPanPrefetchShards(shards, drawn, panPad, 1);
     expect(picked.map((s) => s.id)).toEqual(["b"]);
     expect(selectPanPrefetchShards(shards, drawn, panPad, 0)).toEqual([]);
+  });
+});
+
+describe("UK base overview", () => {
+  const LONDON = { west: -0.6, south: 51.2, east: 0.4, north: 51.8 };
+
+  it("counts every published row at its shard's mean position", () => {
+    const overview = buildUkBaseOverview(
+      { urlPrefix: "/data/uk_base/packs/0123456789abcdef/", generatedFrom: { count: 3 } },
+      [
+        { id: "b", rows: [["n3", "C", "", 53.4, -2.2, ""]] },
+        { id: "a", rows: [["n1", "A", "", 51.5, -0.2, ""], ["n2", "B", "", 51.6, -0.1, "", "bar"]] },
+      ],
+    );
+    expect(overview.count).toBe(3);
+    expect(overview.cells).toEqual([
+      [51.55, -0.15, 2],
+      [53.4, -2.2, 1],
+    ]);
+  });
+
+  it("refuses to build an overview that disagrees with the manifest's count", () => {
+    expect(() =>
+      buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 5 } }, [
+        { id: "a", rows: [["n1", "A", "", 51.5, -0.2, ""]] },
+      ]),
+    ).toThrow(/manifest states 5/);
+  });
+
+  it("fails closed on a file it does not understand", () => {
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 12]] })).toEqual([
+      { lat: 51.5, lng: -0.1, count: 12 },
+    ]);
+    expect(parseUkBaseOverview({ version: 2, cells: [[51.5, -0.1, 12]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 0]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 1.5]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[95, -0.1, 3]] })).toBeNull();
+    expect(parseUkBaseOverview(null)).toBeNull();
+  });
+
+  it("stands down inside the area the curated clusters cover", () => {
+    const points = [
+      { lat: 51.5, lng: -0.1, count: 4000 },
+      { lat: 53.48, lng: -2.24, count: 2200 },
+    ];
+    const withCurated = ukBaseOverviewToGeoJSON(points, LONDON);
+    expect(withCurated.features.map((feature) => feature.properties)).toEqual([{ n: 2200 }]);
+    const nothingCurated = ukBaseOverviewToGeoJSON(points, null);
+    expect(nothingCurated.features.map((feature) => feature.properties)).toEqual([
+      { n: 4000 },
+      { n: 2200 },
+    ]);
   });
 });
