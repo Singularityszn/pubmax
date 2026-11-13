@@ -21,10 +21,15 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 
 import { GET } from "@/app/api/social/mates-activity/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
-import { MATES_ACTIVITY_LIMIT, type MatesActivityPint } from "@/lib/matesActivity";
+import { MATES_ACTIVITY_LIMIT, parseMatesActivity, type MatesActivityItem } from "@/lib/matesActivity";
 import { readMatesActivity } from "@/lib/matesActivity.server";
+import * as pointsReader from "@/lib/points.server";
+import { __resetDiary, diaryStore } from "@/lib/diaryStore";
+import * as passportReader from "@/lib/profilePassport.server";
+import * as venueIndex from "@/lib/venueIndex";
+import * as venueAliases from "@/lib/venueAliases";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
-import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetMemoryProfiles, __seedMemoryOwnedProfile, profileStore } from "@/lib/profileStore";
 import {
   clearSocialMemoryBlocks,
   setSocialMemoryBlock,
@@ -61,9 +66,9 @@ async function mutual(handle: string) {
   await followStore().follow(handle, ME);
 }
 
-async function ask(): Promise<{ status: number; items: MatesActivityPint[] }> {
+async function ask(): Promise<{ status: number; items: MatesActivityItem[] }> {
   const response = await GET(new Request("http://localhost/api/social/mates-activity"));
-  const body = (await response.json()) as { items?: MatesActivityPint[] };
+  const body = (await response.json()) as { items?: MatesActivityItem[] };
   return { status: response.status, items: body.items ?? [] };
 }
 
@@ -78,6 +83,7 @@ beforeEach(() => {
 afterEach(() => {
   vi.restoreAllMocks();
   __resetPintDrops();
+  __resetDiary();
   __resetMemoryFollows();
   __resetMemoryProfiles();
   clearSocialMemoryBlocks();
@@ -155,7 +161,7 @@ describe("GET /api/social/mates-activity", () => {
     expect(items[0]).toMatchObject({ handle: "mate_b", priceGbp: null, venueName: "The Lamb" });
     expect(items[0]).not.toHaveProperty("priceEvidence");
     expect(items[1]).toMatchObject({ handle: "mate_a", priceGbp: 6.2, priceEvidence: "unchecked", venueId: THE_LAMB });
-    expect(items[1]?.venueMapUrl).toContain(THE_LAMB);
+    expect(items[1]).toHaveProperty("venueMapUrl", expect.stringContaining(THE_LAMB));
   });
 
   it("leaves out a mate the reader muted and a mate blocked either way", async () => {
@@ -205,12 +211,12 @@ describe("GET /api/social/mates-activity", () => {
   it("does not read or return drops when a candidate mute check fails", async () => {
     seed("mate_a");
     await mutual("mate_a");
-    const listMateDrops = vi.fn(async () => [{
+    const listMateDrops = vi.fn(async () => ({ complete: true, drops: [{
       ...drop("mate-drop", "mate_a", "2026-11-11T20:00:00.000Z"),
       pintPhotoUrl: null,
       venuePhotoUrl: null,
       receiptPhotoUrl: null,
-    }]);
+    }] }));
 
     await expect(readMatesActivity({ profileId: me.id, handle: ME }, {
       isMuted: async () => { throw new Error("Mute read unavailable"); },
@@ -229,5 +235,177 @@ describe("GET /api/social/mates-activity", () => {
     const { items } = await ask();
     expect(items).toHaveLength(MATES_ACTIVITY_LIMIT);
     expect(items[0]?.id).toBe(`busy-${String(MATES_ACTIVITY_LIMIT + 2).padStart(2, "0")}`);
+  });
+
+  function challengePubs() {
+    const pubs = ["lion-one", "lion-two"].map((id) => ({
+      id, name: "The Red Lion", borough: "Camden", lat: 51.5, lng: -0.1,
+    }));
+    vi.spyOn(venueIndex, "readCityVenueIndex").mockResolvedValue(new Map(pubs.map((pub) => [pub.id, {
+      venue: pub, slimVenue: { ...pub, cheapestPrice: null },
+    }])));
+    return pubs;
+  }
+
+  it("shows a challenge finish dated only by reader-visible drops", async () => {
+    const mate = seed("finisher");
+    await mutual("finisher");
+    const pubs = challengePubs();
+    for (const pub of pubs) {
+      await diaryStore().create({
+        ownerUserId: mate.userId!, venueId: pub.id, venueName: pub.name,
+        visitedOn: "2026-08-01", rating: null, review: "", visibility: "private",
+      });
+    }
+    addPintDrop(drop("first-pint", "finisher", "2026-09-01T19:00:00.000Z", { venueId: pubs[0]!.id }));
+    addPintDrop(drop("last-pint", "finisher", "2026-09-02T19:00:00.000Z", {
+      venueId: pubs[1]!.id, visibility: "friends",
+    }));
+    addPintDrop(drop("repeat-pint", "finisher", "2026-09-03T19:00:00.000Z", { venueId: pubs[0]!.id }));
+    const own = await pointsReader.readPointsBreakdown(mate);
+    expect(own.challenges.find(({ id }) => id === "red-lion")?.finishedAt).toBe("2026-08-01T00:00:00.000Z");
+
+    const answer = await ask();
+    expect(answer.status).toBe(200);
+    const finish = answer.items.find((item) => item.kind === "challenge_finished");
+    expect(finish).toMatchObject({
+      kind: "challenge_finished", handle: "finisher", challengeId: "red-lion", loggedAt: "2026-09-02T19:00:00.000Z",
+    });
+    expect(finish).not.toHaveProperty("total");
+    expect(finish).not.toHaveProperty("userId");
+    expect(answer.items[0]?.id).toBe("repeat-pint");
+    expect(parseMatesActivity({ items: answer.items })).toEqual(answer.items);
+  });
+
+  it.each(["public", "anonymous"] as const)(
+    "omits a finish when a capped history contains newer %s drops",
+    async (visibility) => {
+      seed("finisher");
+      seed("other_finisher");
+      await mutual("finisher");
+      await mutual("other_finisher");
+      const pubs = challengePubs();
+      for (const pub of pubs) {
+        addPintDrop(drop(`august-${pub.id}`, "finisher", "2026-08-01T19:00:00.000Z", { venueId: pub.id }));
+        addPintDrop(drop(`other-${pub.id}`, "other_finisher", "2026-11-14T19:00:00.000Z", { venueId: pub.id }));
+      }
+      for (let index = 0; index < 500; index += 1) {
+        addPintDrop(drop(`repeat-${index}`, "finisher", "2026-11-13T19:00:00.000Z", {
+          venueId: pubs[index % 2]!.id,
+          visibility: index < 2 ? "public" : visibility,
+        }));
+      }
+
+      const answer = await ask();
+      expect(answer.status).toBe(200);
+      expect(answer.items.some((item) => item.handle === "finisher" && item.kind !== "challenge_finished")).toBe(true);
+      expect(answer.items.filter((item) => item.handle === "finisher" && item.kind === "challenge_finished")).toEqual([]);
+      expect(answer.items.find((item) => item.handle === "other_finisher" && item.kind === "challenge_finished"))
+        .toMatchObject({ challengeId: "red-lion", loggedAt: "2026-11-14T19:00:00.000Z" });
+    },
+  );
+
+  it.each(["diary", "anonymous", "plan", "been-here"])(
+    "keeps a challenge finished through private %s records in the owner's progress alone",
+    async (source) => {
+      const mate = seed("finisher");
+      await mutual("finisher");
+      const pubs = challengePubs();
+      const passport = passportReader.defaultPassportDeps();
+      if (source === "plan" || source === "been-here") {
+        vi.spyOn(passportReader, "defaultPassportDeps").mockImplementation(() => ({
+          ...passport,
+          ...(source === "plan" ? { plans: async () => pubs.map((pub) => ({
+            venueId: pub.id, venueName: pub.name, date: "2026-09-01", source: "plan" as const,
+          })) } : { beenHere: async () => pubs.map((pub) => ({
+            venueId: pub.id, venueName: pub.name, savedAt: "2026-09-01T19:00:00.000Z",
+          })) }),
+        }));
+      }
+      for (const pub of pubs) {
+        if (source === "diary") {
+          await diaryStore().create({
+            ownerUserId: mate.userId!, venueId: pub.id, venueName: pub.name,
+            visitedOn: "2026-09-01", rating: null, review: "", visibility: "private",
+          });
+        }
+        if (source === "anonymous") {
+          addPintDrop(drop(`anon-${pub.id}`, "finisher", "2026-09-01T19:00:00.000Z", {
+            venueId: pub.id, visibility: "anonymous",
+          }));
+        }
+      }
+      const own = await pointsReader.readPointsBreakdown(mate);
+      expect(own.status).toBe("ready");
+      expect(own.challenges.find(({ id }) => id === "red-lion")).toMatchObject({ done: 2, total: 2, finished: true });
+      expect(own.lines.find(({ key }) => key === "challenge")).toMatchObject({ count: 1, points: 500 });
+      const answer = await ask();
+      expect(answer.status).toBe(200);
+      expect(answer.items).toEqual([]);
+    },
+  );
+
+  it("does not complete a shared challenge with one private target", async () => {
+    const mate = seed("finisher");
+    await mutual("finisher");
+    const pubs = challengePubs();
+    addPintDrop(drop("public-lion", "finisher", "2026-09-01T19:00:00.000Z", { venueId: pubs[0]!.id }));
+    await diaryStore().create({
+      ownerUserId: mate.userId!, venueId: pubs[1]!.id, venueName: pubs[1]!.name,
+      visitedOn: "2026-09-02", rating: null, review: "", visibility: "private",
+    });
+    const answer = await ask();
+    expect(answer.status).toBe(200);
+    expect(answer.items.map((item) => item.id)).toEqual(["public-lion"]);
+  });
+
+  it("folds visible sightings on former venue ids before dating a finish", async () => {
+    seed("finisher");
+    await mutual("finisher");
+    const pubs = challengePubs();
+    const aliases = await venueAliases.loadVenueAliasResolver();
+    vi.spyOn(venueAliases, "loadVenueAliasResolver").mockResolvedValue({
+      ...aliases,
+      status: "ready",
+      canonical: (id) => id === "former-lion" ? pubs[0]!.id : id,
+    });
+    addPintDrop(drop("former-pint", "finisher", "2026-09-01T19:00:00.000Z", { venueId: "former-lion" }));
+    addPintDrop(drop("last-pint", "finisher", "2026-09-02T19:00:00.000Z", { venueId: pubs[1]!.id }));
+    const answer = await ask();
+    expect(answer.status).toBe(200);
+    expect(answer.items.find((item) => item.kind === "challenge_finished")).toMatchObject({
+      challengeId: "red-lion", loggedAt: "2026-09-02T19:00:00.000Z",
+    });
+  });
+
+  it.each(["private", "muted", "blocked", "blocked-by-mate", "unavailable", "aliases", "undated"])(
+    "omits a challenge finish when the mate or history is %s",
+    async (reason) => {
+      const mate = seed("finisher");
+      await mutual("finisher");
+      const pubs = challengePubs();
+      for (const pub of pubs) {
+        addPintDrop(drop(`pint-${pub.id}`, "finisher", reason === "undated" ? "" : "2026-09-01T19:00:00.000Z", {
+          venueId: pub.id,
+        }));
+      }
+      if (reason === "private") await profileStore().update("finisher", { visibility: "private" });
+      if (reason === "muted") setSocialMemoryMute(me.id, mate.id, true);
+      if (reason === "blocked") setSocialMemoryBlock(me.id, mate.id, true);
+      if (reason === "blocked-by-mate") setSocialMemoryBlock(mate.id, me.id, true);
+      if (reason === "unavailable") vi.mocked(venueIndex.readCityVenueIndex).mockResolvedValue(null);
+      if (reason === "aliases") {
+        const aliases = await venueAliases.loadVenueAliasResolver();
+        vi.spyOn(venueAliases, "loadVenueAliasResolver").mockResolvedValue({ ...aliases, status: "unavailable" });
+      }
+      const answer = await ask();
+      expect(answer.status).toBe(200);
+      expect(answer.items.filter((item) => item.kind === "challenge_finished")).toEqual([]);
+    },
+  );
+
+  it("rejects an unknown challenge in the activity response", () => {
+    expect(parseMatesActivity({ items: [{ kind: "challenge_finished", id: "finish", handle: "mate",
+      challengeId: "invented", loggedAt: "2026-09-01T19:00:00.000Z" }] })).toBeNull();
   });
 });

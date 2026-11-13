@@ -145,6 +145,8 @@ export type PintDropDTO = Omit<
   reportCount?: number;
 };
 
+export type VisibleDropHistory = { drops: PintDropDTO[]; complete: boolean };
+
 // Moderator read shape. Same photo-URL swap, but a moderator must see the
 // evidence they are judging, so photos resolve even on hidden rows and the
 // report metadata (reportedAt/reportReason/reportCount) is kept.
@@ -228,6 +230,12 @@ export type PintDropStore = {
     /** Scopes unscoped reads (no venueId) so Manchester demo seeds stay off London feeds. */
     cityId?: CityId | null,
   ): Promise<PintDropDTO[]>;
+  listVisibleHistory(
+    venueId?: string,
+    viewer?: ViewerContext,
+    authorHandle?: string,
+    cityId?: CityId | null,
+  ): Promise<VisibleDropHistory>;
   /** Complete venue identities for an attributed author's visible passport geography.
    * The timeline remains capped. This read applies the same viewer and withdrawal rules.
    */
@@ -980,6 +988,9 @@ export const memoryPintDropStore: PintDropStore = {
     return sameCreatedDrop(existing, input, photos) ? toDTO(existing) : "conflict";
   },
   async listVisible(venueId, viewer, authorHandle, cityId) {
+    return (await memoryPintDropStore.listVisibleHistory(venueId, viewer, authorHandle, cityId)).drops;
+  },
+  async listVisibleHistory(venueId, viewer, authorHandle, cityId) {
     const venueRows = venueId
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
@@ -997,7 +1008,10 @@ export const memoryPintDropStore: PintDropStore = {
         (!author || matchesAuthorFilter(d, author.current, viewer)),
     );
     const published = await dropWithdrawnFromViewer(permitted, viewer);
-    return newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d)));
+    return {
+      drops: newestFirstCapped(published).map((d) => toDTO(withVerifiedReportCount(d))),
+      complete: rows.length < MAX_PUBLIC_DROPS,
+    };
   },
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -1737,6 +1751,9 @@ export const supabasePintDropStore: PintDropStore = {
   /** Demo seeds (in-repo, never written to Supabase) merge with the organic
    *  rows in newestFirstCapped so both backends serve one read-merge path. */
   async listVisible(venueId, viewer, authorHandle, cityId) {
+    return (await supabasePintDropStore.listVisibleHistory(venueId, viewer, authorHandle, cityId)).drops;
+  },
+  async listVisibleHistory(venueId, viewer, authorHandle, cityId) {
     const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
     const authorHandles = author ? wornHandleList(author) : [];
     const venueIds = venueId ? await storedVenueIds(venueId) : [];
@@ -1787,7 +1804,10 @@ export const supabasePintDropStore: PintDropStore = {
       .filter((d) => !author || matchesAuthorFilter(d, author.current, viewer));
     const published = await dropWithdrawnFromViewer(permitted, viewer);
     const capped = newestFirstCapped(published);
-    return toDTOsWithBatchedPhotos(capped);
+    return {
+      drops: await toDTOsWithBatchedPhotos(capped),
+      complete: data !== null && data.length < MAX_PUBLIC_DROPS && published.length <= MAX_PUBLIC_DROPS,
+    };
   },
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {

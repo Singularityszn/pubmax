@@ -2,10 +2,17 @@ import "server-only";
 
 // The points read: a person's own records, counted by lib/points.ts.
 //
-// Failed record reads contribute zero. A failed record, district or alias
-// read marks the answer degraded, including the identity fallback for aliases.
+// Failed record reads contribute zero. A failed record, district, challenge
+// or alias read marks the answer degraded, including the identity fallback for
+// aliases.
 
 import { callerUserId } from "@/lib/authServer";
+import {
+  buildChallengeSet,
+  challengeOfTheMonthAt,
+  challengeProgress,
+  type ChallengeSet,
+} from "@/lib/challenges";
 import { getCity } from "@/lib/cities";
 import { pintDropsStore } from "@/lib/pintDropsStore";
 import {
@@ -46,6 +53,8 @@ export type PointsDeps = Pick<
   drinkReviews(ownerHandle: string): Promise<number>;
   /** The pubs we list in each London postcode district. */
   londonDistricts(): Promise<ReadonlyMap<string, readonly string[]>>;
+  /** Every challenge's targets, from the pubs we list in London. */
+  challenges(): Promise<ChallengeSet>;
 };
 
 type PointsOwner = Pick<ProfileRecord, "handle" | "userId">;
@@ -60,6 +69,25 @@ async function settle<T>(read: () => Promise<T>, fallback: T): Promise<{ value: 
 
 const none = <T>(value: T) => settle(async () => value, value);
 
+function loggedAt(value: string | undefined): string | null {
+  if (!value || !(Date.parse(value) > 0)) return null;
+  return new Date(value).toISOString();
+}
+
+export function firstLoggedDates(
+  rows: ReadonlyArray<{ venueId: string; date: string | null }>,
+  canonical: (venueId: string) => string,
+): (venueId: string) => string | null {
+  const first = new Map<string, string | null>();
+  for (const row of rows) {
+    const id = canonical(row.venueId);
+    const held = first.get(id);
+    if (held === null) continue;
+    first.set(id, row.date === null ? null : held && held < row.date ? held : row.date);
+  }
+  return (venueId) => first.get(venueId) ?? null;
+}
+
 /** The owner's points and level, from their own records. */
 export async function readPointsBreakdown(
   owner: PointsOwner,
@@ -67,7 +95,7 @@ export async function readPointsBreakdown(
 ): Promise<PointsBreakdown> {
   const handle = normalizeHandle(owner.handle);
   const userId = owner.userId?.trim() || "";
-  const [diary, drops, plans, beenHere, added, fixed, reviews, districts, canonical] = await Promise.all([
+  const [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical] = await Promise.all([
     userId ? settle(() => deps.diary(userId), []) : none([]),
     handle ? settle(() => deps.drops(handle), [] as PointsDrop[]) : none([] as PointsDrop[]),
     userId ? settle(() => deps.plans(userId), []) : none([]),
@@ -76,6 +104,7 @@ export async function readPointsBreakdown(
     userId ? settle(() => deps.fixedPubs(userId), 0) : none(0),
     handle ? settle(() => deps.drinkReviews(handle), 0) : none(0),
     settle(() => deps.londonDistricts(), new Map<string, readonly string[]>() as ReadonlyMap<string, readonly string[]>),
+    settle(() => deps.challenges(), new Map() as ChallengeSet),
     settle(() => deps.venueAliases(), (venueId: string) => venueId),
   ]);
 
@@ -84,9 +113,22 @@ export async function readPointsBreakdown(
     canonical.value,
     deps,
   );
-  const finished = finishedDistricts(districts.value, new Set(venues.map((venue) => venue.venueId)));
+  const visited = new Set(venues.map((venue) => venue.venueId));
+  const finished = finishedDistricts(districts.value, visited);
   const priced = drops.value.filter((drop) => drop.priced);
-  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts, canonical].some((read) => read.failed);
+  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical].some(
+    (read) => read.failed,
+  );
+  const completeHistory = [diary, drops, plans, beenHere, canonical].every((read) => !read.failed);
+  const logged = firstLoggedDates(
+    [
+      ...[...diary.value, ...plans.value].map((row) => ({ venueId: row.venueId, date: loggedAt(row.date) })),
+      ...drops.value.map((drop) => ({ venueId: drop.venueId, date: loggedAt(drop.createdAt) })),
+      ...beenHere.value.map((row) => ({ venueId: row.venueId, date: loggedAt(row.savedAt) })),
+    ],
+    canonical.value,
+  );
+  const challenges = challengeProgress(challengeSet.value, visited, completeHistory ? logged : () => null);
 
   return buildPointsBreakdown(
     {
@@ -98,9 +140,12 @@ export async function readPointsBreakdown(
       letterArea: finishedLetterAreas(districts.value, finished).length,
       pubAdded: added.value,
       pubFixed: fixed.value,
+      challenge: challenges.filter((challenge) => challenge.finished).length,
+      challengeDoubled: challenges.filter((challenge) => challenge.doubled).length,
     },
     finished,
     degraded ? "degraded" : "ready",
+    { progress: challenges, ofTheMonth: challengeOfTheMonthAt(new Date()) },
   );
 }
 
@@ -152,23 +197,32 @@ export async function readProfilePoints(
 
 // ── The real stores ─────────────────────────────────────────────────────────
 
-const districtsByIndex = new WeakMap<Map<string, IndexedVenue>, Map<string, string[]>>();
-
-async function readLondonDistricts(): Promise<Map<string, string[]>> {
-  const index = await readCityVenueIndex(getCity("london"));
-  if (!index) throw new Error("London venues unavailable");
-  const held = districtsByIndex.get(index);
-  if (held) return held;
-  const districts = londonDistricts(
-    [...index.values()].map(({ slimVenue }) => ({
-      id: slimVenue.id,
-      kind: slimVenue.kind,
-      searchText: slimVenue.filterHints?.searchText,
-    })),
-  );
-  districtsByIndex.set(index, districts);
-  return districts;
+function londonIndexRead<T>(build: (index: Map<string, IndexedVenue>) => T): () => Promise<T> {
+  const byIndex = new WeakMap<Map<string, IndexedVenue>, T>();
+  return async () => {
+    const index = await readCityVenueIndex(getCity("london"));
+    if (!index) throw new Error("London venues unavailable");
+    if (byIndex.has(index)) return byIndex.get(index)!;
+    const built = build(index);
+    byIndex.set(index, built);
+    return built;
+  };
 }
+
+const londonVenues = (index: Map<string, IndexedVenue>) =>
+  [...index.values()].map(({ slimVenue }) => ({
+    id: slimVenue.id,
+    name: slimVenue.name,
+    sourceName: slimVenue.sourceName,
+    lat: slimVenue.lat,
+    lng: slimVenue.lng,
+    kind: slimVenue.kind,
+    borough: slimVenue.borough,
+    searchText: slimVenue.filterHints?.searchText,
+  }));
+
+const readLondonDistricts = londonIndexRead((index) => londonDistricts(londonVenues(index)));
+export const readChallengeSet = londonIndexRead((index) => buildChallengeSet(londonVenues(index)));
 
 function defaultPointsDeps(): PointsDeps {
   const passport = defaultPassportDeps();
@@ -202,5 +256,6 @@ function defaultPointsDeps(): PointsDeps {
     fixedPubs: (ownerUserId) => venueCorrectionsStore().countResolvedForOwner(ownerUserId),
     drinkReviews: (ownerHandle) => ratingsStore().countDrinkReviews(ownerHandle),
     londonDistricts: readLondonDistricts,
+    challenges: readChallengeSet,
   };
 }
