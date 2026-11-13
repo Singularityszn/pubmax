@@ -24,7 +24,8 @@ Rules the table obeys:
   branch paints "Plan a night" in the head. On this browser's first visit,
   the body offers "Log what you paid" with a link to `/map?log=1`.
   After posts or a confirmed-empty response, the browser remembers the visit
-  when storage is available. Later empty visits show named crawls and dated menu prices
+  when storage is available. Later empty visits replace the log link with
+  the empty-lane headline. Both visits show named crawls and dated menu prices
   before a quiet body sign-in offer. Blocked storage keeps the first-visit
   line. An empty response must have no continuation cursor.
   The parent preserves a focused header sign-in link
