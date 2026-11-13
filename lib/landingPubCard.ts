@@ -17,7 +17,9 @@
 // drinkSubtypeFromText of the cheapest pint has id "beer-lager". If any lager
 // qualifies, the other drinks drop out. If none do, the listed non-lagers
 // stay, so the hero does not go blank. The remaining rows sort by the oldest
-// observedOn, then the name. The price is not the rank. A listed price still
+// observedOn, then the lower price, then the name. Reads mostly share a day,
+// so the price decides most picks, and the card under "Cheapest pints near me"
+// leads with a cheap pint. A listed price still
 // beats one that is not listed. A row with no publisher page still yields no
 // card. Deterministic, so the prerendered document and its share card agree,
 // and derived, so a re-collected dataset moves the pick.
@@ -162,6 +164,7 @@ export function buildLandingPubCard(
   pool.sort(
     (a, b) =>
       observedUtcDay(a.observedOn) - observedUtcDay(b.observedOn) ||
+      (a.venue.cheapestPrice as number) - (b.venue.cheapestPrice as number) ||
       a.venue.name.localeCompare(b.venue.name),
   );
   const selected = pool[0];

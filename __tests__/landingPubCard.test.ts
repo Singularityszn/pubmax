@@ -207,6 +207,23 @@ describe("landing pub card", () => {
     expect(card).toBeNull();
   });
 
+  it("breaks a read-day tie on the lower price, then the name", () => {
+    // Most listed reads share one day, so the price decides the card under
+    // "Cheapest pints near me": a £6.30 pint must not lead over a £4.80 one.
+    const venues = [
+      venue("venue-dear", "Abbey Arms", 6.3),
+      venue("venue-cheap", "Zetland Arms", 4.8),
+      venue("venue-same", "Bell", 4.8),
+    ];
+    const rows = history([
+      { venueId: "venue-dear", priceGbp: 3, observedOn: "2014-01-01" },
+      { venueId: "venue-cheap", priceGbp: 3, observedOn: "2014-01-01" },
+      { venueId: "venue-same", priceGbp: 3, observedOn: "2014-01-01" },
+    ]);
+    expect(buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-same");
+    expect(buildLandingPubCard(venues.slice(0, 2), rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-cheap");
+  });
+
   it("prefers a listed figure, then breaks a read-day tie on the name", () => {
     const venues = [
       // Read longest ago, but past its window, so it cannot stand as listed.
