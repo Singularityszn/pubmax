@@ -3,6 +3,7 @@ import { mkdir } from "node:fs/promises";
 
 import type { LegOption } from "../lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
 // ways from this stop to the next, each with its time, TfL's fare and the
@@ -23,6 +24,11 @@ const STOPS = [
 ];
 
 type LngLat = [number, number];
+
+test.beforeEach(async ({ page }) => {
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+});
 
 /** TfL-shaped ways between the leg's own two ends, each bent to one side of the leg like real streets. */
 function waysBetween(from: LngLat, to: LngLat): LegOption[] {
@@ -67,7 +73,7 @@ async function seedTonight(page: Page) {
     return route.fulfill({ json: path.endsWith("/session") ? { active: true, role: "host", collaborationAuthorized: true } : { stops: [] } });
   });
   await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({ json: plan }));
-  await page.addInitScript((planId) => {
+  await page.addInitScript(({ planId, ownerId }) => {
     window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -77,21 +83,22 @@ async function seedTonight(page: Page) {
     if (window.sessionStorage.getItem("e2e-plan-seeded")) return;
     window.sessionStorage.setItem("e2e-plan-seeded", "1");
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
-      version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0, role: "host",
+      version: 1, id: planId, ownerId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0, role: "host",
     }));
-  }, PLAN_ID);
+  }, { planId: PLAN_ID, ownerId: ACCOUNTS.A.id });
 }
 
 /** The reader's own Pub Pal, stored the way the Pal flow stores it. */
 async function seedPal(page: Page) {
-  await page.addInitScript(({ appearance, personality, voice }) => {
+  await page.addInitScript(({ appearance, personality, voice, ownerId }) => {
     const now = "2026-10-04T12:00:00.000Z";
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
-  }, DEFAULT_PAL_DRAFT);
+  }, { ...DEFAULT_PAL_DRAFT, ownerId: ACCOUNTS.A.id });
 }
 
 /** Zoom in on the stops the way a reader would, once the map has settled; the camera itself never moves. */

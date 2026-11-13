@@ -509,11 +509,8 @@ export function usePintDrops(
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      clearTimeout(deadline);
+      settle({ status: "unavailable" });
       controller.abort();
-      if (venueDropRequests.current.get(venueId) === request) {
-        venueDropRequests.current.delete(venueId);
-      }
     };
   }, []);
 
