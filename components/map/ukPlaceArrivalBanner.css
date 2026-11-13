@@ -87,5 +87,6 @@
 @media (max-width: 640px) {
   .ukPlaceArrival[data-variant="national"] {
     top: calc(var(--mobile-map-chrome-full-h) + 12px);
+    right: 12px;
   }
 }
