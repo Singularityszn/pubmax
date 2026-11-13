@@ -51,7 +51,7 @@ vi.mock("@/app/social/SocialTagInbox", () => { loadedPrivateTools.tags++; return
 import { buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload, createOptimisticSpillPhotoPreview, revokeOptimisticSpillPhotoPreview, failOptimisticSpill, readOptimisticSpills, upsertOptimisticSpill, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
-import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
+import { SOCIAL_LONDON_LANE_COPY, SOCIAL_LONDON_LANE_SEEN_KEY } from "@/lib/socialLondonLane";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { namedRoutePath } from "@/lib/namedRoutes";
 
@@ -114,6 +114,7 @@ function setSession(phase: ViewerSession["phase"]): void {
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  localStorage.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
   setSession("signed-out");
   laneRequests = [];
   transport.request.mockReset();
@@ -269,6 +270,35 @@ describe("/social signed out, London lane open", () => {
     expect(host.querySelector(".socialButton")).toBeNull();
     // The lane replaces the old wall: it no longer says Social is closed to them.
     expect(host.textContent).not.toContain("Sign in to use Social.");
+  });
+
+  it("leads a first visit with the log line, then the empty headline next time", async () => {
+    localStorage.removeItem(SOCIAL_LONDON_LANE_SEEN_KEY);
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
+    await renderSocial(true, ALTERNATIVES);
+    const line = host.querySelector("a[href='/map?log=1']");
+    expect(line?.textContent).toBe(SOCIAL_LONDON_LANE_COPY.firstVisit);
+    expect(host.textContent).not.toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
+    // The line replaces only the headline: the alternatives and the sign-in
+    // offer still stand on a first visit.
+    expect(host.textContent).toContain("Latest pint prices we hold");
+    expect(host.querySelector(".socialEmptySignIn a")?.textContent).toBe("Sign in");
+    expect(localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY)).not.toBeNull();
+
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await renderSocial(true, ALTERNATIVES);
+    expect(host.textContent).toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
+    expect(host.textContent).toContain("Latest pint prices we hold");
+    expect(host.querySelector("a[href='/map?log=1']")).toBeNull();
+  });
+
+  it("shows posts on a first visit and remembers that the lane was seen", async () => {
+    localStorage.removeItem(SOCIAL_LONDON_LANE_SEEN_KEY);
+    await renderSocial(true);
+    expect(host.textContent).toContain("Proper pint at the Lamb");
+    expect(host.textContent).not.toContain(SOCIAL_LONDON_LANE_COPY.firstVisit);
+    expect(localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY)).not.toBeNull();
   });
 
   it("says so honestly when the lane is empty or unavailable", async () => {

@@ -14,6 +14,8 @@ const responseBody = vi.hoisted(() => ({
   discardBody: vi.fn(),
 }));
 
+const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+
 const state = vi.hoisted(() => ({
   identityResolved: true,
   provider: "clerk" as "clerk" | "supabase" | "signed-out",
@@ -30,6 +32,11 @@ const state = vi.hoisted(() => ({
   privateResponses: "ready" as "ready" | "deferred",
   publicStatus: 200,
   publicCalls: [] as string[],
+  stillTrue: null as null | {
+    saidYes: number | null;
+    markedHere: number | null;
+    listedPint: null;
+  },
   publicResponses: new Map<string, "ready" | "deferred">(),
   deferredPublic: new Map<string, Array<(response: Response) => void>>(),
   deferredJoin: [] as Array<(response: Response) => void>,
@@ -54,6 +61,7 @@ function preview(crewId: string, title = crewId === CREW_A ? "Friday in Camden" 
     area: null,
     placesLeft: null,
     spendBand: null,
+    ...(state.stillTrue ? { stillTrue: state.stillTrue } : {}),
   };
 }
 
@@ -106,6 +114,10 @@ function actionResponse(crewId: string): Response {
   if (state.privateState === "member") return Response.json(privateMember(crewId));
   return Response.json(privatePreview(crewId));
 }
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation,
+}));
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
@@ -167,6 +179,8 @@ vi.mock("@/lib/authedFetch", () => ({
   }),
 }));
 
+import { stillTrueDoorKey } from "@/lib/accountClaimReturnTo";
+import { markDoorTaken } from "@/lib/doorMarker";
 import PublicCrewRouteClient from "@/components/social/PublicCrewRouteClient";
 import { setAnalyticsConsent } from "@/lib/analytics";
 
@@ -193,6 +207,9 @@ beforeEach(() => {
   state.publicStatus = 200;
   state.socialLaunchEnabled = true;
   state.publicCalls = [];
+  state.stillTrue = null;
+  navigation.push.mockReset();
+  window.history.replaceState({}, "", "/");
   state.publicResponses = new Map([
     [CREW_A, "ready"],
     [CREW_B, "ready"],
@@ -479,5 +496,85 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
 
     expect(container.textContent).toContain("Saturday in Soho");
     expect(container.textContent).not.toContain("Request sent. The host decides.");
+  });
+
+  it("opens the email door only after I'll be there", async () => {
+    state.providerAuthState = "signed-out";
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    const there = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "I'll be there",
+    );
+    expect(there).not.toBeUndefined();
+    expect(state.actionCalls.filter((call) => call.startsWith("POST"))).toHaveLength(0);
+    await act(async () => there?.click());
+
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/login?mode=signin&from=${encodeURIComponent(`/social/crews/${CREW_A}?there=1`)}`,
+    );
+    expect(state.actionCalls.filter((call) => call.includes("join-requests"))).toHaveLength(0);
+  });
+
+  it("refreshes public facts when a signed-in person taps I'll be there", async () => {
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    expect(container.textContent).toContain("Nobody has said yes yet.");
+
+    const there = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "I'll be there",
+    );
+    expect(there).not.toBeUndefined();
+    await act(async () => there?.click());
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+    expect(navigation.push).not.toHaveBeenCalled();
+    state.publicResponses.set(CREW_A, "deferred");
+    await act(async () => state.deferredJoin[0]?.(Response.json({ code: "requested", replayed: false })));
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
+    expect(state.deferredPublic.get(CREW_A)).toHaveLength(1);
+
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    await act(async () => state.deferredPublic.get(CREW_A)?.[0]?.(publicResponse(CREW_A)));
+    expect(container.textContent).toContain("You said yes. The host decides.");
+    expect(container.textContent).toContain("1 said yes.");
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
+  });
+
+  it("refreshes public facts after joining once on return from the email door", async () => {
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
+    markDoorTaken(localStorage, stillTrueDoorKey(CREW_A), Date.now());
+    window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+    expect(window.location.search).not.toContain("there");
+    expect(localStorage.getItem(stillTrueDoorKey(CREW_A) ?? "")).toBeNull();
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    await act(async () => state.deferredJoin[0]?.(Response.json({ code: "requested", replayed: false })));
+
+    expect(container.textContent).toContain("You said yes. The host decides.");
+    expect(container.textContent).toContain("1 said yes.");
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
+    expect(state.publicCalls.filter((url) => url.endsWith(`/${CREW_A}/public`))).toHaveLength(2);
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+  });
+
+  it("sends nothing for a shared return link this device never tapped", async () => {
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    markDoorTaken(localStorage, stillTrueDoorKey(CREW_B), Date.now());
+    window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.actionCalls.filter((call) => call.includes("join-requests"))).toHaveLength(0);
   });
 });

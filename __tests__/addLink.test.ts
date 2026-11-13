@@ -95,6 +95,14 @@ describe("the add link survives account creation", () => {
     expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
   });
 
+  it("routes a sign-up from a tapped one-pub night back to that night", () => {
+    const door = "/social/crews/50000000-0000-4000-8000-000000000001?there=1";
+    expect(loginDestination("signin", door)).toBe(door);
+    const destination = loginDestination("signup", door);
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
+  });
+
   it("leaves an ordinary login untouched", () => {
     expect(loginDestination("signup", "/map")).toBe("/u/you");
     expect(loginDestination("signin", "/map")).toBe("/map");

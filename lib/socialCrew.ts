@@ -7,7 +7,7 @@ import type {
 } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
-import type { OpenCrawlDetails } from "@/lib/openCrawl";
+import type { OpenCrawlDetails, StillTruePublicFacts } from "@/lib/openCrawl";
 import type { OpenCrawlShareArea, OpenCrawlShareSpendBand } from "@/lib/openCrawlShareCard";
 import { PLAN_STOP_MAX } from "@/lib/plan";
 
@@ -173,6 +173,11 @@ export type SocialCrewPublicPreviewDTO = {
   placesLeft: number | null;
   /** Min-max listed pint price over the stops, or null. Never the stops themselves. */
   spendBand: OpenCrawlShareSpendBand | null;
+  /**
+   * A one-pub night. Absent or null on a crawl with any other shape.
+   * Unavailable counts stay null. lib/openCrawl.ts owns their definitions.
+   */
+  stillTrue?: StillTruePublicFacts | null;
 };
 
 export type SocialCrewListItemDTO = Pick<

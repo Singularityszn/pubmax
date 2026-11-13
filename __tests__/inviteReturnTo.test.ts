@@ -4,6 +4,7 @@ import { defaultEmailAuthNext } from "@/lib/authRedirect";
 import {
   accountClaimReturnToFromUrl,
   safePlanReturnTo,
+  stillTrueSignInHref,
 } from "@/lib/accountClaimReturnTo";
 import {
   inviteReturnToFromUrl,
@@ -113,6 +114,27 @@ describe("invite return navigation", () => {
     expect(defaultEmailAuthNext(url)).toBe(
       `/u/you?returnTo=${encodeURIComponent(`/plan/${planId}`)}`,
     );
+  });
+
+  it("keeps a tapped one-pub night through the account claim callback", () => {
+    const crew = "50000000-0000-4000-8000-000000000001";
+    const target = `/social/crews/${crew}?there=1`;
+    const url = `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(target)}`;
+    expect(accountClaimReturnToFromUrl(url)).toBe(target);
+    expect(defaultEmailAuthNext(url)).toBe(`/u/you?returnTo=${encodeURIComponent(target)}`);
+    expect(stillTrueSignInHref(crew)).toBe(
+      `/login?mode=signin&from=${encodeURIComponent(target)}`,
+    );
+    for (const unsafe of [
+      `/social/crews/${crew}`,
+      `/social/crews/${crew}?there=1&next=/map`,
+      `/social/crews/${crew}?there=0`,
+      "/social/crews/not-a-crew?there=1",
+    ]) {
+      expect(accountClaimReturnToFromUrl(
+        `https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(unsafe)}`,
+      )).toBeNull();
+    }
   });
 
   it("drops an unsafe invite before account callback navigation", () => {

@@ -35,6 +35,7 @@ import {
   parseSocialCrewJoinRequestQueue,
 } from "@/lib/socialCrew";
 import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
+import { parseStillTrueField } from "@/lib/openCrawl";
 import { isOpenCrawlShareSpendBand, type OpenCrawlShareArea } from "@/lib/openCrawlShareCard";
 
 export { CREW_EMPTY_COPY, CREW_WHAT_IT_IS } from "@/lib/socialCrewsCopy";
@@ -329,8 +330,11 @@ const PUBLIC_CREW_PREVIEW_KEYS = [
 export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewDTO | null {
   if (!isRecord(value)) return null;
   const keys = Object.keys(value);
+  const allowed = new Set<string>([...PUBLIC_CREW_PREVIEW_KEYS, "stillTrue"]);
+  const stillTrue = parseStillTrueField("stillTrue" in value ? value.stillTrue : null);
   if (
-    keys.length !== PUBLIC_CREW_PREVIEW_KEYS.length ||
+    !stillTrue.ok ||
+    keys.some((key) => !allowed.has(key)) ||
     !PUBLIC_CREW_PREVIEW_KEYS.every((key) => keys.includes(key)) ||
     value.kind !== "public" ||
     !isCrewId(value.crewId) ||
@@ -370,6 +374,7 @@ export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewD
           observedOn: value.spendBand.observedOn,
           sourceKind: value.spendBand.sourceKind,
         },
+    ...(stillTrue.facts ? { stillTrue: stillTrue.facts } : {}),
   };
 }
 

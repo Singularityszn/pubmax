@@ -79,6 +79,7 @@ async function imageLines(card: OpenCrawlShareCard): Promise<string[]> {
     ok: true,
     card,
     meetingPoint: { kind: "venue", name: card.meetingPubName, lat: 51.51, lng: -0.13 },
+    stillTrue: null,
   });
   const response = await Image({ params: Promise.resolve({ crewId: card.crewId }) });
   const dom = new JSDOM(await response.text());
@@ -96,6 +97,7 @@ describe("open crawl share image text", () => {
         ok: true,
         card: CARD,
         meetingPoint: { kind: "venue", name: CARD.meetingPubName, lat: 51.51, lng: -0.13 },
+        stillTrue: null,
       })
       .mockResolvedValueOnce({ ok: false, reason: "missing" });
 
@@ -123,6 +125,7 @@ describe("open crawl share image text", () => {
       ok: true,
       card: CARD,
       meetingPoint: { kind: "venue", name: CARD.meetingPubName, lat: 51.51, lng: -0.13 },
+      stillTrue: null,
     });
     const metadata = await generateMetadata({
       params: Promise.resolve({ crewId: CARD.crewId }),

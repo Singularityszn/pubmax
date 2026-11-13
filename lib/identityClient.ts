@@ -5,7 +5,7 @@ import {
   captureAccountAuth,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
-import { safePintDropDoorReturnTo } from "@/lib/accountClaimReturnTo";
+import { safePintDropDoorReturnTo, safeStillTrueReturnTo } from "@/lib/accountClaimReturnTo";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import {
   deviceAccountOwner,
@@ -157,6 +157,9 @@ export async function resolveCanonicalIdentity(
  * Post-callback routing. Creating the account comes first and choosing a
  * handle is the step after, and /u/you is the only surface carrying the claim
  * form, so a freshly established session with no claimed handle routes there.
+ * Only a validated Pint Drop door, league invite or one-pub return path is
+ * retained through the claim. The one-pub destination checks the device's tap
+ * before it joins.
  * Returns the destination path, or null to stay put. Never bounces the user on
  * doubt: a device handle THIS ACCOUNT owns means /u/you would redirect back out.
  * A failed or unreadable server answer is not evidence the account has no handle.
@@ -184,7 +187,9 @@ export async function handleClaimRouteAfterSignIn(
     if (landed.hash) return null;
     if (landed.pathname === HANDLE_CLAIM_NEXT) return null;
     const destination = `${landed.pathname}${landed.search}`;
-    returnTo = safePintDropDoorReturnTo(destination) ?? safeLeagueInviteReturnTo(destination);
+    returnTo = safePintDropDoorReturnTo(destination)
+      ?? safeLeagueInviteReturnTo(destination)
+      ?? safeStillTrueReturnTo(destination);
   } catch {
     return null;
   }

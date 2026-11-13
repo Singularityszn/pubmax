@@ -167,6 +167,18 @@ describe("post-callback handle claim routing", () => {
     return vi.fn(async () => Response.json({ handle }));
   }
 
+  it("keeps a tapped one-pub night through the claim", async () => {
+    const door = "/social/crews/50000000-0000-4000-8000-000000000001?there=1";
+    await expect(
+      handleClaimRouteAfterSignIn(
+        SESSION,
+        door,
+        storageWith(new Map()),
+        requestAnswering(null),
+      ),
+    ).resolves.toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+  });
+
   it("routes a session with no claimed handle to /u/you", async () => {
     await expect(
       handleClaimRouteAfterSignIn(

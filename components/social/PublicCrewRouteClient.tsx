@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -10,6 +11,14 @@ import PublicCrewPreview, {
   type PublicCrewJoinState,
 } from "@/components/social/PublicCrewPreview";
 import CrewDetailClient from "@/app/social/crews/[crewId]/CrewDetailClient";
+import {
+  STILL_TRUE_DOOR_TTL_MS,
+  stillTrueDoorKey,
+  stillTrueJoinPending,
+  stillTrueSignInHref,
+} from "@/lib/accountClaimReturnTo";
+import { consumeDoorTaken, markDoorTaken } from "@/lib/doorMarker";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
@@ -66,9 +75,11 @@ export default function PublicCrewRouteClient({
   crewId: string;
   invitationId: string | null;
 }) {
+  const router = useRouter();
   const { accountRevision, identityResolved, providerAuthState } = useAuth();
   const friendsLaunchEnabled = useSocialFriendsLaunch();
   const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
+  const [publicRevision, setPublicRevision] = useState(0);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
   const [privateState, setPrivateState] = useState<LoadState>("idle");
@@ -82,6 +93,8 @@ export default function PublicCrewRouteClient({
   const [problem, setProblem] = useState("");
   const [problemScope, setProblemScope] = useState<string | null>(null);
   const crewGeneration = useRef(0);
+  const autoJoinScope = useRef<string | null>(null);
+  const askToJoinRef = useRef<() => Promise<void>>(async () => {});
   const scopeGeneration = useRef(0);
   const scopeRef = useRef(scope);
   const joinKey = useRef<{ scope: string; key: string } | null>(null);
@@ -164,7 +177,7 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId, friendsLaunchEnabled]);
+  }, [crewId, friendsLaunchEnabled, publicRevision]);
 
   useEffect(() => {
     if (!friendsLaunchEnabled) return;
@@ -262,6 +275,13 @@ export default function PublicCrewRouteClient({
     ) {
       return;
     }
+    if (currentPreview.stillTrue && providerAuthState === "signed-out") {
+      const href = stillTrueSignInHref(crewId);
+      if (!href) return;
+      markDoorTaken(safeLocalStorage(), stillTrueDoorKey(crewId), Date.now());
+      router.push(href);
+      return;
+    }
     setBusy(true);
     setBusyScope(operationScope);
     setProblem("");
@@ -296,6 +316,9 @@ export default function PublicCrewRouteClient({
       trackHostLoopStep("request", parseCrewMutation(body), currentPreview);
       setJoinState("pending");
       setJoinScope(operationScope);
+      setPublicPreview(null);
+      setPublicState("loading");
+      setPublicRevision((revision) => revision + 1);
     } catch (error) {
       if (
         scopeRef.current !== operationScope ||
@@ -315,6 +338,40 @@ export default function PublicCrewRouteClient({
       }
     }
   }
+
+  useEffect(() => {
+    askToJoinRef.current = askToJoin;
+  });
+
+  useEffect(() => {
+    if (providerAuthState !== "authenticated" || !friendsLaunchEnabled || invitationId) return;
+    const current = publicPreview?.crewId === crewId ? publicPreview : null;
+    if (!current?.stillTrue || autoJoinScope.current === scope) return;
+    if (privateStateScope !== scope || privateState !== "ready") return;
+    if (!privateRead || privateReadScope !== scope || privateRead.kind !== "preview") return;
+    if (privateRead.joinRequestState !== "none") return;
+    if ((joinScope === scope ? joinState : "none") !== "none") return;
+    if (typeof window === "undefined" || !stillTrueJoinPending(window.location.search)) return;
+    if (!consumeDoorTaken(safeLocalStorage(), stillTrueDoorKey(crewId), Date.now(), STILL_TRUE_DOOR_TTL_MS)) return;
+    autoJoinScope.current = scope;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("there");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    void askToJoinRef.current();
+  }, [
+    crewId,
+    friendsLaunchEnabled,
+    invitationId,
+    joinScope,
+    joinState,
+    privateRead,
+    privateReadScope,
+    privateState,
+    privateStateScope,
+    providerAuthState,
+    publicPreview,
+    scope,
+  ]);
 
   const currentPreview = publicPreview?.crewId === crewId ? publicPreview : null;
   const currentPrivateRead = privateReadScope === scope ? privateRead : null;
@@ -355,10 +412,6 @@ export default function PublicCrewRouteClient({
     );
   }
 
-  if (currentPrivateRead) {
-    return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
-  }
-
   if (
     publicState === "loading" ||
     (!publicPreview && publicState === "idle") ||
@@ -372,6 +425,10 @@ export default function PublicCrewRouteClient({
         </div>
       </Shell>
     );
+  }
+
+  if (currentPrivateRead) {
+    return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
   if (

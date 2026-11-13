@@ -21,9 +21,14 @@ Rules the table obeys:
   1 November 2026), and every action on it (post, cheer, comment) needs an
   account. The head keeps "Sign in" while posts load, fail or exist.
   The captain approved a confirmed-empty exception on 3 November 2026. That
-  branch paints "Plan a night" in the head. Named crawls and dated menu
-  prices precede a quiet body sign-in offer. An empty response must have no
-  continuation cursor. The parent preserves a focused header sign-in link
+  branch paints "Plan a night" in the head. On this browser's first visit,
+  the body offers "Log what you paid" with a link to `/map?log=1`.
+  After posts or a confirmed-empty response, the browser remembers the visit
+  when storage is available. Later empty visits replace the log link with
+  the empty-lane headline. Both visits show named crawls and dated menu prices
+  before a quiet body sign-in offer. Blocked storage keeps the first-visit
+  line. An empty response must have no continuation cursor.
+  The parent preserves a focused header sign-in link
   until focus leaves. Account changes reset this state. The price section
   keeps a public browse link when rows are missing or unavailable. The
   [identity rule](../rules/lib-identity-accounts-and-sessions.md#a-stranger-reads-the-london-lane-and-nothing-in-it-describes-the-reader)
