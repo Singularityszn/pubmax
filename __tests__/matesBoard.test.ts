@@ -117,7 +117,7 @@ describe("rankMatesBoard", () => {
   ];
 
   it("ranks all time by total", () => {
-    expect(rankMatesBoard(rows).map((row) => [row.handle, row.place, row.points])).toEqual([
+    expect(rankMatesBoard(rows).map((row) => [row.handle, row.place, row.total])).toEqual([
       ["ada", 1, 400],
       ["me", 2, 120],
       ["bo", 3, 90],
@@ -127,7 +127,7 @@ describe("rankMatesBoard", () => {
 
   it("shares places for equal total points and skips the next place", () => {
     const tied = [...rows, { handle: "di", self: false, total: 120, level: 2 }];
-    expect(rankMatesBoard(tied).map((row) => [row.handle, row.place, row.points])).toEqual([
+    expect(rankMatesBoard(tied).map((row) => [row.handle, row.place, row.total])).toEqual([
       ["ada", 1, 400],
       ["di", 2, 120],
       ["me", 2, 120],
