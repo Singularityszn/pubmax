@@ -519,12 +519,12 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
     expect(state.actionCalls.filter((call) => call.includes("join-requests"))).toHaveLength(0);
   });
 
-  it("posts the join when a signed-in person taps I'll be there", async () => {
-    state.stillTrue = { saidYes: 2, markedHere: 1, listedPint: null };
+  it("refreshes public facts when a signed-in person taps I'll be there", async () => {
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
     await act(async () => {
       root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
     });
-    await settle();
+    expect(container.textContent).toContain("Nobody has said yes yet.");
 
     const there = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
       (button) => button.textContent?.trim() === "I'll be there",
@@ -533,23 +533,37 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
     await act(async () => there?.click());
     expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
     expect(navigation.push).not.toHaveBeenCalled();
+    state.publicResponses.set(CREW_A, "deferred");
     await act(async () => state.deferredJoin[0]?.(Response.json({ code: "requested", replayed: false })));
-    await settle();
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
+    expect(state.deferredPublic.get(CREW_A)).toHaveLength(1);
+
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    await act(async () => state.deferredPublic.get(CREW_A)?.[0]?.(publicResponse(CREW_A)));
     expect(container.textContent).toContain("You said yes. The host decides.");
+    expect(container.textContent).toContain("1 said yes.");
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
   });
 
-  it("posts the join once when the person returns from the email door", async () => {
-    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+  it("refreshes public facts after joining once on return from the email door", async () => {
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
     markDoorTaken(localStorage, stillTrueDoorKey(CREW_A), Date.now());
     window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
     await act(async () => {
       root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
     });
-    await settle();
 
     expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
     expect(window.location.search).not.toContain("there");
     expect(localStorage.getItem(stillTrueDoorKey(CREW_A) ?? "")).toBeNull();
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    await act(async () => state.deferredJoin[0]?.(Response.json({ code: "requested", replayed: false })));
+
+    expect(container.textContent).toContain("You said yes. The host decides.");
+    expect(container.textContent).toContain("1 said yes.");
+    expect(container.textContent).not.toContain("Nobody has said yes yet.");
+    expect(state.publicCalls.filter((url) => url.endsWith(`/${CREW_A}/public`))).toHaveLength(2);
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
   });
 
   it("sends nothing for a shared return link this device never tapped", async () => {

@@ -120,7 +120,7 @@ describe("public Open Crew preview", () => {
           ...preview,
           stillTrue: { saidYes: 0, markedHere: 0, listedPint: null },
         },
-        joinState: "pending",
+        joinState: "none",
         busy: false,
         problem: "",
         onAskToJoin: () => {},
@@ -128,7 +128,7 @@ describe("public Open Crew preview", () => {
     );
 
     expect(html).toContain("Nobody has said yes yet.");
-    expect(html).toContain("You said yes. The host decides.");
+    expect(html).not.toContain("You said yes. The host decides.");
     expect(html).not.toContain("0 said yes");
     expect(html).not.toContain("0 marked here");
     expect(html).not.toContain("Request sent. The host decides.");

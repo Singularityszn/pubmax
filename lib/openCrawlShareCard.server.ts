@@ -80,25 +80,14 @@ function shareArea(
   return area ? { name: area.name, relation: claim.relation } : null;
 }
 
-/**
- * Min-max listed pint price over the plan's stops. The stop list is read here
- * and goes no further: only the band leaves this function. A stop with no
- * listed price, or a fallback source with no stop list, prints no band.
- */
-async function shareSpendBand(
-  source: SocialCrewShareCardSource,
-  priceOf: Dependencies["listedPint"],
-): Promise<OpenCrawlShareSpendBand | null> {
-  if (!source.stopVenueIds || source.stopVenueIds.length === 0) return null;
-  try {
-    const prices = await Promise.all(source.stopVenueIds.map((venueId) => priceOf(venueId)));
-    const range = planInviteSpendBandFromListedPrices(prices.map((price) => price?.priceGbp));
-    const observedOn = oldestPintRead(prices.map((price) => price?.publisher ? price.observedOn : null));
-    const band = { ...range, observedOn, sourceKind: "listed" };
-    return isOpenCrawlShareSpendBand(band) ? band : null;
-  } catch {
-    return null;
-  }
+function shareSpendBand(
+  prices: readonly (VenueListedPint | null)[],
+): OpenCrawlShareSpendBand | null {
+  if (prices.length === 0) return null;
+  const range = planInviteSpendBandFromListedPrices(prices.map((price) => price?.priceGbp));
+  const observedOn = oldestPintRead(prices.map((price) => price?.publisher ? price.observedOn : null));
+  const band = { ...range, observedOn, sourceKind: "listed" };
+  return isOpenCrawlShareSpendBand(band) ? band : null;
 }
 
 function placesLeft(source: SocialCrewShareCardSource): number | null {
@@ -157,14 +146,10 @@ export const stillTrueCountReader = {
 
 async function stillTrueFacts(
   source: SocialCrewShareCardSource,
-  priceOf: Dependencies["listedPint"],
+  price: VenueListedPint | null,
 ): Promise<StillTruePublicFacts | null> {
-  const venueId = stillTrueVenueId(source.stopVenueIds);
-  if (!venueId) return null;
-  const [counts, price] = await Promise.all([
-    stillTrueCountReader.read(source.crewId),
-    priceOf(venueId),
-  ]);
+  if (!stillTrueVenueId(source.stopVenueIds)) return null;
+  const counts = await stillTrueCountReader.read(source.crewId);
   return {
     saidYes: counts?.saidYes ?? null,
     markedHere: counts ? counts.markedHere : null,
@@ -175,6 +160,18 @@ async function stillTrueFacts(
 export async function loadOpenCrawlShareCard(
   crewId: string,
   dependencies: Dependencies = DEFAULTS,
+): Promise<OpenCrawlShareCardResult> {
+  return loadOpenCrawl(crewId, dependencies, false);
+}
+
+export async function loadOpenCrawlPublicPreview(crewId: string): Promise<OpenCrawlShareCardResult> {
+  return loadOpenCrawl(crewId, DEFAULTS, true);
+}
+
+async function loadOpenCrawl(
+  crewId: string,
+  dependencies: Dependencies,
+  includeStillTrue: boolean,
 ): Promise<OpenCrawlShareCardResult> {
   if (!dependencies.enabled()) return { ok: false, reason: "unavailable" };
   let source: SocialCrewShareCardSource;
@@ -191,6 +188,14 @@ export async function loadOpenCrawlShareCard(
     return { ok: false, reason: resolution.reason === "unavailable" ? "unavailable" : "missing" };
   }
   const { cityId, ...meetingPoint } = resolution.meetingPoint;
+  let prices: (VenueListedPint | null)[];
+  try {
+    prices = await Promise.all(
+      (source.stopVenueIds ?? []).map((venueId) => dependencies.listedPint(venueId)),
+    );
+  } catch {
+    prices = [];
+  }
   return {
     ok: true,
     meetingPoint,
@@ -202,8 +207,8 @@ export async function loadOpenCrawlShareCard(
       meetingPubName: meetingPoint.name,
       area: shareArea(cityId, meetingPoint),
       placesLeft: placesLeft(source),
-      spendBand: await shareSpendBand(source, dependencies.listedPint),
+      spendBand: shareSpendBand(prices),
     },
-    stillTrue: await stillTrueFacts(source, dependencies.listedPint),
+    stillTrue: includeStillTrue ? await stillTrueFacts(source, prices[0] ?? null) : null,
   };
 }

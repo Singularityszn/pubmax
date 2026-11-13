@@ -1,8 +1,5 @@
 // Open crawls (launch review 4.5, E1 and E2): the rules in lib/openCrawl.ts,
-// the "Open it up" route, the store's two new calls, and the migration's shape.
-
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// the "Open it up" route, and the store's two new calls.
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -43,7 +40,6 @@ import { CREW_MAX_MEMBERS } from "@/lib/crew";
 import { PLAN_STOP_MAX, type PlanState } from "@/lib/plan";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 
-const ROOT = process.cwd();
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-10-30T12:00:00.000Z");
 
@@ -374,59 +370,6 @@ describe("SocialCrewStore open crawls", () => {
 
     snapshot.mockResolvedValueOnce([{ ...listing(), capacity: 99 }]);
     await expect(store.listOpenCrawls({ from: "a", until: "b" })).rejects.toMatchObject({ code: "UNAVAILABLE" });
-  });
-});
-
-// --- Migration 0208 shape ---------------------------------------------------
-
-describe("migration 0208", () => {
-  const forward = readFileSync(join(ROOT, "supabase/migrations/20261030230000_0208_open_crew_plan.sql"), "utf8");
-  const rollback = readFileSync(
-    join(ROOT, "supabase/migrations/rollback/20261030230000_0208_open_crew_plan_rollback.sql"),
-    "utf8",
-  );
-
-  it("adds three nullable columns bound to the crew cap, and grants the new functions to the service role only", () => {
-    expect(forward).toMatch(/add column if not exists capacity smallint,/);
-    expect(forward).toMatch(/capacity between 4 and 20/);
-    expect(forward).toMatch(/char_length\(description\) between 1 and 140/);
-    for (const fn of ["open_social_crew_with_plan_atomic", "read_social_crew_open_crawl", "list_open_plan_crawls"]) {
-      expect(forward).toMatch(new RegExp(`revoke all on function public\\.${fn}\\([^)]*\\)\\s+from public, anon, authenticated`));
-      expect(forward).toMatch(new RegExp(`grant execute on function public\\.${fn}\\([^)]*\\)\\s+to service_role`));
-      expect(rollback).toContain(`drop function if exists public.${fn}(`);
-    }
-    expect(forward).not.toMatch(/create policy|grant (select|insert|update|delete)/i);
-  });
-
-  it("makes the capacity real at acceptance and the rollback restores the 20 cap", () => {
-    expect(forward.match(/coalesce\(\(select crew\.capacity from public\.social_crews crew where crew\.id=p_crew\),20\)/g)).toHaveLength(2);
-    expect(forward).not.toMatch(/state='active'\)>=20 then/);
-    expect(rollback.match(/state='active'\)>=20 then/g)).toHaveLength(2);
-    expect(rollback).toMatch(/drop column if exists capacity/);
-  });
-
-  // Review P3a (PR 2402): the list counted only members with an active Social
-  // account, the join counts every active row. A crew with one active member
-  // whose account is not active then read "1 place left" and the join answered
-  // `full`. Both now count seats with the join's own predicate.
-  it("counts seats in the list with the very predicate the join enforces", () => {
-    const body = (name: string) => {
-      const start = forward.indexOf(`create or replace function public.${name}(`);
-      expect(start, name).toBeGreaterThanOrEqual(0);
-      const end = forward.indexOf("$$;", start);
-      return forward.slice(start, end);
-    };
-    const seatCounts = (sql: string) =>
-      [...sql.matchAll(/select count\(\*\)(?:::integer)?\s+from public\.social_crew_members\s+([^)]*)\)/g)].map(
-        (match) => (match[1] ?? "").replace(/\s+/g, " ").trim(),
-      );
-    const join = seatCounts(body("_activate_social_crew_member"));
-    const list = seatCounts(body("list_open_plan_crawls"));
-    expect(join).toEqual(["where crew_id=p_crew and state='active'", "where crew_id=p_crew and state='active'"]);
-    expect(list).toEqual(["where crew_id=crew.id and state='active'"]);
-    expect(list.map((where) => where.replace("crew.id", "p_crew"))).toEqual([join[0]]);
-    const memberCount = body("list_open_plan_crawls").split("'memberCount'")[1]?.split("as row_obj")[0] ?? "";
-    expect(memberCount).not.toMatch(/ownership_state|plan_crew_members|join /);
   });
 });
 

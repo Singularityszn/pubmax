@@ -79,6 +79,7 @@ export default function PublicCrewRouteClient({
   const { accountRevision, identityResolved, providerAuthState } = useAuth();
   const friendsLaunchEnabled = useSocialFriendsLaunch();
   const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
+  const [publicRevision, setPublicRevision] = useState(0);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
   const [privateState, setPrivateState] = useState<LoadState>("idle");
@@ -176,7 +177,7 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId, friendsLaunchEnabled]);
+  }, [crewId, friendsLaunchEnabled, publicRevision]);
 
   useEffect(() => {
     if (!friendsLaunchEnabled) return;
@@ -315,6 +316,9 @@ export default function PublicCrewRouteClient({
       trackHostLoopStep("request", parseCrewMutation(body), currentPreview);
       setJoinState("pending");
       setJoinScope(operationScope);
+      setPublicPreview(null);
+      setPublicState("loading");
+      setPublicRevision((revision) => revision + 1);
     } catch (error) {
       if (
         scopeRef.current !== operationScope ||
@@ -408,10 +412,6 @@ export default function PublicCrewRouteClient({
     );
   }
 
-  if (currentPrivateRead) {
-    return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
-  }
-
   if (
     publicState === "loading" ||
     (!publicPreview && publicState === "idle") ||
@@ -425,6 +425,10 @@ export default function PublicCrewRouteClient({
         </div>
       </Shell>
     );
+  }
+
+  if (currentPrivateRead) {
+    return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
   if (

@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 
 import { trackEvent } from "@/lib/analytics";
 import type { LandingAnswers } from "@/lib/landingAnswers";
-import LondonDayStamp from "./LondonDayStamp";
 
 // What is on today, and what is on tonight, in one sentence each.
 //
@@ -41,7 +40,7 @@ export default function LandingAnswerCards({
             <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
           </span>
           <span className="lpAnswerTileLine">{answers.today.line}</span>
-          <LondonDayStamp stamp={answers.today.stamp} />
+          <span className="lpAnswerTileStamp">{answers.today.stamp}</span>
         </Link>
         <Link prefetch={false} href="/tonight" className="lpAnswerTile">
           <span className="lpAnswerTileHead">
@@ -49,7 +48,7 @@ export default function LandingAnswerCards({
             <ChevronRight size={16} aria-hidden="true" className="lpAnswerTileChevron" />
           </span>
           <span className="lpAnswerTileLine">{answers.tonight.line}</span>
-          <LondonDayStamp stamp={answers.tonight.stamp} />
+          <span className="lpAnswerTileStamp">{answers.tonight.stamp}</span>
         </Link>
         {dutyCensus}
         <Link

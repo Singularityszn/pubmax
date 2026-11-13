@@ -46,7 +46,7 @@ vi.mock("@/lib/openSocialCrew.server", () => resolveMeeting);
 vi.mock("@/lib/venueDetailIndex", () => venues);
 
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
-import { stillTrueCountReader } from "@/lib/openCrawlShareCard.server";
+import { loadOpenCrawlShareCard, stillTrueCountReader } from "@/lib/openCrawlShareCard.server";
 import { GET } from "@/app/api/social/crews/[crewId]/public/route";
 
 function context(crewId = CREW_ID): { params: Promise<{ crewId: string }> } {
@@ -218,6 +218,26 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(serialized).not.toContain("https://");
     expect(serialized).not.toContain("hidden-good-mixer");
     expect(stillTrueCountReader.read).toHaveBeenCalledWith(CREW_ID);
+    expect(venues.lookupVenueDetail.mock.calls).toEqual([["venue-london-camden-arms"]]);
+  });
+
+  it("loads a one-pub link card without reading attendance", async () => {
+    store.readShareCard.mockResolvedValueOnce({
+      ...shareSource,
+      stopVenueIds: ["venue-london-camden-arms"],
+    });
+
+    const result = await loadOpenCrawlShareCard(CREW_ID);
+
+    expect(result).toMatchObject({
+      ok: true,
+      card: {
+        spendBand: { minGbp: 6.2, maxGbp: 6.2, observedOn: "2026-08-20", sourceKind: "listed" },
+      },
+      stillTrue: null,
+    });
+    expect(stillTrueCountReader.read).not.toHaveBeenCalled();
+    expect(venues.lookupVenueDetail.mock.calls).toEqual([["venue-london-camden-arms"]]);
   });
 
   it("does not expose a row when Stop 1 is no longer listed", async () => {

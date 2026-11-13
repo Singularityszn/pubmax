@@ -4,7 +4,7 @@ import {
   socialCrewPublicNotFoundResponse,
   socialCrewPublicUnavailableResponse,
 } from "@/lib/socialCrewHttp";
-import { loadOpenCrawlShareCard } from "@/lib/openCrawlShareCard.server";
+import { loadOpenCrawlPublicPreview } from "@/lib/openCrawlShareCard.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -21,7 +21,7 @@ export async function GET(_request: Request, context: Context): Promise<Response
   const { crewId } = await context.params;
   if (!isSocialCrewId(crewId)) return socialCrewPublicNotFoundResponse();
 
-  const result = await loadOpenCrawlShareCard(crewId);
+  const result = await loadOpenCrawlPublicPreview(crewId);
   if (!result.ok) {
     return result.reason === "missing"
       ? socialCrewPublicNotFoundResponse()
