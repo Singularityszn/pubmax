@@ -312,11 +312,10 @@ test("normal London entry paints UK base pubs and takes a price", async ({
   expect(opened, "a UK base pin should be tappable somewhere on a zoomed-in map").toBe(true);
   expect(switched, "a second, different UK base pin should be reachable from the first").toBe(true);
 
-  // Pub B inherited nothing from pub A: no price, no receipt, no error.
+  // Pub B inherits no draft price, receipt or error. Its own sourced price may still appear.
   await expect(priceField).toHaveValue("");
   await expect(sheet.locator(".vpsubStamp")).toHaveCount(0);
   await expect(sheet.locator(".vpsubError")).toHaveCount(0);
-  await expect(sheet).toContainText("No price yet");
   // ODbL attribution travels with the pins wherever they are displayed.
   await expect(sheet).toContainText("OpenStreetMap contributors");
 
