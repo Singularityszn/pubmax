@@ -24,6 +24,12 @@ updates:
       - dependency-name: "@opentelemetry/exporter-trace-otlp-proto"
         versions: [">=0.300.0"]
     groups:
+      # The test-only @elevenlabs/client pin must equal the exact client that
+      # @elevenlabs/react depends on, or the voice SDK tests see two copies.
+      # Dependabot puts a package in the first group it matches.
+      elevenlabs:
+        patterns:
+          - "@elevenlabs/*"
       production-deps:
         dependency-type: production
         update-types:
