@@ -5,6 +5,8 @@
 // A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
 // the records; this module only counts them.
 
+import type { ChallengeId, ChallengeProgress } from "@/lib/challenges";
+
 const POINTS_EACH = {
   /** A pub on the Been list: diary, Pint Drop, finished plan or Been here. */
   been: 10,
@@ -20,6 +22,10 @@ const POINTS_EACH = {
   pubAdded: 20,
   /** A fix to a pub's details that a person resolved. */
   pubFixed: 5,
+  /** A finished challenge (lib/challenges.ts). */
+  challenge: 500,
+  /** A challenge finished inside a month it was the challenge of the month. On top of challenge. */
+  challengeDoubled: 500,
 } as const;
 
 export type PointsLineKey = keyof typeof POINTS_EACH;
@@ -33,6 +39,8 @@ const LINE_ORDER: readonly PointsLineKey[] = [
   "letterArea",
   "pubAdded",
   "pubFixed",
+  "challenge",
+  "challengeDoubled",
 ];
 
 type PointsLine = { key: PointsLineKey; count: number; each: number; points: number };
@@ -49,6 +57,9 @@ export type PointsBreakdown = {
   lines: PointsLine[];
   /** The finished London postcode districts, in order. */
   districts: string[];
+  challenges: ChallengeProgress[];
+  /** The challenge of the month at the time of the read. */
+  challengeOfTheMonth: ChallengeId | null;
 };
 
 export type PointsStanding = Pick<PointsBreakdown, "status" | "total" | "level">;
@@ -71,6 +82,10 @@ export function buildPointsBreakdown(
   counts: PointsCounts,
   districts: readonly string[],
   status: PointsBreakdown["status"],
+  challenges: { progress: readonly ChallengeProgress[]; ofTheMonth: ChallengeId | null } = {
+    progress: [],
+    ofTheMonth: null,
+  },
 ): PointsBreakdown {
   const lines = LINE_ORDER.map((key) => {
     const count = Math.max(0, Math.floor(counts[key] || 0));
@@ -78,7 +93,17 @@ export function buildPointsBreakdown(
   });
   const total = lines.reduce((sum, line) => sum + line.points, 0);
   const { level, floor, next } = levelFor(total);
-  return { status, total, level, levelFloor: floor, nextLevelAt: next, lines, districts: [...districts] };
+  return {
+    status,
+    total,
+    level,
+    levelFloor: floor,
+    nextLevelAt: next,
+    lines,
+    districts: [...districts],
+    challenges: [...challenges.progress],
+    challengeOfTheMonth: challenges.ofTheMonth,
+  };
 }
 
 // ── London postcode districts ───────────────────────────────────────────────
@@ -162,6 +187,8 @@ export const POINTS_COPY = {
     letterArea: "Postcode letter areas finished",
     pubAdded: "Pubs you added",
     pubFixed: "Pub fixes",
+    challenge: "Challenges finished",
+    challengeDoubled: "Challenges of the month, doubled",
   } satisfies Record<PointsLineKey, string>,
   howTitle: "How points work",
   how: [
@@ -171,6 +198,7 @@ export const POINTS_COPY = {
     "50 for a London postcode district once you've been to every pub we list in it.",
     "1,000 for a London postcode letter area once you finish every district we list in it.",
     "20 for a pub you add and 5 for a fix, once a person accepts it.",
+    "500 for each challenge you finish, and 500 more when you finish the challenge of the month inside its month.",
   ],
   fence: "Points count your records, including logged drink reviews, never days running.",
   degraded: "Some of your records didn't load, so this total may be low. Try again later.",

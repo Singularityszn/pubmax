@@ -5,6 +5,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { metadataSiteName } from "@/lib/brandNaming";
+import { CHALLENGE_COPY, CHALLENGE_IDS, challengeOfTheMonthAt } from "@/lib/challenges";
 import { curatedCrawls } from "@/lib/curatedCrawls";
 import {
   GUIDES_PATH,
@@ -22,7 +23,7 @@ import { citationLabel, listedBadge } from "@/lib/historicFilter";
 import "./guides.css";
 
 const DESCRIPTION =
-  "A London pub of the week from our cited history list, short crawl guides you can walk tonight, and the city's oldest pubs.";
+  "A London pub of the week from our cited history list, pub challenges with a challenge of the month, short crawl guides you can walk tonight, and the city's oldest pubs.";
 
 export const metadata: Metadata = {
   title: GUIDES_TITLE,
@@ -53,7 +54,10 @@ function pubMeta(pub: Pick<HistoricPub, "dateLabel" | "borough" | "listed">): st
 
 export default async function GuidesPage() {
   const pubs = await loadHistoricPubs();
-  const pick = pickPubOfTheWeek(pubs, new Date());
+  const now = new Date();
+  const pick = pickPubOfTheWeek(pubs, now);
+  const monthly = challengeOfTheMonthAt(now);
+  const challenges = [...CHALLENGE_IDS].sort((a, b) => Number(b === monthly) - Number(a === monthly));
   const famous = londonFamousPubs(pubs);
   const guides = shortGuides(curatedCrawls);
 
@@ -111,6 +115,31 @@ export default async function GuidesPage() {
             ) : undefined
           }
         >
+          <section className="guidesSection" aria-labelledby="guides-challenges-title">
+            <h2 id="guides-challenges-title" className="guidesSectionTitle">
+              Challenges
+            </h2>
+            <p className="guidesSectionDek">
+              Built from the pubs we list in London. Each one you finish earns points, and the
+              challenge of the month earns double when you finish it inside its month.
+            </p>
+            <RowList>
+              {challenges.map((id) => (
+                <RowListItem
+                  key={id}
+                  title={CHALLENGE_COPY.titles[id]}
+                  meta={id === monthly ? "Challenge of the month" : undefined}
+                  detail={<p className="guidesRowDetail">{CHALLENGE_COPY.deks[id]}</p>}
+                />
+              ))}
+            </RowList>
+            <p className="guidesMore">
+              <Link prefetch={false} href="/u/you">
+                See your progress
+              </Link>
+            </p>
+          </section>
+
           {guides.length > 0 ? (
             <section className="guidesSection" aria-labelledby="guides-routes-title">
               <h2 id="guides-routes-title" className="guidesSectionTitle">

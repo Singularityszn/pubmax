@@ -46,6 +46,7 @@ function deps(caller: string | null, overrides: Partial<PointsDeps> = {}): Point
         ["WC1", ["lamb", "mitre", "anchor"]],
         ["SE1", ["anchor", "george", "market"]],
       ]),
+    challenges: async () => new Map(),
     ...overrides,
   };
 }
@@ -105,6 +106,66 @@ describe("readPointsBreakdown", () => {
     expect(breakdown.status).toBe("degraded");
     expect(line(breakdown, "pubAdded")).toMatchObject({ count: 0, points: 0 });
     expect(breakdown.total).toBe(1130);
+  });
+
+  it("pays for finished challenges and doubles one finished inside its month", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        beenHere: async () => [{ venueId: "anchor-old", venueName: "Anchor", savedAt: "2026-11-02T20:00:00.000Z" }],
+        challenges: async () =>
+          new Map([
+            // Mitre's plan is September 2026, the Red Lion's month.
+            ["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]],
+            // The Lamb's first record is its 1 October diary day, the King's Head's month.
+            ["kings-head", [{ label: "Lamb", venueIds: ["lamb"] }]],
+            // Finished in October, which is not the Ship's month.
+            ["ship", [{ label: "Lamb", venueIds: ["lamb"] }, { label: "Mitre", venueIds: ["mitre"] }]],
+            // The Anchor was ticked on its old id in November, not December.
+            ["every-district", [{ label: "SE1", venueIds: ["anchor"] }, { label: "N1", venueIds: ["nowhere"] }]],
+          ]),
+      }),
+    );
+    expect(breakdown.status).toBe("ready");
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 3, points: 1500 });
+    expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 2, points: 1000 });
+    expect(breakdown.total).toBe(1150 + 2500);
+    expect(breakdown.challenges.map(({ id, done, total, finished, doubled }) => [id, done, total, finished, doubled])).toEqual([
+      ["red-lion", 1, 1, true, true],
+      ["kings-head", 1, 1, true, true],
+      ["ship", 2, 2, true, false],
+      ["every-district", 1, 2, false, false],
+    ]);
+    expect(breakdown.challenges[3]?.left).toEqual([{ label: "N1" }]);
+  });
+
+  it("never doubles a challenge finished by an undated Been here row", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        beenHere: async () => [{ venueId: "mitre", venueName: "Mitre" }],
+        challenges: async () => new Map([["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]]]),
+      }),
+    );
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 1, points: 500 });
+    expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 0, points: 0 });
+  });
+
+  it("finishes no challenge and marks the total degraded when challenges cannot be read", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        challenges: async () => {
+          throw new Error("pack missing");
+        },
+      }),
+    );
+    expect(breakdown.status).toBe("degraded");
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 0, points: 0 });
+    expect(breakdown.challenges.every((challenge) => challenge.total === 0)).toBe(true);
   });
 
   it("finishes no district when the district list cannot be read", async () => {

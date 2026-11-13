@@ -296,5 +296,9 @@ Cosmetic progression earned through planning, discovery, verified contribution, 
 _Avoid_: Drinking streak, consumption score, recommendation tier
 
 **Points**:
-What a Pubmaxxer earns from their own records: a pub on their Been list, a price they logged, a price a bill or a Second Drinker checked, a logged drink review, a London postcode letter area where every listed district is finished, a London postcode district where they have been to every pub we list, and a pub they added or fixed once a person accepted it. Points set a Level. A logged drink review earns points, never days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
+What a Pubmaxxer earns from their own records: a pub on their Been list, a price they logged, a price a bill or a Second Drinker checked, a logged drink review, a London postcode letter area where every listed district is finished, a London postcode district where they have been to every pub we list, a pub they added or fixed once a person accepted it, and a finished Challenge. Points set a Level. A logged drink review earns points, never days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
 _Avoid_: XP, mastery points, a streak
+
+**Challenge**:
+A set of London pubs we list that a Pubmaxxer finishes by having them all on their Been list: every Red Lion, every King's Head, every Ship, and one pub in every London postcode district. Each month one challenge is the Challenge of the Month, in a fixed turn. Finishing it inside that month doubles its points. `lib/challenges.ts` owns the sets and the turn.
+_Avoid_: quest, mission, a streak

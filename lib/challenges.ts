@@ -1,0 +1,194 @@
+// Challenges: every Red Lion, every King's Head, every Ship, and one pub in
+// every London postcode district. Built only from the pubs we list, so a
+// count on screen is a count of stored pubs, never an estimate.
+//
+// A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
+// the records and lib/points.ts prices a finished challenge.
+//
+// A challenge is a list of targets. A target is done when any one of its pubs
+// is on the Been list: a named-pub challenge has one pub per target, the
+// district challenge has every listed pub in that district.
+
+import { londonDayKey } from "@/lib/londonHour";
+import { londonDistricts, type DistrictVenue } from "@/lib/points";
+
+export const CHALLENGE_IDS = ["red-lion", "kings-head", "ship", "every-district"] as const;
+export type ChallengeId = (typeof CHALLENGE_IDS)[number];
+
+type ChallengeTarget = { label: string; venueIds: string[]; mapVenueId?: string };
+export type ChallengeSet = ReadonlyMap<ChallengeId, readonly ChallengeTarget[]>;
+
+export type ChallengeVenue = DistrictVenue & { name: string; borough?: string };
+
+/** A target still to do. A pub opens on the map; a district has no one pub to open. */
+type ChallengeLeft = { label: string; venueId?: string };
+
+export type ChallengeProgress = {
+  id: ChallengeId;
+  done: number;
+  total: number;
+  finished: boolean;
+  /** Finished inside a month when it was the challenge of the month. */
+  doubled: boolean;
+  left: ChallengeLeft[];
+};
+
+// ── Names ───────────────────────────────────────────────────────────────────
+
+/** The name each named-pub challenge looks for, after namePlate() folds it. */
+const NAMED: ReadonlyArray<readonly [ChallengeId, string]> = [
+  ["red-lion", "red lion"],
+  ["kings-head", "kings head"],
+  ["ship", "ship"],
+];
+
+const PUB_WORDS = "(?:pub|inn|tavern|hotel)";
+const TRAILING_PUB_WORDS = new RegExp(` ${PUB_WORDS}(?: and ${PUB_WORDS})?$`);
+const TRAILING_POSTCODE = / [a-z]{1,2}\d{1,2}[a-z]?$/;
+const LEADING_WORDS = /^(?:(?:the|ye|old|olde) )+/;
+
+function fold(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[’‘`´']/g, "")
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9 ]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * The name on a pub's sign with the extras taken off: "The", "Ye Olde" and
+ * "Old" in front; a place after a comma, a dash or in brackets; a trailing
+ * postcode or borough; and a trailing "Inn", "Tavern", "Pub" or "Hotel". So
+ * "Ye Olde Red Lion", "Kings Head Harrow" and "Ship Tavern, London" read as
+ * "red lion", "kings head" and "ship", while "Red Lion & Sun" and "Ship
+ * Aground" stay different pubs.
+ */
+export function namePlate(name: string, borough = ""): string {
+  let plate = fold(name.replace(/\s*\([^)]*\)/g, "").split(/,| - | – /)[0] ?? "");
+  const place = fold(borough);
+  if (place && plate.endsWith(` ${place}`)) plate = plate.slice(0, -place.length - 1);
+  plate = plate.replace(TRAILING_POSTCODE, "").replace(TRAILING_PUB_WORDS, "");
+  return plate.replace(LEADING_WORDS, "").trim();
+}
+
+function pubLabel(venue: ChallengeVenue, district: string | null): string {
+  const where = [venue.borough, district].filter(Boolean).join(" ");
+  return where ? `${venue.name}, ${where}` : venue.name;
+}
+
+/** Every challenge's targets, from the pubs we list in London. */
+export function buildChallengeSet(venues: readonly ChallengeVenue[]): ChallengeSet {
+  const pubs = venues.filter((venue) => venue.id && (venue.kind === undefined || venue.kind === "pub"));
+  const districts = londonDistricts(pubs);
+  const districtOf = new Map<string, string>();
+  for (const [district, ids] of districts) for (const id of ids) districtOf.set(id, district);
+
+  const set = new Map<ChallengeId, ChallengeTarget[]>();
+  for (const [id, plate] of NAMED) {
+    const seen = new Set<string>();
+    const targets = pubs
+      .filter((venue) => namePlate(venue.name, venue.borough) === plate && !seen.has(venue.id) && seen.add(venue.id))
+      .map((venue) => ({
+        label: pubLabel(venue, districtOf.get(venue.id) ?? null),
+        venueIds: [venue.id],
+        mapVenueId: venue.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label, "en-GB"));
+    set.set(id, targets);
+  }
+  set.set(
+    "every-district",
+    [...districts]
+      .map(([district, ids]) => ({ label: district, venueIds: [...ids] }))
+      .sort((a, b) => a.label.localeCompare(b.label, "en-GB", { numeric: true })),
+  );
+  return set;
+}
+
+// ── The challenge of the month ──────────────────────────────────────────────
+
+const MONTH_KEY = /^(\d{4})-(\d{2})$/;
+
+/**
+ * The challenge of the month for a London month ("2026-11"): a fixed turn
+ * through the challenges, so every month has one and nobody picks it.
+ */
+export function challengeOfTheMonth(monthKey: string): ChallengeId | null {
+  const match = MONTH_KEY.exec(monthKey);
+  if (!match) return null;
+  const months = Number(match[1]) * 12 + Number(match[2]) - 1;
+  return CHALLENGE_IDS[months % CHALLENGE_IDS.length]!;
+}
+
+/** The challenge of the month in London at `at`. */
+export function challengeOfTheMonthAt(at: Date): ChallengeId | null {
+  return challengeOfTheMonth(londonDayKey(at).slice(0, 7));
+}
+
+// ── Progress ────────────────────────────────────────────────────────────────
+
+/**
+ * Progress on every challenge. `visited` holds the Been list's current venue
+ * ids. `firstMonth` gives the London month a pub was first logged, if known.
+ * A challenge is doubled when the month its last target was first logged is
+ * a month it was the challenge of the month. A target with no known month
+ * leaves the finish month unknown, so it is never doubled.
+ */
+export function challengeProgress(
+  set: ChallengeSet,
+  visited: ReadonlySet<string>,
+  firstMonth: (venueId: string) => string | null,
+): ChallengeProgress[] {
+  return CHALLENGE_IDS.map((id) => {
+    const targets = set.get(id) ?? [];
+    const left: ChallengeLeft[] = [];
+    const doneIn: Array<string | null> = [];
+    for (const target of targets) {
+      const months = target.venueIds.filter((venueId) => visited.has(venueId)).map(firstMonth);
+      if (!months.length) {
+        left.push(target.mapVenueId ? { label: target.label, venueId: target.mapVenueId } : { label: target.label });
+        continue;
+      }
+      // Done the first month any of its pubs was logged. An undated pub may
+      // be the earliest, so one unknown month makes the target's unknown.
+      doneIn.push(months.every(Boolean) ? (months as string[]).sort()[0]! : null);
+    }
+    const total = targets.length;
+    const finished = total > 0 && left.length === 0;
+    const finishMonth = doneIn.every(Boolean) ? (doneIn as string[]).sort().at(-1) : undefined;
+    const doubled = finished && finishMonth !== undefined && challengeOfTheMonth(finishMonth) === id;
+    return { id, done: total - left.length, total, finished, doubled, left };
+  });
+}
+
+// ── Copy ────────────────────────────────────────────────────────────────────
+
+export const CHALLENGE_COPY = {
+  kicker: "Challenges",
+  title: "Your challenges",
+  titles: {
+    "red-lion": "Every Red Lion",
+    "kings-head": "Every King's Head",
+    ship: "Every Ship",
+    "every-district": "One pub in every postcode district",
+  } satisfies Record<ChallengeId, string>,
+  deks: {
+    "red-lion": "Every pub called the Red Lion that we list in London.",
+    "kings-head": "Every pub called the King's Head that we list in London.",
+    ship: "Every pub called the Ship that we list in London.",
+    "every-district": "One pub in each London postcode district where we list a pub.",
+  } satisfies Record<ChallengeId, string>,
+  units: {
+    "red-lion": "pubs",
+    "kings-head": "pubs",
+    ship: "pubs",
+    "every-district": "districts",
+  } satisfies Record<ChallengeId, string>,
+  monthly: "Challenge of the month. Finish it this month for double points.",
+  doubled: "Finished in its month. Double points.",
+  finished: "Finished.",
+  leftTitle: "Still to do",
+  fence: "Counts come from the pubs we list. A pub counts once it is on your Been list.",
+} as const;

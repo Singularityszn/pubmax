@@ -89,8 +89,10 @@ export type PassportDeps = {
   /**
    * The owner's own "Been here" saved list (lib/beenHere.ts). Undated, so it
    * is asked for the owner's full read alone and never for anybody else.
+   * `savedAt` is when the row was ticked, not a visit day: only the
+   * challenge of the month reads it.
    */
-  beenHere(ownerHandle: string): Promise<PassportVenue[]>;
+  beenHere(ownerHandle: string): Promise<Array<PassportVenue & { savedAt?: string }>>;
   rankings(profileId: string): Promise<PassportRankedRow[]>;
   nightProfile(ownerUserId: string): Promise<PassportNightProfile | null>;
   venue(venueId: string): Promise<PassportVenueFacts | null>;
@@ -670,7 +672,7 @@ export function defaultPassportDeps(): PassportDeps {
       if (read.status !== "ready") throw new Error("saved lists unavailable");
       const rows = read.rows
         .filter((row) => row.listType === BEEN_HERE_LIST)
-        .map((row) => ({ venueId: row.venueId, venueName: row.venueName }));
+        .map((row) => ({ venueId: row.venueId, venueName: row.venueName, savedAt: row.savedAt }));
       // The read holds every saved list, so a full answer may hide Been rows.
       if (read.rows.length >= POSTGREST_ROW_CAP) throw new CappedRead(rows);
       return rows;
