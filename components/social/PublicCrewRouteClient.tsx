@@ -17,7 +17,8 @@ import {
   stillTrueJoinPending,
   stillTrueSignInHref,
 } from "@/lib/accountClaimReturnTo";
-import { consumeDoorTaken, markDoorTaken, type DoorMarkerStorage } from "@/lib/doorMarker";
+import { consumeDoorTaken, markDoorTaken } from "@/lib/doorMarker";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
@@ -65,14 +66,6 @@ function RollbackPreview() {
       </section>
     </Shell>
   );
-}
-
-function browserStorage(): DoorMarkerStorage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
 }
 
 export default function PublicCrewRouteClient({
@@ -284,7 +277,7 @@ export default function PublicCrewRouteClient({
     if (currentPreview.stillTrue && providerAuthState === "signed-out") {
       const href = stillTrueSignInHref(crewId);
       if (!href) return;
-      markDoorTaken(browserStorage(), stillTrueDoorKey(crewId), Date.now());
+      markDoorTaken(safeLocalStorage(), stillTrueDoorKey(crewId), Date.now());
       router.push(href);
       return;
     }
@@ -355,7 +348,7 @@ export default function PublicCrewRouteClient({
     if (privateRead.joinRequestState !== "none") return;
     if ((joinScope === scope ? joinState : "none") !== "none") return;
     if (typeof window === "undefined" || !stillTrueJoinPending(window.location.search)) return;
-    if (!consumeDoorTaken(browserStorage(), stillTrueDoorKey(crewId), Date.now(), STILL_TRUE_DOOR_TTL_MS)) return;
+    if (!consumeDoorTaken(safeLocalStorage(), stillTrueDoorKey(crewId), Date.now(), STILL_TRUE_DOOR_TTL_MS)) return;
     autoJoinScope.current = scope;
     const url = new URL(window.location.href);
     url.searchParams.delete("there");

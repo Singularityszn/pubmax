@@ -8,6 +8,7 @@ import EmptyState from "@/components/ui/empty-state";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { discardBody } from "@/lib/responseBody";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   parseSocialLondonLanePage,
   SOCIAL_LONDON_LANE_COPY,
@@ -99,18 +100,30 @@ export default function SocialLondonLane({
   }, [confirmedEmpty, onEmptyChange]);
 
   useEffect(() => {
-    try {
-      setSocialSeen(window.localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY) !== null);
-    } catch {
-      setSocialSeen(false);
-    }
+    let active = true;
+    // Read once per mount, after hydration, outside the effect body: the line
+    // must not change in this visit when the lane writes the key below.
+    void Promise.resolve().then(() => {
+      if (!active) return;
+      const storage = safeLocalStorage();
+      let seen = false;
+      try {
+        seen = storage?.getItem(SOCIAL_LONDON_LANE_SEEN_KEY) != null;
+      } catch {
+        // Blocked storage reads as a first visit.
+      }
+      setSocialSeen(seen);
+    });
+    return () => {
+      active = false;
+    };
   }, []);
 
   useEffect(() => {
     if (socialSeen !== false || status !== "ready") return;
     if (posts.length === 0 && !confirmedEmpty) return;
     try {
-      window.localStorage.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
+      safeLocalStorage()?.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
     } catch {
       // Storage can be blocked. This visit still shows the quiet line.
     }
