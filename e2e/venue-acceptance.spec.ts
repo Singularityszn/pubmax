@@ -98,7 +98,7 @@ for (const width of [320, 390] as const) {
       }).toPass({ timeout: 10_000 });
       const share = toolbar.getByRole("button", { name: `Share ${VENUE_NAME}` });
       await expect(share).toBeVisible();
-      await expect(toolbar.getByRole("button")).toHaveText(["Make it Stop 1", "Ask for a table", "Share"]);
+      await expect(toolbar.getByRole("button")).toHaveText(["Make it Stop 1", "Ask for a table", "Summon mates", "Share"]);
       await expect(portal.locator(".venueActionCard [data-log-door]")).toBeVisible();
 
       const door = portal
@@ -120,6 +120,7 @@ for (const width of [320, 390] as const) {
         label.selectNodeContents(door);
         const bar = portalRoot.querySelector(".venueSheetStickyBar")!;
         const share = bar.querySelector('button[aria-label^="Share"]')!;
+        const summon = bar.querySelector("[data-venue-summon]")!;
         const [price, walk] = Array.from(row.querySelectorAll(":scope > span, :scope > .mobileVenuePeekDrop"));
         return {
           cells: [box(price), box(walk), box(primary)],
@@ -128,6 +129,7 @@ for (const width of [320, 390] as const) {
           labelClipped: door.scrollWidth > door.clientWidth + 1,
           bar: box(bar),
           share: box(share),
+          summon: box(summon),
           overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         };
       });
@@ -148,11 +150,16 @@ for (const width of [320, 390] as const) {
       expect(apart(price, walk), "price and walk").toBe(true);
       expect(apart(walk, doorCell), "walk and door").toBe(true);
       expect(apart(price, doorCell), "price and door").toBe(true);
-      // Share shares its row with "Ask for a table": a thumb target, never the
+      // Share shares its row with another ghost: a thumb target, never the
       // whole width of the card.
       expect(geometry.share.height).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeGreaterThanOrEqual(44);
       expect(geometry.share.width).toBeLessThan(geometry.bar.width);
+      // Summon mates is a thumb target inside the card at every width and text size.
+      expect(geometry.summon.height).toBeGreaterThanOrEqual(44);
+      expect(geometry.summon.width).toBeGreaterThanOrEqual(44);
+      expect(geometry.summon.left).toBeGreaterThanOrEqual(geometry.bar.left - 0.5);
+      expect(geometry.summon.right).toBeLessThanOrEqual(geometry.bar.right + 0.5);
       expect(geometry.overflow).toBeLessThanOrEqual(1);
 
       if (textScale === 1 || textScale === 2) {

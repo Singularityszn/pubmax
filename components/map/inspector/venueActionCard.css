@@ -75,6 +75,62 @@
   }
 }
 
+/* A PUB ALSO OFFERS "SUMMON MATES", SO ITS ROW CARRIES ONE MORE GHOST.
+   Measured at 390px with 1x text: "Ask for a table", "Summon mates" and the
+   Share icon need about 340px of a 356px row, and Share's word would need 36px
+   more. The queries are in em plus the px of padding, icons and gaps, so they
+   follow the reader's text size. */
+@container venue-actions (max-width: calc(18em + 140px)) {
+  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] {
+    flex: 0 0 auto;
+    min-width: var(--control-height);
+  }
+
+  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] > span {
+    display: none;
+  }
+}
+
+/* Large text: the two labels break between words inside their own ghosts,
+   as the plan door's row does, so Share never falls to a line of its own. */
+@container venue-actions (max-width: calc(15em + 142px)) {
+  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost {
+    padding-inline: 8px;
+    line-height: 1.15;
+    white-space: normal;
+    text-wrap: balance;
+  }
+
+  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+    display: none;
+  }
+}
+
+/* FOUR GHOSTS ARE TWO ROWS OF TWO. When the coral asks for a price, the plan
+   door joins a pub's row and four commands cannot share one line on a phone
+   or in the drawer. Each ghost takes half the wrapping row (the row's gap is
+   6px), so no ghost is left alone on a line and none reads as the primary.
+   Share has half a row here, so it keeps its word. */
+@container venue-actions (max-width: calc(25em + 190px)) {
+  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) > .venueSheetStickyGhost {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+  }
+
+  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) [data-venue-share] > span {
+    display: inline;
+  }
+}
+
+/* A summon link's time, under the price row: ink, one line, no card. */
+.venueSummonArrival {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  line-height: 1.3;
+}
+
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
   .mobileSharedSheetFooter .venueActionCard {

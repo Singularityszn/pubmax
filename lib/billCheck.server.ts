@@ -12,9 +12,9 @@ import "server-only";
 //      resized, re-encoded JPEG), and a photo it cannot open is `unreadable`;
 //   3. the paid lane `bill-read` is spent, and a spent day leaves the price
 //      `unchecked` with nothing recorded;
-//   4. the JPEG goes to the shared vision lane (lib/openRouterVision.server.ts:
-//      zero retention, strict schema, the board reader's own client), and a
-//      provider failure leaves the price `unchecked` with nothing recorded;
+//   4. the JPEG goes to the shared JSON lane (lib/claudeJson.server.ts: Claude,
+//      strict schema, the board reader's own client), and a provider failure
+//      leaves the price `unchecked` with nothing recorded;
 //   5. the judge (lib/billCheck.ts) answers match, mismatch or unreadable, the
 //      verdict and the lines it needs are recorded (lib/billCheckStore.ts),
 //      and a MATCH on a Pint Drop grants `receipt` evidence and nudges every
@@ -39,11 +39,7 @@ import {
 } from "@/lib/billCheck";
 import { billCheckStore, type BillCheckStore } from "@/lib/billCheckStore";
 import { log } from "@/lib/log";
-import {
-  openRouterVisionKeyed,
-  readPhotoAsJson,
-  type VisionReadDependencies,
-} from "@/lib/openRouterVision.server";
+import { claudeJsonKeyed, jpegImage, readClaudeJson, type ClaudeJsonDependencies } from "@/lib/claudeJson.server";
 import type { DrinkMeasure } from "@/lib/drinkMeasure";
 import type { RoundPriceSource } from "@/lib/rounds";
 import type { PaidSpendLane } from "@/lib/paidSpendBudget";
@@ -54,7 +50,7 @@ import { UPLOAD_PHOTO_MAX_BYTES } from "@/lib/uploadBodyLimit";
 import { prepareUploadedImage } from "@/lib/uploadedImage.server";
 
 const BILL_READ_TIMEOUT_MS = 20_000;
-const BILL_READ_MAX_TOKENS = 1_500;
+const BILL_READ_MAX_TOKENS = 2_500;
 /** Long edge of the JPEG the model sees: enough for a till roll's small print. */
 const BILL_PHOTO_BOX = 1600;
 
@@ -87,7 +83,7 @@ const BILL_READ_PROMPT = [
 
 /** Whether this deployment can read a bill at all. A keyless one never tries. */
 export function billReaderKeyed(env: Record<string, string | undefined> = process.env): boolean {
-  return openRouterVisionKeyed(env);
+  return claudeJsonKeyed(env);
 }
 
 /**
@@ -96,14 +92,13 @@ export function billReaderKeyed(env: Record<string, string | undefined> = proces
  */
 export async function readBillPhoto(
   jpeg: Buffer,
-  deps: VisionReadDependencies = {},
+  deps: ClaudeJsonDependencies = {},
 ): Promise<BillReadOutcome> {
-  const read = await readPhotoAsJson(
+  const read = await readClaudeJson(
     {
-      jpeg,
       route: "api/bill-checks",
-      prompt: BILL_READ_PROMPT,
-      schemaName: "bill",
+      system: BILL_READ_PROMPT,
+      content: [jpegImage(jpeg)],
       schema: billSchema,
       maxTokens: BILL_READ_MAX_TOKENS,
       timeoutMs: BILL_READ_TIMEOUT_MS,
@@ -111,7 +106,7 @@ export async function readBillPhoto(
     },
     deps,
   );
-  if (read.status !== "read") return read;
+  if (read.status !== "read") return { status: read.status };
   return { status: "read", ...parseBillReadAnswer(read.answer) };
 }
 
@@ -136,7 +131,7 @@ export type BillCheckObservation = Omit<BillCheckRun, "photo">;
 /** What a run did, for its tests and its one log line. */
 export type BillCheckRunOutcome = BillCheckResult | "keyless" | "budget-spent" | "failed" | "already-checked";
 
-export type BillCheckDependencies = VisionReadDependencies & {
+export type BillCheckDependencies = ClaudeJsonDependencies & {
   admit?: (lane: PaidSpendLane) => Promise<boolean>;
   prepare?: (photo: File) => Promise<Buffer>;
   store?: BillCheckStore;
@@ -216,7 +211,7 @@ async function checkBillObservation(
     return outcome;
   };
   try {
-    if (!openRouterVisionKeyed(deps.env ?? process.env)) return done("keyless");
+    if (!claudeJsonKeyed(deps.env ?? process.env)) return done("keyless");
     const store = deps.store ?? billCheckStore();
     const billHash = createHash("sha256").update(Buffer.from(await run.photo.arrayBuffer())).digest("hex");
     const checked = await store.reuseChecked({ ...run, billHash });

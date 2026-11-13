@@ -185,6 +185,17 @@ function buildEditorial(): EditorialCardData[] {
 /** Exported for unit tests — Discover editorial CTAs must stay map-first. */
 export const DISCOVER_EDITORIAL = buildEditorial();
 
+// The one door from this lane to /guides, the phone's way in: the dock holds
+// five tabs, so the guides page lives off this lane and the desktop More menu.
+const GUIDES_CARD: EditorialCardData = {
+  id: "guides",
+  eyebrow: "Pub of the week",
+  title: "One old pub a week, and walks to go with it",
+  dek: "A cited historic pub each Monday, short crawl guides and London's oldest pubs.",
+  href: "/guides",
+  cta: "Open the guides",
+};
+
 // Narrow the public /api/pint-drops payload to the drop shape our compute
 // helpers read. The returned TonightDrop carries {venueId, priceGbp, createdAt}
 // (all computeThenVsNow needs) PLUS the optional {handle, venueName} the tonight
@@ -735,6 +746,7 @@ export function DiscoverBody({
           Ways to drink through the city
         </h2>
         <div className="editorialGrid">
+          <EditorialCard {...GUIDES_CARD} />
           {editorial.map((card) => (
             <EditorialCard key={card.id} {...card} />
           ))}

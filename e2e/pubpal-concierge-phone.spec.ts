@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/test";
 
 // Pub Pal V0.1 on a phone, keyless.
 //
-// Every proof runs against the real deterministic path: no OpenRouter, no
+// Every proof runs against the real deterministic path: no Claude, no
 // ElevenLabs, no Supabase.
 //   1. a text ask comes back grounded, with a source chip on every card,
 //   2. find_desk says "No seat data yet" rather than offering a pub as a desk,

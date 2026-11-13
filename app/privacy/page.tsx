@@ -166,9 +166,8 @@ export default function PrivacyPage() {
           Your public profile may also contain a display name, home city and
           short bio. A profile picture is an optional upload you choose: we
           store the normalised JPEG under our own private storage (not a
-          hotlinked URL), strip embedded metadata before it is saved, and send
-          a short-lived signed copy to OpenAI for an advisory omni moderation
-          check before the picture is publicly addressable. If the check
+          hotlinked URL), strip embedded metadata before it is saved, and scan
+          a short-lived signed copy before the picture is publicly addressable. If the check
           refuses the picture, we refuse the upload and keep your previous
           picture (or none). If the check cannot run or gives no usable
           decision, the upload can proceed without scan approval. Readers may
@@ -180,6 +179,11 @@ export default function PrivacyPage() {
           file from our storage. If you connect an external social profile (X,
           Instagram, TikTok) we store the account details you connected and any
           provider tokens encrypted at rest.
+        </p>
+        <p className="legalBody">
+          Profile pictures, primary and gallery covers, private-message photos,
+          venue photos and drink-wall photos use an advisory OpenAI moderation check.
+          When OpenAI is not set up, an AI model performs the check.
         </p>
 
         <h3 className="legalH3">If you use an invite link</h3>
@@ -733,11 +737,12 @@ export default function PrivacyPage() {
               Social post text goes to OpenAI for omni moderation after the
               post enters our moderation queue. It stays held until OpenAI
               returns a decision. We don&rsquo;t send the Social account ID,
-              handle, area or venue with that text. Normalised Social photos and
-              profile pictures go to OpenAI through short-lived signed links for
-              the same moderation decision. A profile picture is scanned before
-              it is publicly addressable; a Social post stays held until a
-              usable decision returns.
+              handle, area or venue with that text. Normalised Social photos go
+              to OpenAI through short-lived signed links for the same moderation
+              decision. Profile pictures, primary and gallery covers, private-message
+              photos, venue photos and drink-wall photos use an advisory OpenAI
+              moderation check. When OpenAI is not set up, an AI model performs
+              that check. A Social post stays held until a usable decision returns.
             </dd>
           </div>
           <div className="legalRow">
@@ -803,7 +808,7 @@ export default function PrivacyPage() {
             <dt>Imported pub lists</dt>
             <dd>
               We match the pub names in a caption, note or message you paste.
-              Short prose may go to OpenRouter, using providers that do not retain it.
+              Short prose you paste may be read by an AI model.
               We discard the pasted text after matching and exclude it from logs and analytics.
               If you save the list, we keep its matched pub IDs, your optional source link,
               its creator handle when the link names one, and the save date in a private night draft.
@@ -814,8 +819,7 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Board photos</dt>
             <dd>
-              If you photograph a pub&rsquo;s price board, we strip the photo&rsquo;s metadata and send it to
-              OpenRouter, using providers that do not retain it, so the Pal can read the prices.
+              Photos you send for a board price check are read by an AI model.
               We do not keep the photo from that read. Each price you then confirm is logged like any
               other price you log, with the photo as its bill.
             </dd>
@@ -823,21 +827,20 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Bill photos</dt>
             <dd>
-              When you send a photo of your bill with a price, we strip the photo&rsquo;s metadata and
-              send it to OpenRouter, using providers that do not retain it, to check that the bill shows
-              the price you typed. We keep only the result and the item lines and prices the check
-              needs. We do not keep names, card numbers or the date read from the bill.
+              Photos you send for a bill check are read by an AI model.
+              We keep only the result and the item lines and prices the check needs.
+              We do not keep names, card numbers or the date read from the bill.
             </dd>
           </div>
           <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask the map a question, ask The Landlord about a pub, or
-              talk to Pub Pal by typing or by voice, the text or audio of that
-              request goes to the model provider that answers it. Anthropic at{" "}
+              If you ask the map a question, or talk to Pub Pal by typing or by
+              voice, the text or audio of that request goes to the model
+              provider that answers it. Anthropic at{" "}
               <code>api.anthropic.com</code> answers map questions and Pub Pal
-              typed chat when Claude is configured. OpenRouter answers The
-              Landlord, and map questions when Claude is not configured.
+              typed chat when Claude is configured. The Landlord answers from
+              the facts on record and sends your question to no model.
               ElevenLabs at <code>api.elevenlabs.io</code> answers Pub Pal
               voice, and typed chat when Claude is not configured. With Pub Pal, the memories you confirmed for your
               Pal go with each chat or voice call too, so it can use them:
@@ -883,9 +886,8 @@ export default function PrivacyPage() {
               deployment, every model call our server makes sends Arize the
               model name, the token counts, how long the call took, and a fixed
               tag naming the feature, together with the text of the request and
-              the model&rsquo;s reply. That includes what you type into The
-              Landlord, Pub Pal, a question about a pub&rsquo;s history, and the
-              free text a planning ask carries. Traces go to{" "}
+              the model&rsquo;s reply. That includes what you type into Pub Pal
+              and the free text a planning ask carries. Traces go to{" "}
               <code>otlp.arize.com</code> in the United States. Email addresses
               and @handles are replaced before a trace leaves our server;
               nothing else in the text is. The moderation calls named above

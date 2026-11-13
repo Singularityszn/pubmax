@@ -5,7 +5,7 @@ vi.mock("server-only", () => ({}));
 import { importPubList } from "@/lib/pubListImport.server";
 
 describe("pub list import", () => {
-  beforeEach(() => vi.stubEnv("OPENROUTER_API_KEY", ""));
+  beforeEach(() => vi.stubEnv("ANTHROPIC_API_KEY", ""));
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.restoreAllMocks();

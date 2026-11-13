@@ -5,6 +5,8 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { CLAUDE_MESSAGES_URL, claudeJsonResponse, sentClaudeBody } from "@/__tests__/helpers/claudeWire";
+
 import { BOARD_READ_KEYLESS_CODE, BOARD_READ_KEYLESS_LINE } from "@/lib/boardRead";
 
 const seams = vi.hoisted(() => ({
@@ -41,13 +43,7 @@ function boardRequest(): Request {
 }
 
 function modelAnswer(rows: unknown[]): Response {
-  return new Response(
-    JSON.stringify({
-      choices: [{ message: { content: JSON.stringify({ rows }) } }],
-      usage: { prompt_tokens: 900, completion_tokens: 120, total_tokens: 1020 },
-    }),
-    { status: 200, headers: { "content-type": "application/json" } },
-  );
+  return claudeJsonResponse({ rows });
 }
 
 let providerFetch: ReturnType<typeof vi.fn>;
@@ -57,7 +53,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   seams.identity.mockResolvedValue(SIGNED_IN);
   seams.venue.mockResolvedValue({ ok: true, venueId: "venue-eltcmh" });
   seams.prepare.mockResolvedValue({
@@ -85,7 +81,7 @@ describe("POST /api/board-reads", () => {
       body: { status: "sign_in_required", error: "Sign in to contribute." },
       httpStatus: 401,
     });
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     const { POST } = await import("@/app/api/board-reads/route");
 
     const response = await POST(boardRequest());
@@ -114,7 +110,7 @@ describe("POST /api/board-reads", () => {
   });
 
   it("proposes the rows a price write could hold and drops the rest", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     providerFetch.mockResolvedValue(modelAnswer([
       { name: "Guinness", kind: "drink", category: "beer", measure: "pint", measureLabel: "", pricePence: 620, confidence: "clear" },
       { name: "House red", kind: "drink", category: "wine", measure: "other", measureLabel: "175ml", pricePence: 750, confidence: "likely" },
@@ -138,15 +134,13 @@ describe("POST /api/board-reads", () => {
 
     expect(seams.budget).toHaveBeenCalledWith("board-read");
     expect(providerFetch).toHaveBeenCalledTimes(1);
-    const [url, init] = providerFetch.mock.calls[0] as [string, RequestInit];
-    expect(new URL(url).hostname).toBe("openrouter.ai");
-    const sent = JSON.parse(String(init.body));
-    expect(sent.provider).toMatchObject({ zdr: true });
-    expect(JSON.stringify(sent.messages)).toContain("data:image/jpeg;base64,");
+    expect(String(providerFetch.mock.calls[0]![0])).toBe(CLAUDE_MESSAGES_URL);
+    const sent = sentClaudeBody(providerFetch.mock.calls[0]);
+    expect(sent.messages[0].content[0]).toMatchObject({ type: "image", source: { type: "base64", media_type: "image/jpeg" } });
   });
 
   it("spends the paid ceiling last and answers its refusal", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     seams.budget.mockResolvedValue(
       new Response(JSON.stringify({ error: "We have answered as much as we can today.", code: "DAILY_BUDGET_SPENT" }), { status: 429 }),
     );
@@ -159,7 +153,7 @@ describe("POST /api/board-reads", () => {
   });
 
   it("answers a retry line when the model fails, never a guessed row", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     providerFetch.mockResolvedValue(new Response("upstream", { status: 502 }));
     const { POST } = await import("@/app/api/board-reads/route");
 
@@ -170,7 +164,7 @@ describe("POST /api/board-reads", () => {
   });
 
   it("refuses a venue the price write would refuse, before the model", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     seams.venue.mockResolvedValue({ ok: false, status: 400, error: "Pick a venue from the map." });
     const { POST } = await import("@/app/api/board-reads/route");
 

@@ -30,7 +30,7 @@
 
 ### The Landlord & Heritage
 - Retrieval-grounded answers only. +10 new sourced London pub-history records recently added.
-- Rate-limited, cost-protected OpenRouter calls with in-memory fallback.
+- Answers read back the stored, cited facts. No model is called.
 
 ### Mobile & Visual Polish (Recent)
 - Mobile 375px + light/dark theme polish across social surfaces.
@@ -59,7 +59,7 @@
 
 - **Dual-store seam** (`isSupabaseConfigured()` + `requiresSupabaseStore()`) is the correct pattern and is used consistently across `lib/*Store.ts` files.
 - **Provenance never flattens** — Sourced / Contributor / Anecdote / Demo badges are respected in merging and display.
-- **Graceful degradation** — the app works fully keyless for local dev and degrades cleanly when Supabase or OpenRouter is unavailable.
+- **Graceful degradation** — the app works fully keyless for local dev and degrades cleanly when Supabase or the Claude API is unavailable.
 - **Mobile-first surfaces** — recent polish landed for 375px viewports and theme consistency.
 
 ---

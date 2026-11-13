@@ -14,7 +14,7 @@ beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(OCTOBER_REVIEW_NOW));
   __resetPubPalToolTurnStore();
-  for (const key of ["OPENROUTER_API_KEY", "TYPESAFE_API_KEY", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
+  for (const key of ["ANTHROPIC_API_KEY", "TYPESAFE_API_KEY", "SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"]) {
     vi.stubEnv(key, "");
   }
   vi.stubGlobal("fetch", vi.fn<typeof fetch>(async () => {

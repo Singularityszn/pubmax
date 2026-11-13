@@ -318,7 +318,7 @@ describe("profile avatar upload route", () => {
       "@/lib/profileAvatarModeration"
     );
     vi.stubEnv("OPENAI_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
     const storage = memoryStorage();
     __setProfileAvatarRouteDepsForTest({
       storage,

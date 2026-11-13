@@ -10,8 +10,7 @@
 // and a listing with no honest source label is dropped rather than shown bare.
 //
 // `palAnswerFromBody` keeps house-voice captions for legacy concierge bodies;
-// the live chat route returns the agent message plus cards. The client never
-// requests OpenRouter `narrated` mode.
+// the live chat route returns the agent message plus cards.
 //
 // In-thread turns may be resent to `/api/pub-pal/chat` for refinement (ADR 0014).
 // Durable Pal memory stays confirm-gated (ADR 0006) and is never written from chat.

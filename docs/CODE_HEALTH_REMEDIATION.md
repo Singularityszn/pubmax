@@ -91,8 +91,7 @@ now consumes `--ink-stamp-border/-radius/-tilt` (values were already identical).
 other callers unchanged). When Supabase is configured but the durable RPC
 returns a null verdict (`missing-rpc`/`no-client`/error), a `failClosed` caller
 now returns limited (429) instead of falling back to the per-instance in-memory
-budget. `app/api/heritage/route.ts` passes `failClosed: true` on its paid
-OpenRouter path. Pure local-dev (no Supabase) still uses the in-memory limiter.
+budget. The [heritage route](../app/api/heritage/route.ts) retains this policy. Pure local-dev (no Supabase) still uses the in-memory limiter.
 Not gated on `NODE_ENV` (Vercel runs vitest under production) — gated on
 "Supabase configured".
 

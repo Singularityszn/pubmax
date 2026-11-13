@@ -8,7 +8,7 @@
 -- Until now a price earned `receipt` evidence (0218) because a photo was
 -- attached, and nothing read it. The app now lands every price `unchecked`,
 -- reads the bill after the answer (lib/billCheck.server.ts, the board
--- reader's zero-retention vision lane) and records each observation here:
+-- reader's shared JSON lane) and records each observation here:
 --
 --   match       a line on the bill shows the submitted price to the penny. The
 --               app then moves the drop's `price_evidence` to `receipt`. This

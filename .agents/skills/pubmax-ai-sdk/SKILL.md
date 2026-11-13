@@ -1,11 +1,11 @@
 ---
 name: pubmax-ai-sdk
-description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), direct OpenRouter calls, and TypeSafe. Use for TanStack AI API or migration work, or when changing server model calls, paid model lanes, or model tracing.
+description: PubMaxxing's conventions for model calls, covering the Vercel AI SDK (`ai` v7 with AI Gateway), the Anthropic SDK (Claude API), and TypeSafe. Use for TanStack AI API or migration work, or when changing server model calls, paid model lanes, or model tracing.
 ---
 
 # Model calls in PubMaxxing
 
-This repo calls models four ways, and every call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
+Every model call runs on the server. The other controls differ by path today. The table under "Controls today" says which path has which. A new call must have all of them, as the rules below say.
 
 ## TanStack AI guidance
 
@@ -20,9 +20,8 @@ If a migration is requested, preserve the controls in this skill. Port one model
 | Kind | Example | Notes |
 | --- | --- | --- |
 | Vercel AI SDK (`ai` v7) | `lib/searchProvider.server.ts` | `generateText` with the `gateway` provider and its `exaSearch` tool. The model is an AI Gateway id such as `openai/gpt-5-nano`. Auth is `AI_GATEWAY_API_KEY` or the Vercel OIDC token. |
-| Direct OpenRouter HTTP | `lib/ask/modelLoop.ts`, `lib/heritage.ts` | `fetch` to the chat completions API with `OPENROUTER_API_KEY`. The model comes from `OPENROUTER_MODEL` or a named default. |
 | TypeSafe (Jev) | `lib/ai/typesafe.server.ts` | `systemOne` for typed judgments, such as `lib/pubPalLlmFence.ts`. |
-| Anthropic SDK (`@anthropic-ai/sdk`) | `lib/palClaudeChat.server.ts` | Pub Pal typed chat. `messages.stream` with the Pal tools, run in process. The model is `PUB_PAL_CLAUDE_MODEL` or `claude-haiku-5-5`. Auth is `ANTHROPIC_API_KEY`. |
+| Anthropic SDK (`@anthropic-ai/sdk`) | `lib/palClaudeChat.server.ts`, `lib/ask/modelLoop.ts`, `lib/claudeJson.server.ts` | Pub Pal typed chat and map Ask use `messages.stream` with their tools, run in process. Board Reader, bill checks, pub-list imports and the avatar fallback use one non-streaming JSON read with a strict schema. [Claude setup](../../../docs/PUB_PAL_SETUP.md#typed-chat-on-claude) owns the shared key and model configuration. `lib/claudeClient.server.ts` owns the client. |
 
 Moderation calls are in `lib/profileAvatarModeration.ts` and `lib/socialPostModeration.ts`.
 
@@ -33,9 +32,10 @@ Do not assume that an existing path has a control. Check this table and the code
 | Path | Shared paid budget | Arize trace | Fallback |
 | --- | --- | --- | --- |
 | Ask (`app/api/ask/route.ts`, `lib/ask/modelLoop.ts`) | Yes, lane `ask` | `traceArizeModelLoop` | Deterministic answer |
-| Heritage (`app/api/heritage/route.ts`, `lib/heritage.ts`) | Yes, lane `heritage` | `traceArizeModelCall` | Grounded structured answer |
+| Claude JSON reads (`lib/claudeJson.server.ts`: Board Reader, bill checks, pub-list imports) | Yes, lanes `board-read`, `bill-read`, `pub-list-import` | `traceArizeModelCall` | Keyless line, `unchecked` price, or line-by-line match |
 | AI Gateway search (`lib/searchProvider.server.ts`) | No. It has its own `SEARCH_GATEWAY_MAX_CALLS` cap. | AI SDK spans, only when Arize is registered | Not an answer path |
 | Moderation (`lib/profileAvatarModeration.ts`, `lib/socialPostModeration.ts`) | No | `traceArizeModelCall` | Not an answer path |
+| Heritage (`app/api/heritage/route.ts`, `lib/heritage.ts`) | Not a model path: it reads back stored, cited facts | No | Not needed |
 | Pub Pal typed chat on Claude (`app/api/pub-pal/chat/route.ts`, `lib/palClaudeChat.server.ts`) | Yes, lane `pub-pal-chat` | `traceArizeModelLoop` | Record answers and the fence run first. A model failure is the route's 503 retry line. |
 | TypeSafe app door (`lib/ai/typesafe.server.ts`) | Yes, lane `typesafe` | No. It records timing with `recordTypesafeTiming`. | `null` |
 | TypeSafe plain Node (`lib/ai/typesafe.ts`) | No | No | `null` |
@@ -57,5 +57,5 @@ Do not assume that an existing path has a control. Check this table and the code
 
 ## Proof
 
-- Tests: `__tests__/palClaudeChat.server.test.ts`, `__tests__/searchProvider.test.ts`, `__tests__/heritage.test.ts`, `__tests__/paidSpendBudget.test.ts`, `__tests__/anonymousPaidRoutes.test.ts`, `__tests__/arizeTracing.test.ts`.
+- Tests: `__tests__/palClaudeChat.server.test.ts`, `__tests__/askClaudeModelLoop.test.ts`, `__tests__/billCheckServer.test.ts`, `__tests__/searchProvider.test.ts`, `__tests__/heritage.test.ts`, `__tests__/paidSpendBudget.test.ts`, `__tests__/anonymousPaidRoutes.test.ts`, `__tests__/arizeTracing.test.ts`.
 - Tracing setup: `docs/observability/arize.md`.

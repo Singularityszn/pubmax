@@ -6,6 +6,7 @@ import { resolveLateFoodQuery } from "@/lib/ask/lateFoodQuestion";
 import { answerLateFoodQuestion } from "@/lib/ask/lateFoodAnswer.server";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { askModelConfigured, runAskModelLoop } from "@/lib/ask/modelLoop";
+import type { ClaudeClient } from "@/lib/claudeClient.server";
 import {
   resolveAskCityId,
   runAskTool,
@@ -176,6 +177,8 @@ export type RunAskInput = {
   now?: number;
   /** Model loop deadline (tests); the loop's own default otherwise. */
   modelTimeoutMs?: number;
+  /** Claude client for the model loop (tests and evals); the shared one otherwise. */
+  claude?: ClaudeClient;
   /** Static route tag for the trace (e.g. "api/ask"). */
   traceRoute?: string;
   /** Server-owned discovery exclusions. See AskToolContext. */
@@ -242,7 +245,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
       turns,
       ctx,
       ...(input.traceRoute ? { traceRoute: input.traceRoute } : {}),
-      ...(input.fetchImpl ? { fetchImpl: input.fetchImpl } : {}),
+      ...(input.claude ? { claude: input.claude } : {}),
       ...(input.modelTimeoutMs !== undefined ? { timeoutMs: input.modelTimeoutMs } : {}),
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {

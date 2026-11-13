@@ -80,7 +80,7 @@ sets a secret. Exact env var → mechanism mapping:
 | `CONTEXT_DEV_API_KEY` | Local key file read by the launchd events job; not a GH Actions or Vercel secret | What's-On events registered-source lane through Context.dev extract ([lane contract](./LONDON_HARVEST.md#contextdev-events-lane)). `.env.example` lists every other reader | Lane reports `not-configured` and sends nothing |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), research | Those harvest scripts can't fetch; bundled data unaffected |
 | `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Every TfL surface (last-train, nearby buses) works fully keyless; only limits are lower |
-| `OPENROUTER_API_KEY` | Vercel env | The Landlord heritage narration | `/api/heritage` returns grounded, structured-only answers |
+| `ANTHROPIC_API_KEY` | Vercel env | Map Ask model loop, Pub Pal typed chat, Board Reader, bill checks, pub-list imports | Each falls back to its keyless path; The Landlord never needs it |
 | `NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN`, `NEXT_PUBLIC_POSTHOG_HOST` | Vercel env | Consent-gated PostHog EU product analytics with persistent pseudonymous device identity, standard browser context, coarse pageviews, Web Vitals, and scrubbed browser exceptions | Product events still logged to Vercel structured sink |
 | `ELEVENLABS_API_KEY` + `ELEVENLABS_PUB_PAL_AGENT_ID` | Vercel env | Pub Pal conversational voice token | Voice session unavailable |
 | `SUPABASE_URL` / `SUPABASE_SERVICE_ROLE_KEY` | Vercel env (required in prod) | Pint Drops persistence, moderation, durable rate limiting | Pint Drop writes 503; in-memory demo store locally |

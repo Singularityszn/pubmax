@@ -306,7 +306,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   // A model is optional. Keyless deploys still answer from the same grounded
-  // tools as /api/ask, and they never call OpenRouter, Anthropic or ElevenLabs.
+  // tools as /api/ask, and they never call Anthropic or ElevenLabs.
   if (!configured) {
     try {
       const social = keylessSocialReply(query, turns);

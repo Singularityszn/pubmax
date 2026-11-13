@@ -46,7 +46,8 @@ const DAY_AFTER_NEWEST_UPDATE = new Date(Date.parse(`${NEWEST_UPDATE}T00:00:00Z`
 // so does /today since its ISR stale window is one hour (SEO audit #2126).
 // /press and /pub-crawl-cost are the two pages other sites are asked to link
 // to (docs/growth/BACKLINK_PLAYBOOK.md). /tools is the public pub comparison
-// explanation and form; personal choices never enter its URL.
+// explanation and form; personal choices never enter its URL. /guides is the
+// pub of the week, short crawl guides and the oldest cited pubs.
 //
 // /pint-index is NOT here. Captain decision D10 holds its row until a month
 // carries the admission floor of priced pubs in at least one borough, and the
@@ -54,7 +55,7 @@ const DAY_AFTER_NEWEST_UPDATE = new Date(Date.parse(`${NEWEST_UPDATE}T00:00:00Z`
 // row returning is a conscious test edit, the same as a change to the list
 // above; the gate itself is proved in both directions by the fixture-driven
 // describe at the foot of this file. The ROUTE is unaffected either way.
-const STATIC_HUB_COUNT = 25;
+const STATIC_HUB_COUNT = 26;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -191,6 +192,7 @@ describe("sitemap()", () => {
       "/map",
       "/borough",
       "/historic",
+      "/guides",
       "/crawls",
       "/about",
       "/spoons-value",

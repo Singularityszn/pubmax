@@ -321,7 +321,7 @@ describe("the phone sheet shows one plan door that follows state", () => {
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
-  it("the card in the phone footer holds the one door, Ask for a table and Share, in either mode", () => {
+  it("the card in the phone footer holds the one door, Ask for a table, Summon mates and Share, in either mode", () => {
     for (const mode of ["suggest", "build"] as const) {
       act(() => root.render(createElement(PhoneSheet, {
         key: mode, initialMode: mode, initialBuiltIds: [VENUE_ID], onAcceptStop1: vi.fn(),
@@ -331,7 +331,7 @@ describe("the phone sheet shows one plan door that follows state", () => {
       const toolbar = footer?.querySelector('[role="toolbar"][aria-label="Venue actions"]');
       const names = Array.from(toolbar?.querySelectorAll("button") ?? [], (button) =>
         button.getAttribute("aria-label") ?? button.textContent?.trim());
-      expect(names).toEqual(["Ask for a table at The Plan Door", "Share The Plan Door"]);
+      expect(names).toEqual(["Ask for a table at The Plan Door", "Summon mates to The Plan Door", "Share The Plan Door"]);
       expect(planControls()).toHaveLength(1);
       // Nothing that plans is left in the body above the footer.
       expect(host.querySelector(".mobileSharedSheetBody button")).toBeNull();
@@ -347,7 +347,7 @@ describe("desktop reads the same one door", () => {
       initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: accept, onToggle: toggle, phone: false,
     })));
     expect(host.querySelector(".mapDrawer .venueActionCard")).toBeTruthy();
-    expect(buttons().map((button) => button.textContent?.trim())).toEqual(["Plan stop", "Ask for a table", "Share"]);
+    expect(buttons().map((button) => button.textContent?.trim())).toEqual(["Plan stop", "Ask for a table", "Summon mates", "Share"]);
     expect(planControls()).toHaveLength(1);
     act(() => peekDoor().click());
     expect(toggle).toHaveBeenCalledWith(VENUE_ID);
@@ -376,6 +376,7 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
     expect(ghosts.map((button) => button.getAttribute("aria-label"))).toEqual([
       "Make it Stop 1: The Plan Door",
       "Ask for a table at The Plan Door",
+      "Summon mates to The Plan Door",
       "Share The Plan Door",
     ]);
     expect(planControls()).toHaveLength(1);

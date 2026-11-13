@@ -1,9 +1,11 @@
 import { join } from "node:path";
 
+import Anthropic from "@anthropic-ai/sdk";
 import { LLMock, type JournalEntry } from "@copilotkit/aimock";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { runAsk, type RunAskInput } from "@/lib/ask/runAsk";
+import type { ClaudeClient } from "@/lib/claudeClient.server";
 import { offlineFetch, requestUrl } from "@/evals/pal/offlineFetch";
 import { loadPalEvalSuite } from "@/evals/pal/loadSuite";
 import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
@@ -14,14 +16,15 @@ import { PINT_DATASET_TEST_NOW } from "@/__tests__/helpers/pintDatasetClock";
  *
  * `npm run eval:pal` skips the model and `eval:pal:live` needs a paid key, so
  * nothing in CI exercised the tool-calling path in `lib/ask/modelLoop.ts`. Here
- * aimock serves OpenRouter's chat-completions wire from
- * `__tests__/fixtures/aimock/ask-model-loop.json`, `OPENROUTER_BASE_URL` points
- * the loop at it, and every case runs through `runAsk` with the real tool
+ * aimock serves the Claude Messages wire from
+ * `__tests__/fixtures/aimock/ask-model-loop.json`, an Anthropic SDK client
+ * pointed at it is handed to `runAsk`, and every case runs with the real tool
  * handlers. Every other host stays on the Pal eval's offline stub, and the Pal
  * eval's pinned `now` keeps event tools on an evening the fixtures cover.
  * The pint-card case uses a later instant, after the published price observations.
  */
 
+/** aimock journals every provider's request in one chat-completions shape. */
 type SentMessage = { role: string; content: string | null; tool_call_id?: string };
 
 const mock = new LLMock({ port: 0, logLevel: "silent" });
@@ -37,12 +40,18 @@ const mockFetch: typeof fetch = (input, init) => {
   return fetch(input, init);
 };
 
+/** The Claude client the loop sends on, pointed at aimock instead of api.anthropic.com. */
+function mockClaude(): ClaudeClient {
+  const sdk = new Anthropic({ apiKey: "aimock", baseURL: mock.url, maxRetries: 0, fetch: mockFetch });
+  return { stream: (body, options) => sdk.messages.stream(body, options) };
+}
+
 function ask(query: string, extra: Partial<RunAskInput> = {}) {
-  return runAsk({ query, cityId: "london", now, fetchImpl: mockFetch, ...extra });
+  return runAsk({ query, cityId: "london", now, fetchImpl: offlineFetch, claude: mockClaude(), ...extra });
 }
 
 function modelRequests(): JournalEntry[] {
-  return mock.getRequests().filter((entry) => entry.path.endsWith("/chat/completions"));
+  return mock.getRequests().filter((entry) => entry.path.endsWith("/v1/messages"));
 }
 
 function sentMessages(entry: JournalEntry): SentMessage[] {
@@ -65,23 +74,21 @@ afterAll(async () => {
 beforeEach(() => {
   mock.clearRequests();
   modelSignals.length = 0;
-  vi.stubEnv("OPENROUTER_API_KEY", "aimock");
-  // This suite drives the OpenRouter half; a Claude key would take the Claude half.
-  vi.stubEnv("ANTHROPIC_API_KEY", undefined);
-  vi.stubEnv("OPENROUTER_BASE_URL", `${mock.url}/api/v1`);
+  // The key only switches the model on; the client above is what sends.
+  vi.stubEnv("ANTHROPIC_API_KEY", "aimock");
   vi.stubEnv("TYPESAFE_API_KEY", undefined);
   return () => vi.unstubAllEnvs();
 });
 
-describe("runAsk against a mock OpenRouter", () => {
+describe("runAsk against a mock Claude", () => {
   it("runs a single allowlisted tool call and keeps its grounded cards", async () => {
     // A clock after the committed Camden price reads, which are never in its future.
     const body = await ask("Cheapest pint in Camden tonight", { now: PINT_DATASET_TEST_NOW });
 
     const requests = modelRequests();
     expect(requests.map((entry) => entry.response.status)).toEqual([200, 200]);
-    expect(requests[0]!.path).toBe("/api/v1/chat/completions");
-    // aimock redacts the bearer in its journal; that it was sent is the check.
+    expect(requests[0]!.path).toBe("/v1/messages");
+    // aimock redacts the key in its journal; that it was sent is the check.
     expect(requests[0]!.headers.authorization).toBeTruthy();
     expect(toolReplies(requests[1]!)).toHaveLength(1);
     expect(body.toolsUsed).toEqual(["cheapest_pint_near"]);
@@ -101,18 +108,6 @@ describe("runAsk against a mock OpenRouter", () => {
       "pal-two-2",
     ]);
     expect(body.toolsUsed).toEqual(["cheapest_pint_near", "venue_drinks"]);
-  });
-
-  it("rejects arguments that are not a JSON object and falls back to the deterministic path", async () => {
-    const query = "Somewhere quiet near Bank for 4";
-    const body = await ask(query);
-
-    const requests = modelRequests();
-    expect(requests.map((entry) => entry.response.status)).toEqual([200, 200]);
-    const [reply] = toolReplies(requests[1]!);
-    expect(reply?.tool_call_id).toBe("pal-badargs-1");
-    expect(JSON.parse(reply!.content!)).toEqual({ error: "Tool arguments were not a JSON object." });
-    expect(body).toEqual(await ask(query, { skipModel: true }));
   });
 
   it("refuses a tool off the allowlist and falls back to the deterministic path", async () => {
@@ -145,11 +140,13 @@ describe("runAsk against a mock OpenRouter", () => {
 
     const requests = modelRequests();
     expect(requests).toHaveLength(3);
-    const runRound = ["pal-runaway-1", "pal-runaway-2", "pal-runaway-3"];
-    expect(toolReplies(requests[2]!).map((message) => message.tool_call_id)).toEqual([
-      ...runRound,
-      ...runRound,
-    ]);
+    // Claude needs a result for every call, so the fourth gets an error and runs nothing.
+    const round = ["pal-runaway-1", "pal-runaway-2", "pal-runaway-3", "pal-runaway-4"];
+    const replies = toolReplies(requests[2]!);
+    expect(replies.map((message) => message.tool_call_id)).toEqual([...round, ...round]);
+    for (const reply of replies.filter((message) => message.tool_call_id === "pal-runaway-4")) {
+      expect(JSON.parse(reply.content!)).toEqual({ error: "Only 3 tools run per round." });
+    }
     expect(body.toolsUsed).toEqual(["cheapest_pint_near"]);
   });
 });

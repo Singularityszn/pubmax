@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import { afterAll, describe, expect, it } from "vitest";
+import { afterAll, describe, expect, it, vi } from "vitest";
 
 import type { HistoricPub } from "@/lib/historic";
 
@@ -56,6 +56,13 @@ const FIXTURE_DATASET = [
     primary_borough: "Hackney",
   },
 ];
+
+const FIXTURE_REGISTRY = {
+  datasets: [
+    { id: "historic_pubs", stamp: { kind: "literal", value: "2026-10-16T00:00:00Z" } },
+    { id: "other", stamp: { kind: "literal", value: "2026-09-01T00:00:00Z" } },
+  ],
+};
 
 const EXPECTED_KEYS = [
   "venueId",
@@ -223,6 +230,8 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
   const datasetPath = path.join(dir, "dataset.json");
   const outA = path.join(dir, "out-a.json");
   const outB = path.join(dir, "out-b.json");
+  const registryPath = path.join(dir, "freshness_registry.json");
+  writeFileSync(registryPath, JSON.stringify(FIXTURE_REGISTRY));
 
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
@@ -230,20 +239,64 @@ describe("generate — deterministic + idempotent over a /tmp fixture", () => {
     writeFileSync(cachePath, JSON.stringify(FIXTURE_CACHE));
     writeFileSync(datasetPath, JSON.stringify(FIXTURE_DATASET));
 
-    const a = await generate({ cachePath, datasetPath, outPath: outA });
-    await generate({ cachePath, datasetPath, outPath: outB });
+    const a = await generate({ cachePath, datasetPath, outPath: outA, registryPath });
+    await generate({ cachePath, datasetPath, outPath: outB, registryPath });
 
     expect(a.total).toBe(4);
     expect(readFileSync(outA, "utf8")).toBe(readFileSync(outB, "utf8"));
 
     // Re-running over the SAME out path is also byte-stable.
     const firstBytes = readFileSync(outA, "utf8");
-    await generate({ cachePath, datasetPath, outPath: outA });
+    await generate({ cachePath, datasetPath, outPath: outA, registryPath });
     expect(readFileSync(outA, "utf8")).toBe(firstBytes);
 
     expect(a.matched).toBe(2);
     expect(a.withEra).toBe(2);
     expect(a.withListed).toBe(2);
+  });
+
+  it("advances only the historic stamp after byte-identical rebuilds", async () => {
+    writeFileSync(cachePath, JSON.stringify(FIXTURE_CACHE));
+    writeFileSync(datasetPath, JSON.stringify(FIXTURE_DATASET));
+    writeFileSync(registryPath, JSON.stringify(FIXTURE_REGISTRY));
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-12T06:17:00Z"));
+      await generate({ cachePath, datasetPath, outPath: outA, registryPath });
+      const firstBytes = readFileSync(outA, "utf8");
+      expect(JSON.parse(readFileSync(registryPath, "utf8"))).toEqual({
+        datasets: [
+          { id: "historic_pubs", stamp: { kind: "literal", value: "2026-11-12T06:17:00.000Z" } },
+          FIXTURE_REGISTRY.datasets[1],
+        ],
+      });
+
+      vi.setSystemTime(new Date("2026-12-03T06:17:00Z"));
+      await generate({ cachePath, datasetPath, outPath: outA, registryPath });
+      expect(readFileSync(outA, "utf8")).toBe(firstBytes);
+      expect(JSON.parse(readFileSync(registryPath, "utf8"))).toEqual({
+        datasets: [
+          { id: "historic_pubs", stamp: { kind: "literal", value: "2026-12-03T06:17:00.000Z" } },
+          FIXTURE_REGISTRY.datasets[1],
+        ],
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("does not advance freshness when the index cannot be written", async () => {
+    writeFileSync(cachePath, JSON.stringify(FIXTURE_CACHE));
+    writeFileSync(datasetPath, JSON.stringify(FIXTURE_DATASET));
+    writeFileSync(registryPath, JSON.stringify(FIXTURE_REGISTRY));
+    const before = readFileSync(registryPath, "utf8");
+    await expect(generate({
+      cachePath,
+      datasetPath,
+      outPath: path.join(dir, "missing-directory", "historic_pubs.json"),
+      registryPath,
+    })).rejects.toThrow();
+    expect(readFileSync(registryPath, "utf8")).toBe(before);
   });
 });
 
@@ -338,6 +391,8 @@ describe("venue joins survive a renamed or merged dataset row", () => {
 describe("the shipped historic index (generated artifact)", () => {
   const dir = mkdtempSync(path.join(tmpdir(), "historic-shipped-"));
   const outPath = path.join(dir, "historic_pubs.json");
+  const registryPath = path.join(dir, "freshness_registry.json");
+  writeFileSync(registryPath, JSON.stringify(FIXTURE_REGISTRY));
   afterAll(() => rmSync(dir, { recursive: true, force: true }));
 
   // public/data/historic_pubs.json is generated output, so the file that ships
@@ -345,7 +400,7 @@ describe("the shipped historic index (generated artifact)", () => {
   // artifact is what carried three venue links to pubs the dataset had already
   // renamed or dropped.
   it("is exactly what the generator writes from the current sources", async () => {
-    await generate({ outPath });
+    await generate({ outPath, registryPath });
     expect(readFileSync(outPath, "utf8")).toBe(
       readFileSync("public/data/historic_pubs.json", "utf8"),
     );
@@ -400,7 +455,7 @@ describe("the shipped historic index (generated artifact)", () => {
 
   it("drops no join the shipped index already holds", async () => {
     const regeneratedPath = path.join(dir, "historic_pubs_rejoin.json");
-    await generate({ outPath: regeneratedPath });
+    await generate({ outPath: regeneratedPath, registryPath });
     const regenerated = JSON.parse(
       readFileSync(regeneratedPath, "utf8"),
     ) as HistoricPub[];

@@ -107,7 +107,7 @@ async function run() {
     adapter = await startRestAdapter(db.restBaseUrl);
     const port = await pickPort();
     const env = { ...process.env };
-    for (const name of ["DATABASE_URL", "DIRECT_URL", "OPENROUTER_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "VERCEL_ENV", "PW_E2E_ADMIN_TOKEN"]) {
+    for (const name of ["DATABASE_URL", "DIRECT_URL", "ANTHROPIC_API_KEY", "SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "NEXT_PUBLIC_SUPABASE_URL", "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "VERCEL_ENV", "PW_E2E_ADMIN_TOKEN"]) {
       delete env[name];
     }
     Object.assign(env, {
@@ -122,7 +122,7 @@ async function run() {
       PW_NEXT_DIST_DIR: DIST_DIR,
       NEXT_PUBLIC_SUPABASE_URL: adapter.url,
       NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "sb_publishable_pubmaxx_e2e",
-      OPENROUTER_API_KEY: "",
+      ANTHROPIC_API_KEY: "",
       VERCEL_ENV: "development",
       PUBMAX_TRACKED_OUTPUTS: "public/data",
     });

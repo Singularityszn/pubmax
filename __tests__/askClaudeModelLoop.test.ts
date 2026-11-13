@@ -1,7 +1,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// Map Ask's model loop on Claude (lib/ask/modelLoop.ts), with the OpenRouter
+// Map Ask's model loop on Claude (lib/ask/modelLoop.ts), with the keyless
 // fallback beside it. The Claude call is a fake passed as `claude`, and the
 // tools are a fake too, so no test reaches a model or a data source.
 
@@ -76,7 +76,6 @@ function sentResults(body: Anthropic.MessageStreamParams): Anthropic.ToolResultB
 
 beforeEach(() => {
   vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
-  vi.stubEnv("OPENROUTER_API_KEY", undefined);
   vi.stubEnv("PUB_PAL_CLAUDE_MODEL", undefined);
   vi.stubEnv("ARIZE_API_KEY", undefined);
   vi.stubEnv("ARIZE_SPACE_KEY", undefined);
@@ -90,12 +89,10 @@ afterEach(() => {
 });
 
 describe("Ask model loop on Claude", () => {
-  it("is configured by either key", () => {
+  it("is configured by the Claude key alone", () => {
     expect(askModelConfigured()).toBe(true);
     vi.stubEnv("ANTHROPIC_API_KEY", " ");
     expect(askModelConfigured()).toBe(false);
-    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
-    expect(askModelConfigured()).toBe(true);
   });
 
   it("asks Claude with the cached prompt, every Ask tool and low effort, and runs the tool it picks", async () => {
@@ -191,6 +188,30 @@ describe("Ask model loop on Claude", () => {
     expect(JSON.parse(String(sentResults(bodies[1]!)[0]!.content))).toEqual({ error: "Tool not allowlisted." });
   });
 
+  it("answers tool input that is not an object with an error and runs nothing", async () => {
+    const { client, bodies } = fakeClaude([
+      { content: [toolUse("tu_1", "search_venues", "quiet near Bank")], stop_reason: "tool_use" },
+      { content: [text("Sorry.")], stop_reason: "end_turn" },
+    ]);
+
+    const outcome = await runAskModelLoop({ query: "quiet near Bank", ctx, claude: client });
+
+    expect(outcome).toEqual({ toolResults: [] });
+    expect(runAskToolMock).not.toHaveBeenCalled();
+    expect(JSON.parse(String(sentResults(bodies[1]!)[0]!.content)))
+      .toEqual({ error: "Tool arguments were not a JSON object." });
+  });
+
+  it("runs no tool from an answer cut off at the token cap, whose input may be partial", async () => {
+    const { client, bodies } = fakeClaude([
+      { content: [toolUse("tu_1", "search_venues", { query: "quiet near" })], stop_reason: "max_tokens" },
+    ]);
+
+    expect(await runAskModelLoop({ query: "quiet near Bank", ctx, claude: client })).toEqual({ toolResults: [] });
+    expect(runAskToolMock).not.toHaveBeenCalled();
+    expect(bodies).toHaveLength(1);
+  });
+
   it("runs three tools a round and gives every further call an error result", async () => {
     const { client, bodies } = fakeClaude([
       {
@@ -273,56 +294,14 @@ describe("Ask model loop on Claude", () => {
   });
 });
 
-describe("Ask model loop fallback to OpenRouter", () => {
-  function openRouterFetch(): { fetchImpl: typeof fetch; urls: string[] } {
-    const urls: string[] = [];
-    const fetchImpl: typeof fetch = async (input) => {
-      urls.push(String(input));
-      return new Response(
-        JSON.stringify({ choices: [{ message: { role: "assistant", content: "Nothing to look up." } }] }),
-        { status: 200, headers: { "content-type": "application/json" } },
-      );
-    };
-    return { fetchImpl, urls };
-  }
-
-  it("calls OpenRouter exactly as before when there is no Claude key", async () => {
+describe("Ask model loop without a Claude key", () => {
+  it("returns null and calls no other provider, even with a leftover OpenRouter key", async () => {
     vi.stubEnv("ANTHROPIC_API_KEY", undefined);
     vi.stubEnv("OPENROUTER_API_KEY", "or-key");
-    const { fetchImpl, urls } = openRouterFetch();
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    const outcome = await runAskModelLoop({ query: "hello", ctx, fetchImpl });
-
-    expect(outcome).toEqual({ toolResults: [] });
-    expect(urls).toEqual(["https://openrouter.ai/api/v1/chat/completions"]);
-  });
-
-  it("does not touch OpenRouter when Claude is configured", async () => {
-    vi.stubEnv("OPENROUTER_API_KEY", "or-key");
-    const { fetchImpl, urls } = openRouterFetch();
-    const { client, bodies } = fakeClaude([{ content: [text("Fine.")], stop_reason: "end_turn" }]);
-
-    await runAskModelLoop({ query: "hello", ctx, fetchImpl, claude: client });
-
-    expect(bodies).toHaveLength(1);
-    expect(urls).toEqual([]);
-  });
-
-  it("keeps an explicit OpenRouter key on OpenRouter", async () => {
-    const { fetchImpl, urls } = openRouterFetch();
-    const { client, bodies } = fakeClaude([]);
-
-    await runAskModelLoop({ query: "hello", ctx, fetchImpl, apiKey: "or-key", claude: client });
-
-    expect(bodies).toEqual([]);
-    expect(urls).toHaveLength(1);
-  });
-
-  it("returns null with neither key", async () => {
-    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
-    const { fetchImpl, urls } = openRouterFetch();
-
-    expect(await runAskModelLoop({ query: "hello", ctx, fetchImpl })).toBeNull();
-    expect(urls).toEqual([]);
+    expect(askModelConfigured()).toBe(false);
+    expect(await runAskModelLoop({ query: "hello", ctx })).toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
