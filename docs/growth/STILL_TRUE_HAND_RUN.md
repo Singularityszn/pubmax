@@ -284,13 +284,18 @@ Do not do this walk until two pubs have said yes. Until then, stay put. Night 2 
 
 ---
 
-## 5. The code gate
+## 5. The one-pub night in the app
 
-The gate is closed. This section is a written gate, not shipped code. No route, no screen, no migration, no test. Software waits until both nights in section 3 have hit the bar: at least 3 fresh public drops each night, and most people said they would come again. Those nights have not been run.
+The app carries the same night, and nothing more. An open crawl with exactly one stop is a one-pub night. Its public page shows "I'll be there" where other crawls show "Ask to join". The words are never "Save me a seat."
 
-When that bar is hit, the shape is one stop. An open crawl at the pub where the nights already happened. A cap on how many can join. The number comes from the room, after the nights. This file does not set it. Each "I'll be there" is a real join row. The words on the button are "I'll be there." The words are never "Save me a seat."
+- Each "I'll be there" is a real join request. The host still accepts or declines.
+- The page counts people who said yes and people marked here, from those rows. With nobody, it says "Nobody has said yes yet." It never shows a zero.
+- The listed pint shows only with its drink, price, source and read day. No source, no line.
+- A signed-out person taps, signs in with the email link and comes back to the same night. The request goes only from the device that tapped.
 
-Stays parked:
+The cap is the crawl's capacity. Set it from the room, after the nights. Running the app night does not replace sections 1 to 4. The bar in section 3 still decides whether the series goes on.
+
+These stay out of the Still true nights:
 
 - points
 - leagues
@@ -300,8 +305,7 @@ Stays parked:
 - invite gates
 - venue fees
 - ticket resale
-- native apps
 - crowd photos
 - naming a pub that has not agreed
 
-Drinkers never pay. While this gate is closed, do not build a seat screen, a gazette, or a summon button.
+Drinkers never pay.
