@@ -619,6 +619,8 @@ function londonPlaceDrawn(
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
+  "uk-base-overview",
+  "uk-base-overview-count",
   "pubs-drops-halo",
   "pubs-whatson-badge",
   "band-members-halo",
@@ -1246,6 +1248,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     type: "FeatureCollection",
     features: [],
   });
+  const ukBaseOverviewDataRef = useRef<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
   const poisDataRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
@@ -2609,6 +2612,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         pubsData: pubsDataRef.current,
         userLocationData: userLocationDataRef.current,
         ukBaseData: ukBaseDataRef.current,
+        ukBaseOverviewData: ukBaseOverviewDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         coffeePilotData: coffeePilotDataRef.current,
@@ -2693,6 +2697,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
               pubsData: pubsDataRef.current,
               userLocationData: userLocationDataRef.current,
               ukBaseData: ukBaseDataRef.current,
+              ukBaseOverviewData: ukBaseOverviewDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
               coffeePilotData: coffeePilotDataRef.current,
@@ -4151,6 +4156,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     mapReady,
     applyToMap,
     ukBaseDataRef,
+    ukBaseOverviewDataRef,
     drawableVenueIds,
     provisionalVenueIds,
     // The Spoons value lens rides THIS layer: most of the pubs it ranks are

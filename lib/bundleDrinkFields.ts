@@ -10,7 +10,8 @@ export function normalizeUkPriceBundleDrinkLabel(
   value: string | null | undefined,
 ): string | null {
   if (typeof value !== "string") return null;
-  const trimmed = value.trim();
+  // A "Guinness - £5.50" line leaves its separator on the printed name.
+  const trimmed = value.trim().replace(/\s*[-\u2013\u2014]+$/u, "");
   if (!trimmed) return null;
   if (trimmed.length <= UK_PRICE_BUNDLE_DRINK_LABEL_MAX) return trimmed;
   return trimmed.slice(0, UK_PRICE_BUNDLE_DRINK_LABEL_MAX);

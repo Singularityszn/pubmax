@@ -582,7 +582,9 @@ describe("site-harvest withdrawal reconciliation", () => {
         if (withdrawal.reason === "source-page-names-another-branch") {
           expect(pageNamesAnotherBranch(identity.sourceUrl ?? "", { name: ledgerRow.name ?? null })).toBe(true);
         } else {
-          expect(["insufficient-pint-evidence", "truncated-menu-price"]).toContain(withdrawal.reason);
+          expect(["insufficient-pint-evidence", "truncated-menu-price", "category-contradicts-the-page"]).toContain(
+            withdrawal.reason,
+          );
           expect(isCategoryQuarantined({
             venueId: defined(ledgerRow.venueId),
             name: ledgerRow.name ?? null,

@@ -10325,6 +10325,54 @@
         "rowCount": 7986,
         "siteHarvestRows": 3871
       }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-13-shenanigansliverpool-co-uk-menu.json",
+      "sourceEvidenceSha256": "fdf72009b78e9b976842d83177990f4ea4c0691d074b1aa3555166d09ee5bb23",
+      "sourceUrl": "https://www.shenanigansliverpool.co.uk/menu",
+      "sourceObservedAt": "2026-11-13T03:13:44.264Z",
+      "addedRows": 14,
+      "currentLedger": {
+        "sha256": "6a69d47c67786a8deeb824603d66143d1588850efcdedda4519b1d9a69956db7",
+        "rowCount": 4047,
+        "rowIdentitySetSha256": "ec389164d3125c91b77d523338bffd855600b8eebe6d9595fe21b35d169a4701"
+      },
+      "currentBundle": {
+        "rowCount": 10475,
+        "siteHarvestRows": 3876
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-13-thegateglasgow-com.json",
+      "sourceEvidenceSha256": "4c251248ea4c9878991660fa0af5406984ae5210f5c465274ad33e1e0a3f0416",
+      "sourceUrl": "https://thegateglasgow.com",
+      "sourceObservedAt": "2026-11-13T03:14:33.972Z",
+      "addedRows": 15,
+      "currentLedger": {
+        "sha256": "f3d4e8f905794b5f482f93d09be59c3d01ebf3d4e7dc77fed8944b125c384e46",
+        "rowCount": 4062,
+        "rowIdentitySetSha256": "848a2c26c6eeb9ddf3c2b4a1d45898eb827bfa05958ea1273489ccfb97c3d267"
+      },
+      "currentBundle": {
+        "rowCount": 10475,
+        "siteHarvestRows": 3876
+      }
+    },
+    {
+      "sourceEvidencePath": "data/uk_prices/later_publications/2026-11-13-thegriffinglasgow-co-uk-s-griffin-drinks-list-nov2551-pdf.json",
+      "sourceEvidenceSha256": "b97f8a9e69f193e042a885f0b72035696a875018109546220b5433e13383ea8c",
+      "sourceUrl": "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf",
+      "sourceObservedAt": "2026-11-13T03:14:40.330Z",
+      "addedRows": 13,
+      "currentLedger": {
+        "sha256": "4d551ed2550141845efdb72008b03d70b5b7c0cac90dd820da0316d5f91e6882",
+        "rowCount": 4075,
+        "rowIdentitySetSha256": "7a94ad5fe4fa44c5976a5dd9eb0d10e48fa5389b9ab1ce857946d4b939663d1e"
+      },
+      "currentBundle": {
+        "rowCount": 10475,
+        "siteHarvestRows": 3876
+      }
     }
   ],
   "bundleWithdrawals": [
@@ -10747,6 +10795,153 @@
       "currentBundle": {
         "rowCount": 7949,
         "siteHarvestRows": 3834
+      }
+    },
+    {
+      "decidedOn": "2026-11-13",
+      "rule": "isCategoryQuarantined (lib/ukPriceBundle.ts)",
+      "reason": "category-contradicts-the-page",
+      "note": "The 2026-09-04 keyless read filed each figure under a drink the page does not state it for: a food add-on, a cocktail or spritz, a 125ml wine, a bottled beer or a bourbon. The city sweep re-read these pages on 2026-11-13. The bundle drops each row. The original row stays in the ledger.",
+      "afterLaterPublications": 78,
+      "rows": [
+        {
+          "sha256": "c3c31cba3d1fd6da21aaab667e49b4e5905bc87a8c929f61c6b18ae41398b02e",
+          "host": "eagleandball.co.uk",
+          "venueId": "venue-uk-w74008474",
+          "category": "beer",
+          "drinkLabel": null,
+          "priceGbp": 2.5,
+          "sourceUrl": "https://www.eagleandball.co.uk/menus/",
+          "observedAt": "2026-09-04T13:57:47.741Z"
+        },
+        {
+          "sha256": "7ca0089f6e84583a48b4d86e6008333e268cdb776d61e111fc47569804aa0238",
+          "host": "thegateglasgow.com",
+          "venueId": "venue-uk-n6802062642",
+          "category": "coffee",
+          "drinkLabel": null,
+          "priceGbp": 7,
+          "sourceUrl": "https://thegateglasgow.com",
+          "observedAt": "2026-09-04T14:15:55.996Z"
+        },
+        {
+          "sha256": "9cf2a2e3197d326aa5634fbf7be9edba459621d3283e34823ad5a48461c419b7",
+          "host": "thegriffinglasgow.co.uk",
+          "venueId": "venue-uk-n726747114",
+          "category": "beer",
+          "drinkLabel": null,
+          "priceGbp": 4.4,
+          "sourceUrl": "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf",
+          "observedAt": "2026-09-04T17:45:54.935Z"
+        },
+        {
+          "sha256": "743239e378c5d93780189de6e753a608c5f2ca7baf563988038938379c26ba6f",
+          "host": "thegriffinglasgow.co.uk",
+          "venueId": "venue-uk-n726747114",
+          "category": "gin",
+          "drinkLabel": null,
+          "priceGbp": 4.3,
+          "sourceUrl": "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf",
+          "observedAt": "2026-09-04T17:45:54.935Z"
+        },
+        {
+          "sha256": "ae9b7f69eb84e07f093a3093255b8946fc45bab89d8bfbc96b4c57c6bc0d6f71",
+          "host": "shenanigansliverpool.co.uk",
+          "venueId": "venue-uk-w272759735",
+          "category": "soft-drink",
+          "drinkLabel": "th a hash brown & your choice of coffee/soft drink Ubh ar tó sta (Egg on toast)",
+          "priceGbp": 4,
+          "sourceUrl": "https://www.shenanigansliverpool.co.uk/menu",
+          "observedAt": "2026-09-04T14:06:43.726Z"
+        },
+        {
+          "sha256": "1572f4f4e17e3f47ebb9d8d8e5d1cb4de5cd0de4b6de182a03a5996a073fef70",
+          "host": "shenanigansliverpool.co.uk",
+          "venueId": "venue-uk-w272759735",
+          "category": "vodka",
+          "drinkLabel": "WKD Blue 3.4%",
+          "priceGbp": 4,
+          "sourceUrl": "https://www.shenanigansliverpool.co.uk/menu",
+          "observedAt": "2026-09-04T14:06:43.726Z"
+        },
+        {
+          "sha256": "2ac1702c9523d0f0a73b700d33641337e02e48ae63d6a57bac89d572db978929",
+          "host": "shenanigansliverpool.co.uk",
+          "venueId": "venue-uk-w272759735",
+          "category": "wine",
+          "drinkLabel": "Smirnoff Ice 4%",
+          "priceGbp": 4,
+          "sourceUrl": "https://www.shenanigansliverpool.co.uk/menu",
+          "observedAt": "2026-09-04T14:06:43.726Z"
+        },
+        {
+          "sha256": "501d229a51f880bd9705def8287717777b671f727587e890f70bb761e2c37123",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "beer",
+          "drinkLabel": null,
+          "priceGbp": 9,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        },
+        {
+          "sha256": "aa778c4387220cd7807b76c7ccbc54d778ee5ce1386c662e46b17a9aaf4c2ec8",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "cocktail",
+          "drinkLabel": null,
+          "priceGbp": 5.3,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        },
+        {
+          "sha256": "380d40f580e557eaba5d824d57279d4536f45fe2f96c1559c967ed9f0ab1ec8b",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "gin",
+          "drinkLabel": null,
+          "priceGbp": 9,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        },
+        {
+          "sha256": "ea34694e83eddeda0366ec17fddf98dca03cae8afe8c16242c6e5529daeccb6b",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "rum",
+          "drinkLabel": null,
+          "priceGbp": 9,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        },
+        {
+          "sha256": "5f0061a05ce5f9ace780ecd4930b32049972566e2a7491363a8914a85eaec9a7",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "vodka",
+          "drinkLabel": null,
+          "priceGbp": 8.5,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        },
+        {
+          "sha256": "1735e606fbbf1af5a7806f4e89081e760d021f9db4a8fd61150c03e947d4c9ba",
+          "host": "maboyles.co.uk",
+          "venueId": "venue-uk-n101437407",
+          "category": "whisky",
+          "drinkLabel": null,
+          "priceGbp": 8.5,
+          "sourceUrl": "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf",
+          "observedAt": "2026-09-04T17:40:09.610Z"
+        }
+      ],
+      "historicalBundle": {
+        "rowCount": 7151,
+        "siteHarvestRows": 3036
+      },
+      "currentBundle": {
+        "rowCount": 10462,
+        "siteHarvestRows": 3863
       }
     }
   ]

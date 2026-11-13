@@ -20,6 +20,10 @@ import {
   ukBasePubFromFeature,
   ukBasePubsToGeoJSON,
 } from "@/lib/ukBasePubs";
+import { parseUkBaseOverview, ukBaseOverviewToGeoJSON } from "@/lib/ukBaseOverview";
+import { buildUkBaseOverview } from "../scripts/lib/ukBaseOverview.mjs";
+import { zoomIntoUkBaseOverview } from "@/components/map/canvas/ukBaseOverviewLayers";
+import type { Map as MapLibreMap, MapGeoJSONFeature } from "maplibre-gl";
 import { defined } from "@/__tests__/helpers/defined";
 
 // A synthetic three-cell grid. The cells are disjoint so "which cells does this
@@ -494,5 +498,146 @@ describe("pan residency helpers", () => {
     const picked = selectPanPrefetchShards(shards, drawn, panPad, 1);
     expect(picked.map((s) => s.id)).toEqual(["b"]);
     expect(selectPanPrefetchShards(shards, drawn, panPad, 0)).toEqual([]);
+  });
+});
+
+describe("UK base overview", () => {
+  it("counts named pubs and bars at a named member's position", () => {
+    const overview = buildUkBaseOverview(
+      { urlPrefix: "/data/uk_base/packs/0123456789abcdef/", generatedFrom: { count: 5 } },
+      [
+        { id: "b", rows: [["n3", "C", "", 53.4, -2.2, "", "bar"]] },
+        {
+          id: "a",
+          rows: [
+            ["n0", "", "", 51.4, -0.3, ""],
+            ["n1", "A", "", 51.5, -0.2, ""],
+            ["n2", "B", "", 51.6, -0.1, "", "bar"],
+          ],
+        },
+        { id: "c", rows: [["n4", "", "", 57.59819, -7.15917, ""]] },
+        { id: "d", rows: [] },
+      ],
+    );
+    expect(overview.count).toBe(3);
+    expect(overview.cells).toEqual([
+      [51.5, -0.2, 2],
+      [53.4, -2.2, 1],
+    ]);
+    expect(ukBaseOverviewToGeoJSON(parseUkBaseOverview(overview) ?? []).features).toEqual([
+      { type: "Feature", geometry: { type: "Point", coordinates: [-0.2, 51.5] }, properties: { n: 2 } },
+      { type: "Feature", geometry: { type: "Point", coordinates: [-2.2, 53.4] }, properties: { n: 1 } },
+    ]);
+  });
+
+  it("omits cells with only unnamed pubs", () => {
+    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 1 } }, [
+      { id: "57.50_-7.25", rows: [["n5240171445", "", "", 57.59819, -7.15917, ""]] },
+    ]);
+    expect(overview.count).toBe(0);
+    expect(overview.cells).toEqual([]);
+  });
+
+  it("opens a real pub from the sparse Scottish cell", async () => {
+    const overview = buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 3 } }, [
+      {
+        id: "56.25_-3.75",
+        rows: [
+          ["n0", "", "", 56.4, -3.6, ""],
+          ["n1", "A", "", 56.29587, -3.70691, ""],
+          ["n2", "B", "", 56.4256, -3.51784, ""],
+        ],
+      },
+    ]);
+    const points = parseUkBaseOverview(overview);
+    expect(points).not.toBeNull();
+    const feature = defined(ukBaseOverviewToGeoJSON(points ?? []).features[0]);
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => undefined } as unknown as MapLibreMap,
+      feature as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.70691, 56.29587], 12);
+    expect(feature.properties).toEqual({ n: 2 });
+  });
+
+  it.each([12, 13])("opens a cluster member when expansion reaches zoom %i", async (zoom) => {
+    const source = {
+      getClusterExpansionZoom: async () => zoom,
+      getClusterLeaves: async () => [{ geometry: { type: "Point", coordinates: [-3.70691, 56.29587] } }],
+    };
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => source } as unknown as MapLibreMap,
+      {
+        geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+        properties: { cluster_id: 7 },
+      } as unknown as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.70691, 56.29587], 12);
+  });
+
+  it("keeps expanding the cluster below the pin threshold", async () => {
+    const flyTo = vi.fn();
+    await zoomIntoUkBaseOverview(
+      { getSource: () => ({ getClusterExpansionZoom: async () => 10 }) } as unknown as MapLibreMap,
+      {
+        geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+        properties: { cluster_id: 7 },
+      } as unknown as MapGeoJSONFeature,
+      12,
+      flyTo,
+    );
+    expect(flyTo).toHaveBeenCalledExactlyOnceWith([-3.612, 56.361], 10);
+  });
+
+  it.each(["source", "expansion", "leaves", "empty"])(
+    "keeps the overview when the %s lookup fails",
+    async (failure) => {
+      const flyTo = vi.fn();
+      const source = {
+        getClusterExpansionZoom: async () => {
+          if (failure === "expansion") throw new Error("missing cluster");
+          return 12;
+        },
+        getClusterLeaves: async () => {
+          if (failure === "leaves") throw new Error("missing cluster");
+          return [];
+        },
+      };
+      await zoomIntoUkBaseOverview(
+        { getSource: () => failure === "source" ? undefined : source } as unknown as MapLibreMap,
+        {
+          geometry: { type: "Point", coordinates: [-3.612, 56.361] },
+          properties: { cluster_id: 7 },
+        } as unknown as MapGeoJSONFeature,
+        12,
+        flyTo,
+      );
+      expect(flyTo).not.toHaveBeenCalled();
+    },
+  );
+
+  it("refuses to build an overview that disagrees with the manifest's count", () => {
+    expect(() =>
+      buildUkBaseOverview({ urlPrefix: "/x/", generatedFrom: { count: 5 } }, [
+        { id: "a", rows: [["n0", "", "", 51.4, -0.3, ""], ["n1", "A", "", 51.5, -0.2, ""]] },
+      ]),
+    ).toThrow(/manifest states 5/);
+  });
+
+  it("fails closed on a file it does not understand", () => {
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 12]] })).toEqual([
+      { lat: 51.5, lng: -0.1, count: 12 },
+    ]);
+    expect(parseUkBaseOverview({ version: 2, cells: [[51.5, -0.1, 12]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 0]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[51.5, -0.1, 1.5]] })).toBeNull();
+    expect(parseUkBaseOverview({ version: 1, cells: [[95, -0.1, 3]] })).toBeNull();
+    expect(parseUkBaseOverview(null)).toBeNull();
   });
 });

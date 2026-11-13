@@ -6,11 +6,18 @@ import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { londonVenueIdFromFeature } from "@/lib/londonVenueShards";
 import { ukBasePubFromFeature, type UkBasePub } from "@/lib/ukBasePubs";
-import { CLUSTER_RIM_LAYERS, LANDMARK_INTERACTION_LAYERS, PUB_FIRST_LAYERS } from "./clickHitPriority";
+import { PIN_MIN_ZOOM } from "./buildScene";
+import {
+  CLUSTER_RIM_LAYERS,
+  LANDMARK_INTERACTION_LAYERS,
+  PUB_FIRST_LAYERS,
+  UK_BASE_OVERVIEW_TAP_LAYERS,
+} from "./clickHitPriority";
 import { opportunityForFeature } from "./filters";
 import { pubHitOf } from "./pubHitPriority";
 import { recordPubHitClick } from "./pubHitTrace";
 import type { HoveredVenue } from "./types";
+import { zoomIntoUkBaseOverview } from "./ukBaseOverviewLayers";
 import type { useMapCamera } from "./useMapCamera";
 
 type ActivePoi = { name: string; category: PoiCategory };
@@ -99,6 +106,14 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
         const center = lngLatOf((clusterHit.geometry as GeoJSON.Point).coordinates);
         if (center) cinematic({ center, zoom, duration: 700 }, "cluster", "user");
       });
+      return;
+    }
+
+    const overviewHit = UK_BASE_OVERVIEW_TAP_LAYERS.map((layer) => byLayer.get(layer)).find(Boolean);
+    if (overviewHit) {
+      zoomIntoUkBaseOverview(map, overviewHit, PIN_MIN_ZOOM, (center, zoom) =>
+        cinematic({ center, zoom, duration: 700 }, "cluster", "user"),
+      );
       return;
     }
 
@@ -235,6 +250,7 @@ export function wireCursor(map: maplibregl.Map) {
     "pubs-price-pill-selected",
     "clusters",
     ...CLUSTER_RIM_LAYERS,
+    ...UK_BASE_OVERVIEW_TAP_LAYERS,
     "route-stops",
     "tonight-point",
     "coffee-pilot-point",

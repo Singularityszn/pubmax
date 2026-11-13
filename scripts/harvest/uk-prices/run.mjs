@@ -8,6 +8,7 @@
 //   npm run harvest:uk-prices -- --reset           # forget the ledger and start over
 //   npm run harvest:uk-prices -- --only greeneking.co.uk
 //   npm run harvest:uk-prices -- --london                      # Greater London pubs only
+//   npm run harvest:uk-prices -- --city manchester,birmingham  # hosts serving a pub in these city maps
 //   npm run harvest:uk-prices -- --menu-enrichment none      # skip venue_menu_enrichment seeds
 //   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
 //   npm run harvest:uk-prices -- --judged                      # require TYPESAFE_API_KEY
@@ -95,6 +96,7 @@ import {
   venueCoordsFromSlim,
 } from "./londonScope.mjs";
 import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
+import { harvestCityScope, hostsTouchingCityScope } from "./cityScope.mjs";
 import { addExaSiteHosts, contactLinkCandidates, pageBindsPub } from "./exaSites.mjs";
 
 const ROOT = process.cwd();
@@ -159,6 +161,8 @@ const PAGE_BUDGET = Number(option("--pages", DEFAULT_PAGE_BUDGET));
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const ONLY = option("--only", null);
 const LONDON_ONLY = flag("--london");
+/** Curated city ids (lib/cityBounds.mjs). See cityScope.mjs for why a host keeps all its pubs. */
+const CITY_IDS = (option("--city", "") || "").split(",");
 const MENU_ENRICHMENT_INPUT = option("--menu-enrichment", "public/data/venue_menu_enrichment.json");
 /**
  * Ask a set of hosts AGAIN, naming the outcome they were recorded under.
@@ -771,6 +775,34 @@ function joinExaSiteHosts(hosts) {
   return counts;
 }
 
+/**
+ * The candidate hosts for this run's scope: Greater London, named city maps,
+ * or the whole snapshot. Null, with the reason printed, when the flags conflict.
+ */
+function scopedCandidateHosts() {
+  let cityScope;
+  try {
+    cityScope = harvestCityScope(CITY_IDS);
+    if (cityScope && LONDON_ONLY) throw new Error("--city and --london are separate scopes; run them one at a time");
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    return null;
+  }
+  return { ...candidateHosts({ londonOnly: LONDON_ONLY }), cityScope: cityScope ?? null };
+}
+
+/**
+ * The hosts this run crawls. The city scope is applied last, after every input
+ * has joined the national host list, so a host that also serves a pub outside
+ * the city is still seen as shared (cityScope.mjs).
+ */
+function hostsInCityScope(hosts, cityScope) {
+  if (!cityScope) return { crawlHosts: hosts, hostsOutsideCityScope: 0 };
+  const { hosts: crawlHosts, hostsOutsideScope } = hostsTouchingCityScope(hosts, cityScope);
+  console.log(`  city scope: ${crawlHosts.length} host(s) serve a pub in ${cityScope.ids.join(", ")}`);
+  return { crawlHosts, hostsOutsideCityScope: hostsOutsideScope };
+}
+
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
@@ -786,16 +818,20 @@ async function main() {
     return;
   }
 
-  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs } = candidateHosts({
-    londonOnly: LONDON_ONLY,
-  });
+  const scoped = scopedCandidateHosts();
+  if (!scoped) {
+    process.exitCode = 1;
+    return;
+  }
+  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs, cityScope } = scoped;
   const ledger = loadLedger();
   const policySources = harvestSourcesOfKind("chain-menu-prices");
   const refusedSources = policySources.filter((source) => !isHarvestSourceAllowed(source));
 
   // The allowed chain sources join the same queue: one crawler, one rule.
   // In the London document lane, chain menus are left to the rendered lane.
-  if (!LONDON_ONLY) {
+  // A chain estate is national, so a city run leaves it to the rendered lane too.
+  if (!LONDON_ONLY && !cityScope) {
     for (const source of allowedHarvestSources("chain-menu-prices")) {
       const host = hostOf(source.url);
       if (!host || hosts.some((entry) => entry.host === host)) continue;
@@ -853,27 +889,19 @@ async function main() {
     process.exitCode = 1;
     return;
   }
+  const { crawlHosts, hostsOutsideCityScope } = hostsInCityScope(hosts, cityScope);
 
-  if (RECHECK.length > 0) {
-    let dropped = 0;
-    for (const [host, entry] of Object.entries(ledger.hosts)) {
-      if (!RECHECK.includes(entry.outcome)) continue;
-      // `--only` NARROWS THE RECHECK, it does not narrow a crawl of everything
-      // the recheck already forgot. Dropping a host the run then filters out
-      // loses its finding silently and leaves it looking never-crawled.
-      if (ONLY && !host.includes(ONLY)) continue;
-      delete ledger.hosts[host];
-      dropped += 1;
-    }
-    console.log(`re-asking ${dropped} host(s) recorded as ${RECHECK.join(", ")}`);
-  }
-
-  const pending = hosts
+  const pending = crawlHosts
     .filter((entry) => (ONLY ? entry.host.includes(ONLY) : true))
     .filter((entry) => (EXA_SITES_ONLY ? entry.exaSite === true : true))
-    .filter((entry) => !ledger.hosts[entry.host])
+    .filter((entry) => !ledger.hosts[entry.host] || RECHECK.includes(ledger.hosts[entry.host].outcome))
     .sort((a, b) => b.pubs.length - a.pubs.length)
-    .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : hosts.length);
+    .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : crawlHosts.length);
+
+  if (RECHECK.length > 0) {
+    const rechecks = pending.filter((entry) => ledger.hosts[entry.host]).length;
+    console.log(`re-asking ${rechecks} host(s) recorded as ${RECHECK.join(", ")}`);
+  }
 
   let spent = 0;
   let pdfsSeen = 0;
@@ -899,6 +927,7 @@ async function main() {
       } catch (error) {
         result = { outcome: "unreachable", evidence: String(error).slice(0, 160), pagesRead: 0, rows: [] };
       }
+      if (result.pagesRead === 0 && spent >= PAGE_BUDGET) continue;
       pdfsSeen += result.pdfSeen ?? 0;
       pdfsRead += result.pdfRead ?? 0;
       pdfsUnread += result.pdfUnread ?? 0;
@@ -954,7 +983,10 @@ async function main() {
           chainMenuSourcesOmitted: true,
         }
       : { enabled: false },
-    hostsKnown: hosts.length,
+    ...(cityScope
+      ? { cityScope: { cities: cityScope.ids, hostsOutsideScopeSkipped: hostsOutsideCityScope } }
+      : {}),
+    hostsKnown: crawlHosts.length,
     overlayMenuUrls: {
       inputRead: Boolean(overlayInput),
       held: overlayInput?.urls.length ?? 0,

@@ -15,15 +15,15 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { discardBody } from "@/lib/responseBody";
+import { useUkBaseOverview } from "./useUkBaseOverview";
 
 // Streams the UK base layer (lib/ukBasePubs.ts) into the map's `uk-base`
 // source, one viewport at a time.
 //
-// The gate is the whole payload story: below UK_BASE_MIN_ZOOM this hook fetches
-// NOTHING - not the shards, not even the manifest. London's normal Map entry
-// starts at the gate so base pubs are useful at once. A wider restored camera
-// stays fetch-free until it crosses the gate. Above it, only cells covered by
-// the padded camera load.
+// Below UK_BASE_MIN_ZOOM this hook fetches no shard and no manifest. The
+// count overview (useUkBaseOverview.ts) waits until the first-pin hold ends.
+// London's normal Map entry starts at the gate so base pubs are useful at once.
+// At or above the gate, only cells covered by the padded camera load.
 //
 // Zooming back out empties the source rather than leaving thousands of hidden
 // features parked in it: the layer's own `minzoom` would stop drawing them, but
@@ -49,6 +49,8 @@ type Options = {
   applyToMap: (key: string, fn: (map: maplibregl.Map) => void) => void;
   /** Reseeded by buildScene after a theme setStyle wipes every source. */
   ukBaseDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
+  /** The count bubbles below the gate, reseeded the same way. */
+  ukBaseOverviewDataRef: React.MutableRefObject<GeoJSON.FeatureCollection>;
   drawableVenueIds: ReadonlySet<string>;
   /** Visibility-only marks keyed by stable `venue-uk-*` ids. */
   provisionalVenueIds?: ReadonlySet<string> | null;
@@ -235,6 +237,7 @@ export function useUkBaseStreaming({
   mapReady,
   applyToMap,
   ukBaseDataRef,
+  ukBaseOverviewDataRef,
   drawableVenueIds,
   provisionalVenueIds = null,
   spoonsValue = null,
@@ -264,6 +267,15 @@ export function useUkBaseStreaming({
     () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
   const publishedModeRef = useRef({ scopeKey, suspended });
+  useUkBaseOverview({
+    mapRef,
+    mapReady,
+    applyToMap,
+    dataRef: ukBaseOverviewDataRef,
+    minZoom: UK_BASE_MIN_ZOOM,
+    held,
+    suspended,
+  });
 
   const publish = useCallback(
     (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {

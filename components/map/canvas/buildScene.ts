@@ -65,6 +65,7 @@ import {
 } from "./filters";
 import { raisePalPicksScrim } from "./palPicksScrim";
 import { buildLegRoute } from "./legRouteScene";
+import { buildUkBaseOverview } from "./ukBaseOverviewLayers";
 
 // The two zooms that shape pub density. They are deliberately NOT the same
 // number any more:
@@ -98,9 +99,9 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 // The UK-wide unpriced base layer (lib/ukBasePubs.ts) shares PIN_MIN_ZOOM's
 // floor and nothing else. It is deliberately NOT part of the `pubs` source:
 //
-//   • it is never clustered, so no base pub can inflate a curated cluster's
-//     count or tint its donut — below the pin floor the curated overview is
-//     byte-for-byte the map it was before this layer existed;
+//   • it never joins a curated cluster, so no base pub can inflate a curated
+//     cluster's count or tint its donut. Below the pin floor it draws its own
+//     count bubbles of named pubs and bars across the UK (ukBaseOverviewLayers.ts);
 //   • it carries no price, so it never enters the price-bucket colour system;
 //   • it renders UNDER every curated layer, which is also what makes a curated
 //     pin win the collision (MapLibre places the topmost symbol layer first),
@@ -108,6 +109,7 @@ export const CLUSTER_FILTER: maplibregl.FilterSpecification = ["has", "point_cou
 //
 // The zoom floor is what bounds the payload too: shards are only fetched once
 // the camera is at/above it (components/map/pubmap/useUkBaseStreaming.ts).
+// Below it the bubbles read the overview file and no shard (lib/ukBaseOverview.ts).
 const UK_BASE_MIN_ZOOM = PIN_MIN_ZOOM;
 
 // A pub OSM maps with no name (UkBasePub.unnamed) is a bare "Pub" pin, and a
@@ -453,6 +455,8 @@ export type SceneCtx = {
   userLocationData: GeoJSON.FeatureCollection;
   /** UK base pubs for the CURRENT viewport only — see buildUkBase. */
   ukBaseData: GeoJSON.FeatureCollection;
+  /** The base layer's count bubbles below its gate — see ukBaseOverviewLayers.ts. */
+  ukBaseOverviewData?: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
   /** Shoreditch coffee pilot cafes, empty unless the coffee lane owns the map — see buildCoffeePilot. */
@@ -2116,6 +2120,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
   buildLondonRestaurants(ctx);
+  buildUkBaseOverview(ctx, UK_BASE_MIN_ZOOM);
   buildUkBase(ctx);
   buildLandmarks(ctx);
   buildPois(ctx);

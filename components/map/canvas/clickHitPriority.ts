@@ -8,6 +8,10 @@ export const LANDMARK_INTERACTION_LAYERS = ["landmarks-icon", "landmarks-label"]
 // cluster. All three carry the same `cluster_id`.
 export const CLUSTER_RIM_LAYERS = ["cluster-count-badge", "clusters-casing"] as const;
 
+// The base layer's count bubbles below its zoom gate (ukBaseOverviewLayers.ts).
+// They answer after the curated clusters: they are drawn under them.
+export const UK_BASE_OVERVIEW_TAP_LAYERS = ["uk-base-overview-count", "uk-base-overview"] as const;
+
 // Pub-first hit testing: a single map click queries pubs/route stops before
 // landmarks/POIs so dense central London taps open a pub sheet, not a
 // landmark card that happened to sit under the same finger.
@@ -26,6 +30,7 @@ export const PUB_FIRST_LAYERS = [
   "tonight-point",
   "clusters",
   ...CLUSTER_RIM_LAYERS,
+  ...UK_BASE_OVERVIEW_TAP_LAYERS,
   "coffee-pilot-point",
   "uk-base-point",
   "uk-base-unnamed-point",
@@ -40,6 +45,7 @@ const CLICK_BRANCHES = [
   ["route-stops", "route"],
   ["clusters", "cluster"],
   ...CLUSTER_RIM_LAYERS.map((layer) => [layer, "cluster"] as const),
+  ...UK_BASE_OVERVIEW_TAP_LAYERS.map((layer) => [layer, "cluster"] as const),
   ["coffee-pilot-point", "cafe"],
   ["uk-base-point", "base"],
   ["uk-base-unnamed-point", "base"],

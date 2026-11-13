@@ -80,6 +80,18 @@ report counts them under `londonScope.curatedWebsites`. Per host it reads the ho
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
 
+`--city manchester,leeds` selects hosts that serve a pub inside those city maps'
+boxes (`lib/cityBounds.mjs`). Overlay menu-URL and Exa inputs join the national
+snapshot host list before city selection. Each host keeps its national pub membership, so
+city selection cannot make a shared host look like one pub's own website
+(`scripts/harvest/uk-prices/cityScope.mjs`). Use `--london` for London.
+The document lane refuses a run that combines `--city` and `--london`.
+With `--recheck`, existing findings remain until the selected host completes its crawl.
+City selection, host filters and run limits leave findings for uncrawled hosts unchanged.
+If another worker spends the last page during a host's robots check, that host keeps its existing finding and does not count as crawled.
+For chain menus, use the [rendered lane](#lane-two-the-browser) with `--city`
+and without `--pub-sites`.
+
 ### Websites Exa found
 
 OpenStreetMap states a website for about one London pub in two. The Exa lane
@@ -117,6 +129,9 @@ a browser on 2026-09-04 states 102 prices, so that verdict was withdrawn.
 The lane reads the per-pub menu page of every chain the source table allows,
 one page per pub, and the source row names the brand hosts that chain publishes
 the same menu on.
+
+`--city` uses the [city scope](#lane-one-the-document) to select individual menu targets by each pub's position.
+It applies to chain menus and `--pub-sites` targets after national host admission.
 
 `--pub-sites` points the same browser at a pub's OWN website instead:
 

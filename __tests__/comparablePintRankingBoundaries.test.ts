@@ -174,7 +174,7 @@ describe("the captain's comparable-pint contract at ranking boundaries", () => {
   it("keeps the published Brownswood half-tonic visible below valid pints in the map sort", () => {
     const rows = parseUkPriceBundleRows(JSON.parse(readFileSync("public/data/uk_prices/rows.json", "utf8")));
     const half = defined(rows.find((row) => row.venueId === "venue-1vse4lh" && row.category === "beer" && row.standing === "listed"));
-    expect(half).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer-" });
+    expect(half).toMatchObject({ priceGbp: 2.6, drinkLabel: "~ 1/2 pint Tonic, Slim Tonic, Ginger Ale / Beer" });
     const pub = { ...venue(half.venueId, 6), bundlePrices: bundlePricesForCategory(rows.filter((row) => row.venueId === half.venueId), "beer") };
     expect(mapSplitListPrice(pub, undefined)).toMatchObject({ figure: "£2.60", observed: true, rankGbp: null });
     const groups = buildMapSplitListGroups({ venues: [pub, venue("pint", 5)], basePubs: [], restaurants: [], dropSignals: new Map(), viewportCenter: null, reader: null, sort: "cheapest" });

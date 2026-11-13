@@ -16,6 +16,7 @@ import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
+import { buildUkBaseOverview, UK_BASE_OVERVIEW_BUDGET_BYTES } from "./lib/ukBaseOverview.mjs";
 import {
   COFFEE_PILOT_FILE,
   coffeePilotProblems,
@@ -1946,6 +1947,7 @@ const UK_BASE_SHARD_BUDGET_BYTES = 150 * 1024;
 const UK_BASE_TOTAL_BUDGET_BYTES = 5 * 1024 * 1024;
 const UK_BASE_MANIFEST_BUDGET_BYTES = 64 * 1024;
 const UK_PLACE_INDEX_FILE = "places.json";
+const UK_BASE_OVERVIEW_FILE = "overview.json";
 const UK_PLACE_INDEX_BUDGET_BYTES = 512 * 1024;
 const UK_BASE_ID_PREFIX = "venue-uk-";
 
@@ -2050,6 +2052,37 @@ function validateUkPlaceIndex() {
     if (row[0] === "Sheffield") hasSheffield = true;
   }
   if (!hasSheffield) errors.push(`${UK_PLACE_INDEX_FILE} has no Sheffield result`);
+  return errors;
+}
+
+// The zoomed-out count bubbles must count the published shards' named rows, so the
+// file is rebuilt here and compared whole. A shard build without an overview
+// build fails on the generation it names.
+function validateUkBaseOverview(manifest, shardRows) {
+  const file = join(UK_BASE_DIR, UK_BASE_OVERVIEW_FILE);
+  if (!existsSync(file)) {
+    return [`missing ${UK_BASE_OVERVIEW_FILE} - run node scripts/build_uk_base_overview.mjs`];
+  }
+  const raw = readFileSync(file, "utf8");
+  const errors = [];
+  if (Buffer.byteLength(raw) > UK_BASE_OVERVIEW_BUDGET_BYTES) {
+    errors.push(
+      `${UK_BASE_OVERVIEW_FILE} ${(Buffer.byteLength(raw) / 1024).toFixed(1)} KB exceeds the ${UK_BASE_OVERVIEW_BUDGET_BYTES / 1024} KB budget`,
+    );
+  }
+  let published;
+  let expected;
+  try {
+    published = JSON.parse(raw);
+    expected = buildUkBaseOverview(manifest, shardRows);
+  } catch (e) {
+    return [...errors, `${UK_BASE_OVERVIEW_FILE} could not be checked (${e.message})`];
+  }
+  if (!isDeepStrictEqual(published, expected)) {
+    errors.push(
+      `${UK_BASE_OVERVIEW_FILE} does not match the published shards' named rows - run node scripts/build_uk_base_overview.mjs`,
+    );
+  }
   return errors;
 }
 
@@ -2278,7 +2311,9 @@ function validateUkBaseShards() {
   // Files on disk must match the manifest exactly: an orphan is dead weight in
   // the repo, and a missing one is a 404 mid-pan.
   const jsonFiles = listUkBaseJsonFiles(UK_BASE_DIR);
-  const shardJsonFiles = jsonFiles.filter((file) => file !== UK_PLACE_INDEX_FILE);
+  const shardJsonFiles = jsonFiles.filter(
+    (file) => file !== UK_PLACE_INDEX_FILE && file !== UK_BASE_OVERVIEW_FILE,
+  );
   const onDisk = new Set(
     shardJsonFiles.filter((file) => file !== "manifest.json"),
   );
@@ -2296,10 +2331,12 @@ function validateUkBaseShards() {
 
   const ids = new Set();
   let pubCount = 0;
+  const shardRows = [];
   for (const shard of shards) {
     const bodyResult = validateUkBaseShardBody(shard, urlPrefix, onDisk);
     addUkBaseErrors(errs, bodyResult.errors);
     if (!bodyResult.rows) continue;
+    shardRows.push({ id: shard.id, rows: bodyResult.rows });
     const rowResult = validateUkBaseShardRows(
       shard,
       bodyResult.rows,
@@ -2309,6 +2346,7 @@ function validateUkBaseShards() {
     addUkBaseErrors(errs, rowResult.errors);
     pubCount += rowResult.pubCount;
   }
+  addUkBaseErrors(errs, validateUkBaseOverview(manifest, shardRows));
   addUkBaseErrors(errs, validateUkBaseOrphans(onDisk));
   addUkBaseErrors(errs, budgets.totalErrors);
   addUkBaseErrors(errs, validateUkBaseCuratedIdCollisions(ids));

@@ -86,13 +86,7 @@
 
 @media (max-width: 640px) {
   .ukPlaceArrival[data-variant="national"] {
-    top: auto;
-    /* The credit lane includes its margins and grows when the reader opens it.
-       Keep a collapsed-control reserve until the measured height is available. */
-    bottom: calc(
-      var(--mobile-map-credit-bottom) +
-      max(var(--mobile-map-credit-stack-h, 0px), calc(var(--mobile-map-credit-size) + 20px)) +
-      12px
-    );
+    top: calc(var(--mobile-map-chrome-full-h) + 12px);
+    right: 12px;
   }
 }
