@@ -3,10 +3,6 @@
 //
 // A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
 // the records and lib/points.ts prices a finished challenge.
-//
-// A challenge is a list of targets. A target is done when any one of its pubs
-// is on the Been list: a named-pub challenge has one pub per target, the
-// district challenge has every listed pub in that district.
 
 import { londonDayKey } from "@/lib/londonHour";
 import { haversineKm } from "@/lib/haversine";
@@ -198,9 +194,8 @@ export function challengeOfTheMonthAt(at: Date): ChallengeId | null {
 /**
  * Progress on every challenge. `visited` holds the Been list's current venue
  * ids. `firstLoggedAt` gives the timestamp a pub was first logged, if known.
- * A challenge is doubled when the month its last target was first logged is
- * a month it was the challenge of the month. A target with no known month
- * leaves the finish month unknown, so it is never doubled.
+ * An unknown first timestamp can hide an earlier completion, so it must
+ * leave the finish date unknown. See README.md's profile features for bonus rules.
  */
 export function challengeProgress(
   set: ChallengeSet,
@@ -217,8 +212,8 @@ export function challengeProgress(
         left.push(target.mapVenueId ? { label: target.label, venueId: target.mapVenueId } : { label: target.label });
         continue;
       }
-      // Done the first month any of its pubs was logged. An undated pub may
-      // be the earliest, so one unknown month makes the target's unknown.
+      // An undated pub may be the earliest sighting, so its target's first
+      // timestamp must stay unknown even when another pub has a date.
       doneIn.push(months.every(Boolean) ? (months as string[]).sort()[0]! : null);
     }
     const total = targets.length;

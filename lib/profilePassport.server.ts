@@ -87,10 +87,10 @@ export type PassportDeps = {
   /** Open Want-to-try rows; a pending paste has an empty venue id. */
   wanted(profileId: string): Promise<PassportVenue[]>;
   /**
-   * The owner's own "Been here" saved list (lib/beenHere.ts). Undated, so it
-   * is asked for the owner's full read alone and never for anybody else.
-   * `savedAt` is when the row was ticked, not a visit day: only the
-   * challenge progress reads it for completion dates and monthly bonuses.
+   * The owner's own "Been here" saved list (lib/beenHere.ts).
+   * Never read this source for anybody else.
+   * `savedAt` records the tick time, not a visit day. Passport visit dates
+   * stay unknown. See README.md's profile features for challenge bonus rules.
    */
   beenHere(ownerHandle: string): Promise<Array<PassportVenue & { savedAt?: string }>>;
   rankings(profileId: string): Promise<PassportRankedRow[]>;

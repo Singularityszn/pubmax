@@ -46,7 +46,7 @@ const LINE_ORDER: readonly PointsLineKey[] = [
 type PointsLine = { key: PointsLineKey; count: number; each: number; points: number };
 
 export type PointsBreakdown = {
-  /** "degraded" when a record, district or alias read fails. */
+  /** Read health from readPointsBreakdown (lib/points.server.ts). */
   status: "ready" | "degraded";
   total: number;
   level: number;
