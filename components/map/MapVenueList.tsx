@@ -127,6 +127,7 @@ export default function MapVenueList({
     total === 0
     && ukBaseStatus !== "unavailable"
     && (ukBaseStatus === "loading" || !loaded);
+  const zoomRequired = loaded && ukBaseStatus === "zoom_required";
 
   return (
     <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
@@ -141,6 +142,8 @@ export default function MapVenueList({
                   ? "Unlisted pubs unavailable"
                   : awaitingRows
                   ? "Counting them up…"
+                  : zoomRequired && total === 0
+                  ? "Zoom in to list pubs"
                   : total === 0
                     ? "Nothing matches"
                     : truncated
@@ -198,6 +201,8 @@ export default function MapVenueList({
             awaitingRows ? null : <p className="mapVenueListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."
+                : zoomRequired
+                ? "Zoom in on the map to load pubs in this view."
                 : loaded
                 ? "Nothing in view fits that, which takes some doing round here. Push the price cap up or drop a filter and the pubs come back."
                 : "Counting them up…"}

@@ -6603,9 +6603,8 @@ export default function PubMap({
         open={mapListOpen}
         onOpenChange={setMapListOpen}
         loaded={
-          loaded &&
-          loadedCityId === cityId &&
-          visibleVenueState?.cityId === cityId
+          ukNationalBrowse ||
+          (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
         }
         mapUnavailable={mapCanvasErrored || mapCanvasUnavailable}
         onSelectVenue={selectVenue}
