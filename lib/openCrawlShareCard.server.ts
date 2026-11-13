@@ -113,7 +113,7 @@ function textIds(rows: readonly CountRow[], key: string): string[] {
 }
 
 /**
- * Pending join rows, plus active seats that are not the host. Here is a status
+ * Live pending join rows, plus active seats that are not the host. Here is a status
  * on those seats, including the host. A failed read is null, not zero.
  */
 export const stillTrueCountReader = {
@@ -125,7 +125,9 @@ export const stillTrueCountReader = {
           .from("social_crew_join_requests")
           .select("requester_account_id")
           .eq("crew_id", crewId)
-          .eq("state", "pending"),
+          .eq("state", "pending")
+          // Expiry is recorded lazily, so a stale request can still read pending.
+          .gt("expires_at", new Date().toISOString()),
         admin
           .from("social_crew_members")
           .select("social_account_id, plan_member_id, role")
