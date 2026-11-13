@@ -10,7 +10,7 @@ import { loadPalEvalVenueIndex } from "@/evals/pal/venueIndex";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 
 beforeEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
   delete process.env.TYPESAFE_API_KEY;
 });
 

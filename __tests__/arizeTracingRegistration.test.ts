@@ -1,3 +1,4 @@
+import type Anthropic from "@anthropic-ai/sdk";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 // Only the AI SDK telemetry bridge entry point is mocked (to assert the
@@ -20,6 +21,7 @@ import { registerTelemetry } from "ai";
 
 import { runAskModelLoop } from "@/lib/ask/modelLoop";
 import { runAskTool } from "@/lib/ask/tools";
+import type { ClaudeClient } from "@/lib/claudeClient.server";
 import {
   flushArizeTracing,
   registerArizeTracing,
@@ -46,6 +48,37 @@ class CapturingExporter implements SpanExporter {
 // SpanStatusCode.OK is 1 and SpanStatusCode.ERROR is 2 in @opentelemetry/api.
 const STATUS_OK = 1;
 const STATUS_ERROR = 2;
+
+/** One Claude round that calls search_venues with no arguments. */
+function toolUseMessage(): Anthropic.Message {
+  return {
+    id: "msg-1",
+    type: "message",
+    role: "assistant",
+    model: "test-model",
+    content: [{ type: "tool_use", id: "call-1", name: "search_venues", input: {} }],
+    stop_reason: "tool_use",
+    stop_sequence: null,
+    usage: { input_tokens: 3, output_tokens: 4 },
+  } as unknown as Anthropic.Message;
+}
+
+/** A Claude client that answers each round in turn, or throws an Error round. */
+function claudeRounds(rounds: Array<Anthropic.Message | Error>): ClaudeClient {
+  let next = 0;
+  return {
+    stream: () => {
+      const round = rounds[next++];
+      return {
+        on: () => undefined,
+        finalMessage: async () => {
+          if (!round || round instanceof Error) throw round ?? new Error("No round left.");
+          return round;
+        },
+      };
+    },
+  };
+}
 
 // ONE exporter for the whole file: @vercel/otel installs the global tracer
 // provider once per process, so a second registration with a new exporter
@@ -78,7 +111,7 @@ describe("Arize tracing registers with keys present", () => {
     const result = await traceArizeModelCall({
       route: "api/heritage",
       model: "anthropic/claude-sonnet-4-5",
-      provider: "openrouter",
+      provider: "anthropic",
       prompt: "QUESTION: pubs near bob@example.com asked by @karan",
       invocationParameters: { temperature: 0 },
       call: async (span) => {
@@ -102,7 +135,7 @@ describe("Arize tracing registers with keys present", () => {
     expect(s.attributes["llm.token_count.completion"]).toBe(34);
     expect(s.attributes["llm.token_count.total"]).toBe(46);
     expect(s.attributes["metadata.route"]).toBe("api/heritage");
-    expect(s.attributes["metadata.provider"]).toBe("openrouter");
+    expect(s.attributes["metadata.provider"]).toBe("anthropic");
     expect(s.attributes["llm.invocation_parameters"]).toBe(
       JSON.stringify({ temperature: 0 }),
     );
@@ -147,7 +180,7 @@ describe("Arize tracing registers with keys present", () => {
     const result = await traceArizeModelLoop({
       route: "api/ask",
       model: "anthropic/claude-sonnet-4-5",
-      provider: "openrouter",
+      provider: "anthropic",
       prompt: "cheap pints near @karan in Camden",
       run: async ({ modelRound, toolCall }) => {
         const round = modelRound({ prompt: "round messages" });
@@ -179,8 +212,8 @@ describe("Arize tracing registers with keys present", () => {
     expect(llm?.parentSpanContext?.spanId).toBe(agent?.spanContext().spanId);
     expect(tool?.parentSpanContext?.spanId).toBe(agent?.spanContext().spanId);
     expect(tool?.attributes["tool.name"]).toBe("propose_map_action");
-    expect(llm?.attributes["metadata.provider"]).toBe("openrouter");
-    expect(tool?.attributes["metadata.provider"]).toBe("openrouter");
+    expect(llm?.attributes["metadata.provider"]).toBe("anthropic");
+    expect(tool?.attributes["metadata.provider"]).toBe("anthropic");
     expect(String(agent?.attributes["input.value"])).toContain("@[handle]");
     expect(String(agent?.attributes["input.value"])).not.toContain("@karan");
   });
@@ -290,35 +323,13 @@ describe("Arize tracing registers with keys present", () => {
 
   it("ends an ask round OK and marks only the tool span when a tool throws", async () => {
     vi.mocked(runAskTool).mockRejectedValueOnce(new Error("tool exploded"));
-    const fetchImpl = (async () =>
-      new Response(
-        JSON.stringify({
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                content: null,
-                tool_calls: [
-                  {
-                    id: "call-1",
-                    type: "function",
-                    function: { name: "search_venues", arguments: "{}" },
-                  },
-                ],
-              },
-            },
-          ],
-          usage: { prompt_tokens: 3, completion_tokens: 4, total_tokens: 7 },
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      )) as typeof fetch;
+    const claude = claudeRounds([toolUseMessage()]);
 
     const outcome = await runAskModelLoop({
       query: "cheap pints in Soho",
       ctx: { cityId: "london", query: "cheap pints in Soho" },
-      apiKey: "test-openrouter-key",
       model: "test/tool-failure-model",
-      fetchImpl,
+      claude,
       traceRoute: "test/ask-tool-failure",
     });
 
@@ -361,31 +372,7 @@ describe("Arize tracing registers with keys present", () => {
       proposals: [],
       answerHint: "one venue",
     });
-    let calls = 0;
-    const fetchImpl = (async () => {
-      calls += 1;
-      if (calls > 1) return new Response("upstream down", { status: 500 });
-      return new Response(
-        JSON.stringify({
-          choices: [
-            {
-              message: {
-                role: "assistant",
-                content: null,
-                tool_calls: [
-                  {
-                    id: "call-1",
-                    type: "function",
-                    function: { name: "search_venues", arguments: "{}" },
-                  },
-                ],
-              },
-            },
-          ],
-        }),
-        { status: 200, headers: { "Content-Type": "application/json" } },
-      );
-    }) as typeof fetch;
+    const claude = claudeRounds([toolUseMessage(), new Error("Claude responded 500.")]);
 
     const outcome = await runAskModelLoop({
       query: "cheap pints in Soho",
@@ -394,9 +381,8 @@ describe("Arize tracing registers with keys present", () => {
         { role: "assistant", content: "y".repeat(800) },
       ],
       ctx: { cityId: "london", query: "cheap pints in Soho" },
-      apiKey: "test-openrouter-key",
       model: "test/round-delta-model",
-      fetchImpl,
+      claude,
       traceRoute: "test/ask-round-delta",
     });
 
@@ -414,10 +400,10 @@ describe("Arize tracing registers with keys present", () => {
     expect(rounds).toHaveLength(2);
     const secondInput = JSON.parse(String(rounds[1]!.attributes["input.value"])) as Array<{
       role: string;
-      content: string | null;
+      content: unknown;
     }>;
-    expect(secondInput.map((message) => message.role)).toEqual(["assistant", "tool"]);
-    expect(secondInput[1]!.content).toContain("The Toolshed Arms");
+    expect(secondInput.map((message) => message.role)).toEqual(["assistant", "user"]);
+    expect(JSON.stringify(secondInput[1]!.content)).toContain("The Toolshed Arms");
     expect(rounds[1]!.status.code).toBe(STATUS_ERROR);
     const agent = routeSpans.find(
       (s) => s.attributes["openinference.span.kind"] === "AGENT",

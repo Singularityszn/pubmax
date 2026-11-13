@@ -3,11 +3,11 @@ import "server-only";
 // The board reader's model call (review item A4). One photo of a price board
 // in, proposed line items out, and nothing written anywhere.
 //
-// THE SHARED VISION LANE (lib/openRouterVision.server.ts): zero data retention
-// required of the provider, a strict JSON schema, a timeout and a token cap,
-// and an Arize span with a static route tag. The bill check reads bills through
-// the same client. The paid ceiling is spent by the route
-// (`paidSpendBudgetRefusal("board-read")`) before this is called.
+// THE SHARED JSON LANE (lib/claudeJson.server.ts): Claude on the shared key,
+// a strict JSON schema, a timeout and a token cap, and an Arize span with a
+// static route tag. The bill check reads bills through the same client. The
+// paid ceiling is spent by the route (`paidSpendBudgetRefusal("board-read")`)
+// before this is called.
 //
 // FAIL CLOSED. No key answers `keyless` before anything is sent; a provider or
 // parser failure answers `failed`, and the route turns that into a retry line.
@@ -22,16 +22,12 @@ import { z } from "zod";
 import { parseBoardReadAnswer, type BoardRead } from "@/lib/boardRead";
 import { DRINK_CATEGORIES } from "@/lib/drinks";
 import { DRINK_MEASURES } from "@/lib/drinkMeasure";
-import {
-  openRouterVisionKeyed,
-  readPhotoAsJson,
-  type VisionReadDependencies,
-} from "@/lib/openRouterVision.server";
+import { claudeJsonKeyed, jpegImage, readClaudeJson, type ClaudeJsonDependencies } from "@/lib/claudeJson.server";
 
 const BOARD_READ_TIMEOUT_MS = 20_000;
-const BOARD_READ_MAX_TOKENS = 2_000;
+const BOARD_READ_MAX_TOKENS = 3_000;
 
-export type BoardReadDependencies = VisionReadDependencies;
+export type BoardReadDependencies = ClaudeJsonDependencies;
 
 export type BoardReadOutcome =
   | { status: "keyless" }
@@ -40,11 +36,10 @@ export type BoardReadOutcome =
 
 /** Whether this deployment can read a board at all. The page asks the same question. */
 export function boardReaderKeyed(env: Record<string, string | undefined> = process.env): boolean {
-  return openRouterVisionKeyed(env);
+  return claudeJsonKeyed(env);
 }
 
-// Basic types only: provider schemas do not take enums on every model, and the
-// parser enforces the closed sets locally either way.
+// Basic types only: the parser enforces the closed sets locally.
 const modelRowSchema = z.object({
   name: z.string(),
   kind: z.string(),
@@ -77,12 +72,11 @@ export async function readBoardPhoto(
   jpeg: Buffer,
   deps: BoardReadDependencies = {},
 ): Promise<BoardReadOutcome> {
-  const read = await readPhotoAsJson(
+  const read = await readClaudeJson(
     {
-      jpeg,
       route: "api/board-reads",
-      prompt: BOARD_READ_PROMPT,
-      schemaName: "price_board",
+      system: BOARD_READ_PROMPT,
+      content: [jpegImage(jpeg)],
       schema: z.object({ rows: z.array(modelRowSchema) }),
       maxTokens: BOARD_READ_MAX_TOKENS,
       timeoutMs: BOARD_READ_TIMEOUT_MS,
@@ -90,6 +84,6 @@ export async function readBoardPhoto(
     },
     deps,
   );
-  if (read.status !== "read") return read;
+  if (read.status !== "read") return { status: read.status };
   return { status: "read", ...parseBoardReadAnswer(read.answer) };
 }

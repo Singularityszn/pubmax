@@ -169,24 +169,32 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/moderation queue/i);
   });
 
-  it("discloses OpenAI moderation and report/hide retention for profile pictures", () => {
-    for (const page of [privacy, terms]) {
-      expect(page).toMatch(/profile picture/i);
-      expect(page).toMatch(/OpenAI/);
-      expect(page).toMatch(/omni moderation/i);
-      expect(page).toMatch(/report/i);
-      expect(page).toMatch(/hide/i);
+  it("discloses owned-image moderation and profile-picture controls", () => {
+    const privacyDom = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)));
+    const termsDom = new JSDOM(renderToStaticMarkup(createElement(TermsPage)));
+    try {
+      const openAiRow = [...privacyDom.window.document.querySelectorAll('[aria-labelledby="third"] dt')]
+        .find((term) => term.textContent === "OpenAI")?.nextElementSibling;
+      for (const disclosure of [
+        privacyDom.window.document.querySelector('[aria-labelledby="collect"]'),
+        openAiRow,
+        termsDom.window.document.querySelector('[aria-labelledby="posts"]'),
+      ]) {
+        const text = disclosure?.textContent?.replace(/\s+/g, " ").trim();
+        expect(text).toMatch(/Profile pictures, primary and gallery covers, private-message photos, venue photos and drink-wall photos use an advisory OpenAI moderation check\./i);
+        expect(text).toMatch(/When OpenAI is not set up, an AI model performs (the|that) check\./);
+      }
+    } finally {
+      privacyDom.window.close();
+      termsDom.window.close();
     }
-    expect(privacy).toMatch(/profile pictures go to OpenAI/i);
-    expect(privacy).toMatch(/does not hide the picture on\s+its own/i);
-    expect(privacy).toMatch(/Hiding stops public delivery/i);
-    expect(privacy).toMatch(/never deletes the stored file/i);
-    expect(privacy).toMatch(/Removing\s+the picture yourself[^]*removes the stored\s+file/i);
-    expect(terms).toMatch(/Profile pictures use an advisory OpenAI omni\s+moderation/i);
-    expect(terms).toMatch(/cannot run[^.]*upload can proceed\s+without scan approval/i);
-    expect(terms).toMatch(/hiding never deletes\s+the stored file/i);
+    expect(privacyText).toMatch(/does not hide the picture on its own/i);
+    expect(privacyText).toMatch(/Hiding stops public delivery/i);
+    expect(privacyText).toMatch(/never deletes the stored file/i);
+    expect(privacyText).toMatch(/Removing the picture yourself[^]*removes the stored file/i);
+    expect(termsText).toMatch(/Readers may report a profile picture; only a named staff member may hide or restore it/i);
+    expect(termsText).toMatch(/hiding never deletes the stored file/i);
     for (const text of [privacyText, termsText]) {
-      expect(text).toMatch(/advisory (OpenAI )?omni moderation/i);
       expect(text).toMatch(/refuses[^.]*picture, we refuse the upload/i);
       expect(text).toMatch(/cannot run or gives no usable decision, the upload can proceed without scan approval/i);
     }
@@ -337,37 +345,27 @@ describe("legal content pages", () => {
     }
   });
 
-  it("names every third party that receives PROMPT TEXT", () => {
-    // The block above locks the coordinate-recipient set, which is read off the
-    // location table and therefore says nothing about a processor that receives
-    // what a person TYPED. PR #1693 added model-call tracing to a US vendor and
-    // changed no legal page, and this fence was green throughout, because a
-    // prompt is not a viewer point. It is the same shape as the block above,
-    // one row per recipient of request or completion text.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+  it.each(["Imported pub lists", "Board photos", "Bill photos"])(
+    "discloses AI processing for %s without naming a provider",
+    (label) => {
+      const page = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage))).window.document;
+      const row = [...page.querySelectorAll("dt")].find((term) => term.textContent === label);
+      expect(row?.nextElementSibling?.textContent).toContain("AI model");
+      expect(row?.nextElementSibling?.textContent).not.toContain("Anthropic");
+    },
+  );
 
-    const promptTextRecipients = [
-      { name: "Arize", host: "otlp.arize.com", source: "lib/observability/arize.ts" },
-      { name: "OpenRouter", host: "openrouter.ai", source: "lib/ask/modelLoop.ts" },
-      { name: "Anthropic", host: "api.anthropic.com", source: "lib/claudeClient.server.ts" },
-      { name: "TypeSafe", host: "api.typesafe.ai", source: "lib/ai/typesafe.server.ts" },
-    ];
-    for (const recipient of promptTextRecipients) {
-      expect(thirdPartySection, `Missing recipient name ${recipient.name}`).toContain(
-        recipient.name,
-      );
-      expect(read(recipient.source), `${recipient.source} no longer contacts ${recipient.host}`)
-        .toContain(recipient.host);
-    }
+  it.each(["Arize", "Anthropic", "TypeSafe"])("discloses %s to the reader", (provider) => {
+    const page = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage))).window.document;
+    expect(page.querySelector('[aria-labelledby="third"]')?.textContent).toContain(provider);
   });
 
   it("names every host a typed Pub Pal ask reaches", async () => {
     // Runs a real typed turn. The provider hands back a socket on the host the
     // app asked for a signed URL, as ElevenLabs does, and every host that then
     // receives the typed text, by request body or socket message, must be named.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const thirdPartySection = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)))
+      .window.document.querySelector('[aria-labelledby="third"]')?.textContent ?? "";
     const query = "a quiet pub near the Lamb and Flag for six";
     const signedUrlHosts = new Set<string>();
     const promptHosts = new Set<string>();
@@ -449,8 +447,8 @@ describe("legal content pages", () => {
     // Runs a real typed turn through the Anthropic SDK. The network answers as
     // the Messages API does, and every host that receives the typed text must
     // be named.
-    const thirdPartySection =
-      privacy.match(/aria-labelledby="third"[\s\S]*?aria-labelledby="keep"/)?.[0] ?? "";
+    const thirdPartySection = new JSDOM(renderToStaticMarkup(createElement(PrivacyPage)))
+      .window.document.querySelector('[aria-labelledby="third"]')?.textContent ?? "";
     const query = "a quiet pub near the Lamb and Flag for six";
     const promptHosts = new Set<string>();
     const events = [

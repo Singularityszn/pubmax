@@ -7,7 +7,7 @@ export async function fetchModerationPayload(
   url: string,
   init: RequestInit,
   timeoutMs: number,
-  provider: "OpenAI" | "OpenRouter",
+  provider: "OpenAI",
   error: (message: string, retryable: boolean) => Error,
 ): Promise<unknown> {
   const controller = new AbortController();

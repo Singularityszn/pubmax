@@ -35,19 +35,6 @@
     },
 
     {
-      "match": { "userMessage": "Somewhere quiet near Bank for 4", "hasToolResult": false },
-      "response": {
-        "toolCalls": [
-          { "id": "pal-badargs-1", "name": "search_venues", "arguments": "{\"query\": \"quiet near Bank" }
-        ]
-      }
-    },
-    {
-      "match": { "userMessage": "Somewhere quiet near Bank for 4", "toolCallId": "pal-badargs-1" },
-      "response": { "content": "I could not run that search." }
-    },
-
-    {
       "match": { "userMessage": "Plan a crawl in Soho for 4", "hasToolResult": false },
       "response": {
         "toolCalls": [

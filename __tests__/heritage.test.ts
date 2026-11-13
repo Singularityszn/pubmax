@@ -11,9 +11,6 @@ import {
   answerHeritage,
   retrieveHeritage,
   storedFactSource,
-  __resetHeritageCache,
-  __heritageCacheSizeForTests,
-  __HERITAGE_CACHE_MAX_FOR_TESTS,
 } from "@/lib/heritage";
 import { parseOverlayRow } from "@/lib/harvestFold";
 import {
@@ -22,18 +19,17 @@ import {
 } from "@/lib/harvestOverlayStore";
 import { currentFamousVenueIds } from "@/__tests__/helpers/currentFamousVenues";
 
-// These tests run fully offline: no OPENROUTER key, no Supabase, no network.
+// These tests run fully offline: no model, no Supabase, no network.
 // They pin two guarantees:
-//  1. The no-key path only ever repeats the facts we retrieved, and says so
-//     honestly when there are none.
+//  1. An answer only ever repeats the facts we retrieved, and says so honestly
+//     when there are none.
 //  2. The trust boundary: ALL facts come from server-side stores
 //     (heritage_cache.json + Supabase, keyed by normalised name). The route no
 //     longer accepts a client `context` object, so a forged one is ignored.
 beforeEach(() => {
-  delete process.env.OPENROUTER_API_KEY;
+  delete process.env.ANTHROPIC_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
-  __resetHeritageCache();
   __resetHarvestOverlayStore();
 });
 
@@ -326,177 +322,26 @@ describe("POST /api/heritage", () => {
   });
 });
 
-// P3.10 — The Landlord LLM bounds. OpenRouter is mocked via global.fetch:
-// no network, no real key. Pins: temperature 0 + max-token cap + abort signal
-// on the request; timeout → honest fallback; phantom fact-id citation →
-// rejected (fallback); valid fact-id markers → stripped from the answer.
-describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
-  const realFetch = global.fetch;
-
-  beforeEach(() => {
-    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
-    __resetHeritageCache(); // don't let a cached answer mask a per-case mock
-  });
-
+// The Landlord calls no model: the stored facts answer, whatever model keys
+// the deployment holds.
+describe("The Landlord without a model", () => {
   afterEach(() => {
-    global.fetch = realFetch;
     vi.unstubAllEnvs();
-    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
-  function okResponse(content: string): Response {
-    return {
-      ok: true,
-      json: async () => ({ choices: [{ message: { content } }] }),
-    } as unknown as Response;
-  }
-
-  it("sends temperature 0, a max-token cap, and an abort signal", async () => {
-    const fetchMock = vi.fn(async () => okResponse("Built in 1520 [F1]."));
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
-
-    const [, init] = fetchMock.mock.calls[0] as unknown as [string, RequestInit];
-    const body = JSON.parse(init.body as string);
-    expect(body.temperature).toBe(0);
-    expect(body.max_tokens).toBeGreaterThan(0);
-    expect(init.signal).toBeInstanceOf(AbortSignal);
-    // Facts are numbered so citations can be validated server-side.
-    expect(body.messages[1].content).toContain("[F1]");
-  });
-
-  it("falls back to the honest answer on timeout", async () => {
-    vi.useFakeTimers();
-    let fetchStarted!: () => void;
-    const started = new Promise<void>((resolve) => (fetchStarted = resolve));
-    // A fetch that never resolves — it only rejects when the abort fires.
-    global.fetch = vi.fn((_url: unknown, init?: RequestInit) => {
-      fetchStarted();
-      return new Promise((_, reject) => {
-        init?.signal?.addEventListener("abort", () =>
-          reject(new DOMException("Aborted", "AbortError")),
-        );
-      });
-    }) as unknown as typeof fetch;
-
-    const pending = answerHeritage({
-      venueName: "Nowhere Tavern",
-      question: "What's the story here?",
+  it("answers from the stored facts and sends nothing to any provider", async () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    vi.stubEnv("OPENROUTER_API_KEY", "test-key");
+    const network = vi.fn(async () => {
+      throw new Error("The Landlord must not reach the network.");
     });
-    await started; // retrieval (real I/O) done, the timeout timer is armed
-    await vi.advanceTimersByTimeAsync(11_000); // past the 10s LLM timeout
+    vi.stubGlobal("fetch", network);
 
-    const res = await pending;
-    expect(res.answer).toContain("no fuller story on record");
-  });
+    const res = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old is this pub?" });
 
-  it("rejects an answer citing a phantom fact id and falls back", async () => {
-    global.fetch = vi.fn(async () =>
-      okResponse("Founded by Dick Turpin in 1520 [F42]."),
-    ) as unknown as typeof fetch;
-
-    const res = await answerHeritage({
-      venueName: "Prospect of Whitby",
-      question: "How old is this pub?",
-    });
-    // The fabricated line never reaches the client; the grounded read-back does.
-    expect(res.answer).not.toContain("Dick Turpin");
     expect(res.answer).toContain("Here's what's on record");
-  });
-
-  it("strips valid fact-id markers from the answer", async () => {
-    global.fetch = vi.fn(async () =>
-      okResponse("Riverside Wapping pub usually dated to 1520 [F1]."),
-    ) as unknown as typeof fetch;
-
-    const res = await answerHeritage({
-      venueName: "Prospect of Whitby",
-      question: "How old is this pub?",
-    });
-    expect(res.answer).toBe("Riverside Wapping pub usually dated to 1520.");
-  });
-
-  // P2 — 5-minute answer cache. Same venue+question serves the cached answer
-  // without a second paid call; a different venue must NOT collide.
-  it("serves a cached LLM answer for the same venue+question", async () => {
-    const fetchMock = vi.fn(async () => okResponse("Riverside Wapping pub usually dated to 1520."));
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    const first = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
-    const second = await answerHeritage({ venueName: "Prospect of Whitby", question: "How old?" });
-
-    expect(second.answer).toBe(first.answer);
-    expect(fetchMock).toHaveBeenCalledTimes(1); // second read hit the cache
-  });
-
-  it("bounds the answer cache to a fixed maximum (oldest entry evicted)", async () => {
-    global.fetch = vi.fn(async () => okResponse("Riverside Wapping pub usually dated to 1520.")) as unknown as typeof fetch;
-
-    const overshoot = 5;
-    for (let i = 0; i < __HERITAGE_CACHE_MAX_FOR_TESTS + overshoot; i += 1) {
-      await answerHeritage({
-        venueName: "Prospect of Whitby",
-        question: `What is on record? ${i}`,
-      });
-    }
-
-    expect(__heritageCacheSizeForTests()).toBe(__HERITAGE_CACHE_MAX_FOR_TESTS);
-  });
-
-  it("never returns one venue's cached answer for another venue", async () => {
-    global.fetch = vi.fn(async (_url: unknown, init?: RequestInit) => {
-      const body = JSON.parse(init!.body as string);
-      const isWhitby = body.messages[1].content.includes("Grade II* listed");
-      return okResponse(isWhitby ? "Riverside Wapping pub usually dated to 1520." : "Other answer.");
-    }) as unknown as typeof fetch;
-
-    const q = "Tell me about this pub?";
-    const a = await answerHeritage({ venueName: "Prospect of Whitby", question: q });
-    const b = await answerHeritage({ venueName: "Nowhere Tavern", question: q });
-
-    expect(a.answer).toBe("Riverside Wapping pub usually dated to 1520.");
-    expect(b.answer).not.toBe(a.answer); // distinct key → distinct answer
-  });
-
-  it("separates cached answers by canonical OSM venue identity", async () => {
-    await harvestOverlayStore().upsertMany([
-      parseOverlayRow({
-        osmId: "node/123",
-        name: "The Red Lion",
-        town: "Clapham",
-        matchedLore: {
-          text: "The Red Lion in Clapham has stood here for centuries.",
-          citations: ["https://history.example/red-lion-a"],
-        },
-        sources: ["https://history.example/red-lion-a"],
-      }),
-      parseOverlayRow({
-        osmId: "node/456",
-        name: "The Red Lion",
-        town: "Clapham",
-        matchedLore: {
-          text: "The Red Lion in Clapham was rebuilt after a fire.",
-          citations: ["https://history.example/red-lion-b"],
-        },
-        sources: ["https://history.example/red-lion-b"],
-      }),
-    ]);
-    const fetchMock = vi.fn(async () => okResponse("The Red Lion in Clapham has stood here for centuries."));
-    global.fetch = fetchMock as unknown as typeof fetch;
-
-    await answerHeritage({
-      venueId: "node/123",
-      venueName: "The Red Lion",
-      question: "What is its story?",
-    });
-    await answerHeritage({
-      venueId: "node/456",
-      venueName: "The Red Lion",
-      question: "What is its story?",
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(res.answer).toContain("1520");
+    expect(network).not.toHaveBeenCalled();
   });
 });
-

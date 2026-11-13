@@ -9,7 +9,6 @@ import {
   NO_STORY_LINE,
   retrieveHeritageWithStatus,
 } from "@/lib/heritage";
-import { admitPaidSpend } from "@/lib/paidSpendBudget.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -29,10 +28,10 @@ const MAX_VENUE_NAME_LEN = 200;
 const HERITAGE_FACTS_CACHE_CONTROL =
   "public, s-maxage=300, stale-while-revalidate=600";
 
-// Cost protection: The Landlord fronts a paid OpenRouter call, so this route
-// is rate-limited like Pint Drop writes — durable (Supabase RPC) when
-// configured, in-memory fallback otherwise. Keyed on the hashed IP (there is
-// no contributor handle here), so spend can't be scripted from one machine.
+// Abuse protection: each question resolves venues and reads the heritage
+// stores, so this route is rate-limited like Pint Drop writes — durable
+// (Supabase RPC) when configured, in-memory fallback otherwise. Keyed on the
+// hashed IP (there is no contributor handle here).
 const HERITAGE_RATE_LIMIT = 10;
 const HERITAGE_RATE_WINDOW_MS = 60_000;
 
@@ -60,9 +59,8 @@ export async function POST(request: Request): Promise<Response> {
     const question = rawQuestion.slice(0, MAX_QUESTION_LEN);
 
     const limiterKey = `heritage:${hashIp(clientIp(request))}`;
-    // Fail CLOSED on the durable path: this route fronts paid OpenRouter spend,
-    // so if Supabase is configured but the durable limiter can't answer
-    // (missing-rpc / no-client / error), refuse rather than fall back to a
+    // Fail CLOSED on the durable path: if Supabase is configured but the
+    // durable limiter can't answer, refuse rather than fall back to a
     // scriptable per-instance budget.
     if (
       await isLimited(limiterKey, limiterKey, HERITAGE_RATE_LIMIT, HERITAGE_RATE_WINDOW_MS, {
@@ -71,12 +69,6 @@ export async function POST(request: Request): Promise<Response> {
     ) {
       return publicApiError("Too many questions, slow down.", "RATE_LIMITED", 429, { retryable: true });
     }
-
-    // The per-address budget above is one signal and a caller picks their own
-    // address. This ceiling is the deployment's, and no header widens it. One
-    // address spends at most its share of it, and a spent share or ceiling
-    // answers from the grounded facts rather than refusing the question.
-    const modelAdmitted = await admitPaidSpend("heritage", request);
 
     // Any client-supplied `context` is deliberately ignored — venue context is
     // reconstructed server-side (heritage cache + pub_heritage) so a client
@@ -101,7 +93,6 @@ export async function POST(request: Request): Promise<Response> {
       venueKind: resolvedVenue?.kind,
       question,
       overlayVenueResolution,
-      skipModel: !modelAdmitted,
     });
     return jsonNoStore(response, { status: 200 });
   } catch {
@@ -118,9 +109,9 @@ export async function POST(request: Request): Promise<Response> {
 // by OSM id). No client-supplied fact is ever accepted — a ready response
 // carries only what's on record, and an empty array when there is nothing.
 //
-// No rate limit here (unlike POST, which fronts paid OpenRouter spend): this is
-// a light internal read of local/Supabase data, and the short public/CDN cache
-// above absorbs repeat traffic for ready reads.
+// No rate limit here (unlike POST): this is a light internal read of
+// local/Supabase data, and the short public/CDN cache above absorbs repeat
+// traffic for ready reads.
 export async function GET(request: Request): Promise<Response> {
   try {
     const params = new URL(request.url).searchParams;

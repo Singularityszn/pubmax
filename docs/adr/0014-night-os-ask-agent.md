@@ -138,12 +138,12 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    memory. Typed chat keeps its Confirm buttons. Pins:
    `__tests__/palMapCommands.test.ts`, `__tests__/mapGestureGuard.test.ts`,
    `e2e/pal-voice-transcript.spec.ts`.
-4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY` or `OPENROUTER_API_KEY`, `POST /api/ask`
+4. **Keyless path (map Ask)** - without `ANTHROPIC_API_KEY`, `POST /api/ask`
    uses deterministic tools and house-voice templates.
    Decision 2 defines the recorded-answer routing exceptions.
 5. **Bounded model loop (map Ask)** - with Claude when `ANTHROPIC_API_KEY` is set,
-   else OpenRouter, tool-calling on `POST /api/ask` is allowlisted.
-   It uses low temperature or low effort, with capped rounds and tokens.
+   tool-calling on `POST /api/ask` is allowlisted. No other provider is tried.
+   It uses low effort, with capped rounds and tokens.
    The safety check below precedes this loop. The model selects tools only.
    For model-routed turns, `composeAnswer`
    builds reader copy from returned hints and cards.
@@ -168,8 +168,7 @@ the route was ever found in `app`,
 `lib/concierge/venues.server.ts` are imported by `/api/ask` and
 `/api/plans/generate`. Only the orphaned HTTP wrapper was removed.
 `parseConciergeIntent` is TypeSafe when keyed (`lib/ai/typesafe.server.ts`)
-and the mood/area/group/budget regex table when not. It no longer calls
-OpenRouter.
+and the mood/area/group/budget regex table when not. It calls no other model.
 
 ### Sobriety and getting-home routing
 

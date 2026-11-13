@@ -35,7 +35,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-22T18:00:00Z"));
   vi.stubEnv("ELEVENLABS_API_KEY", "");
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(offlineFetch));
   io.detail.mockResolvedValue({ status: "found", venue: {} });
@@ -65,9 +65,11 @@ describe("keyless Pub Pal hours answers", () => {
     expect(body.cards).toHaveLength(1);
     expect(body.cards[0].venueId).toBe(venueId);
     expect(body.sources[0]?.url).toBe("https://example.org/hours");
-    vi.stubEnv("OPENROUTER_API_KEY", "configured-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "configured-test-key");
     vi.stubEnv("TYPESAFE_API_KEY", "configured-test-key");
     const transport = vi.fn<typeof fetch>(async () => { throw new Error("Hours must bypass providers."); });
+    // The Claude SDK sends on the global fetch, so a model call would count here too.
+    vi.stubGlobal("fetch", transport);
     const direct = await runAsk({ query: `What are the opening hours of ${name}?`, now: Date.now(), fetchImpl: transport });
     expect(direct.answer).toBe(body.answer);
     expect(direct.cards.map((card) => card.venueId)).toEqual([venueId]);

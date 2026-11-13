@@ -1,16 +1,13 @@
 // "The Landlord" — a retrieval-grounded heritage Q&A helper for a single pub.
 //
-// Grounding contract: every answer is built ONLY from facts we retrieved. The
-// no-key path never invents anything — it just reads back the facts on record,
-// or says plainly that there is no fuller story. The LLM path is instructed to
-// do the same and falls back to the honest structured answer on any failure.
+// Grounding contract: every answer is built ONLY from facts we retrieved. It
+// reads back the stored, cited facts on record (Historic England, Wikidata,
+// Wikipedia, OSM and cited harvest lore), or says plainly that there is no
+// fuller story. No model is called: the facts are already stored, and an
+// answer adds no facts beyond those records.
 
 import "server-only";
 
-import { createHash } from "node:crypto";
-
-import { traceArizeModelCall } from "@/lib/observability/arize";
-import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
 import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
@@ -174,178 +171,15 @@ function structuredAnswer(facts: HeritageFact[]): string {
   return `Here's what's on record: ${facts.map((f) => f.fact.replace(/\.$/, "")).join("; ")}.`;
 }
 
-function systemPrompt(venueNoun: string): string {
-  return [
-    `You are the PUBMAXXER, a warm, concise, knowledgeable London local answering questions about one ${venueNoun}.`,
-    "Answer ONLY from the CONTEXT facts provided. Never invent history, dates, names, or events.",
-    "Do not calculate present-day ages or elapsed years. Quote the supplied dates instead.",
-    "Select the CONTEXT fact that answers the question and repeat its complete text exactly. Do not paraphrase it.",
-    "A construction or rebuilding date is not a founding date. Keep each date attached to its stated event.",
-    "Each CONTEXT fact is numbered like [F1]. When you use a fact, cite its id inline (e.g. [F1]). Never cite an id that does not appear in the CONTEXT.",
-    "If the context does not contain the answer, say so plainly. Do not guess.",
-  ].join(" ");
-}
-
-// LLM bounds (PRD P3.10): deterministic, capped, and time-boxed. Any failure
-// mode — timeout, network, bad status, phantom citation — returns null and the
-// caller falls back to the honest structured answer.
-const LLM_TIMEOUT_MS = 10_000;
-const LLM_MAX_TOKENS = 400; // answers are a short paragraph; caps cost + runaway output
-
-// Facts are numbered [F1]..[Fn] in the prompt. An answer citing an id outside
-// the retrieved set is fabrication → reject the whole answer (null). Valid
-// markers are stripped before the answer reaches the client.
-const FACT_ID_RE = /\[F(\d+)\]/g;
-
-function sanitiseModelAnswer(answer: string, facts: HeritageFact[]): string | null {
-  for (const match of answer.matchAll(FACT_ID_RE)) {
-    const id = Number(match[1]);
-    if (id < 1 || id > facts.length) return null;
-  }
-  const cleaned = answer
-    .replace(FACT_ID_RE, "")
-    .replace(/\s+([.,;:!?])/g, "$1")
-    .replace(/ {2,}/g, " ")
-    .trim();
-  return facts.some(({ fact }) => fact.trim() === cleaned) ? cleaned : null;
-}
-
-async function answerWithModel(
-  question: string,
-  facts: HeritageFact[],
-  venueNoun: string,
-): Promise<string | null> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), LLM_TIMEOUT_MS);
-  const model = process.env.OPENROUTER_MODEL ?? "anthropic/claude-sonnet-4-5";
-  const contextBlock = facts.length
-    ? facts.map((f, i) => `- [F${i + 1}] (${f.source}) ${f.fact}`).join("\n")
-    : "(no facts on record)";
-  const userContent = `CONTEXT:\n${contextBlock}\n\nQUESTION: ${question}`;
-  // One Arize AX span around the model call (lib/observability/arize.ts):
-  // model, tokens, latency, route. Prompt text is masked for emails and
-  // handles before it leaves the process. Inert without the Arize keys.
-  return traceArizeModelCall({
-    route: "api/heritage",
-    model,
-    provider: "openrouter",
-    prompt: userContent,
-    invocationParameters: { temperature: 0, max_tokens: LLM_MAX_TOKENS },
-    call: async (span) => {
-      try {
-        const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            model,
-            temperature: 0,
-            max_tokens: LLM_MAX_TOKENS,
-            messages: [
-              { role: "system", content: systemPrompt(venueNoun) },
-              { role: "user", content: userContent },
-            ],
-          }),
-          signal: controller.signal,
-        });
-        if (!res.ok) {
-          span?.setError(new Error(`OpenRouter responded ${res.status}.`));
-          discardBody(res);
-          return null;
-        }
-        const data = await res.json();
-        span?.setUsage({
-          promptTokens: data?.usage?.prompt_tokens,
-          completionTokens: data?.usage?.completion_tokens,
-          totalTokens: data?.usage?.total_tokens,
-        });
-        const text = data?.choices?.[0]?.message?.content;
-        if (typeof text !== "string" || !text.trim()) {
-          span?.setOutput("");
-          return null;
-        }
-        span?.setOutput(text);
-        return sanitiseModelAnswer(text.trim(), facts);
-      } catch (error) {
-        // Timeout/abort/network — never surface; the honest fallback takes over.
-        span?.setError(error);
-        return null;
-      } finally {
-        clearTimeout(timer);
-      }
-    },
-  });
-}
-
-// P2 — 5-minute in-memory cache for LLM answers. Keyed by canonical venue
-// identity plus a hash of the question, so it cannot leak answers across OSM
-// venues. Only the paid LLM path is cached (the deterministic fallback is
-// already cheap), and
-// hidden/moderated content never flows through here — facts come from the
-// server stores, and a bounded TTL means a moderation change is reflected within
-// five minutes. Bounded to ANSWER_CACHE_MAX entries with insertion-order eviction
-// (Map iteration is insertion-order) so a hostile stream of (venue, question)
-// pairs can't grow the process memory without limit.
-const ANSWER_CACHE_TTL_MS = 5 * 60_000;
-const ANSWER_CACHE_MAX = 500;
-const answerCache = new Map<string, { at: number; response: HeritageResponse }>();
-
-function setAnswerCache(key: string, entry: { at: number; response: HeritageResponse }): void {
-  // Refreshing an existing key must not double-count against the bound.
-  if (answerCache.has(key)) answerCache.delete(key);
-  answerCache.set(key, entry);
-  while (answerCache.size > ANSWER_CACHE_MAX) {
-    const oldest = answerCache.keys().next().value;
-    if (oldest === undefined) break;
-    answerCache.delete(oldest);
-  }
-}
-
-function cacheKey(
-  venueName: string,
-  question: string,
-  venueNoun: string,
-  venueIdentity: string,
-): string {
-  const qHash = createHash("sha256")
-    .update(`${venueIdentity}\0${venueNoun}\0${question}`)
-    .digest("hex");
-  return `${venueIdentity || normaliseVenueName(venueName)}::${qHash}`;
-}
-
 export async function answerHeritage(input: {
   venueId?: string;
   venueName: string;
   venueKind?: VenueKind;
   question: string;
   overlayVenueResolution?: HarvestOverlayVenueResolution;
-  /** Answer from the grounded facts alone, with no model call (a spent paid lane). */
-  skipModel?: boolean;
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
-  const useLlm = !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
-  const venueResolution = input.overlayVenueResolution ?? (input.venueId
-    ? await resolveHarvestOverlayVenue(input.venueId)
-    : null);
-  const venueIdentity = venueResolution?.status === "resolved"
-    ? venueResolution.venueIds.join(",")
-    : input.venueId ?? "";
-  const key = useLlm && venueResolution?.status !== "unavailable"
-    ? cacheKey(input.venueName, input.question, venueNoun, venueIdentity)
-    : null;
-
-  if (key) {
-    const hit = answerCache.get(key);
-    if (hit && Date.now() - hit.at < ANSWER_CACHE_TTL_MS) return hit.response;
-    if (hit) answerCache.delete(key); // expired — prune on read
-  }
-
-  const heritageRead = await retrieveHeritageWithStatus({
-    ...input,
-    overlayVenueResolution: venueResolution ?? undefined,
-  });
+  const heritageRead = await retrieveHeritageWithStatus(input);
   const citations = dedupeCitations(heritageRead.facts);
   const seenFacts = new Set<string>();
   const facts = heritageRead.facts.filter(({ fact }) => {
@@ -355,35 +189,9 @@ export async function answerHeritage(input: {
     return true;
   });
 
-  if (useLlm && key) {
-    const modelAnswer = await answerWithModel(input.question, facts, venueNoun);
-    if (modelAnswer) {
-      const response: HeritageResponse = { answer: modelAnswer, citations };
-      if (heritageRead.status === "ready") {
-        setAnswerCache(key, { at: Date.now(), response });
-      }
-      return response;
-    }
-    // else: fall through to the honest structured answer (not cached — cheap).
-  }
-
-  const answer = structuredAnswer(facts);
-  const response: HeritageResponse = { answer, citations };
+  const response: HeritageResponse = { answer: structuredAnswer(facts), citations };
   if (facts.length === 0) {
     response.clarifyingQuestion = `What would you like to know about this ${venueNoun}?`;
   }
   return response;
 }
-
-// Test-only: clear the answer cache between cases.
-export function __resetHeritageCache(): void {
-  answerCache.clear();
-}
-
-// Test-only: current answer-cache size, for asserting the bound holds.
-export function __heritageCacheSizeForTests(): number {
-  return answerCache.size;
-}
-
-// Test-only: the answer-cache upper bound, so tests aren't coupled to the value.
-export const __HERITAGE_CACHE_MAX_FOR_TESTS = ANSWER_CACHE_MAX;

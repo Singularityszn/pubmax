@@ -2,7 +2,7 @@
 
 **Every pint has a story.** A **price-aware, story-led London night-out map and pub-crawl planner**, with a pint-price hunt across covered UK cities. Pubs show listed pint prices; hand-curated bars, late-food institutions, and iconic restaurants use labelled, dated anchors for the item actually priced. Three layers share one living 3-D map: **price**, **setting**, and **story**, with visible provenance so history and legend never blur.
 
-Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs, or load a curated **Featured route**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**, a retrieval-grounded AI that tells the pub's real history and honestly says when it doesn't know.
+Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build your own** by tapping pubs, or load a curated **Featured route**. Any crawl is captured in the URL and shareable. Tap a pub to open **The Landlord**. See [Features](#features) for its pub-history answers.
 
 ## Features
 
@@ -453,8 +453,9 @@ Finishing or dismissing saves your choice in this browser when storage is availa
 ## Stack
 
 Next.js 16 (App Router) · React 19 · TypeScript · MapLibre GL + OpenFreeMap
-basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · OpenRouter
-(Claude) for The Landlord · Vitest + Playwright · deployed on Vercel.
+basemaps (CARTO fallback) · Supabase (Postgres + Storage + RLS) · Claude API
+(Anthropic) for map Ask, Pub Pal typed chat, Board Reader and bill checks ·
+Vitest + Playwright · deployed on Vercel.
 
 ## Quick start
 
@@ -465,7 +466,7 @@ npm install
 npm run dev            # http://localhost:3000 — works with NO secrets
 ```
 
-The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord answers in grounded/structured mode (reads the facts on record; no narration). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `OPENROUTER_API_KEY`.
+The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord reads back the cited facts on record (it never calls a model). For persistent storage, copy `.env.example` to `.env.local` and configure Supabase. For optional model features, follow [Claude setup](docs/PUB_PAL_SETUP.md#typed-chat-on-claude).
 
 ### WebMCP Agent Night Board
 
@@ -575,7 +576,7 @@ time, so a change needs a fresh deployment.
 - **[`docs/MOBILE_FLOW_SPEC.md`](docs/MOBILE_FLOW_SPEC.md)** - mobile transition, Back, and state-preservation principles.
 - **[`docs/MAP_URL_PARAMS.md`](docs/MAP_URL_PARAMS.md)** - map URL ownership, validation, and history rules.
 - **[`docs/specs/governed-priced-landings/PRODUCT.md`](docs/specs/governed-priced-landings/PRODUCT.md)** - the publication and redirect contract for beer and area pages.
-- **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + OpenRouter runbook.
+- **`docs/DEPLOYMENT.md`** — reproducible Vercel + Supabase + Claude API runbook.
 - **[`docs/CRON_PLANE_RUNBOOK.md`](docs/CRON_PLANE_RUNBOOK.md)** - scheduler, auth, failure posture, and honest freshness boundaries.
 - **[`docs/LOCAL_REFRESH_SCHEDULER.md`](docs/LOCAL_REFRESH_SCHEDULER.md)** - local launchd acquisition, resource gates, logs, and review-PR operation.
 - **[`docs/WAYFINDER_LIVE_DATA.md`](docs/WAYFINDER_LIVE_DATA.md)** - source, cadence, gate, and staleness policy for every data class.

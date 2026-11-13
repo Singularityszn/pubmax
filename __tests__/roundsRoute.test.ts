@@ -1,6 +1,8 @@
 import sharp from "sharp";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { claudeJsonResponse } from "@/__tests__/helpers/claudeWire";
+
 const billChecks = vi.hoisted(() => ({ keyed: true, schedule: vi.fn() }));
 vi.mock("@/lib/billCheck.server", () => ({
   billReaderKeyed: () => billChecks.keyed,
@@ -695,16 +697,14 @@ describe("POST /api/rounds/[code] — actions", () => {
     expect(receiptStorage.upload).toHaveBeenCalledTimes(1);
     expect(billChecks.schedule).toHaveBeenCalledTimes(2);
     const { runBillChecks } = await vi.importActual<typeof import("@/lib/billCheck.server")>("@/lib/billCheck.server");
-    const fetcher = vi.fn(async () => Response.json({
-      choices: [{ message: { content: JSON.stringify({
-        venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 6.2 }],
-      }) } }],
+    const fetcher = vi.fn(async () => claudeJsonResponse({
+      venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 6.2 }],
     }));
     const scheduled = billChecks.schedule.mock.calls as [File, BillCheckObservation[]][];
     for (const [index, [photo, observations]] of scheduled.entries()) {
       expect(Buffer.from(await photo.arrayBuffer())).toEqual(jpeg);
       expect(await runBillChecks(photo, observations, {
-        env: { OPENROUTER_API_KEY: "test-key" }, admit: async () => true, fetcher, store: memoryBillCheckStore,
+        env: { ANTHROPIC_API_KEY: "test-key" }, admit: async () => true, fetcher, store: memoryBillCheckStore,
       })).toEqual([index === 0 ? "mismatch" : "already-checked"]);
     }
     expect(fetcher).toHaveBeenCalledTimes(1);
@@ -1021,12 +1021,10 @@ describe("POST /api/rounds/[code] — actions", () => {
       expect((await sharp(bytes).metadata()).format).toBe("jpeg");
       const { runBillChecks } = await vi.importActual<typeof import("@/lib/billCheck.server")>("@/lib/billCheck.server");
       expect(await runBillChecks(photo, observations, {
-        env: { OPENROUTER_API_KEY: "test-key" },
+        env: { ANTHROPIC_API_KEY: "test-key" },
         admit: async () => true,
-        fetcher: async () => Response.json({
-          choices: [{ message: { content: JSON.stringify({
-            venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 7.2 }],
-          }) } }],
+        fetcher: async () => claudeJsonResponse({
+          venue_name: "The Ship", date: "2026-11-05", lines: [{ name: "Guinness", price_gbp: 7.2 }],
         }),
         store: memoryBillCheckStore,
       })).toEqual(["mismatch"]);

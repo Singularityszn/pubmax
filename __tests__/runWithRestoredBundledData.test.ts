@@ -135,24 +135,24 @@ describe("committed bundled data restore", () => {
     writeFileSync(join(cwd, ".env.local"), "TYPESAFE_API_KEY=fake-non-mapped-env-file\n");
     const env = {
       ...process.env,
-      OPENROUTER_API_KEY: "fake-sentinel-not-a-provider-key",
+      ANTHROPIC_API_KEY: "fake-sentinel-not-a-provider-key",
       TYPESAFE_API_KEY: "fake-typesafe-sentinel",
       CODEX_API_KEY: "fake-coding-sentinel",
       PUBMAX_DISPOSABLE_FORWARDING: "disposable-forwarding-value",
     };
     const result = spawnSync(process.execPath, [bundledWrapper, process.execPath, "-e", `
       console.log(JSON.stringify({
-        providerKeyPresent: Boolean(process.env.OPENROUTER_API_KEY),
+        providerKeyPresent: Boolean(process.env.ANTHROPIC_API_KEY),
         typesafePreserved: process.env.TYPESAFE_API_KEY === "fake-typesafe-sentinel",
         codingAuthPreserved: process.env.CODEX_API_KEY === "fake-coding-sentinel",
         unrelatedValueForwarded: process.env.PUBMAX_DISPOSABLE_FORWARDING === "disposable-forwarding-value",
       }));
       require("fs").appendFileSync("public/data/baseline.json", "dirty\\n");
-      process.exit(process.env.OPENROUTER_API_KEY ? 8 : 0);
+      process.exit(process.env.ANTHROPIC_API_KEY ? 8 : 0);
     `], { cwd, env, encoding: "utf8" });
     expect(JSON.parse(result.stdout)).toEqual({ providerKeyPresent: false, typesafePreserved: true, codingAuthPreserved: true, unrelatedValueForwarded: true });
     expect(result.status).toBe(0);
-    expect(Boolean(env.OPENROUTER_API_KEY)).toBe(true);
+    expect(Boolean(env.ANTHROPIC_API_KEY)).toBe(true);
     expect(readFileSync(join(cwd, ".env.local"), "utf8")).toBe("TYPESAFE_API_KEY=fake-non-mapped-env-file\n");
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
   });

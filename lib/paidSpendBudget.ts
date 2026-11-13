@@ -1,8 +1,8 @@
 /**
  * A CEILING NO HEADER CAN WIDEN.
  *
- * Paid routes carry a deployment-wide spend ceiling: `/api/ask` and
- * `/api/heritage` call OpenRouter when keyed. Signed-in chat provider selection
+ * Paid routes carry a deployment-wide spend ceiling: `/api/ask` calls Claude
+ * when keyed. Signed-in chat provider selection
  * belongs to `app/api/pub-pal/chat/route.ts`. `/api/pub-pal/voice-token`
  * issues the signed ElevenLabs voice session the provider bills by the minute.
  * Each was rate-limited on the hashed caller address ALONE, so the budget an
@@ -62,7 +62,6 @@
 /** Every route that may spend money. */
 export const PAID_SPEND_LANES = [
   "ask",
-  "heritage",
   "pub-pal-chat",
   "pub-pal-voice",
   "pub-list-import",
@@ -90,7 +89,6 @@ export function paidSpendWarningThreshold(used: number, budget: number): 80 | 90
  */
 export const PAID_SPEND_DEFAULT_DAILY_BUDGET: Record<PaidSpendLane, number> = {
   ask: 1_000,
-  heritage: 1_000,
   "pub-pal-chat": 2_000,
   // Signed voice sessions. Each is real ElevenLabs minutes, capped per account at
   // a monthly allowance but never across accounts until this ceiling.

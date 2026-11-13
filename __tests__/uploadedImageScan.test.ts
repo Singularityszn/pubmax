@@ -78,7 +78,7 @@ describe("a scan that reached no verdict", () => {
       signedUrl: URL_,
       adapter: () => ({
         moderate: async () => {
-          throw new ProfileAvatarModerationError("OpenRouter moderation returned 404.", false);
+          throw new ProfileAvatarModerationError("Claude moderation request failed.", false);
         },
       }),
     });

@@ -350,7 +350,7 @@
       },
       "cadence": "episodic — re-run scripts/build_heritage_listings.mjs against the live NHLE FeatureServer. The NHLE point layer refreshes daily upstream but statutory listing status changes rarely. The stamp is the pack's own $retrievedAt, the day the NHLE was read; lib/heritageListings.ts resolves it and the venue sheet prints it beside every listed fact.",
       "stalenessBudgetHours": 8760,
-      "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). A live read also writes data/heritage/nhle_london_points.json, the points it read, which the refresh commits beside the pack as its review evidence; --offline rebuilds the pack from that file. Every live read goes through the historic-england-nhle row in lib/harvest/sourcePolicy.ts. Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
+      "refreshWorkflow": "monthly review PR (.github/workflows/heritage-refresh.yml), or manual (node scripts/build_heritage_listings.mjs; a cached read needs --retrieved-at). A live read also writes data/heritage/nhle_london_points.json, the points it read, which the refresh commits beside the pack as its review evidence; --offline rebuilds the pack from that file. Every live read goes through the historic-england-nhle row in lib/harvest/sourcePolicy.ts. Matches the curated dataset and every London OSM pub no curated venue owns (scripts/lib/heritageBaseVenues.mjs).",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
@@ -366,7 +366,7 @@
       },
       "cadence": "episodic — node scripts/build_historic_index.mjs",
       "stalenessBudgetHours": 2160,
-      "refreshWorkflow": "manual (node scripts/build_historic_index.mjs)",
+      "refreshWorkflow": "monthly review PR (.github/workflows/heritage-refresh.yml), or manual (node scripts/build_historic_index.mjs). The generator advances this literal stamp only after writing the index, including byte-identical rebuilds. The review PR includes the registry. Rebuilds from the committed heritage cache and venue dataset. Wikipedia acquisition is excluded until scripts/integrate_wikipedia_london_pubs.mjs uses lib/harvest/sourcePolicy.ts.",
       "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
     },
     {
@@ -394,7 +394,7 @@
       },
       "cadence": "episodic — re-read from the Wikidata Query Service whenever osm_wikidata_links is re-derived, or when the statements are wanted fresher. The stamp is the day the query service was read.",
       "stalenessBudgetHours": 4320,
-      "refreshWorkflow": "manual (npm run build:wikidata-history). Every read goes through the wikidata-query-service row in lib/harvest/sourcePolicy.ts; a failed batch writes nothing.",
+      "refreshWorkflow": "monthly review PR (.github/workflows/heritage-refresh.yml), or manual (npm run build:wikidata-history). Every read goes through the wikidata-query-service row in lib/harvest/sourcePolicy.ts; a failed batch writes nothing.",
       "gate": "none (keyless SPARQL endpoint; Wikidata CC0 1.0; a descriptive User-Agent per the Wikimedia User-Agent Policy)"
     },
     {

@@ -46,7 +46,7 @@ function reference(caseDef: typeof dataset.cases[number]): PalEvalAnswerExpectat
 
 beforeEach(() => {
   __resetPintDrops();
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(() => {
     throw new Error("The fail-closed price eval must stay offline.");

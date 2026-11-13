@@ -12,7 +12,7 @@ ElevenLabs.
 
 1. Create a Claude Platform API key in the account that holds the intended credits.
 2. Set `ANTHROPIC_API_KEY` on the deployment (server-only).
-3. Optional: set `PUB_PAL_CLAUDE_MODEL` for both Pub Pal typed chat and map Ask. The default is `claude-haiku-5-5`.
+3. Optional: set `PUB_PAL_CLAUDE_MODEL` for every Claude call. The default is `claude-haiku-5-5`.
 
 Set a monthly spend limit in the Claude Console.
 
@@ -24,12 +24,15 @@ ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
 same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
 server runs each tool itself, so no webhook is involved.
 
-The same key also moves map Ask's model loop (`/api/ask`) from OpenRouter to
-Claude. Both paths use the shared client, model setting and prompt cache
-markers (`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
+The same key also runs map Ask's model loop (`/api/ask`) on Claude. Both
+paths use the shared client, model setting and prompt cache markers
+(`lib/claudeClient.server.ts`). Ask spends the `ask` ceiling.
+
+The key and model also serve Board Reader, bill checks, pub-list imports and the owned-image moderation fallback.
+[Model-call controls](../.agents/skills/pubmax-ai-sdk/SKILL.md#controls-today) own the budgets and fallbacks for these paths.
 
 Without a Claude key, typed chat uses the configured ElevenLabs agent, or the keyless tools when ElevenLabs is not configured.
-Map Ask uses OpenRouter when its key is set, or the keyless tools otherwise.
+Map Ask uses the keyless tools.
 A failed Claude request does not switch to another paid provider.
 Map Ask retains completed tool results or uses its keyless fallback. Typed chat returns its existing failure response.
 

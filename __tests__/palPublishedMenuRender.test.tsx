@@ -21,7 +21,6 @@ it("renders app_price_002044's drink, stated serving, publisher and source-read 
   vi.stubEnv("ELEVENLABS_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubEnv("ANTHROPIC_API_KEY", "");
-  vi.stubEnv("OPENROUTER_API_KEY", "");
   const ask = createPalChatSession({ fetchImpl: async (_url, init) => POST(new Request("http://localhost/api/pub-pal/chat", init)) });
   const result = await ask("Cheapest pint near Soho", "london");
   if (!result || result.status !== "answered") throw new Error("The recorded pint must produce cards");

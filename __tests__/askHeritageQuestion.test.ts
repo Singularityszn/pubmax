@@ -8,7 +8,7 @@ import { retrieveHeritageWithStatus } from "@/lib/heritage";
 import { GET } from "@/app/api/heritage/route";
 
 beforeEach(() => {
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", vi.fn(() => {
     throw new Error("Heritage question tests must stay offline.");

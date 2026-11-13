@@ -4,11 +4,10 @@
 // WHAT IS TRACED: every paid-lane model call the app makes on the server:
 //  - the Vercel AI SDK (`ai` v7) `generateText` calls, bridged by
 //    `@ai-sdk/otel` (`registerTelemetry`), and
-//  - every direct model HTTP call in `lib/` (Claude chat calls, OpenRouter
-//    Ask tool selection and heritage narration, and the OpenAI
-//    omni-moderation and OpenRouter vision calls in the two moderation
-//    adapters), wrapped by the `traceArizeModelCall` / `traceArizeModelLoop`
-//    helpers below.
+//  - every direct model call in `lib/` (Claude chat and Ask tool selection,
+//    the Claude JSON reads in lib/claudeJson.server.ts, and the OpenAI
+//    omni-moderation calls), wrapped by the `traceArizeModelCall` /
+//    `traceArizeModelLoop` helpers below.
 // Each span carries the model, token counts (when the provider reports
 // them), latency (the span duration), the provider and a static route tag
 // under `metadata.route`. `metadata` never holds a request URL, IP, handle or

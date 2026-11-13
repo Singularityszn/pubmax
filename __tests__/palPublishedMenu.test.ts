@@ -34,7 +34,7 @@ function request(query: string) {
 
 beforeEach(() => {
   vi.stubEnv("ELEVENLABS_API_KEY", "");
-  vi.stubEnv("OPENROUTER_API_KEY", "");
+  vi.stubEnv("ANTHROPIC_API_KEY", "");
   vi.stubEnv("TYPESAFE_API_KEY", "");
   vi.stubGlobal("fetch", offlineFetch);
   __resetPubPalToolTurnStore();

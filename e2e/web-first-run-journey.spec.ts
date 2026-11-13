@@ -30,7 +30,7 @@ const canonicalPriceTest = test.extend({
   baseURL: async ({ baseURL: harnessURL }, provide, testInfo) => {
     const server = fork(resolve("scripts/e2e/canonical-price-server.ts"), [], {
       execArgv: ["--import", "tsx"],
-      env: { ...process.env, ...E2E_SERVER_ENV, OPENROUTER_API_KEY: "", NODE_ENV: "production" },
+      env: { ...process.env, ...E2E_SERVER_ENV, ANTHROPIC_API_KEY: "", NODE_ENV: "production" },
       stdio: ["ignore", "inherit", "inherit", "ipc"],
     });
     const exited = once(server, "exit");

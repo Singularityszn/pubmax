@@ -29,7 +29,7 @@ describe("configured Pub Pal local record answers", () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "test-key");
     vi.stubEnv("ELEVENLABS_PUB_PAL_AGENT_ID", "agent-id");
     vi.stubEnv("TYPESAFE_API_KEY", "");
-    vi.stubEnv("OPENROUTER_API_KEY", "");
+    vi.stubEnv("ANTHROPIC_API_KEY", "");
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("External services are unavailable"); }));
     vi.mocked(paidSpendBudgetRefusal).mockClear();
   });

@@ -54,7 +54,7 @@ const SECRET_VALUE_PATTERNS: RegExp[] = [
  * Scrub secret material out of a single string value. Returns the string with
  * every matched secret run replaced by a "[redacted]" marker that preserves the
  * key/prefix so the line stays diagnosable (e.g. `Bearer [redacted]`,
- * `app_key=[redacted]`, `OPENROUTER_API_KEY=[redacted]`). Non-strings are
+ * `app_key=[redacted]`, `ANTHROPIC_API_KEY=[redacted]`). Non-strings are
  * returned untouched (callers only pass strings here).
  */
 function scrubSecrets(value: string): string {

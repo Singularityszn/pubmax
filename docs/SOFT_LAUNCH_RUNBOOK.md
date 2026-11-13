@@ -497,7 +497,7 @@ The code caps requests, not money (launch plan C1). Set a cap in each vendor das
 
 | Vendor | Production variable | What to set | Cap set |
 |---|---|---|---|
-| OpenRouter | `OPENROUTER_API_KEY` | A credit limit on the production key. Auto top-up off. | Not set |
+| Anthropic | `ANTHROPIC_API_KEY` | A monthly spend limit in the Claude Console. Auto reload off. | Not set |
 | ElevenLabs | `ELEVENLABS_API_KEY` | Usage-based billing off, or a usage cap on it | Not set |
 | OpenAI | `OPENAI_API_KEY` | A monthly budget on the project. Auto recharge off. | Not set |
 | Vercel AI Gateway | `AI_GATEWAY_API_KEY` | Auto top-up off | Not set |
