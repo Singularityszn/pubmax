@@ -331,8 +331,8 @@ export function usePintDrops(
   );
   // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
   // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
-  // pub as having no drops once its own read ANSWERED. An absent entry is
-  // `idle`, which is honestly "not asked yet".
+  // pub as having no drops once its own read ANSWERED. An absent entry means
+  // "not asked yet". Each consumer decides whether that blocks its fallback.
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());

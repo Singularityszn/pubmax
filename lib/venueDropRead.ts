@@ -11,10 +11,9 @@
 // city-wide refresh beside it already kept its layer on a failure.
 
 /**
- * `idle` is "not asked yet", `ready` is "asked and answered", `unavailable` is
- * "we could not look". The third is the one that matters: it is what stops a
- * failed read being worded as a pub with no price on it. Deliberately the same
- * three-way shape `VenuePriceReadStatus` uses for the community price lane.
+ * `idle` means no settled answer, including a read in flight.
+ * `ready` means the read answered. `unavailable` means it could not answer.
+ * An unavailable read cannot justify a claim that the pub has no prices.
  */
 export type VenueDropReadStatus = "idle" | "ready" | "unavailable";
 
