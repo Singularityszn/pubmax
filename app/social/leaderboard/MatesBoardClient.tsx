@@ -42,7 +42,6 @@ function Board({ board }: { board: MatesBoardAnswer }) {
           <RowListItem
             key={row.handle}
             href={profilePath(row.handle)}
-            className={row.self ? "matesBoardSelf" : undefined}
             lead={<span className="matesBoardPlace">{row.place}</span>}
             title={row.self ? `@${row.handle} (${MATES_BOARD_COPY.you})` : `@${row.handle}`}
             meta={`Level ${row.level}`}

@@ -1,7 +1,7 @@
 /* The mates' board (app/social/leaderboard). Launch tokens only
    (docs/DESIGN_SYSTEM.md "Launch tokens"). Rows come from the RowList
    primitive. No coral: the board has no action, and a figure is neutral ink
-   set in the data face. The reader's own row reads in weight. */
+   set in the data face. The reader's own row says "(You)" in its title. */
 
 .matesBoardShell {
   margin: 0 auto;
@@ -45,8 +45,4 @@
 
 .matesBoardFigure {
   font-weight: 700;
-}
-
-.matesBoardSelf .rowListTitle {
-  font-weight: 800;
 }
