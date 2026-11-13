@@ -46,6 +46,7 @@ function deps(caller: string | null, overrides: Partial<PointsDeps> = {}): Point
         ["WC1", ["lamb", "mitre", "anchor"]],
         ["SE1", ["anchor", "george", "market"]],
       ]),
+    challenges: async () => new Map(),
     ...overrides,
   };
 }
@@ -105,6 +106,113 @@ describe("readPointsBreakdown", () => {
     expect(breakdown.status).toBe("degraded");
     expect(line(breakdown, "pubAdded")).toMatchObject({ count: 0, points: 0 });
     expect(breakdown.total).toBe(1130);
+  });
+
+  it("pays for finished challenges and doubles one finished inside its month", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-08-01", source: "diary" }],
+        plans: async () => [{ venueId: "mitre", venueName: "Ye Olde Mitre", date: "2026-07-01", source: "plan" }],
+        beenHere: async () => [{ venueId: "anchor-old", venueName: "Anchor", savedAt: "2026-11-02T20:00:00.000Z" }],
+        challenges: async () =>
+          new Map([
+            ["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]],
+            ["kings-head", [{ label: "Lamb", venueIds: ["lamb"] }]],
+            ["ship", [{ label: "Lamb", venueIds: ["lamb"] }, { label: "Mitre", venueIds: ["mitre"] }]],
+            ["every-district", [{ label: "SE1", venueIds: ["anchor"] }, { label: "N1", venueIds: ["nowhere"] }]],
+          ]),
+      }),
+    );
+    expect(breakdown.status).toBe("ready");
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 3, points: 1500 });
+    expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 2, points: 1000 });
+    expect(breakdown.total).toBe(1150 + 2500);
+    expect(breakdown.challenges.map(({ id, done, total, finished, doubled }) => [id, done, total, finished, doubled])).toEqual([
+      ["red-lion", 1, 1, true, true],
+      ["kings-head", 1, 1, true, true],
+      ["ship", 2, 2, true, false],
+      ["every-district", 1, 2, false, false],
+      ["trades", 0, 0, false, false],
+      ["monopoly", 0, 0, false, false],
+    ]);
+    expect(breakdown.challenges[3]?.left).toEqual([{ label: "N1" }]);
+  });
+
+  it("never doubles a challenge finished by an undated Been here row", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        diary: async () => [],
+        plans: async () => [],
+        drops: async () => [],
+        beenHere: async () => [{ venueId: "mitre", venueName: "Mitre" }],
+        challenges: async () => new Map([["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]]]),
+      }),
+    );
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 1, points: 500 });
+    expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 0, points: 0 });
+  });
+
+  it.each([
+    ["diary", "2026-06-20", 0],
+    ["drops", "2026-07-01", 1],
+    ["plans", "2026-07-01", 1],
+    ["beenHere", "2026-07-01", 1],
+    ["venueAliases", "2026-07-01", 1],
+  ] as const)(
+    "withholds the July bonus when %s cannot be read",
+    async (failedRead, diaryDate, healthyBonuses) => {
+      const records: Partial<PointsDeps> = {
+        diary: async () => [{ venueId: "last", venueName: "Last Red Lion", date: diaryDate, source: "diary" }],
+        plans: async () => [
+          { venueId: "first", venueName: "First Red Lion", date: "2026-06-01", source: "plan" },
+          { venueId: "last", venueName: "Last Red Lion", date: "2026-07-01", source: "plan" },
+        ],
+        beenHere: async () => [
+          { venueId: "first", venueName: "First Red Lion", savedAt: "2026-06-01T19:00:00.000Z" },
+          { venueId: "last", venueName: "Last Red Lion", savedAt: "2026-07-01T19:00:00.000Z" },
+        ],
+        drops: async () => [
+          { venueId: "first", createdAt: "2026-06-01T19:00:00.000Z", priced: false, checked: false },
+          { venueId: "last", createdAt: "2026-07-01T19:00:00.000Z", priced: false, checked: false },
+        ],
+        venueAliases: async () => (id) => id,
+        challenges: async () => new Map([["red-lion", [
+          { label: "First Red Lion", venueIds: ["first"] },
+          { label: "Last Red Lion", venueIds: ["last"] },
+        ]]]),
+      };
+      const healthy = await readPointsBreakdown(OWNER, deps("u-owner", records));
+      expect(line(healthy, "challenge")).toMatchObject({ count: 1, points: 500 });
+      expect(line(healthy, "challengeDoubled")).toMatchObject({ count: healthyBonuses, points: healthyBonuses * 500 });
+
+      const breakdown = await readPointsBreakdown(OWNER, deps("u-owner", {
+        ...records,
+        [failedRead]: async () => { throw new Error("record read unavailable"); },
+      }));
+      expect(breakdown.status).toBe("degraded");
+      expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 0, points: 0 });
+      expect(breakdown.challenges.find((challenge) => challenge.id === "red-lion")).toMatchObject({
+        finished: true,
+        doubled: false,
+        finishedAt: null,
+      });
+    },
+  );
+
+  it("finishes no challenge and marks the total degraded when challenges cannot be read", async () => {
+    const breakdown = await readPointsBreakdown(
+      OWNER,
+      deps("u-owner", {
+        challenges: async () => {
+          throw new Error("pack missing");
+        },
+      }),
+    );
+    expect(breakdown.status).toBe("degraded");
+    expect(line(breakdown, "challenge")).toMatchObject({ count: 0, points: 0 });
+    expect(breakdown.challenges.every((challenge) => challenge.total === 0)).toBe(true);
   });
 
   it("finishes no district when the district list cannot be read", async () => {
