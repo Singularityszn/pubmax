@@ -12,12 +12,13 @@ import "server-only";
 
 import { cleanDrinkMeasure } from "@/lib/drinkMeasure";
 import { accountIsPrivate } from "@/lib/accountVisibility";
+import { challengeProgress } from "@/lib/challenges";
 import { followStore } from "@/lib/followStore";
 import { MATES_ACTIVITY_LIMIT, type MatesActivityPint, type MatesActivityChallenge, type MatesActivityItem } from "@/lib/matesActivity";
 import { normalizeViewerHandle, visibilityOf, type ViewerContext } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
-import { readPointsBreakdown } from "@/lib/points.server";
+import { firstLoggedDates, readChallengeSet } from "@/lib/points.server";
 import { socialMemoryMutes } from "@/lib/socialBlockMemory";
 import { isLiveMutual, type MutualViewer } from "@/lib/socialMutual.server";
 import { admin, selectStore } from "@/lib/storeBackend";
@@ -32,7 +33,7 @@ export type MatesActivityDependencies = {
   isMuted(profileId: string, mateHandle: string): Promise<boolean>;
   /** One mate's drops as this reader may read them, newest first. */
   listMateDrops(mateHandle: string, viewer: ViewerContext): Promise<PintDropDTO[]>;
-  listMateChallenges(mateHandle: string): Promise<MatesActivityChallenge[]>;
+  listMateChallenges(mateHandle: string, drops: readonly PintDropDTO[]): Promise<MatesActivityChallenge[]>;
   /** True only when the pair is still mutual and neither side blocks the other. */
   stillMutual(viewer: MutualViewer, mateHandle: string): Promise<boolean>;
   /** The pub's canonical id and the name the map prints for it. */
@@ -60,14 +61,20 @@ const defaultDependencies = (): MatesActivityDependencies => ({
     )();
   },
   listMateDrops: (mateHandle, viewer) => pintDropsStore().listVisible(undefined, viewer, mateHandle, null),
-  listMateChallenges: async (mateHandle) => {
+  listMateChallenges: async (mateHandle, drops) => {
     const mate = await profileStore().getByHandle(mateHandle);
     if (!mate?.userId || mate.tombstonedAt || accountIsPrivate(mate.visibility)) return [];
-    const points = await readPointsBreakdown(mate);
-    if (points.status !== "ready") return [];
+    const history = await Promise.all([readChallengeSet(), loadVenueAliasResolver()]).catch(() => null);
+    if (!history || history[1].status !== "ready") return [];
+    const [set, aliases] = history;
+    const logged = firstLoggedDates(drops.map((drop) => ({
+      venueId: drop.venueId,
+      date: Date.parse(drop.createdAt) > 0 ? new Date(drop.createdAt).toISOString() : null,
+    })), aliases.canonical);
+    const challenges = challengeProgress(set, new Set(drops.map((drop) => aliases.canonical(drop.venueId))), logged);
     const current = await profileStore().getByHandle(mateHandle);
     if (!current || current.id !== mate.id || current.tombstonedAt || accountIsPrivate(current.visibility)) return [];
-    return points.challenges.flatMap((challenge) => challenge.finished && challenge.finishedAt ? [{
+    return challenges.flatMap((challenge) => challenge.finished && challenge.finishedAt ? [{
       kind: "challenge_finished" as const,
       id: `challenge:${mate.id}:${challenge.id}`,
       handle: mateHandle,
@@ -113,13 +120,14 @@ export async function readMatesActivity(
   if (mates.size === 0) return [];
 
   const readerContext: ViewerContext = { handle: self, mutualHandles: mates };
-  const finishes = (await Promise.all([...mates].map((mate) => deps.listMateChallenges(mate))))
-    .flat().filter((finish) => mates.has(normalizeViewerHandle(finish.handle)));
   const drops = (await Promise.all([...mates].map((mate) => deps.listMateDrops(mate, readerContext))))
     .flat()
     .filter(shareableDrop)
     .filter((drop) => mates.has(normalizeViewerHandle(drop.handle)))
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id));
+  const finishes = (await Promise.all([...mates].map((mate) => deps.listMateChallenges(
+    mate, drops.filter((drop) => normalizeViewerHandle(drop.handle) === mate),
+  )))).flat().filter((finish) => mates.has(normalizeViewerHandle(finish.handle)));
 
   const live = new Map<string, Promise<boolean>>();
   const picked: PintDropDTO[] = [];

@@ -74,7 +74,7 @@ function loggedAt(value: string | undefined): string | null {
   return new Date(value).toISOString();
 }
 
-function firstLoggedDates(
+export function firstLoggedDates(
   rows: ReadonlyArray<{ venueId: string; date: string | null }>,
   canonical: (venueId: string) => string,
 ): (venueId: string) => string | null {
@@ -222,7 +222,7 @@ const londonVenues = (index: Map<string, IndexedVenue>) =>
   }));
 
 const readLondonDistricts = londonIndexRead((index) => londonDistricts(londonVenues(index)));
-const readChallengeSet = londonIndexRead((index) => buildChallengeSet(londonVenues(index)));
+export const readChallengeSet = londonIndexRead((index) => buildChallengeSet(londonVenues(index)));
 
 function defaultPointsDeps(): PointsDeps {
   const passport = defaultPassportDeps();
