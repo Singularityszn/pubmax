@@ -17,7 +17,7 @@ import { profilePath } from "@/lib/appLink";
 import type { FollowRelation } from "@/lib/followRelation";
 import { arrivalDestination, type ArrivalIntent } from "@/lib/arrivalWelcome";
 import { displayHandle } from "@/lib/handleDisplay";
-import { safePintDropDoorReturnTo } from "@/lib/accountClaimReturnTo";
+import { safePintDropDoorReturnTo, safeStillTrueReturnTo } from "@/lib/accountClaimReturnTo";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { normalizeHandle } from "@/lib/profiles";
 
@@ -84,7 +84,9 @@ export function addLinkAwareDestination(
   from: string | null,
   accountPath: string,
 ): string {
-  const claimReturnTo = safeInviteReturnTo(from) ?? safePintDropDoorReturnTo(from);
+  const claimReturnTo = safeInviteReturnTo(from)
+    ?? safePintDropDoorReturnTo(from)
+    ?? safeStillTrueReturnTo(from);
   const claimNext = claimReturnTo
     ? `${accountPath}?returnTo=${encodeURIComponent(claimReturnTo)}`
     : accountPath;

@@ -24,8 +24,18 @@ import {
   joinableThisWeek,
   openCrawlJoinWindow,
   openCrawlPlacesLeft,
+  isStillTrueNight,
   parseOpenCrawlListing,
+  parseStillTrueField,
   planStopsFromStory,
+  STILL_TRUE_EMPTY_LINE,
+  STILL_TRUE_JOIN_LABEL,
+  STILL_TRUE_PENDING_LINE,
+  STILL_TRUE_SMALL_PRINT,
+  stillTrueHeadcountLines,
+  stillTrueListedLine,
+  stillTrueListedPint,
+  stillTrueSaidYesCount,
   validateOpenCrawlInput,
   type OpenCrawlListing,
 } from "@/lib/openCrawl";
@@ -417,5 +427,66 @@ describe("migration 0208", () => {
     expect(list.map((where) => where.replace("crew.id", "p_crew"))).toEqual([join[0]]);
     const memberCount = body("list_open_plan_crawls").split("'memberCount'")[1]?.split("as row_obj")[0] ?? "";
     expect(memberCount).not.toMatch(/ownership_state|plan_crew_members|join /);
+  });
+});
+
+describe("a one-pub night", () => {
+  const spoken = [
+    STILL_TRUE_JOIN_LABEL,
+    STILL_TRUE_PENDING_LINE,
+    STILL_TRUE_SMALL_PRINT,
+    STILL_TRUE_EMPTY_LINE,
+    ...stillTrueHeadcountLines({ saidYes: 2, markedHere: 1 }),
+  ].join(" ");
+
+  it("counts each person who joined or was accepted once", () => {
+    expect(isStillTrueNight(["venue-a"])).toBe(true);
+    expect(isStillTrueNight(["venue-a", "venue-b"])).toBe(false);
+    expect(isStillTrueNight(null)).toBe(false);
+    expect(isStillTrueNight([" "])).toBe(false);
+    expect(stillTrueSaidYesCount(["a", "b"], ["b", "c"])).toBe(3);
+    expect(stillTrueSaidYesCount(["", "  "], [])).toBe(0);
+  });
+
+  it("prints a row only when that row was read, and never a zero crowd", () => {
+    expect(stillTrueHeadcountLines({ saidYes: 0, markedHere: 0 })).toEqual([STILL_TRUE_EMPTY_LINE]);
+    expect(stillTrueHeadcountLines({ saidYes: 2, markedHere: 1 })).toEqual([
+      "2 said yes.",
+      "1 marked here.",
+    ]);
+    expect(stillTrueHeadcountLines({ saidYes: 1, markedHere: null })).toEqual(["1 said yes."]);
+    expect(stillTrueHeadcountLines({ saidYes: null, markedHere: 3 })).toEqual(["3 marked here."]);
+    expect(stillTrueHeadcountLines({ saidYes: null, markedHere: 0 })).toEqual([]);
+    expect(stillTrueHeadcountLines({ saidYes: 0, markedHere: 0 }).join(" ")).not.toMatch(/0 said yes|0 marked here/);
+  });
+
+  it("answers I'll be there, and never a saved seat or a confirmation", () => {
+    expect(STILL_TRUE_JOIN_LABEL).toBe("I'll be there");
+    expect(spoken.toLowerCase()).not.toContain("save me a seat");
+    expect(spoken.toLowerCase()).not.toContain("confirmed");
+  });
+
+  it("prints a price only when the drink, the figure, the source and the read day are all present", () => {
+    const pint = stillTrueListedPint({
+      priceGbp: 6.2,
+      pintName: "Lager",
+      publisher: { label: "pint-prices.com" },
+      observedOn: "2026-08-20",
+    });
+    expect(stillTrueListedLine(pint)).toBe(
+      "Lager listed £6.20. pint-prices.com, read 20 August 2026.",
+    );
+    expect(stillTrueListedPint({
+      priceGbp: 6.2,
+      pintName: "Lager",
+      publisher: null,
+      observedOn: "2026-08-20",
+    })).toBeNull();
+    expect(stillTrueListedLine(null)).toBeNull();
+    expect(parseStillTrueField({ saidYes: -1, markedHere: 0, listedPint: null })).toEqual({ ok: false });
+    expect(parseStillTrueField({ saidYes: 0, markedHere: null, listedPint: null })).toEqual({
+      ok: true,
+      facts: { saidYes: 0, markedHere: null, listedPint: null },
+    });
   });
 });

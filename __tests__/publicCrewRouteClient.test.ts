@@ -14,6 +14,8 @@ const responseBody = vi.hoisted(() => ({
   discardBody: vi.fn(),
 }));
 
+const navigation = vi.hoisted(() => ({ push: vi.fn() }));
+
 const state = vi.hoisted(() => ({
   identityResolved: true,
   provider: "clerk" as "clerk" | "supabase" | "signed-out",
@@ -30,6 +32,11 @@ const state = vi.hoisted(() => ({
   privateResponses: "ready" as "ready" | "deferred",
   publicStatus: 200,
   publicCalls: [] as string[],
+  stillTrue: null as null | {
+    saidYes: number | null;
+    markedHere: number | null;
+    listedPint: null;
+  },
   publicResponses: new Map<string, "ready" | "deferred">(),
   deferredPublic: new Map<string, Array<(response: Response) => void>>(),
   deferredJoin: [] as Array<(response: Response) => void>,
@@ -54,6 +61,7 @@ function preview(crewId: string, title = crewId === CREW_A ? "Friday in Camden" 
     area: null,
     placesLeft: null,
     spendBand: null,
+    ...(state.stillTrue ? { stillTrue: state.stillTrue } : {}),
   };
 }
 
@@ -106,6 +114,10 @@ function actionResponse(crewId: string): Response {
   if (state.privateState === "member") return Response.json(privateMember(crewId));
   return Response.json(privatePreview(crewId));
 }
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => navigation,
+}));
 
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: React.AnchorHTMLAttributes<HTMLAnchorElement>) =>
@@ -193,6 +205,9 @@ beforeEach(() => {
   state.publicStatus = 200;
   state.socialLaunchEnabled = true;
   state.publicCalls = [];
+  state.stillTrue = null;
+  navigation.push.mockReset();
+  window.history.replaceState({}, "", "/");
   state.publicResponses = new Map([
     [CREW_A, "ready"],
     [CREW_B, "ready"],
@@ -479,5 +494,57 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
 
     expect(container.textContent).toContain("Saturday in Soho");
     expect(container.textContent).not.toContain("Request sent. The host decides.");
+  });
+
+  it("opens the email door only after I'll be there", async () => {
+    state.providerAuthState = "signed-out";
+    state.stillTrue = { saidYes: 0, markedHere: 0, listedPint: null };
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    const there = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "I'll be there",
+    );
+    expect(there).not.toBeUndefined();
+    expect(state.actionCalls.filter((call) => call.startsWith("POST"))).toHaveLength(0);
+    await act(async () => there?.click());
+
+    expect(navigation.push).toHaveBeenCalledWith(
+      `/login?mode=signin&from=${encodeURIComponent(`/social/crews/${CREW_A}?there=1`)}`,
+    );
+    expect(state.actionCalls.filter((call) => call.includes("join-requests"))).toHaveLength(0);
+  });
+
+  it("posts the join when a signed-in person taps I'll be there", async () => {
+    state.stillTrue = { saidYes: 2, markedHere: 1, listedPint: null };
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    const there = Array.from(container.querySelectorAll<HTMLButtonElement>("button")).find(
+      (button) => button.textContent?.trim() === "I'll be there",
+    );
+    expect(there).not.toBeUndefined();
+    await act(async () => there?.click());
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+    expect(navigation.push).not.toHaveBeenCalled();
+    await act(async () => state.deferredJoin[0]?.(Response.json({ code: "requested", replayed: false })));
+    await settle();
+    expect(container.textContent).toContain("You said yes. The host decides.");
+  });
+
+  it("posts the join once when the person returns from the email door", async () => {
+    state.stillTrue = { saidYes: 1, markedHere: 0, listedPint: null };
+    window.history.replaceState({}, "", `/social/crews/${CREW_A}?there=1`);
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.actionCalls.filter((call) => call === `POST /api/social/crews/${CREW_A}/join-requests`)).toHaveLength(1);
+    expect(window.location.search).not.toContain("there");
   });
 });

@@ -57,7 +57,51 @@ function accountClaimReturnTo(raw: string | null | undefined): Route | null {
   return safeInviteReturnTo(raw)
     ?? safePlanReturnTo(raw)
     ?? safeTableRequestReturnTo(raw)
-    ?? safePintDropDoorReturnTo(raw);
+    ?? safePintDropDoorReturnTo(raw)
+    ?? safeStillTrueReturnTo(raw);
+}
+
+const STILL_TRUE_CREW_PATH = /^\/social\/crews\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+/**
+ * The one-pub night's return. Same shape as the Pint Drop door (#2802): the
+ * page the person was on, plus the one flag that they already tapped.
+ * Callers: accountClaimReturnTo, addLinkAwareDestination, handleClaimRouteAfterSignIn.
+ */
+export function safeStillTrueReturnTo(raw: string | null | undefined): Route | null {
+  if (typeof raw !== "string") return null;
+  const candidate = raw.trim();
+  if (
+    !candidate.startsWith("/") ||
+    candidate.startsWith("//") ||
+    candidate.includes("\\") ||
+    candidate.includes("#")
+  ) {
+    return null;
+  }
+  try {
+    const url = new URL(candidate, RETURN_ORIGIN);
+    if (url.origin !== RETURN_ORIGIN || url.hash || !STILL_TRUE_CREW_PATH.test(url.pathname)) {
+      return null;
+    }
+    if (url.search !== "?there=1") return null;
+    return `${url.pathname}${url.search}` as Route;
+  } catch {
+    return null;
+  }
+}
+
+/** True only for the return flag, with nothing else in the query. */
+export function stillTrueJoinPending(search: string): boolean {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  return [...params.keys()].length === 1 && params.get("there") === "1";
+}
+
+/** Email-link door after the tap. Null when the crew id is not a crew id. */
+export function stillTrueSignInHref(crewId: string): Route | null {
+  const back = safeStillTrueReturnTo(`/social/crews/${crewId}?there=1`);
+  if (!back) return null;
+  return `/login?mode=signin&from=${encodeURIComponent(back)}` as Route;
 }
 
 export function accountClaimReturnToFromUrl(rawUrl: string): Route | null {

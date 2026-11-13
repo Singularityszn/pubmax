@@ -38,5 +38,6 @@ export async function GET(_request: Request, context: Context): Promise<Response
     area: card.area,
     placesLeft: card.placesLeft,
     spendBand: card.spendBand,
+    stillTrue: result.stillTrue,
   });
 }

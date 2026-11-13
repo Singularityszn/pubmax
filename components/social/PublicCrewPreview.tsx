@@ -3,6 +3,13 @@
 import type { SocialCrewPublicPreviewDTO } from "@/lib/socialCrew";
 import ReportPerson from "@/components/social/ReportPerson";
 import { displayHandle } from "@/lib/handleDisplay";
+import {
+  STILL_TRUE_JOIN_LABEL,
+  STILL_TRUE_PENDING_LINE,
+  STILL_TRUE_SMALL_PRINT,
+  stillTrueHeadcountLines,
+  stillTrueListedLine,
+} from "@/lib/openCrawl";
 import { crewStartsCaption } from "@/lib/socialCrewsUi";
 import {
   formatOpenCrawlShareSpendBand,
@@ -27,8 +34,11 @@ export default function PublicCrewPreview({
 }) {
   const starts = crewStartsCaption(preview.startsAt);
   const area = openCrawlShareAreaLine(preview.area);
-  const places = openCrawlSharePlacesLine(preview.placesLeft);
-  const band = preview.spendBand ? formatOpenCrawlShareSpendBand(preview.spendBand) : null;
+  const night = preview.stillTrue ?? null;
+  const places = night ? null : openCrawlSharePlacesLine(preview.placesLeft);
+  const band = night || !preview.spendBand ? null : formatOpenCrawlShareSpendBand(preview.spendBand);
+  const headcount = night ? stillTrueHeadcountLines(night) : [];
+  const listed = night ? stillTrueListedLine(night.listedPint) : null;
   return (
     <>
       <header className="crewPage__head">
@@ -50,6 +60,9 @@ export default function PublicCrewPreview({
         {places || band ? (
           <p className="crews__muted">{[places, band].filter(Boolean).join(" · ")}</p>
         ) : null}
+        {headcount.length > 0 ? <p className="crews__note">{headcount.join(" ")}</p> : null}
+        {listed ? <p className="crews__note">{listed}</p> : null}
+        {night ? <p className="crews__muted">{STILL_TRUE_SMALL_PRINT}</p> : null}
       </section>
 
       {problem ? (
@@ -60,7 +73,7 @@ export default function PublicCrewPreview({
 
       {joinState === "pending" ? (
         <p className="crews__muted" role="status">
-          Request sent. The host decides.
+          {night ? STILL_TRUE_PENDING_LINE : "Request sent. The host decides."}
         </p>
       ) : joinState === "declined" ? (
         <p className="crews__muted" role="status">
@@ -74,7 +87,7 @@ export default function PublicCrewPreview({
             disabled={busy}
             onClick={onAskToJoin}
           >
-            {busy ? "Working…" : "Ask to join"}
+            {busy ? "Working…" : night ? STILL_TRUE_JOIN_LABEL : "Ask to join"}
           </button>
         </section>
       )}

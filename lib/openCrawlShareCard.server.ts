@@ -9,6 +9,12 @@ import {
   type OpenCrawlShareSpendBand,
 } from "@/lib/openCrawlShareCard";
 import { oldestPintRead } from "@/lib/drinks";
+import {
+  isStillTrueNight,
+  stillTrueListedPint,
+  stillTrueSaidYesCount,
+  type StillTruePublicFacts,
+} from "@/lib/openCrawl";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 import { planInviteSpendBandFromListedPrices } from "@/lib/shareArtifacts";
 import {
@@ -19,6 +25,7 @@ import {
 import type { SocialCrewShareCardSource } from "@/lib/socialCrew";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import { venueAreaClaim } from "@/lib/venueTruth";
 
@@ -28,7 +35,12 @@ import { venueAreaClaim } from "@/lib/venueTruth";
  * `unavailable` is a read that could not run, or Social switched off.
  */
 export type OpenCrawlShareCardResult =
-  | { ok: true; card: OpenCrawlShareCard; meetingPoint: OutOpenPlanMeetingPoint }
+  | {
+      ok: true;
+      card: OpenCrawlShareCard;
+      meetingPoint: OutOpenPlanMeetingPoint;
+      stillTrue: StillTruePublicFacts | null;
+    }
   | { ok: false; reason: "missing" | "unavailable" };
 
 type Dependencies = {
@@ -94,6 +106,69 @@ function placesLeft(source: SocialCrewShareCardSource): number | null {
   return Math.max(0, source.capacity - source.memberCount);
 }
 
+type CountRow = Record<string, unknown>;
+
+function textIds(rows: readonly CountRow[], key: string): string[] {
+  return rows.flatMap((row) => (typeof row[key] === "string" ? [row[key]] : []));
+}
+
+/**
+ * Pending join rows, plus active seats that are not the host. Here is a status
+ * on those seats, including the host. A failed read is null, not zero.
+ */
+export const stillTrueCountReader = {
+  async read(crewId: string): Promise<{ saidYes: number; markedHere: number | null } | null> {
+    try {
+      const admin = requireDynamicSupabaseAdmin();
+      const [pending, members] = await Promise.all([
+        admin
+          .from("social_crew_join_requests")
+          .select("requester_account_id")
+          .eq("crew_id", crewId)
+          .eq("state", "pending"),
+        admin
+          .from("social_crew_members")
+          .select("social_account_id, plan_member_id, role")
+          .eq("crew_id", crewId)
+          .eq("state", "active"),
+      ]);
+      if (pending.error || members.error || !pending.data || !members.data) return null;
+      const memberRows = members.data as CountRow[];
+      const saidYes = stillTrueSaidYesCount(
+        textIds(pending.data as CountRow[], "requester_account_id"),
+        textIds(memberRows.filter((row) => row.role !== "owner"), "social_account_id"),
+      );
+      const seatIds = textIds(memberRows, "plan_member_id");
+      if (seatIds.length === 0) return { saidYes, markedHere: 0 };
+      const here = await admin
+        .from("plan_crew_members")
+        .select("id")
+        .in("id", seatIds)
+        .eq("status", "here");
+      if (here.error || !here.data) return { saidYes, markedHere: null };
+      return { saidYes, markedHere: here.data.length };
+    } catch {
+      return null;
+    }
+  },
+};
+
+async function stillTrueFacts(
+  source: SocialCrewShareCardSource,
+  priceOf: Dependencies["listedPint"],
+): Promise<StillTruePublicFacts | null> {
+  if (!isStillTrueNight(source.stopVenueIds) || !source.stopVenueIds) return null;
+  const [counts, price] = await Promise.all([
+    stillTrueCountReader.read(source.crewId),
+    priceOf(source.stopVenueIds[0]),
+  ]);
+  return {
+    saidYes: counts?.saidYes ?? null,
+    markedHere: counts ? counts.markedHere : null,
+    listedPint: stillTrueListedPint(price),
+  };
+}
+
 export async function loadOpenCrawlShareCard(
   crewId: string,
   dependencies: Dependencies = DEFAULTS,
@@ -126,5 +201,6 @@ export async function loadOpenCrawlShareCard(
       placesLeft: placesLeft(source),
       spendBand: await shareSpendBand(source, dependencies.listedPint),
     },
+    stillTrue: await stillTrueFacts(source, dependencies.listedPint),
   };
 }

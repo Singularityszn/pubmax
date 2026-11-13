@@ -15,6 +15,8 @@
 // so the route, the store, the client and the tests read one answer.
 
 import { CREW_MAX_MEMBERS } from "@/lib/crew";
+import { formatObservedDate } from "@/lib/dataFreshnessFormat";
+import { formatGbp } from "@/lib/formatGbp";
 import { PLAN_STOP_MAX } from "@/lib/plan";
 import { londonDateTimeInputToIso } from "@/lib/planIntake";
 import { isNonPublicVenueName } from "@/lib/venueKindFilters";
@@ -358,4 +360,148 @@ export function hostOnDatePlanBody(input: HostOnDateInput): Record<string, unkno
     creatorName,
     stops,
   };
+}
+
+// A one-pub night on the open-crawl page. The button is the reply. The counts
+// are rows: people who joined or were accepted, and seats marked here.
+
+export const STILL_TRUE_JOIN_LABEL = "I'll be there";
+export const STILL_TRUE_PENDING_LINE = "You said yes. The host decides.";
+export const STILL_TRUE_SMALL_PRINT = "Buy your own. When the pint lands, log what you paid.";
+export const STILL_TRUE_EMPTY_LINE = "Nobody has said yes yet.";
+
+const STILL_TRUE_READ_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const STILL_TRUE_COUNT_MAX = 10000;
+
+export type StillTrueListedPint = {
+  drink: string;
+  priceGbp: number;
+  source: string;
+  readOn: string;
+};
+
+export type StillTruePublicFacts = {
+  saidYes: number | null;
+  markedHere: number | null;
+  listedPint: StillTrueListedPint | null;
+};
+
+/** One listed stop. A missing list is not one pub. */
+export function isStillTrueNight(stopVenueIds: readonly string[] | null): boolean {
+  return !!stopVenueIds && stopVenueIds.length === 1 && stopVenueIds[0].trim().length > 0;
+}
+
+/**
+ * People who joined (a pending request) or were accepted (an active seat that
+ * is not the host). One person is one count.
+ */
+export function stillTrueSaidYesCount(
+  pendingAccountIds: readonly string[],
+  acceptedAccountIds: readonly string[],
+): number {
+  const people = new Set<string>();
+  for (const id of [...pendingAccountIds, ...acceptedAccountIds]) {
+    const trimmed = id.trim();
+    if (trimmed) people.add(trimmed);
+  }
+  return people.size;
+}
+
+function countWords(count: number, words: string): string {
+  return count === 1 ? `1 ${words}` : `${count} ${words}`;
+}
+
+/**
+ * Lines a stranger may read. An unread count is omitted. Zero who said yes is
+ * the empty-night line, never "0". Zero marked here is omitted.
+ */
+export function stillTrueHeadcountLines(counts: {
+  saidYes: number | null;
+  markedHere: number | null;
+}): string[] {
+  const lines: string[] = [];
+  if (typeof counts.saidYes === "number" && Number.isInteger(counts.saidYes) && counts.saidYes >= 0) {
+    lines.push(counts.saidYes === 0 ? STILL_TRUE_EMPTY_LINE : `${countWords(counts.saidYes, "said yes")}.`);
+  }
+  if (typeof counts.markedHere === "number" && Number.isInteger(counts.markedHere) && counts.markedHere > 0) {
+    lines.push(`${countWords(counts.markedHere, "marked here")}.`);
+  }
+  return lines;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  const own = Object.keys(value);
+  return own.length === keys.length && keys.every((key) => own.includes(key));
+}
+
+function wholeCount(value: unknown): number | null | undefined {
+  if (value === null) return null;
+  if (typeof value === "number" && Number.isInteger(value) && value >= 0 && value <= STILL_TRUE_COUNT_MAX) {
+    return value;
+  }
+  return undefined;
+}
+
+function readDay(value: string): boolean {
+  if (!STILL_TRUE_READ_DAY.test(value)) return false;
+  const parsed = Date.parse(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed) && new Date(parsed).toISOString().slice(0, 10) === value;
+}
+
+function listedPintField(value: unknown): StillTrueListedPint | null | undefined {
+  if (value === null) return null;
+  if (!isRecord(value) || !exactKeys(value, ["drink", "priceGbp", "source", "readOn"])) return undefined;
+  const drink = typeof value.drink === "string" ? value.drink.trim() : "";
+  const source = typeof value.source === "string" ? value.source.trim() : "";
+  const readOn = typeof value.readOn === "string" ? value.readOn : "";
+  if (!drink || drink.length > 80 || !source || source.length > 120) return undefined;
+  if (typeof value.priceGbp !== "number" || !Number.isFinite(value.priceGbp) || value.priceGbp <= 0) {
+    return undefined;
+  }
+  if (!readDay(readOn)) return undefined;
+  return { drink, priceGbp: value.priceGbp, source, readOn };
+}
+
+/** A listed pint for the card, or null when the source or the read day is missing. */
+export function stillTrueListedPint(price: {
+  priceGbp: number;
+  pintName: string | null;
+  publisher: { label: string } | null;
+  observedOn: string | null;
+} | null): StillTrueListedPint | null {
+  if (!price) return null;
+  return listedPintField({
+    drink: price.pintName ?? "",
+    priceGbp: price.priceGbp,
+    source: price.publisher?.label ?? "",
+    readOn: price.observedOn ?? "",
+  }) ?? null;
+}
+
+/** The one price line. Null unless drink, price, source and read day are all present. */
+export function stillTrueListedLine(pint: StillTrueListedPint | null): string | null {
+  const parsed = pint ? listedPintField(pint) : null;
+  if (!parsed) return null;
+  const day = formatObservedDate(new Date(`${parsed.readOn}T12:00:00Z`));
+  return `${parsed.drink} listed ${formatGbp(parsed.priceGbp)}. ${parsed.source}, read ${day}.`;
+}
+
+export function parseStillTrueField(
+  value: unknown,
+): { ok: true; facts: StillTruePublicFacts | null } | { ok: false } {
+  if (value === null || value === undefined) return { ok: true, facts: null };
+  if (!isRecord(value) || !exactKeys(value, ["saidYes", "markedHere", "listedPint"])) {
+    return { ok: false };
+  }
+  const saidYes = wholeCount(value.saidYes);
+  const markedHere = wholeCount(value.markedHere);
+  const listedPint = listedPintField(value.listedPint);
+  if (saidYes === undefined || markedHere === undefined || listedPint === undefined) {
+    return { ok: false };
+  }
+  return { ok: true, facts: { saidYes, markedHere, listedPint } };
 }

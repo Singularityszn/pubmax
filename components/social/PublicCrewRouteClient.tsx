@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import type { ReactNode } from "react";
 
@@ -10,6 +11,7 @@ import PublicCrewPreview, {
   type PublicCrewJoinState,
 } from "@/components/social/PublicCrewPreview";
 import CrewDetailClient from "@/app/social/crews/[crewId]/CrewDetailClient";
+import { stillTrueJoinPending, stillTrueSignInHref } from "@/lib/accountClaimReturnTo";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { providerHasAnswered } from "@/lib/authProviderRevision";
@@ -66,6 +68,7 @@ export default function PublicCrewRouteClient({
   crewId: string;
   invitationId: string | null;
 }) {
+  const router = useRouter();
   const { accountRevision, identityResolved, providerAuthState } = useAuth();
   const friendsLaunchEnabled = useSocialFriendsLaunch();
   const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
@@ -82,6 +85,8 @@ export default function PublicCrewRouteClient({
   const [problem, setProblem] = useState("");
   const [problemScope, setProblemScope] = useState<string | null>(null);
   const crewGeneration = useRef(0);
+  const autoJoinScope = useRef<string | null>(null);
+  const askToJoinRef = useRef<() => Promise<void>>(async () => {});
   const scopeGeneration = useRef(0);
   const scopeRef = useRef(scope);
   const joinKey = useRef<{ scope: string; key: string } | null>(null);
@@ -262,6 +267,11 @@ export default function PublicCrewRouteClient({
     ) {
       return;
     }
+    if (currentPreview.stillTrue && providerAuthState === "signed-out") {
+      const href = stillTrueSignInHref(crewId);
+      if (href) router.push(href);
+      return;
+    }
     setBusy(true);
     setBusyScope(operationScope);
     setProblem("");
@@ -315,6 +325,39 @@ export default function PublicCrewRouteClient({
       }
     }
   }
+
+  useEffect(() => {
+    askToJoinRef.current = askToJoin;
+  });
+
+  useEffect(() => {
+    if (providerAuthState !== "authenticated" || !friendsLaunchEnabled || invitationId) return;
+    const current = publicPreview?.crewId === crewId ? publicPreview : null;
+    if (!current?.stillTrue || autoJoinScope.current === scope) return;
+    if (privateStateScope !== scope || privateState !== "ready") return;
+    if (!privateRead || privateReadScope !== scope || privateRead.kind !== "preview") return;
+    if (privateRead.joinRequestState !== "none") return;
+    if ((joinScope === scope ? joinState : "none") !== "none") return;
+    if (typeof window === "undefined" || !stillTrueJoinPending(window.location.search)) return;
+    autoJoinScope.current = scope;
+    const url = new URL(window.location.href);
+    url.searchParams.delete("there");
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    void askToJoinRef.current();
+  }, [
+    crewId,
+    friendsLaunchEnabled,
+    invitationId,
+    joinScope,
+    joinState,
+    privateRead,
+    privateReadScope,
+    privateState,
+    privateStateScope,
+    providerAuthState,
+    publicPreview,
+    scope,
+  ]);
 
   const currentPreview = publicPreview?.crewId === crewId ? publicPreview : null;
   const currentPrivateRead = privateReadScope === scope ? privateRead : null;

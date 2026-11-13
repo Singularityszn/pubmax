@@ -46,6 +46,7 @@ vi.mock("@/lib/openSocialCrew.server", () => resolveMeeting);
 vi.mock("@/lib/venueDetailIndex", () => venues);
 
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
+import { stillTrueCountReader } from "@/lib/openCrawlShareCard.server";
 import { GET } from "@/app/api/social/crews/[crewId]/public/route";
 
 function context(crewId = CREW_ID): { params: Promise<{ crewId: string }> } {
@@ -54,6 +55,7 @@ function context(crewId = CREW_ID): { params: Promise<{ crewId: string }> } {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.spyOn(stillTrueCountReader, "read").mockResolvedValue(null);
   vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
   store.readShareCard.mockResolvedValue(shareSource);
   venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
@@ -110,7 +112,9 @@ describe("GET /api/social/crews/:crewId/public", () => {
       area: { name: "Camden", relation: "inside" },
       placesLeft: 5,
       spendBand: { minGbp: 4.5, maxGbp: 6.2, observedOn: "2026-08-03", sourceKind: "listed" },
+      stillTrue: null,
     });
+    expect(stillTrueCountReader.read).not.toHaveBeenCalled();
     expect(resolveMeeting.resolveOpenMeetingPoint).toHaveBeenCalledWith(
       shareSource.meetingVenueId,
     );
@@ -186,6 +190,34 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(body.placesLeft).toBeNull();
     expect(body.spendBand).toBeNull();
     expect(venues.lookupVenueDetail).not.toHaveBeenCalled();
+    expect(body.stillTrue).toBeNull();
+    expect(stillTrueCountReader.read).not.toHaveBeenCalled();
+  });
+
+  it("counts real join rows and a sourced listing on a one-pub night", async () => {
+    store.readShareCard.mockResolvedValueOnce({
+      ...shareSource,
+      stopVenueIds: ["venue-london-camden-arms"],
+    });
+    vi.mocked(stillTrueCountReader.read).mockResolvedValue({ saidYes: 2, markedHere: 1 });
+
+    const response = await GET(new Request("https://pubmaxxing.com/api/social/crews/x/public"), context());
+    const body = await response.json();
+
+    expect(body.stillTrue).toEqual({
+      saidYes: 2,
+      markedHere: 1,
+      listedPint: {
+        drink: "Lager",
+        priceGbp: 6.2,
+        source: "hidden-publisher.example",
+        readOn: "2026-08-20",
+      },
+    });
+    const serialized = JSON.stringify(body.stillTrue);
+    expect(serialized).not.toContain("https://");
+    expect(serialized).not.toContain("hidden-good-mixer");
+    expect(stillTrueCountReader.read).toHaveBeenCalledWith(CREW_ID);
   });
 
   it("does not expose a row when Stop 1 is no longer listed", async () => {
