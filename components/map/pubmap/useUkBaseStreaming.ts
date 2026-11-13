@@ -21,7 +21,7 @@ import { useUkBaseOverview } from "./useUkBaseOverview";
 // source, one viewport at a time.
 //
 // Below UK_BASE_MIN_ZOOM this hook fetches no shard and no manifest. The
-// count overview (useUkBaseOverview.ts) waits until the priced pins have painted.
+// count overview (useUkBaseOverview.ts) waits until the first-pin hold ends.
 // London's normal Map entry starts at the gate so base pubs are useful at once.
 // At or above the gate, only cells covered by the padded camera load.
 //

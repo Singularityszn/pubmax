@@ -200,13 +200,9 @@ profiles it starts the manifest and core shard requests, and
 `lib/mapEarlyWarm.ts` lets the venue loaders reuse those promises. The London
 shell also warms the MapLibre chunk before its effect mounts.
 
-**Two pub layers, separate contracts.** The curated `pubs` source owns clustering,
-prices, search, filters, and crawl routing. `lib/ukBasePubs.ts` loads the
-separate `uk-base` source only after the street-level zoom gate, then fetches
-only cells overlapping the padded viewport. Base pins remain unclustered and
-lose symbol collisions to curated pins. Tapping one opens an unverified sheet
-that accepts a community price without adding the pub to the curated index.
-`public/data/uk_base/README.md` owns the shard and identity contract.
+**Two pub layers, separate contracts.** The curated `pubs` source owns the
+price-aware map data. The [base delivery contract](../public/data/uk_base/README.md)
+owns overview counts, viewport streaming, deduplication, and base-pub identity.
 
 **Why `addLayerOnce` guards exist.** Scene assembly runs on *every*
 `style.load` - first paint and after every theme flip. A bare `map.addLayer` on

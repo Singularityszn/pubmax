@@ -24,8 +24,8 @@ type Options = {
 };
 
 // The base layer's count bubbles below its zoom gate (lib/ukBaseOverview.ts).
-// The file is read the first time the camera is below the gate with the
-// priced pins already painted, so a London opening at the gate never pays it.
+// The overview shares the base layer's first-pin hold. A London opening at
+// the gate never fetches it. Delivery rules: public/data/uk_base/README.md.
 export function useUkBaseOverview({
   mapRef,
   mapReady,

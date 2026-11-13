@@ -2,13 +2,8 @@
 // named pubs or bars, clustered by MapLibre into
 // count bubbles (components/map/canvas/ukBaseOverviewLayers.ts).
 //
-// Below UK_BASE_MIN_ZOOM no shard is fetched, so this overview file stops
-// the zoomed-out country reading as empty. It is fetched once, only after the
-// camera first goes below the gate and the priced pins have painted.
+// public/data/uk_base/README.md owns the count and delivery contract.
 // scripts/build_uk_base_overview.mjs writes it from the published shards.
-//
-// A count is a count of named OSM places, never of prices. The overview covers
-// the whole UK, including areas with curated clusters.
 
 import { discardBody } from "@/lib/responseBody";
 
