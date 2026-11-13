@@ -42,6 +42,43 @@ describe("uk price harvest city scope", () => {
     expect(hostsOutsideScope).toBe(1);
   });
 
+  it("keeps an Exa host shared with a pub outside the city out of a city run", () => {
+    const root = mkdtempSync(path.join(process.cwd(), ".harvest-exa-scope-"));
+    try {
+      const snapshotDir = path.join(root, "data/osm/uk");
+      const ledgerDir = path.join(root, "data-harvest/uk_prices");
+      mkdirSync(snapshotDir, { recursive: true });
+      mkdirSync(ledgerDir, { recursive: true });
+      writeFileSync(path.join(snapshotDir, "uk_osm_pubs.json"), JSON.stringify([]));
+      const candidate = (pub: typeof MANCHESTER_PUB, osmId: string) => ({
+        ...pub,
+        osmId,
+        venueId: `venue-uk-${osmId}`,
+        host: "shared.example",
+        siteUrl: "https://shared.example/",
+        binding: { postcode: "M1 1AA", streetAddress: null },
+      });
+      const exaPath = path.join(root, "exa.json");
+      writeFileSync(exaPath, JSON.stringify({
+        candidates: [candidate(MANCHESTER_PUB, "n1"), candidate(BARNSLEY_PUB, "n2")],
+      }));
+      const transportPath = path.join(root, "transport.mjs");
+      writeFileSync(transportPath,
+        'globalThis.fetch = async () => new Response("User-agent: *\\nDisallow: /\\n", { headers: { "content-type": "text/plain" } });\n',
+      );
+      execFileSync(process.execPath, [
+        "--import", "tsx", "--import", transportPath, path.join(process.cwd(), "scripts/harvest/uk-prices/run.mjs"),
+        "--city", "manchester", "--exa-sites", exaPath, "--exa-sites-only", "--menu-urls", "none",
+      ], { cwd: root, stdio: "pipe" });
+      const saved = JSON.parse(readFileSync(path.join(ledgerDir, "hosts.json"), "utf8"));
+      expect(saved.hosts["shared.example"]).toBeUndefined();
+      const report = JSON.parse(readFileSync(path.join(root, "data/uk_prices/exa_sites_report.json"), "utf8"));
+      expect(report.exaSites.sharedHost).toBe(2);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it.each([
     { limits: ["--pages", "0"], crawls: false },
     { limits: ["--hosts", "0"], crawls: false },

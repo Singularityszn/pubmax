@@ -732,7 +732,7 @@ function prepareLedgerRows() {
  * Join the Exa input named by --exa-sites to the host list. Answers the counts
  * for the report, or null when a named input is missing.
  */
-function joinExaSiteHosts(hosts, cityScope) {
+function joinExaSiteHosts(hosts) {
   if (EXA_SITES_INPUT === "none") return { inputRead: false };
   const exaPath = path.isAbsolute(EXA_SITES_INPUT) ? EXA_SITES_INPUT : path.join(ROOT, EXA_SITES_INPUT);
   if (!existsSync(exaPath)) {
@@ -746,8 +746,7 @@ function joinExaSiteHosts(hosts, cityScope) {
     (candidate) =>
       typeof candidate?.siteUrl === "string" &&
       isHarvestableOperatorUrl(candidate.siteUrl) &&
-      (!LONDON_ONLY || inGreaterLondon(candidate)) &&
-      (!cityScope || cityScope.contains(candidate)),
+      (!LONDON_ONLY || inGreaterLondon(candidate)),
   );
   const publishedHosts = new Set();
   if (existsSync(PUBLISHED_ROWS)) {
@@ -789,11 +788,19 @@ function scopedCandidateHosts() {
     console.error(error instanceof Error ? error.message : error);
     return null;
   }
-  const candidates = candidateHosts({ londonOnly: LONDON_ONLY });
-  if (!cityScope) return { ...candidates, cityScope: null, hostsOutsideCityScope: 0 };
-  const { hosts, hostsOutsideScope } = hostsTouchingCityScope(candidates.hosts, cityScope);
-  console.log(`  city scope: ${hosts.length} host(s) serve a pub in ${cityScope.ids.join(", ")}`);
-  return { ...candidates, hosts, cityScope, hostsOutsideCityScope: hostsOutsideScope };
+  return { ...candidateHosts({ londonOnly: LONDON_ONLY }), cityScope: cityScope ?? null };
+}
+
+/**
+ * The hosts this run crawls. The city scope is applied last, after every input
+ * has joined the national host list, so a host that also serves a pub outside
+ * the city is still seen as shared (cityScope.mjs).
+ */
+function hostsInCityScope(hosts, cityScope) {
+  if (!cityScope) return { crawlHosts: hosts, hostsOutsideCityScope: 0 };
+  const { hosts: crawlHosts, hostsOutsideScope } = hostsTouchingCityScope(hosts, cityScope);
+  console.log(`  city scope: ${crawlHosts.length} host(s) serve a pub in ${cityScope.ids.join(", ")}`);
+  return { crawlHosts, hostsOutsideCityScope: hostsOutsideScope };
 }
 
 async function main() {
@@ -816,8 +823,7 @@ async function main() {
     process.exitCode = 1;
     return;
   }
-  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs, cityScope, hostsOutsideCityScope } =
-    scoped;
+  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs, cityScope } = scoped;
   const ledger = loadLedger();
   const policySources = harvestSourcesOfKind("chain-menu-prices");
   const refusedSources = policySources.filter((source) => !isHarvestSourceAllowed(source));
@@ -878,18 +884,19 @@ async function main() {
 
   // EXA'S WEBSITES. Read only when named. A website on a host the list already
   // holds seeds that host; a new host joins with one pub and its address check.
-  const exaSites = joinExaSiteHosts(hosts, cityScope);
+  const exaSites = joinExaSiteHosts(hosts);
   if (exaSites === null) {
     process.exitCode = 1;
     return;
   }
+  const { crawlHosts, hostsOutsideCityScope } = hostsInCityScope(hosts, cityScope);
 
-  const pending = hosts
+  const pending = crawlHosts
     .filter((entry) => (ONLY ? entry.host.includes(ONLY) : true))
     .filter((entry) => (EXA_SITES_ONLY ? entry.exaSite === true : true))
     .filter((entry) => !ledger.hosts[entry.host] || RECHECK.includes(ledger.hosts[entry.host].outcome))
     .sort((a, b) => b.pubs.length - a.pubs.length)
-    .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : hosts.length);
+    .slice(0, Number.isFinite(HOST_LIMIT) ? HOST_LIMIT : crawlHosts.length);
 
   if (RECHECK.length > 0) {
     const rechecks = pending.filter((entry) => ledger.hosts[entry.host]).length;
@@ -978,7 +985,7 @@ async function main() {
     ...(cityScope
       ? { cityScope: { cities: cityScope.ids, hostsOutsideScopeSkipped: hostsOutsideCityScope } }
       : {}),
-    hostsKnown: hosts.length,
+    hostsKnown: crawlHosts.length,
     overlayMenuUrls: {
       inputRead: Boolean(overlayInput),
       held: overlayInput?.urls.length ?? 0,
