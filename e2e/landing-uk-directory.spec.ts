@@ -232,9 +232,13 @@ test.describe("clicked UK directory arrivals", () => {
           body: JSON.stringify({ expected, ...readiness }, null, 2),
           contentType: "application/json",
         });
-        // The gazetteer may load, but the country manifest and cells stay absent
-        // below the pub zoom gate, including after this clicked arrival settles.
-        expect(ukRequests.filter((path) => !path.endsWith("places.json"))).toEqual([]);
+        // The gazetteer and the count-bubble overview may load, but the country
+        // manifest and cells stay absent below the pub zoom gate, including
+        // after this clicked arrival settles.
+        expect(ukRequests.filter((path) => path === "/data/uk_base/overview.json")).toHaveLength(1);
+        expect(
+          ukRequests.filter((path) => !path.endsWith("places.json") && path !== "/data/uk_base/overview.json"),
+        ).toEqual([]);
         if (viewport.width === 320) {
           const peek = page.locator(".mapPeek");
           await expectLayoutSettled(ukNote);
