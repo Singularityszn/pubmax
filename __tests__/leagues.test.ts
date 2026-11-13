@@ -2,8 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import { createMemoryLeagueStore } from "@/lib/leagueStore";
 import {
-  LEAGUE_MAX_MEMBERS,
-  LEAGUE_MAX_PER_PERSON,
   leagueDistricts,
   normalizeInviteCode,
   parseLeagueBoard,
@@ -104,16 +102,18 @@ describe("the memory league store", () => {
     expect(await store.read(id, "u-3")).toBeNull();
   });
 
-  it("holds a league to its member limit and a person to their league limit", async () => {
+  it("holds a league to 20 members and a person to 10 leagues when creating or joining", async () => {
     const store = createMemoryLeagueStore();
     await store.create(person(1), "Big", "BBBBBBBB");
-    for (let n = 2; n <= LEAGUE_MAX_MEMBERS; n += 1) expect((await store.join(person(n), "BBBBBBBB")).status).toBe("joined");
+    for (let n = 2; n <= 20; n += 1) expect((await store.join(person(n), "BBBBBBBB")).status).toBe("joined");
     expect(await store.join(person(99), "BBBBBBBB")).toEqual({ status: "full" });
 
-    for (let n = 0; n < LEAGUE_MAX_PER_PERSON; n += 1) {
+    for (let n = 0; n < 10; n += 1) {
       expect((await store.create(person(50), "Mine", `CCCCCCC${"23456789AB"[n]}`)).status).toBe("created");
     }
     expect(await store.create(person(50), "One too many", "DDDDDDDD")).toEqual({ status: "limit" });
+    await store.create(person(51), "Another league", "EEEEEEEE");
+    expect(await store.join(person(50), "EEEEEEEE")).toEqual({ status: "limit" });
   });
 
   it("lets a member leave, keeps the owner in, and deletes only for the owner", async () => {

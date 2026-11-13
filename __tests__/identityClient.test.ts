@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { DEVICE_IDENTITY_CHANGED_EVENT } from "@/lib/deviceAccountIdentity";
 import {
   emitIdentityHandleChanged,
@@ -191,9 +192,28 @@ describe("post-callback handle claim routing", () => {
   });
 
   it.each([
+    "/social/leagues/join/ABCDEFGH",
+    "https://pubmaxxing.com/social/leagues/join/ABCDEFGH",
+  ])("keeps the league invitation through callback and handle claiming: %s", async (landedUrl) => {
+    const destination = await handleClaimRouteAfterSignIn(
+      SESSION,
+      landedUrl,
+      storageWith(new Map()),
+      requestAnswering(null),
+    );
+    expect(destination).toBe("/u/you?returnTo=%2Fsocial%2Fleagues%2Fjoin%2FABCDEFGH");
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(
+      "/social/leagues/join/ABCDEFGH",
+    );
+  });
+
+  it.each([
     "/add/karan?auto=1",
     "/plan/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
     "/map?sel=venue-a&table=8",
+    "/social/leagues/join/ABCDEFG0",
+    "/social/leagues/join/ABCDEFGH/extra",
+    "/social/leagues/join/ABCDEFGH?next=/map",
   ])("does not carry an unrelated callback destination through claim: %s", async (destination) => {
     await expect(
       handleClaimRouteAfterSignIn(
@@ -205,12 +225,12 @@ describe("post-callback handle claim routing", () => {
     ).resolves.toBe("/u/you");
   });
 
-  it("stays put when the account already has a handle", async () => {
+  it.each(["/map", "/social/leagues/join/ABCDEFGH"])("stays put when the account already has a handle: %s", async (landedUrl) => {
     const storage = storageWith(new Map());
     await expect(
       handleClaimRouteAfterSignIn(
         SESSION,
-        "/map",
+        landedUrl,
         storage,
         requestAnswering("alice"),
       ),
