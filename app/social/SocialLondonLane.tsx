@@ -227,13 +227,16 @@ export default function SocialLondonLane({
             }
           />
         </div>
-      ) : confirmedEmpty && socialSeen === false ? (
-        <p className="socialLondonEmptyNotice">
-          <Link prefetch={false} href="/map?log=1">{COPY.firstVisit}</Link>
-        </p>
-      ) : confirmedEmpty && socialSeen === true ? (
+      ) : confirmedEmpty && socialSeen !== null ? (
         <div className="socialFeedEmpty socialFeedEmpty--london">
-          <p className="socialLondonEmptyNotice" role="status">{COPY.emptyTitle}</p>
+          {socialSeen ? (
+            <p className="socialLondonEmptyNotice" role="status">{COPY.emptyTitle}</p>
+          ) : (
+            // A first visit asks for a pint log in place of the empty headline.
+            <p className="socialLondonEmptyNotice">
+              <Link prefetch={false} href="/map?log=1">{COPY.firstVisit}</Link>
+            </p>
+          )}
           <SocialLondonEmpty alternatives={alternatives} />
           {showSignInOffer ? <p className="socialEmptySignIn">
             Want to share your own night? <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>.

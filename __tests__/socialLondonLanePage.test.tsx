@@ -272,15 +272,17 @@ describe("/social signed out, London lane open", () => {
     expect(host.textContent).not.toContain("Sign in to use Social.");
   });
 
-  it("offers one quiet log line on a first visit, then the empty lane next time", async () => {
+  it("leads a first visit with the log line, then the empty headline next time", async () => {
     localStorage.removeItem(SOCIAL_LONDON_LANE_SEEN_KEY);
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
     await renderSocial(true, ALTERNATIVES);
     const line = host.querySelector("a[href='/map?log=1']");
     expect(line?.textContent).toBe(SOCIAL_LONDON_LANE_COPY.firstVisit);
     expect(host.textContent).not.toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
-    expect(host.textContent).not.toContain("Latest pint prices we hold");
-    expect(host.querySelector(".socialLondonEmpty")).toBeNull();
+    // The line replaces only the headline: the alternatives and the sign-in
+    // offer still stand on a first visit.
+    expect(host.textContent).toContain("Latest pint prices we hold");
+    expect(host.querySelector(".socialEmptySignIn a")?.textContent).toBe("Sign in");
     expect(localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY)).not.toBeNull();
 
     await act(async () => root.unmount());
