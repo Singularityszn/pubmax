@@ -303,6 +303,15 @@
   line-height: var(--leading-snug);
 }
 
+@media (max-width: 640px) {
+  .spoonsTableRound {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    overflow: hidden;
+  }
+}
+
 .spoonsTableCost {
   color: var(--color-text);
   font-family: var(--font-data);

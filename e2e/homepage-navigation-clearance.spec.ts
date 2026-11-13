@@ -16,7 +16,7 @@ test("homepage styles do not lower Create onto Tonight after client navigation",
   await page.addInitScript(({ ownerId, planId }) => {
     localStorage.setItem("pubmax_account_owner", ownerId);
     localStorage.setItem("pubmax_active_plan", JSON.stringify({
-      version: 1, id: planId, startTime: new Date().toISOString(), stopIndex: 0, role: "host",
+      version: 1, id: planId, ownerId, startTime: new Date().toISOString(), stopIndex: 0, role: "host",
     }));
     localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     localStorage.setItem("pubmax-tour-v1-done", "1");
