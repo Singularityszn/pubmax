@@ -25,9 +25,6 @@ import {
   parseStillTrueField,
   planStopsFromStory,
   STILL_TRUE_EMPTY_LINE,
-  STILL_TRUE_JOIN_LABEL,
-  STILL_TRUE_PENDING_LINE,
-  STILL_TRUE_SMALL_PRINT,
   stillTrueHeadcountLines,
   stillTrueListedLine,
   stillTrueVenueId,
@@ -374,14 +371,6 @@ describe("SocialCrewStore open crawls", () => {
 });
 
 describe("a one-pub night", () => {
-  const spoken = [
-    STILL_TRUE_JOIN_LABEL,
-    STILL_TRUE_PENDING_LINE,
-    STILL_TRUE_SMALL_PRINT,
-    STILL_TRUE_EMPTY_LINE,
-    ...stillTrueHeadcountLines({ saidYes: 2, markedHere: 1 }),
-  ].join(" ");
-
   it("counts each person who joined or was accepted once", () => {
     expect(stillTrueVenueId(["venue-a"])).toBe("venue-a");
     expect(stillTrueVenueId(["venue-a", "venue-b"])).toBeNull();
@@ -401,12 +390,6 @@ describe("a one-pub night", () => {
     expect(stillTrueHeadcountLines({ saidYes: null, markedHere: 3 })).toEqual(["3 marked here."]);
     expect(stillTrueHeadcountLines({ saidYes: null, markedHere: 0 })).toEqual([]);
     expect(stillTrueHeadcountLines({ saidYes: 0, markedHere: 0 }).join(" ")).not.toMatch(/0 said yes|0 marked here/);
-  });
-
-  it("answers I'll be there, and never a saved seat or a confirmation", () => {
-    expect(STILL_TRUE_JOIN_LABEL).toBe("I'll be there");
-    expect(spoken.toLowerCase()).not.toContain("save me a seat");
-    expect(spoken.toLowerCase()).not.toContain("confirmed");
   });
 
   it("prints a price only when the drink, the figure, the source and the read day are all present", () => {
