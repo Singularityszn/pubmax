@@ -1,0 +1,305 @@
+/* Private leagues (app/social/leagues). Launch tokens, plus one set of member
+   colours for the district map. A member colour marks who leads a district and
+   nothing else: never a price, never a standing. Colour is never the only
+   signal. Each row on the table carries its swatch, and a tapped district says
+   who leads it in words. */
+
+.leaguesShell {
+  margin: 0 auto;
+  padding-bottom: calc(var(--space-12) * 2 + env(safe-area-inset-bottom, 0px));
+}
+
+.leagues {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  max-width: 46rem;
+}
+
+.leaguesSection {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.leaguesHeading {
+  margin: 0;
+  color: var(--color-text);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 600;
+  line-height: var(--leading-tight);
+}
+
+.leaguesNote {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text-muted);
+  text-wrap: pretty;
+}
+
+.leaguesError {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: var(--leading-snug);
+  color: var(--color-text);
+}
+
+.leaguesForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-2);
+}
+
+.leaguesField {
+  display: grid;
+  flex: 1 1 14rem;
+  gap: var(--space-1);
+  min-width: 0;
+  font-size: var(--text-sm);
+  color: var(--color-text);
+}
+
+.leaguesField > span {
+  font-weight: 650;
+}
+
+.leaguesField input,
+.leaguesField select {
+  width: 100%;
+  min-height: var(--control-height);
+  padding: 0 var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-surface-panel);
+  color: var(--color-text);
+  font: inherit;
+}
+
+.leaguesField input:focus-visible,
+.leaguesField select:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.leaguesField--code input {
+  font-family: var(--font-data);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.leaguesActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.leaguesCode {
+  margin: 0;
+  font-family: var(--font-data);
+  font-size: var(--text-xl);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+}
+
+.leaguesPlace,
+.leaguesFigure {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text);
+}
+
+.leaguesPlace {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-inline-size: 2ch;
+}
+
+.leaguesPoints {
+  font-size: var(--text-sm);
+  color: var(--color-text-soft);
+  white-space: nowrap;
+}
+
+.leaguesFigure {
+  font-weight: 700;
+}
+
+/* ── Member colours ─────────────────────────────────────────────────────── */
+
+html:not([data-theme="dark"]) .leaguesShell {
+  --league-hue-0: #1f5f8b;
+  --league-hue-1: #8a2846;
+  --league-hue-2: #2e6b3a;
+  --league-hue-3: #6a3fb0;
+  --league-hue-4: #9a4a12;
+  --league-hue-5: #0f6e68;
+  --league-hue-6: #7a2e8a;
+  --league-hue-7: #3d4f9e;
+  --league-hue-text: #fffdf7;
+}
+
+html[data-theme="dark"] .leaguesShell {
+  --league-hue-0: #7ec4e0;
+  --league-hue-1: #e07a97;
+  --league-hue-2: #8fd19e;
+  --league-hue-3: #b28ae8;
+  --league-hue-4: #e0a34e;
+  --league-hue-5: #4fc9bd;
+  --league-hue-6: #e08ad6;
+  --league-hue-7: #9fb0f0;
+  --league-hue-text: #14130f;
+}
+
+.leagueHue-0 { --league-hue: var(--league-hue-0); }
+.leagueHue-1 { --league-hue: var(--league-hue-1); }
+.leagueHue-2 { --league-hue: var(--league-hue-2); }
+.leagueHue-3 { --league-hue: var(--league-hue-3); }
+.leagueHue-4 { --league-hue: var(--league-hue-4); }
+.leagueHue-5 { --league-hue: var(--league-hue-5); }
+.leagueHue-6 { --league-hue: var(--league-hue-6); }
+.leagueHue-7 { --league-hue: var(--league-hue-7); }
+
+.leagueSwatch {
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--league-hue);
+}
+
+/* ── The district map ───────────────────────────────────────────────────── */
+
+.leagueMap {
+  display: grid;
+  gap: var(--space-4);
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 641px) {
+  .leagueMap {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+}
+
+/* On a wide screen the areas sit roughly where they are: north on top, the
+   centre in the middle, south below. */
+@media (min-width: 1024px) {
+  .leagueMap {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr) minmax(0, 1fr);
+    grid-template-areas:
+      "nw n e"
+      "w centre e"
+      "sw centre se";
+  }
+
+  .leagueMapArea--NW { grid-area: nw; }
+  .leagueMapArea--N { grid-area: n; }
+  .leagueMapArea--E { grid-area: e; }
+  .leagueMapArea--W { grid-area: w; }
+  .leagueMapArea--centre { grid-area: centre; }
+  .leagueMapArea--SW { grid-area: sw; }
+  .leagueMapArea--SE { grid-area: se; }
+}
+
+.leagueMapArea {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.leagueMapAreaName {
+  margin: 0;
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  color: var(--color-text-muted);
+}
+
+.leagueMapTiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(3.25rem, 1fr));
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.leagueTile {
+  display: grid;
+  place-items: center;
+  inline-size: 100%;
+  min-block-size: var(--control-height);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-panel);
+  color: var(--color-text-soft);
+  font-family: var(--font-data);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.leagueTile--led {
+  border-color: transparent;
+  background: var(--league-hue);
+  color: var(--league-hue-text);
+}
+
+.leagueTile--shared {
+  border: 1px dashed var(--hairline-strong);
+  background: var(--color-surface-raised);
+  color: var(--color-text);
+}
+
+.leagueTile[aria-pressed="true"] {
+  outline: 2px solid var(--color-text);
+  outline-offset: 2px;
+}
+
+.leagueTile:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.leagueMapKey {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-xs);
+  color: var(--color-text-soft);
+}
+
+.leagueMapKey li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.leagueMapKeyShared {
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border: 1px dashed var(--hairline-strong);
+  border-radius: var(--radius-sm);
+}
+
+.leagueMapKeyNobody {
+  display: inline-block;
+  inline-size: 0.75rem;
+  block-size: 0.75rem;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface-panel);
+}

@@ -44,7 +44,8 @@ const defaultDependencies = (): MatesBoardDependencies => ({
   standing: readPointsStanding,
 });
 
-async function inTurns<T, R>(items: readonly T[], read: (item: T) => Promise<R>): Promise<R[]> {
+/** `read` over every item, a few at a time, in order. */
+export async function inTurns<T, R>(items: readonly T[], read: (item: T) => Promise<R>): Promise<R[]> {
   const results = new Array<R>(items.length);
   let next = 0;
   const worker = async () => {

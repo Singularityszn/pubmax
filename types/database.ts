@@ -900,6 +900,81 @@ export type Database = {
           },
         ];
       };
+      league_members: {
+        Row: {
+          league_id: string;
+          user_id: string;
+          profile_id: string;
+          joined_at: string;
+        };
+        Insert: {
+          league_id: string;
+          user_id: string;
+          profile_id: string;
+          joined_at?: string;
+        };
+        Update: {
+          league_id?: string;
+          user_id?: string;
+          profile_id?: string;
+          joined_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "league_members_league_id_fkey";
+            columns: ["league_id"];
+            isOneToOne: false;
+            referencedRelation: "leagues";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "league_members_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "league_members_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      leagues: {
+        Row: {
+          id: string;
+          name: string;
+          owner_user_id: string;
+          invite_code: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          name: string;
+          owner_user_id: string;
+          invite_code: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          name?: string;
+          owner_user_id?: string;
+          invite_code?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "leagues_owner_user_id_fkey";
+            columns: ["owner_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       map_search_events: {
         Row: {
           id: number;
@@ -7894,6 +7969,15 @@ export type Database = {
         };
         Returns: Json;
       };
+      create_league: {
+        Args: {
+          p_user_id: string | null;
+          p_profile_id: string | null;
+          p_name: string | null;
+          p_invite_code: string | null;
+        };
+        Returns: Json;
+      };
       create_one_tap_price_pair_atomic: {
         Args: {
           p_venue_id: string | null;
@@ -8311,6 +8395,14 @@ export type Database = {
           p_month: string | null;
         };
         Returns: string[];
+      };
+      join_league: {
+        Args: {
+          p_user_id: string | null;
+          p_profile_id: string | null;
+          p_invite_code: string | null;
+        };
+        Returns: Json;
       };
       join_plan_account_idempotent_atomic: {
         Args: {

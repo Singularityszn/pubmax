@@ -6,6 +6,7 @@
 //   npm run harvest:uk-prices-rendered -- --limit 50    # bounded run
 //   npm run harvest:uk-prices-rendered -- --only greeneking.co.uk
 //   npm run harvest:uk-prices-rendered -- --pub-sites --only tapeast.co.uk,lvls.london
+//   npm run harvest:uk-prices-rendered -- --pub-sites --city manchester,leeds
 //
 // WHY A SECOND LANE. scripts/harvest/uk-prices/run.mjs reads what a page STATES
 // in the document it serves. That is the right default and it is cheap. It also
@@ -66,6 +67,7 @@ import {
   siteHarvestPriceKey,
 } from "../../../lib/harvest/ukPriceCrawl.ts";
 import { renderedMenuLinks, singlePubSiteTargets } from "./pubSites.mjs";
+import { harvestCityScope } from "./cityScope.mjs";
 
 const ROOT = process.cwd();
 const OSM_PUBS = path.join(ROOT, "data/osm/uk/uk_osm_pubs.json");
@@ -155,6 +157,8 @@ const ONLY_HOSTS = ONLY
   ? ONLY.split(",").map((name) => name.trim().toLowerCase()).filter((name) => name.length > 0)
   : null;
 const PUB_SITES = flag("--pub-sites");
+/** Curated city ids (lib/cityBounds.mjs). A target names one pub, so the pub's own point decides. */
+const CITY_IDS = (option("--city", "") || "").split(",");
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const RENDERER = option("--renderer", "npx");
 /**
@@ -347,6 +351,15 @@ async function main() {
     return;
   }
 
+  let cityScope;
+  try {
+    cityScope = harvestCityScope(CITY_IDS);
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    process.exitCode = 1;
+    return;
+  }
+
   const { targets: chainTargets, allowedHosts } = chainMenuTargets();
 
   const snapshot = JSON.parse(readFileSync(OSM_PUBS, "utf8"));
@@ -402,6 +415,7 @@ async function main() {
 
   const pending = targets
     .filter((target) => (ONLY_HOSTS ? ONLY_HOSTS.some((name) => target.host.includes(name)) : true))
+    .filter((target) => (cityScope ? cityScope.contains(target) : true))
     .filter((target) => !ledger.pages[target.menuUrl])
     .slice(0, Number.isFinite(LIMIT) ? LIMIT : targets.length);
 
@@ -572,6 +586,7 @@ async function main() {
     renderer: "wigolo",
     hostsPermitted: [...allowedHosts.keys()],
     pagesAskedAgainAfterAnEmptyRender: retries,
+    ...(cityScope ? { cityScope: { cities: cityScope.ids } } : {}),
     menuPagesKnown: targets.length,
     overlayMenuPages: { inputRead: overlay.read, held: overlay.held, crawlable: overlay.targets.length },
     menuPagesReadThisRun: done,

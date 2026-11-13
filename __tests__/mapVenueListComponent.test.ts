@@ -1,5 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { JSDOM } from "jsdom";
 import { describe, expect, it } from "vitest";
 
 import MapVenueList from "@/components/map/MapVenueList";
@@ -17,6 +18,34 @@ const emptyBase: UkBasePubListModel = {
 };
 
 describe("MapVenueList", () => {
+  it("explains how to list pubs when the national map is below the shard zoom gate", () => {
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: { rows: [], total: 0, shown: 0, truncated: false, coverageNote: null },
+        ukBaseModel: emptyBase,
+        ukBaseStatus: "zoom_required",
+        cityName: "UK",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+    const dom = new JSDOM(html);
+    try {
+      // The overview deliberately loads no pub rows below zoom 12.
+      const panel = dom.window.document.querySelector(".mapVenueListPanel");
+      expect(panel?.querySelector('[role="status"]')?.textContent).toBe("Zoom in to list pubs");
+      expect(panel?.querySelector(".mapVenueListEmpty")?.textContent).toMatch(/zoom in/i);
+      expect(panel?.textContent).not.toContain("Counting them up");
+      expect(panel?.textContent).not.toContain("Nothing matches");
+    } finally {
+      dom.window.close();
+    }
+  });
+
   it("announces rendered base pubs as a distinct group without a listed price", () => {
     const curated: MapVenueListModel = {
       rows: [

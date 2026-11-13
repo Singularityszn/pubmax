@@ -58,6 +58,17 @@ describe("add-link doors", () => {
 });
 
 describe("the add link survives account creation", () => {
+  it("keeps a league invitation through both login doors and handle claiming", () => {
+    const invitation = "/social/leagues/join/ABCDEFGH";
+    expect(loginDestination("signin", invitation)).toBe(invitation);
+    const destination = loginDestination("signup", invitation);
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(invitation)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(invitation);
+    for (const invalid of ["//evil.test/social/leagues/join/ABCDEFGH", "/social/leagues/join/ABCDEFGH/extra", "/social/leagues/join/ABCDEFGH?next=/map", "/social/leagues/join/ABCDEFG0"]) {
+      expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(invalid)}`)).toBeNull();
+    }
+  });
+
   it("returns a sign-in straight to the add page", () => {
     const from = fromParam(addLinkDoors("karan")!.signInHref);
     expect(loginDestination("signin", from)).toBe("/add/karan?auto=1");

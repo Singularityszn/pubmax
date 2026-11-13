@@ -116,8 +116,9 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 // cover ROTATION (lib/profileCoverPhotoRoute.server.ts): the same ownership
 // gate, a per-actor budget on every add, remove and reorder, and a per-actor
 // budget on the reader flag.
+// `leagueDoor` in lib/leagueHttp.server.ts checks the account and per-actor budget.
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
-  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|preparePlanGeneration|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
+  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|preparePlanGeneration|leagueDoor|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
   account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity|requireVerifiedSocialActor|handleProfileImage(?:Upload|Delete)|handleProfileCoverPhoto(?:Upload|Delete|Move))\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,

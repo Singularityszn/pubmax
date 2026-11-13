@@ -12,6 +12,7 @@ import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import { profilePath } from "@/lib/appLink";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { LEAGUES_COPY } from "@/lib/leagues";
 import {
   MATES_BOARD_COPY,
   parseMatesBoard,
@@ -128,7 +129,12 @@ export default function MatesBoardClient(): React.JSX.Element {
         title={MATES_BOARD_COPY.title}
         titleId="mates-board-title"
         lede={MATES_BOARD_COPY.lede}
-        secondary={<Link prefetch={false} href="/social">Back to Social</Link>}
+        secondary={
+          <>
+            <Link prefetch={false} href="/social">Back to Social</Link>
+            <Link prefetch={false} href="/social/leagues">{LEAGUES_COPY.door}</Link>
+          </>
+        }
       >
         <section className="matesBoard" aria-labelledby="mates-board-title" aria-busy={state.status === "loading"}>
           {state.status === "loading" ? (

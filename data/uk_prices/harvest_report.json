@@ -1,30 +1,26 @@
 {
   "version": 1,
-  "generatedAt": "2026-10-25T18:14:24.121Z",
+  "generatedAt": "2026-11-13T03:15:04.829Z",
   "snapshot": {
     "pubs": 38122,
-    "statedWebsite": 1860,
-    "refusedByPolicy": 105
+    "statedWebsite": 11833,
+    "refusedByPolicy": 1429
   },
   "londonScope": {
-    "enabled": true,
-    "pubsOutsideBboxSkipped": 34482,
-    "curatedWebsites": {
-      "considered": 2259,
-      "added": 278,
-      "hostsAdded": 274,
-      "alreadyCandidate": 851,
-      "refused": 982
-    },
-    "menuEnrichment": {
-      "seeded": 75,
-      "venuesConsidered": 119,
-      "onUnknownHost": 0,
-      "refused": 88
-    },
-    "chainMenuSourcesOmitted": true
+    "enabled": false
   },
-  "hostsKnown": 1551,
+  "cityScope": {
+    "cities": [
+      "birmingham",
+      "manchester",
+      "leeds",
+      "liverpool",
+      "glasgow",
+      "bristol"
+    ],
+    "hostsOutsideScopeSkipped": 7271
+  },
+  "hostsKnown": 300,
   "overlayMenuUrls": {
     "inputRead": true,
     "held": 0,
@@ -35,41 +31,48 @@
   "exaSites": {
     "inputRead": false
   },
-  "hostsCrawledThisRun": 1,
-  "hostsInLedger": 3,
-  "pagesRead": 3,
+  "hostsCrawledThisRun": 300,
+  "hostsInLedger": 300,
+  "pagesRead": 802,
   "pdfs": {
-    "seen": 0,
-    "read": 0,
+    "seen": 30,
+    "read": 30,
     "unreadable": 0
   },
-  "pageBudget": 8,
+  "pageBudget": 20000,
   "outcomes": {
-    "priced": 3,
-    "robots-disallowed": 0,
-    "robots-unreadable": 0,
+    "priced": 5,
+    "robots-disallowed": 2,
+    "robots-unreadable": 23,
     "policy-refused-host": 0,
-    "unreachable": 0,
-    "no-menu-page-found": 0,
-    "menu-states-no-price": 0,
+    "unreachable": 66,
+    "no-menu-page-found": 77,
+    "menu-states-no-price": 127,
     "estate-page-names-no-pub": 0,
     "exa-site-unbound": 0
   },
   "robotsFiles": {
-    "rules-file": 2,
-    "absent": 1
+    "http-refused": 18,
+    "rules-file": 195,
+    "html-page": 8,
+    "unreachable": 40,
+    "not-a-rules-file": 1,
+    "absent": 34,
+    "challenge-page": 4
   },
-  "pubsOnPricedHosts": 3,
+  "pubsOnPricedHosts": 5,
   "drops": {
-    "no-price-on-page": 5,
-    "offer-not-a-menu-price": 65,
-    "no-category-word-nearby": 153,
-    "outside-category-band": 53,
+    "no-category-word-nearby": 1548,
+    "no-price-on-page": 378,
+    "offer-not-a-menu-price": 941,
+    "page-is-not-a-drinks-list": 23,
+    "outside-category-band": 150,
     "food-word-nearby": 10,
-    "bottled-measure-not-a-pint": 3,
-    "mixer-serve-not-one-drink": 4,
-    "page-is-not-a-drinks-list": 3,
-    "item-name-ambiguous": 20
+    "mixer-serve-not-one-drink": 12,
+    "item-name-ambiguous": 35,
+    "bottled-measure-not-a-pint": 7,
+    "fractional-measure-not-a-pint": 3,
+    "half-measure-not-a-pint": 6
   },
   "sourcesRefusedByPolicy": [
     {
@@ -81,7 +84,12 @@
       "id": "mitchells-butlers-menu-prices",
       "reason": "robots-unreadable",
       "checkedOn": "2026-09-22"
+    },
+    {
+      "id": "stonegate-menu-prices",
+      "reason": "terms-forbid-commercial-use",
+      "checkedOn": "2026-11-12"
     }
   ],
-  "elapsedSeconds": 3
+  "elapsedSeconds": 164
 }

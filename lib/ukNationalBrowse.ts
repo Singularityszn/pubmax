@@ -1,6 +1,6 @@
 // UK national browse intent — the third map's entry, not a city pack.
-// Below UK_BASE_MIN_ZOOM pubs are intentionally absent (payload contract);
-// the banner must say so, never that the country has no pubs.
+// Below UK_BASE_MIN_ZOOM the map shows count bubbles, not pubs (payload
+// contract); the banner must say pubs load on zoom, never that the country has none.
 
 const UK_NATIONAL_PARAM = "uk";
 const UK_NATIONAL_PARAM_VALUE = "1";

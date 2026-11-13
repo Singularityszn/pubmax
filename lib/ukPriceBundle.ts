@@ -290,6 +290,26 @@ const CATEGORY_QUARANTINE: ReadonlyArray<
   { sourceUrl: "https://www.artichokeonthegreen.co.uk/drinks", category: "wine", priceGbp: 3 },
   { sourceUrl: "https://www.thefeathers.co.uk/drinks", category: "coffee", priceGbp: 3 },
   { sourceUrl: "https://www.thefeathers.co.uk/drinks", category: "wine", priceGbp: 3 },
+  // City-map pages re-read on 2026-11-13 for the city sweep. The 2026-09-04
+  // keyless read filed these figures under the wrong drink. The page states
+  // each figure only for what the comment names.
+  // A food add-on (+Bacon, +Cajun Pulled Chicken), not a beer.
+  { sourceUrl: "https://www.eagleandball.co.uk/menus/", category: "beer", priceGbp: 2.5 },
+  // The draught list prints no price. These are cocktails, spritzes and a 125ml wine.
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "beer", priceGbp: 9 },
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "cocktail", priceGbp: 5.3 },
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "gin", priceGbp: 9 },
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "rum", priceGbp: 9 },
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "vodka", priceGbp: 8.5 },
+  { sourceUrl: "https://www.maboyles.co.uk/s/DRINKS-MENU-WINTER-2025.pdf", category: "whisky", priceGbp: 8.5 },
+  { sourceUrl: "https://www.shenanigansliverpool.co.uk/menu", category: "soft-drink", priceGbp: 4, drinkLabel: "th a hash brown & your choice of coffee/soft drink Ubh ar tó sta (Egg on toast)" },
+  { sourceUrl: "https://www.shenanigansliverpool.co.uk/menu", category: "wine", priceGbp: 4, drinkLabel: "Smirnoff Ice 4%" },
+  { sourceUrl: "https://www.shenanigansliverpool.co.uk/menu", category: "vodka", priceGbp: 4, drinkLabel: "WKD Blue 3.4%" },
+  // An Optic Americano is a vermouth cocktail, not a coffee.
+  { sourceUrl: "https://thegateglasgow.com", category: "coffee", priceGbp: 7 },
+  // £4.40 is a bottle of Sol or Budweiser, and £4.30 is a bourbon or a liqueur.
+  { sourceUrl: "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf", category: "beer", priceGbp: 4.4 },
+  { sourceUrl: "https://thegriffinglasgow.co.uk/s/Griffin-drinks-list-Nov2551.pdf", category: "gin", priceGbp: 4.3 },
 ];
 
 /**

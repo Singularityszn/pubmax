@@ -15,15 +15,21 @@ updates:
       - dependencies
       - security
     ignore:
-      # The OpenTelemetry 1.10 API and 0.300 SDK line moved together, and
-      # @vercel/otel 2.x still declares peers below them, so npm ci fails on
-      # an ERESOLVE. Remove these two entries when @vercel/otel accepts
-      # @opentelemetry/api 1.10 and @opentelemetry/sdk-logs 0.300.
+      # Keep the coordinated OpenTelemetry API/SDK upgrade on hold:
+      # @vercel/otel accepts API 1.10, but its logs and instrumentation peers
+      # still require versions below 0.300. Remove these entries when those
+      # peer ranges accept the 0.300 SDK line.
       - dependency-name: "@opentelemetry/api"
         versions: [">=1.10.0"]
       - dependency-name: "@opentelemetry/exporter-trace-otlp-proto"
         versions: [">=0.300.0"]
     groups:
+      # The test-only @elevenlabs/client pin must equal the exact client that
+      # @elevenlabs/react depends on, or the voice SDK tests see two copies.
+      # Dependabot puts a package in the first group it matches.
+      elevenlabs:
+        patterns:
+          - "@elevenlabs/*"
       production-deps:
         dependency-type: production
         update-types:

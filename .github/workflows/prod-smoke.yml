@@ -6,9 +6,8 @@ run-name: Production smoke ${{ inputs.deployment_id || github.run_id }}
 # smoke account behind SMOKE_USER_HANDLE and SMOKE_USER_PASSWORD is made.
 #
 # Vercel's Git integration reports each deploy to GitHub as a deployment, so a
-# successful Production deployment status starts this run. A CLI deploy
-# reports nothing to GitHub: `npm run release:prod` dispatches this workflow
-# with the deployment it released, and a hand dispatch may name one too.
+# successful Production deployment status starts this run. For API releases,
+# docs/DEPLOYMENT.md owns the required dispatch and deployment identity checks.
 
 on:
   deployment_status:

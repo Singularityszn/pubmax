@@ -28,6 +28,55 @@ const EMPTY_RESTAURANT_MODEL: LondonRestaurantListModel = {
   truncated: false,
 };
 
+function venueListStatus({
+  total,
+  shown,
+  truncated,
+  ukBaseStatus,
+  loaded,
+  mapUnavailable,
+  sortMode,
+}: {
+  total: number;
+  shown: number;
+  truncated: boolean;
+  ukBaseStatus: UkBaseStreamStatus;
+  loaded: boolean;
+  mapUnavailable: boolean;
+  sortMode: MapVenueListSortMode;
+}) {
+  const awaitingRows =
+    total === 0
+    && ukBaseStatus !== "unavailable"
+    && (ukBaseStatus === "loading" || !loaded);
+  const zoomRequired = loaded && ukBaseStatus === "zoom_required";
+
+  const status = mapUnavailable
+    ? "Browse without the map"
+    : ukBaseStatus === "unavailable" && total === 0
+      ? "Unlisted pubs unavailable"
+      : awaitingRows
+        ? "Counting them up…"
+        : zoomRequired && total === 0
+          ? "Zoom in to list pubs"
+          : total === 0
+            ? "Nothing matches"
+            : truncated
+              ? `${sortMode === "cheapest" ? "Cheapest" : "Nearest"} ${shown} of ${total}`
+              : `${total} venue${total === 1 ? "" : "s"}`;
+  const emptyMessage = awaitingRows
+    ? null
+    : ukBaseStatus === "unavailable"
+      ? "Unlisted pubs could not load. Try the map again."
+      : zoomRequired
+        ? "Zoom in on the map to load pubs in this view."
+        : loaded
+          ? "Nothing in view fits that, which takes some doing round here. Push the price cap up or drop a filter and the pubs come back."
+          : "Counting them up…";
+
+  return { status, emptyMessage };
+}
+
 // Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
 // canvas pins. A DOM list of the filtered venues projected inside the current
 // viewport, nearest-first to its centre by default, with an optional cheapest
@@ -123,10 +172,15 @@ export default function MapVenueList({
   // reader's landmark list on both viewports.
   if (!open) return null;
 
-  const awaitingRows =
-    total === 0
-    && ukBaseStatus !== "unavailable"
-    && (ukBaseStatus === "loading" || !loaded);
+  const { status, emptyMessage } = venueListStatus({
+    total,
+    shown,
+    truncated,
+    ukBaseStatus,
+    loaded,
+    mapUnavailable,
+    sortMode,
+  });
 
   return (
     <section ref={listRef} className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
@@ -135,17 +189,7 @@ export default function MapVenueList({
             <div className="mapVenueListHeadMeta">
               <h2 className="mapVenueListTitle">{mapUnavailable ? "Map unavailable" : "Venues on the map"}</h2>
               <span className="mapVenueListCount" role="status" aria-live="polite">
-                {mapUnavailable
-                  ? "Browse without the map"
-                  : ukBaseStatus === "unavailable" && total === 0
-                  ? "Unlisted pubs unavailable"
-                  : awaitingRows
-                  ? "Counting them up…"
-                  : total === 0
-                    ? "Nothing matches"
-                    : truncated
-                      ? `${sortMode === "cheapest" ? "Cheapest" : "Nearest"} ${shown} of ${total}`
-                      : `${total} venue${total === 1 ? "" : "s"}`}
+                {status}
               </span>
             </div>
             <SurfaceNav
@@ -195,12 +239,8 @@ export default function MapVenueList({
           ) : null}
 
           {total === 0 ? (
-            awaitingRows ? null : <p className="mapVenueListEmpty">
-              {ukBaseStatus === "unavailable"
-                ? "Unlisted pubs could not load. Try the map again."
-                : loaded
-                ? "Nothing in view fits that, which takes some doing round here. Push the price cap up or drop a filter and the pubs come back."
-                : "Counting them up…"}
+            emptyMessage === null ? null : <p className="mapVenueListEmpty">
+              {emptyMessage}
             </p>
           ) : (
             <div className="mapVenueListGroups">

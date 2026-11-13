@@ -166,6 +166,27 @@ function rowsSettled(
   return loaded && !viewLanding && readCaughtUp && rowsCurrent;
 }
 
+type EmptyListState = "awaiting" | "unavailable" | "zoom" | "nothing";
+
+const EMPTY_LIST_STATUS: Record<EmptyListState, string> = {
+  awaiting: "Counting them up…",
+  unavailable: "Unlisted pubs unavailable",
+  zoom: "Zoom in to list pubs",
+  nothing: "Nothing in view",
+};
+
+/**
+ * Why a view lists nothing. Below the base layer's gate a loaded view with no
+ * curated pub has nothing to count yet, so it says how to get a list rather
+ * than counting for ever.
+ */
+function emptyListState(loaded: boolean, ukBaseStatus: UkBaseStreamStatus | undefined): EmptyListState {
+  if (ukBaseStatus === "unavailable") return "unavailable";
+  if (loaded && ukBaseStatus === "zoom_required") return "zoom";
+  if (ukBaseStatus === "loading" || !loaded) return "awaiting";
+  return "nothing";
+}
+
 const GROUP_TITLES = {
   venue: "Listed pubs and venues",
   base: "Other pubs and bars · no listed price",
@@ -416,14 +437,11 @@ export default function MapSplitList({
 
   const busy = !rowsSettled(loaded, viewLanding, settled === live, groups === liveGroups);
   const total = groups.total;
-  const awaiting = total === 0 && ukBaseStatus !== "unavailable" && (ukBaseStatus === "loading" || !loaded);
-  const status = awaiting
-    ? "Counting them up…"
-    : total === 0
-      ? ukBaseStatus === "unavailable"
-        ? "Unlisted pubs unavailable"
-        : "Nothing in view"
-      : `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`;
+  const emptyState = total === 0 ? emptyListState(loaded, ukBaseStatus) : null;
+  const status =
+    emptyState === null
+      ? `${total} ${total === 1 ? "place" : "places"}${shownView ? " from your last search" : ""}, ${order}`
+      : EMPTY_LIST_STATUS[emptyState];
 
   const renderGroup = (group: MapSplitListRow["group"], rows: MapSplitListRow[]) =>
     rows.length === 0 ? null : (
@@ -539,7 +557,7 @@ export default function MapSplitList({
 
       <div className="mapSplitListScroll" ref={scrollRef} onKeyDown={onRowsKeyDown}>
         {total === 0 ? (
-          awaiting ? null : (
+          emptyState === "awaiting" || emptyState === "zoom" ? null : (
             <p className="mapSplitListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."

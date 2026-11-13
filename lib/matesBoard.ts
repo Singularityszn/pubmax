@@ -17,13 +17,13 @@ export type MatesBoardAnswer = {
   rows: MatesBoardRow[];
 };
 
-export type RankedMatesBoardRow = MatesBoardRow & { place: number };
-
 /**
  * The rows in board order: most points first, then by handle.
  * Equal points share a place, and the next place skips, so 1, 1, 3.
  */
-export function rankMatesBoard(rows: readonly MatesBoardRow[]): RankedMatesBoardRow[] {
+export function rankMatesBoard<Row extends MatesBoardRow>(
+  rows: readonly Row[],
+): (Row & { place: number })[] {
   const sorted = [...rows].sort((a, b) => b.total - a.total || a.handle.localeCompare(b.handle, "en-GB"));
   let place = 0;
   return sorted.map((row, index) => {

@@ -365,6 +365,12 @@ beforeAll(async () => {
     openCrewRoute,
     usualDrinkRoute,
     crewArrivalRoute,
+    leaguesRoute,
+    leagueRoute,
+    leagueJoinRoute,
+    leagueLeaveRoute,
+    leagueCodeRoute,
+    leagueInviteRoute,
   ] = await Promise.all([
     import("@/app/api/plans/[id]/route"),
     import("@/app/api/plans/[id]/getin/route"),
@@ -406,8 +412,23 @@ beforeAll(async () => {
     import("@/app/api/plans/[id]/open-crew/route"),
     import("@/app/api/plans/[id]/usual-drink/route"),
     import("@/app/api/social/crews/[crewId]/arrival/route"),
+    import("@/app/api/leagues/route"),
+    import("@/app/api/leagues/[id]/route"),
+    import("@/app/api/leagues/join/route"),
+    import("@/app/api/leagues/[id]/leave/route"),
+    import("@/app/api/leagues/[id]/code/route"),
+    import("@/app/api/leagues/[id]/invite/route"),
   ]);
   handlers = {
+    listLeagues: leaguesRoute.GET as Handler,
+    createLeague: leaguesRoute.POST as Handler,
+    readLeague: leagueRoute.GET as Handler,
+    deleteLeague: leagueRoute.DELETE as Handler,
+    joinLeague: leagueJoinRoute.POST as Handler,
+    leaveLeague: leagueLeaveRoute.POST as Handler,
+    leagueCode: leagueCodeRoute.POST as Handler,
+    leagueMates: leagueInviteRoute.GET as Handler,
+    leagueInvite: leagueInviteRoute.POST as Handler,
     readPlan: planRoute.GET as Handler,
     updatePlan: planRoute.PATCH as Handler,
     getin: getinRoute.GET as Handler,
@@ -2928,6 +2949,266 @@ describe("imported Planned Night drafts", () => {
     requireSession().sqlFile(join(MIGRATIONS, "20261022120000_0195_pub_list_night_drafts.sql"));
     await requireSession().reloadPostgrestSchema();
   });
+});
+
+describe("private leagues (0239)", () => {
+  const LEAGUE_ID = "a2390000-0000-4000-8000-000000000001";
+  const NAME = "Matrix regulars";
+  const CODE = "ABCDEFGH";
+  const doors = [
+    ["readLeague", "", "GET"],
+    ["deleteLeague", "", "DELETE"],
+    ["leaveLeague", "/leave", "POST"],
+    ["leagueCode", "/code", "POST"],
+    ["leagueMates", "/invite", "GET"],
+    ["leagueInvite", "/invite", "POST"],
+  ] as const;
+
+  // The matrix is the oracle: members read and invite, owners rotate and
+  // delete, and browser roles never access either table or either RPC.
+  // Persisted rows catch a refusal that still changes membership or sends a DM.
+  const state = () => truth(`select jsonb_build_object(
+    'leagues', (select coalesce(jsonb_agg(to_jsonb(l) order by id), '[]') from public.leagues l),
+    'members', (select coalesce(jsonb_agg(to_jsonb(m) order by league_id, user_id), '[]') from public.league_members m),
+    'messages', (select coalesce(jsonb_agg(to_jsonb(m) order by id), '[]') from public.messages m),
+    'conversations', (select coalesce(jsonb_agg(to_jsonb(c) order by id), '[]') from public.conversations c)
+  )::text`);
+
+  async function refusal(response: Response, status: number, code: string) {
+    expect(response.status, await response.clone().text()).toBe(status);
+    const body = await response.json();
+    expect(body).toEqual({ error: expect.any(String), code, retryable: false });
+    expectNoDisclosure(body, [NAME, CODE, LEAGUE_ID, ALICE, BOB, ALICE_PROFILE, BOB_PROFILE, "alicepm", "bobpm"]);
+    return body;
+  }
+
+  beforeEach(() => {
+    if (skipReason) return;
+    truth(`delete from public.leagues;
+      insert into public.leagues (id, name, owner_user_id, invite_code)
+        values ('${LEAGUE_ID}', '${NAME}', '${ALICE}', '${CODE}');
+      insert into public.league_members (league_id, user_id, profile_id) values
+        ('${LEAGUE_ID}', '${ALICE}', '${ALICE_PROFILE}'),
+        ('${LEAGUE_ID}', '${BOB}', '${BOB_PROFILE}');
+      select 1`);
+  });
+
+  it.each(doors)("%s refuses anonymous and unrelated callers without disclosure or side effects", async (handler, suffix, method) => {
+    for (const [bearer, status, code] of [
+      [undefined, 401, "SOCIAL_SIGN_IN_REQUIRED"],
+      [BEARER_DAVE, 404, "NOT_FOUND"],
+    ] as const) {
+      const before = state();
+      let foreignBody: unknown;
+      for (const id of [LEAGUE_ID, UNKNOWN_ID]) {
+        const response = await defined(handlers[handler])(
+          request(`/api/leagues/${id}${suffix}`, { bearer, method, body: method === "POST" ? { recipient: "bobpm" } : undefined }),
+          context({ id }),
+        );
+        const body = await refusal(response, status, code);
+        if (id === LEAGUE_ID) foreignBody = body;
+        else expect(body).toEqual(foreignBody);
+        expect(state()).toBe(before);
+      }
+    }
+  });
+
+  it("lists only the caller's leagues and creates a league with that caller as its sole owner and member", async () => {
+    for (const [bearer, expected] of [
+      [BEARER_ALICE, [{ id: LEAGUE_ID, name: NAME, owner: true }]],
+      [BEARER_BOB, [{ id: LEAGUE_ID, name: NAME, owner: false }]],
+      [BEARER_DAVE, []],
+    ] as const) {
+      const listed = await defined(handlers.listLeagues)(request("/api/leagues", { bearer }), context({}));
+      expect(listed.status).toBe(200);
+      expect(await listed.json()).toEqual({ leagues: expected });
+    }
+    const before = state();
+    for (const [handler, body] of [["listLeagues", undefined], ["createLeague", { name: NAME }]] as const) {
+      await refusal(await defined(handlers[handler])(request("/api/leagues", { body }), context({})), 401, "SOCIAL_SIGN_IN_REQUIRED");
+      expect(state()).toBe(before);
+    }
+    for (const [bearer, userId, profileId] of [
+      [BEARER_ALICE, ALICE, ALICE_PROFILE], [BEARER_BOB, BOB, BOB_PROFILE], [BEARER_DAVE, DAVE, DAVE_PROFILE],
+    ]) {
+      const created = await defined(handlers.createLeague)(request("/api/leagues", {
+        bearer, body: { name: "New regulars", userId: CAROL, profileId: CAROL_PROFILE },
+      }), context({}));
+      expect(created.status, await created.clone().text()).toBe(201);
+      const { id } = await created.json();
+      expect(truth(`select owner_user_id from public.leagues where id = '${id}'`)).toBe(userId);
+      expect(truth(`select user_id || ':' || profile_id from public.league_members where league_id = '${id}'`)).toBe(`${userId}:${profileId}`);
+    }
+  });
+
+  it("shows the board to the owner and member, including their own identity and the current invite code", async () => {
+    const before = state();
+    for (const [bearer, self, owner] of [[BEARER_ALICE, "alicepm", true], [BEARER_BOB, "bobpm", false]] as const) {
+      const response = await defined(handlers.readLeague)(request(`/api/leagues/${LEAGUE_ID}`, { bearer }), context({ id: LEAGUE_ID }));
+      expect(response.status, await response.clone().text()).toBe(200);
+      const board = await response.json();
+      expect(board.league).toEqual({ id: LEAGUE_ID, name: NAME, code: CODE, owner });
+      expect(board.rows).toEqual(expect.arrayContaining([
+        expect.objectContaining({ handle: "alicepm", self: self === "alicepm", owner: true }),
+        expect.objectContaining({ handle: "bobpm", self: self === "bobpm", owner: false }),
+      ]));
+      expectNoDisclosure(board, [ALICE, BOB, ALICE_PROFILE, BOB_PROFILE]);
+      expect(state()).toBe(before);
+    }
+  });
+
+  it("joins by code for any verified account, once per account, while refusing anonymous and unknown codes", async () => {
+    const before = state();
+    await refusal(await defined(handlers.joinLeague)(request("/api/leagues/join", { body: { code: CODE } }), context({})), 401, "SOCIAL_SIGN_IN_REQUIRED");
+    for (const bearer of [BEARER_ALICE, BEARER_BOB, BEARER_DAVE]) {
+      await refusal(await defined(handlers.joinLeague)(request("/api/leagues/join", { bearer, body: { code: "ZZZZZZZZ" } }), context({})), 404, "INVALID_CODE");
+      expect(state()).toBe(before);
+    }
+    expect(state()).toBe(before);
+    for (const bearer of [BEARER_ALICE, BEARER_BOB, BEARER_DAVE, BEARER_DAVE]) {
+      const response = await defined(handlers.joinLeague)(request("/api/leagues/join", {
+        bearer, body: { code: CODE, userId: CAROL, profileId: CAROL_PROFILE },
+      }), context({}));
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toEqual({ id: LEAGUE_ID });
+    }
+    expect(truth(`select string_agg(user_id::text, ',' order by user_id) from public.league_members where league_id = '${LEAGUE_ID}'`)).toBe([ALICE, BOB, DAVE].join(","));
+  });
+
+  it.each(["deleteLeague", "leagueCode"] as const)("%s refuses a member exactly like a missing league", async (handler) => {
+    const before = state();
+    let foreignBody: unknown;
+    for (const id of [LEAGUE_ID, UNKNOWN_ID]) {
+      const response = await defined(handlers[handler])(request(`/api/leagues/${id}${handler === "leagueCode" ? "/code" : ""}`, {
+        bearer: BEARER_BOB, method: handler === "leagueCode" ? "POST" : "DELETE",
+      }), context({ id }));
+      const body = await refusal(response, 404, "NOT_FOUND");
+      if (id === LEAGUE_ID) foreignBody = body;
+      else expect(body).toEqual(foreignBody);
+      expect(state()).toBe(before);
+    }
+  });
+
+  it("refuses the owner's leave and removes only the member's own seat", async () => {
+    const before = state();
+    await refusal(await defined(handlers.leaveLeague)(request(`/api/leagues/${LEAGUE_ID}/leave`, {
+      bearer: BEARER_ALICE, method: "POST",
+    }), context({ id: LEAGUE_ID })), 409, "OWNER_CANNOT_LEAVE");
+    expect(state()).toBe(before);
+    const left = await defined(handlers.leaveLeague)(request(`/api/leagues/${LEAGUE_ID}/leave`, {
+      bearer: BEARER_BOB, method: "POST", body: { userId: ALICE },
+    }), context({ id: LEAGUE_ID }));
+    expect(left.status).toBe(200);
+    expect(await left.json()).toEqual({ left: true });
+    expect(truth(`select user_id from public.league_members where league_id = '${LEAGUE_ID}'`)).toBe(ALICE);
+    expect(truth(`select invite_code from public.leagues where id = '${LEAGUE_ID}'`)).toBe(CODE);
+    for (const [handler, suffix, method] of doors) {
+      const unchanged = state();
+      await refusal(await defined(handlers[handler])(request(`/api/leagues/${LEAGUE_ID}${suffix}`, {
+        bearer: BEARER_BOB, method, body: method === "POST" ? { recipient: "alicepm" } : undefined,
+      }), context({ id: LEAGUE_ID })), 404, "NOT_FOUND");
+      expect(state()).toBe(unchanged);
+    }
+  });
+
+  it("rotates only for the owner, invalidates the old code and admits a new member through the new code", async () => {
+    const rotated = await defined(handlers.leagueCode)(request(`/api/leagues/${LEAGUE_ID}/code`, {
+      bearer: BEARER_ALICE, method: "POST",
+    }), context({ id: LEAGUE_ID }));
+    expect(rotated.status).toBe(200);
+    const { code } = await rotated.json();
+    expect(code).not.toBe(CODE);
+    expect(truth(`select invite_code from public.leagues where id = '${LEAGUE_ID}'`)).toBe(code);
+    const before = state();
+    await refusal(await defined(handlers.joinLeague)(request("/api/leagues/join", { bearer: BEARER_DAVE, body: { code: CODE } }), context({})), 404, "INVALID_CODE");
+    expect(state()).toBe(before);
+    const joined = await defined(handlers.joinLeague)(request("/api/leagues/join", { bearer: BEARER_DAVE, body: { code } }), context({}));
+    expect(joined.status).toBe(200);
+    expect(truth(`select count(*) from public.league_members where league_id = '${LEAGUE_ID}' and user_id = '${DAVE}'`)).toBe("1");
+  });
+
+  it("lets only the owner delete the league and its memberships", async () => {
+    const removed = await defined(handlers.deleteLeague)(request(`/api/leagues/${LEAGUE_ID}`, { bearer: BEARER_ALICE, method: "DELETE" }), context({ id: LEAGUE_ID }));
+    expect(removed.status).toBe(200);
+    expect(await removed.json()).toEqual({ deleted: true });
+    expect(truth(`select count(*) from public.leagues where id = '${LEAGUE_ID}'`)).toBe("0");
+    expect(truth(`select count(*) from public.league_members where league_id = '${LEAGUE_ID}'`)).toBe("0");
+    await refusal(await defined(handlers.joinLeague)(request("/api/leagues/join", { bearer: BEARER_DAVE, body: { code: CODE } }), context({})), 404, "INVALID_CODE");
+  });
+
+  it("lets the owner and member invite a mutual mate through direct messages", async () => {
+    for (const [bearer, sender, recipient] of [[BEARER_ALICE, "alicepm", "bobpm"], [BEARER_BOB, "bobpm", "alicepm"]] as const) {
+      const before = state();
+      const mates = await defined(handlers.leagueMates)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer }), context({ id: LEAGUE_ID }));
+      expect(mates.status, await mates.clone().text()).toBe(200);
+      expect(await mates.json()).toEqual({ mates: [recipient] });
+      expect(state()).toBe(before);
+      const count = Number(truth("select count(*) from public.messages"));
+      const response = await defined(handlers.leagueInvite)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer, body: { recipient } }), context({ id: LEAGUE_ID }));
+      expect(response.status, await response.clone().text()).toBe(200);
+      expect(await response.json()).toEqual({ sent: true });
+      expect(Number(truth("select count(*) from public.messages"))).toBe(count + 1);
+      expect(truth(`select count(*) from public.messages where conversation_id = '${CONVERSATION_ID}' and sender_handle = '${sender}'
+        and body = 'Join us in ${NAME}. https://pubmaxxing.com/social/leagues/join/${CODE}'`)).toBe("1");
+    }
+  });
+
+  it.each(["social_blocks", "social_mutes"] as const)("rechecks %s in either direction when an invite is sent", async (table) => {
+    const [from, to] = table === "social_blocks" ? ["blocker_profile_id", "blocked_profile_id"] : ["muter_profile_id", "muted_profile_id"];
+    const listed = await defined(handlers.leagueMates)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer: BEARER_ALICE }), context({ id: LEAGUE_ID }));
+    expect(await listed.json()).toEqual({ mates: ["bobpm"] });
+    for (const [a, b] of [[ALICE_PROFILE, BOB_PROFILE], [BOB_PROFILE, ALICE_PROFILE]]) {
+      truth(`insert into public.${table} (${from}, ${to}) values ('${a}', '${b}'); select 1`);
+      try {
+        const before = state();
+        const mates = await defined(handlers.leagueMates)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer: BEARER_ALICE }), context({ id: LEAGUE_ID }));
+        expect(await mates.json()).toEqual({ mates: [] });
+        const response = await defined(handlers.leagueInvite)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer: BEARER_ALICE, body: { recipient: "bobpm" } }), context({ id: LEAGUE_ID }));
+        await refusal(response, 400, "NOT_MATE");
+        expect(state()).toBe(before);
+      } finally {
+        truth(`delete from public.${table} where ${from} = '${a}' and ${to} = '${b}'; select 1`);
+      }
+    }
+  });
+
+  it("refuses an invitation to an unrelated recipient without creating a conversation or message", async () => {
+    for (const bearer of [BEARER_ALICE, BEARER_BOB]) {
+      const before = state();
+      await refusal(await defined(handlers.leagueInvite)(request(`/api/leagues/${LEAGUE_ID}/invite`, { bearer, body: { recipient: "davepm" } }), context({ id: LEAGUE_ID })), 400, "NOT_MATE");
+      expect(state()).toBe(before);
+    }
+  });
+
+  it.each([["anon", null], ["authenticated", ALICE], ["authenticated", BOB], ["authenticated", DAVE]] as const)(
+    "at the table: %s %s cannot read, insert, update, delete or execute a league RPC",
+    async (role, sub) => {
+      const before = state();
+      for (const table of ["leagues", "league_members"]) {
+        const response = await requireSession().rest(`/${table}?select=*`, { sub });
+        expect(response.status, response.text).toBe(role === "anon" ? 401 : 403);
+        expectNoDisclosure(response.body, [NAME, CODE, LEAGUE_ID, ALICE, BOB, ALICE_PROFILE, BOB_PROFILE]);
+        expect(state()).toBe(before);
+      }
+      const statements = [
+        `insert into public.leagues (name, owner_user_id, invite_code) values ('Browser league', '${DAVE}', 'BCDEFGHJ')`,
+        `insert into public.league_members (league_id, user_id, profile_id) values ('${LEAGUE_ID}', '${DAVE}', '${DAVE_PROFILE}')`,
+        `update public.leagues set invite_code = 'BCDEFGHJ' where id = '${LEAGUE_ID}'`,
+        `update public.league_members set profile_id = '${DAVE_PROFILE}' where league_id = '${LEAGUE_ID}' and user_id = '${BOB}'`,
+        `delete from public.leagues where id = '${LEAGUE_ID}'`,
+        `delete from public.league_members where league_id = '${LEAGUE_ID}'`,
+        `select public.create_league('${DAVE}', '${DAVE_PROFILE}', 'Browser league', 'BCDEFGHJ')`,
+        `select public.join_league('${DAVE}', '${DAVE_PROFILE}', '${CODE}')`,
+      ];
+      for (const statement of statements) {
+        const result = requireSession().sql(statement, { asRole: role, sub });
+        expect(result.ok, statement).toBe(false);
+        expect(result.err).toMatch(/permission denied/i);
+        expectNoDisclosure(result.out, [NAME, CODE, LEAGUE_ID, ALICE_PROFILE, BOB_PROFILE]);
+        expect(state()).toBe(before);
+      }
+    },
+  );
 });
 
 describe("account export", () => {

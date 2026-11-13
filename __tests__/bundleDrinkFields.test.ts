@@ -13,6 +13,13 @@ describe("normalizeUkPriceBundleDrinkLabel", () => {
     expect(normalizeUkPriceBundleDrinkLabel(long)?.length).toBe(UK_PRICE_BUNDLE_DRINK_LABEL_MAX);
   });
 
+  it("drops the separator a 'Name - £5' line leaves after its name", () => {
+    expect(normalizeUkPriceBundleDrinkLabel("Guinness -")).toBe("Guinness");
+    expect(normalizeUkPriceBundleDrinkLabel("FIDO-")).toBe("FIDO");
+    expect(normalizeUkPriceBundleDrinkLabel("Coca-Cola")).toBe("Coca-Cola");
+    expect(normalizeUkPriceBundleDrinkLabel(" - ")).toBeNull();
+  });
+
   it("returns null for empty input", () => {
     expect(normalizeUkPriceBundleDrinkLabel("")).toBeNull();
     expect(normalizeUkPriceBundleDrinkLabel(null)).toBeNull();

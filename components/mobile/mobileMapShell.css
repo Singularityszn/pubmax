@@ -239,7 +239,7 @@ html:has(.appShell) {
     );
   }
 
-  body:has(.mobilePlanActivation):has(.palSummon, .palVoiceBar) .appShell .mapStage {
+  body:has(.mobilePlanActivation):has(.palVoiceBar) .appShell .mapStage {
     --mobile-map-credit-bottom: calc(var(--float-stack-top-pal) + 10px);
   }
 

@@ -71,6 +71,12 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/social/leagues/join/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/p/" />
             </intent-filter>
             <!-- A shared pin is /map?sel=<venueId>: the pub rides the query, so

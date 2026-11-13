@@ -134,9 +134,9 @@ describe("build scripts", () => {
     expect(result.stdout).toContain("SKIP prevalidate-data");
   });
 
-  it("regenerates the UK place search index with the UK base layer", () => {
+  it("regenerates the UK overview and place search index with the UK base layer", () => {
     expect(packageJson.scripts?.["build:uk-base"]).toBe(
-      "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
+      "node scripts/build_uk_base_shards.mjs && node scripts/build_uk_base_overview.mjs && node scripts/build_uk_place_index.mjs && node scripts/build_uk_pub_search_index.mjs",
     );
   });
 

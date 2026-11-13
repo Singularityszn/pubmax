@@ -3,6 +3,7 @@ import { parseCityId } from "@/lib/cities";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { isPlanId } from "@/lib/planId";
 import { safeTableRequestReturnTo } from "@/lib/tableRequestIntent";
+import { safeLeagueInviteReturnTo } from "@/lib/leagues";
 
 const RETURN_ORIGIN = "https://pubmax.invalid";
 
@@ -55,6 +56,7 @@ export function safePintDropDoorReturnTo(raw: string | null | undefined): Route 
 /** A page the claim surface may hand a new account back to, or null. */
 function accountClaimReturnTo(raw: string | null | undefined): Route | null {
   return safeInviteReturnTo(raw)
+    ?? safeLeagueInviteReturnTo(raw)
     ?? safePlanReturnTo(raw)
     ?? safeTableRequestReturnTo(raw)
     ?? safePintDropDoorReturnTo(raw)

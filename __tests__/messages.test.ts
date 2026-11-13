@@ -7,6 +7,7 @@ import {
   cleanBody,
   isParticipant,
   linkifyMentions,
+  linkifyMessageBody,
   MAX_MESSAGE_BODY,
   normalizePair,
   otherHandleFromThreadRead,
@@ -20,6 +21,25 @@ import {
   threadIdentityFromWire,
   unreadForViewer,
 } from "@/lib/messages";
+
+describe("league invitations in messages", () => {
+  it("opens a canonical invitation inside the app and keeps mentions", () => {
+    expect(linkifyMessageBody("@sam join https://pubmaxxing.com/social/leagues/join/ABCDEFGH")).toEqual([
+      { type: "mention", handle: "sam", raw: "@sam" },
+      { type: "text", text: " join " },
+      { type: "league-invite", href: "/social/leagues/join/ABCDEFGH", text: "https://pubmaxxing.com/social/leagues/join/ABCDEFGH" },
+    ]);
+  });
+
+  it.each([
+    "https://evil.test/social/leagues/join/ABCDEFGH",
+    "https://pubmaxxing.com/social/leagues/join/ABCDEFG0",
+    "https://pubmaxxing.com/social/leagues/join/ABCDEFGH/extra",
+    "https://pubmaxxing.com/social/leagues/join/ABCDEFGH?next=//evil.test",
+  ])("keeps unsupported destinations as text: %s", (text) => {
+    expect(linkifyMessageBody(text)).toEqual([{ type: "text", text }]);
+  });
+});
 
 describe("normalizePair — lexicographic order + validity", () => {
   it("orders a pair the same regardless of argument order", () => {

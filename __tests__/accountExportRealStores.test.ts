@@ -13,11 +13,35 @@ import { __resetMemoryOccupancyReports, occupancyStore } from "@/lib/occupancySt
 import { profileStore } from "@/lib/profileStore";
 import { socialPostStore } from "@/lib/socialPostStore";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
+import { leagueStore } from "@/lib/leagueStore";
 
 const USER = "11111111-2222-4333-8444-555555555555";
 const HANDLE = "export_probe";
 
 describe("account export over the real keyless stores", () => {
+  it("exports owned leagues and joined memberships without other members or invite codes", async () => {
+    const owner = await profileStore().createOwned("export_league_owner", "league-export-owner");
+    const member = await profileStore().createOwned("export_league_member", "league-export-member");
+    const store = leagueStore();
+    const made = await store.create({ userId: owner.userId!, profileId: owner.id }, "Export Regulars", "EXPRTCDE");
+    if (made.status !== "created") throw new Error("League setup failed");
+    try {
+      await store.join({ userId: member.userId!, profileId: member.id }, "EXPRTCDE");
+      const joinedAt = (await store.read(made.leagueId, member.userId!))!.members.find((row) => row.userId === member.userId)!.joinedAt;
+      const createdAt = (await store.read(made.leagueId, owner.userId!))!.league.createdAt;
+      const ownFile = await buildAccountExport(owner.userId!);
+      expect(ownFile.leagues).toEqual({ status: "complete", truncated: false, items: [
+        { kind: "owned", name: "Export Regulars", createdAt },
+        { kind: "membership", name: "Export Regulars", joinedAt: createdAt },
+      ] });
+      const memberFile = await buildAccountExport(member.userId!);
+      expect(memberFile.leagues.items).toEqual([{ kind: "membership", name: "Export Regulars", joinedAt }]);
+      expect((await buildAccountExport("league-export-stranger")).leagues.items).toEqual([]);
+    } finally {
+      await store.remove(made.leagueId, owner.userId!);
+    }
+  });
+
   beforeEach(() => {
     __resetMemoryOccupancyReports();
   });
