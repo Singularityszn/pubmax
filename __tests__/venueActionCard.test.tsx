@@ -29,8 +29,13 @@ const tableAuth = vi.hoisted(() => ({
 const tableTrack = vi.hoisted(() => vi.fn());
 const tableFetch = vi.hoisted(() => vi.fn());
 const emailSignIn = vi.hoisted(() => vi.fn(async () => ({ status: "sent", message: "Link sent" })));
+const routerSearch = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: tableTrack }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: tableFetch }));
+vi.mock("next/navigation", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("next/navigation")>();
+  return { ...actual, useSearchParams: () => new URLSearchParams(routerSearch.value ?? window.location.search) };
+});
 const dynamicDialog = vi.hoisted(() => ({ component: null as React.ComponentType<never> | null }));
 vi.mock("next/dynamic", async () => {
   const { createElement: create } = await import("react");
@@ -93,6 +98,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   window.history.replaceState(null, "", "/");
+  routerSearch.value = null;
   tableAuth.configured = false;
   tableAuth.loading = false;
   tableAuth.user = null;
@@ -163,6 +169,38 @@ describe("table request arrival", () => {
       new Event("submit", { bubbles: true, cancelable: true }),
     ));
   };
+
+  it("does not retain an invitation after selecting another pub and returning without meet", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    // Map-owned history writes keep Next's router search at the original arrival.
+    routerSearch.value = window.location.search;
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", "/map?sel=other-pub");
+    await show(venue({ id: "other-pub" }));
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it.each(["", "&meet=late", "&meet=24:00", "&meet=20:60"])("clears the invitation when the same pub's URL changes to %s", async (search) => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}${search}`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")).toBeNull();
+  });
+
+  it("updates the invitation when the same pub's URL names a new time", async () => {
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=20:00`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 8pm.");
+    window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&meet=21:30`);
+    await show();
+    expect(host.querySelector("[data-venue-summon-arrival]")?.textContent).toBe("Meet here at 9:30pm.");
+  });
 
   it("opens the named pub with the party prefilled, consumes the intent and does not reopen", async () => {
     window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
@@ -522,7 +560,7 @@ describe("one coral action", () => {
       expect(view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
       // Every other command on the card is a ghost.
       const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
-      expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Share The Action Arms"]);
+      expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
     }
   });
@@ -540,7 +578,7 @@ describe("one coral action", () => {
       const coral = [...view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)];
       expect(coral.map(actionName)).toEqual(["Log what you paid at The Action Arms"]);
       const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
-      expect(ghosts.map(actionName)).toEqual([plan, "Ask for a table at The Action Arms", "Share The Action Arms"]);
+      expect(ghosts.map(actionName)).toEqual([plan, "Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
       // The coral already asks, so the price cell says and does not ask again.
       expect(card.querySelector(".mobileVenuePeekDrop")).toBeNull();

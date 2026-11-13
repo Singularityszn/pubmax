@@ -808,7 +808,7 @@ describe("the Overview's crawl toggle", () => {
 
 describe("price actions beside the Overview", () => {
   it.each([
-    { kind: "pub" as const, names: ["Ask for a table", "Share"] },
+    { kind: "pub" as const, names: ["Ask for a table", "Summon mates", "Share"] },
     { kind: "bar" as const, names: ["Share"] },
   ])("the action card's own row offers no price action for a $kind", ({ kind, names }) => {
     const view = document.createElement("div");

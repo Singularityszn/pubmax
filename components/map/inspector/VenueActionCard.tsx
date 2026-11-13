@@ -4,7 +4,8 @@
 // reservation card for a pub: one compact card that stays in view while the
 // Overview scrolls. Its first row is the price with its trust words and date,
 // the walk if known and the ONE coral door (VenueActionSummary, built by the map
-// from the sheet's own readings); under it, "Ask for a table" and Share.
+// from the sheet's own readings); under it, "Ask for a table", "Summon mates"
+// and Share. A summon link (`?meet=<HH:MM>`) adds one line naming its time.
 //
 // WHERE IT SITS. Inside the phone's portal sheet it renders into the footer
 // slot (components/mobile/sheetFooterContext.ts), a flex child below the
@@ -23,18 +24,25 @@
 // and the treatment of secondary actions.
 
 import dynamic from "next/dynamic";
-import { useEffect, useEffectEvent, useState, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useEffectEvent, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Share2, Users } from "lucide-react";
+import { Megaphone, Share2, Users } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";
 import type { ContributionGateStatus } from "@/lib/contributionGateStatus";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { TABLE_REQUEST_ACTION_LABEL } from "@/lib/tableRequests";
 import { consumeTableRequestIntent } from "@/lib/tableRequestIntent";
 import { venueTableRequestUrl } from "@/lib/venueMapUrl";
+import {
+  SUMMON_ACTION_LABEL,
+  summonArrivalLine,
+  summonTimeFromSearch,
+} from "@/lib/summonMates";
 import type { ShareFeedback } from "@/lib/venueShare";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
@@ -43,6 +51,16 @@ import "./venueActionCard.css";
 
 // The form is its own chunk: most sheets never open it.
 const TableRequestDialog = dynamic(() => import("./TableRequestDialog"), { ssr: false });
+const SummonMatesDialog = dynamic(() => import("./SummonMatesDialog"), { ssr: false });
+
+function subscribeArrivalSearch(onChange: () => void): () => void {
+  window.addEventListener("popstate", onChange);
+  return () => window.removeEventListener("popstate", onChange);
+}
+
+function readArrivalSearch(): string {
+  return window.location.search;
+}
 
 export default function VenueActionCard({
   venue,
@@ -63,13 +81,20 @@ export default function VenueActionCard({
 }) {
   const footerSlot = useSheetFooterSlot();
   const { configured, loading, user, handle } = useAuth();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const pub = isPubVenue(venue);
+  const search = useSearchParams();
+  // Map-owned history retains Next's marker, so router search can lag the address bar.
+  const arrivalSearch = useSyncExternalStore(subscribeArrivalSearch, readArrivalSearch, () => search?.toString() ?? "");
   // Kept by venue id, so selecting another pub never carries a half-typed
   // request or an open gate across.
   const [tableVenueId, setTableVenueId] = useState<string | null>(null);
   const [initialPartySize, setInitialPartySize] = useState<number | undefined>();
   const [gate, setGate] = useState<{ venueId: string; status: ContributionGateStatus } | null>(null);
+  const [summonVenueId, setSummonVenueId] = useState<string | null>(null);
   const tableOpen = tableVenueId === venue.id;
+  const summonOpen = summonVenueId === venue.id;
+  const arrivalTime = pub ? summonTimeFromSearch(arrivalSearch, venue.id) : null;
   const gateStatus = gate?.venueId === venue.id ? gate.status : null;
 
   // Signed in with a handle, or a deployment with no sign-in at all (where the
@@ -153,6 +178,11 @@ export default function VenueActionCard({
         variant="sheet"
       />
       {summary}
+      {arrivalTime ? (
+        <p className="venueSummonArrival" data-venue-summon-arrival="">
+          {summonArrivalLine(arrivalTime)}
+        </p>
+      ) : null}
       <div className="venueSheetStickyBar venueActionCardActions" role="toolbar" aria-label="Venue actions">
         {planDoor}
         {pub ? (
@@ -165,6 +195,19 @@ export default function VenueActionCard({
           >
             <Users size={16} aria-hidden="true" />
             {TABLE_REQUEST_ACTION_LABEL}
+          </button>
+        ) : null}
+        {pub ? (
+          <button
+            type="button"
+            className="venueSheetStickyGhost"
+            data-venue-summon=""
+            aria-haspopup="dialog"
+            aria-label={`${SUMMON_ACTION_LABEL} to ${venue.name}`}
+            onClick={() => setSummonVenueId(venue.id)}
+          >
+            <Megaphone size={16} aria-hidden="true" />
+            {SUMMON_ACTION_LABEL}
           </button>
         ) : null}
         <button
@@ -201,6 +244,9 @@ export default function VenueActionCard({
           source={initialPartySize === undefined ? "sheet" : "pal"}
           onClose={() => setTableVenueId(null)}
         />
+      ) : null}
+      {summonOpen ? (
+        <SummonMatesDialog key={`${venue.id}:${accountRevision}`} venue={venue} onClose={() => setSummonVenueId(null)} />
       ) : null}
       {gateStatus ? (
         <ContributionGateDialog
