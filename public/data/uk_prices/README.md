@@ -32,6 +32,7 @@ listed_coverage.json # compact coffee and alcohol-free coverage for loaded map p
 
 `drinkLabel` and `drinkSubtype` are stamped at bundle-build time from each lane's
 printed drink name (`scripts/build_uk_price_bundle.mjs` via `lib/bundleDrinkFields.ts`).
+The label normaliser trims whitespace and removes trailing hyphens, en dashes and em dashes before the 80-character limit.
 When a lane only states a category, both fields stay absent. `drinkSubtype` is
 never guessed without a label that classifies.
 

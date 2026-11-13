@@ -86,6 +86,8 @@ snapshot host list before city selection. Each host keeps its national pub membe
 city selection cannot make a shared host look like one pub's own website
 (`scripts/harvest/uk-prices/cityScope.mjs`). Use `--london` for London.
 The document lane refuses a run that combines `--city` and `--london`.
+With `--recheck`, existing findings remain until the selected host completes its crawl.
+City selection, host filters and run limits leave findings for uncrawled hosts unchanged.
 For chain menus, use the [rendered lane](#lane-two-the-browser) with `--city`
 and without `--pub-sites`.
 
@@ -126,6 +128,9 @@ a browser on 2026-09-04 states 102 prices, so that verdict was withdrawn.
 The lane reads the per-pub menu page of every chain the source table allows,
 one page per pub, and the source row names the brand hosts that chain publishes
 the same menu on.
+
+`--city` uses the [city scope](#lane-one-the-document) to select individual menu targets by each pub's position.
+It applies to chain menus and `--pub-sites` targets after national host admission.
 
 `--pub-sites` points the same browser at a pub's OWN website instead:
 
