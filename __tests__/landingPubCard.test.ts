@@ -152,20 +152,34 @@ describe("landing pub card", () => {
     });
   });
 
-  it("anchors on the cheapest listed pint, never a famous dear one", () => {
-    // The front door's action says "Cheapest pints near me", so the pub under
-    // it is the cheapest one the data can back with an archive row.
+  it("anchors on the listed pint read longest ago, not the cheapest one", () => {
+    // The pint that needs a witness: the oldest publisher read is the one most
+    // likely to have moved, so it leads whatever its price.
     const venues = [
-      venue("venue-eltcmh", "The Blackfriar", 6.5),
-      venue("venue-other", "Other Arms", 5),
-      venue("venue-cheap", "Cheap Tavern", 3.2),
+      venue("venue-fresh", "Fresh Arms", 3.2, undefined, "2026-08-20T12:00:00Z"),
+      venue("venue-stale", "Stale Tavern", 6.5, undefined, "2026-02-01T12:00:00Z"),
+      venue("venue-mid", "Middle Arms", 5, undefined, "2026-05-01T12:00:00Z"),
     ];
     const rows = history([
-      { venueId: "venue-eltcmh", priceGbp: 3.6, observedOn: "2013-07-14" },
-      { venueId: "venue-other", priceGbp: 4, observedOn: "2018-01-01" },
-      { venueId: "venue-cheap", priceGbp: 2.9, observedOn: "2016-01-01" },
+      { venueId: "venue-fresh", priceGbp: 2.9, observedOn: "2016-01-01" },
+      { venueId: "venue-stale", priceGbp: 3.6, observedOn: "2013-07-14" },
+      { venueId: "venue-mid", priceGbp: 4, observedOn: "2018-01-01" },
     ]);
-    expect(buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-cheap");
+    const card = buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS });
+    expect(card?.id).toBe("venue-stale");
+    expect(card?.observedOn).toBe("2026-02-01");
+  });
+
+  it("puts a lager first, and keeps other pints when no lager qualifies", () => {
+    const ale = (base: Venue): Venue => ({ ...base, cheapestPint: "London Pride" });
+    const rows = history([
+      { venueId: "venue-ale", priceGbp: 2.9, observedOn: "2016-01-01" },
+      { venueId: "venue-lager", priceGbp: 3.6, observedOn: "2013-07-14" },
+    ]);
+    const older = ale(venue("venue-ale", "Ale House", 4, undefined, "2026-01-01T12:00:00Z"));
+    const lager = venue("venue-lager", "Lager Arms", 5, undefined, "2026-06-01T12:00:00Z");
+    expect(buildLandingPubCard([older, lager], rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-lager");
+    expect(buildLandingPubCard([older], rows, { now: NOW, stations: STATIONS })?.id).toBe("venue-ale");
   });
 
   it("leads with Zone 1: a cheaper pub further out never takes the card", () => {
@@ -193,20 +207,20 @@ describe("landing pub card", () => {
     expect(card).toBeNull();
   });
 
-  it("prefers a listed figure, then breaks a price tie on the longer archive span", () => {
+  it("prefers a listed figure, then breaks a read-day tie on the name", () => {
     const venues = [
-      // Cheapest, but its row names no publisher, so it cannot stand as listed.
-      venue("venue-unlisted", "Quiet Arms", 2.5, ""),
-      venue("venue-short", "Short Span", 3),
-      venue("venue-long", "Long Span", 3),
+      // Read longest ago, but past its window, so it cannot stand as listed.
+      venue("venue-expired", "Expired Arms", 2.5, undefined, "2024-01-01T12:00:00Z"),
+      venue("venue-b", "Bell", 3),
+      venue("venue-a", "Anchor", 3),
     ];
     const rows = history([
-      { venueId: "venue-unlisted", priceGbp: 2, observedOn: "2010-01-01" },
-      { venueId: "venue-short", priceGbp: 2.5, observedOn: "2020-01-01" },
-      { venueId: "venue-long", priceGbp: 2, observedOn: "2009-01-01" },
+      { venueId: "venue-expired", priceGbp: 2, observedOn: "2010-01-01" },
+      { venueId: "venue-b", priceGbp: 2.5, observedOn: "2020-01-01" },
+      { venueId: "venue-a", priceGbp: 2, observedOn: "2009-01-01" },
     ]);
     const card = buildLandingPubCard(venues, rows, { now: NOW, stations: STATIONS });
-    expect(card?.id).toBe("venue-long");
+    expect(card?.id).toBe("venue-a");
     expect(card?.standing).toBe("listed");
     expect(card?.publisher).not.toBeNull();
   });
@@ -243,7 +257,7 @@ describe("landing pub card", () => {
     )).toBeNull();
   });
 
-  it("chooses no cheapest-pint card when the row carries no publisher page", () => {
+  it("chooses no card when the row carries no publisher page", () => {
     const card = buildLandingPubCard(
       [venue("venue-a", "Quiet Arms", 5, "")],
       history([{ venueId: "venue-a", priceGbp: 3, observedOn: "2014-01-01" }]),

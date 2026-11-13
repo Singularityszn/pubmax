@@ -51,7 +51,7 @@ vi.mock("@/app/social/SocialTagInbox", () => { loadedPrivateTools.tags++; return
 import { buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload, createOptimisticSpillPhotoPreview, revokeOptimisticSpillPhotoPreview, failOptimisticSpill, readOptimisticSpills, upsertOptimisticSpill, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
-import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
+import { SOCIAL_LONDON_LANE_COPY, SOCIAL_LONDON_LANE_SEEN_KEY } from "@/lib/socialLondonLane";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { namedRoutePath } from "@/lib/namedRoutes";
 

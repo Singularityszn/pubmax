@@ -10,9 +10,9 @@ import {
 } from "@/lib/openCrawlShareCard";
 import { oldestPintRead } from "@/lib/drinks";
 import {
-  isStillTrueNight,
   stillTrueListedPint,
   stillTrueSaidYesCount,
+  stillTrueVenueId,
   type StillTruePublicFacts,
 } from "@/lib/openCrawl";
 import type { OutOpenPlanMeetingPoint } from "@/lib/out";
@@ -157,10 +157,11 @@ async function stillTrueFacts(
   source: SocialCrewShareCardSource,
   priceOf: Dependencies["listedPint"],
 ): Promise<StillTruePublicFacts | null> {
-  if (!isStillTrueNight(source.stopVenueIds) || !source.stopVenueIds) return null;
+  const venueId = stillTrueVenueId(source.stopVenueIds);
+  if (!venueId) return null;
   const [counts, price] = await Promise.all([
     stillTrueCountReader.read(source.crewId),
-    priceOf(source.stopVenueIds[0]),
+    priceOf(venueId),
   ]);
   return {
     saidYes: counts?.saidYes ?? null,

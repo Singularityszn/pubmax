@@ -24,7 +24,6 @@ import {
   joinableThisWeek,
   openCrawlJoinWindow,
   openCrawlPlacesLeft,
-  isStillTrueNight,
   parseOpenCrawlListing,
   parseStillTrueField,
   planStopsFromStory,
@@ -34,6 +33,7 @@ import {
   STILL_TRUE_SMALL_PRINT,
   stillTrueHeadcountLines,
   stillTrueListedLine,
+  stillTrueVenueId,
   stillTrueListedPint,
   stillTrueSaidYesCount,
   validateOpenCrawlInput,
@@ -440,10 +440,10 @@ describe("a one-pub night", () => {
   ].join(" ");
 
   it("counts each person who joined or was accepted once", () => {
-    expect(isStillTrueNight(["venue-a"])).toBe(true);
-    expect(isStillTrueNight(["venue-a", "venue-b"])).toBe(false);
-    expect(isStillTrueNight(null)).toBe(false);
-    expect(isStillTrueNight([" "])).toBe(false);
+    expect(stillTrueVenueId(["venue-a"])).toBe("venue-a");
+    expect(stillTrueVenueId(["venue-a", "venue-b"])).toBeNull();
+    expect(stillTrueVenueId(null)).toBeNull();
+    expect(stillTrueVenueId([" "])).toBeNull();
     expect(stillTrueSaidYesCount(["a", "b"], ["b", "c"])).toBe(3);
     expect(stillTrueSaidYesCount(["", "  "], [])).toBe(0);
   });

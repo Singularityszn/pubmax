@@ -14,6 +14,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import SocialLondonLane from "@/app/social/SocialLondonLane";
+import { SOCIAL_LONDON_LANE_SEEN_KEY } from "@/lib/socialLondonLane";
 
 let container: HTMLDivElement;
 let root: Root | null = null;

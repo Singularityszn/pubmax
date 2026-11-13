@@ -31,11 +31,9 @@
 
 import type { Route } from "next";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
-import { DAY_MS } from "@/lib/dayMs";
 import { buildDrinkBrandLanding, DRINK_BRAND_LANDING_CATALOG } from "@/lib/drinkBrandLanding";
 import { haystackMatchesBrand } from "@/lib/drinkBrands";
 import { drinkSubtypeFromText } from "@/lib/drinkSubtypes";
-import { londonDayKey } from "@/lib/londonHour";
 import {
   answerEvidenceFor,
   HERO_RAIL_SIZE,
@@ -96,12 +94,6 @@ export type LandingPubCardData = {
   /** ISO day the publisher's own row was last read at its source, or null when no row records one. */
   observedOn: string | null;
   /**
-   * Whole London days from observedOn to opts.now. Null when the row records
-   * no day. The count uses the London calendar day, then UTC dates, so a
-   * London midnight matches the other price dates.
-   */
-  ageDays: number | null;
-  /**
    * How far to trust the figure, decided by lib/priceTier.ts and never here:
    * a listed price with a public page inside its window reads `listed`; a
    * row with no page, or one past its window, falls to `none`. A prerendered
@@ -161,12 +153,10 @@ export function buildLandingPubCard(
     return station ? [{ venue, station }] : [];
   });
 
-  const ranked = candidates.map(({ venue, station }) => ({
-    venue,
-    station,
-    listed: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).standing === "listed",
-    observedOn: answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now).observedOn,
-  }));
+  const ranked = candidates.map(({ venue, station }) => {
+    const evidence = answerEvidenceFor({ priceGbp: venue.cheapestPrice as number, prices: venue.prices }, now);
+    return { venue, station, listed: evidence.standing === "listed", observedOn: evidence.observedOn };
+  });
   const listed = ranked.filter((row) => row.listed);
   const pool = preferLager(listed.length > 0 ? listed : ranked);
   pool.sort(
@@ -211,9 +201,15 @@ export function buildLandingPubCard(
   };
 }
 
-function spanYears(rows: PriceHistoryObservation[] | undefined, venue: Venue, now: number): number {
-  const arc = venuePriceArc(rows ?? [], venue.cheapestPrice, now);
-  return arc ? arc.years : -1;
+function preferLager<T extends { venue: Venue }>(rows: T[]): T[] {
+  const lagers = rows.filter((row) => drinkSubtypeFromText(row.venue.cheapestPint)?.id === "beer-lager");
+  return lagers.length > 0 ? lagers : rows;
+}
+
+/** An ISO day as a sortable number. A missing day sorts last. */
+function observedUtcDay(observedOn: string | null): number {
+  const at = observedOn ? Date.parse(`${observedOn}T00:00:00Z`) : Number.NaN;
+  return Number.isFinite(at) ? at : Number.POSITIVE_INFINITY;
 }
 
 // ── The hero (issue #1357): the archive index and the anchor rail ────────────

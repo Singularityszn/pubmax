@@ -386,9 +386,10 @@ export type StillTruePublicFacts = {
   listedPint: StillTrueListedPint | null;
 };
 
-/** One listed stop. A missing list is not one pub. */
-export function isStillTrueNight(stopVenueIds: readonly string[] | null): boolean {
-  return !!stopVenueIds && stopVenueIds.length === 1 && stopVenueIds[0].trim().length > 0;
+/** The one listed stop, or null. A missing list is not one pub. */
+export function stillTrueVenueId(stopVenueIds: readonly string[] | null): string | null {
+  const only = stopVenueIds?.length === 1 ? stopVenueIds[0]?.trim() : "";
+  return only || null;
 }
 
 /**
