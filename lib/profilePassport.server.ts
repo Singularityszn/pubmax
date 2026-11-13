@@ -90,7 +90,7 @@ export type PassportDeps = {
    * The owner's own "Been here" saved list (lib/beenHere.ts). Undated, so it
    * is asked for the owner's full read alone and never for anybody else.
    * `savedAt` is when the row was ticked, not a visit day: only the
-   * challenge of the month reads it.
+   * challenge progress reads it for completion dates and monthly bonuses.
    */
   beenHere(ownerHandle: string): Promise<Array<PassportVenue & { savedAt?: string }>>;
   rankings(profileId: string): Promise<PassportRankedRow[]>;

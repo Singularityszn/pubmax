@@ -1,6 +1,3 @@
-// BROWSER-SAFE LEAF. Mates' activity on the Social Following lane: the pints
-// the reader's mutual friends logged, newest first, each as that mate logged it.
-//
 import { cleanDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
 import { CHALLENGE_IDS, type ChallengeId } from "@/lib/challenges";
 import { cleanPriceEvidence, type PriceEvidence } from "@/lib/pintDropReceipt";

@@ -1,6 +1,5 @@
-// Challenges: every Red Lion, every King's Head, every Ship, and one pub in
-// every London postcode district. Built only from the pubs we list, so a
-// count on screen is a count of stored pubs, never an estimate.
+// Targets use only stored London venues, so their counts never estimate
+// missing pubs.
 //
 // A PURE LEAF. It imports no store and no React. lib/points.server.ts reads
 // the records and lib/points.ts prices a finished challenge.

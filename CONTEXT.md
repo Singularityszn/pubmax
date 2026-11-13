@@ -300,5 +300,5 @@ What a Pubmaxxer earns from their own records: a pub on their Been list, a price
 _Avoid_: XP, mastery points, a streak
 
 **Challenge**:
-A set of London pubs we list that a Pubmaxxer finishes by having them all on their Been list: every Red Lion, every King's Head, every Ship, and one pub in every London postcode district. Each month one challenge is the Challenge of the Month, in a fixed turn. Finishing it inside that month doubles its points. `lib/challenges.ts` owns the sets and the turn.
+A set of targets built from listed London pubs. A Pubmaxxer finishes a target when any of its pubs is on their Been list. See [profile challenges](README.md#features) for usage. `lib/challenges.ts` owns the sets and the monthly rotation.
 _Avoid_: quest, mission, a streak

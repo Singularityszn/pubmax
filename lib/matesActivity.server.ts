@@ -1,7 +1,7 @@
 import "server-only";
 
-// Mates' activity: the newest Pint Drops the reader's MUTUAL friends logged,
-// read live for the reader alone.
+// Mates' activity is read live for the reader alone. Challenge finishes use
+// only this reader's visible drops, never the owner's private points read.
 //
 // Who counts is the follow graph's mutuals, less anyone the reader muted, and
 // each mate passes the one live-mate check (lib/socialMutual.server.ts) before
@@ -31,7 +31,7 @@ const VENUE_FALLBACK_LABEL = "A London pub";
 export type MatesActivityDependencies = {
   listMutuals(handle: string): Promise<string[]>;
   isMuted(profileId: string, mateHandle: string): Promise<boolean>;
-  /** One mate's drops as this reader may read them, newest first. */
+  /** One mate's reader-visible drops, newest first, with completeness from before visibility filtering. */
   listMateDrops(mateHandle: string, viewer: ViewerContext): Promise<VisibleDropHistory>;
   listMateChallenges(mateHandle: string, drops: readonly PintDropDTO[]): Promise<MatesActivityChallenge[]>;
   /** True only when the pair is still mutual and neither side blocks the other. */
@@ -104,8 +104,8 @@ function cleanPrice(value: number | null): number | null {
 }
 
 /**
- * Up to MATES_ACTIVITY_LIMIT drops from the reader's live mates, newest first.
- * Empty when the reader has no mates or none has logged a pint.
+ * Up to MATES_ACTIVITY_LIMIT pints and challenge finishes, newest first.
+ * See README.md's Social section for the reader-visible activity contract.
  */
 export async function readMatesActivity(
   viewer: MutualViewer,

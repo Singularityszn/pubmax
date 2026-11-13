@@ -19,10 +19,8 @@ const READ_LIMIT = 30;
 const READ_WINDOW_MS = 60_000;
 
 /**
- * GET /api/social/mates-activity: the newest pints the reader's mutual friends
- * logged, read live and answered to the reader alone. A reader with no verified
- * Social session gets the access answer (401 signed out). A reader with no
- * mates, or whose mates have logged nothing, gets an empty list.
+ * GET /api/social/mates-activity delegates the activity contract to
+ * readMatesActivity. See README.md's Social section for usage and visibility.
  */
 export async function GET(request: Request): Promise<Response> {
   const access = await requireVerifiedSocialActor(request);

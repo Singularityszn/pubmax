@@ -1,9 +1,7 @@
 "use client";
 
-// The owner's challenges on their own profile: every Red Lion, every King's
-// Head, every Ship and one pub in every postcode district. The points read
-// carries the progress (lib/points.server.ts), so the card and the points
-// total cannot disagree. Owner only, like the points card.
+// The points read carries challenge progress, so this card and the points
+// total use the same records (lib/points.server.ts).
 
 import Link from "next/link";
 
