@@ -23,9 +23,9 @@
 -- edit.
 --
 -- SERVICE ROLE ONLY. RLS is on, no browser role has a grant and no policy
--- names anon or authenticated. Every read and write goes through /api/leagues
--- on the service role, which checks membership, blocks, mutes and private
--- profiles before it names anybody.
+-- names anon or authenticated. League pages use /api/leagues on the service
+-- role, which checks membership, blocks, mutes and private profiles before it
+-- names anybody. Account exports use lib/accountExport.server.ts instead.
 
 begin;
 
