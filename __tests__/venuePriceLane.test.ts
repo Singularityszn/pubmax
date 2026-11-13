@@ -9,6 +9,7 @@ import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
@@ -519,6 +520,17 @@ describe("the fare-zone estimate", () => {
     const after = zoneEstimatePinStandings([pub], new Map([[pub.id, { latestContributorPrice: null, pintTrust: "none" }]]), PUBLISHED);
     expect(after?.get(pub.id)).toEqual(before?.get(pub.id));
     expect(after?.get(pub.id)).toMatchObject({ standing: "estimate", priceGbp: 5.45 });
+  });
+
+  it("holds the pin estimate while the pub's own price or drop read is in flight", () => {
+    const pub = makeVenue({ zone: 2 });
+    const pinWith = (price: Array<[string, VenuePriceReadStatus]>, drops: Array<[string, VenueDropReadStatus]>) =>
+      zoneEstimatePinStandings([pub], new Map(), PUBLISHED, { price: new Map(price), drops: new Map(drops) });
+    expect(pinWith([[pub.id, "loading"]], [])?.has(pub.id)).toBe(false);
+    expect(pinWith([], [[pub.id, "idle"]])?.has(pub.id)).toBe(false);
+    expect(pinWith([[pub.id, "ready"]], [[pub.id, "ready"]])?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(pinWith([[pub.id, "degraded"]], [[pub.id, "unavailable"]])?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(pinWith([], [])?.get(pub.id)?.priceGbp).toBe(5.45);
   });
 
   it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
