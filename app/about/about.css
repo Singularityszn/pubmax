@@ -219,15 +219,23 @@
   }
 }
 
-/* Inline padding does not reserve line height, so following text can intercept
-   the target. An inline flex box reserves the full touch height in prose. */
+/* Touch floor on phones. Each link is a 44px box, but in prose its negative
+   block margins return the line to its own height, so the paragraph keeps its
+   rhythm. Positioning paints the box above the next line, so a tap anywhere in
+   it reaches the link. Standalone links keep their own 44px row. */
 @media (pointer: coarse), (max-width: 640px) {
   .aboutLink {
+    position: relative;
     display: inline-flex;
     align-items: center;
     min-height: var(--control-height);
     max-width: 100%;
-    vertical-align: middle;
+    margin-block: min(0px, calc((1lh - var(--control-height)) / 2));
+  }
+
+  .aboutLogoLinks .aboutLink,
+  .aboutCtaRow .aboutLink {
+    margin-block: 0;
   }
 }
 
