@@ -392,6 +392,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
       requests: userId === USER ? [ownTableRequest, strangerTableRequest] : [strangerTableRequest],
     }),
     pubListNightDrafts: async () => [],
+    leagues: async () => [],
     venueSubmissions: async (userId) => ({
       status: "ready" as const,
       submissions: userId === USER ? [venueSubmissionRow] : [],
@@ -422,7 +423,7 @@ describe("buildAccountExport", () => {
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
-      "pubListNightDrafts", "socialLinks", "nightProfile", "messages",
+      "pubListNightDrafts", "leagues", "socialLinks", "nightProfile", "messages",
     ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
@@ -719,6 +720,7 @@ describe("buildAccountExport", () => {
       socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
       crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
       tableRequests: { tableRequests: async () => ({ status: "degraded" as const, requests: [] }) },
+      leagues: { leagues: async () => { throw new Error("leagues unreadable"); } },
     } satisfies Record<string, Partial<AccountExportDeps>>;
 
     for (const [lane, override] of Object.entries(lanesUnderTest)) {

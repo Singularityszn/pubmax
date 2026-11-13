@@ -26,6 +26,7 @@
 // list, the linked socials and the Night Profile out of it.
 
 import type { PubListNightDraft } from "@/lib/pubListImport";
+import type { LeagueExportRecord } from "@/lib/leagues";
 
 import type { DrinkCategory } from "@/lib/drinks";
 import type { OccupancyLevel } from "@/lib/occupancy";
@@ -307,6 +308,7 @@ export type AccountExport = {
   /** "Ask the pub for a table" requests the account sent: its own name, crew, day, time, note and the contact it gave, and whether the email to the pub went. Nothing about the operator. */
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
+  leagues: AccountExportLane<LeagueExportRecord>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -337,6 +339,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "kitchenReports",
   "tableRequests",
   "pubListNightDrafts",
+  "leagues",
   "socialLinks",
   "nightProfile",
   "messages",

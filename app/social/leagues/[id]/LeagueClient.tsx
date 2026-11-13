@@ -25,6 +25,7 @@ import {
 import { rankMatesBoard } from "@/lib/matesBoard";
 
 import LeagueMap from "../LeagueMap";
+import InviteMate from "./InviteMate";
 import { leagueRequest } from "../leagueRequest";
 import "../leagues.css";
 
@@ -84,6 +85,7 @@ function Invite({ board, onCode }: { board: LeagueBoard; onCode: (code: string) 
         ) : null}
       </div>
       {note ? <p className="leaguesNote" role="status">{note}</p> : null}
+      <InviteMate id={board.league.id} />
     </section>
   );
 }

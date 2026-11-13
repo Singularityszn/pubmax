@@ -1,4 +1,6 @@
 import "server-only";
+import { leagueStore } from "@/lib/leagueStore";
+import type { LeagueExportRecord } from "@/lib/leagues";
 
 import { listPubListNightDrafts } from "@/lib/pubListImportDraftStore.server";
 import type { PubListNightDraft } from "@/lib/pubListImport";
@@ -200,6 +202,7 @@ export type AccountExportDeps = {
     limit: number,
   ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
+  leagues(userId: string): Promise<LeagueExportRecord[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -329,6 +332,7 @@ function storeDeps(): AccountExportDeps {
     kitchenReports: (userId, limit) => kitchenReportsStore().listForOwner(userId, limit),
     tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
+    leagues: (userId) => leagueStore().exportFor(userId),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -842,6 +846,11 @@ export async function buildAccountExport(
     items: await deps.socialLinks(userId),
   }));
 
+  const leagues = await lane<LeagueExportRecord>(async () => ({
+    degraded: false,
+    items: await deps.leagues(userId),
+  }));
+
   const nightProfile = await lane<NightProfile>(async () => {
     const row = await deps.nightProfile(userId);
     return { degraded: false, items: row ? [row] : [] };
@@ -879,6 +888,7 @@ export async function buildAccountExport(
     kitchenReports,
     tableRequests,
     pubListNightDrafts,
+    leagues,
     socialLinks,
     nightProfile,
     messages,

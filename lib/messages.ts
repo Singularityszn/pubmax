@@ -13,6 +13,8 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 import type { MessageAttachment } from "@/lib/messageAttachments";
+import { safeLeagueInviteReturnTo } from "@/lib/leagues";
+import type { Route } from "next";
 import {
   groupThreadName,
   isGroupMember,
@@ -402,4 +404,23 @@ export function linkifyMentions(body: string): MessageSegment[] {
   const tail = body.slice(lastIndex);
   if (tail) segments.push({ type: "text", text: tail });
   return segments;
+}
+
+export type MessageBodySegment = MessageSegment | { type: "league-invite"; href: Route; text: string };
+
+export function linkifyMessageBody(body: string): MessageBodySegment[] {
+  return linkifyMentions(body).flatMap((segment): MessageBodySegment[] => {
+    if (segment.type !== "text") return [segment];
+    const parts: MessageBodySegment[] = [];
+    let cursor = 0;
+    for (const match of segment.text.matchAll(/https:\/\/pubmaxxing\.com(\/social\/leagues\/join\/[^\s]+)/g)) {
+      const href = safeLeagueInviteReturnTo(match[1]);
+      if (!href) continue;
+      if (match.index > cursor) parts.push({ type: "text", text: segment.text.slice(cursor, match.index) });
+      parts.push({ type: "league-invite", href, text: match[0] });
+      cursor = match.index + match[0].length;
+    }
+    if (cursor < segment.text.length) parts.push({ type: "text", text: segment.text.slice(cursor) });
+    return parts;
+  });
 }

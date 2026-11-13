@@ -198,6 +198,7 @@ export async function readLeague(
   ]);
 
   const selfHandle = normalizeViewerHandle(viewer.handle);
+  const degraded = standings.some((standing) => standing.status === "degraded");
   const rows: LeagueRow[] = people.map(({ profile, userId }, index) => {
     const handle = normalizeViewerHandle(profile.handle);
     return {
@@ -210,9 +211,9 @@ export async function readLeague(
   });
   return {
     league: { id: league.id, name: league.name, code: league.inviteCode, owner: league.ownerUserId === viewer.authUserId },
-    status: standings.some((standing) => standing.status === "degraded") ? "degraded" : "ready",
+    status: degraded ? "degraded" : "ready",
     rows,
-    districts: districtPubs
+    districts: districtPubs && !degraded
       ? leagueDistricts(
         districtPubs,
         rows.map((row, index) => ({ handle: row.handle, self: row.self, visited: standings[index]!.visited })),

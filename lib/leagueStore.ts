@@ -8,7 +8,7 @@ import "server-only";
 // LeagueStoreError("NOT_OPEN"), so the pages say leagues are not open yet
 // rather than keep a league in memory that the next cold start forgets.
 
-import { LEAGUE_MAX_MEMBERS, LEAGUE_MAX_PER_PERSON } from "@/lib/leagues";
+import { LEAGUE_MAX_MEMBERS, LEAGUE_MAX_PER_PERSON, type LeagueExportRecord } from "@/lib/leagues";
 import { admin, createDualBackendStore, isMissingTableSchema, isUniqueViolation } from "@/lib/storeBackend";
 
 export class LeagueStoreError extends Error {
@@ -40,6 +40,7 @@ type LeagueJoinOutcome =
   | { status: "not_found" | "limit" | "full" };
 
 export type LeagueStore = {
+  exportFor(userId: string): Promise<LeagueExportRecord[]>;
   create(member: LeagueMemberKey, name: string, inviteCode: string): Promise<LeagueCreateOutcome>;
   join(member: LeagueMemberKey, inviteCode: string): Promise<LeagueJoinOutcome>;
   /** The leagues one account is in, newest joined first. */
@@ -63,6 +64,16 @@ export function createMemoryLeagueStore(options: { now?: () => Date } = {}): Lea
   const codeTaken = (code: string) => [...leagues.values()].some((league) => league.inviteCode === code);
 
   return {
+    async exportFor(userId) {
+      const owned: LeagueExportRecord[] = [...leagues.values()]
+        .filter((league) => league.ownerUserId === userId)
+        .map(({ name, createdAt }) => ({ kind: "owned", name, createdAt }));
+      const memberships: LeagueExportRecord[] = [...leagues.values()].flatMap((league) => {
+        const member = membersOf(league.id).find((row) => row.userId === userId);
+        return member ? [{ kind: "membership" as const, name: league.name, joinedAt: member.joinedAt }] : [];
+      });
+      return [...owned, ...memberships];
+    },
     async create(member, name, inviteCode) {
       if (countFor(member.userId) >= LEAGUE_MAX_PER_PERSON) return { status: "limit" };
       if (codeTaken(inviteCode)) return { status: "code_taken" };
@@ -160,6 +171,25 @@ function rpcAnswer(data: unknown): { code: string; leagueId: string | null } {
 }
 
 const supabaseLeagueStore: LeagueStore = {
+  async exportFor(userId) {
+    const [owned, memberships] = await Promise.all([
+      admin().from("leagues").select("name, created_at").eq("owner_user_id", userId)
+        .order("created_at", { ascending: true }).limit(LEAGUE_MAX_PER_PERSON),
+      admin().from("league_members").select("joined_at, leagues!inner(name)").eq("user_id", userId)
+        .order("joined_at", { ascending: true }).limit(LEAGUE_MAX_PER_PERSON),
+    ]);
+    if (owned.error) fail(owned.error);
+    if (memberships.error) fail(memberships.error);
+    const records: LeagueExportRecord[] = (owned.data ?? []).map((row) => ({
+      kind: "owned", name: row.name, createdAt: row.created_at,
+    }));
+    for (const row of memberships.data ?? []) {
+      const league = Array.isArray(row.leagues) ? row.leagues[0] : row.leagues;
+      if (!league) throw new Error("League membership export unavailable");
+      records.push({ kind: "membership", name: league.name, joinedAt: row.joined_at });
+    }
+    return records;
+  },
   async create(member, name, inviteCode) {
     const { data, error } = await admin().rpc("create_league", {
       p_user_id: member.userId,

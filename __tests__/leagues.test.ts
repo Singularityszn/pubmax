@@ -75,6 +75,23 @@ describe("who leads each district", () => {
 });
 
 describe("the memory league store", () => {
+  it("exports only the caller's ownership and memberships without invite secrets", async () => {
+    let now = new Date("2026-11-01T12:00:00Z");
+    const store = createMemoryLeagueStore({ now: () => now });
+    await store.create(person(1), "Mine", "ABCDEFGH");
+    await store.create(person(2), "Mates", "BCDEFGHJ");
+    await store.create(person(3), "Strangers", "CDEFGHJK");
+    now = new Date("2026-11-02T12:00:00Z");
+    await store.join(person(1), "BCDEFGHJ");
+    await store.join(person(2), "ABCDEFGH");
+    expect(await store.exportFor("u-1")).toEqual([
+      { kind: "owned", name: "Mine", createdAt: "2026-11-01T12:00:00.000Z" },
+      { kind: "membership", name: "Mine", joinedAt: "2026-11-01T12:00:00.000Z" },
+      { kind: "membership", name: "Mates", joinedAt: "2026-11-02T12:00:00.000Z" },
+    ]);
+    expect(await store.exportFor("u-99")).toEqual([]);
+  });
+
   it("makes a league with its owner in it, and joins a code once", async () => {
     const store = createMemoryLeagueStore();
     const made = await store.create(person(1), "Regulars", "ABCDEFGH");
@@ -171,6 +188,21 @@ function leagueDeps(store: LeagueDependencies["store"], overrides: Partial<Leagu
 }
 
 describe("readLeague", () => {
+  it.each(["me", "bo"])("withholds all district claims when %s has incomplete visits", async (degraded) => {
+    const { store, id } = await leagueOfFive();
+    const board = await readLeague(VIEWER, id, leagueDeps(store, {
+      standing: async (member) => ({
+        status: member.handle === degraded ? "degraded" : "ready",
+        total: 10,
+        level: 1,
+        visited: new Set(member.handle === degraded ? [] : VISITS[member.handle]),
+      }),
+    }));
+    expect(board?.status).toBe("degraded");
+    expect(board?.rows).toHaveLength(5);
+    expect(board?.districts).toBeNull();
+  });
+
   it("ranks every member the reader may see, and names who leads each district", async () => {
     const { store, id } = await leagueOfFive();
     const board = await readLeague(VIEWER, id, leagueDeps(store));

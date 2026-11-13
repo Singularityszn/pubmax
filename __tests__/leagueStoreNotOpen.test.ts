@@ -39,6 +39,7 @@ describe("leagues before migration 0239", () => {
       () => store.create(member, "Regulars", "ABCDEFGH"),
       () => store.join(member, "ABCDEFGH"),
       () => store.listFor("u-1"),
+      () => store.exportFor("u-1"),
       () => store.read("00000000-0000-4000-8000-000000000001", "u-1"),
       () => store.leave("00000000-0000-4000-8000-000000000001", "u-1"),
       () => store.remove("00000000-0000-4000-8000-000000000001", "u-1"),

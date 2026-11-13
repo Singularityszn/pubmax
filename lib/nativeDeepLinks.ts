@@ -42,6 +42,7 @@ const APP_ORIGIN = "https://pubmaxxing.com";
 const ALLOWED_PATH_PREFIXES = [
   "/plan/",
   "/rounds/",
+  "/social/leagues/join/",
   "/p/",
   "/map/",
   "/venue/",

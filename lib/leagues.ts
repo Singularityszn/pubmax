@@ -3,6 +3,7 @@
 // pulling a store behind them. lib/leagues.server.ts reads; this module counts.
 
 import type { MatesBoardRow } from "@/lib/matesBoard";
+import type { Route } from "next";
 
 /** Most members one league holds. Migration 0239 holds the same number. */
 export const LEAGUE_MAX_MEMBERS = 20;
@@ -14,6 +15,7 @@ export const LEAGUE_NAME_MAX = 40;
 export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 export const INVITE_CODE_LENGTH = 8;
 const INVITE_CODE = /^[A-HJ-NP-Z2-9]{8}$/;
+const LEAGUE_INVITE_PREFIX = "/social/leagues/join/";
 const LEAGUE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isLeagueId(value: unknown): value is string {
@@ -37,7 +39,13 @@ export function formatInviteCode(code: string): string {
 
 /** The path a shared invite link opens. */
 export function leagueInvitePath(code: string): string {
-  return `/social/leagues/join/${encodeURIComponent(code)}`;
+  return `${LEAGUE_INVITE_PREFIX}${encodeURIComponent(code)}`;
+}
+
+export function safeLeagueInviteReturnTo(raw: string | null | undefined): Route | null {
+  if (typeof raw !== "string" || !raw.startsWith(LEAGUE_INVITE_PREFIX)) return null;
+  const code = raw.slice(LEAGUE_INVITE_PREFIX.length);
+  return INVITE_CODE.test(code) ? leagueInvitePath(code) as Route : null;
 }
 
 /** A league's name with its spaces tidied, or null when it is empty or too long. */
@@ -122,6 +130,10 @@ export type LeagueSummary = {
   /** True when the reader made it. */
   owner: boolean;
 };
+
+export type LeagueExportRecord =
+  | { kind: "owned"; name: string; createdAt: string }
+  | { kind: "membership"; name: string; joinedAt: string };
 
 export type LeagueRow = MatesBoardRow & { owner: boolean };
 
