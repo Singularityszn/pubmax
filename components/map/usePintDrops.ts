@@ -329,10 +329,8 @@ export function usePintDrops(
   const [handle, setHandle] = useState(() =>
     safeLocalStorage()?.getItem("pubmax_handle") ?? "",
   );
-  // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
-  // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
-  // pub as having no drops once its own read ANSWERED. An absent entry means
-  // "not asked yet". Each consumer decides whether that blocks its fallback.
+  // lib/venueDropRead.ts owns the read statuses. The price-read contract in
+  // docs/rules/lib-prices-trust-and-drinks.md governs absence wording and fallbacks.
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
