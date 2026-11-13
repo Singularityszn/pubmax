@@ -23,9 +23,7 @@ Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgR
 
 ### 1.2 Release to production
 
-Ship to production with `npm run release:prod` and nothing else. It stages a build with Production environment values, promotes that build, and waits for the production smoke run. The [release procedure](DEPLOYMENT.md#one-release-command) owns its steps. Its last line names the released commit and deployment id: record both.
-
-Never promote a Preview build with `vercel deploy` then `vercel promote`. Promotion does not rebuild, so a Preview-built artifact keeps its Preview environment values in production. [`docs/DEPLOYMENT.md`](DEPLOYMENT.md#manual-deploy-and-promote) explains why.
+Follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy). Record the released commit, deployment ID, and matching green smoke run.
 
 After the release, confirm both hosts answer for it:
 
@@ -136,7 +134,7 @@ Social ships behind one server-checked launch switch:
 
 1. Confirm `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is unset, empty, `1`, or `true` in Vercel **Production** environment variables.
 2. Confirm `OPENAI_API_KEY`, `SUPABASE_*`, `ADMIN_TOKEN`, and `RATE_LIMIT_SALT` are already set (avatar scan + moderation queue).
-3. Promote a fresh production deployment (`vercel --prod` or dashboard promote). The flag is read at request time, but a redeploy is the audited change record.
+3. Follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy) to release the environment change.
 4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
 5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface. The freeze also pauses the signed-out London lane (captain decision 7, 1 November 2026): strangers see the sign-in wall until it is unset.
 6. Open `/social` signed out and confirm the read-only **Across London** lane shows public posts tagged a London patch, each card with one quiet "Sign in to cheer or comment" link and no cheer, comment or compose control.
@@ -144,8 +142,8 @@ Social ships behind one server-checked launch switch:
 **Emergency rollback (captain act):**
 
 1. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel **Production** environment variables.
-2. Promote a fresh production deployment and run the rollback check below.
-3. Restore the live default by removing the variable or setting it to `1` or `true`, then promote again.
+2. Follow section 1.2 to release the change. Run the rollback check below.
+3. Restore the live default by removing the variable or setting it to `1` or `true`. Release through section 1.2 again.
 
 ### 1.5 Captain demo script (Social + avatars dress rehearsal)
 
@@ -185,7 +183,7 @@ PW_SOCIAL_OPEN=1 PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 npm run test:e2e -- e2e/social-o
 
 ## 2. Smoke checklist (post-deploy)
 
-Run each check on the production host after every promoted deploy.
+Run each check on the production host after every release.
 
 | Check | URL | Good looks like |
 |---|---|---|
@@ -205,13 +203,10 @@ Run each check on the production host after every promoted deploy.
 
 ### 3.1 Application code
 
-Promote the previous known-good deployment:
-
-```sh
-vercel promote <previous-deployment-url>
-```
-
-Find the previous URL in the Vercel dashboard's Deployments list, or `vercel ls`. This does not rebuild anything; it repoints production traffic. So pick a deployment that `npm run release:prod` built for Production, never a Preview build, which keeps its Preview environment values after promotion.
+Use the previous known-good deployment as the code reference for the rollback.
+The captain selects rollback code compatible with the applied migrations.
+Merge the approved rollback code into `main` before the release.
+Release that code through the [gated API deploy](DEPLOYMENT.md#gated-api-deploy).
 
 ### 3.2 Migrations are not rollback-safe by default
 
@@ -280,7 +275,7 @@ launch gate. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, the Social feed uses stati
 
 ## 6. V1 invite cohort (map + plan invite + price logging)
 
-V1 is not a Social launch. Invite 15–40 London drinkers you already WhatsApp nights with. Product strategy: [docs/plans/PLG_STRATEGY.md](plans/PLG_STRATEGY.md). Weekly scoreboard detail: [docs/growth/V1_INVITE_SCOREBOARD.md](growth/V1_INVITE_SCOREBOARD.md). Full Horizon 0 merge / promote / smoke / anti-goals checklist: [docs/growth/HORIZON0_OPS_CHECKLIST.md](growth/HORIZON0_OPS_CHECKLIST.md). Seed density playbook: [docs/growth/SEED_BOROUGH_PLAYBOOK.md](growth/SEED_BOROUGH_PLAYBOOK.md).
+V1 is not a Social launch. Invite 15–40 London drinkers you already WhatsApp nights with. Product strategy: [docs/plans/PLG_STRATEGY.md](plans/PLG_STRATEGY.md). Weekly scoreboard detail: [docs/growth/V1_INVITE_SCOREBOARD.md](growth/V1_INVITE_SCOREBOARD.md). Full Horizon 0 merge / release / smoke / anti-goals checklist: [docs/growth/HORIZON0_OPS_CHECKLIST.md](growth/HORIZON0_OPS_CHECKLIST.md). Seed density playbook: [docs/growth/SEED_BOROUGH_PLAYBOOK.md](growth/SEED_BOROUGH_PLAYBOOK.md).
 
 ### 6.1 What you send
 
@@ -319,10 +314,10 @@ Do not mark issue #392 complete until each row has a dated link or screenshot fr
 | Bing Webmaster Tools | Verified site, submitted sitemap, and successful fetch | Owner action |
 | Android PWA install | After a second distinct-day visit or a completed Crawl Route, supported Android Chrome emits `beforeinstallprompt`; the PUBMAXX prompt appears and the installed PWA launches from the home screen | Owner action |
 | iOS install | Safari Add to Home Screen instructions are accurate and the installed app launches from the home screen | Owner action |
-| Demo content | Vercel Production environment shows `NEXT_PUBLIC_DEMO_CONTENT=off`; promoted deployment ID recorded | Owner action |
+| Demo content | Vercel Production environment shows `NEXT_PUBLIC_DEMO_CONTENT=off`; released deployment ID recorded | Owner action |
 | Analytics order | PostHog receives release, map open, plan generated, invite opened, invite accepted, crew activation, completion, recap share, and repeat-plan events in that order | Owner action |
 | First cohort | Dated result for 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | Owner action |
-| Release gate | Exact `main` SHA, local `npm run ci`, RLS, browser smoke, hosted CI state, and promoted deployment ID | In progress |
+| Release gate | Exact `main` SHA, local `npm run ci`, RLS, browser smoke, hosted CI state, and released deployment ID | In progress |
 
 ### Smoke walk, 30 October 2026, local production build, keyless
 
@@ -355,11 +350,11 @@ Two observations that are not failures of a row:
 
 ### Release metric, how to record it
 
-The release metric is the share of landings whose first meaningful action comes 60 seconds or less after the landing. [`docs/analytics/TRACKING_PLAN.md`](analytics/TRACKING_PLAN.md) section 2 owns the definition and the query, and this block does not copy the query. `npm run release:prod` does not measure the metric. Its last line names the commit and the deployment that you measure.
+The release metric is the share of landings whose first meaningful action comes 60 seconds or less after the landing. [`docs/analytics/TRACKING_PLAN.md`](analytics/TRACKING_PLAN.md) section 2 owns the definition and the query, and this block does not copy the query. The release record in section 8.3.3 identifies the commit and deployment to measure.
 
 Measure it on the launch head after the merge and after the release, when the release has had seven days of traffic.
 
-1. Write down the commit and the deployment id from the last line of `npm run release:prod`: `Released <commit> as <deployment id>.`
+1. Read the released commit and deployment ID from the release record in section 8.3.3.
 2. Take the first 7 characters of that commit. Every event carries them as `release` (`lib/analyticsAttribution.mjs`).
 3. Copy the query in TRACKING_PLAN 2.1. In BOTH the `landings` part and the `actions` part, add `AND properties.environment = 'production'` and `AND properties.release = '<7 characters>'`. The query joins actions to landings by `distinct_id` only, so an unfiltered action from another environment or release would count towards this release. Put it in a file as `{"query": {"kind": "HogQLQuery", "query": "<the query>"}}`.
 4. Run this command. It needs a PostHog personal API key that can read queries.
@@ -425,7 +420,7 @@ is live. That migration drops the tokenless claim and completion, adds the lease
 and narrows the comment and quote CHECKs. See the 0236 header for the deferred
 permission change.
 
-Production must hold every file in `supabase/migrations/` before Monday's release, because `npm run release:prod` refuses when the ledger lacks one ([release rule](rules/scripts-deploys-and-uploads.md#the-release-refuses-when-production-lacks-a-migration-and-the-check-compares-names)).
+The [gated API deploy](DEPLOYMENT.md#gated-api-deploy) owns the required migration check before Monday's release.
 
 **Apply them in the same sitting as a release, never days ahead.** `0215` replaces `create_plan_route_proposal_atomic` with a version that needs one more argument. The build that production served on 1 November (`e5da6c0`) calls the old version, so its route proposals fail from the moment `0215` is applied until a newer build is live. The best order is the launch plan's week 1: apply `0203` to `0216` and release `main` straight after. Then on Monday only the files added since then (`0217` to `0219`, and any later file) are applied, and the launch release follows at once (8.3.3).
 
@@ -470,7 +465,7 @@ Steps:
    ```
 
 3. If the dry run lists exactly the files that step 1 named, the captain can run `supabase db push --include-all`. If the dry run lists any other file, stop and do not push. The live ledger holds many older files under other version numbers, so a push compares versions and would run those files a second time. In that case, the captain can apply each missing file by hand, one at a time, in timestamp order. Agents must follow the policy in section 1.3. The migration apply policy specifies the ledger name.
-4. Run `npm run check:migration-ledger` again. It must pass. Then run `npm run release:prod` (8.3.3) in the same sitting. Write the date in O1.
+4. Run `npm run check:migration-ledger` again. It must pass. Then follow section 8.3.3 in the same sitting. Write the date in O1.
 
 The table above covers the original launch set. Later migrations can replace existing RPC signatures, so inspect their headers before applying them. `0213` keeps the old call to `add_plan_action_idempotent_atomic` working through default values. Do not run a rollback file unless that migration is the fault. Read its header first: the `0218` rollback makes every unchecked price read as billed.
 
@@ -489,7 +484,7 @@ Vercel, project `chengdu`, Settings, Environment Variables, filter Production: `
 | `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | Unset, empty, `1` or `true` | `0` is the emergency rollback value only (section 1.4). |
 | `PUBMAX_SOCIAL_FREEZE` | Unset | `social` pauses Social writes ([`OPS_FREEZE_RUNBOOK.md`](OPS_FREEZE_RUNBOOK.md)). |
 
-A `NEXT_PUBLIC_*` value is fixed at build time. A change reaches the site only through the next release, so set every value before Monday's `npm run release:prod`.
+A `NEXT_PUBLIC_*` value is fixed at build time. A change reaches the site only through the next release, so set every value before Monday's release (8.3.3).
 
 #### 8.2.3 Vendor money caps (Owner action)
 
@@ -565,16 +560,9 @@ Every merge to `main` after the release means a new release (8.3.3) and a new wa
 
 #### 8.3.3 The release (Owner action)
 
-From a clean checkout of `main` at the launch head:
-
-```sh
-git switch main && git pull --ff-only
-read -rs SUPABASE_ACCESS_TOKEN; export SUPABASE_ACCESS_TOKEN
-npm run check:migration-ledger
-npm run release:prod
-```
-
-If the ledger check names a file, apply it as 8.2.1 says, then release at once. The [release command](DEPLOYMENT.md#one-release-command) refuses a dirty tree, refuses a missing migration, builds with Production values, promotes, and waits for the production smoke run. Its last line is `[release] Released <sha> as <deploymentId>. The production smoke suite passed.` Any other last line means the release is not verified: read 8.5.4 before you do anything else.
+Follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy) for the launch head.
+If the ledger check names a file, follow section 8.2.1 before continuing.
+If the release remains unverified, read section 8.5.4 before you continue.
 
 Then run the two host checks in section 1.2. The apex prints `200` and the `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`.
 
@@ -600,7 +588,7 @@ Sweep the launch head after the release, as the round 6 freeze asked (section 3 
 
    The job log prints the breach table, the undecided table and the ratchet table. Each ratchet row is a ceiling that may come down. Lower those rows in `perf/route-budgets.json` in one pull request.
 
-2. **API budgets** (`perf/api-budgets.json`). The API performance workflow starts only on a GitHub deployment status, and a release from `npm run release:prod` sends none, so run the probe by hand against production after the release:
+2. **API budgets** (`perf/api-budgets.json`). The API performance workflow starts only on a GitHub deployment status. Run the probe by hand after the API release:
 
    ```sh
    node scripts/probe-api-budgets.mjs --base-url https://pubmaxxing.com
@@ -740,7 +728,7 @@ Signals, and what each one means:
 
 #### 8.5.3 One deploy at a time
 
-During the launch, ship only a fix from the freeze list (8.3.1), and only through `npm run release:prod`. Walk the smoke rows the fix touches. Add a row to the release record. If you turn on Vercel's Attack Challenge Mode, the uptime monitor reads the challenge as down and names the firewall in the run. That is expected while the mode is on.
+During the launch, ship only a fix from the freeze list (8.3.1). Follow section 8.3.3 for each release. Walk the smoke rows the fix touches. Add a row to the release record. If you turn on Vercel's Attack Challenge Mode, the uptime monitor reads the challenge as down and names the firewall in the run. That is expected while the mode is on.
 
 #### 8.5.4 Rollback for a bad deploy (Owner action)
 
@@ -748,9 +736,9 @@ A deploy is bad when any of these is true after a release: the release smoke run
 
 1. Say in the alert channel that you are rolling back, and name the bad deployment id.
 2. Find the target: the newest row in the release record (8.3.3) with "yes" in "Known good".
-3. Promote it. In Vercel, open Deployments, open the target deployment, open its menu and choose Promote. Or, from a checkout linked to `chengdu`, run `npx -y vercel@62.1.0 promote <deployment url>`. It is the same lever as section 3.1. Never promote a Preview build.
-4. Prove it: `curl -sS https://pubmaxxing.com/api/version` names the target deployment id, and `curl -sS https://pubmaxxing.com/api/health` gives `"database":"ok"`. Walk smoke rows 4, 6, 8 and 10 by hand.
-5. Do not run `npm run release:prod` again until the fix has merged. The command releases the tip of `main`, which is the bad build.
+3. Use that deployment as the code reference. Follow section 3.1 for the rollback release.
+4. Prove it: `curl -sS https://pubmaxxing.com/api/version` names the new rollback deployment ID, and `curl -sS https://pubmaxxing.com/api/health` gives `"database":"ok"`. Walk smoke rows 4, 6, 8 and 10 by hand.
+5. Do not release a follow-up fix until it has merged into `main`.
 6. Leave the migrations in place. Most launch migrations add tables and columns that an earlier build does not read. A build from before `0215` cannot create route proposals (8.2.1), so prefer a known-good target that was released after the migrations. Run a rollback file only when the migration itself is the fault, and read its header first.
 7. Add a row to the release record: the time, from which deployment, to which deployment, and why.
 
