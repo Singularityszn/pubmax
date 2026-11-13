@@ -48,4 +48,4 @@ The message comes from `@capacitor/core` when no native implementation is regist
 
 ## Version mismatch
 
-`npx cap doctor` must show identical major/minor for `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`. Capacitor 8.5 is current stable (`latest`); Capacitor 9 is `@next` (alpha). Mixing `8.x` core with `9.0.0-alpha` platforms produces bridge errors at launch. Fix with `capacitor-app-upgrades`.
+`npx cap doctor` must show identical major/minor for `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`. See [package.json](../../../../package.json) for this project's version requirements. Mixing `8.x` core with `9.0.0-alpha` platforms produces bridge errors at launch. Fix with `capacitor-app-upgrades`.

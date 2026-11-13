@@ -71,8 +71,9 @@ const config: CapacitorConfig = {
 `server.errorPath` after a failed first main-frame load. It contains no stale
 product data.
 
-Stack: **Capacitor 8.5**, **Next 16**, and **Swift Package Manager**
+Stack: **Capacitor**, **Next 16**, and **Swift Package Manager**
 (`ios/App/CapApp-SPM`) - no CocoaPods.
+See [package.json](../package.json) for the Capacitor version requirements.
 
 ### 2.2 The seam contract (the load-bearing invariant)
 

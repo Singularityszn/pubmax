@@ -1,6 +1,6 @@
 ---
 name: capacitor-best-practices
-description: Review and set up Capacitor apps against current best practices (Capacitor 8.5 stable, 9 alpha via `@next`). Use for a Capacitor codebase review, `capacitor.config.ts` audit, new project setup, aligning `@capacitor/core`/`cli`/`ios`/`android` and plugin majors, plugin patterns (availability checks, `checkPermissions`/`requestPermissions`, error `code` handling, web fallbacks), or release prep; or on `"<Plugin>" plugin is not implemented on ios`, `Could not find the web assets directory`, `platform has not been added yet`, a dev `server.url` shipped to production, lost edits in `android/app/src/main/assets/public`, SPM vs CocoaPods, or AppDelegate/UIScene drift. Do not use for security audits (capacitor-security), performance (capacitor-performance), tests (capacitor-testing), crashes (debugging-capacitor), major upgrades (capacitor-app-upgrades), SPM migration (cocoapods-to-spm), UIScene adoption (capacitor-uiscene-migration), or live updates (capgo-live-updates).
+description: Review and set up Capacitor apps against current best practices. Use for a Capacitor codebase review, `capacitor.config.ts` audit, new project setup, aligning `@capacitor/core`/`cli`/`ios`/`android` and plugin majors, plugin patterns (availability checks, `checkPermissions`/`requestPermissions`, error `code` handling, web fallbacks), or release prep; or on `"<Plugin>" plugin is not implemented on ios`, `Could not find the web assets directory`, `platform has not been added yet`, a dev `server.url` shipped to production, lost edits in `android/app/src/main/assets/public`, SPM vs CocoaPods, or AppDelegate/UIScene drift. Do not use for security audits (capacitor-security), performance (capacitor-performance), tests (capacitor-testing), crashes (debugging-capacitor), major upgrades (capacitor-app-upgrades), SPM migration (cocoapods-to-spm), UIScene adoption (capacitor-uiscene-migration), or live updates (capgo-live-updates).
 ---
 
 # Capacitor Best Practices
@@ -30,7 +30,7 @@ Do not use:
 
 ## Current baseline (October 2026)
 
-| | Capacitor 8 (stable, `latest` 8.5.x) | Capacitor 9 (`next`, alpha) |
+| | Capacitor 8 (project major) | Capacitor 9 (`next`, alpha) |
 |---|---|---|
 | Node | 22+ | 24+ |
 | iOS min / Xcode | iOS 15 / Xcode 26 (8.5 adopts UIScene so Xcode 27 builds work) | iOS 16 / Xcode 27+ |
@@ -71,7 +71,7 @@ CocoaPods Trunk is expected to go read-only on December 2, 2026. Recommend SPM f
 
 ## Stay on Capacitor 8
 
-This app pins Capacitor 8. Keep the core packages on that major, in the `package.json` section each one already uses:
+This app pins Capacitor 8. See [package.json](../../../package.json) for version requirements. Keep the core packages on that major, in the `package.json` section each one already uses:
 
 ```bash
 npm install -D @capacitor/core@8 @capacitor/cli@8 @capacitor/ios@8
