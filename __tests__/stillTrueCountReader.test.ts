@@ -72,9 +72,8 @@ describe("one-pub night headcount", () => {
 
   it("counts an attendee once when the host accepts between count reads", async () => {
     vi.useFakeTimers({ now: NOW });
-    tables.social_crew_join_requests = [
-      { crew_id: CREW, requester_account_id: "guest", state: "pending", expires_at: "2026-11-14T12:00:00.000Z" },
-    ];
+    const pendingRequest = { crew_id: CREW, requester_account_id: "guest", state: "pending", expires_at: "2026-11-14T12:00:00.000Z" };
+    tables.social_crew_join_requests = [pendingRequest];
     tables.social_crew_members = [];
     tables.plan_crew_members = [{ id: "seat-guest", status: "going" }];
     beforeRead = async (table) => {
@@ -83,7 +82,7 @@ describe("one-pub night headcount", () => {
     afterRead = (table) => {
       if (table !== "social_crew_join_requests" && table !== "social_crew_members") return;
       tables.social_crew_join_requests = [
-        { ...tables.social_crew_join_requests[0], state: "accepted" },
+        { ...pendingRequest, state: "accepted" },
       ];
       tables.social_crew_members = [
         { crew_id: CREW, social_account_id: "guest", plan_member_id: "seat-guest", role: "member", state: "active" },
