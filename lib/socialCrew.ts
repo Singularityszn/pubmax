@@ -174,8 +174,8 @@ export type SocialCrewPublicPreviewDTO = {
   /** Min-max listed pint price over the stops, or null. Never the stops themselves. */
   spendBand: OpenCrawlShareSpendBand | null;
   /**
-   * A one-pub night. Absent or null on a crawl with any other shape. Counts
-   * are row counts, or null when that count was not read.
+   * A one-pub night. Absent or null on a crawl with any other shape.
+   * Unavailable counts stay null. lib/openCrawl.ts owns their definitions.
    */
   stillTrue?: StillTruePublicFacts | null;
 };

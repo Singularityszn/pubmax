@@ -104,6 +104,8 @@ function textIds(rows: readonly CountRow[], key: string): string[] {
 /**
  * Live pending join rows, plus active seats that are not the host. Here is a status
  * on those seats, including the host. A failed read is null, not zero.
+ * Read requests before seats so acceptance between the reads cannot omit a
+ * person from both. stillTrueSaidYesCount removes overlap between the reads.
  */
 export const stillTrueCountReader = {
   async read(crewId: string): Promise<{ saidYes: number; markedHere: number | null } | null> {

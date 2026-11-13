@@ -286,12 +286,7 @@ Do not do this walk until two pubs have said yes. Until then, stay put. Night 2 
 
 ## 5. The one-pub night in the app
 
-The app carries the same night, and nothing more. An open crawl with exactly one stop is a one-pub night. Its public page shows "I'll be there" where other crawls show "Ask to join". The words are never "Save me a seat."
-
-- Each "I'll be there" is a real join request. The host still accepts or declines.
-- The page counts people who said yes and people marked here, from those rows. With nobody, it says "Nobody has said yes yet." It never shows a zero.
-- The listed pint shows only with its drink, price, source and read day. No source, no line.
-- A signed-out person taps, signs in with the email link and comes back to the same night. The request goes only from the device that tapped.
+The [one-pub night guide](../../README.md#one-pub-nights) owns the app's joining steps and public facts. The words are never "Save me a seat."
 
 The cap is the crawl's capacity. Set it from the room, after the nights. Running the app night does not replace sections 1 to 4. The bar in section 3 still decides whether the series goes on.
 

@@ -578,9 +578,13 @@ export default function PrivacyPage() {
           meeting area, places left and a listed pint price range. Unavailable
           details are omitted. The price range is per pint, not a total for the
           night. It shows the oldest observation date across the priced stops
-          and labels the source as listed prices. It never names a publisher
+          and labels the source as listed prices. The range never names a publisher
           or a remaining stop. Public discovery can also show how many people
           are in the plan. The roster and remaining stops stay behind the member read.
+          For a one-pub night, the public page can show aggregate counts of
+          people who said yes and members marked here. It can also name the
+          listed pint, its price, its publisher and the source-read date.
+          These extra facts appear on the public page, not in shared image previews.
           Close the plan and it drops out of the public list.
         </p>
         <p className="legalBody">

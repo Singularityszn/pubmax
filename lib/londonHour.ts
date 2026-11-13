@@ -65,7 +65,7 @@ let dayLabelFormatter: Intl.DateTimeFormat | null = null;
 
 /**
  * The Europe/London date a person reads, for example "Friday 13 November".
- * Held once, like the clock above: the landing stamp asks for it on mount.
+ * The server dates each landing answer with the same clock used for its facts.
  */
 export function londonDayLabel(at: Date | number): string {
   dayLabelFormatter ??= new Intl.DateTimeFormat("en-GB", {
