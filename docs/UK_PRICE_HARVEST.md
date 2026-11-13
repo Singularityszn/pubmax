@@ -80,6 +80,13 @@ report counts them under `londonScope.curatedWebsites`. Per host it reads the ho
 drinks list, to a per-host page ceiling. Resumable: `data-harvest/uk_prices/hosts.json`
 records what each host answered, so a rerun continues.
 
+`--city manchester,leeds` reads only the hosts that serve a pub inside those
+city maps' boxes (`lib/cityBounds.mjs`), so a city's prices land on a map that
+already shows prices. A host keeps every pub the snapshot gives it, because a
+host cut down to its in-city pubs can look like one pub's own site and so skip
+the estate rule (`scripts/harvest/uk-prices/cityScope.mjs`). Chain estates stay
+with the rendered lane, which takes the same flag with `--pub-sites`.
+
 ### Websites Exa found
 
 OpenStreetMap states a website for about one London pub in two. The Exa lane

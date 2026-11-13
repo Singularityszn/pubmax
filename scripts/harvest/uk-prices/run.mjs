@@ -8,6 +8,7 @@
 //   npm run harvest:uk-prices -- --reset           # forget the ledger and start over
 //   npm run harvest:uk-prices -- --only greeneking.co.uk
 //   npm run harvest:uk-prices -- --london                      # Greater London pubs only
+//   npm run harvest:uk-prices -- --city manchester,birmingham  # hosts serving a pub in these city maps
 //   npm run harvest:uk-prices -- --menu-enrichment none      # skip venue_menu_enrichment seeds
 //   npm run harvest:uk-prices -- --recheck robots-unreadable   # ask one finding again
 //   npm run harvest:uk-prices -- --judged                      # require TYPESAFE_API_KEY
@@ -95,6 +96,7 @@ import {
   venueCoordsFromSlim,
 } from "./londonScope.mjs";
 import { THIRD_PARTY_SITE_HOSTS } from "./pubSites.mjs";
+import { harvestCityScope, hostsTouchingCityScope } from "./cityScope.mjs";
 import { addExaSiteHosts, contactLinkCandidates, pageBindsPub } from "./exaSites.mjs";
 
 const ROOT = process.cwd();
@@ -159,6 +161,8 @@ const PAGE_BUDGET = Number(option("--pages", DEFAULT_PAGE_BUDGET));
 const CONCURRENCY = Math.max(1, Number(option("--concurrency", DEFAULT_CONCURRENCY)));
 const ONLY = option("--only", null);
 const LONDON_ONLY = flag("--london");
+/** Curated city ids (lib/cityBounds.mjs). See cityScope.mjs for why a host keeps all its pubs. */
+const CITY_IDS = (option("--city", "") || "").split(",");
 const MENU_ENRICHMENT_INPUT = option("--menu-enrichment", "public/data/venue_menu_enrichment.json");
 /**
  * Ask a set of hosts AGAIN, naming the outcome they were recorded under.
@@ -728,7 +732,7 @@ function prepareLedgerRows() {
  * Join the Exa input named by --exa-sites to the host list. Answers the counts
  * for the report, or null when a named input is missing.
  */
-function joinExaSiteHosts(hosts) {
+function joinExaSiteHosts(hosts, cityScope) {
   if (EXA_SITES_INPUT === "none") return { inputRead: false };
   const exaPath = path.isAbsolute(EXA_SITES_INPUT) ? EXA_SITES_INPUT : path.join(ROOT, EXA_SITES_INPUT);
   if (!existsSync(exaPath)) {
@@ -742,7 +746,8 @@ function joinExaSiteHosts(hosts) {
     (candidate) =>
       typeof candidate?.siteUrl === "string" &&
       isHarvestableOperatorUrl(candidate.siteUrl) &&
-      (!LONDON_ONLY || inGreaterLondon(candidate)),
+      (!LONDON_ONLY || inGreaterLondon(candidate)) &&
+      (!cityScope || cityScope.contains(candidate)),
   );
   const publishedHosts = new Set();
   if (existsSync(PUBLISHED_ROWS)) {
@@ -771,6 +776,26 @@ function joinExaSiteHosts(hosts) {
   return counts;
 }
 
+/**
+ * The candidate hosts for this run's scope: Greater London, named city maps,
+ * or the whole snapshot. Null, with the reason printed, when the flags conflict.
+ */
+function scopedCandidateHosts() {
+  let cityScope;
+  try {
+    cityScope = harvestCityScope(CITY_IDS);
+    if (cityScope && LONDON_ONLY) throw new Error("--city and --london are separate scopes; run them one at a time");
+  } catch (error) {
+    console.error(error instanceof Error ? error.message : error);
+    return null;
+  }
+  const candidates = candidateHosts({ londonOnly: LONDON_ONLY });
+  if (!cityScope) return { ...candidates, cityScope: null, hostsOutsideCityScope: 0 };
+  const { hosts, hostsOutsideScope } = hostsTouchingCityScope(candidates.hosts, cityScope);
+  console.log(`  city scope: ${hosts.length} host(s) serve a pub in ${cityScope.ids.join(", ")}`);
+  return { ...candidates, hosts, cityScope, hostsOutsideCityScope: hostsOutsideScope };
+}
+
 async function main() {
   if (!existsSync(OSM_PUBS)) {
     console.error(`missing ${path.relative(ROOT, OSM_PUBS)}; run npm run fetch:uk-pubs first`);
@@ -786,16 +811,21 @@ async function main() {
     return;
   }
 
-  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs } = candidateHosts({
-    londonOnly: LONDON_ONLY,
-  });
+  const scoped = scopedCandidateHosts();
+  if (!scoped) {
+    process.exitCode = 1;
+    return;
+  }
+  const { hosts, statedWebsite, refusedByPolicy, outsideLondon, totalPubs, cityScope, hostsOutsideCityScope } =
+    scoped;
   const ledger = loadLedger();
   const policySources = harvestSourcesOfKind("chain-menu-prices");
   const refusedSources = policySources.filter((source) => !isHarvestSourceAllowed(source));
 
   // The allowed chain sources join the same queue: one crawler, one rule.
   // In the London document lane, chain menus are left to the rendered lane.
-  if (!LONDON_ONLY) {
+  // A chain estate is national, so a city run leaves it to the rendered lane too.
+  if (!LONDON_ONLY && !cityScope) {
     for (const source of allowedHarvestSources("chain-menu-prices")) {
       const host = hostOf(source.url);
       if (!host || hosts.some((entry) => entry.host === host)) continue;
@@ -848,7 +878,7 @@ async function main() {
 
   // EXA'S WEBSITES. Read only when named. A website on a host the list already
   // holds seeds that host; a new host joins with one pub and its address check.
-  const exaSites = joinExaSiteHosts(hosts);
+  const exaSites = joinExaSiteHosts(hosts, cityScope);
   if (exaSites === null) {
     process.exitCode = 1;
     return;
@@ -954,6 +984,9 @@ async function main() {
           chainMenuSourcesOmitted: true,
         }
       : { enabled: false },
+    ...(cityScope
+      ? { cityScope: { cities: cityScope.ids, hostsOutsideScopeSkipped: hostsOutsideCityScope } }
+      : {}),
     hostsKnown: hosts.length,
     overlayMenuUrls: {
       inputRead: Boolean(overlayInput),
