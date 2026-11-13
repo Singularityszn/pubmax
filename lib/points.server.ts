@@ -247,7 +247,7 @@ async function readLondonDistricts(): Promise<Map<string, string[]>> {
   return districts;
 }
 
-export function defaultPointsDeps(): PointsDeps {
+function defaultPointsDeps(): PointsDeps {
   const passport = defaultPassportDeps();
   return {
     verifyCaller: callerUserId,
