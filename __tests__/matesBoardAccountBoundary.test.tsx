@@ -4,9 +4,17 @@ import { act, createElement, useLayoutEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ revision: 1, request: vi.fn() }));
+const session = vi.hoisted(() => ({
+  revision: 1,
+  user: { id: "account-1" } as { id: string } | null,
+  providerAuthState: "authenticated",
+  request: vi.fn(),
+}));
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ accountRevision: session.revision }),
+}));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => session,
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: session.request }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
@@ -41,6 +49,8 @@ let root: Root;
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   session.revision = 1;
+  session.user = { id: "account-1" };
+  session.providerAuthState = "authenticated";
   session.request.mockReset();
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -51,6 +61,22 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   vi.unstubAllGlobals();
+});
+
+it.each(["unresolved", "unavailable"])("waits for a live session answer after %s", async (phase) => {
+  session.user = null;
+  session.providerAuthState = phase;
+  session.request.mockResolvedValue(json({}, 401));
+  await act(async () => root.render(createElement(MatesBoardClient)));
+
+  expect(host.querySelector('a[href^="/login"]')).toBeNull();
+  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+  expect(session.request).not.toHaveBeenCalled();
+
+  session.providerAuthState = "signed-out";
+  await act(async () => root.render(createElement(MatesBoardClient)));
+  expect(host.querySelector('a[href^="/login"]')).not.toBeNull();
+  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
 });
 
 it.each(outcomes)("hides the previous reader's %s outcome in the first account-change commit", async (_name, response) => {

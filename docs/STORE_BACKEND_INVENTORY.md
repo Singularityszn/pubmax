@@ -255,7 +255,6 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/socialPubRankingStore.ts",
     "lib/stepOutNudgeSelect.server.ts",
     "lib/storeBackend.ts",
-    "lib/summonMates.server.ts",
     "lib/supabase.ts",
     "lib/trustedSigningKey.server.ts",
     "lib/uploadedImage.server.ts",
