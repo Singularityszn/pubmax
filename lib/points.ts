@@ -51,6 +51,8 @@ export type PointsBreakdown = {
   districts: string[];
 };
 
+export type PointsStanding = Pick<PointsBreakdown, "status" | "total" | "level">;
+
 // ── Levels ──────────────────────────────────────────────────────────────────
 
 /** The total each level starts at. Level 1 starts at 0. */

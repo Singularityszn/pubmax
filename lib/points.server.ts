@@ -2,11 +2,6 @@ import "server-only";
 
 // The points read: a person's own records, counted by lib/points.ts.
 //
-// readPointsBreakdown is the one server function that answers "how many points
-// has this account, and from what". It takes no request, so a later
-// leaderboard or league can call it for any account it may show. The profile
-// card asks through readProfilePoints, which lets the owner alone read it.
-//
 // Failed record reads contribute zero. A failed record, district or alias
 // read marks the answer degraded, including the identity fallback for aliases.
 
@@ -19,6 +14,7 @@ import {
   finishedLetterAreas,
   londonDistricts,
   type PointsBreakdown,
+  type PointsStanding,
 } from "@/lib/points";
 import {
   defaultPassportDeps,
@@ -106,6 +102,14 @@ export async function readPointsBreakdown(
     finished,
     degraded ? "degraded" : "ready",
   );
+}
+
+export async function readPointsStanding(
+  owner: PointsOwner,
+  deps: PointsDeps = defaultPointsDeps(),
+): Promise<PointsStanding> {
+  const { status, total, level } = await readPointsBreakdown(owner, deps);
+  return { status, total, level };
 }
 
 type PointsFailure = Extract<PassportResult<never>, { ok: false }>;

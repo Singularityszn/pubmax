@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
@@ -9,6 +10,7 @@ import EmptyState from "@/components/ui/empty-state";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { formatGbp } from "@/lib/formatGbp";
+import { MATES_BOARD_COPY } from "@/lib/matesBoard";
 import {
   matesActivityBillLine,
   parseMatesActivity,
@@ -88,6 +90,9 @@ export default function MatesActivity() {
         <p className="matesActivityLine">
           Pints your mates logged in London, newest first. Each price is as they logged it.
         </p>
+        <Link prefetch={false} href="/social/leaderboard" className="matesActivityBoard">
+          {MATES_BOARD_COPY.door}
+        </Link>
       </header>
       {state.status === "loading" ? (
         <p className="matesActivityLine" role="status">Reading your mates&apos; pints.</p>

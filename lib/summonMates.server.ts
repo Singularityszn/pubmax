@@ -13,18 +13,13 @@ import { followStore } from "@/lib/followStore";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
-import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
-import type { MutualViewer } from "@/lib/socialMutual.server";
-import { socialMemoryBlocked } from "@/lib/socialBlockMemory";
-import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
-import { socialInteractionStore } from "@/lib/socialInteractionStore";
-import { isSupabaseConfigured } from "@/lib/supabase";
+import { eitherMutes, isUnmutedMate, type MateViewer } from "@/lib/socialMutual.server";
 import { SUMMON_MAX_MATES, summonText } from "@/lib/summonMates";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 /** The verified Social account summoning. */
-export type SummonViewer = MutualViewer & { accountId: string };
+export type SummonViewer = MateViewer;
 
 /** The most mutuals one list read checks, so a large follow graph stays a bounded read. */
 const SUMMON_MUTUALS_CHECKED = 60;
@@ -42,22 +37,6 @@ export type SummonDependencies = {
   /** One direct message with the pub attached. False when it did not land. */
   deliver(sender: string, mate: string, body: string, venueId: string): Promise<boolean>;
 };
-
-async function eitherMutes(viewer: SummonViewer, handle: string): Promise<boolean> {
-  const mate = await profileStore().getByHandle(handle);
-  if (!mate || isProfileTombstoned(mate)) return true;
-  const store = socialInteractionStore();
-  const [mine, theirs] = await Promise.all([
-    store.relationship(
-      { accountId: viewer.accountId, profileId: viewer.profileId, handle: viewer.handle },
-      mate.id,
-    ),
-    // The relationship read keys on the profile alone; the mate's account id
-    // is not read by it.
-    store.relationship({ accountId: "", profileId: mate.id, handle: mate.handle }, viewer.profileId),
-  ]);
-  return mine.muted || theirs.muted;
-}
 
 async function lookupPub(venueId: string): Promise<SummonPub> {
   const lookup = await lookupCanonicalVenue(venueId);
@@ -83,20 +62,8 @@ const defaultDependencies = (): SummonDependencies => ({
   deliver,
 });
 
-async function summonable(
-  viewer: SummonViewer,
-  handle: string,
-  deps: SummonDependencies,
-): Promise<boolean> {
-  const mate = await profileStore().getByHandle(handle);
-  if (!mate || !mate.userId || isProfileTombstoned(mate)) return false;
-  if (mate.id === viewer.profileId || socialMemoryBlocked(viewer.profileId, mate.id)) return false;
-  if (isSupabaseConfigured()) {
-    const relationship = await socialRelationshipBetweenProfiles(viewer.profileId, mate.id);
-    if (relationship === "unavailable") throw new Error("Summon relationship unavailable");
-    if (relationship !== "mutual") return false;
-  }
-  return !(await deps.eitherMutes(viewer, handle));
+function summonable(viewer: SummonViewer, handle: string, deps: SummonDependencies): Promise<boolean> {
+  return isUnmutedMate(viewer, handle, deps.eitherMutes);
 }
 
 /** The mates this viewer may summon, sorted by handle. */

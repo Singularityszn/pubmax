@@ -84,7 +84,7 @@ Lead with the positioning line, then the job, then the honesty bar. Keep it unde
 >   default, nothing public unless you share it.
 > - Heritage worth the walk: one sourced fact per historic pub, never invented.
 >
-> What we stand for: the pub as a third place, not a leaderboard. A great night
+> What we stand for: the pub as a third place. A great night
 > is measured by the life around the drink, never by how much you drank. No ads,
 > no paywalls, honest data always.
 

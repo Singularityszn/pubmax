@@ -43,6 +43,10 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your own profile also shows **Points**, your level, and the points needed for the next level. Open **How points work** for the scoring rules from [`lib/points.ts`](lib/points.ts). Only you can read your breakdown. If some records fail to load, the card warns that the total may be low.
 
+  Open **See you and your mates** from your points card or Social to reach `/social/leaderboard`. The board ranks you and your mutual follows by all-time points and shows each person's level. Equal totals share a place. Blocks, mutes and withdrawn handles exclude mates. A private profile can appear to its mutual mates.
+
+  The board checks your first 50 mutual follows by handle and says when that limit applies. If some records fail to load, it warns that totals may be low. A failed relationship or moderation check makes the board unavailable. **Back to Social** returns to Social.
+
   In **Private account details**, you can correct your date of birth. If your stored date currently says you are under 18, you cannot change it to an adult date here. That refused save changes none of your private details. Other valid date corrections remain available. If the restriction blocks a genuine correction, contact [support](https://pubmaxxing.com/privacy#contact).
 
   If your profile cannot load pints, choose **Retry** to request them again. The button stays unavailable while the request runs.

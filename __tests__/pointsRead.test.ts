@@ -6,7 +6,7 @@ import { promises as fs } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { readPointsBreakdown, readProfilePoints, type PointsDeps } from "@/lib/points.server";
+import { readPointsBreakdown, readPointsStanding, readProfilePoints, type PointsDeps } from "@/lib/points.server";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { resetVenueAliasesForTests } from "@/lib/venueAliases";
 import * as venueIndex from "@/lib/venueIndex";
@@ -149,6 +149,41 @@ describe("readPointsBreakdown", () => {
       indexRead.mockRestore();
       resetVenueAliasesForTests();
     }
+  });
+});
+
+describe("readPointsStanding", () => {
+  it("ranks all records with the existing points and level", async () => {
+    const standing = await readPointsStanding(OWNER, deps("u-owner"));
+    expect(standing).toEqual({ status: "ready", total: 1150, level: 6 });
+  });
+
+  it("preserves points when a dated visit is also saved to Been here", async () => {
+    const records = deps("u-owner", {
+      diary: async () => [{ venueId: "lamb", venueName: "The Lamb", date: "2026-11-13", source: "diary" }],
+      drops: async () => [],
+      plans: async () => [],
+      beenHere: async () => [],
+      addedPubs: async () => 0,
+      fixedPubs: async () => 0,
+      drinkReviews: async () => 0,
+      londonDistricts: async () => new Map(),
+    });
+    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 10, level: 1 });
+    records.beenHere = async () => [{ venueId: "lamb", venueName: "The Lamb" }];
+    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 10, level: 1 });
+  });
+
+  it("preserves degraded status when a record read fails", async () => {
+    const standing = await readPointsStanding(
+      OWNER,
+      deps("u-owner", {
+        addedPubs: async () => {
+          throw new Error("submissions unavailable");
+        },
+      }),
+    );
+    expect(standing).toEqual({ status: "degraded", total: 1130, level: 6 });
   });
 });
 
