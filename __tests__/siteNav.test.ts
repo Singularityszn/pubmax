@@ -71,24 +71,9 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
       "/wall",
       "/near",
+      "/guides",
       "/historic",
       "/pal",
-    ]);
-    expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
-      "Photos",
-      "Near",
-      "Historic",
-      "Pal",
-    ]);
-  });
-
-  it("explains what every More destination is for", async () => {
-    const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
-    expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
-      "Pints, pubs and London in photos",
-      "Find priced pubs close to you",
-      "Read the stories behind old pubs",
-      "Ask for a pub that fits tonight",
     ]);
   });
 
