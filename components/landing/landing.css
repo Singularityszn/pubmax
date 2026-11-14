@@ -42,7 +42,7 @@ body:has(.lp) {
   min-height: 64px;
   padding: 8px 10px 8px 16px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 18px;
   /* A solid raised surface with a hairline. The glass blur is gone: it was
@@ -76,8 +76,9 @@ body:has(.lp) {
 
 .lpWordmark .pubmaxxWordmark { max-width: 100%; }
 
-.lpPrimaryNav { display: flex; justify-content: flex-start; align-items: center; gap: 2px; }
+.lpPrimaryNav { min-width: 0; display: flex; justify-content: flex-start; align-items: center; gap: 2px; overflow-x: auto; scrollbar-width: thin; }
 .lpPrimaryNav a {
+  flex-shrink: 0;
   min-height: 44px;
   padding: 0 12px;
   display: inline-flex;
@@ -88,6 +89,7 @@ body:has(.lp) {
   font-weight: 600;
   text-decoration: none;
 }
+.lpPrimaryNav a:focus-visible { outline-offset: -3px; }
 @media (hover: hover) and (pointer: fine) {
   .lpPrimaryNav a:hover {
     color: var(--ink);
@@ -594,6 +596,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpNav { gap: 10px; padding-left: 12px; }
   .lpPrimaryNav { gap: 0; }
   .lpPrimaryNav a { padding: 0 6px; font-size: var(--text-xs); }
+  .lpNavActions .siteNavMoment { display: none; }
 }
 
 /* Under 641px the five-tab dock owns primary navigation, so the link row goes. */
