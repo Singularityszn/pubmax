@@ -7,15 +7,15 @@ export type OutingStepsStatus = { available: boolean; permission: OutingStepsPer
 type OutingStepsPlugin = {
   status: () => Promise<unknown>;
   requestPermission: () => Promise<unknown>;
-  sample: (input: { since: number; until: number }) => Promise<unknown>;
-  stop: (session: { since: number }) => Promise<void>;
+  sample: (input: { since: number; until: number; session: string }) => Promise<unknown>;
+  stop: (input: { session: string }) => Promise<void>;
 };
 
 export type OutingStepsBridge = {
   status: () => Promise<OutingStepsStatus>;
   requestPermission: () => Promise<OutingStepsStatus>;
-  sample: (window: { since: number; until: number }) => Promise<OutingStepsSample | null>;
-  stop: (session: { since: number }) => Promise<void>;
+  sample: (window: { since: number; until: number; session: string }) => Promise<OutingStepsSample | null>;
+  stop: (input: { session: string }) => Promise<void>;
 };
 
 const PERMISSIONS = new Set<OutingStepsPermission>(["granted", "denied", "prompt"]);
@@ -45,7 +45,7 @@ async function loadPlugin(): Promise<OutingStepsPlugin | null> {
     status: () => plugin.status(),
     requestPermission: () => plugin.requestPermission(),
     sample: (input) => plugin.sample(input),
-    stop: (session) => plugin.stop(session),
+    stop: (input) => plugin.stop(input),
   };
 }
 
@@ -62,6 +62,6 @@ export async function loadOutingStepsBridge(
     status: async () => parseStatus(await native.status()),
     requestPermission: async () => parseStatus(await native.requestPermission()),
     sample: async (window) => parseOutingStepsSample(await native.sample(window)),
-    stop: async (session) => { try { await native.stop(session); } catch { /* Nothing is listening. */ } },
+    stop: async (input) => { try { await native.stop(input); } catch { /* Nothing is listening. */ } },
   };
 }

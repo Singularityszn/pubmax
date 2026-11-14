@@ -59,7 +59,7 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     writeOutingSteps(next);
     setState(next);
     // Android keeps a sensor listener between readings. Release it whenever nothing is counting.
-    if (previous.phase === "counting" && next.phase !== "counting") void bridge?.stop({ since: previous.startedAt });
+    if (previous.phase === "counting" && next.phase !== "counting") void bridge?.stop({ session: previous.session });
   }, [bridge, ownerSignal]);
 
   const read = useCallback(async () => {
@@ -99,7 +99,7 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     if (current.phase !== "counting") return;
     setBusy("stopping");
     await read();
-    apply({ type: "stop", startedAt: current.startedAt, at: Date.now() });
+    apply({ type: "stop", session: current.session, at: Date.now() });
     setBusy(null);
   }
 

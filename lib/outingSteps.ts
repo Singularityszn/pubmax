@@ -4,6 +4,9 @@
 
 export const OUTING_STEPS_MAX_MS = 12 * 60 * 60 * 1000;
 export const OUTING_STEPS_STORAGE_KEY = "pubmax:outing-steps:v1";
+const SESSION_TOKEN = /^[A-Za-z0-9-]{16,64}$/;
+
+export const isOutingStepsSession = (value: unknown): value is string => typeof value === "string" && SESSION_TOKEN.test(value);
 
 /**
  * iOS asks Core Motion for the total between two times, so a reading survives
@@ -18,13 +21,13 @@ type AndroidCounter = { bootCount: number; baseline: number | null; carried: num
 
 export type OutingStepsState =
   | { phase: "off" }
-  | { phase: "counting"; planId: string; owner: string | null; startedAt: number; steps: number; gap: boolean; counter: AndroidCounter | null }
-  | { phase: "stopped"; planId: string; owner: string | null; startedAt: number; endedAt: number; steps: number; gap: boolean };
+  | { phase: "counting"; planId: string; owner: string | null; session: string; startedAt: number; steps: number; gap: boolean; counter: AndroidCounter | null }
+  | { phase: "stopped"; planId: string; owner: string | null; session: string; startedAt: number; endedAt: number; steps: number; gap: boolean };
 
 export type OutingStepsEvent =
-  | { type: "start"; planId: string; owner: string | null; at: number; sample: OutingStepsSample }
-  | { type: "sample"; startedAt: number; at: number; sample: OutingStepsSample }
-  | { type: "stop"; startedAt: number; at: number }
+  | { type: "start"; planId: string; owner: string | null; session: string; at: number; sample: OutingStepsSample }
+  | { type: "sample"; session: string; at: number; sample: OutingStepsSample }
+  | { type: "stop"; session: string; at: number }
   | { type: "clear" };
 
 type Counting = Extract<OutingStepsState, { phase: "counting" }>;
@@ -34,7 +37,7 @@ const isCount = (value: unknown): value is number => typeof value === "number" &
 const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 
 function finish(state: Counting, endedAt: number, steps: number, gap: boolean): OutingStepsState {
-  return { phase: "stopped", planId: state.planId, owner: state.owner, startedAt: state.startedAt, endedAt, steps, gap };
+  return { phase: "stopped", planId: state.planId, owner: state.owner, session: state.session, startedAt: state.startedAt, endedAt, steps, gap };
 }
 
 function sameCounting(a: Counting, b: Counting): boolean {
@@ -79,16 +82,16 @@ function readSample(state: Counting, at: number, sample: OutingStepsSample): Out
 export function transitionOutingSteps(state: OutingStepsState, event: OutingStepsEvent): OutingStepsState {
   switch (event.type) {
     case "start": {
-      if (state.phase === "counting") return state;
+      if (state.phase === "counting" || !isOutingStepsSession(event.session)) return state;
       const counter = event.sample.platform === "android"
         ? { bootCount: event.sample.bootCount, baseline: isCount(event.sample.counter) ? event.sample.counter : null, carried: 0, last: isCount(event.sample.counter) ? event.sample.counter : null }
         : null;
-      return { phase: "counting", planId: event.planId, owner: event.owner, startedAt: event.at, steps: 0, gap: false, counter };
+      return { phase: "counting", planId: event.planId, owner: event.owner, session: event.session, startedAt: event.at, steps: 0, gap: false, counter };
     }
     case "sample":
-      return state.phase === "counting" && state.startedAt === event.startedAt ? readSample(state, event.at, event.sample) : state;
+      return state.phase === "counting" && state.session === event.session ? readSample(state, event.at, event.sample) : state;
     case "stop":
-      if (state.phase !== "counting" || state.startedAt !== event.startedAt) return state;
+      if (state.phase !== "counting" || state.session !== event.session) return state;
       return finish(state, Math.min(event.at, state.startedAt + OUTING_STEPS_MAX_MS), state.steps, state.gap);
     case "clear":
       return state.phase === "off" ? state : OFF;
@@ -100,9 +103,9 @@ export function transitionOutingSteps(state: OutingStepsState, event: OutingStep
 }
 
 /** The span iOS should total. Null when nothing is counting. */
-export function outingStepsWindow(state: OutingStepsState, now: number): { since: number; until: number } | null {
+export function outingStepsWindow(state: OutingStepsState, now: number): { since: number; until: number; session: string } | null {
   if (state.phase !== "counting") return null;
-  return { since: state.startedAt, until: Math.max(state.startedAt, Math.min(now, state.startedAt + OUTING_STEPS_MAX_MS)) };
+  return { since: state.startedAt, until: Math.max(state.startedAt, Math.min(now, state.startedAt + OUTING_STEPS_MAX_MS)), session: state.session };
 }
 
 export function serializeOutingSteps(state: OutingStepsState): string | null {
@@ -123,12 +126,12 @@ export function parseOutingSteps(raw: string | null, owner: string | null): Outi
   try { value = JSON.parse(raw); } catch { return OFF; }
   if (!value || typeof value !== "object" || Array.isArray(value)) return OFF;
   const row = value as Record<string, unknown>;
-  const { planId, startedAt, steps, gap } = row;
-  if (row.v !== 1 || row.owner !== owner || typeof planId !== "string" || !planId || !isTime(startedAt) || !isCount(steps) || typeof gap !== "boolean") return OFF;
+  const { planId, session, startedAt, steps, gap } = row;
+  if (row.v !== 1 || row.owner !== owner || !isOutingStepsSession(session) || typeof planId !== "string" || !planId || !isTime(startedAt) || !isCount(steps) || typeof gap !== "boolean") return OFF;
   if (row.phase === "stopped") {
-    return isTime(row.endedAt) && row.endedAt >= startedAt ? { phase: "stopped", planId, owner, startedAt, endedAt: row.endedAt, steps, gap } : OFF;
+    return isTime(row.endedAt) && row.endedAt >= startedAt ? { phase: "stopped", planId, owner, session, startedAt, endedAt: row.endedAt, steps, gap } : OFF;
   }
   if (row.phase !== "counting") return OFF;
   const counter = parseCounter(row.counter);
-  return counter === undefined ? OFF : { phase: "counting", planId, owner, startedAt, steps, gap, counter };
+  return counter === undefined ? OFF : { phase: "counting", planId, owner, session, startedAt, steps, gap, counter };
 }

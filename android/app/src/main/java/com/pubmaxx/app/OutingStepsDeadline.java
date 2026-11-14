@@ -1,6 +1,7 @@
 package com.pubmaxx.app;
 
 import java.util.function.LongSupplier;
+import java.util.regex.Pattern;
 
 final class OutingStepsDeadline {
 
@@ -12,35 +13,45 @@ final class OutingStepsDeadline {
 
     static final long MAX_SPAN_MS = 12L * 60L * 60L * 1000L;
     private static final long CLOCK_SLACK_MS = 60_000L;
+    private static final Pattern SESSION = Pattern.compile("[A-Za-z0-9-]{16,64}");
 
     private final LongSupplier wallClock;
     private final LongSupplier elapsedClock;
     private boolean armed;
     private long since;
+    private String session;
     private long deadlineElapsed;
-    private long expiredSince;
+    private String expiredSession;
 
     OutingStepsDeadline(LongSupplier wallClock, LongSupplier elapsedClock) {
         this.wallClock = wallClock;
         this.elapsedClock = elapsedClock;
     }
 
-    Verdict admit(long windowSince, long windowUntil) {
+    static boolean validSession(String value) {
+        return value != null && SESSION.matcher(value).matches();
+    }
+
+    Verdict admit(long windowSince, long windowUntil, String windowSession) {
         long now = wallClock.getAsLong();
-        if (windowSince <= 0 || windowUntil < windowSince || windowUntil - windowSince > MAX_SPAN_MS
+        if (!validSession(windowSession) || windowSince <= 0 || windowUntil < windowSince || windowUntil - windowSince > MAX_SPAN_MS
             || windowSince > now + CLOCK_SLACK_MS || windowUntil > now + CLOCK_SLACK_MS) {
             return Verdict.INVALID;
         }
-        if (windowSince == expiredSince) return Verdict.EXPIRED;
-        if (armed && windowSince == since) return expired() ? Verdict.EXPIRED : Verdict.OK;
+        if (windowSession.equals(expiredSession)) return Verdict.EXPIRED;
+        if (armed && windowSession.equals(session)) {
+            if (windowSince != since) return Verdict.INVALID;
+            return expired() ? Verdict.EXPIRED : Verdict.OK;
+        }
         long remaining = windowSince + MAX_SPAN_MS - now;
         if (remaining <= 0) {
-            expiredSince = windowSince;
+            expiredSession = windowSession;
             disarm();
             return Verdict.EXPIRED;
         }
         armed = true;
         since = windowSince;
+        session = windowSession;
         deadlineElapsed = elapsedClock.getAsLong() + Math.min(remaining, MAX_SPAN_MS);
         return Verdict.OK;
     }
@@ -49,8 +60,8 @@ final class OutingStepsDeadline {
         return armed;
     }
 
-    boolean owns(long windowSince) {
-        return armed && windowSince == since;
+    boolean owns(String windowSession) {
+        return armed && windowSession != null && windowSession.equals(session);
     }
 
     boolean expired() {
@@ -62,13 +73,14 @@ final class OutingStepsDeadline {
     }
 
     void expire() {
-        if (armed) expiredSince = since;
+        if (armed) expiredSession = session;
         disarm();
     }
 
     void disarm() {
         armed = false;
         since = 0L;
+        session = null;
         deadlineElapsed = 0L;
     }
 }

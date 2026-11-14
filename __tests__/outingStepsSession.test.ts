@@ -9,6 +9,7 @@ import { beginOutingSteps, readOutingSteps, readOutingStepsEvent, writeOutingSte
 
 const T0 = Date.UTC(2026, 10, 14, 19, 0);
 const OFF: OutingStepsState = { phase: "off" };
+const TOKEN_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 function deferred<T>() {
   let resolve!: (value: T) => void;
@@ -46,8 +47,10 @@ describe("private counts and account changes", () => {
   it("never shows one account's count to another account on the same Plan", async () => {
     const bridge = fakeBridge();
     shared.bridge = bridge;
-    const counted = transitionOutingSteps(await startFor("acct-a", bridge), {
-      type: "sample", startedAt: T0, at: T0 + 60_000, sample: { platform: "android", counter: 10_900, bootCount: 7, continuous: true },
+    const started = await startFor("acct-a", bridge);
+    if (started.phase !== "counting") throw new Error("expected counting");
+    const counted = transitionOutingSteps(started, {
+      type: "sample", session: started.session, at: T0 + 60_000, sample: { platform: "android", counter: 10_900, bootCount: 7, continuous: true },
     });
     writeOutingSteps(counted);
 
@@ -57,7 +60,7 @@ describe("private counts and account changes", () => {
 
     clearDeviceAccountSessionArtifacts(window.sessionStorage);
     expect(window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
-    await vi.waitFor(() => expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 }));
+    await vi.waitFor(() => expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ session: started.session }));
 
     const joined = await startFor("acct-b", bridge, T0 + 120_000);
     expect(joined).toMatchObject({ phase: "counting", planId: "p1", owner: "acct-b", steps: 0 });
@@ -68,14 +71,14 @@ describe("private counts and account changes", () => {
     const pending = deferred<{ platform: "android"; counter: number; bootCount: number; continuous: boolean }>();
     const bridge = fakeBridge({ sample: vi.fn(() => pending.promise) });
     const account = new AbortController();
-    const outcome = beginOutingSteps(bridge, { planId: "p1", owner: "acct-a", signal: account.signal, now: () => T0 });
+    const outcome = beginOutingSteps(bridge, { planId: "p1", owner: "acct-a", signal: account.signal, now: () => T0, mintSession: () => TOKEN_A });
     await vi.waitFor(() => expect(bridge.sample).toHaveBeenCalled());
 
     account.abort();
     pending.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
-    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
+    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ session: TOKEN_A });
     expect(window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
   });
 
@@ -83,7 +86,7 @@ describe("private counts and account changes", () => {
     const pending = deferred<{ platform: "android"; counter: number; bootCount: number; continuous: boolean }>();
     const oldBridge = fakeBridge({ sample: vi.fn(() => pending.promise) });
     const account = new AbortController();
-    const outcome = beginOutingSteps(oldBridge, { planId: "p1", owner: "acct-a", signal: account.signal, now: () => T0 });
+    const outcome = beginOutingSteps(oldBridge, { planId: "p1", owner: "acct-a", signal: account.signal, now: () => T0, mintSession: () => TOKEN_A });
     await vi.waitFor(() => expect(oldBridge.sample).toHaveBeenCalled());
 
     account.abort();
@@ -91,20 +94,26 @@ describe("private counts and account changes", () => {
     pending.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
-    expect(oldBridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
+    expect(oldBridge.stop).toHaveBeenCalledExactlyOnceWith({ session: TOKEN_A });
     expect(readOutingSteps("acct-b")).toMatchObject({ phase: "counting", owner: "acct-b" });
   });
 
-  it("lets an old account's late stop release only its own session, not a newer start", async () => {
-    let armed: number | null = null;
+  it.each([
+    ["a later millisecond", T0 + 5_000],
+    ["the same millisecond", T0],
+  ])("keeps a newer account's listener when its start reads %s", async (_label, newAt) => {
+    let armed: Record<string, unknown> | null = null;
+    let readings = 0;
     const oldReading = deferred<{ platform: "android"; counter: number; bootCount: number; continuous: boolean }>();
     const native = fakeBridge({
-      sample: vi.fn(({ since }: { since: number; until: number }) => {
-        armed = since;
-        return since === T0 ? oldReading.promise : Promise.resolve({ platform: "android" as const, counter: 500, bootCount: 7, continuous: false });
+      sample: vi.fn((payload: Record<string, unknown>) => {
+        readings += 1;
+        const first = readings === 1;
+        armed = { ...payload };
+        return first ? oldReading.promise : Promise.resolve({ platform: "android" as const, counter: 500, bootCount: 7, continuous: false });
       }),
-      stop: vi.fn(async (session?: { since: number }) => {
-        if (!session || session.since === armed) armed = null;
+      stop: vi.fn(async (payload: Record<string, unknown>) => {
+        if (armed && Object.entries(payload).every(([key, value]) => armed?.[key] === value)) armed = null;
       }),
     });
     const accountA = new AbortController();
@@ -112,13 +121,15 @@ describe("private counts and account changes", () => {
     await vi.waitFor(() => expect(native.sample).toHaveBeenCalledOnce());
 
     accountA.abort();
-    const newStart = await beginOutingSteps(native, { planId: "p1", owner: "acct-b", signal: new AbortController().signal, now: () => T0 + 5_000 });
+    const newStart = await beginOutingSteps(native, { planId: "p1", owner: "acct-b", signal: new AbortController().signal, now: () => newAt });
     expect(newStart.kind).toBe("started");
+    const newArmed = armed;
     oldReading.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
 
     await expect(oldStart).resolves.toEqual({ kind: "stale" });
-    expect(native.stop).toHaveBeenCalledWith({ since: T0 });
-    expect(armed).toBe(T0 + 5_000);
+    await vi.waitFor(() => expect(native.stop).toHaveBeenCalledOnce());
+    expect(armed).not.toBeNull();
+    expect(armed).toEqual(newArmed);
   });
 
   it("drops a permission answer that arrives after the account changed", async () => {
@@ -150,7 +161,7 @@ describe("private counts and account changes", () => {
     pending.resolve({ platform: "android", counter: 10_700, bootCount: 7, continuous: true });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
-    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
+    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ session: state.phase === "counting" ? state.session : "" });
   });
 });
 
@@ -159,6 +170,6 @@ describe("native expiry", () => {
     const state = await startFor("acct-a", fakeBridge());
     const bridge = fakeBridge({ sample: vi.fn(async () => { throw Object.assign(new Error("expired"), { code: "expired" }); }) });
     const outcome = await readOutingStepsEvent(bridge, state, { signal: new AbortController().signal, now: () => T0 + 90_000 });
-    expect(outcome).toEqual({ kind: "event", event: { type: "stop", startedAt: T0, at: T0 + 90_000 } });
+    expect(outcome).toEqual({ kind: "event", event: { type: "stop", session: state.phase === "counting" ? state.session : "", at: T0 + 90_000 } });
   });
 });

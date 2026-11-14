@@ -1,5 +1,6 @@
 import Capacitor
 import CoreMotion
+import Foundation
 
 /// Totals the steps Core Motion recorded between two times. The system keeps that
 /// record for about seven days, so a total survives suspension, termination and reboot.
@@ -16,6 +17,11 @@ public final class OutingStepsPlugin: CAPPlugin, CAPBridgedPlugin {
     private let pedometer = CMPedometer()
     private static let maxSpan: TimeInterval = 12 * 60 * 60
     private static let historyLimit: TimeInterval = 7 * 24 * 60 * 60
+
+    private static func validSession(_ value: String?) -> Bool {
+        guard let value, (16...64).contains(value.count) else { return false }
+        return value.unicodeScalars.allSatisfy { $0.isASCII && (CharacterSet.alphanumerics.contains($0) || $0 == "-") }
+    }
 
     private static func statusPayload() -> [String: Any] {
         let permission: String
@@ -45,8 +51,9 @@ public final class OutingStepsPlugin: CAPPlugin, CAPBridgedPlugin {
 
     @objc func sample(_ call: CAPPluginCall) {
         let now = Date()
-        guard let sinceMs = call.getDouble("since"), let untilMs = call.getDouble("until") else {
-            call.reject("A step window needs a start and an end.", "invalid")
+        guard let sinceMs = call.getDouble("since"), let untilMs = call.getDouble("until"),
+              Self.validSession(call.getString("session")) else {
+            call.reject("A step window needs a start, an end and a session.", "invalid")
             return
         }
         let since = Date(timeIntervalSince1970: sinceMs / 1000)
@@ -77,6 +84,10 @@ public final class OutingStepsPlugin: CAPPlugin, CAPBridgedPlugin {
     }
 
     @objc func stop(_ call: CAPPluginCall) {
+        guard Self.validSession(call.getString("session")) else {
+            call.reject("Stopping needs the session.", "invalid")
+            return
+        }
         // Nothing listens between readings on iOS, so there is nothing to release.
         call.resolve()
     }

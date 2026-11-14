@@ -1,5 +1,6 @@
 import { loadOutingStepsBridge, type OutingStepsBridge, type OutingStepsStatus } from "@/lib/nativeOutingSteps";
 import {
+  isOutingStepsSession,
   OUTING_STEPS_STORAGE_KEY,
   outingStepsWindow,
   parseOutingSteps,
@@ -16,6 +17,12 @@ export type OutingStepsBegin = { kind: "started"; event: Extract<OutingStepsEven
 export type OutingStepsRead = { kind: "event"; event: OutingStepsEvent } | { kind: "none" } | Refused | Stale | Failed;
 
 type Scope = { signal: AbortSignal; now: () => number };
+
+function mintOutingStepsSession(): string {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 const OFF: OutingStepsState = { phase: "off" };
 const STALE: Stale = { kind: "stale" };
@@ -47,19 +54,19 @@ export function writeOutingSteps(state: OutingStepsState): void {
   } catch { /* Storage can be full or blocked. The count still shows until the page closes. */ }
 }
 
-function countingSince(): number | null {
+function countingSession(): string | null {
   try {
-    const row = JSON.parse(localStore()?.getItem(OUTING_STEPS_STORAGE_KEY) ?? "null") as { phase?: unknown; startedAt?: unknown } | null;
-    return row?.phase === "counting" && typeof row.startedAt === "number" ? row.startedAt : null;
+    const row = JSON.parse(localStore()?.getItem(OUTING_STEPS_STORAGE_KEY) ?? "null") as { phase?: unknown; session?: unknown } | null;
+    return row?.phase === "counting" && isOutingStepsSession(row.session) ? row.session : null;
   } catch {
     return null;
   }
 }
 
 export function forgetOutingSteps(): void {
-  const since = countingSince();
+  const session = countingSession();
   try { localStore()?.removeItem(OUTING_STEPS_STORAGE_KEY); } catch {}
-  if (since !== null) void loadOutingStepsBridge().then((bridge) => bridge?.stop({ since })).catch(() => {});
+  if (session !== null) void loadOutingStepsBridge().then((bridge) => bridge?.stop({ session })).catch(() => {});
 }
 
 async function refusal(bridge: OutingStepsBridge, error: unknown): Promise<Refused | Failed> {
@@ -70,7 +77,7 @@ async function refusal(bridge: OutingStepsBridge, error: unknown): Promise<Refus
 
 export async function beginOutingSteps(
   bridge: OutingStepsBridge,
-  { planId, owner, signal, now }: Scope & { planId: string; owner: string | null },
+  { planId, owner, signal, now, mintSession = mintOutingStepsSession }: Scope & { planId: string; owner: string | null; mintSession?: () => string },
 ): Promise<OutingStepsBegin> {
   try {
     let status = await bridge.status();
@@ -79,12 +86,13 @@ export async function beginOutingSteps(
     if (signal.aborted) return STALE;
     if (!status.available || status.permission !== "granted") return { kind: "refused", status };
     const at = now();
-    const sample = await bridge.sample({ since: at, until: at });
+    const session = mintSession();
+    const sample = await bridge.sample({ since: at, until: at, session });
     if (signal.aborted) {
-      void bridge.stop({ since: at });
+      void bridge.stop({ session });
       return STALE;
     }
-    return sample ? { kind: "started", event: { type: "start", planId, owner, at, sample } } : FAILED;
+    return sample ? { kind: "started", event: { type: "start", planId, owner, session, at, sample } } : FAILED;
   } catch (error) {
     return signal.aborted ? STALE : refusal(bridge, error);
   }
@@ -96,13 +104,13 @@ export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: Out
   try {
     const sample = await bridge.sample(window);
     if (signal.aborted) {
-      void bridge.stop({ since: state.startedAt });
+      void bridge.stop({ session: state.session });
       return STALE;
     }
-    return sample ? { kind: "event", event: { type: "sample", startedAt: state.startedAt, at: now(), sample } } : { kind: "none" };
+    return sample ? { kind: "event", event: { type: "sample", session: state.session, at: now(), sample } } : { kind: "none" };
   } catch (error) {
     if (signal.aborted) return STALE;
-    if (errorCode(error) === "expired") return { kind: "event", event: { type: "stop", startedAt: state.startedAt, at: now() } };
+    if (errorCode(error) === "expired") return { kind: "event", event: { type: "stop", session: state.session, at: now() } };
     return refusal(bridge, error);
   }
 }

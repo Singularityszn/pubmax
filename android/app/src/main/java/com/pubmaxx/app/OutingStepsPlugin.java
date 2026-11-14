@@ -98,12 +98,13 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
         }
         Double since = call.getDouble("since");
         Double until = call.getDouble("until");
-        if (since == null || until == null) {
-            call.reject("A step window needs a start and an end.", "invalid");
+        String session = call.getString("session");
+        if (since == null || until == null || !OutingStepsDeadline.validSession(session)) {
+            call.reject("A step window needs a start, an end and a session.", "invalid");
             return;
         }
         main.post(() -> {
-            OutingStepsDeadline.Verdict verdict = deadline.admit(since.longValue(), until.longValue());
+            OutingStepsDeadline.Verdict verdict = deadline.admit(since.longValue(), until.longValue(), session);
             if (verdict == OutingStepsDeadline.Verdict.INVALID) {
                 call.reject("That step window cannot be read.", "invalid");
                 return;
@@ -136,13 +137,13 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
 
     @PluginMethod
     public void stop(PluginCall call) {
-        Double since = call.getDouble("since");
-        if (since == null) {
-            call.reject("Stopping needs the session start.", "invalid");
+        String session = call.getString("session");
+        if (!OutingStepsDeadline.validSession(session)) {
+            call.reject("Stopping needs the session.", "invalid");
             return;
         }
         main.post(() -> {
-            if (deadline.owns(since.longValue())) release(false);
+            if (deadline.owns(session)) release(false);
             call.resolve();
         });
     }

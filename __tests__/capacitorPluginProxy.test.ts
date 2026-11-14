@@ -113,8 +113,9 @@ describe("every default plugin loader survives the real plugin's shape", () => {
   it("reads measured steps through the local step plugin", async () => {
     const bridge = await loadOutingStepsBridge(native);
     await expect(bridge?.status()).resolves.toEqual({ available: true, permission: "granted" });
-    await expect(bridge?.sample({ since: 1, until: 2 })).resolves.toEqual({ platform: "ios", steps: 42 });
-    expect(stepSample).toHaveBeenCalledWith({ since: 1, until: 2 });
+    const window = { since: 1, until: 2, session: "11111111-1111-4111-8111-111111111111" };
+    await expect(bridge?.sample(window)).resolves.toEqual({ platform: "ios", steps: 42 });
+    expect(stepSample).toHaveBeenCalledWith(window);
   });
 });
 
