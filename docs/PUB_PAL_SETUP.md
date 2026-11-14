@@ -298,11 +298,15 @@ Voice uses the same opening builder in its first-message override.
    Typed chat answers from its records, never from model prose. On Claude and
    ElevenLabs alike, the model chooses tools, and `palChatAnswer` in
    `lib/palElevenLabsChat.server.ts` writes the message from the stored hints
-   and cards. A turn that ran no tool gets the opening question. The model
-   text is not sent, so the agent cannot add a pub name, a feature or a figure.
-   A caller that sends `Accept: application/x-ndjson` to `/api/pub-pal/chat`
-   gets one `final` line carrying the same body the JSON path returns, cards
-   and proposals included. Sign-in, the rate limit and the spend ceiling answer
+   and cards. A turn with only a memory card points to the card. A turn that
+   ran no tool gets a reply from `lib/palRecordReply.ts`: a crawl asks for the
+   area or start time it lacks, a memory question lists confirmed memories, and
+   a greeting or thanks gets its usual line. The model text is not sent, so the
+   agent cannot add a pub name, a feature or a figure. A memory card holds only
+   words the person said in this chat. A caller that sends
+   `Accept: application/x-ndjson` to `/api/pub-pal/chat` gets a fixed progress
+   line as each tool starts, then one `final` line carrying the same body the
+   JSON path returns, cards and proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
    One more webhook, `recall_memories`, is Pal-only.
    [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns

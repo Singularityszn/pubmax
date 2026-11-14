@@ -10,7 +10,7 @@ import {
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
-import { palOpeningMessage } from "@/lib/palOpening";
+import { palNoRecordReply, palProposalReply } from "@/lib/palRecordReply";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
@@ -148,6 +148,7 @@ export type PalElevenLabsChatInput = {
   /** Browser-sent user turns. They may only add a get-home fence, never reach the model or the store. */
   fenceTurns?: PubPalFenceTurn[];
   ownerId: string;
+  onTool?: (tool: string) => void;
   /** Ends the turn and closes the agent socket, for a caller that has gone away. */
   signal?: AbortSignal;
 };
@@ -361,19 +362,24 @@ export async function preparePalChatProviderTurn(
 
 /**
  * The finished answer for every typed provider. Model prose never reaches the
- * person: the message is the stored tool hints and cards, the opening question
- * when no tool ran, else a plain nothing-sourced line.
+ * person: the message is the stored tool hints and cards, a memory card line,
+ * or a record-authored question about what the ask leaves out.
  */
 export function palChatAnswer(
   turn: PubPalToolTurn | null,
   conversationId: string,
+  memories?: PalRecalledMemory[] | null,
 ): Extract<PalElevenLabsChatOutcome, { ok: true }> {
   const cards = turn?.cards ?? [];
   const toolsUsed = turn?.toolsUsed ?? [];
-  const message = turn && toolsUsed.length === 0 && cards.length === 0 && turn.hints.length === 0
-    ? palOpeningMessage("")
-    : composeAnswer(turn?.hints ?? [], cards, toolsUsed);
-  return { ok: true, message, cards, proposals: turn?.proposals ?? [], conversationId, toolsUsed };
+  const proposals = turn?.proposals ?? [];
+  const recorded = cards.length > 0 || (turn?.hints.length ?? 0) > 0;
+  const message = recorded || !turn
+    ? composeAnswer(turn?.hints ?? [], cards, toolsUsed)
+    : palProposalReply(proposals) ?? (toolsUsed.length > 0
+      ? composeAnswer([], [], toolsUsed)
+      : palNoRecordReply(turn.query, turn.turns, memories));
+  return { ok: true, message, cards, proposals, conversationId, toolsUsed };
 }
 
 export async function runPalElevenLabsChatTurn(
@@ -459,7 +465,8 @@ export async function runPalElevenLabsChatTurn(
     // earlier replies. An end_call request or successful response preserves
     // an eligible farewell.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
-    const answer = (turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => palChatAnswer(turn, conversationId);
+    let confirmedMemories: PalRecalledMemory[] | null | undefined;
+    const answer = (turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => palChatAnswer(turn, conversationId, confirmedMemories);
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const clearSettle = () => {
       if (settleTimer) clearTimeout(settleTimer);
@@ -566,6 +573,7 @@ export async function runPalElevenLabsChatTurn(
             tasteRead,
           ]);
           if (settled || Date.now() >= deadline) return;
+          confirmedMemories = memories;
           userMessageSent = true;
           ws.send(
             JSON.stringify({ type: "user_message", text: palUserMessageText(query, prior, memories, taste) }),
@@ -650,6 +658,7 @@ export async function runPalElevenLabsChatTurn(
         toolEvents += 1;
         progress.toolRequest(payload);
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
+        if (payload.agent_tool_request?.tool_name) input.onTool?.(payload.agent_tool_request.tool_name);
         return;
       }
 

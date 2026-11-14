@@ -9,7 +9,9 @@ import type { PubPalMemory } from "@/lib/pubPal";
 import { getPubPalResult, listPalMemoriesResult } from "@/lib/pubPalStore";
 import {
   appendPubPalToolTurn,
+  readPubPalToolTurn,
   readPubPalToolTurnBinding,
+  type PubPalToolTurn,
   type PubPalToolTurnBinding,
 } from "@/lib/pubPalToolTurnStore";
 import { cleanText } from "@/lib/textClean";
@@ -18,6 +20,17 @@ import { cleanText } from "@/lib/textClean";
 export const PAL_PROPOSE_MEMORY_TOOL = "propose_memory";
 
 const PAL_PROPOSAL_VALUE_LIMIT = 200;
+
+function spokenWords(text: string): string {
+  return ` ${text.toLocaleLowerCase("en-GB").normalize("NFKC").replace(/['’]/g, "").replace(/[^\p{L}\p{N}£]+/gu, " ").trim()} `;
+}
+
+function personSaid(value: string, turn: PubPalToolTurn | null): boolean {
+  const words = spokenWords(value);
+  if (!turn || !words.trim()) return false;
+  return [turn.query, ...turn.turns.filter((line) => line.role === "user").map((line) => line.content)]
+    .some((line) => spokenWords(line).includes(words));
+}
 
 export type PalProposeMemoryToolResult = {
   result: {
@@ -80,6 +93,9 @@ export async function proposePalMemoryForConversation(
   const value = cleanText(args.value, PAL_PROPOSAL_VALUE_LIMIT);
   if (!isPubPalMemoryKind(memoryKind) || !value) {
     return refuse("Give one memory kind and a short value in the person's words. Nothing was saved.");
+  }
+  if (!personSaid(value, await readPubPalToolTurn(conversationId).catch(() => null))) {
+    return refuse("Use only words the person said in this chat for the memory. Nothing was saved.");
   }
 
   let confirmed: PubPalMemory[] = [];

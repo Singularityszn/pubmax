@@ -1200,13 +1200,14 @@ describe("runPalElevenLabsChatTurn", () => {
     });
 
     it("asks a birthday crawl with no tool for its area and start time", async () => {
-      wsState.storeFilled = false;
+      const query = "Plan a pub crawl for my birthday, six of us";
+      vi.mocked(readPubPalToolTurn).mockResolvedValueOnce({ ...toolTurnPayload, query, cards: [], toolsUsed: [] });
       wsState.replyScript = [
         { afterMs: 0, event: agentResponse("The Golden Lion is perfect.") },
         { afterMs: 0, event: responseComplete() },
       ];
 
-      const outcome = await runPalElevenLabsChatTurn({ query: "Plan a pub crawl for my birthday, six of us", ownerId: OWNER });
+      const outcome = await runPalElevenLabsChatTurn({ query, ownerId: OWNER });
 
       expect(outcome).toMatchObject({ ok: true, cards: [], toolsUsed: [] });
       expect(outcome.ok && outcome.message).toMatch(/which area/i);

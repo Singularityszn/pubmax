@@ -163,8 +163,10 @@ export async function runPalClaudeChatTurn(
   // never share a row.
   const conversationId = newPalLocalThreadId();
   let userText: string;
+  let memories: Awaited<typeof memoriesRead>;
   try {
-    const [, memories, taste] = await beforePalChatDeadline(deadline, () =>
+    let taste: Awaited<typeof tasteRead>;
+    [, memories, taste] = await beforePalChatDeadline(deadline, () =>
       Promise.all([
         registerPubPalToolTurn(conversationId, {
           deadline,
@@ -256,11 +258,12 @@ export async function runPalClaudeChatTurn(
             // A store that cannot be read in time costs the cards, never the
             // turn, as on the ElevenLabs path.
             const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId)).catch(() => null);
-            return palChatAnswer(turn, conversationId);
+            return palChatAnswer(turn, conversationId, memories);
           }
 
           // The whole assistant turn goes back, thinking blocks included.
           messages.push({ role: "assistant", content: message.content });
+          for (const use of toolUses) input.onTool?.(use.name);
           const results = await Promise.all(
             toolUses.map(async (use): Promise<Anthropic.ToolResultBlockParam> => {
               const args =
