@@ -404,6 +404,9 @@ The snapshot contains elapsed times, event counts, the pending tool count and re
 The [progress type](../lib/palChatDeadlineProgress.ts) defines the fields.
 Other failure stages and the Claude transport omit this snapshot.
 
+The Claude transport emits a private `pub_pal.chat_unsupported_claim` warning with the figure kinds
+when it refuses a reply that states a price, time, date or year that no tool result holds.
+
 The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
 It does not change the public error response or establish a provider failure's cause.
 

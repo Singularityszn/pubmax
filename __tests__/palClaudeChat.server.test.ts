@@ -347,10 +347,10 @@ describe("runPalClaudeChatTurn", () => {
     expect(bodies).toHaveLength(1);
   });
 
-  it("streams the reply, and clears text written before a tool call", async () => {
+  it("streams the reply a sentence at a time, and clears text written before a tool call", async () => {
     const { client } = fakeClient([
-      { content: [text("Checking."), toolUse("tu_1", "whats_on", { query: "quiz" })], stop_reason: "tool_use", deltas: ["Checking."] },
-      { content: [text("A quiz at The Crown.")], stop_reason: "end_turn", deltas: ["A quiz ", "at The Crown."] },
+      { content: [text("Checking. "), toolUse("tu_1", "whats_on", { query: "quiz" })], stop_reason: "tool_use", deltas: ["Check", "ing. "] },
+      { content: [text("A quiz at The Crown. Bring a pen.")], stop_reason: "end_turn", deltas: ["A quiz ", "at The Crown. Bring", " a pen."] },
     ]);
     const events: unknown[] = [];
 
@@ -363,8 +363,8 @@ describe("runPalClaudeChatTurn", () => {
     expect(events).toEqual([
       { type: "delta", text: "Checking." },
       { type: "reset" },
-      { type: "delta", text: "A quiz " },
-      { type: "delta", text: "at The Crown." },
+      { type: "delta", text: "A quiz at The Crown." },
+      { type: "delta", text: " Bring a pen." },
     ]);
   });
 
@@ -410,8 +410,8 @@ describe("runPalClaudeChatTurn", () => {
     );
 
     expect(events).toEqual([
-      { type: "delta", text: "The Crown pours at £4.80. " },
-      { type: "delta", text: "It is open until 11pm, with a quiz on 21 November." },
+      { type: "delta", text: "The Crown pours at £4.80." },
+      { type: "delta", text: " It is open until 11pm, with a quiz on 21 November." },
     ]);
     expect(outcome).toMatchObject({ ok: true, message: reply });
   });

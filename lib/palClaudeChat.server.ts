@@ -12,6 +12,7 @@ import {
   claudePromptTokens,
   type ClaudeClient,
 } from "@/lib/claudeClient.server";
+import { log } from "@/lib/log";
 import { PalChatDeadlineExceeded, beforePalChatDeadline } from "@/lib/palChatDeadline";
 import {
   PAL_RECALL_MEMORIES_TOOL,
@@ -30,6 +31,7 @@ import {
   PAL_PROPOSE_MEMORY_TOOL,
   proposePalMemoryForConversation,
 } from "@/lib/palMemoryProposal.server";
+import { palReplyEvidence, palReplyStreamGate, unsupportedPalReplyClaims } from "@/lib/palReplyGrounding";
 import { pubPalTypedChatSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { traceArizeModelLoop } from "@/lib/observability/arize";
 import { newPalLocalThreadId } from "@/lib/pubPalConversationId";
@@ -208,10 +210,13 @@ export async function runPalClaudeChatTurn(
       invocationParameters: { max_tokens: MAX_TOKENS, effort: EFFORT },
       run: async ({ modelRound, toolCall, setError }) => {
         const messages: Anthropic.MessageParam[] = [{ role: "user", content: userText }];
+        // Every tool result the model has read this turn: the only records a figure in its reply may come from.
+        const records: string[] = [];
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
           if (abort.signal.aborted) return failed("TIMEOUT");
           const span = modelRound({});
-          let streamedText = false;
+          const evidence = palReplyEvidence(userText, records);
+          const gate = palReplyStreamGate(evidence);
           let message: Anthropic.Message;
           try {
             const stream = client.stream(
@@ -231,9 +236,8 @@ export async function runPalClaudeChatTurn(
               { signal: abort.signal },
             );
             stream.on("text", (delta) => {
-              if (!delta) return;
-              streamedText = true;
-              input.onProgress?.({ type: "delta", text: delta });
+              const checked = delta ? gate.push(delta) : "";
+              if (checked) input.onProgress?.({ type: "delta", text: checked });
             });
             message = await stream.finalMessage();
           } catch (error) {
@@ -259,14 +263,24 @@ export async function runPalClaudeChatTurn(
               setError(new Error(`Claude stopped with ${message.stop_reason ?? "no reason"}.`));
               return failed("PROVIDER_UNAVAILABLE");
             }
-            // The reply is the answer. A store that cannot be read in time
-            // costs the cards, never the reply, as on the ElevenLabs path.
+            // A reply that states a figure no record holds is refused whole,
+            // and the turn answers from its records.
+            const unsupported = unsupportedPalReplyClaims(reply, evidence);
+            if (unsupported.length > 0) {
+              log("warn", "pub_pal.chat_unsupported_claim", { kinds: unsupported });
+              if (gate.shown) input.onProgress?.({ type: "reset" });
+            } else {
+              const rest = gate.rest();
+              if (rest) input.onProgress?.({ type: "delta", text: rest });
+            }
+            // A store that cannot be read in time costs the cards, never the
+            // reply, as on the ElevenLabs path.
             const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId)).catch(() => null);
-            return palChatAnswer(reply, turn, conversationId);
+            return palChatAnswer(unsupported.length > 0 ? "" : reply, turn, conversationId);
           }
 
           // Text before a tool call is not the answer. Tell the reader to clear it.
-          if (streamedText) input.onProgress?.({ type: "reset" });
+          if (gate.shown) input.onProgress?.({ type: "reset" });
           // The whole assistant turn goes back, thinking blocks included.
           messages.push({ role: "assistant", content: message.content });
           const results = await Promise.all(
@@ -282,7 +296,9 @@ export async function runPalClaudeChatTurn(
                   beforePalChatDeadline(deadline, () => runTool(use.name, args, conversationId)),
                 );
                 toolSpan?.end();
-                return { type: "tool_result", tool_use_id: use.id, content: toolResultText(result) };
+                const content = toolResultText(result);
+                records.push(content);
+                return { type: "tool_result", tool_use_id: use.id, content };
               } catch (error) {
                 toolSpan?.setError(error);
                 toolSpan?.end();
