@@ -468,8 +468,8 @@ function conciergeClaim(
 }
 
 function requestedVenueCount(query: string): number | null {
-  const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
-  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
+  const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six|couple(?:\s+of)?)\s+(?:more\s+)?(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase().replace(/\s+/g, " ");
+  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, couple: 2, "couple of": 2 };
   return count ? words[count] ?? Number(count) : null;
 }
 

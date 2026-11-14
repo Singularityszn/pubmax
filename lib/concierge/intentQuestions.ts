@@ -71,7 +71,7 @@ const MOOD_CRITERIA: Record<
   },
   sports: {
     question: "Does `text` ask for sport screens, a match, football, or rugby?",
-    focus: "Count sport, sports, football, rugby, or match as a screening request.",
+    focus: "Count explicit sport and match-viewing requests, including team names and tonight's match. Matching preferences, interests or budgets is not a screening request.",
     trueWhat: "The drinker wants to watch sport in a pub.",
     trueExamples: ["Sports near Waterloo for 8", "Where is the football on?"],
     falseWhat: "No match or screening request.",
