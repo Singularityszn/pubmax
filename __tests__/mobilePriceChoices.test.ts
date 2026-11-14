@@ -9,8 +9,9 @@ import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MobilePriceChoices", () => {
-  it("makes no empty-price claim before any pubs can be counted", () => {
-    expect(PintCapMatchSummary({ matches: { cap: 6, priced: 0, unknown: 0 } })).toBeNull();
+  it("keeps a settled zero result distinct from a missing result", () => {
+    expect(PintCapMatchSummary({ matches: null })).toBeNull();
+    expect(PintCapMatchSummary({ matches: { cap: 6, priced: 0, unknown: 0 } })).not.toBeNull();
     expect(PintCapMatchSummary({ matches: { cap: 6, priced: 0, unknown: 1 } })).not.toBeNull();
     expect(PintCapMatchSummary({ matches: { cap: 6, priced: 1, unknown: 0 } })).not.toBeNull();
   });
