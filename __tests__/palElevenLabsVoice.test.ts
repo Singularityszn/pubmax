@@ -33,8 +33,19 @@ describe("resolveElevenLabsVoiceIdForPal", () => {
       placeOf: () => ({ name: "The Crown", patch: "Soho" }),
     });
     const greeting = buildPalVoiceOverrides(basePal, { taste }).firstMessage;
-    expect(greeting).toBe("Hi, I'm Ripley. You logged The Crown on 10 October 2026, with Camden Hells at £5.80 a pint. Something similar tonight?");
+    expect(greeting).toBe("Hi, I'm Ripley. You logged The Crown on 10 October 2026 and recorded Camden Hells at £5.80 a pint. Something similar tonight?");
     expect(greeting).not.toContain("spent");
+  });
+
+  it("greets with the usual noted on that diary visit as a preference there, not a drink they had", () => {
+    const taste = buildPalTaste({
+      diary: [{ venueId: "crown", venueName: "The Crown", visitedOn: "2026-10-10", rating: null, usualDrink: "Guinness" }],
+      drops: [], saved: [],
+      placeOf: () => ({ name: "The Crown", patch: "Soho" }),
+    });
+    expect(buildPalVoiceOverrides(basePal, { taste }).firstMessage).toBe(
+      "Hi, I'm Ripley. You logged The Crown on 10 October 2026 and noted Guinness as your usual there. Something similar tonight?",
+    );
   });
 
   it("names species env keys in uppercase", () => {
