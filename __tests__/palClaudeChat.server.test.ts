@@ -1,6 +1,8 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { INVENTED_VENUE_REPLIES } from "./fixtures/palInventedVenueReplies";
+
 // Typed Pub Pal chat on Claude (lib/palClaudeChat.server.ts). The SDK call is
 // a fake passed through the dependencies object, so no test reaches a model.
 
@@ -437,6 +439,36 @@ describe("runPalClaudeChatTurn", () => {
     expect(events.filter((event) => event.type === "delta")).toEqual([]);
     expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
     if (outcome.ok) expect(outcome.message).not.toContain(reply);
+  });
+
+  describe.each([["no tool evidence", false], ["tool evidence", true]] as const)("with %s", (_label, withTool) => {
+    async function turnWithReply(reply: string) {
+      const { client } = fakeClient([
+        ...(withTool ? [{ content: [toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" as const }] : []),
+        { content: [text(reply)], stop_reason: "end_turn", deltas: [`${reply} `, "Enjoy it. "] },
+      ]);
+      const events: Array<{ type: string; text?: string }> = [];
+      const outcome = await runPalClaudeChatTurn(
+        { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
+        undefined,
+        { client, runTool: async () => ({ ok: true, cards: storedTurn.cards }) },
+      );
+      return { events, outcome };
+    }
+
+    it.each(INVENTED_VENUE_REPLIES)("keeps %j out of the stream and the answer", async (reply) => {
+      if (!withTool) storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], hints: [], toolsUsed: [] });
+      const control = await turnWithReply("Okay.");
+      const { events, outcome } = await turnWithReply(reply);
+
+      expect(events.filter((event) => event.type === "delta")).toEqual([]);
+      expect(control.outcome.ok && control.outcome.message).toBeTruthy();
+      expect(outcome).toMatchObject({
+        ok: true,
+        message: control.outcome.ok ? control.outcome.message : null,
+        cards: withTool ? storedTurn.cards : [],
+      });
+    });
   });
 
   it("keeps honest uncertainty without attaching a budget figure to a venue claim", async () => {

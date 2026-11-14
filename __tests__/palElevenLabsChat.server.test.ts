@@ -1,6 +1,7 @@
 import { CHAINED_ALCOHOL_FITNESS_QUESTIONS, QUANTITY_FITNESS_CASES } from "./fixtures/pubPalTemporalSafety";
 import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { NAMED_QUALIFIED_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixtures/askPriceSubjects";
+import { INVENTED_VENUE_REPLIES } from "./fixtures/palInventedVenueReplies";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
@@ -1281,6 +1282,43 @@ describe("runPalElevenLabsChatTurn", () => {
       expect(progress).toEqual([{ type: "delta", text: "Let me check." }, { type: "reset" }]);
       expect(outcome).toMatchObject({ ok: true, cards: [expect.objectContaining({ venueId: "london-a" })] });
       if (outcome.ok) expect(outcome.message).not.toContain(reply);
+    });
+
+    describe.each([["no tool evidence", false], ["tool evidence", true]] as const)("with %s", (_label, withTool) => {
+      async function turnWithReply(reply: string) {
+        const progress: Progress[] = [];
+        wsState.storeFilled = false;
+        wsState.replyScript = [
+          ...(withTool ? [
+            { afterMs: 0, event: toolRequest("call_1") },
+            { afterMs: 5, event: toolResponse("call_1") },
+          ] : []),
+          { afterMs: 5, event: responsePart("start", "", "resp_2") },
+          { afterMs: 0, event: responsePart("delta", `${reply} `, "resp_2") },
+          { afterMs: 0, event: responsePart("delta", "Enjoy it. ", "resp_2") },
+          { afterMs: 0, event: agentResponse(`${reply} Enjoy it.`) },
+          { afterMs: 0, event: responseComplete() },
+        ];
+        const outcome = await runPalElevenLabsChatTurn({
+          query: "Which quiet pubs near Soho have a beer garden?",
+          ownerId: OWNER,
+          onProgress: (event) => progress.push(event),
+        });
+        return { progress, outcome };
+      }
+
+      it.each(INVENTED_VENUE_REPLIES)("keeps %j out of the stream and the answer", async (reply) => {
+        const control = await turnWithReply("Okay.");
+        const { progress, outcome } = await turnWithReply(reply);
+
+        expect(progress.filter((event) => event.type === "delta")).toEqual([]);
+        expect(control.outcome.ok && control.outcome.message).toBeTruthy();
+        expect(outcome).toMatchObject({
+          ok: true,
+          message: control.outcome.ok ? control.outcome.message : null,
+          cards: withTool ? [expect.objectContaining({ venueId: "london-a" })] : [],
+        });
+      });
     });
 
     it("checks a full provider reply even when the provider sends no stream parts", async () => {

@@ -12,6 +12,31 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
   paidSpendBudgetRefusal: vi.fn(async () => Response.json({ error: "Paid budget spent" }, { status: 429 })),
 }));
 
+const claude = vi.hoisted(() => ({ reply: "" }));
+vi.mock("@/lib/claudeClient.server", async (original) => ({
+  ...await original<typeof import("@/lib/claudeClient.server")>(),
+  claudeClient: () => ({
+    stream: () => {
+      const listeners: Array<(delta: string) => void> = [];
+      return {
+        on(_event: "text", listener: (delta: string) => void) {
+          listeners.push(listener);
+          return this;
+        },
+        async finalMessage() {
+          for (const listener of listeners) listener(`${claude.reply} `);
+          return {
+            id: "msg_test", type: "message", role: "assistant", model: "claude-haiku-5-5",
+            content: [{ type: "text", text: claude.reply, citations: null }],
+            stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 },
+          };
+        },
+      };
+    },
+  }),
+}));
+
+import { INVENTED_VENUE_REPLIES } from "./fixtures/palInventedVenueReplies";
 import { POST } from "@/app/api/pub-pal/chat/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { paidSpendBudgetRefusal } from "@/lib/paidSpendBudget.server";
@@ -58,6 +83,45 @@ describe("configured Pub Pal local record answers", () => {
       expect(answer.proposals.length).toBeGreaterThan(0);
       expect(fetch).not.toHaveBeenCalled();
       expect(paidSpendBudgetRefusal).not.toHaveBeenCalled();
+    },
+  );
+});
+
+describe("typed Pub Pal on Claude with no tool evidence", () => {
+  beforeEach(() => {
+    __resetPintDrops();
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
+    vi.stubEnv("TYPESAFE_API_KEY", "");
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("External services are unavailable"); }));
+    vi.mocked(paidSpendBudgetRefusal).mockResolvedValue(null);
+  });
+  afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+
+  async function ask(stream: boolean) {
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json", accept: stream ? PAL_CHAT_STREAM_TYPE : "application/json" },
+      body: JSON.stringify({ query: "Is The Crown in Soho any good?", cityId: "london" }),
+    }));
+    expect(response.status).toBe(200);
+    if (!stream) return { deltas: [] as string[], body: await response.json() as AskResponseBody };
+    const deltas: string[] = [];
+    let body: AskResponseBody | null = null;
+    await readPalChatStream(response.body!, (event) => {
+      if (event.type === "delta") deltas.push(event.text);
+      if (event.type === "final") body = event.body as AskResponseBody;
+    });
+    return { deltas, body: body as unknown as AskResponseBody };
+  }
+
+  it.each(INVENTED_VENUE_REPLIES.flatMap((reply) => [false, true].map((stream) => ({ reply, stream }))))(
+    "sends no model prose for $reply, stream=$stream", async ({ reply, stream }) => {
+      claude.reply = "Okay.";
+      const control = await ask(stream);
+      claude.reply = reply;
+      const { deltas, body } = await ask(stream);
+      expect(deltas).toEqual([]);
+      expect(body).toMatchObject({ status: "ready", cards: [], answer: control.body.answer });
+      expect(control.body.answer).toBeTruthy();
     },
   );
 });
