@@ -24,6 +24,7 @@ import {
   readDeviceNightProfileProvenance,
 } from "@/lib/nightProfileDeviceProvenance";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { forgetOutingSteps } from "@/lib/outingStepsSession";
 
 /** Which account the device-cached identity artifacts below belong to. */
 export const DEVICE_ACCOUNT_OWNER_KEY = "pubmax_account_owner";
@@ -149,6 +150,7 @@ export function clearDeviceAccountArtifacts(
 /** Clear this tab's private artifacts without changing another tab's shared owner. */
 export function clearDeviceAccountSessionArtifacts(session: SweepableStorage | null): void {
   showLegRouteOnMap(null);
+  forgetOutingSteps();
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
   const prefixed: string[] = [];
   try {

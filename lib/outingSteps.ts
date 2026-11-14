@@ -14,15 +14,15 @@ export type OutingStepsSample =
   | { platform: "ios"; steps: number }
   | { platform: "android"; counter: number | null; bootCount: number; continuous: boolean };
 
-type AndroidCounter = { bootCount: number; baseline: number | null; carried: number };
+type AndroidCounter = { bootCount: number; baseline: number | null; carried: number; last: number | null };
 
 export type OutingStepsState =
   | { phase: "off" }
-  | { phase: "counting"; planId: string; startedAt: number; steps: number; gap: boolean; counter: AndroidCounter | null }
-  | { phase: "stopped"; planId: string; startedAt: number; endedAt: number; steps: number; gap: boolean };
+  | { phase: "counting"; planId: string; owner: string | null; startedAt: number; steps: number; gap: boolean; counter: AndroidCounter | null }
+  | { phase: "stopped"; planId: string; owner: string | null; startedAt: number; endedAt: number; steps: number; gap: boolean };
 
 export type OutingStepsEvent =
-  | { type: "start"; planId: string; at: number; sample: OutingStepsSample }
+  | { type: "start"; planId: string; owner: string | null; at: number; sample: OutingStepsSample }
   | { type: "sample"; startedAt: number; at: number; sample: OutingStepsSample }
   | { type: "stop"; startedAt: number; at: number }
   | { type: "clear" };
@@ -34,24 +34,31 @@ const isCount = (value: unknown): value is number => typeof value === "number" &
 const isTime = (value: unknown): value is number => typeof value === "number" && Number.isFinite(value) && value > 0;
 
 function finish(state: Counting, endedAt: number, steps: number, gap: boolean): OutingStepsState {
-  return { phase: "stopped", planId: state.planId, startedAt: state.startedAt, endedAt, steps, gap };
+  return { phase: "stopped", planId: state.planId, owner: state.owner, startedAt: state.startedAt, endedAt, steps, gap };
 }
 
 function sameCounting(a: Counting, b: Counting): boolean {
   return a.steps === b.steps && a.gap === b.gap && a.counter?.bootCount === b.counter?.bootCount
-    && a.counter?.baseline === b.counter?.baseline && a.counter?.carried === b.counter?.carried;
+    && a.counter?.baseline === b.counter?.baseline && a.counter?.carried === b.counter?.carried && a.counter?.last === b.counter?.last;
 }
+
+const knownBoot = (bootCount: number) => bootCount >= 0;
 
 function readAndroid(state: Counting, counter: AndroidCounter, sample: Extract<OutingStepsSample, { platform: "android" }>): Counting {
   const gap = state.gap || !sample.continuous;
   if (sample.counter === null) return { ...state, gap };
-  if (counter.baseline === null) return { ...state, gap, counter: { ...counter, bootCount: sample.bootCount, baseline: sample.counter } };
-  if (sample.bootCount !== counter.bootCount || sample.counter < counter.baseline) {
-    // The counter restarts at zero on boot. Steps between the last reading and the reboot are lost.
-    const next = { bootCount: sample.bootCount, baseline: 0, carried: state.steps };
-    return { ...state, gap: true, counter: next, steps: next.carried + sample.counter };
+  const bootCount = knownBoot(sample.bootCount) ? sample.bootCount : counter.bootCount;
+  if (counter.baseline === null || counter.last === null) {
+    return { ...state, gap, counter: { ...counter, bootCount, baseline: sample.counter, last: sample.counter } };
   }
-  return { ...state, gap, steps: counter.carried + sample.counter - counter.baseline };
+  const rebooted = knownBoot(sample.bootCount) && knownBoot(counter.bootCount) && sample.bootCount !== counter.bootCount;
+  if (sample.counter >= counter.last && !rebooted) {
+    return { ...state, gap, counter: { ...counter, bootCount, last: sample.counter }, steps: counter.carried + sample.counter - counter.baseline };
+  }
+  // The counter restarts at zero on boot. Steps between the last reading and the reboot are lost.
+  const restarted = rebooted && sample.counter < counter.last;
+  const next = { bootCount, baseline: restarted ? 0 : sample.counter, carried: state.steps, last: sample.counter };
+  return { ...state, gap: true, counter: next, steps: next.carried + sample.counter - next.baseline };
 }
 
 function readSample(state: Counting, at: number, sample: OutingStepsSample): OutingStepsState {
@@ -74,9 +81,9 @@ export function transitionOutingSteps(state: OutingStepsState, event: OutingStep
     case "start": {
       if (state.phase === "counting") return state;
       const counter = event.sample.platform === "android"
-        ? { bootCount: event.sample.bootCount, baseline: isCount(event.sample.counter) ? event.sample.counter : null, carried: 0 }
+        ? { bootCount: event.sample.bootCount, baseline: isCount(event.sample.counter) ? event.sample.counter : null, carried: 0, last: isCount(event.sample.counter) ? event.sample.counter : null }
         : null;
-      return { phase: "counting", planId: event.planId, startedAt: event.at, steps: 0, gap: false, counter };
+      return { phase: "counting", planId: event.planId, owner: event.owner, startedAt: event.at, steps: 0, gap: false, counter };
     }
     case "sample":
       return state.phase === "counting" && state.startedAt === event.startedAt ? readSample(state, event.at, event.sample) : state;
@@ -105,23 +112,23 @@ export function serializeOutingSteps(state: OutingStepsState): string | null {
 function parseCounter(value: unknown): AndroidCounter | null | undefined {
   if (value === null) return null;
   if (!value || typeof value !== "object") return undefined;
-  const { bootCount, baseline, carried } = value as Record<string, unknown>;
-  if (!Number.isSafeInteger(bootCount) || !(baseline === null || isCount(baseline)) || !isCount(carried)) return undefined;
-  return { bootCount: bootCount as number, baseline, carried };
+  const { bootCount, baseline, carried, last } = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(bootCount) || !(baseline === null || isCount(baseline)) || !isCount(carried) || !(last === null || isCount(last))) return undefined;
+  return { bootCount: bootCount as number, baseline, carried, last };
 }
 
-export function parseOutingSteps(raw: string | null): OutingStepsState {
+export function parseOutingSteps(raw: string | null, owner: string | null): OutingStepsState {
   if (!raw) return OFF;
   let value: unknown;
   try { value = JSON.parse(raw); } catch { return OFF; }
   if (!value || typeof value !== "object" || Array.isArray(value)) return OFF;
   const row = value as Record<string, unknown>;
   const { planId, startedAt, steps, gap } = row;
-  if (row.v !== 1 || typeof planId !== "string" || !planId || !isTime(startedAt) || !isCount(steps) || typeof gap !== "boolean") return OFF;
+  if (row.v !== 1 || row.owner !== owner || typeof planId !== "string" || !planId || !isTime(startedAt) || !isCount(steps) || typeof gap !== "boolean") return OFF;
   if (row.phase === "stopped") {
-    return isTime(row.endedAt) && row.endedAt >= startedAt ? { phase: "stopped", planId, startedAt, endedAt: row.endedAt, steps, gap } : OFF;
+    return isTime(row.endedAt) && row.endedAt >= startedAt ? { phase: "stopped", planId, owner, startedAt, endedAt: row.endedAt, steps, gap } : OFF;
   }
   if (row.phase !== "counting") return OFF;
   const counter = parseCounter(row.counter);
-  return counter === undefined ? OFF : { phase: "counting", planId, startedAt, steps, gap, counter };
+  return counter === undefined ? OFF : { phase: "counting", planId, owner, startedAt, steps, gap, counter };
 }

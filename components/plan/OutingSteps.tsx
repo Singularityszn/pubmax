@@ -1,31 +1,18 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { loadOutingStepsBridge, type OutingStepsBridge, type OutingStepsStatus } from "@/lib/nativeOutingSteps";
 import { nativePlatform } from "@/lib/nativePlatform";
-import {
-  OUTING_STEPS_MAX_MS,
-  OUTING_STEPS_STORAGE_KEY,
-  outingStepsWindow,
-  parseOutingSteps,
-  serializeOutingSteps,
-  transitionOutingSteps,
-  type OutingStepsState,
-} from "@/lib/outingSteps";
+import { OUTING_STEPS_MAX_MS, transitionOutingSteps, type OutingStepsEvent, type OutingStepsState } from "@/lib/outingSteps";
+import { beginOutingSteps, readOutingSteps, readOutingStepsEvent, writeOutingSteps } from "@/lib/outingStepsSession";
 
 import "./outingSteps.css";
 
 const SAMPLE_MS = 30_000;
-
-function readStored(): OutingStepsState {
-  try {
-    return parseOutingSteps(typeof window === "undefined" ? null : window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY));
-  } catch {
-    return { phase: "off" };
-  }
-}
 
 function clock(ms: number): string {
   return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" }).format(new Date(ms));
@@ -35,22 +22,23 @@ function stepCount(steps: number, gap: boolean): string {
   return `${gap ? "At least " : ""}${steps.toLocaleString("en-GB")} ${steps === 1 ? "step" : "steps"}`;
 }
 
-const isAccessRefusal = (error: unknown) => {
-  const code = (error as { code?: unknown } | null)?.code;
-  return code === "denied" || code === "unavailable";
-};
-
 /** Opt-in steps measured by this phone for one night. Native shell only. */
 export default function OutingSteps({ planId }: { planId: string }) {
+  const { user, loading, accountRevision } = useAuth();
+  if (loading) return null;
+  const owner = user?.id ?? null;
+  return <OwnedOutingSteps key={`${owner ?? "guest"}:${accountRevision ?? 0}`} planId={planId} owner={owner} />;
+}
+
+function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | null }) {
   const [bridge, setBridge] = useState<OutingStepsBridge | null>(null);
   const [status, setStatus] = useState<OutingStepsStatus | null>(null);
-  const [state, dispatch] = useReducer(transitionOutingSteps, undefined, readStored);
+  const [state, setState] = useState<OutingStepsState>(() => readOutingSteps(owner));
   const [busy, setBusy] = useState<"asking" | "stopping" | null>(null);
   const [problem, setProblem] = useState("");
+  const [ownerSignal] = useState(readProviderAccountSignal);
   const stateRef = useRef(state);
   const counting = state.phase === "counting" ? state.startedAt : null;
-
-  useEffect(() => { stateRef.current = state; }, [state]);
 
   useEffect(() => {
     let live = true;
@@ -63,37 +51,28 @@ export default function OutingSteps({ planId }: { planId: string }) {
     return () => { live = false; };
   }, []);
 
-  useEffect(() => {
-    try {
-      const raw = serializeOutingSteps(state);
-      if (raw) window.localStorage.setItem(OUTING_STEPS_STORAGE_KEY, raw);
-      else window.localStorage.removeItem(OUTING_STEPS_STORAGE_KEY);
-    } catch { /* Storage can be full or blocked. The count still shows until the page closes. */ }
-  }, [state]);
-
-  const refuse = useCallback(async (active: OutingStepsBridge) => {
-    const next = await active.status().catch(() => null);
-    if (next) setStatus(next);
-  }, []);
+  const apply = useCallback((event: OutingStepsEvent) => {
+    const previous = stateRef.current;
+    const next = transitionOutingSteps(previous, event);
+    if (next === previous || ownerSignal.aborted) return;
+    stateRef.current = next;
+    writeOutingSteps(next);
+    setState(next);
+    // Android keeps a sensor listener between readings. Release it whenever nothing is counting.
+    if (previous.phase === "counting" && next.phase !== "counting") void bridge?.stop();
+  }, [bridge, ownerSignal]);
 
   const read = useCallback(async () => {
-    const current = stateRef.current;
-    const window = outingStepsWindow(current, Date.now());
-    if (!bridge || !window || current.phase !== "counting") return;
-    try {
-      const sample = await bridge.sample(window);
-      if (sample) dispatch({ type: "sample", startedAt: current.startedAt, at: Date.now(), sample });
-      setProblem("");
-    } catch (error) {
-      if (isAccessRefusal(error)) await refuse(bridge);
-      else setProblem("We couldn't read your steps just now. Your count so far is kept.");
-    }
-  }, [bridge, refuse]);
+    if (!bridge) return;
+    const outcome = await readOutingStepsEvent(bridge, stateRef.current, { signal: ownerSignal, now: Date.now });
+    if (outcome.kind === "event") apply(outcome.event);
+    if (outcome.kind === "refused") setStatus(outcome.status);
+    if (outcome.kind === "stale") return;
+    setProblem(outcome.kind === "failed" ? "We couldn't read your steps just now. Your count so far is kept." : "");
+  }, [apply, bridge, ownerSignal]);
 
   useEffect(() => {
-    if (!bridge) return;
-    // Android keeps a sensor listener between readings. Release it whenever nothing is counting.
-    if (counting === null) { void bridge.stop(); return; }
+    if (!bridge || counting === null) return;
     queueMicrotask(() => void read());
     const poll = window.setInterval(() => { if (document.visibilityState !== "hidden") void read(); }, SAMPLE_MS);
     const onVisible = () => { if (document.visibilityState === "visible") void read(); };
@@ -108,21 +87,11 @@ export default function OutingSteps({ planId }: { planId: string }) {
     if (!bridge) return;
     setBusy("asking");
     setProblem("");
-    try {
-      let next = await bridge.status();
-      if (next.available && next.permission === "prompt") next = await bridge.requestPermission();
-      setStatus(next);
-      if (!next.available || next.permission !== "granted") return;
-      const at = Date.now();
-      const sample = await bridge.sample({ since: at, until: at });
-      if (!sample) throw new Error("unreadable");
-      dispatch({ type: "start", planId, at, sample });
-    } catch (error) {
-      if (isAccessRefusal(error)) await refuse(bridge);
-      else setProblem("We couldn't start counting. Try again.");
-    } finally {
-      setBusy(null);
-    }
+    const outcome = await beginOutingSteps(bridge, { planId, owner, signal: ownerSignal, now: Date.now });
+    if (outcome.kind === "started") apply(outcome.event);
+    if (outcome.kind === "refused") setStatus(outcome.status);
+    if (outcome.kind === "failed") setProblem("We couldn't start counting. Try again.");
+    setBusy(null);
   }
 
   async function stop() {
@@ -130,7 +99,7 @@ export default function OutingSteps({ planId }: { planId: string }) {
     if (current.phase !== "counting") return;
     setBusy("stopping");
     await read();
-    dispatch({ type: "stop", startedAt: current.startedAt, at: Date.now() });
+    apply({ type: "stop", startedAt: current.startedAt, at: Date.now() });
     setBusy(null);
   }
 
@@ -171,7 +140,7 @@ export default function OutingSteps({ planId }: { planId: string }) {
           <p className="outingSteps__count">{stepCount(state.steps, state.gap)}</p>
           <p className="outingSteps__muted">Counted by your phone from {clock(state.startedAt)} to {clock(state.endedAt)}. Only you can see this.</p>
           <div className="outingSteps__actions">
-            <Button variant="ghost" onClick={() => dispatch({ type: "clear" })}>Clear</Button>
+            <Button variant="ghost" onClick={() => apply({ type: "clear" })}>Clear</Button>
           </div>
         </>
       ) : (

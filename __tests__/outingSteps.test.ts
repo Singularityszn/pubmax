@@ -16,7 +16,7 @@ const android = (counter: number | null, bootCount = 7, continuous = true): Outi
 const ios = (steps: number): OutingStepsSample => ({ platform: "ios", steps });
 
 function startAndroid(counter: number | null = 10_000) {
-  return transitionOutingSteps(OFF, { type: "start", planId: "p1", at: T0, sample: android(counter, 7, false) });
+  return transitionOutingSteps(OFF, { type: "start", planId: "p1", owner: "acct-a", at: T0, sample: android(counter, 7, false) });
 }
 
 function sample(state: OutingStepsState, at: number, value: OutingStepsSample) {
@@ -42,9 +42,31 @@ describe("Android counter sessions", () => {
     expect(sample(after, T0 + 180_000, android(100, 8))).toMatchObject({ steps: 600, gap: true });
   });
 
-  it("treats a counter that went backwards as a reset rather than negative steps", () => {
+  it("does not treat a boot identity that became unknown as a reboot", () => {
+    const counted = sample(startAndroid(), T0 + 60_000, android(10_300, -1));
+    expect(counted).toMatchObject({ steps: 300, gap: false });
+    expect(sample(counted, T0 + 120_000, android(10_350, 7))).toMatchObject({ steps: 350, gap: false });
+  });
+
+  it("never adds a whole counter when it falls without a known reboot", () => {
+    const before = sample(startAndroid(), T0 + 60_000, android(10_500, -1));
+    const fallen = sample(before, T0 + 120_000, android(400, -1));
+    expect(fallen).toMatchObject({ steps: 500, gap: true });
+    expect(sample(fallen, T0 + 180_000, android(450, -1))).toMatchObject({ steps: 550, gap: true });
+  });
+
+  it("never lowers the total when the counter falls but stays above the baseline", () => {
     const before = sample(startAndroid(), T0 + 60_000, android(10_500));
-    expect(sample(before, T0 + 120_000, android(40))).toMatchObject({ steps: 540, gap: true });
+    const fallen = sample(before, T0 + 120_000, android(10_400));
+    expect(fallen).toMatchObject({ steps: 500, gap: true });
+    expect(sample(fallen, T0 + 180_000, android(10_450))).toMatchObject({ steps: 550, gap: true });
+  });
+
+  it("counts nothing extra when a known reboot reports a counter that did not reset", () => {
+    const before = sample(startAndroid(), T0 + 60_000, android(10_500));
+    const rebooted = sample(before, T0 + 120_000, android(20_000, 8));
+    expect(rebooted).toMatchObject({ steps: 500, gap: true });
+    expect(sample(rebooted, T0 + 180_000, android(20_040, 8))).toMatchObject({ steps: 540, gap: true });
   });
 
   it("marks a possible gap when the listener was not running since the last reading", () => {
@@ -55,7 +77,7 @@ describe("Android counter sessions", () => {
   it("stops at the cap and never counts steps read after it", () => {
     const counted = sample(startAndroid(), T0 + 60_000, android(10_300));
     const capped = sample(counted, T0 + OUTING_STEPS_MAX_MS + 1, android(19_000));
-    expect(capped).toEqual({ phase: "stopped", planId: "p1", startedAt: T0, endedAt: T0 + OUTING_STEPS_MAX_MS, steps: 300, gap: true });
+    expect(capped).toEqual({ phase: "stopped", planId: "p1", owner: "acct-a", startedAt: T0, endedAt: T0 + OUTING_STEPS_MAX_MS, steps: 300, gap: true });
   });
 
   it("ignores an iOS reading in an Android session", () => {
@@ -65,7 +87,7 @@ describe("Android counter sessions", () => {
 });
 
 describe("iOS window sessions", () => {
-  const started = transitionOutingSteps(OFF, { type: "start", planId: "p1", at: T0, sample: ios(0) });
+  const started = transitionOutingSteps(OFF, { type: "start", planId: "p1", owner: "acct-a", at: T0, sample: ios(0) });
 
   it("asks for steps from the start to now, and never past the cap", () => {
     expect(outingStepsWindow(started, T0 + 1_000)).toEqual({ since: T0, until: T0 + 1_000 });
@@ -99,7 +121,7 @@ describe("session scope", () => {
 
   it("refuses a second start while one session is counting", () => {
     const started = startAndroid();
-    expect(transitionOutingSteps(started, { type: "start", planId: "p2", at: T0 + 5, sample: android(1) })).toBe(started);
+    expect(transitionOutingSteps(started, { type: "start", planId: "p2", owner: "acct-a", at: T0 + 5, sample: android(1) })).toBe(started);
   });
 
   it("stops with the last count and clamps the end to the cap", () => {
@@ -118,15 +140,25 @@ describe("session scope", () => {
 describe("local storage", () => {
   it("round-trips a counting and a stopped session", () => {
     const counted = sample(startAndroid(), T0 + 60_000, android(10_250));
-    expect(parseOutingSteps(serializeOutingSteps(counted))).toEqual(counted);
+    expect(parseOutingSteps(serializeOutingSteps(counted), "acct-a")).toEqual(counted);
     const stopped = transitionOutingSteps(counted, { type: "stop", startedAt: T0, at: T0 + 90_000 });
-    expect(parseOutingSteps(serializeOutingSteps(stopped))).toEqual(stopped);
+    expect(parseOutingSteps(serializeOutingSteps(stopped), "acct-a")).toEqual(stopped);
     expect(serializeOutingSteps(OFF)).toBeNull();
+  });
+
+  it("shows a stored session only to the account that started it", () => {
+    const counted = sample(startAndroid(), T0 + 60_000, android(10_250));
+    const raw = serializeOutingSteps(counted);
+    expect(parseOutingSteps(raw, "acct-b")).toEqual(OFF);
+    expect(parseOutingSteps(raw, null)).toEqual(OFF);
+    const guest = transitionOutingSteps(OFF, { type: "start", planId: "p1", owner: null, at: T0, sample: ios(0) });
+    expect(parseOutingSteps(serializeOutingSteps(guest), "acct-a")).toEqual(OFF);
+    expect(parseOutingSteps(serializeOutingSteps(guest), null)).toEqual(guest);
   });
 
   it("reads anything unknown or damaged as no session", () => {
     for (const raw of [null, "", "{", "[]", '{"v":2,"phase":"counting"}', '{"v":1,"phase":"counting","planId":"p","startedAt":1,"steps":-1,"gap":false,"counter":null}']) {
-      expect(parseOutingSteps(raw)).toEqual(OFF);
+      expect(parseOutingSteps(raw, "acct-a")).toEqual(OFF);
     }
   });
 });

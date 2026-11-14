@@ -9,6 +9,7 @@ import android.hardware.SensorManager;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import com.getcapacitor.JSObject;
 import com.getcapacitor.PermissionState;
@@ -37,6 +38,8 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
     private static final long FIRST_READING_WAIT_MS = 1500;
     private final Handler main = new Handler(Looper.getMainLooper());
     private final List<PluginCall> waiting = new ArrayList<>();
+    private final OutingStepsDeadline deadline = new OutingStepsDeadline(System::currentTimeMillis, SystemClock::elapsedRealtime);
+    private final Runnable expiryCheck = this::checkExpiry;
     private SensorManager sensors;
     private Sensor counter;
     private boolean listening;
@@ -93,7 +96,24 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
             call.reject("Physical activity access is off.", "denied");
             return;
         }
+        Double since = call.getDouble("since");
+        Double until = call.getDouble("until");
+        if (since == null || until == null) {
+            call.reject("A step window needs a start and an end.", "invalid");
+            return;
+        }
         main.post(() -> {
+            OutingStepsDeadline.Verdict verdict = deadline.admit(since.longValue(), until.longValue());
+            if (verdict == OutingStepsDeadline.Verdict.INVALID) {
+                call.reject("That step window cannot be read.", "invalid");
+                return;
+            }
+            if (verdict == OutingStepsDeadline.Verdict.EXPIRED) {
+                release(true);
+                call.reject("Step counting has ended for this night.", "expired");
+                return;
+            }
+            scheduleExpiryCheck();
             if (!listening) {
                 if (!sensors.registerListener(this, counter, SensorManager.SENSOR_DELAY_NORMAL)) {
                     call.reject("Steps could not be read.", "failed");
@@ -117,19 +137,28 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
     @PluginMethod
     public void stop(PluginCall call) {
         main.post(() -> {
-            release();
+            release(false);
             call.resolve();
         });
     }
 
     @Override
     protected void handleOnDestroy() {
-        main.post(this::release);
+        main.post(() -> release(false));
+    }
+
+    @Override
+    protected void handleOnResume() {
+        main.post(this::checkExpiry);
     }
 
     @Override
     public void onSensorChanged(SensorEvent event) {
         if (event.sensor.getType() != Sensor.TYPE_STEP_COUNTER || event.values.length == 0) return;
+        if (deadline.expired()) {
+            release(true);
+            return;
+        }
         latest = (long) event.values[0];
         List<PluginCall> ready = new ArrayList<>(waiting);
         waiting.clear();
@@ -150,13 +179,29 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
         if (listening) continuous = true;
     }
 
-    private void release() {
+    private void scheduleExpiryCheck() {
+        main.removeCallbacks(expiryCheck);
+        if (deadline.armed()) main.postDelayed(expiryCheck, Math.max(1L, deadline.remainingMs()));
+    }
+
+    private void checkExpiry() {
+        if (deadline.expired()) release(true);
+        else scheduleExpiryCheck();
+    }
+
+    private void release(boolean expired) {
+        main.removeCallbacks(expiryCheck);
+        if (expired) deadline.expire();
+        else deadline.disarm();
         if (listening && sensors != null) sensors.unregisterListener(this);
         listening = false;
         continuous = false;
         latest = null;
         List<PluginCall> pending = new ArrayList<>(waiting);
         waiting.clear();
-        for (PluginCall call : pending) resolveReading(call);
+        for (PluginCall call : pending) {
+            if (expired) call.reject("Step counting has ended for this night.", "expired");
+            else resolveReading(call);
+        }
     }
 }
