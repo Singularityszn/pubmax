@@ -266,6 +266,28 @@ describe("selectAnchoredGroundedPlanRoute", () => {
     expect(result).toMatchObject({ ok: true, outcome: "anchor-only" });
   });
 
+  it.each([
+    { startsAt: null, expected: false },
+    { startsAt: "2026-07-20T12:00:00.000Z", expected: false },
+    { startsAt: "2026-07-20T16:30:00.000Z", expected: true },
+  ])("checks required quieter spaces at the anchor's visit time: $startsAt", ({ startsAt, expected }) => {
+    const result = selectAnchoredGroundedPlanRoute([
+      candidate("a", { access: {
+        lowNoise: { ranges: [{ weekday: "Monday", startsAt: "17:00", endsAt: "21:00" }], source: SOURCE },
+      } }),
+    ], constraints({
+      accessibilityNeeds: ["low-noise"],
+      routeWindow: startsAt ? { startsAt, endsAt: "2026-07-20T20:30:00.000Z" } : null,
+    }), "a");
+
+    if (expected) {
+      expect(result).toMatchObject({ ok: true, outcome: "anchor-only" });
+    } else {
+      expect(result).toMatchObject({ ok: false, reason: "ANCHOR_INELIGIBLE",
+        failure: { requirement: "accessibility", need: "low-noise" } });
+    }
+  });
+
   it("reports ANCHOR_MISSING when the anchor is not among candidates", () => {
     const result = selectAnchoredGroundedPlanRoute(
       [candidate("b"), candidate("c"), candidate("d")],

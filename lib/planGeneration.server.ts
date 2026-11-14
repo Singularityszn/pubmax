@@ -174,7 +174,7 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	if (!selection.ok) {
 		return anchorConflict(
 			"ANCHOR_ROUTE_CONFLICT",
-			"We could not build a route from that pub right now. Try a different pub.",
+			selection.message,
 		);
 	}
 	if (selection.outcome === "anchor-only") {
