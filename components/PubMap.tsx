@@ -6130,7 +6130,7 @@ export default function PubMap({
   const mobilePriceChoicesProps = {
     maxPrice: filters.maxPrice,
     legend: activePriceLegend,
-    drinkLabel: activeLensLabel ?? undefined,
+    drinkLabel: activeLensLabel,
     matches: pintCapMatched,
     onMaxPriceChange: (maxPrice: number) => setFilters((current) => ({ ...current, maxPrice })),
   };

@@ -24,7 +24,7 @@ export default function MobilePriceChoices({
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
-  drinkLabel?: string;
+  drinkLabel?: string | null;
   matches?: PintCapMatches | null;
   children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
