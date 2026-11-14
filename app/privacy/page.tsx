@@ -853,8 +853,9 @@ export default function PrivacyPage() {
               asked first. Past forty, the ones about what you asked go and the
               oldest of the rest wait for a question about them. So does a short read of your taste that we work out
               from your profile&rsquo;s favourite drink and what you logged yourself: your usual patches, the pubs you
-              go back to or rated, what you drink, what you usually pay for a
-              pint, the vibes you tag and the pubs you saved. Our server keeps
+              go back to or rated, the usual you noted for a pub in your diary, the drinks you logged a price for,
+              what you usually pay for a pint, the vibes you tag and the pubs you saved. A usual or a logged price is not
+              treated as a record of what you drank. Our server keeps
               that read in memory for two minutes at most and never writes it
               to a database. Turn the taste read off on your Pal&rsquo;s page
               and neither your favourite drink nor your logs are read for it. Nothing else about you

@@ -433,7 +433,7 @@ describe("Pub Pal voice token route", () => {
     }));
     expect(response.status).toBe(200);
     expect(tasteRead).toHaveBeenCalledExactlyOnceWith(voiceState.userId);
-    expect((await response.json()).overrides.firstMessage).toContain("The Crown on 10 October 2026, with Camden Hells at £5.80 a pint");
+    expect((await response.json()).overrides.firstMessage).toContain("The Crown on 10 October 2026 and recorded Camden Hells at £5.80 a pint");
   });
 
   it("greets a confirmed reported night without a diary visit or inferred bill", async () => {
