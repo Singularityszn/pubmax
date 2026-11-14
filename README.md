@@ -261,7 +261,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   During **Lock it in**, stop edits, name and time fields, templates, and **Release this pub** are disabled. If the response is lost, you can retry the unchanged plan. If the planner requests a refresh, choose **Regenerate route**. Review the result before choosing **Lock it in** again.
 
-  Use **Open in Plan** to continue a Pub Pal draft in the planner. The [draft handoff rules](docs/adr/0014-night-os-ask-agent.md#decision) explain how Plan handles your chosen pub, requested stop count, and incomplete routes.
+  Use **Open in Plan** to continue a Pub Pal draft in the planner. The [typed planning guide](docs/PUB_PAL_SETUP.md#typed-chat-on-claude) explains when Pal asks for an area. The [draft handoff rules](docs/adr/0014-night-os-ask-agent.md#decision) explain how Plan handles your chosen pub, requested stop count, and incomplete routes.
 
   The [public venue checks](docs/API_CONTRACTS_THE_LOCAL.md#14-public-venue-eligibility) explain which venues the planner, hosted crawls and Pub Pal drafts exclude.
 
