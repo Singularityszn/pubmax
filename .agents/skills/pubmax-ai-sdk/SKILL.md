@@ -36,7 +36,7 @@ Do not assume that an existing path has a control. Check this table and the code
 | AI Gateway search (`lib/searchProvider.server.ts`) | No. It has its own `SEARCH_GATEWAY_MAX_CALLS` cap. | AI SDK spans, only when Arize is registered | Not an answer path |
 | Moderation (`lib/profileAvatarModeration.ts`, `lib/socialPostModeration.ts`) | No | `traceArizeModelCall` | Not an answer path |
 | Heritage (`app/api/heritage/route.ts`, `lib/heritage.ts`) | Not a model path: it reads back stored, cited facts | No | Not needed |
-| Pub Pal typed chat on Claude (`app/api/pub-pal/chat/route.ts`, `lib/palClaudeChat.server.ts`) | Yes, lane `pub-pal-chat` | `traceArizeModelLoop` | Record answers and the fence run first. Recognised prices, times, dates and years use the record fallback, not numeric matching (`lib/palReplyGrounding.ts`). Claude and ElevenLabs typed chat stream checked sentences. This check does not validate non-numeric venue claims. A model failure is the route's 503 retry line. |
+| Pub Pal typed chat on Claude (`app/api/pub-pal/chat/route.ts`, `lib/palClaudeChat.server.ts`) | Yes, lane `pub-pal-chat` | `traceArizeModelLoop` | Record answers and the fence run first. The model only chooses tools. `palChatAnswer` writes every Claude and ElevenLabs typed answer from the stored hints and cards, and no model text is sent. A model failure is the route's 503 retry line. |
 | TypeSafe app door (`lib/ai/typesafe.server.ts`) | Yes, lane `typesafe` | No. It records timing with `recordTypesafeTiming`. | `null` |
 | TypeSafe plain Node (`lib/ai/typesafe.ts`) | No | No | `null` |
 

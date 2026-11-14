@@ -131,12 +131,12 @@ describe("runPalClaudeChatTurn", () => {
     expect(palClaudeConfigured()).toBe(false);
   });
 
-  it("asks Claude with the typed Pal prompt, every Pal tool and low effort, and returns its reply", async () => {
+  it("asks Claude with the typed Pal prompt, every Pal tool and low effort, and answers from the records", async () => {
     const { client, bodies } = fakeClient([{ content: [text("Hey. Where are you heading tonight?")], stop_reason: "end_turn" }]);
 
     const outcome = await runPalClaudeChatTurn({ query: "evening", ownerId: OWNER }, undefined, { client });
 
-    expect(outcome).toMatchObject({ ok: true, message: "Hey. Where are you heading tonight?" });
+    expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
     expect(bodies).toHaveLength(1);
     const body = bodies[0]!;
     expect(body.model).toBe("claude-haiku-5-5");
@@ -208,7 +208,6 @@ describe("runPalClaudeChatTurn", () => {
       expect.objectContaining({ query: "a quiet pub in Soho", ownerId: OWNER }),
     );
     expect(runTool).toHaveBeenCalledWith("search_venues", { query: "quiet pub in Soho", limit: 2 }, outcome.conversationId);
-    expect(outcome.message).toBe("The Crown is your quiet one.");
     expect(outcome.cards).toEqual(storedTurn.cards);
     expect(outcome.toolsUsed).toEqual(["search_venues"]);
 
@@ -252,7 +251,6 @@ describe("runPalClaudeChatTurn", () => {
 
     expect(outcome).toMatchObject({
       ok: true,
-      message: "Here is a Soho crawl with listed pints.",
       cards: planTurn.cards,
       proposals: planTurn.proposals,
       toolsUsed: ["propose_plan"],
@@ -261,7 +259,7 @@ describe("runPalClaudeChatTurn", () => {
     expect(runTool.mock.calls).toEqual([["propose_plan", { query }, outcome.conversationId]]);
   });
 
-  it("returns Claude's area question without cards or proposals when the crawl has no area", async () => {
+  it("answers without cards or proposals when Claude runs no tool for a crawl with no area", async () => {
     storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [], toolsUsed: [] });
     const { client } = fakeClient([
       { content: [text("Which area would you like?")], stop_reason: "end_turn" },
@@ -275,7 +273,7 @@ describe("runPalClaudeChatTurn", () => {
     );
 
     expect(outcome).toMatchObject({
-      ok: true, message: "Which area would you like?", cards: [], proposals: [], toolsUsed: [],
+      ok: true, cards: [], proposals: [], toolsUsed: [],
     });
     expect(runTool).not.toHaveBeenCalled();
   });
@@ -298,7 +296,7 @@ describe("runPalClaudeChatTurn", () => {
     const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client, runTool });
 
     expect(outcome).toMatchObject({
-      ok: true, message: "Here are four Soho pubs.", cards, proposals: [], toolsUsed: ["search_venues"],
+      ok: true, cards, proposals: [], toolsUsed: ["search_venues"],
     });
     if (!outcome.ok) return;
     expect(runTool.mock.calls).toEqual([["search_venues", { query, limit: 4 }, outcome.conversationId]]);
@@ -349,135 +347,31 @@ describe("runPalClaudeChatTurn", () => {
     expect(bodies).toHaveLength(1);
   });
 
-  it("streams the reply a sentence at a time, and clears text written before a tool call", async () => {
-    const { client } = fakeClient([
-      { content: [text("Checking. "), toolUse("tu_1", "whats_on", { query: "quiz" })], stop_reason: "tool_use", deltas: ["Check", "ing. "] },
-      { content: [text("A quiz at The Crown. Bring a pen.")], stop_reason: "end_turn", deltas: ["A quiz ", "at The Crown. Bring", " a pen."] },
-    ]);
-    const events: unknown[] = [];
-
-    await runPalClaudeChatTurn(
-      { query: "a quiz tonight", ownerId: OWNER, onProgress: (event) => events.push(event) },
-      undefined,
-      { client, runTool: async () => ({ ok: true, answerHint: "One quiz." }) },
-    );
-
-    expect(events).toEqual([
-      { type: "delta", text: "Checking." },
-      { type: "reset" },
-      { type: "delta", text: "A quiz at The Crown." },
-      { type: "delta", text: " Bring a pen." },
-    ]);
-  });
-
-  it("never streams or returns a price, hour or date that no tool result holds", async () => {
-    const { client } = fakeClient([{
-      content: [text("The Crown is quiet. Pints are £3.20 there. It is open until 2am, with a quiz on 21 November.")],
-      stop_reason: "end_turn",
-      deltas: ["The Crown is quiet. ", "Pints are £3.20 there. ", "It is open until 2am, with a quiz on 21 November."],
-    }]);
-    const events: Array<{ type: string; text?: string }> = [];
-
-    const outcome = await runPalClaudeChatTurn(
-      { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
-      undefined,
-      { client },
-    );
-
-    const streamed = events.flatMap((event) => (event.type === "delta" ? [event.text] : [])).join("");
-    for (const invented of ["3.20", "2am", "21 November"]) expect(streamed).not.toContain(invented);
-    expect(events.at(-1)).toEqual({ type: "reset" });
-    expect(outcome.ok).toBe(true);
-    if (!outcome.ok) return;
-    for (const invented of ["3.20", "2am", "21 November"]) expect(outcome.message).not.toContain(invented);
-    expect(outcome.cards).toEqual(storedTurn.cards);
-  });
-
-  it("renders factual figures from the stored cards instead of trusting rewritten model prose", async () => {
-    const reply = "The Crown pours at £4.80. It is open until 11pm, with a quiz on 21 November.";
-    const { client } = fakeClient([
-      { content: [toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" },
-      { content: [text(reply)], stop_reason: "end_turn", deltas: ["The Crown pours at £4.80. ", "It is open until 11pm, with a quiz on 21 November."] },
-    ]);
-    const events: Array<{ type: string; text?: string }> = [];
-    const runTool = async () => ({
-      ok: true,
-      cards: [{ ...storedTurn.cards[0]!, note: "Mo-Su 12:00-23:00. Quiz 2026-11-21T19:30:00Z." }],
-    });
-
-    const outcome = await runPalClaudeChatTurn(
-      { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
-      undefined,
-      { client, runTool },
-    );
-
-    expect(events).toEqual([]);
-    expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
-    if (outcome.ok) {
-      expect(outcome.message).not.toContain("11pm");
-      expect(outcome.message).not.toContain("21 November");
-    }
-  });
-
-  it.each([
-    ["is The Crown ok if we have 6 quid each", "The Coach charges £6 a pint.", { budgetGbp: 6 }],
-    ["a quiet pub in Soho", "The Coach charges £4.80 a pint.", { cards: [{ title: "The Anchor", price: 4.8 }] }],
-    ["we will arrive at 11pm", "The Coach closes at 11pm.", { arrivalTime: "23:00" }],
-    ["a quiet pub in Soho", "The quiz is on 21 November.", { priceReadAt: "2026-11-21T12:00:00Z" }],
-  ] as const)("does not turn unrelated numbers into facts for %s", async (query, reply, record) => {
-    const { client, bodies } = fakeClient([
-      { content: [toolUse("tu_1", "search_venues", { query })], stop_reason: "tool_use" },
-      { content: [text(reply)], stop_reason: "end_turn", deltas: [`${reply} `] },
-    ]);
-    const events: Array<{ type: string; text?: string }> = [];
-    const outcome = await runPalClaudeChatTurn(
-      { query, ownerId: OWNER, onProgress: (event) => events.push(event) },
-      undefined,
-      { client, runTool: async () => ({ ok: true, ...record }) },
-    );
-    expect(bodies).toHaveLength(2);
-    expect(events.filter((event) => event.type === "delta")).toEqual([]);
-    expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
-    if (outcome.ok) expect(outcome.message).not.toContain(reply);
-  });
-
   describe.each([["no tool evidence", false], ["tool evidence", true]] as const)("with %s", (_label, withTool) => {
     async function turnWithReply(reply: string) {
       const { client } = fakeClient([
         ...(withTool ? [{ content: [toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" as const }] : []),
         { content: [text(reply)], stop_reason: "end_turn", deltas: [`${reply} `, "Enjoy it. "] },
       ]);
-      const events: Array<{ type: string; text?: string }> = [];
-      const outcome = await runPalClaudeChatTurn(
-        { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
+      return runPalClaudeChatTurn(
+        { query: "a quiet pub in Soho", ownerId: OWNER },
         undefined,
         { client, runTool: async () => ({ ok: true, cards: storedTurn.cards }) },
       );
-      return { events, outcome };
     }
 
-    it.each(INVENTED_VENUE_REPLIES)("keeps %j out of the stream and the answer", async (reply) => {
+    it.each(INVENTED_VENUE_REPLIES)("keeps %j out of the answer", async (reply) => {
       if (!withTool) storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], hints: [], toolsUsed: [] });
       const control = await turnWithReply("Okay.");
-      const { events, outcome } = await turnWithReply(reply);
+      const outcome = await turnWithReply(reply);
 
-      expect(events.filter((event) => event.type === "delta")).toEqual([]);
-      expect(control.outcome.ok && control.outcome.message).toBeTruthy();
+      expect(control.ok && control.message).toBeTruthy();
       expect(outcome).toMatchObject({
         ok: true,
-        message: control.outcome.ok ? control.outcome.message : null,
+        message: control.ok ? control.message : null,
         cards: withTool ? storedTurn.cards : [],
       });
     });
-  });
-
-  it("keeps honest uncertainty without attaching a budget figure to a venue claim", async () => {
-    const reply = "I cannot confirm a price at The Crown. Check the board when you arrive.";
-    const { client } = fakeClient([{ content: [text(reply)], stop_reason: "end_turn", deltas: [reply] }]);
-
-    const outcome = await runPalClaudeChatTurn({ query: "is The Crown ok if we have 6 quid each", ownerId: OWNER }, undefined, { client });
-
-    expect(outcome).toMatchObject({ ok: true, message: reply });
   });
 
   it("starts no tool when the caller leaves while the model is still answering", async () => {
@@ -573,19 +467,19 @@ describe("runPalClaudeChatTurn", () => {
       },
     });
 
-    expect(outcome).toMatchObject({ ok: true, message: "I could not check the journey just now." });
+    expect(outcome).toMatchObject({ ok: true });
     expect(bodies[1]!.messages[2]!.content).toEqual([
       expect.objectContaining({ type: "tool_result", tool_use_id: "tu_1", is_error: true }),
     ]);
   });
 
-  it("keeps the reply when the stored cards cannot be read", async () => {
+  it("still answers when the stored cards cannot be read", async () => {
     storeMocks.readPubPalToolTurn.mockRejectedValue(new Error("store down"));
     const { client } = fakeClient([{ content: [text("The Crown is your quiet one.")], stop_reason: "end_turn" }]);
 
     const outcome = await runPalClaudeChatTurn({ query: "a quiet pub in Soho", ownerId: OWNER }, undefined, { client });
 
-    expect(outcome).toMatchObject({ ok: true, message: "The Crown is your quiet one.", cards: [] });
+    expect(outcome).toMatchObject({ ok: true, cards: [] });
   });
 
   it("asks no model when the safety fence answers", async () => {

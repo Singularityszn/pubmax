@@ -129,8 +129,8 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     releaseFirstTool();
     const sohoOutcome = await soho;
 
-    expect(camden).toMatchObject({ ok: true, message: "Camden answer." });
-    expect(sohoOutcome).toMatchObject({ ok: true, message: "Soho answer.", cards: [SOHO_CARD] });
+    expect(camden).toMatchObject({ ok: true });
+    expect(sohoOutcome).toMatchObject({ ok: true, cards: [SOHO_CARD] });
     if (!camden.ok || !sohoOutcome.ok) return;
     expect(new Set([threadId, camden.conversationId, sohoOutcome.conversationId]).size).toBe(3);
     expect(camden.cards.map((card) => card.title)).toEqual(["The Lock"]);

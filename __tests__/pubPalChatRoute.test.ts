@@ -1026,7 +1026,7 @@ describe("POST /api/pub-pal/chat", () => {
         .map((line) => JSON.parse(line) as Record<string, unknown>);
     }
 
-    it("streams the text as it is written and ends with the same body the JSON path returns", async () => {
+    it("streams one final event with the same body the JSON path returns", async () => {
       authState.userId = "11111111-1111-4111-8111-111111111111";
       const ok = {
         ok: true as const,
@@ -1036,11 +1036,7 @@ describe("POST /api/pub-pal/chat", () => {
         conversationId: "conv_chatroute01",
         toolsUsed: ["cheapest_pint_near"],
       };
-      vi.mocked(runPalElevenLabsChatTurn).mockImplementation(async (input) => {
-        input.onProgress?.({ type: "delta", text: "Two listed" });
-        input.onProgress?.({ type: "delta", text: " pints." });
-        return ok;
-      });
+      vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue(ok);
 
       const response = await POST(streamRequest());
 
@@ -1048,23 +1044,12 @@ describe("POST /api/pub-pal/chat", () => {
       expect(response.headers.get("content-type")).toContain(STREAM_ACCEPT);
       expect(response.headers.get("cache-control")).toContain("no-store");
       const sent = await events(response);
-      expect(sent.slice(0, 2)).toEqual([
-        { type: "delta", text: "Two listed" },
-        { type: "delta", text: " pints." },
-      ]);
-      const jsonPath = await (async () => {
-        vi.mocked(runPalElevenLabsChatTurn).mockResolvedValue(ok);
-        return (
-          await POST(
-            new Request("http://localhost/api/pub-pal/chat", {
-              method: "POST",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
-            }),
-          )
-        ).json();
-      })();
-      expect(sent[2]).toEqual({ type: "final", body: jsonPath });
+      const jsonPath = await (await POST(new Request("http://localhost/api/pub-pal/chat", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ query: "Cheapest pint in Clapham?" }),
+      }))).json();
+      expect(sent).toEqual([{ type: "final", body: jsonPath }]);
     });
 
     it("still refuses an anonymous caller with a JSON 401, before any stream opens", async () => {

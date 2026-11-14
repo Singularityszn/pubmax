@@ -399,7 +399,8 @@ describe("configured chat request deadline", () => {
     } else {
       const body = stream ? events.at(-1).body : events[0];
       if (isProvider) {
-        expect(body.answer).toBe("A useful sourced reply.");
+        expect(body.answer).toMatch(/\S/);
+        expect(body.answer).not.toBe("A useful sourced reply.");
         expect(body.conversationId).toBe(metadataId);
       } else {
         expect(body.cards).toHaveLength(4);
@@ -559,7 +560,8 @@ describe("configured chat request deadline", () => {
       expect(completed!.response.status).toBe(200);
       const event = JSON.parse(completed!.body);
       const body = stream ? event.body : event;
-      expect(body.answer).toBe("A useful sourced reply.");
+      expect(body.answer).toMatch(/\S/);
+      expect(body.answer).not.toBe("A useful sourced reply.");
       expect(body.cards).toEqual(stalled ? [] : readback.cards);
       expect(body.toolsUsed).toEqual(stalled ? [] : ["search_venues"]);
       const sentAtDeadline = sent.length;

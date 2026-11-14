@@ -295,11 +295,14 @@ Voice uses the same opening builder in its first-message override.
    cannot be talked over and the words were dropped before. The recogniser gets
    a short list of London pub words (`asr.keywords`). Until the captain re-runs
    `npm run pubpal:agent`, `--check` reports these fields as drift.
-   Typed chat can also stream. A caller that sends `Accept: application/x-ndjson`
-   to `/api/pub-pal/chat` gets the answer text as the agent writes it
-   (`agent_chat_response_part`, which text-only mode always sends), then one
-   `final` line carrying the same body the JSON path returns, cards and
-   proposals included. Sign-in, the rate limit and the spend ceiling answer
+   Typed chat answers from its records, never from model prose. On Claude and
+   ElevenLabs alike, the model chooses tools, and `palChatAnswer` in
+   `lib/palElevenLabsChat.server.ts` writes the message from the stored hints
+   and cards. A turn that ran no tool gets the opening question. The model
+   text is not sent, so the agent cannot add a pub name, a feature or a figure.
+   A caller that sends `Accept: application/x-ndjson` to `/api/pub-pal/chat`
+   gets one `final` line carrying the same body the JSON path returns, cards
+   and proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
    One more webhook, `recall_memories`, is Pal-only.
    [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns
@@ -403,11 +406,6 @@ ElevenLabs failures at stage `deadline` also include a `progress` snapshot.
 The snapshot contains elapsed times, event counts, the pending tool count and reply eligibility.
 The [progress type](../lib/palChatDeadlineProgress.ts) defines the fields.
 Other failure stages and the Claude transport omit this snapshot.
-
-The Claude transport emits a private `pub_pal.chat_unsupported_claim` warning with the recognised figure kinds.
-Typed Claude and ElevenLabs replies use stored hints or cards when model prose contains a recognised price, time, date or year.
-Matching a number never proves its venue or meaning. Both transports hold complete sentences before streaming them.
-The check does not validate non-numeric venue claims or every possible way to write a figure.
 
 The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
 It does not change the public error response or establish a provider failure's cause.

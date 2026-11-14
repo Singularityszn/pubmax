@@ -7,4 +7,6 @@ export const INVENTED_VENUE_REPLIES = [
   "The Crown is open until 11.",
   "Last orders there are at half eleven.",
   "Pints there are five quid.",
+  "The Coach charges £6 a pint.",
+  "Pints are £3.20 and it is open until 2am, with a quiz on 21 November.",
 ];

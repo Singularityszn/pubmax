@@ -83,7 +83,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
 }
 
 /**
- * The same turn as the JSON path, sent as it is written. Everything that can
+ * The same turn as the JSON path, sent as one final event. Everything that can
  * refuse the ask (rate limit, sign-in, spend ceiling) has already answered with
  * its normal JSON status before this runs, so a refusal never opens a stream.
  * Only a failure after the stream began is an `error` event.
@@ -102,11 +102,7 @@ function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatCon
         }
       };
       try {
-        const outcome = await runTypedTurn({
-          ...input,
-          signal: abort.signal,
-          onProgress: send,
-        }, context);
+        const outcome = await runTypedTurn({ ...input, signal: abort.signal }, context);
         send(
           outcome.ok
             ? { type: "final", body: answerBody(outcome) }

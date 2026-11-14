@@ -10,12 +10,12 @@ import {
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
+import { palOpeningMessage } from "@/lib/palOpening";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
-import { palReplyStreamGate, unsupportedPalReplyClaims } from "@/lib/palReplyGrounding";
 import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -148,17 +148,9 @@ export type PalElevenLabsChatInput = {
   /** Browser-sent user turns. They may only add a get-home fence, never reach the model or the store. */
   fenceTurns?: PubPalFenceTurn[];
   ownerId: string;
-  /**
-   * Called as the agent writes its reply: `delta` carries more text, `reset` says
-   * what was sent so far was a checking line before a tool and should be cleared.
-   * The outcome still carries the whole answer, so a caller may ignore this.
-   */
-  onProgress?: (event: PalElevenLabsChatProgress) => void;
   /** Ends the turn and closes the agent socket, for a caller that has gone away. */
   signal?: AbortSignal;
 };
-
-type PalElevenLabsChatProgress = { type: "delta"; text: string } | { type: "reset" };
 
 export type PalElevenLabsChatOutcome =
   | {
@@ -368,31 +360,20 @@ export async function preparePalChatProviderTurn(
 }
 
 /**
- * The finished answer uses model prose only without recognised factual figures.
- * Otherwise it uses stored hints or cards, else a plain nothing-sourced line.
+ * The finished answer for every typed provider. Model prose never reaches the
+ * person: the message is the stored tool hints and cards, the opening question
+ * when no tool ran, else a plain nothing-sourced line.
  */
 export function palChatAnswer(
-  modelMessage: string,
   turn: PubPalToolTurn | null,
   conversationId: string,
 ): Extract<PalElevenLabsChatOutcome, { ok: true }> {
   const cards = turn?.cards ?? [];
-  const proposals = turn?.proposals ?? [];
-  const message =
-    (unsupportedPalReplyClaims(modelMessage).length === 0 ? modelMessage : "") ||
-    (turn?.hints.length
-      ? composeAnswer(turn.hints, cards, [])
-      : cards.length > 0
-        ? composeAnswer([], cards, [])
-        : "Nothing sourced for that. Try a nearby area or a broader ask.");
-  return {
-    ok: true,
-    message,
-    cards,
-    proposals,
-    conversationId,
-    toolsUsed: turn?.toolsUsed ?? [],
-  };
+  const toolsUsed = turn?.toolsUsed ?? [];
+  const message = turn && toolsUsed.length === 0 && cards.length === 0 && turn.hints.length === 0
+    ? palOpeningMessage("")
+    : composeAnswer(turn?.hints ?? [], cards, toolsUsed);
+  return { ok: true, message, cards, proposals: turn?.proposals ?? [], conversationId, toolsUsed };
 }
 
 export async function runPalElevenLabsChatTurn(
@@ -478,27 +459,7 @@ export async function runPalElevenLabsChatTurn(
     // earlier replies. An end_call request or successful response preserves
     // an eligible farewell.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
-    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
-      if (unsupportedPalReplyClaims(agentMessage).length > 0) resetStream();
-      else {
-        const rest = streamGate.rest();
-        if (rest) {
-          streamedText = true;
-          input.onProgress?.({ type: "delta", text: rest });
-        }
-      }
-      return palChatAnswer(agentMessage, turn, conversationId);
-    };
-    // Text sent to the caller since the last reset. An invalidating tool event
-    // or a newer reply tells the caller to clear it.
-    let streamedText = false;
-    let streamGate = palReplyStreamGate();
-    const resetStream = () => {
-      streamGate = palReplyStreamGate();
-      if (!streamedText) return;
-      streamedText = false;
-      input.onProgress?.({ type: "reset" });
-    };
+    const answer = (turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => palChatAnswer(turn, conversationId);
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const clearSettle = () => {
       if (settleTimer) clearTimeout(settleTimer);
@@ -519,7 +480,7 @@ export async function runPalElevenLabsChatTurn(
         finish({ ok: false, code: "TIMEOUT" }, "deadline");
         return;
       }
-      finish(answer(latestReply, null));
+      finish(answer(null));
     }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
@@ -538,14 +499,13 @@ export async function runPalElevenLabsChatTurn(
     };
 
     const finishWithLatestReply = () => {
-      const agentMessage = latestReply;
       const generation = replyGeneration;
       const events = toolEvents;
       void (async () => {
         try {
           const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0, deadline) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
-          finish(answer(agentMessage, turn));
+          finish(answer(turn));
         } catch (error) {
           // The main deadline timer preserves an eligible reply and closes the socket.
           if (error instanceof PalChatDeadlineExceeded) return;
@@ -620,18 +580,8 @@ export async function runPalElevenLabsChatTurn(
     const receiveResponsePart = (payload: AgentResponseEvent): void => {
       if (!userMessageSent) return;
       const part = payload.text_response_part;
-      if (part?.type === "start") {
-        resetStream();
-      } else if (part?.type === "delta" && part.text) {
-        progress.streamDelta();
-        const checked = streamGate.push(part.text);
-        if (checked) {
-          streamedText = true;
-          input.onProgress?.({ type: "delta", text: checked });
-        }
-      } else {
-        progress.streamPart(payload);
-      }
+      if (part?.type === "delta" && part.text) progress.streamDelta();
+      else if (part?.type !== "start") progress.streamPart(payload);
     };
 
     const receiveReply = (payload: AgentResponseEvent): void => {
@@ -697,7 +647,6 @@ export async function runPalElevenLabsChatTurn(
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
         clearSettle();
-        resetStream();
         toolEvents += 1;
         progress.toolRequest(payload);
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
@@ -708,7 +657,6 @@ export async function runPalElevenLabsChatTurn(
         if (!userMessageSent) return;
         if (!completeToolCall(payload.agent_tool_response?.tool_call_id)) return;
         clearSettle();
-        resetStream();
         toolEvents += 1;
         progress.toolResponse(payload);
         return;
