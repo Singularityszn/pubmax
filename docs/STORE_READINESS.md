@@ -265,6 +265,7 @@ These are derived from the actual code, not aspirations. File references are inl
 - No advertising SDKs, no ad identifiers, no cross-app tracking. Nothing on this list is used to track the user across other companies' apps or sites.
 - No selling or sharing of personal data with data brokers.
 - No account required to find a pint. Identity is optional and prompted contextually, not at launch.
+- No fitness data leaves the phone. Opt-in step counting for a night reads the phone's own step counter (Core Motion on iOS under `NSMotionUsageDescription`, the step counter sensor on Android under `ACTIVITY_RECOGNITION`, through `lib/nativeOutingSteps.ts`). The count stays in this device's local storage and is never sent to a server, so Health and Fitness stays Not Collected.
 - No background location access. Full-precision viewer coordinates stay on the device, except crew live location, which a member turns on for one night. Rounded coordinates are not shown to other users and are used only to answer a location request.
 
 ### Apple App Privacy label (App Store Connect > App Privacy)

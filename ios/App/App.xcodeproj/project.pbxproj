@@ -21,6 +21,7 @@
 		A1A000000000000000000004 /* OfflineNavigation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A000000000000000000003 /* OfflineNavigation.swift */; };
 		A1A000000000000000000006 /* NativeAuthCallback.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A000000000000000000005 /* NativeAuthCallback.swift */; };
 		A1A000000000000000000008 /* NativeAuthSessionPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A000000000000000000007 /* NativeAuthSessionPlugin.swift */; };
+		A1A00000000000000000000A /* OutingStepsPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1A000000000000000000009 /* OutingStepsPlugin.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -41,6 +42,7 @@
 		A1A000000000000000000003 /* OfflineNavigation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OfflineNavigation.swift; sourceTree = "<group>"; };
 		A1A000000000000000000005 /* NativeAuthCallback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAuthCallback.swift; sourceTree = "<group>"; };
 		A1A000000000000000000007 /* NativeAuthSessionPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeAuthSessionPlugin.swift; sourceTree = "<group>"; };
+		A1A000000000000000000009 /* OutingStepsPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutingStepsPlugin.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -78,6 +80,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				A1A000000000000000000005 /* NativeAuthCallback.swift */,
 				A1A000000000000000000007 /* NativeAuthSessionPlugin.swift */,
+				A1A000000000000000000009 /* OutingStepsPlugin.swift */,
 				A1A000000000000000000001 /* ShellBridgeViewController.swift */,
 				A1A000000000000000000003 /* OfflineNavigation.swift */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
@@ -178,6 +181,7 @@
 			files = (
 				A1A000000000000000000006 /* NativeAuthCallback.swift in Sources */,
 				A1A000000000000000000008 /* NativeAuthSessionPlugin.swift in Sources */,
+				A1A00000000000000000000A /* OutingStepsPlugin.swift in Sources */,
 				A1A000000000000000000002 /* ShellBridgeViewController.swift in Sources */,
 				A1A000000000000000000004 /* OfflineNavigation.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,

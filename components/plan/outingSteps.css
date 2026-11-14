@@ -1,0 +1,24 @@
+.outingSteps {
+  display: grid;
+  gap: var(--space-3);
+  padding-block: var(--space-4);
+  border-block-start: 1px solid var(--line-soft);
+  color: var(--color-text);
+}
+.outingSteps h3,
+.outingSteps p { margin: 0; }
+.outingSteps__muted {
+  color: var(--color-text-muted);
+  font-size: var(--text-sm);
+}
+.outingSteps__count {
+  font-family: var(--font-data);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-xl);
+  overflow-wrap: anywhere;
+}
+.outingSteps__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

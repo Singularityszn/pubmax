@@ -21,6 +21,9 @@
     <uses-feature android:name="android.hardware.camera" android:required="false" />
     <uses-feature android:name="android.hardware.camera.autofocus" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
+    <!-- Counting steps on a night out is optional, so a phone with no step
+         counter keeps the listing and the page hides the feature. -->
+    <uses-feature android:name="android.hardware.sensor.stepcounter" android:required="false" />
 
     <!-- Android Auto Backup copies the app's data, WebView localStorage
          included, to the person's Google Drive, and it is ON by default. This
@@ -203,4 +206,8 @@
          contextual explainer (lib/nativePushPrompt.ts) is still the only thing
          that triggers the OS dialog, and only after a kept action. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- The step counter. Android 10 made this a runtime permission. The page
+         asks only when a person starts counting steps for a night out
+         (lib/nativeOutingSteps.ts), and the count stays on the phone. -->
+    <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
 </manifest>
