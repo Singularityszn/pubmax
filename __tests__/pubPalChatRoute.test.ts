@@ -573,6 +573,7 @@ describe("POST /api/pub-pal/chat", () => {
       regulars: [],
       loved: [],
       notKeen: [],
+      usuals: [],
       drinks: [],
       usualPintGbp: 5.6,
       vibes: ["quiet pint"],
@@ -614,7 +615,7 @@ describe("POST /api/pub-pal/chat", () => {
     authState.userId = "11111111-1111-4111-8111-111111111111";
     tasteState.taste = {
       visits: 6, distinctPubs: 3, lastVisit: { name: "The Crown", on: "2026-10-10" },
-      patches: ["Soho"], regulars: [], loved: [], notKeen: [], drinks: [],
+      patches: ["Soho"], regulars: [], loved: [], notKeen: [], usuals: [], drinks: [],
       usualPintGbp: 5.6, vibes: ["quiet pint"], style: null, favouriteNight: null, wishlist: [],
     };
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {

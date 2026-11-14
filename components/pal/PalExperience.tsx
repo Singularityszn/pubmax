@@ -222,7 +222,7 @@ function PalTasteToggle({
       <Sparkles />
       <span>
         <strong>Taste read {on ? "on" : "off"}</strong>
-        <small>{on ? "Your favourite drink and logged pubs shape picks" : "Pal won't read your favourite drink, diary, drops or saves"}</small>
+        <small>{on ? "Your favourite drink, diary, drops and saves shape picks" : "Pal won't read your favourite drink, diary, drops or saves"}</small>
       </span>
     </button>
   );

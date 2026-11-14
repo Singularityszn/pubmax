@@ -85,6 +85,7 @@ async function readTaste(ownerId: string): Promise<PalTaste | null> {
       venueName: entry.venueName,
       visitedOn: entry.visitedOn,
       rating: entry.rating,
+      usualDrink: entry.usualDrink,
     })),
     drops: drops.map((drop) => ({
       venueId: drop.venueId,
