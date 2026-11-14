@@ -15,6 +15,8 @@ const state = {
   whatsOnThrows: false,
   whatsOnReadStatus: "ready" as "ready" | "degraded",
   pricedVenuesThrows: false,
+  amenityRows: [] as unknown[],
+  amenityThrows: false,
   desk: { venues: [], status: "ready" } as DeskVenueRead,
 };
 
@@ -28,6 +30,16 @@ vi.mock("@/lib/venuePriceIndex", async (importOriginal) => ({
     if (state.pricedVenuesThrows) throw new Error("down");
     return state.pricedVenues;
   }),
+}));
+
+vi.mock("@/data/amenities/london_pub_website_evidence.json", () => ({
+  default: {
+    version: 1,
+    get rows() {
+      if (state.amenityThrows) throw new Error("unreadable");
+      return state.amenityRows;
+    },
+  },
 }));
 
 vi.mock("@/lib/communityPriceStore", () => ({
@@ -113,6 +125,8 @@ beforeEach(() => {
   state.venues = [];
   state.pricedVenues = [];
   state.pricedVenuesThrows = false;
+  state.amenityRows = [];
+  state.amenityThrows = false;
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
   state.whatsOnThrows = false;
@@ -280,7 +294,51 @@ describe("search_venues hard requirements", () => {
     expect(searchData(result)).toMatchObject({ found: 0, coverageGaps: [], unverified: [] });
   });
 
-  it("does not confirm a darts board from a bare tag, and keeps the tagged pub as unverified", async () => {
+  const siteRow = (venueId: string | null, amenities: Record<string, string>, overrides: Record<string, unknown> = {}) => ({
+    osmId: `node/${venueId ?? "unlinked"}`,
+    name: "The Oche",
+    venueId,
+    sourceUrl: `https://${venueId ?? "unlinked"}.example/`,
+    verifiedAt: "2026-08-01",
+    amenities,
+    ...overrides,
+  });
+  const dartsTagged = (id: string) =>
+    venue({ id, name: `The Oche ${id}`, area: "Soho", cheapestPrice: 4, amenities: { ...noAmenities, darts: true } });
+
+  it("confirms darts and pool only from a dated pub website quote linked to that exact venue", async () => {
+    state.venues = ["site", "future", "televised", "unlinked", "elsewhere", "bad-url", "bad-day"].map((id) => dartsTagged(id));
+    state.amenityRows = [
+      siteRow("site", { darts: "dart board", pool: "two pool tables" }),
+      siteRow("future", { darts: "dart board" }, { verifiedAt: "2026-09-01" }),
+      siteRow("televised", { darts: "watch the darts on our big screens" }),
+      siteRow(null, { darts: "dart board" }),
+      siteRow("another-venue", { darts: "dart board" }, { name: "The Oche elsewhere" }),
+      siteRow("bad-url", { darts: "dart board" }, { sourceUrl: "not a url" }),
+      siteRow("bad-day", { darts: "dart board" }, { verifiedAt: "2026-02-30" }),
+    ];
+    const darts = await search("Six pubs with a darts board in Soho", 6);
+    expect(darts.cards.map((card) => card.venueId)).toEqual(["site"]);
+    expect(searchData(darts)).toMatchObject({
+      requirements: ["darts"],
+      coverageGaps: [],
+      found: 1,
+      venues: [{ id: "site", evidence: [{ requirement: "darts", source: "Pub website", observedAt: "2026-08-01" }] }],
+    });
+    expect(searchData(darts).unverified.map((row) => row.id).sort()).toEqual(["bad-day", "bad-url", "elsewhere", "future", "televised", "unlinked"]);
+    const pool = await search("Pubs in Soho with a pool table");
+    expect(pool.cards.map((card) => card.venueId)).toEqual(["site"]);
+  });
+
+  it("drops a quote one host states for several venues", async () => {
+    state.venues = ["chain-a", "chain-b"].map((id) => dartsTagged(id));
+    state.amenityRows = ["chain-a", "chain-b"].map((id) => siteRow(id, { darts: "dart board" }, { sourceUrl: `https://chain.example/${id}` }));
+    const result = await search("Pubs with a darts board in Soho");
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({ coverageGaps: [], found: 0 });
+  });
+
+  it("keeps a bare darts tag unverified when no website evidence names the venue", async () => {
     state.venues = [
       venue({ id: "darts", name: "The Oche", area: "Soho", amenities: { ...noAmenities, darts: true } }),
       venue({ id: "plain", name: "The Plain", area: "Soho", cheapestPrice: 3 }),
@@ -289,10 +347,19 @@ describe("search_venues hard requirements", () => {
     expect(result.cards).toEqual([]);
     expect(searchData(result)).toMatchObject({
       requirements: ["darts"],
-      coverageGaps: ["darts"],
+      coverageGaps: [],
       found: 0,
       unverified: [{ id: "darts", requirements: ["darts"] }],
     });
+  });
+
+  it("names the darts gap when the website evidence cannot be read", async () => {
+    state.venues = [dartsTagged("site")];
+    state.amenityRows = [siteRow("site", { darts: "dart board" })];
+    state.amenityThrows = true;
+    const result = await search("Pubs with a darts board in Soho");
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({ coverageGaps: ["darts"], found: 0, unverified: [{ id: "site" }] });
   });
 
   it("keeps a verified requirement apart from an unproven tag in the same ask", async () => {
@@ -303,7 +370,7 @@ describe("search_venues hard requirements", () => {
     const result = await search("Pubs in Soho with a beer garden and a pool table");
     expect(result.cards).toEqual([]);
     expect(searchData(result)).toMatchObject({
-      coverageGaps: ["pool"],
+      coverageGaps: [],
       found: 0,
       unverified: [{ id: "garden-pool", requirements: ["pool"] }],
     });
@@ -435,7 +502,7 @@ describe("propose_plan hard requirements", () => {
     expect(result.data).toMatchObject({ requirements: ["quiz"], coverageGaps: ["quiz"] });
   });
 
-  it("drafts no darts crawl from bare darts tags", async () => {
+  it("drafts no darts crawl from bare darts tags with no website evidence", async () => {
     state.venues = ["d1", "d2", "d3"].map((id, index) => ({
       ...soho(id, index, false),
       amenities: { beerGarden: false, cocktails: false, food: false, liveSports: false, liveMusic: false, darts: true },
@@ -444,7 +511,7 @@ describe("propose_plan hard requirements", () => {
     expect(result.ok).toBe(false);
     expect(draftIds(result)).toEqual([]);
     expect(result.cards).toEqual([]);
-    expect(result.data).toMatchObject({ requirements: ["darts"], coverageGaps: ["darts"] });
+    expect(result.data).toMatchObject({ requirements: ["darts"], coverageGaps: [] });
   });
 });
 
