@@ -368,6 +368,63 @@ describe("runPalClaudeChatTurn", () => {
     ]);
   });
 
+  it("never streams or returns a price, hour or date that no tool result holds", async () => {
+    const { client } = fakeClient([{
+      content: [text("The Crown is quiet. Pints are £3.20 there. It is open until 2am, with a quiz on 21 November.")],
+      stop_reason: "end_turn",
+      deltas: ["The Crown is quiet. ", "Pints are £3.20 there. ", "It is open until 2am, with a quiz on 21 November."],
+    }]);
+    const events: Array<{ type: string; text?: string }> = [];
+
+    const outcome = await runPalClaudeChatTurn(
+      { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
+      undefined,
+      { client },
+    );
+
+    const streamed = events.flatMap((event) => (event.type === "delta" ? [event.text] : [])).join("");
+    for (const invented of ["3.20", "2am", "21 November"]) expect(streamed).not.toContain(invented);
+    expect(events.at(-1)).toEqual({ type: "reset" });
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    for (const invented of ["3.20", "2am", "21 November"]) expect(outcome.message).not.toContain(invented);
+    expect(outcome.cards).toEqual(storedTurn.cards);
+  });
+
+  it("streams and keeps a price, hour and date that a tool result holds", async () => {
+    const reply = "The Crown pours at £4.80. It is open until 11pm, with a quiz on 21 November.";
+    const { client } = fakeClient([
+      { content: [toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" },
+      { content: [text(reply)], stop_reason: "end_turn", deltas: ["The Crown pours at £4.80. ", "It is open until 11pm, with a quiz on 21 November."] },
+    ]);
+    const events: Array<{ type: string; text?: string }> = [];
+    const runTool = async () => ({
+      ok: true,
+      cards: [{ ...storedTurn.cards[0]!, note: "Mo-Su 12:00-23:00. Quiz 2026-11-21T19:30:00Z." }],
+    });
+
+    const outcome = await runPalClaudeChatTurn(
+      { query: "a quiet pub in Soho", ownerId: OWNER, onProgress: (event) => events.push(event) },
+      undefined,
+      { client, runTool },
+    );
+
+    expect(events).toEqual([
+      { type: "delta", text: "The Crown pours at £4.80. " },
+      { type: "delta", text: "It is open until 11pm, with a quiz on 21 November." },
+    ]);
+    expect(outcome).toMatchObject({ ok: true, message: reply });
+  });
+
+  it("keeps honest uncertainty and the user's own figures", async () => {
+    const reply = "I cannot confirm a price at The Crown. With your £6 each, check the board when you arrive.";
+    const { client } = fakeClient([{ content: [text(reply)], stop_reason: "end_turn", deltas: [reply] }]);
+
+    const outcome = await runPalClaudeChatTurn({ query: "is The Crown ok if we have 6 quid each", ownerId: OWNER }, undefined, { client });
+
+    expect(outcome).toMatchObject({ ok: true, message: reply });
+  });
+
   it("starts no tool when the caller leaves while the model is still answering", async () => {
     const caller = new AbortController();
     const client: PalClaudeClient = {
