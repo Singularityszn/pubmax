@@ -3168,7 +3168,10 @@ export default function PubMap({
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
-  const pintCapMatched = useMemo(() => pintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice), [kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
+  const { mapResultsSettled, pintCapMatched } = useMemo(() => {
+    const settled = loaded && loadedCityId === cityId && !lastOrdersReading;
+    return { mapResultsSettled: settled, pintCapMatched: settled ? pintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice) : null };
+  }, [loaded, loadedCityId, cityId, lastOrdersReading, kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));
@@ -6279,7 +6282,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={loaded && loadedCityId === cityId && !lastOrdersReading ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={mapResultsSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6988,7 +6991,7 @@ export default function PubMap({
         onFiltersChange={setFilters}
         // Not settled while Last orders reads its hours: an empty map then is
         // a wait, not "nothing matches".
-        searchSettled={loaded && loadedCityId === cityId && !lastOrdersReading}
+        searchSettled={mapResultsSettled}
         filteredVenueCount={filteredVenueCount}
         lastOrdersFailed={lastOrdersFailed}
         searchableVenueCount={venues.length}
