@@ -32,7 +32,10 @@ import {
   type DrinkSubtype,
 } from "@/lib/drinkSubtypes";
 import type { DrinkCategory } from "@/lib/drinks";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
+import type { VenuePrice } from "@/lib/venues";
 import { positiveFeatureObservation, type VenueFeature, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -151,12 +154,15 @@ export function outdoorSeatingInstead(requirements: readonly VenueRequirement[])
 
 export type QuizListing = { source: string; observedAt: string };
 
+export type PricedDrink = { name: string; source: string; observedAt: string };
+
 export type RequirementContext = {
   now: number;
   quizListings: ReadonlyMap<string, QuizListing> | null;
+  pricedDrinks: ReadonlyMap<string, readonly PricedDrink[]> | null;
 };
 
-export type RequirementProof = { requirement: string; source: string | null; observedAt: string | null };
+export type RequirementProof = { requirement: string; source: string; observedAt: string };
 
 export function requirementKey(requirement: VenueRequirement): string {
   return requirement.kind === "drink" ? `drink:${requirement.label}` : requirement.kind;
@@ -175,8 +181,31 @@ export function venueQuizListings(rows: readonly WhatsOnRow[], now: number): Map
   return listings;
 }
 
+export function venuePricedDrinks(
+  venues: readonly { id: string; prices?: readonly VenuePrice[] }[],
+  now: number,
+): Map<string, PricedDrink[]> {
+  const drinks = new Map<string, PricedDrink[]>();
+  for (const venue of venues) {
+    const rows = (venue.prices ?? []).flatMap((price) => {
+      const name = price.pint_name?.trim();
+      const source = namedLegacyPintPriceSource(price)?.label;
+      const observedAt = legacyPintPriceObservedAt(price, now);
+      return name && source && observedAt ? [{ name, source, observedAt }] : [];
+    });
+    if (rows.length) drinks.set(venue.id, rows);
+  }
+  return drinks;
+}
+
+function hasNoDatedSource(requirement: VenueRequirement): boolean {
+  return requirement.kind === "darts" || requirement.kind === "pool";
+}
+
 export function requirementCoverageGaps(requirements: readonly VenueRequirement[], context: RequirementContext): string[] {
-  return requirements.some((requirement) => requirement.kind === "quiz") && context.quizListings === null ? ["quiz"] : [];
+  return requirements.filter((requirement) => hasNoDatedSource(requirement)
+    || (requirement.kind === "quiz" && context.quizListings === null)
+    || (requirement.kind === "drink" && context.pricedDrinks === null)).map(requirementKey);
 }
 
 function observedFeature(
@@ -190,14 +219,31 @@ function observedFeature(
     : null;
 }
 
-function drinkOnRecord(venue: ConciergeVenue, match: DrinkMatch): boolean {
-  const names = (venue.drinkText ?? "").split(";").map((name) => name.trim()).filter(Boolean);
-  if (match.by === "category" && match.category === "alcohol-free" && venue.amenities.nonAlcoholic === true) return true;
-  return names.some((name) => match.by === "brand"
+function drinkNameMatches(name: string, match: DrinkMatch): boolean {
+  if (match.by === "category" && match.category === "alcohol-free" && isNonAlcoholicDrink(name)) return true;
+  return match.by === "brand"
     ? haystackMatchesBrand(name, match.brand)
     : match.by === "subtype"
       ? haystackMatchesSubtype(name, match.subtype) || haystackMatchesSubtypeBrand(name, match.subtype)
-      : haystackMatchesCategory(name, match.category));
+      : haystackMatchesCategory(name, match.category);
+}
+
+function drinkTagged(venue: ConciergeVenue, match: DrinkMatch): boolean {
+  if (match.by === "category" && match.category === "alcohol-free" && venue.amenities.nonAlcoholic === true) return true;
+  return (venue.drinkText ?? "").split(";").map((name) => name.trim()).some((name) => name && drinkNameMatches(name, match));
+}
+
+function requirementTagged(venue: ConciergeVenue, requirement: VenueRequirement): boolean {
+  switch (requirement.kind) {
+    case "darts":
+      return venue.amenities.darts === true;
+    case "pool":
+      return venue.amenities.pool === true;
+    case "drink":
+      return drinkTagged(venue, requirement.match);
+    default:
+      return false;
+  }
 }
 
 /** What proves a pub meets one requirement, or null when it has no accepted record of it. */
@@ -208,7 +254,6 @@ export function requirementProof(
 ): RequirementProof | null {
   const facts = venue.features ?? {};
   const key = requirementKey(requirement);
-  const unsourced: RequirementProof = { requirement: key, source: null, observedAt: null };
   switch (requirement.kind) {
     case "garden":
       return observedFeature(key, facts.garden, "beerGarden", context.now);
@@ -216,17 +261,19 @@ export function requirementProof(
       return observedFeature(key, facts.garden, "beerGarden", context.now)
         ?? observedFeature(key, facts.outdoorSeating, "outdoorSeating", context.now);
     case "darts":
-      return venue.amenities.darts === true ? unsourced : null;
     case "pool":
-      return venue.amenities.pool === true ? unsourced : null;
+      return null;
     case "dogs":
       return observedFeature(key, facts.dogsWelcome, "dogsWelcome", context.now);
     case "quiz": {
       const listing = context.quizListings?.get(venue.id);
       return listing ? { requirement: key, source: listing.source, observedAt: listing.observedAt } : null;
     }
-    case "drink":
-      return drinkOnRecord(venue, requirement.match) ? unsourced : null;
+    case "drink": {
+      const match = requirement.match;
+      const row = context.pricedDrinks?.get(venue.id)?.find((drink) => drinkNameMatches(drink.name, match));
+      return row ? { requirement: key, source: row.source, observedAt: row.observedAt } : null;
+    }
   }
 }
 
@@ -244,6 +291,20 @@ export function requirementProofs(
   return proofs;
 }
 
+export function unverifiedRequirements(
+  venue: ConciergeVenue,
+  requirements: readonly VenueRequirement[],
+  context: RequirementContext,
+): string[] | null {
+  const tagged: string[] = [];
+  for (const requirement of requirements) {
+    if (requirementProof(venue, requirement, context)) continue;
+    if (!requirementTagged(venue, requirement)) return null;
+    tagged.push(requirementKey(requirement));
+  }
+  return tagged.length ? tagged : null;
+}
+
 function observedDay(observedAt: string): string {
   return formatObservedDate(new Date(/^\d{4}-\d{2}-\d{2}$/.test(observedAt) ? `${observedAt}T12:00:00Z` : observedAt));
 }
@@ -254,7 +315,7 @@ export function requirementProofLine(
   proof: RequirementProof,
   now: number,
 ): string {
-  const dated = proof.source && proof.observedAt ? ` (${proof.source}, ${observedDay(proof.observedAt)})` : "";
+  const dated = ` (${proof.source}, ${observedDay(proof.observedAt)})`;
   const fromGarden = observedFeature(proof.requirement, venue.features?.garden, "beerGarden", now) !== null;
   switch (requirement.kind) {
     case "garden":
@@ -262,15 +323,15 @@ export function requirementProofLine(
     case "outdoor-seating":
       return `${fromGarden ? "Beer garden" : "Outdoor seating"} on record${dated}`;
     case "darts":
-      return "Darts on record";
+      return `Darts on record${dated}`;
     case "pool":
-      return "Pool table on record";
+      return `Pool table on record${dated}`;
     case "dogs":
       return `Dogs welcome on record${dated}`;
     case "quiz":
       return `Quiz listed${dated}`;
     case "drink":
-      return `${requirement.label} on its listed drinks`;
+      return `${requirement.label} on its listed drinks${dated}`;
   }
 }
 
@@ -286,6 +347,14 @@ function requirementLabel(requirement: VenueRequirement): string {
   }
 }
 
+function coverageGapReason(requirement: VenueRequirement): string {
+  switch (requirement.kind) {
+    case "quiz": return "I can't check the quiz listings right now";
+    case "drink": return `I can't check the dated price records for ${requirement.label} right now`;
+    default: return `No dated source records ${requirementLabel(requirement)} here`;
+  }
+}
+
 function listed(labels: readonly string[]): string {
   return labels.length > 1 ? `${labels.slice(0, -1).join(", ")} and ${labels.at(-1)}` : labels[0] ?? "";
 }
@@ -296,20 +365,24 @@ export function requirementScarcityLine(input: {
   found: number;
   area?: string;
   coverageGaps?: readonly string[];
+  unverified?: number;
   /** More pubs would qualify with outdoor seating in place of a garden. */
   outdoorSeatingOnly?: boolean;
 }): string {
   const gaps = input.requirements.filter((requirement) => input.coverageGaps?.includes(requirementKey(requirement)));
-  if (gaps.length) {
-    return `I can't check the listings for ${listed(gaps.map(requirementLabel))} right now, so I won't name a pub for it.`;
-  }
+  const unverified = input.unverified ?? 0;
+  const tagged = unverified
+    ? ` ${unverified}${input.found ? " more" : ""} listed ${unverified === 1 ? "pub has" : "pubs have"} an unchecked tag for it, which is not proof either way.`
+    : "";
+  if (gaps.length) return `${gaps.map(coverageGapReason).join(". ")}, so I won't name a pub as confirmed.${tagged}`;
   const named = listed(input.requirements.map(requirementLabel));
   const area = input.area?.trim();
   const where = area && area.toLocaleLowerCase("en-GB") !== "london" ? ` in ${area}` : "";
+  const record = unverified ? `a dated record of ${named}` : `${named} on record`;
   const line = input.found === 0
-    ? `No listed pub${where} has ${named} on record, so I won't guess.`
-    : `Only ${input.found} listed ${input.found === 1 ? "pub" : "pubs"}${where} ${input.found === 1 ? "has" : "have"} ${named} on record.`;
+    ? `No listed pub${where} has ${record}, so I won't guess.`
+    : `Only ${input.found} listed ${input.found === 1 ? "pub" : "pubs"}${where} ${input.found === 1 ? "has" : "have"} ${record}.`;
   return input.outdoorSeatingOnly
-    ? `${line} More have outdoor seating on record but no garden. Ask to sit outside to see them.`
-    : line;
+    ? `${line} More have outdoor seating on record but no garden. Ask to sit outside to see them.${tagged}`
+    : `${line}${tagged}`;
 }

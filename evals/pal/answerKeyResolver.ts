@@ -1,4 +1,6 @@
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
+import type { VenuePrice } from "@/lib/venues";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
@@ -55,11 +57,20 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   },
 };
 
-const ALCOHOL_FREE_DRINK_NAME = /\b(?:alcohol[- ]free|non[- ]alcoholic|0\.0%?|zero alcohol)\b/i;
+const ALCOHOL_FREE_DRINK_NAME = /\b(?:alcohol[- ]free|non[- ]alcoholic|0\.0%?|zero alcohol|lucky saint|nanny state|big drop|becks? blue)\b/i;
 
-const PAL_EVAL_REQUIRED_FACT: Record<string, (venue: ConciergeVenue) => boolean> = {
-  "non-alcoholic-soho": (venue) => venue.amenities.nonAlcoholic === true
-    || (venue.drinkText ?? "").split(";").some((name) => ALCOHOL_FREE_DRINK_NAME.test(name)),
+type EvalPriceRow = Pick<VenuePrice, "pint_name" | "pub_url" | "scraped_at_values">;
+
+function readBefore(row: EvalPriceRow, now: number): boolean {
+  return String(row.scraped_at_values ?? "").split("|").some((value) => {
+    const read = Date.parse(value.trim());
+    return Number.isFinite(read) && read <= now;
+  });
+}
+
+const PAL_EVAL_REQUIRED_FACT: Record<string, (rows: readonly EvalPriceRow[], now: number) => boolean> = {
+  "non-alcoholic-soho": (rows, now) => rows.some((row) => ALCOHOL_FREE_DRINK_NAME.test(row.pint_name ?? "")
+    && /^https?:\/\//.test(row.pub_url ?? "") && readBefore(row, now)),
 };
 
 export type ResolveAnswerKeyContext = {
@@ -104,7 +115,8 @@ async function firstSearchVenue(
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
   const required = PAL_EVAL_REQUIRED_FACT[caseId];
-  const eligible = required ? venues.filter(required) : venues;
+  const rowsById = required ? new Map((await getPricedVenues()).map((venue) => [venue.id, venue.prices])) : null;
+  const eligible = required ? venues.filter((venue) => required(rowsById?.get(venue.id) ?? [], now)) : venues;
   const ranked = rankConciergeVenues(eligible, parsed.intent, {
     limit: 1,
     now,

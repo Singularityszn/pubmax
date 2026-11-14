@@ -31,6 +31,8 @@ import {
   requirementProofLine,
   requirementProofs,
   requirementScarcityLine,
+  unverifiedRequirements,
+  venuePricedDrinks,
   venueQuizListings,
   venueRequirementsInText,
   type RequirementContext,
@@ -60,6 +62,7 @@ import {
 import { fetchCityArea } from "@/lib/citymcp/area";
 import { retrieveHeritage } from "@/lib/heritage";
 import { loadWhatsOn, type FetchLive } from "@/lib/whatsOnStore";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
   isAskToolName,
   type AskCard,
@@ -153,13 +156,17 @@ async function requirementContext(
   ctx: AskToolContext,
 ): Promise<RequirementContext> {
   const now = ctx.now ?? Date.now();
-  if (!requirements.some((requirement) => requirement.kind === "quiz")) return { now, quizListings: new Map() };
-  try {
-    const { rows, readStatus } = await loadWhatsOn({ kind: "quiz" }, { now, fetchLive: NO_LIVE_LISTINGS });
-    return { now, quizListings: readStatus === "degraded" ? null : venueQuizListings(rows, now) };
-  } catch {
-    return { now, quizListings: null };
-  }
+  const asks = (kind: VenueRequirement["kind"]) => requirements.some((requirement) => requirement.kind === kind);
+  const [quizListings, pricedDrinks] = await Promise.all([
+    asks("quiz")
+      ? loadWhatsOn({ kind: "quiz" }, { now, fetchLive: NO_LIVE_LISTINGS })
+        .then(({ rows, readStatus }) => readStatus === "degraded" ? null : venueQuizListings(rows, now), () => null)
+      : new Map(),
+    asks("drink") && ctx.cityId === "london"
+      ? getPricedVenues().then((venues) => venuePricedDrinks(venues, now), () => null)
+      : asks("drink") ? null : new Map(),
+  ]);
+  return { now, quizListings, pricedDrinks };
 }
 
 function requirementNote(
@@ -207,6 +214,12 @@ async function toolSearchVenues(
     };
     const ranked = rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
       .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
+    const taggedById = new Map(priceEligible.flatMap((venue) => {
+      const tagged = evidenceById.has(venue.id) ? null : unverifiedRequirements(venue, requirements, context);
+      return tagged ? [[venue.id, tagged] as const] : [];
+    }));
+    const unverified = rankConciergeVenues(priceEligible.filter((venue) => taggedById.has(venue.id)), parsed.intent, rankOptions)
+      .map(({ venue }) => ({ id: venue.id, name: venue.name, requirements: taggedById.get(venue.id) ?? [] }));
     const seatingInstead = ranked.length < limit ? outdoorSeatingInstead(requirements) : null;
     const outdoorSeatingOnly = seatingInstead !== null && rankConciergeVenues(
       priceEligible.filter((venue) => requirementProof(venue, { kind: "garden" }, context) === null
@@ -243,6 +256,7 @@ async function toolSearchVenues(
         coverageGaps,
         found: ranked.length,
         outdoorSeatingOnly,
+        unverified,
         venues: ranked.map(({ venue, score, reasons, evidence }) => ({
           id: venue.id,
           name: venue.name,
@@ -260,7 +274,7 @@ async function toolSearchVenues(
       proposals,
       answerHint:
         requirements.length && (cards.length < limit || coverageGaps.length)
-          ? requirementScarcityLine({ requirements, found: cards.length, area: parsed.intent.area, coverageGaps, outdoorSeatingOnly })
+          ? requirementScarcityLine({ requirements, found: cards.length, area: parsed.intent.area, coverageGaps, unverified: unverified.length, outdoorSeatingOnly })
           : cards.length > 0
             ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
             : "Nothing listed matches that. Try a nearby area or a broader mood.",
