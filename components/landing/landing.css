@@ -618,7 +618,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
     width: calc(100vw - 20px);
     min-height: var(--topbar-h, 52px);
     padding: 3px var(--topbar-pad-x, 10px);
-    gap: 8px;
+    gap: var(--topbar-seam, 6px);
     border-radius: var(--topbar-radius, var(--radius-lg));
     box-shadow: var(--topbar-shadow, var(--shadow-sm));
   }
@@ -634,7 +634,8 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
     background: var(--paper);
     pointer-events: none;
   }
-  .lpWordmark { font-size: var(--text-xs); }
+  .lpWordmark { font-size: var(--topbar-brand-font, var(--text-xs)); }
+  .lpNavActions { gap: var(--topbar-actions-gap, 4px); }
   .lpPubCard { width: 100%; padding: var(--space-4) var(--space-5); }
   .lpWorth,
   .lpFaq { padding: 48px 0 12px; }
@@ -656,10 +657,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) {
   .dropStripWho, .dropStripHint, .dropStripEra, .provChip { font-size: var(--text-xs); }
   .lpFooterInner { grid-template-columns: 1fr; gap: 36px; }
-}
-
-@media (max-width: 360px) {
-  .lpNavActions .authUserNav { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
