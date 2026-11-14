@@ -8,6 +8,11 @@ import {
 import { defined } from "@/__tests__/helpers/defined";
 
 const NOW = Date.parse("2026-07-20T12:00:00.000Z");
+const SOURCE = {
+  label: "Pub menu",
+  url: "https://example.com/menu",
+  observedAt: new Date(NOW).toISOString(),
+};
 
 function constraints(
   overrides: Partial<GroundedPlanRouteConstraints> = {},
@@ -173,17 +178,79 @@ describe("selectAnchoredGroundedPlanRoute", () => {
     expect(result).toMatchObject({ ok: true, outcome: "anchor-only" });
   });
 
-  it("returns anchor-only when the anchor itself is over the budget ceiling", () => {
-    const result = selectAnchoredGroundedPlanRoute(
-      [
-        candidate("a", { price: { pence: 900, source: null, confidenceState: "fresh" } }),
-        candidate("b", { price: { pence: 400, source: null, confidenceState: "fresh" } }),
-        candidate("c", { price: { pence: 400, source: null, confidenceState: "fresh" } }),
-      ],
-      constraints({ budgetLimitPence: 500 }),
-      "a",
-    );
-    expect(result).toMatchObject({ ok: true, outcome: "anchor-only" });
+  describe.each([0, 2])("with %i eligible companions", (companionCount) => {
+    const confirmedAccess = {
+      stepFree: { confirmed: true as const, source: SOURCE },
+      accessibleToilet: { confirmed: true as const, source: SOURCE },
+      seating: { confirmed: true as const, source: SOURCE },
+    };
+    const companions = Array.from({ length: companionCount }, (_, index) => candidate(`companion-${index}`, {
+      access: confirmedAccess,
+      price: { pence: 100, source: SOURCE, confidenceState: "fresh" },
+    }));
+
+    it.each<{
+      requirement: string;
+      anchor: Partial<GroundedPlanRouteCandidate<string>>;
+      required: Partial<GroundedPlanRouteConstraints>;
+    }>([
+      {
+        requirement: "the reviewed safety rule",
+        anchor: { avoidedByReviewedSignal: true },
+        required: {},
+      },
+      {
+        requirement: "the promoted venue exclusion",
+        anchor: { promoted: true },
+        required: {},
+      },
+      ...(["step-free", "accessible-toilet", "seating"] as const).map((need) => ({
+        requirement: `required ${need} access without evidence`,
+        anchor: {},
+        required: { accessibilityNeeds: [need] },
+      })),
+      {
+        requirement: "a hard budget below the anchor's sourced price",
+        anchor: { price: { pence: 501, source: SOURCE, confidenceState: "fresh" } },
+        required: { budgetLimitPence: 500 },
+      },
+      {
+        requirement: "a hard budget without an anchor price",
+        anchor: {},
+        required: { budgetLimitPence: 500 },
+      },
+      {
+        requirement: "a hard budget with an unsourced anchor price",
+        anchor: { price: { pence: 100, source: null, confidenceState: "fresh" } },
+        required: { budgetLimitPence: 500 },
+      },
+      {
+        requirement: "a hard budget with a stale anchor price",
+        anchor: { price: { pence: 100, source: { ...SOURCE, observedAt: "2026-01-01T12:00:00.000Z" }, confidenceState: "stale" } },
+        required: { budgetLimitPence: 500 },
+      },
+    ])("refuses an anchor that fails $requirement", ({ anchor, required }) => {
+      const result = selectAnchoredGroundedPlanRoute(
+        [candidate("a", anchor), ...companions],
+        constraints(required),
+        "a",
+      );
+
+      expect(result).toMatchObject({ ok: false });
+    });
+
+    it("accepts evidenced access and a sourced total exactly at the hard budget", () => {
+      const result = selectAnchoredGroundedPlanRoute(
+        [candidate("a", {
+          access: confirmedAccess,
+          price: { pence: 500 - companionCount * 100, source: SOURCE, confidenceState: "fresh" },
+        }), ...companions],
+        constraints({ accessibilityNeeds: ["step-free", "accessible-toilet", "seating"], budgetLimitPence: 500 }),
+        "a",
+      );
+
+      expect(result).toMatchObject({ ok: true, outcome: companionCount === 0 ? "anchor-only" : "route" });
+    });
   });
 
   it("returns anchor-only when companions are beyond walking distance", () => {
