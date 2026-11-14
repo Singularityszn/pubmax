@@ -221,6 +221,10 @@ describe("parseConciergeIntent keyless fallback", () => {
     "Pubs showing the Grand National",
     "A pub to watch tomorrow's fixture in Soho",
     "A pub for Euro 2028 in Soho",
+    "A pub in Soho to watch a match on TV",
+    "Watch a match with friends in Soho",
+    "Somewhere in Soho to see a game with mates",
+    "A pub in Soho to watch the match for the atmosphere",
   ])("keeps explicit sports requests: %s", async (query) => {
     const { intent } = await parseConciergeIntent(query, { skipModel: true });
     expect(intent.mood).toContain("sports");
