@@ -178,7 +178,7 @@ describe("device account identity", () => {
 
   it("preserves a chosen way for the same owner and retires it for the next owner", () => {
     showLegRouteOnMap({ legKey: "venue-a>venue-b", option: {
-      id: "walk", kind: "walk", minutes: 6, farePence: 0, parts: [],
+      id: "walk", kind: "walk", minutes: 6, farePence: 0, fareLevel: null, walkMetres: null, parts: [],
       estimate: false, fastest: true, cheapest: true,
     } });
     bindDeviceAccountOwner("user-a", device.local, device.session);

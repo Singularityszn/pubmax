@@ -58,6 +58,7 @@
   grid-template-columns: auto minmax(0, 1fr) auto auto;
   grid-template-areas:
     "icon name time fare"
+    "icon walk walk walk"
     "icon marks marks marks";
   align-items: center;
   column-gap: 10px;
@@ -104,6 +105,12 @@
   grid-area: fare;
   color: var(--color-text-muted);
   font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+.nightWays__walk {
+  grid-area: walk;
+  color: var(--color-text-muted);
+  font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
 .nightWays__marks {

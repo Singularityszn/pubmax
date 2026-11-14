@@ -7,6 +7,9 @@ import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   formatLegFare,
   legOptionName,
+  legOptionsSourceNote,
+  legWalkSummary,
+  type LegDeparture,
   type LegOption,
   type LegOptionsResponse,
 } from "@/lib/legOptions";
@@ -22,19 +25,22 @@ import "./nightWaysThere.css";
 // and the cheapest marked (lib/legOptions.ts, GET /api/leg-options). It asks
 // TfL only when the reader opens it, and a tap on an option draws that exact
 // route on the map (lib/legRouteOnMap.ts). Both ends are pubs on the plan, so
-// no location leaves the device.
+// no location leaves the device. Before the plan starts, TfL is asked for
+// leaving at the start time.
 
 type Point = { lat: number; lng: number };
 
 type Ask =
   | { state: "closed" }
   | { state: "loading" }
-  | { state: "ready"; options: LegOption[] }
+  | { state: "ready"; options: LegOption[]; departure: LegDeparture | null }
   | { state: "none" }
   | { state: "failed" };
 
-function legQuery(from: Point, to: Point): string {
-  return `from=${from.lat.toFixed(5)},${from.lng.toFixed(5)}&to=${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+function legQuery(from: Point, to: Point, departAt: string | null, now: number): string {
+  const leg = `from=${from.lat.toFixed(5)},${from.lng.toFixed(5)}&to=${to.lat.toFixed(5)},${to.lng.toFixed(5)}`;
+  const at = departAt ? Date.parse(departAt) : Number.NaN;
+  return Number.isFinite(at) && at > now ? `${leg}&depart=${encodeURIComponent(new Date(at).toISOString())}` : leg;
 }
 
 function OptionIcon({ option }: { option: LegOption }) {
@@ -45,13 +51,23 @@ function OptionIcon({ option }: { option: LegOption }) {
   return <TrainFront size={20} aria-hidden="true" />;
 }
 
-export default function NightWaysThere({ legKey, from, to }: { legKey: string; from: Point; to: Point }) {
+export default function NightWaysThere({
+  legKey,
+  from,
+  to,
+  departAt = null,
+}: {
+  legKey: string;
+  from: Point;
+  to: Point;
+  /** The plan's start; asked for only while it is still ahead. */
+  departAt?: string | null;
+}) {
   const [ask, setAsk] = useState<Ask>({ state: "closed" });
   const [attempt, setAttempt] = useState(0);
   const onMap = useSyncExternalStore(subscribeLegRouteOnMap, readLegRouteOnMap, () => null);
   const router = useRouter();
   const pathname = usePathname();
-  const query = legQuery(from, to);
   const open = ask.state !== "closed";
   // The one question in flight. Closing the list, or a new leg, takes it back,
   // so an answer that lands late can never open the list again.
@@ -83,18 +99,18 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
     queueMicrotask(() => {
       if (current()) setAsk({ state: "loading" });
     });
-    fetch(`/api/leg-options?${query}`, { signal: controller.signal, cache: "no-store" })
+    fetch(`/api/leg-options?${legQuery(from, to, departAt, Date.now())}`, { signal: controller.signal, cache: "no-store" })
       .then((response) => (response.ok ? (response.json() as Promise<LegOptionsResponse>) : null))
       .then((body) => {
         if (!current()) return;
         if (!body) setAsk({ state: "failed" });
         else if (body.status !== "ok" || body.options.length === 0) setAsk({ state: "none" });
-        else setAsk({ state: "ready", options: body.options });
+        else setAsk({ state: "ready", options: body.options, departure: body.departure ?? null });
       })
       .catch(() => {
         if (current()) setAsk({ state: "failed" });
       });
-    // `query` is read when an attempt starts; a new leg takes the question back above.
+    // The leg is read when an attempt starts; a new leg takes the question back above.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt]);
 
@@ -139,6 +155,8 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
             const shown = onMap?.legKey === legKey && onMap.option.id === option.id;
             const name = legOptionName(option);
             const fare = formatLegFare(option.farePence);
+            const fareText = option.fareLevel ? `${fare} ${option.fareLevel.toLowerCase().replace(/\s+/g, "-")}` : fare;
+            const walk = legWalkSummary(option);
             const marks = [option.fastest ? "Fastest" : null, option.cheapest ? "Cheapest" : null].filter(Boolean);
             return (
               <li key={option.id}>
@@ -146,7 +164,7 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
                   type="button"
                   className="nightWays__option"
                   aria-pressed={shown}
-                  aria-label={`${name}, ${option.estimate ? "about " : ""}${option.minutes} min, ${fare}${
+                  aria-label={`${name}, ${option.estimate ? "about " : ""}${option.minutes} min, ${fareText}${walk ? `, ${walk}` : ""}${
                     marks.length ? `, ${marks.join(" and ").toLowerCase()}` : ""
                   }${shown ? ", on the map" : ", show on the map"}`}
                   onClick={() => choose(option)}
@@ -156,11 +174,12 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
                     {name}
                     {option.estimate ? <small>Straight-line estimate</small> : null}
                   </span>
+                  {walk ? <span className="nightWays__walk">{walk}</span> : null}
                   <span className="nightWays__time">
                     {option.estimate ? "~" : ""}
                     {option.minutes} min
                   </span>
-                  <span className="nightWays__fare">{fare}</span>
+                  <span className="nightWays__fare">{fareText}</span>
                   {marks.length ? (
                     <span className="nightWays__marks">
                       {option.fastest ? <span className="nightWays__mark">Fastest</span> : null}
@@ -174,10 +193,7 @@ export default function NightWaysThere({ legKey, from, to }: { legKey: string; f
         </ul>
       ) : null}
       {ask.state === "ready" ? (
-        <p className="nightWays__source">
-          Times and fares from TfL, if you leave now.
-          {ask.options.some((option) => option.estimate) ? " A straight-line time is our own estimate." : ""}
-        </p>
+        <p className="nightWays__source">{legOptionsSourceNote(ask.departure, ask.options)}</p>
       ) : null}
     </div>
   );
