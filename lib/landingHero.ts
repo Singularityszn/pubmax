@@ -163,7 +163,7 @@ export function anchorZoneChip(station: { name: string; zone: number }): { text:
  * Near me still answers without sign-in, including when location is refused.
  * Plan remains in the existing navigation and follows a selected Pal answer.
  */
-const NEAR_DOOR_HREF = "/near?locate=1";
+export const LANDING_NEAR_HREF = "/near?locate=1";
 const NEAR_DOOR_LABEL = "Cheapest pints near me";
 
 export type LandingQuietDoor = {
@@ -184,7 +184,7 @@ export type LandingQuietDoor = {
  */
 export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
   {
-    href: NEAR_DOOR_HREF,
+    href: LANDING_NEAR_HREF,
     label: NEAR_DOOR_LABEL,
     cta: "near",
     className: "lpNearDoor",

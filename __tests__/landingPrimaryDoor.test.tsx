@@ -74,7 +74,7 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 
-describe("the landing hero's primary", () => {
+describe("the landing hero's public price door", () => {
   it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 

@@ -5,8 +5,10 @@
 // first-time visitor (owner decision 16 Oct 2026): the first-run setup is
 // offered on /near as a chip, never in front of the answer
 // (e2e/web-first-run-journey.spec.ts).
-export const LANDING_PRIMARY_NAME = "Cheapest pints near me";
-export const LANDING_PRIMARY_HREF = "/near?locate=1";
+export const LANDING_PRIMARY_NAME = /^(?:Ask your Pub Pal|Sign in for Pub Pal)$/;
+export const LANDING_PRIMARY_HREF = "/login?from=%2Fpal%2Fchat";
+export const LANDING_NEAR_NAME = "Cheapest pints near me";
+export const LANDING_NEAR_HREF = "/near?locate=1";
 export const LANDING_FIRST_RUN_HREF = "/onboarding?start=web";
 export const NEAR_FIRST_RUN_CHIP_NAME = "New here? Set your budget and patch";
 
