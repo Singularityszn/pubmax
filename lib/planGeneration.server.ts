@@ -116,6 +116,7 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	cityId: CityId;
 	anchor: PlanGenerationAnchor;
 	candidates: readonly T[];
+	excludedCandidates: readonly T[];
 	context: NightContext;
 	intake: ParsedPlanGenerationIntake | null;
 	requestNow: number;
@@ -160,12 +161,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	if (params.dryRoundListed && !params.dryRoundListed.has(anchorVenueId)) {
 		return anchorConflict("DRY_ROUND_ANCHOR_UNLISTED", DRY_ROUND_ANCHOR_UNLISTED_LINE);
 	}
-	if (anchor.venueIds && (candidates.length !== anchor.venueIds.length
-		|| context.stopCount !== anchor.venueIds.length)) {
-		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "Some listed pubs cannot join this crawl. Review the list and try again.");
-	}
+	const excludedAnchor = params.excludedCandidates.find(({ venue }) => venue.id === anchorVenueId);
 	const selection = await selectAnchoredPlanGenerationCandidates(
-		candidates,
+		excludedAnchor ? [excludedAnchor, ...candidates] : candidates,
 		context,
 		intake,
 		requestNow,
@@ -176,6 +174,10 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 			"ANCHOR_ROUTE_CONFLICT",
 			selection.message,
 		);
+	}
+	if (anchor.venueIds && (candidates.length !== anchor.venueIds.length
+		|| context.stopCount !== anchor.venueIds.length)) {
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "Some listed pubs cannot join this crawl. Review the list and try again.");
 	}
 	if (selection.outcome === "anchor-only") {
 		let anchorOnlyProof: string;
@@ -272,6 +274,7 @@ type PlanGenerationPreparation = {
 	 */
 	dryRoundListed: ReadonlyMap<string, DryRoundAlcoholFree> | null;
 	candidates: PlanGenerationCandidate[];
+	excludedCandidates: PlanGenerationCandidate[];
 	anchor: PlanGenerationAnchor | null;
 };
 
@@ -566,6 +569,8 @@ export async function preparePlanGeneration(
 		? { need: dietaryNeeds[0]!, menuLinkVenueIds: await menuLinkVenueIds() }
 		: null;
 	const { focus, origin } = planCandidateGeography(context, area);
+	// Keep rejected pubs only so the anchor check can explain the failed rule.
+	const excludedCandidates: PlanGenerationCandidate[] = [];
 	const candidates = cappedVenues
 		.map((venue) => {
 			const distance = distanceKm(origin, venue);
@@ -587,14 +592,20 @@ export async function preparePlanGeneration(
 				pintPriceEvidence: pintEvidence?.get(venue.id) ?? null,
 				operator: wetherspoonBranchIds.has(venue.id) ? "wetherspoon" : null };
 		})
-		.filter(({ distance, venue, signalClaims }) =>
-			(focus ? nightAreaFocusContains(focus, venue) : distance <= area.radiusKm)
-			&& venue.promoted !== true
+		.filter((candidate) => {
+			const { distance, venue, signalClaims } = candidate;
+			if (!(focus ? nightAreaFocusContains(focus, venue) : distance <= area.radiusKm)) return false;
 			// A plan may be shared with people who have never met: never send
 			// them to a members', students' or staff bar. Swap options and the
 			// extra stops at the end of the night come from this same list.
-			&& !isNonPublicVenueName(venue.name)
-			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
+			if (isNonPublicVenueName(venue.name)) return false;
+			if (venue.promoted === true
+				|| signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")) {
+				excludedCandidates.push(candidate);
+				return false;
+			}
+			return true;
+		})
 		.sort((a, b) => b.score - a.score);
 	const dryRoundRoute = await dryRoundCandidates(query, candidates, context, area);
 	if ("response" in dryRoundRoute) return dryRoundRoute;
@@ -616,6 +627,7 @@ export async function preparePlanGeneration(
 		dietaryMenu,
 		dryRoundListed: dryRoundRoute.listed,
 		candidates: dryRoundRoute.candidates,
+		excludedCandidates,
 		anchor: parsedRequest.value.anchor,
 	} };
 }
