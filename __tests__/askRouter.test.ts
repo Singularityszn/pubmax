@@ -437,10 +437,32 @@ describe("routeAskDeterministically", () => {
     ["Show me 6 pubs in Soho on the map", 6],
     ["Find me three good places in Soho for six people", 3],
     ["Find pubs in Soho for two people", 4],
+    ["A couple of quiet pubs in Soho, please.", 2],
+    ["Show me a couple of places in Soho", 2],
+    ["Give me a couple quiet pubs in Soho", 2],
+    ["A couple more pubs in Soho", 2],
+    ["A couple of more quiet places in Soho", 2],
+    ["Find pubs in Soho for a couple of people", 4],
+    ["Find five pubs in Soho for a couple of people", 5],
   ])("keeps the requested choices separate from the group size: %s", (query, limit) => {
     expect(routeAskDeterministically(String(query))).toEqual([
       { name: "search_venues", args: { query, limit } },
     ]);
+  });
+  it.each([
+    "Pubs in Soho under 10 euros",
+    "Pubs with a darts board in Soho",
+  ])("keeps budget and amenity asks in venue search: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 4 } },
+    ]);
+  });
+  it.each([
+    "Let me see what matches my budget in Soho",
+    "Show something in Soho to match my budget",
+    "Can you show a few options to match my vibe",
+  ])("does not route preference matching to listings: %s", (query) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).not.toContain("whats_on");
   });
   it.each([
     "Find me four pubs in Soho and show them on the map.",

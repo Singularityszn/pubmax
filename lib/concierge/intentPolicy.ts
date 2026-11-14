@@ -6,6 +6,7 @@
 
 import { CONCIERGE_MOODS, type ConciergeIntent, type ConciergeMood } from "@/lib/concierge/rank";
 import placeNames from "@/lib/ask/placeNames.generated.json";
+import { hasSportsIntent } from "@/lib/concierge/sportsIntent";
 
 /** Keyless cheap-pint cap. Same figure the regex path has always used. */
 export const CHEAP_PINT_GBP = 6;
@@ -33,14 +34,13 @@ const NUMBER_WORDS: Record<string, number> = {
   twelve: 12,
 };
 
-const MOOD_TERMS: Record<ConciergeMood, RegExp> = {
+const MOOD_TERMS: Record<Exclude<ConciergeMood, "sports">, RegExp> = {
   balanced: /\b(?:balanced|bit of everything|anything)\b/i,
   quiet: /\b(?:quiet|quiet-ish|calm|chat|low-key)\b/i,
   lively: /\b(?:lively|buzzing|party|atmosphere)\b/i,
   cosy: /\b(?:cosy|cozy|snug|fireside)\b/i,
   garden: /\b(?:garden|outside|outdoor|sunny)\b/i,
   riverside: /\b(?:riverside|river|waterside|by the water)\b/i,
-  sports: /\b(?:sport|sports|football|rugby|match)\b/i,
   date: /\b(?:date|romantic)\b/i,
   food: /\b(?:food|dinner|eat|meal)\b/i,
   cocktails: /\b(?:cocktail|cocktails|mixed drinks)\b/i,
@@ -84,7 +84,8 @@ export function conciergeConstraintsInText(
   text: string,
   knownAreas: readonly string[],
 ): Omit<ConciergeIntent, "groupSize"> & { groupSize?: number } {
-  const mood = CONCIERGE_MOODS.filter((candidate) => MOOD_TERMS[candidate].test(text));
+  const mood = CONCIERGE_MOODS.filter((candidate) => candidate === "sports"
+    ? hasSportsIntent(text) : MOOD_TERMS[candidate].test(text));
   const numericGroup = text.match(/\b(\d{1,2})\s+(?:of us|people|mates|pax)\b/i)?.[1]
     ?? text.match(/\b(?:for|group of|we(?:'re| are))\s+(?!£)(\d{1,2})\b/i)?.[1];
   const wordGroup = text.match(/\b(one|two|three|four|five|six|seven|eight|nine|ten|twelve)\s+(?:of us|people|mates|pax)\b/i)?.[1]
