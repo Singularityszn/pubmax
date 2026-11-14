@@ -161,7 +161,7 @@ test("an account with no password is offered one, with the rules up front", asyn
   const counters = await installOwnedAccount(page, { hasPassword: false });
 
   await page.goto(`/u/${HANDLE}`);
-  const section = page.locator("form.accountHubPassword");
+  const section = page.locator("form.accountHubPassword.accountHubPasswordOwed");
   await expect(
     section.getByRole("heading", { name: "Create password" }),
   ).toBeVisible();
@@ -195,7 +195,7 @@ test("an account with no password is offered one, with the rules up front", asyn
 
   // The card becomes the change disclosure, opened once so the confirmation
   // is read rather than folded away.
-  const disclosure = page.locator("details.accountHubPasswordChange");
+  const disclosure = page.locator('details.accountHubPasswordChange:has(form[aria-label="Change password"])');
   await expect(disclosure).toHaveAttribute("open", "");
   await expect(disclosure.getByRole("status")).toBeVisible();
   await expect(disclosure.getByRole("status")).toContainText("Password saved");
@@ -227,7 +227,7 @@ test("an owed password card takes a desktop column beside another card, not the 
 
   // Prominent by its brass border rather than by spanning the row.
   const border = await section.evaluate((card) => getComputedStyle(card).borderTopColor);
-  expect(border).toBe(await resolvedColour(page, "form.accountHubPassword", "var(--brass)"));
+  expect(border).toBe(await resolvedColour(page, "form.accountHubPassword.accountHubPasswordOwed", "var(--brass)"));
 });
 
 test("an account with a password keeps change collapsed until opened", async ({
@@ -236,7 +236,7 @@ test("an account with a password keeps change collapsed until opened", async ({
   await installOwnedAccount(page, { hasPassword: true });
 
   await page.goto(`/u/${HANDLE}`);
-  const disclosure = page.locator("details.accountHubPasswordChange");
+  const disclosure = page.locator('details.accountHubPasswordChange:has(form[aria-label="Change password"])');
   await expect(disclosure).toHaveCount(1);
   await expect(disclosure.locator("form.accountHubPassword")).toHaveCount(1);
   await expect(disclosure.locator("form.accountHubPassword")).toBeHidden();
@@ -257,7 +257,7 @@ test("a read that could not answer names neither state", async ({ page }) => {
   await installOwnedAccount(page, { hasPassword: null });
 
   await page.goto(`/u/${HANDLE}`);
-  await expect(page.locator(".accountHubPassword")).toHaveCount(0);
+  await expect(page.locator('form.accountHubPassword:has(input[type="password"])')).toHaveCount(0);
   await expect(page.getByText("Create password", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Change password", { exact: true })).toHaveCount(0);
 });
@@ -340,7 +340,7 @@ test("a wrong current password and a reused password each name their fault", asy
   });
 
   await page.goto(`/u/${HANDLE}`);
-  const disclosure = page.locator("details.accountHubPasswordChange");
+  const disclosure = page.locator('details.accountHubPasswordChange:has(form[aria-label="Change password"])');
   await disclosure.locator("summary").click();
   // The summary names the form once: no second heading repeats it.
   await expect(disclosure.getByRole("heading", { name: "Change password" })).toHaveCount(0);

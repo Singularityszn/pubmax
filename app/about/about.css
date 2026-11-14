@@ -124,12 +124,13 @@
 /* ── Press kit ──────────────────────────────────────────────── */
 .aboutPressGrid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   margin: 0 0 var(--space-8);
 }
 
 .aboutPressRow {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
   padding: var(--space-3) 0;
   border-bottom: 1px solid var(--line-soft);
@@ -167,6 +168,7 @@
 /* A link in prose is ink with an underline, never a coral word. */
 .aboutLink {
   color: var(--ink);
+  overflow-wrap: anywhere;
   font-weight: 600;
   text-decoration: underline;
   text-decoration-thickness: 1px;
@@ -211,27 +213,34 @@
 /* Wider viewports: give press-kit rows a label/value split. */
 @media (min-width: 641px) {
   .aboutPressRow {
-    grid-template-columns: 8rem 1fr;
+    grid-template-columns: 8rem minmax(0, 1fr);
     gap: var(--space-3);
     align-items: baseline;
   }
 }
 
-/* Touch target floor. Every other link on this page flows inside a sentence
-   and is exempt by WCAG's inline exception, but the press-kit row lays its two
-   download links out as their own boxes, side by side, which makes them
-   controls: they painted 24px tall. Coarse pointers and phone widths only, so
-   a wide desktop row keeps its measure. The width clause is not redundant: on
-   16 October 2026 the macOS layout-pins shard measured these links at 23px on
-   a 390px touch-emulated load where the pointer query had not matched, and
-   the floor must not hang on that one signal. 640px is the phone breakpoint, where
-   the press-kit row stacks. e2e/launch-phone-controls.spec.ts measures it, with and
-   without a coarse pointer. */
+/* Touch floor on phones. Each link is a 44px box, but in prose its negative
+   block margins return the line to its own height, so the paragraph keeps its
+   rhythm. Inline padding with matching negative margins widens a short link,
+   such as "X", past the 24px width floor without moving the words around it.
+   Positioning paints the box above the next line, so a tap anywhere in it
+   reaches the link. Standalone links keep their own 44px row. */
 @media (pointer: coarse), (max-width: 640px) {
-  .aboutLogoLinks .aboutLink {
+  .aboutLink {
+    position: relative;
     display: inline-flex;
     align-items: center;
-    min-height: 44px;
+    min-height: var(--control-height);
+    max-width: 100%;
+    margin-block: min(0px, calc((1lh - var(--control-height)) / 2));
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+  }
+
+  .aboutLogoLinks .aboutLink,
+  .aboutCtaRow .aboutLink {
+    margin: 0;
+    padding-inline: 0;
   }
 }
 

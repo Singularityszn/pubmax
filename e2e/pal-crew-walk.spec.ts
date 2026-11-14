@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // Pals walk together (components/map/pubmap/useCrewPals.ts): on a plan that is
 // on tonight, the opted-in Pals of the other crew members walk the plan's own
@@ -16,6 +17,8 @@ const STOPS = ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"];
 test("the crew's opted-in Pals walk the plan's route beside the reader's own", async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
   await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({
     json: { stops: STOPS.map((venueId, position) => ({ venueId, venueName: venueId, position })) },
   }));
@@ -32,21 +35,22 @@ test("the crew's opted-in Pals walk the plan's route beside the reader's own", a
       },
     });
   });
-  await page.addInitScript(({ planId, appearance, personality, voice }) => {
+  await page.addInitScript(({ planId, appearance, personality, voice, ownerId }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax_account_owner", ownerId);
     window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+      id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
       adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
       proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
     }));
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({
-      version: 1, id: planId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
+      version: 1, id: planId, ownerId, startTime: new Date(Date.now() - 60 * 60 * 1000).toISOString(), stopIndex: 0,
     }));
-  }, { planId: PLAN_ID, ...DEFAULT_PAL_DRAFT });
+  }, { planId: PLAN_ID, ...DEFAULT_PAL_DRAFT, ownerId: ACCOUNTS.A.id });
   await page.goto("/map");
 
   const own = page.locator(".palMapMarker:not([data-pal-crew])");

@@ -2,8 +2,9 @@ import { expect, test, type Page } from "@playwright/test";
 
 // The signed-out sweep measured controls under the 44px floor at 390px:
 // Historic borough links (324x19), Drink Wall chips (28 to 30px), the Places
-// search input (26px), the Spoons value pub links (15px, 790 of them) and the
-// "Run this pub?" trigger on a ledger page (97x24).
+// search input (26px), the Spoons value pub links (15px, 790 of them), the
+// "Run this pub?" trigger on a ledger page (97x24) and the About page's
+// inline and list links (16px).
 
 const FLOOR = 44;
 
@@ -57,6 +58,43 @@ test("Spoons value pub links are 44px tall without stretching the row", async ({
     .first()
     .evaluate((row) => row.getBoundingClientRect().height);
   expect(rowHeight).toBeLessThan(140);
+});
+
+test("About inline and list links are 44px tall", async ({ page }) => {
+  await page.goto("/about");
+  // Half the links live inside disclosures; open all three so every one is measured.
+  await page
+    .locator("details.aboutDisclosure")
+    .evaluateAll((all) => all.forEach((d) => ((d as HTMLDetailsElement).open = true)));
+  await expectTall(page, "main#main .aboutLink", 20);
+  for (const link of await page.locator("main#main .aboutLink").all()) {
+    await link.scrollIntoViewIfNeeded();
+    const interceptedRows = await link.evaluate((node) => {
+      const rect = node.getBoundingClientRect();
+      const missed: number[] = [];
+      for (let offset = 1; offset < rect.height; offset += 1) {
+        const hit = document.elementFromPoint(rect.x + rect.width / 2, rect.y + offset);
+        if (!hit || !node.contains(hit)) missed.push(offset);
+      }
+      return missed;
+    });
+    expect(interceptedRows, await link.getAttribute("href") ?? "About link").toEqual([]);
+  }
+
+  const licenceUrl = "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/";
+  await page.context().route(licenceUrl, (route) => route.fulfill({
+    contentType: "text/html",
+    body: "<title>Open Government Licence</title>",
+  }));
+  const licence = page.locator(`a.aboutLink[href="${licenceUrl}"]`);
+  await licence.scrollIntoViewIfNeeded();
+  const box = await licence.boundingBox();
+  expect(box).not.toBeNull();
+  const popupPromise = page.waitForEvent("popup");
+  await licence.click({ position: { x: box!.width / 2, y: box!.height - 1 } });
+  const popup = await popupPromise;
+  await expect(popup).toHaveURL(licenceUrl);
+  await popup.close();
 });
 
 test("the ledger masthead link and Run this pub trigger are 44px tall", async ({ page }) => {

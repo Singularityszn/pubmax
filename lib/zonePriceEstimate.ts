@@ -10,7 +10,14 @@ import {
   type EstimatedPriceInput,
   type PriceStandingDecision,
 } from "@/lib/priceTier";
-import { venueBundlePrices, venuePriceLane, venueSourcedPrice } from "@/lib/venuePriceLane";
+import type { VenuePriceReadStatus } from "@/lib/mapExperienceLens";
+import type { VenueDropReadStatus } from "@/lib/venueDropRead";
+import {
+  venueBundlePrices,
+  venuePriceFallbackPending,
+  venuePriceLane,
+  venueSourcedPrice,
+} from "@/lib/venuePriceLane";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { recordedPintVenueIdsFromSlimPayload, rowsFromSlimPayload } from "@/lib/slimPayload";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -118,15 +125,24 @@ export function zoneEstimateBasisNote(estimate: EstimatedPriceInput | null | und
   return zone === null ? null : zoneEstimateNote({ ...(estimate as ZonePriceEstimate), zone });
 }
 
+/** The per-venue price and drop reads the map has started. A venue absent from both was never asked. */
+export type VenuePriceReads = {
+  price: ReadonlyMap<string, VenuePriceReadStatus>;
+  drops: ReadonlyMap<string, VenueDropReadStatus>;
+};
+
 /**
  * Only pins without a recorded price in their available lanes and signals
  * receive an estimate standing. This does not establish complete public-price
  * absence. See docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
+ * A pub whose own price or drop read is in flight gets no estimate until the
+ * read settles, the same hold the sheet and the peek apply.
  */
 export function zoneEstimatePinStandings(
   venues: readonly Venue[],
   signals: ReadonlyMap<string, { latestContributorPrice: number | null; pintTrust?: unknown }>,
   index: ZonePintIndex | null | undefined,
+  reads: VenuePriceReads | null = null,
 ): ReadonlyMap<string, PriceStandingDecision> | null {
   if (!index?.computedAt) return null;
   const standings = new Map<string, PriceStandingDecision>();
@@ -136,6 +152,14 @@ export function zoneEstimatePinStandings(
     const lane = venuePriceLane(venue, signal?.latestContributorPrice, venueSourcedPrice(venue), venueBundlePrices(venue, index));
     if (lane && lane.lane !== "estimate") continue;
     if (signal?.pintTrust && signal.pintTrust !== "none") continue;
+    if (
+      reads &&
+      venuePriceFallbackPending(
+        lane,
+        reads.price.get(venue.id) ?? "ready",
+        reads.drops.get(venue.id) ?? "ready",
+      )
+    ) continue;
     if (lane?.lane === "estimate") standings.set(venue.id, priceStandingFor({ estimate: lane.estimate }));
   }
   return standings;

@@ -391,6 +391,7 @@ import {
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
+import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -452,7 +453,6 @@ import {
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { publishedOrLoadedZoneIndex, type ZonePintIndex } from "@/lib/zones";
-import { zoneEstimatePinStandings } from "@/lib/zonePriceEstimate";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import {
   useCoffeePilotCafes,
@@ -3166,10 +3166,9 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
-  const pinPriceStandings = useMemo(
-    () => favoritePint ? null : zoneEstimatePinStandings(canvasVenues, venueSignals, zoneIndex),
-    [canvasVenues, venueSignals, zoneIndex, favoritePint],
-  );
+  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, {
+    price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus,
+  });
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));

@@ -2,6 +2,7 @@ import { expect, test } from "@playwright/test";
 import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The pint price needle (components/map/VenuePintNeedle.tsx) on a pub's
 // Overview, with the reader's own Pal at the pivot. Shots land in
@@ -14,19 +15,22 @@ for (const theme of ["light", "dark"] as const) {
   test(`a pub's Overview shows where its pint sits, ${theme}`, async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.addInitScript(({ theme: chosen, appearance, personality, voice }) => {
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
+    await page.addInitScript(({ theme: chosen, appearance, personality, voice, ownerId }) => {
       const now = "2026-10-04T12:00:00.000Z";
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       window.localStorage.setItem("pubmax-theme", chosen);
+      window.localStorage.setItem("pubmax_account_owner", ownerId);
       window.localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
         adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
         proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
       }));
-    }, { theme, ...DEFAULT_PAL_DRAFT });
+    }, { theme, ...DEFAULT_PAL_DRAFT, ownerId: ACCOUNTS.A.id });
     await page.goto(`/map?sel=${VENUE_ID}`);
 
     const needle = page.getByTestId("venue-pint-needle").first();

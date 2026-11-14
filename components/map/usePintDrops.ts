@@ -329,10 +329,8 @@ export function usePintDrops(
   const [handle, setHandle] = useState(() =>
     safeLocalStorage()?.getItem("pubmax_handle") ?? "",
   );
-  // WHERE EACH PER-VENUE DROP READ GOT TO (review finding F-8). Same three-way
-  // shape as `venuePriceStatus` in useCommunityPrices: a surface may only word a
-  // pub as having no drops once its own read ANSWERED. An absent entry is
-  // `idle`, which is honestly "not asked yet".
+  // lib/venueDropRead.ts owns the read statuses. The price-read contract in
+  // docs/rules/lib-prices-trust-and-drinks.md governs absence wording and fallbacks.
   const [venueDropStatus, setVenueDropStatus] = useState<
     Map<string, VenueDropReadStatus>
   >(() => new Map());
@@ -458,17 +456,8 @@ export function usePintDrops(
     return () => ac.abort();
   }, [cityId]);
 
-  // Refresh one venue's drops; returns a cancel function for effect cleanup.
-  //
-  // A FAILED READ IS A FACT ABOUT US, NEVER ABOUT THE PUB (review finding F-8).
-  // This used to write `[]` into the venue's entry on a non-ok response and on a
-  // rejection alike. `/api/pint-drops` answers 503 whenever its store read
-  // throws, so one hiccup replaced a pub's real drops with nothing:
-  // `pintTrustFor([])` reads `none` and the Overview printed the first-drop
-  // nudge over a pub holding a confirmed price - the exact sentence #1495 exists
-  // to keep off a public drop. The city refresh above already keeps its layer on
-  // a failure; this now does the same, and records the read so a surface can
-  // tell "we could not look" from "nobody has logged one".
+  // The per-venue read contract, including cancellation, lives in
+  // docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
   const refreshVenueDrops = useCallback((venueId: string) => {
     const request = Symbol();
     const controller = new AbortController();
@@ -509,11 +498,8 @@ export function usePintDrops(
       })
       .catch(() => settle({ status: "unavailable" }));
     return () => {
-      clearTimeout(deadline);
+      settle({ status: "unavailable" });
       controller.abort();
-      if (venueDropRequests.current.get(venueId) === request) {
-        venueDropRequests.current.delete(venueId);
-      }
     };
   }, []);
 

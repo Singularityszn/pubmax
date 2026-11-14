@@ -109,13 +109,12 @@ for (const scale of [1.3, 1.5, 2]) {
   }
 }
 
-// The bottom card grows with its text. Every size in it is rem, so Android's
-// text zoom, which grows the root, grows the card once, and the controls above
-// it follow --map-peek-h. The route checks above model that zoom the same way.
+// The bottom card grows and reflows with its text. Android's root font models
+// that zoom. Controls follow the rendered card rather than a fixed row height.
 // The iOS shell enlarges text through -webkit-text-size-adjust with the root
 // left at 16px. Its layout scale grows the card separately. Actual iOS startup
 // and WebKit painting need native proof and are not modelled here.
-test("Android font growth clears map controls before the next height measurement", async ({ page }) => {
+test("Android font growth clears map controls after the card reflows", async ({ page }) => {
   await page.setViewportSize({ width: 412, height: 840 });
   await installNativeShell(page, "android");
   await page.goto("/map");
@@ -125,24 +124,28 @@ test("Android font growth clears map controls before the next height measurement
     document.documentElement.style.fontSize = "100%";
     document.documentElement.setAttribute("data-text-scale", "large");
   });
-  await expect.poll(() => page.locator(".mapPeek").evaluate((element) => ({
-    height: element.getBoundingClientRect().height,
-    measured: parseFloat(document.documentElement.style.getPropertyValue("--map-peek-rendered-h")),
-  }))).toEqual({ height: 112, measured: 112 });
+  await page.evaluate(() => document.fonts.ready);
+  const originalHeight = await page.locator(".mapPeek").evaluate((element) => element.getBoundingClientRect().height);
+  await expect.poll(() => page.evaluate(() =>
+    parseFloat(document.documentElement.style.getPropertyValue("--map-peek-rendered-h")),
+  )).toBe(Math.ceil(originalHeight));
 
-  const geometry = await page.evaluate(() => {
+  const geometry = await page.evaluate(async () => {
     const root = document.documentElement;
     root.style.fontSize = "200%";
+    await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
     const card = document.querySelector(".mapPeek")!.getBoundingClientRect();
     return {
       font: parseFloat(getComputedStyle(root).fontSize),
       measured: root.style.getPropertyValue("--map-peek-rendered-h"),
       height: card.height,
-      controls: [".mobileMapLocateFab", ".mobileMapPalDoor"].map((selector) => {
-        const box = document.querySelector(selector)!.getBoundingClientRect();
+      controls: [".mobileMapLocateFab", ".mobileMapPalDoor", ".palSummon", ".palVoiceBar"].flatMap((selector) => {
+        const element = document.querySelector(selector);
+        if (!element || getComputedStyle(element).visibility === "hidden") return [];
+        const box = element.getBoundingClientRect();
+        if (!box.width || !box.height) return [];
         return {
           selector,
-          painted: box.width > 0 && box.height > 0,
           overlap: card.left < box.right && box.left < card.right
             && card.top < box.bottom && box.top < card.bottom,
         };
@@ -150,12 +153,10 @@ test("Android font growth clears map controls before the next height measurement
     };
   });
   expect(geometry.font).toBe(32);
-  expect(geometry.measured, "the previous measurement is still held in this frame").toBe("112px");
-  expect(geometry.height).toBe(156);
-  expect(geometry.controls).toEqual([
-    { selector: ".mobileMapLocateFab", painted: true, overlap: false },
-    { selector: ".mobileMapPalDoor", painted: true, overlap: false },
-  ]);
+  expect(geometry.measured, "the measurement follows the reflowed card").toBe(`${Math.ceil(geometry.height)}px`);
+  expect(geometry.height, "the card grows to contain enlarged text").toBeGreaterThan(originalHeight);
+  expect(geometry.controls).toHaveLength(2);
+  for (const control of geometry.controls) expect(control.overlap, control.selector).toBe(false);
 });
 
 for (const scale of [1.3, 1.5, 2]) {
@@ -175,12 +176,13 @@ for (const scale of [1.3, 1.5, 2]) {
     await page.evaluate(() => document.fonts.ready);
     // The tallest answer the card holds: a lens label wrapped under
     // "Cheapest in this view", over the figure line with a walk.
-    const geometry = await card.evaluate((element) => {
+    const geometry = await card.evaluate(async (element) => {
       const answer = element.querySelector<HTMLElement>(".mapPeekAnswer")!;
       answer.innerHTML =
         '<span class="mapPeekEyebrow"><span>Cheapest in this view</span><span class="mapPeekLabel">· Alcohol-free</span></span>' +
         '<span class="mapPeekLine"><span class="mapPeekPrice">£12.00</span>' +
         '<span class="mapPeekName">The Marquis of Granby</span><span class="mapPeekWalk">12 min walk</span></span>';
+      await new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
       const rect = (selector: string) => {
         const found = document.querySelector<HTMLElement>(selector);
         if (!found || getComputedStyle(found).visibility === "hidden") return null;
@@ -225,23 +227,28 @@ for (const scale of [1.3, 1.5, 2]) {
         lineTop: line.getBoundingClientRect().top,
         nearMe: rect(".mobileMapLocateFab"),
         palDoor: rect(".mobileMapPalDoor"),
+        pal: rect(".palSummon") ?? rect(".palVoiceBar"),
+        list: rect(".mapPeekList")!,
       };
     });
     expect(geometry.root, "the root grows with the text").toBeCloseTo(16 * scale);
     expect(geometry.figureFont, "the figure's text is enlarged").toBeCloseTo(16 * scale);
-    // 68px of frame, gap and door, and an answer row of 44px at the scale.
-    expect(geometry.card.height).toBeCloseTo(68 + 44 * scale, 0);
-    expect(geometry.answer.height).toBeCloseTo(44 * scale, 0);
+    expect(geometry.card.top, "the enlarged card stays within the phone").toBeGreaterThanOrEqual(0);
+    expect(geometry.card.bottom, "the card stays above the dock").toBeLessThanOrEqual(840);
     expect(geometry.eyebrowLines, "the eyebrow is at most two lines").toBeLessThanOrEqual(2);
     expect(geometry.labelText.bottom, "the label's text never runs into the figure line").toBeLessThanOrEqual(geometry.lineTop + 1);
     expect(geometry.contentTop, "the eyebrow stays inside the answer row").toBeGreaterThanOrEqual(geometry.answer.top - 1);
     expect(geometry.contentBottom, "the figure line stays inside the answer row").toBeLessThanOrEqual(geometry.answer.bottom + 1);
     expect(geometry.door, "the plan door rides in the card").not.toBeNull();
     expect(geometry.answer.bottom, "the answer never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
+    expect(geometry.list.top, "List follows the enlarged answer").toBeGreaterThanOrEqual(geometry.answer.bottom);
+    expect(geometry.list.bottom, "List never runs under the plan door").toBeLessThanOrEqual(geometry.door!.top);
+    expect(geometry.list.height, "List keeps a touch target").toBeGreaterThanOrEqual(44);
     expect(geometry.figureInk, "the figure line's text never runs under the door").toBeLessThanOrEqual(geometry.door!.top + 0.5);
     expect(geometry.nearMe, "Near me is painted").not.toBeNull();
-    expect(geometry.palDoor, "the Pal door is painted").not.toBeNull();
-    for (const [name, other] of [["Near me", geometry.nearMe!], ["the Pal door", geometry.palDoor!]] as const) {
+    const pal = geometry.pal ?? geometry.palDoor;
+    expect(pal, "a Pal control is painted").not.toBeNull();
+    for (const [name, other] of [["Near me", geometry.nearMe!], ["the Pal control", pal!]] as const) {
       const overlap =
         geometry.card.left < other.right &&
         other.left < geometry.card.right &&

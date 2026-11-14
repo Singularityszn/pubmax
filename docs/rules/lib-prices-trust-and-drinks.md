@@ -43,7 +43,11 @@ The [public estimate guide](https://pubmaxxing.com/how-we-estimate) owns the zon
 
 The slim builder uses the runtime bundle parser to exclude quarantined rows from price availability. It carries recorded beer venue IDs beside the full slim payload, outside map shards. `lib/slimPayload.ts` projects this metadata into venue availability, and the published zone index carries it to map readers. Missing bundle coverage remains unknown.
 
-Pal's `venue_prices` tool also reads the venue's public Pint Drops before estimating. A recorded price in these reads, a public priced drop in the returned rows, or an unavailable read prevents a zone estimate. The estimate remains outside card prices and price evidence. `__tests__/palFailClosedPrices.test.ts` covers these constraints. Map, list, split-list, Ledger and Plan retain their existing absence checks. Complete public-price absence across those readers remains tracked in [issue #2706](https://github.com/Singularityszn/pubmax/issues/2706).
+Map pins withhold estimates while that pub's community-price or Pint Drop read is pending. `zoneEstimatePinStandings` checks only reads already started. A missing status entry means never asked and does not block a pin estimate.
+
+Cancelling a Pint Drop read marks it unavailable only while it still owns the request. Cancellation retains observed rows and releases the pending hold. An unavailable read does not establish price absence. `__tests__/venuePriceLane.test.ts` and `__tests__/usePintDropsReads.test.tsx` cover these rules.
+
+Pal's `venue_prices` tool also reads the venue's public Pint Drops before estimating. A recorded price in these reads, a public priced drop in the returned rows, or an unavailable read prevents a zone estimate. The estimate remains outside card prices and price evidence. `__tests__/palFailClosedPrices.test.ts` covers these constraints. List, split-list, Ledger and Plan retain their existing absence checks. Complete public-price absence across those readers remains tracked in [issue #2706](https://github.com/Singularityszn/pubmax/issues/2706).
 
 <a id="an-estimate-is-supply-never-a-city-flag-and-every-basis-this-tree-holds-is-londo"></a>
 
