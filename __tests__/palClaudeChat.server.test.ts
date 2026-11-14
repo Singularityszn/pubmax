@@ -52,6 +52,7 @@ import { pubPalTypedChatSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { PUB_PAL_TOOL_NAMES } from "@/lib/pubPalToolCatalog.mjs";
 import { isPalLocalThreadId } from "@/lib/pubPalConversationId";
 import { __resetPubPalStore } from "@/lib/pubPalStore";
+import type { PubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
 
@@ -214,6 +215,91 @@ describe("runPalClaudeChatTurn", () => {
     expect(second[2]!.content).toEqual([
       expect.objectContaining({ type: "tool_result", tool_use_id: "tu_1" }),
     ]);
+  });
+
+  it("returns the stored venue cards and plan proposal after Claude proposes a Soho crawl", async () => {
+    const query = "A pub crawl in Soho for three, not pricey";
+    const planTurn: PubPalToolTurn = {
+      ...storedTurn,
+      query,
+      cards: [
+        ...storedTurn.cards,
+        { key: "v2", venueId: "london-b", title: "The Bell", place: "Soho", note: "Listed pint.", price: 5 },
+      ],
+      proposals: [{
+        id: "plan-soho",
+        kind: "draft_plan",
+        label: "Open in Plan",
+        query,
+        stopIds: ["london-a", "london-b"],
+        stopNames: ["The Crown", "The Bell"],
+      }],
+      toolsUsed: ["propose_plan"],
+    };
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [], toolsUsed: [] });
+    const { client } = fakeClient([
+      { content: [toolUse("tu_plan", "propose_plan", { query })], stop_reason: "tool_use" },
+      { content: [text("Here is a Soho crawl with listed pints.")], stop_reason: "end_turn" },
+    ]);
+    const runTool = vi.fn(async () => {
+      storeMocks.readPubPalToolTurn.mockResolvedValue(planTurn);
+      return { ok: true, answerHint: "Two sourced stops." };
+    });
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client, runTool });
+
+    expect(outcome).toMatchObject({
+      ok: true,
+      message: "Here is a Soho crawl with listed pints.",
+      cards: planTurn.cards,
+      proposals: planTurn.proposals,
+      toolsUsed: ["propose_plan"],
+    });
+    if (!outcome.ok) return;
+    expect(runTool.mock.calls).toEqual([["propose_plan", { query }, outcome.conversationId]]);
+  });
+
+  it("returns Claude's area question without cards or proposals when the crawl has no area", async () => {
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [], toolsUsed: [] });
+    const { client } = fakeClient([
+      { content: [text("Which area would you like?")], stop_reason: "end_turn" },
+    ]);
+    const runTool = vi.fn(async () => ({ ok: true }));
+
+    const outcome = await runPalClaudeChatTurn(
+      { query: "Plan a pub crawl for my birthday, six of us", ownerId: OWNER },
+      undefined,
+      { client, runTool },
+    );
+
+    expect(outcome).toMatchObject({
+      ok: true, message: "Which area would you like?", cards: [], proposals: [], toolsUsed: [],
+    });
+    expect(runTool).not.toHaveBeenCalled();
+  });
+
+  it("returns four recommendation cards without proposing a crawl when Claude searches four pubs", async () => {
+    const query = "Four pubs in Soho";
+    const cards = ["The Crown", "The Bell", "The Anchor", "The Ship"].map((title, index) => ({
+      ...storedTurn.cards[0]!, key: `v${index + 1}`, venueId: `london-${index + 1}`, title,
+    }));
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [], toolsUsed: [] });
+    const { client } = fakeClient([
+      { content: [toolUse("tu_search", "search_venues", { query, limit: 4 })], stop_reason: "tool_use" },
+      { content: [text("Here are four Soho pubs.")], stop_reason: "end_turn" },
+    ]);
+    const runTool = vi.fn(async () => {
+      storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, query, cards });
+      return { ok: true, cards };
+    });
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client, runTool });
+
+    expect(outcome).toMatchObject({
+      ok: true, message: "Here are four Soho pubs.", cards, proposals: [], toolsUsed: ["search_venues"],
+    });
+    if (!outcome.ok) return;
+    expect(runTool.mock.calls).toEqual([["search_venues", { query, limit: 4 }, outcome.conversationId]]);
   });
 
   it("carries the caller's own earlier asks into a new thread for the follow-up", async () => {
