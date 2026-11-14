@@ -472,6 +472,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   max-width: 100%;
 }
 
+@media (max-width: 640px) {
+  .mobileMapFilters .drinkShapeChipsStack .drinkShapeChips {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .mobileMapFilters .drinkShapeChipsStack .drinkShapeChip {
+    flex: 1 1 30%;
+    width: auto;
+    min-width: min-content;
+    padding-inline: 3px;
+  }
+}
+
 .drinkSubtypeChips {
   display: flex;
   flex-wrap: nowrap;
