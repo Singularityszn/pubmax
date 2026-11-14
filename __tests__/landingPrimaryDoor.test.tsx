@@ -75,6 +75,28 @@ afterEach(async () => {
 });
 
 describe("the landing hero's public price door", () => {
+  it("opens each cheapest-listed pub on the map without starting a Pint Drop", async () => {
+    await render(createElement(LandingHero, {
+      card: {
+        id: "venue-anchor", name: "The Anchor", area: "City of London", primaryBorough: "City of London",
+        station: { name: "Blackfriars", zone: 1 }, priceGbp: 5, pintName: "a pint of Pravha",
+        drinkHref: null, publisher: null, observedOn: null, standing: "none",
+        then: { priceGbp: 3, observedOn: "2013-07-14", source: { label: "Archive", url: "https://example.com" } },
+        movementLine: null, mapHref: "/map?sel=venue-anchor",
+      },
+      archive: {},
+      rail: [
+        { id: "venue-masque-haunt", name: "The Masque Haunt", area: "Islington", primaryBorough: "Islington", priceGbp: 2.99, hasThen: false },
+        { id: "venue-next", name: "The Next Pub", area: "City of London", primaryBorough: "City of London", priceGbp: 3.49, hasThen: false },
+      ],
+    }));
+
+    expect([...container.querySelectorAll(".lpRailLink")].map((link) => link.getAttribute("href"))).toEqual([
+      "/map?sel=venue-masque-haunt",
+      "/map?sel=venue-next",
+    ]);
+  });
+
   it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 

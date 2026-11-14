@@ -24,7 +24,6 @@ import {
   LANDING_SIGN_IN_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
-  pintDropDoorHref,
   railHeading,
   type AnswerPublisher,
   type LandingAnswerScope,
@@ -542,7 +541,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
       <ol className="lpRailList">
         {answer.rail.map((row) => (
           <li key={row.id} className="lpRailRow">
-            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink">
+            <Link prefetch={false} href={venueMapUrl(row.id)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (
