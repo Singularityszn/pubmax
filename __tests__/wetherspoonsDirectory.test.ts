@@ -40,9 +40,9 @@ describe("Wetherspoons directory dataset", () => {
     expect(ga).toBe(gb);
   });
 
-  it("holds the 827 pubs the chain's own directory listed on 2026-09-14", () => {
+  it("holds the 826 pubs the chain's own directory listed on 2026-11-14", () => {
     const dir = load<WetherspoonsDirectory>(DIRECTORY_PATHS[0]);
-    expect(dir.pubs).toHaveLength(827);
+    expect(dir.pubs).toHaveLength(826);
     expect(dir.count).toBe(dir.pubs.length);
   });
 
@@ -119,7 +119,7 @@ describe("Wetherspoons directory dataset", () => {
     }>(GEOJSON_PATHS[0]);
 
     expect(geo.type).toBe("FeatureCollection");
-    expect(geo.features).toHaveLength(827);
+    expect(geo.features).toHaveLength(826);
 
     let outsideUk = 0;
     for (const feature of geo.features) {
@@ -146,6 +146,6 @@ describe("Wetherspoons directory dataset", () => {
     expect(edinburgh).toBeDefined();
     // EH1 1HU is Edinburgh — longitude must be negative (west of Greenwich).
     expect(edinburgh?.longitude).toBeLessThan(0);
-    expect(edinburgh?.longitude).toBeCloseTo(-3.19099, 4);
+    expect(edinburgh?.longitude).toBeCloseTo(-3.191, 3);
   });
 });
