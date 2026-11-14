@@ -65,6 +65,20 @@ test("landing nav speaks the app's vocabulary and the footer keeps Social", asyn
   await expect(footerSocial).toHaveCount(1);
 });
 
+for (const signedIn of [false, true]) {
+  test(`Pal entry ${signedIn ? "opens chat without another sign-in" : "keeps the chat destination through sign-in"}`, async ({ page }) => {
+    await installAuthDoubles(page);
+    if (signedIn) await seedSignedIn(page, "A");
+    await page.goto("/");
+
+    const primary = page.locator(".lpHero [data-primary-action] a");
+    const destination = signedIn ? "/pal/chat" : "/login?from=%2Fpal%2Fchat";
+    await expect(primary).toHaveAttribute("href", destination);
+    await primary.click();
+    await expect(page).toHaveURL(new URL(destination, page.url()).href);
+  });
+}
+
 test.describe("landing hierarchy", () => {
   test("keeps the near-me answer primary and the receipt door first in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
