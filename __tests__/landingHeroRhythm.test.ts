@@ -168,10 +168,10 @@ describe("landing hero rhythm", () => {
     expect(html).toContain('href="/drink/guinness"');
   });
 
-  it("prints every Zone 1 rail row with its Pint Drop door, price stamp and area", () => {
+  it("prints every Zone 1 rail row with its pub map link, price stamp and area", () => {
     expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in Zone 1<\/h2>/);
     expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
-    expect(html).toContain('href="/map?sel=venue-1&amp;log=1&amp;price=2.99"');
+    expect(html).toContain('href="/map?sel=venue-1"');
     expect(html.match(/lpRailMeta">City of London/g)).toHaveLength(3);
   });
 

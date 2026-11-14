@@ -194,8 +194,7 @@ test.describe("landing hierarchy", () => {
     await expect(receipt).toHaveText(LANDING_RECEIPT_NAME);
     await expect(receipt).toHaveAttribute("href", LANDING_RECEIPT_HREF);
 
-    // Three next-cheapest rows under it, each a Pint Drop door of its own,
-    // each carrying the figure its own row prints.
+    // Each next-cheapest row opens its pub on the map.
     const rows = page.locator(".lpHero .lpRailRow");
     await expect(rows).toHaveCount(3);
     for (const row of await rows.all()) {
@@ -203,7 +202,7 @@ test.describe("landing hierarchy", () => {
       expect(rowPrice).toMatch(/£\d+\.\d\d/);
       await expect(row.locator("a")).toHaveAttribute(
         "href",
-        `/map?sel=${(await row.locator("a").getAttribute("href"))!.match(/sel=([^&]+)/)![1]}&log=1&price=${rowPrice!.replace("£", "")}`,
+        /^\/map\?sel=[^&]+$/,
       );
     }
     // No location control inside the card (the primary is the near-you door),
@@ -234,16 +233,17 @@ test.describe("landing hierarchy", () => {
     await expect(priceInput).toBeEditable();
   });
 
-  test("a pub-specific price link keeps that pub's printed price editable", async ({ page }) => {
+  test("a cheapest-listed pub opens its venue sheet without a price form", async ({ page }) => {
     test.slow();
     await openLanding(page, { width: 390, height: 844 });
     const row = page.locator(".lpHero .lpRailRow").first();
-    const figure = (await row.locator(".priceBadge").textContent())!.trim().replace(/^£/, "");
+    const name = (await row.locator(".lpRailName").innerText()).trim();
+    const href = await row.locator("a").getAttribute("href");
+    expect(href).toMatch(/^\/map\?sel=[^&]+$/);
     await row.locator("a").click();
-    await expect(page).toHaveURL(/\/map\?sel=[^&]+&log=1&price=\d+\.\d\d$/);
-    const priceInput = page.locator(".spillPriceStep .priceStepper input");
-    await expect(priceInput).toHaveValue(figure, { timeout: 30_000 });
-    await expect(priceInput).toBeEditable();
+    await expect(page).toHaveURL(new URL(href!, page.url()).href);
+    await expect(page.getByRole("heading", { name, exact: true })).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".spillPriceStep .priceStepper input")).toHaveCount(0);
   });
 
   // Both viewports, because a mobile-only check cannot see a hero that shrinks
