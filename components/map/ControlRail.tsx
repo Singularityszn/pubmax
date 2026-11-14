@@ -17,7 +17,9 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo } from "react";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { pintCapMatches } from "@/lib/pintCapMatches";
 
 import {
   nearestPintPriceCap,
@@ -316,6 +318,7 @@ export default function ControlRail({
             if (next) onFiltersChange({ ...filters, maxPrice: next.maxPrice });
           }}
         />
+        <PintCapMatchSummary matches={pintCapMatches(filteredVenues, filters.maxPrice)} />
         {mode === "suggest" ? (
           <>
             <div className="rangeLine">

@@ -391,7 +391,7 @@ import {
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
-import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
+import { usePinPriceStandings, usePintCapMatches } from "@/components/map/pubmap/usePinPriceStandings";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -3166,9 +3166,8 @@ export default function PubMap({
     () => withForcedVenue(kindVisibleMapVenues, venueById, selectedVenueId || (filters.query.trim() ? searchPickedVenueId : "")),
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
-  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, {
-    price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus,
-  });
+  const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
+  const pintCapMatched = usePintCapMatches(filteredVenues, effectiveMapFilters.maxPrice);
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));
@@ -6236,9 +6235,8 @@ export default function PubMap({
               maxPrice={filters.maxPrice}
               legend={activePriceLegend}
               drinkLabel={activeLensLabel ?? undefined}
-              onMaxPriceChange={(maxPrice) =>
-                setFilters((current) => ({ ...current, maxPrice }))
-              }
+              matches={pintCapMatched}
+              onMaxPriceChange={(maxPrice) => setFilters((current) => ({ ...current, maxPrice }))}
             />
           </TabsContent>
         ) : null}
@@ -6348,9 +6346,8 @@ export default function PubMap({
           maxPrice={filters.maxPrice}
           legend={activePriceLegend}
           drinkLabel={activeLensLabel ?? undefined}
-          onMaxPriceChange={(maxPrice) =>
-            setFilters((current) => ({ ...current, maxPrice }))
-          }
+          matches={pintCapMatched}
+          onMaxPriceChange={(maxPrice) => setFilters((current) => ({ ...current, maxPrice }))}
         />
       </div>
     );
@@ -6671,6 +6668,7 @@ export default function PubMap({
             filters={filters}
             onFiltersChange={setFilters}
             onPicked={close}
+            matches={pintCapMatched}
           />
         )
       : undefined;

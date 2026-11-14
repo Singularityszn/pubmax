@@ -1,7 +1,9 @@
 "use client";
 
 import MapKey from "@/components/map/MapKey";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
 
 /**
@@ -15,16 +17,17 @@ export default function MobilePriceChoices({
   maxPrice,
   legend,
   drinkLabel,
+  matches,
   onMaxPriceChange,
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
   drinkLabel?: string;
+  matches?: PintCapMatches | null;
   onMaxPriceChange: (price: number) => void;
 }) {
   return (
     <>
-      <MapKey legend={legend} />
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
@@ -49,8 +52,10 @@ export default function MobilePriceChoices({
               );
             })}
           </div>
+          <PintCapMatchSummary matches={matches} />
         </fieldset>
       )}
+      <MapKey legend={legend} />
     </>
   );
 }
