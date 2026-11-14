@@ -20,9 +20,14 @@ When the key is set, `/api/pub-pal/chat` sends each typed ask to Claude
 (`lib/palClaudeChat.server.ts`). It needs a signed-in session and spends the
 same `pub-pal-chat` ceiling. The safety fence, the answers from records, the
 memories and the taste read run before Claude is asked, as they do for
-ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and the
-same prompt rules (`lib/palVoicePrompt.mjs`, without the spoken parts). Our
-server runs each tool itself, so no webhook is involved.
+ElevenLabs. Claude uses the same tools (`lib/pubPalToolCatalog.mjs`) and shares
+grounding and taste rules with voice in `lib/palVoicePrompt.mjs`.
+Our server runs each tool itself, so no webhook is involved.
+
+Typed chat has its own planning rule. For a plan request with a named area,
+the prompt tells Claude to call `propose_plan` without asking a question first.
+The tool query carries the area and any group, budget or mood details from the request or taste read.
+For a plan request without an area, the prompt asks only where, in one short question.
 
 The same key also runs map Ask's model loop (`/api/ask`) on Claude. Both
 paths use the shared client, model setting and prompt cache markers
@@ -355,7 +360,7 @@ Voice uses the same opening builder in its first-message override.
    `search_venues` off the read's patch, vibe and usual price instead of
    asking for one.
 3. **Voices** and per-session `voice_id` overrides (unchanged).
-4. **House prompt**: talk like a best mate who knows their taste, a quick
+4. **ElevenLabs house prompt**: talk like a best mate who knows their taste, a quick
    pick answers at once and a plan asks up to three short questions first,
    call tools before any fact, never invent a price, propose then confirm,
    plain speech on get-home topics. A prompt change reaches the live agent only

@@ -111,6 +111,19 @@ describe("Pub Pal voice prompt register", () => {
     }
   });
 
+  it("plans a typed crawl that names its area at once, and leaves voice its questions", () => {
+    const voice = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
+    const typed = pubPalTypedChatSystemPrompt();
+    // A typed reply that only asks questions shows no plan card.
+    const voiceQuestions = "ask up to three short questions about only what their taste and the ask leave open";
+    const typedPlan = "When a plan ask names an area, call propose_plan now and do not ask a question first.";
+    expect(voice).toContain(voiceQuestions);
+    expect(voice).not.toContain(typedPlan);
+    expect(typed).toContain(typedPlan);
+    expect(typed).not.toContain(voiceQuestions);
+    for (const line of typed.split("\n")) expect(line).not.toMatch(/[!—]/);
+  });
+
   it("gives voice, and only voice, the rules that keep a call from going quiet or nagging", () => {
     const voice = pubPalAgentSystemPrompt(PAL_VOICE_MAX_SESSION_SECONDS);
     const typed = pubPalTypedChatSystemPrompt();
