@@ -1,14 +1,6 @@
 // WHERE ONE VENUE'S PINT DROP READ GOT TO, and what it may do to what is
 // already on screen. A pure leaf: it imports nothing, so the rule can be held
 // without mounting the map's whole hook.
-//
-// Review finding F-8. `refreshVenueDrops` answered a non-ok response and a
-// rejection the same way - it wrote `[]` into the venue's entry.
-// `/api/pint-drops` answers 503 whenever its store read throws, so one hiccup
-// replaced a pub's real drops with nothing: `pintTrustFor([])` reads `none` and
-// the Overview printed the first-drop nudge over a pub holding a confirmed
-// price, which is the one sentence #1495 exists to keep off a public drop. The
-// city-wide refresh beside it already kept its layer on a failure.
 
 /**
  * `idle` means no settled answer, including a read in flight.

@@ -456,17 +456,8 @@ export function usePintDrops(
     return () => ac.abort();
   }, [cityId]);
 
-  // Refresh one venue's drops; returns a cancel function for effect cleanup.
-  //
-  // A FAILED READ IS A FACT ABOUT US, NEVER ABOUT THE PUB (review finding F-8).
-  // This used to write `[]` into the venue's entry on a non-ok response and on a
-  // rejection alike. `/api/pint-drops` answers 503 whenever its store read
-  // throws, so one hiccup replaced a pub's real drops with nothing:
-  // `pintTrustFor([])` reads `none` and the Overview printed the first-drop
-  // nudge over a pub holding a confirmed price - the exact sentence #1495 exists
-  // to keep off a public drop. The city refresh above already keeps its layer on
-  // a failure; this now does the same, and records the read so a surface can
-  // tell "we could not look" from "nobody has logged one".
+  // The per-venue read contract, including cancellation, lives in
+  // docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
   const refreshVenueDrops = useCallback((venueId: string) => {
     const request = Symbol();
     const controller = new AbortController();
