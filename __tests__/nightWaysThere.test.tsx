@@ -21,27 +21,27 @@ const to = { lat: 51.5235, lng: -0.158 };
 const walkPath: [number, number][] = [[-0.1318, 51.5145], [-0.158, 51.5235]];
 
 const walk: LegOption = {
-  id: "walk", kind: "walk", minutes: 26, farePence: 0, estimate: true, fastest: false, cheapest: true,
-  parts: [{ mode: "walking", line: null, minutes: 26, path: walkPath }],
+  id: "walk", kind: "walk", minutes: 26, farePence: 0, estimate: true, fastest: false, cheapest: true, fareLevel: null, walkMetres: 2100,
+  parts: [{ mode: "walking", line: null, minutes: 26, metres: null, path: walkPath }],
 };
 const tube: LegOption = {
-  id: "transit-0", kind: "transit", minutes: 24, farePence: 300, estimate: false, fastest: true, cheapest: false,
+  id: "transit-0", kind: "transit", minutes: 24, farePence: 300, estimate: false, fastest: true, cheapest: false, fareLevel: "Off Peak", walkMetres: 448,
   parts: [
-    { mode: "walking", line: null, minutes: 6, path: [[-0.1318, 51.5145], [-0.1304, 51.5163]] },
-    { mode: "tube", line: "Central", minutes: 2, path: [[-0.1304, 51.5163], [-0.1415, 51.515]] },
-    { mode: "tube", line: "Hammersmith & City", minutes: 9, path: [[-0.1415, 51.515], [-0.158, 51.5235]] },
+    { mode: "walking", line: null, minutes: 6, metres: null, path: [[-0.1318, 51.5145], [-0.1304, 51.5163]] },
+    { mode: "tube", line: "Central", minutes: 2, metres: null, path: [[-0.1304, 51.5163], [-0.1415, 51.515]] },
+    { mode: "tube", line: "Hammersmith & City", minutes: 9, metres: null, path: [[-0.1415, 51.515], [-0.158, 51.5235]] },
   ],
 };
 const bus: LegOption = {
-  id: "transit-1", kind: "transit", minutes: 28, farePence: null, estimate: false, fastest: false, cheapest: false,
-  parts: [{ mode: "bus", line: "98", minutes: 28, path: walkPath }],
+  id: "transit-1", kind: "transit", minutes: 28, farePence: null, estimate: false, fastest: false, cheapest: false, fareLevel: null, walkMetres: null,
+  parts: [{ mode: "bus", line: "98", minutes: 28, metres: null, path: walkPath }],
 };
 
 describe("the chosen way on the map", () => {
   it("colours a ride by its TfL line, a bus in bus red, and leaves a walk to the route colour", () => {
     expect(legPartColour(tube.parts[1]!)).toBe("#DC241F");
     expect(legPartColour(tube.parts[2]!)).toBe("#F589A6");
-    expect(legPartColour({ mode: "elizabeth-line", line: "Elizabeth line", minutes: 3, path: [] })).toBe("#60399E");
+    expect(legPartColour({ mode: "elizabeth-line", line: "Elizabeth line", minutes: 3, metres: null, path: [] })).toBe("#60399E");
     expect(legPartColour(bus.parts[0]!)).toBe("#DC241F");
     expect(legPartColour(tube.parts[0]!)).toBeNull();
   });
@@ -90,11 +90,11 @@ describe("Ways to get there", () => {
   let answer: { status: number; body: LegOptionsResponse | null };
   const asked: string[] = [];
 
-  async function render(legKey = legKeyFor("venue-a", "venue-b")) {
+  async function render(legKey = legKeyFor("venue-a", "venue-b"), departAt: string | null = null) {
     host = document.createElement("div");
     document.body.append(host);
     root = createRoot(host);
-    await act(async () => root!.render(createElement(NightWaysThere, { legKey, from, to })));
+    await act(async () => root!.render(createElement(NightWaysThere, { legKey, from, to, departAt })));
   }
   const toggle = () => host.querySelector<HTMLButtonElement>(".nightWays__toggle")!;
   const rows = () => [...host.querySelectorAll<HTMLButtonElement>(".nightWays__option")];
@@ -106,7 +106,7 @@ describe("Ways to get there", () => {
     nav.push.mockReset();
     nav.pathname = "/plan/x";
     asked.length = 0;
-    answer = { status: 200, body: { status: "ok", options: [tube, walk, bus] } };
+    answer = { status: 200, body: { status: "ok", options: [tube, walk, bus], departure: { basis: "now" } } };
     showLegRouteOnMap(null);
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
       asked.push(String(input));
@@ -130,23 +130,47 @@ describe("Ways to get there", () => {
     expect(asked).toEqual(["/api/leg-options?from=51.51450,-0.13180&to=51.52350,-0.15800"]);
     expect(toggle().getAttribute("aria-expanded")).toBe("true");
     expect(rows().map((row) => row.textContent)).toEqual([
-      "Tube · Central then Tube · Hammersmith & City24 min£3.00Fastest",
-      "WalkStraight-line estimate~26 minFreeCheapest",
+      "Tube · Central then Tube · Hammersmith & City450 m on foot · about 600 steps24 min£3.00 off-peakFastest",
+      "WalkStraight-line estimate~2.1 km straight line · about 2,800 steps~26 minFreeCheapest",
       "Bus 9828 minFare not listed",
     ]);
-    expect(rows()[0]!.getAttribute("aria-label")).toBe("Tube · Central then Tube · Hammersmith & City, 24 min, £3.00, fastest, show on the map");
-    expect(rows()[1]!.getAttribute("aria-label")).toBe("Walk, about 26 min, Free, cheapest, show on the map");
-    expect(host.textContent).toContain("Times and fares from TfL, if you leave now.");
+    expect(rows()[0]!.getAttribute("aria-label")).toBe(
+      "Tube · Central then Tube · Hammersmith & City, 24 min, £3.00 off-peak, 450 m on foot · about 600 steps, fastest, show on the map",
+    );
+    expect(rows()[1]!.getAttribute("aria-label")).toBe("Walk, about 26 min, Free, ~2.1 km straight line · about 2,800 steps, cheapest, show on the map");
     // The walk here is a straight-line estimate, and the footer says whose it is.
-    expect(host.textContent).toContain("A straight-line time is our own estimate.");
+    expect(host.querySelector(".nightWays__source")!.textContent).toBe(
+      "Times, distances and fares from TfL, if you leave now. A fare is TfL's listed pay as you go fare. Your final charge can differ. A straight-line time is our own estimate. Steps are estimated from distance at 75 cm a step, not counted.",
+    );
   });
 
   it("names no estimate of its own when every time is TfL's", async () => {
-    answer = { status: 200, body: { status: "ok", options: [tube, bus] } };
+    answer = { status: 200, body: { status: "ok", options: [tube, bus], departure: { basis: "now" } } };
     await render();
     await act(async () => toggle().click());
     await settle();
-    expect(host.querySelector(".nightWays__source")!.textContent).toBe("Times and fares from TfL, if you leave now.");
+    expect(host.querySelector(".nightWays__source")!.textContent).toBe(
+      "Times, distances and fares from TfL, if you leave now. A fare is TfL's listed pay as you go fare. Your final charge can differ. Steps are estimated from distance at 75 cm a step, not counted.",
+    );
+  });
+
+  it("asks for the plan's start while it is ahead, and for now once it has passed", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-11-15T19:00:00Z"));
+      await render(undefined, "2026-11-15T21:30:00Z");
+      await act(async () => toggle().click());
+      await settle();
+      expect(asked).toEqual(["/api/leg-options?from=51.51450,-0.13180&to=51.52350,-0.15800&depart=2026-11-15T21%3A30%3A00.000Z"]);
+
+      vi.setSystemTime(new Date("2026-11-15T22:00:00Z"));
+      await act(async () => toggle().click());
+      await act(async () => toggle().click());
+      await settle();
+      expect(asked[1]).toBe("/api/leg-options?from=51.51450,-0.13180&to=51.52350,-0.15800");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("stays closed when TfL answers after the reader closed the list, or after the night moved on", async () => {
@@ -155,7 +179,7 @@ describe("Ways to get there", () => {
       asked.push(String(input));
       return new Promise<Response>((resolve, reject) => {
         init?.signal?.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")));
-        pending.push(() => resolve(Response.json({ status: "ok", options: [tube, walk] })));
+        pending.push(() => resolve(Response.json({ status: "ok", options: [tube, walk], departure: { basis: "now" } })));
       });
     }));
     await render();
@@ -205,7 +229,7 @@ describe("Ways to get there", () => {
   });
 
   it("says so when TfL has no way, and offers to ask again when it does not answer", async () => {
-    answer = { status: 200, body: { status: "unavailable", options: [] } };
+    answer = { status: 200, body: { status: "unavailable", options: [], departure: null } };
     await render();
     await act(async () => toggle().click());
     await settle();
@@ -217,7 +241,7 @@ describe("Ways to get there", () => {
     await act(async () => toggle().click());
     await settle();
     expect(host.textContent).toContain("TfL didn't answer.");
-    answer = { status: 200, body: { status: "ok", options: [walk] } };
+    answer = { status: 200, body: { status: "ok", options: [walk], departure: null } };
     await act(async () => host.querySelector<HTMLButtonElement>(".nightWays__retry")!.click());
     await settle();
     expect(rows()).toHaveLength(1);
