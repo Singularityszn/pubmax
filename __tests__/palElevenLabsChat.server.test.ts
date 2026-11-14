@@ -4,7 +4,7 @@ import { NAMED_QUALIFIED_PRICE_REQUESTS, QUALIFIED_PRICE_REQUESTS } from "./fixt
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const PAL_GREETING = "Hello, I'm your Pub Pal. What kind of night are you planning?";
-const SOURCED_ANSWER = "Two Soho picks with listed pints under five pounds.";
+const SOURCED_ANSWER = "I have a pick on the map.";
 const CHECKING_LINE = "Let me check prices near Soho.";
 // The provider's real shape: `signed_url` alone, the conversation id inside its query.
 const SIGNED_URL =
@@ -1201,14 +1201,14 @@ describe("runPalElevenLabsChatTurn", () => {
       wsState.storeFilled = false;
       wsState.replyScript = [
         { afterMs: 0, event: responsePart("start", "", "resp_1") },
-        { afterMs: 5, event: responsePart("delta", "Let me check prices near Soho.", "resp_1") },
+        { afterMs: 5, event: responsePart("delta", "Let me check prices near Soho. ", "resp_1") },
         { afterMs: 5, event: responsePart("stop", "", "resp_1") },
         { afterMs: 5, event: agentResponse(CHECKING_LINE) },
         { afterMs: 20, event: toolRequest("call_1") },
         { afterMs: 300, event: toolResponse("call_1") },
         { afterMs: 5, event: responsePart("start", "", "resp_2") },
-        { afterMs: 5, event: responsePart("delta", "Two Soho picks", "resp_2") },
-        { afterMs: 5, event: responsePart("delta", " with listed pints under five pounds.", "resp_2") },
+        { afterMs: 5, event: responsePart("delta", "I have a pick", "resp_2") },
+        { afterMs: 5, event: responsePart("delta", " on the map.", "resp_2") },
         { afterMs: 5, event: responsePart("stop", "", "resp_2") },
         { afterMs: 5, event: agentResponse(SOURCED_ANSWER) },
         { afterMs: 5, event: responseComplete() },
@@ -1223,8 +1223,7 @@ describe("runPalElevenLabsChatTurn", () => {
       expect(progress).toEqual([
         { type: "delta", text: "Let me check prices near Soho." },
         { type: "reset" },
-        { type: "delta", text: "Two Soho picks" },
-        { type: "delta", text: " with listed pints under five pounds." },
+        { type: "delta", text: SOURCED_ANSWER },
       ]);
       expect(outcome).toMatchObject({
         ok: true,
@@ -1237,7 +1236,7 @@ describe("runPalElevenLabsChatTurn", () => {
       const progress: Progress[] = [];
       wsState.replyScript = [
         { afterMs: 0, event: responsePart("start", "", "resp_1") },
-        { afterMs: 5, event: responsePart("delta", "First thought.", "resp_1") },
+        { afterMs: 5, event: responsePart("delta", "First thought. ", "resp_1") },
         { afterMs: 5, event: agentResponse("First thought.") },
         { afterMs: 50, event: responsePart("start", "", "resp_2") },
         { afterMs: 5, event: responsePart("delta", SOURCED_ANSWER, "resp_2") },
@@ -1256,6 +1255,44 @@ describe("runPalElevenLabsChatTurn", () => {
         { type: "delta", text: SOURCED_ANSWER },
       ]);
       expect(outcome).toMatchObject({ ok: true, message: SOURCED_ANSWER });
+    });
+
+    it.each([
+      "The Coach charges £6 a pint.",
+      "The Coach charges £4.80 a pint.",
+      "The Coach closes at 11pm.",
+      "The quiz is on 21 November.",
+      "Pints are under five pounds.",
+    ])("keeps %s out of streamed and final model prose", async (reply) => {
+      const progress: Progress[] = [];
+      wsState.replyScript = [
+        { afterMs: 0, event: responsePart("start") },
+        { afterMs: 0, event: responsePart("delta", "Let me check. ") },
+        { afterMs: 0, event: responsePart("delta", `${reply} `) },
+        { afterMs: 0, event: agentResponse(reply) },
+        { afterMs: 0, event: responseComplete() },
+      ];
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "Which quiet pubs near Soho have a beer garden?",
+        ownerId: OWNER,
+        onProgress: (event) => progress.push(event),
+      });
+      expect(wsState.socketsOpened).toBe(1);
+      expect(progress).toEqual([{ type: "delta", text: "Let me check." }, { type: "reset" }]);
+      expect(outcome).toMatchObject({ ok: true, cards: [expect.objectContaining({ venueId: "london-a" })] });
+      if (outcome.ok) expect(outcome.message).not.toContain(reply);
+    });
+
+    it("checks a full provider reply even when the provider sends no stream parts", async () => {
+      const reply = "The Coach charges £6 a pint.";
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(reply) },
+        { afterMs: 0, event: responseComplete() },
+      ];
+      const outcome = await runPalElevenLabsChatTurn({ query: "Which quiet pubs near Soho have a beer garden?", ownerId: OWNER });
+      expect(wsState.socketsOpened).toBe(1);
+      expect(outcome.ok).toBe(true);
+      if (outcome.ok) expect(outcome.message).not.toContain(reply);
     });
 
     it("sends nothing for the greeting parts that arrive before the user's message", async () => {

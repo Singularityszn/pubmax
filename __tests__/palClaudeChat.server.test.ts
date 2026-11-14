@@ -391,7 +391,7 @@ describe("runPalClaudeChatTurn", () => {
     expect(outcome.cards).toEqual(storedTurn.cards);
   });
 
-  it("streams and keeps a price, hour and date that a tool result holds", async () => {
+  it("renders factual figures from the stored cards instead of trusting rewritten model prose", async () => {
     const reply = "The Crown pours at £4.80. It is open until 11pm, with a quiz on 21 November.";
     const { client } = fakeClient([
       { content: [toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" },
@@ -409,15 +409,38 @@ describe("runPalClaudeChatTurn", () => {
       { client, runTool },
     );
 
-    expect(events).toEqual([
-      { type: "delta", text: "The Crown pours at £4.80." },
-      { type: "delta", text: " It is open until 11pm, with a quiz on 21 November." },
-    ]);
-    expect(outcome).toMatchObject({ ok: true, message: reply });
+    expect(events).toEqual([]);
+    expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
+    if (outcome.ok) {
+      expect(outcome.message).not.toContain("11pm");
+      expect(outcome.message).not.toContain("21 November");
+    }
   });
 
-  it("keeps honest uncertainty and the user's own figures", async () => {
-    const reply = "I cannot confirm a price at The Crown. With your £6 each, check the board when you arrive.";
+  it.each([
+    ["is The Crown ok if we have 6 quid each", "The Coach charges £6 a pint.", { budgetGbp: 6 }],
+    ["a quiet pub in Soho", "The Coach charges £4.80 a pint.", { cards: [{ title: "The Anchor", price: 4.8 }] }],
+    ["we will arrive at 11pm", "The Coach closes at 11pm.", { arrivalTime: "23:00" }],
+    ["a quiet pub in Soho", "The quiz is on 21 November.", { priceReadAt: "2026-11-21T12:00:00Z" }],
+  ] as const)("does not turn unrelated numbers into facts for %s", async (query, reply, record) => {
+    const { client, bodies } = fakeClient([
+      { content: [toolUse("tu_1", "search_venues", { query })], stop_reason: "tool_use" },
+      { content: [text(reply)], stop_reason: "end_turn", deltas: [`${reply} `] },
+    ]);
+    const events: Array<{ type: string; text?: string }> = [];
+    const outcome = await runPalClaudeChatTurn(
+      { query, ownerId: OWNER, onProgress: (event) => events.push(event) },
+      undefined,
+      { client, runTool: async () => ({ ok: true, ...record }) },
+    );
+    expect(bodies).toHaveLength(2);
+    expect(events.filter((event) => event.type === "delta")).toEqual([]);
+    expect(outcome).toMatchObject({ ok: true, cards: storedTurn.cards });
+    if (outcome.ok) expect(outcome.message).not.toContain(reply);
+  });
+
+  it("keeps honest uncertainty without attaching a budget figure to a venue claim", async () => {
+    const reply = "I cannot confirm a price at The Crown. Check the board when you arrive.";
     const { client } = fakeClient([{ content: [text(reply)], stop_reason: "end_turn", deltas: [reply] }]);
 
     const outcome = await runPalClaudeChatTurn({ query: "is The Crown ok if we have 6 quid each", ownerId: OWNER }, undefined, { client });
