@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { useAuth } from "@/components/auth/authContext";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -19,6 +20,8 @@ import {
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   LANDING_RECEIPT_LABEL,
+  LANDING_SIGN_IN_HREF,
+  LANDING_SIGN_IN_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
   pintDropDoorHref,
@@ -46,12 +49,12 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import LandingZoneChip from "./LandingZoneChip";
 
-// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask,
-// trimmed after the 16 Oct 2026 UX audit, and given the hunt on 1 Nov 2026):
-// the claim, one line under it, THE CHEAPEST PINT WE CAN FIND IN BRITAIN, then
-// the one filled action, then the quiet row, then the pub card and the three
-// next-cheapest rows. The DOM order is the phone order; the desktop seats the
-// hunt card and the rows beside the copy.
+// The Pal-first hero keeps the claim, one line under it, the one filled
+// action and two quiet price doors before the sourced hunt and pub cards.
+// Signed-in readers open chat; guests keep that destination through sign-in.
+// The hunt stays a server-rendered slot and prices still need no account.
+// The DOM order is the phone order; the desktop seats the hunt card and the
+// next-cheapest rows beside the copy.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
@@ -327,16 +330,17 @@ export default function LandingHero({
   // the ANSWER, so a near-you swap drops a picture the new pub does not have.
   const resolved = answer ? landingPhotoFor({ venueId: answer.id }) : null;
   const photo = resolved?.scope === "pub" ? resolved : null;
-  // The one filled action, and it is the same door whether or not a pub card
-  // stands behind the document, and the same door for every visitor: /near
-  // answers in one tap, and offers the first-run journey there as a chip.
+  // The one filled action opens Pal, with the existing sign-in boundary.
+  // The destination survives sign-in, while an existing account opens chat
+  // directly. Both price doors remain available without an account.
+  const { user } = useAuth();
   const primary = (
     <Link
       prefetch={false}
-      href={LANDING_PRIMARY_HREF}
-      onClick={() => trackLandingCta("near")}
+      href={user ? LANDING_PRIMARY_HREF : LANDING_SIGN_IN_HREF}
+      onClick={() => trackLandingCta("pal")}
     >
-      {LANDING_PRIMARY_LABEL}
+      {user ? LANDING_PRIMARY_LABEL : LANDING_SIGN_IN_LABEL}
     </Link>
   );
 
@@ -355,10 +359,9 @@ export default function LandingHero({
   return (
     <Screen
       className="lpHero"
-      title="What a pint costs, pub by pub."
+      title="Make the group chat a real night."
       titleId="hero-title"
       lede={LANDING_INTRO}
-      answer={hunt ?? undefined}
       primary={primary}
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
@@ -381,6 +384,7 @@ export default function LandingHero({
         </>
       }
     >
+      {hunt ? <div className="lpHuntAnswer">{hunt}</div> : null}
       {answer ? <AnswerCard answer={answer} near={near} photo={photo} /> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
