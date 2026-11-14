@@ -160,6 +160,7 @@ export type RequirementContext = {
   now: number;
   quizListings: ReadonlyMap<string, QuizListing> | null;
   pricedDrinks: ReadonlyMap<string, readonly PricedDrink[]> | null;
+  websiteAmenities: ReadonlyMap<string, Partial<Record<"darts" | "pool", readonly VenueFeatureObservation[]>>> | null;
 };
 
 export type RequirementProof = { requirement: string; source: string; observedAt: string };
@@ -198,12 +199,8 @@ export function venuePricedDrinks(
   return drinks;
 }
 
-function hasNoDatedSource(requirement: VenueRequirement): boolean {
-  return requirement.kind === "darts" || requirement.kind === "pool";
-}
-
 export function requirementCoverageGaps(requirements: readonly VenueRequirement[], context: RequirementContext): string[] {
-  return requirements.filter((requirement) => hasNoDatedSource(requirement)
+  return requirements.filter((requirement) => ((requirement.kind === "darts" || requirement.kind === "pool") && context.websiteAmenities === null)
     || (requirement.kind === "quiz" && context.quizListings === null)
     || (requirement.kind === "drink" && context.pricedDrinks === null)).map(requirementKey);
 }
@@ -261,8 +258,12 @@ export function requirementProof(
       return observedFeature(key, facts.garden, "beerGarden", context.now)
         ?? observedFeature(key, facts.outdoorSeating, "outdoorSeating", context.now);
     case "darts":
-    case "pool":
-      return null;
+    case "pool": {
+      const feature = requirement.kind;
+      const observation = context.websiteAmenities?.get(venue.id)?.[feature]
+        ?.find((candidate) => positiveFeatureObservation(candidate, feature, context.now));
+      return observation ? { requirement: key, source: observation[1], observedAt: observation[2] } : null;
+    }
     case "dogs":
       return observedFeature(key, facts.dogsWelcome, "dogsWelcome", context.now);
     case "quiz": {
@@ -351,7 +352,7 @@ function coverageGapReason(requirement: VenueRequirement): string {
   switch (requirement.kind) {
     case "quiz": return "I can't check the quiz listings right now";
     case "drink": return `I can't check the dated price records for ${requirement.label} right now`;
-    default: return `No dated source records ${requirementLabel(requirement)} here`;
+    default: return `I can't check the pub website records for ${requirementLabel(requirement)} here`;
   }
 }
 

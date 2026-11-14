@@ -63,6 +63,7 @@ import { fetchCityArea } from "@/lib/citymcp/area";
 import { retrieveHeritage } from "@/lib/heritage";
 import { loadWhatsOn, type FetchLive } from "@/lib/whatsOnStore";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { loadWebsiteAmenitiesByVenue } from "@/lib/pubWebsiteAmenityEvidence.server";
 import {
   isAskToolName,
   type AskCard,
@@ -157,7 +158,7 @@ async function requirementContext(
 ): Promise<RequirementContext> {
   const now = ctx.now ?? Date.now();
   const asks = (kind: VenueRequirement["kind"]) => requirements.some((requirement) => requirement.kind === kind);
-  const [quizListings, pricedDrinks] = await Promise.all([
+  const [quizListings, pricedDrinks, websiteAmenities] = await Promise.all([
     asks("quiz")
       ? loadWhatsOn({ kind: "quiz" }, { now, fetchLive: NO_LIVE_LISTINGS })
         .then(({ rows, readStatus }) => readStatus === "degraded" ? null : venueQuizListings(rows, now), () => null)
@@ -165,8 +166,11 @@ async function requirementContext(
     asks("drink") && ctx.cityId === "london"
       ? getPricedVenues().then((venues) => venuePricedDrinks(venues, now), () => null)
       : asks("drink") ? null : new Map(),
+    (asks("darts") || asks("pool")) && ctx.cityId === "london"
+      ? loadWebsiteAmenitiesByVenue().catch(() => null)
+      : asks("darts") || asks("pool") ? null : new Map(),
   ]);
-  return { now, quizListings, pricedDrinks };
+  return { now, quizListings, pricedDrinks, websiteAmenities };
 }
 
 function requirementNote(
