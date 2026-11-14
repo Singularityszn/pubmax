@@ -7,6 +7,7 @@ import { extractArea, resolveAskPriceIntent, routeAskDeterministically, socialTu
 
 export { askRequestClauses } from "@/lib/ask/requestPolicy";
 export {
+  extractArea,
   isIndependentAskTool,
   isVenueDiscoveryAsk,
   isVenueHoursQuestion,

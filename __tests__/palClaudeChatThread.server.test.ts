@@ -4,7 +4,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // Typed Pub Pal chat on Claude against the real tool-turn store: a follow-up
 // starts clean, and two asks from one person never share a row.
 
-vi.mock("@/lib/pubPalLlmFence", () => ({
+vi.mock("@/lib/pubPalLlmFence", async (original) => ({
+  ...await original<typeof import("@/lib/pubPalLlmFence")>(),
   resolvePubPalFenceIntent: vi.fn(async () => ({ fenced: false, sobrietyOnly: false })),
   pubPalGetHomeRegisterAnswer: vi.fn(() => "Getting Home has the trains."),
 }));
@@ -91,8 +92,9 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
       { client, runTool },
     );
 
-    expect(followUp).toMatchObject({ ok: true, cards: [], proposals: [], toolsUsed: [] });
+    expect(followUp.ok).toBe(true);
     if (!followUp.ok) return;
+    expect(followUp.cards).not.toContainEqual(SOHO_CARD);
     expect(followUp.conversationId).not.toBe(first.conversationId);
     // The follow-up still reads the earlier ask, from its own new row.
     expect((await readPubPalToolTurn(followUp.conversationId))?.turns).toEqual([{ role: "user", content: "pubs in Soho" }]);

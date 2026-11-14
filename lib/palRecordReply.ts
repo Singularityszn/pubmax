@@ -1,12 +1,12 @@
 import { refineRoutedAskQuery, routeAskDeterministically, socialTurnKind } from "@/lib/ask/router";
 import type { AskProposal } from "@/lib/ask/types";
 import { conciergeConstraintsInText, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
-import { PAL_EMPTY_MESSAGE } from "@/lib/palChat";
 
 type PalTurnLine = { role: string; content: string };
 type PalConfirmedMemoryLine = { label: string; value: string };
 
 export const PAL_ASK_FOR_CONSTRAINT = "Tell me an area, a mood or a budget and I'll find you a pub.";
+export const PAL_RECORDS_UNREAD = "I couldn't check the records for that just now. Try again.";
 
 const START_TIME_RE = /\b(?:tonight|today|tomorrow|this (?:evening|afternoon|weekend)|weekend|after work|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?:[:.]\d{2})?\s?[ap]m|\d{1,2}:\d{2}|noon|midday)\b/i;
 const MEMORY_ASK_RE = /\b(?:what do you (?:remember|know) about me|what have i told you|my (?:saved )?(?:memories|preferences))\b/i;
@@ -54,18 +54,22 @@ function crawlQuestion(needsArea: boolean, needsTime: boolean): string | null {
   return null;
 }
 
-export function palNoRecordReply(
+type PalNoRecordAnswer = { reply: string } | { lookup: { query: string; tool: string } };
+
+function palNoRecordAnswer(
   query: string,
   turns: readonly PalTurnLine[],
   memories?: readonly PalConfirmedMemoryLine[] | null,
-): string {
+): PalNoRecordAnswer {
   const social = palSocialReply(query, turns);
-  if (social) return social;
-  if (memories !== undefined && MEMORY_ASK_RE.test(query)) {
-    if (memories === null) return "Your saved memories could not be read just now.";
-    return memories.length > 0
-      ? `You confirmed: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}.`
-      : "You have not confirmed anything for me to remember yet.";
+  if (social) return { reply: social };
+  if (MEMORY_ASK_RE.test(query)) {
+    if (!memories) return { reply: "Your saved memories could not be read just now." };
+    return {
+      reply: memories.length > 0
+        ? `You confirmed: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}.`
+        : "You have not confirmed anything for me to remember yet.",
+    };
   }
   const asks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
   const routed = refineRoutedAskQuery(query, asks.at(-1), asks);
@@ -77,8 +81,24 @@ export function palNoRecordReply(
       !lines.some((line) => conciergeConstraintsInText(line, defaultKnownAreas()).area),
       !lines.some((line) => START_TIME_RE.test(line)),
     );
-    if (question) return question;
+    if (question) return { reply: question };
   }
   const unconstrained = !intent.area && intent.mood.length === 0 && intent.maxPintPrice === undefined && intent.groupSize === undefined;
-  return tools.length > 0 && !(tools.includes("search_venues") && unconstrained) ? PAL_EMPTY_MESSAGE : PAL_ASK_FOR_CONSTRAINT;
+  return tools.length > 0 && !(tools.includes("search_venues") && unconstrained)
+    ? { lookup: { query: routed, tool: tools[0]! } }
+    : { reply: PAL_ASK_FOR_CONSTRAINT };
+}
+
+export function palNoRecordLookup(query: string, turns: readonly PalTurnLine[]): { query: string; tool: string } | null {
+  const answer = palNoRecordAnswer(query, turns, null);
+  return "lookup" in answer ? answer.lookup : null;
+}
+
+export function palNoRecordReply(
+  query: string,
+  turns: readonly PalTurnLine[],
+  memories?: readonly PalConfirmedMemoryLine[] | null,
+): string {
+  const answer = palNoRecordAnswer(query, turns, memories);
+  return "reply" in answer ? answer.reply : PAL_RECORDS_UNREAD;
 }

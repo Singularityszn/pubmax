@@ -10,7 +10,7 @@ import {
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
-import { palNoRecordReply, palProposalReply } from "@/lib/palRecordReply";
+import { PAL_RECORDS_UNREAD, palNoRecordLookup, palNoRecordReply, palProposalReply } from "@/lib/palRecordReply";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
@@ -24,6 +24,7 @@ import {
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
+  appendPubPalToolTurn,
   readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
@@ -310,11 +311,7 @@ export async function preparePalChatProviderTurn(
   let result: Awaited<ReturnType<typeof runAsk>>;
   try {
     // "Somewhere new" on the record path leaves out the owner's own visits, as the tool does.
-    result = await beforePalChatDeadline(deadline, async () => {
-      const scope = asksForSomewhereNew(recordQuery) ? await palOnlyNewScope(input.ownerId) : null;
-      const answer = await runAsk({ query: recordQuery, cityId, skipModel: true, excludeVenueIds: scope?.exclude });
-      return scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer;
-    });
+    result = await beforePalChatDeadline(deadline, () => palRecordAsk(recordQuery, cityId, input.ownerId));
   } catch (error) {
     const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
     recordFailure(code, "tool_result");
@@ -360,6 +357,31 @@ export async function preparePalChatProviderTurn(
   };
 }
 
+async function palRecordAsk(query: string, cityId: ReturnType<typeof resolveAskCityId>, ownerId: string) {
+  const scope = asksForSomewhereNew(query) ? await palOnlyNewScope(ownerId) : null;
+  const answer = await runAsk({ query, cityId, skipModel: true, excludeVenueIds: scope?.exclude });
+  return scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer;
+}
+
+export async function palChatLookupAnswer(
+  turn: PubPalToolTurn | null,
+  conversationId: string,
+  context: { ownerId: string; deadline: number; memories?: PalRecalledMemory[] | null; onTool?: (tool: string) => void },
+): Promise<Extract<PalElevenLabsChatOutcome, { ok: true }>> {
+  const empty = turn && !turn.cards.length && !turn.hints.length && !turn.proposals.length && !turn.toolsUsed.length;
+  const lookup = empty ? palNoRecordLookup(turn.query, turn.turns) : null;
+  if (!turn || !lookup) return palChatAnswer(turn, conversationId, context.memories);
+  context.onTool?.(lookup.tool);
+  try {
+    const result = await beforePalChatDeadline(context.deadline, () => palRecordAsk(lookup.query, turn.cityId, context.ownerId));
+    const recorded = { cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed };
+    await beforePalChatDeadline(context.deadline, async () => appendPubPalToolTurn(conversationId, recorded)).catch(() => {});
+    return { ok: true, message: result.answer, cards: result.cards, proposals: result.proposals, conversationId, toolsUsed: result.toolsUsed };
+  } catch {
+    return palChatAnswer(turn, conversationId, context.memories);
+  }
+}
+
 /**
  * The finished answer for every typed provider. Model prose never reaches the
  * person: the message is the stored tool hints and cards, a memory card line,
@@ -374,8 +396,10 @@ export function palChatAnswer(
   const toolsUsed = turn?.toolsUsed ?? [];
   const proposals = turn?.proposals ?? [];
   const recorded = cards.length > 0 || (turn?.hints.length ?? 0) > 0;
-  const message = recorded || !turn
-    ? composeAnswer(turn?.hints ?? [], cards, toolsUsed)
+  const message = !turn
+    ? PAL_RECORDS_UNREAD
+    : recorded
+    ? composeAnswer(turn.hints, cards, toolsUsed)
     : palProposalReply(proposals) ?? (toolsUsed.length > 0
       ? composeAnswer([], [], toolsUsed)
       : palNoRecordReply(turn.query, turn.turns, memories));
@@ -512,7 +536,11 @@ export async function runPalElevenLabsChatTurn(
         try {
           const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0, deadline) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
-          finish(answer(turn));
+          const outcome = await palChatLookupAnswer(turn, conversationId, {
+            ownerId: input.ownerId, deadline, memories: confirmedMemories, onTool: input.onTool,
+          });
+          if (generation !== replyGeneration || events !== toolEvents) return;
+          finish(outcome);
         } catch (error) {
           // The main deadline timer preserves an eligible reply and closes the socket.
           if (error instanceof PalChatDeadlineExceeded) return;

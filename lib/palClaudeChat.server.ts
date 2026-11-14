@@ -18,7 +18,7 @@ import {
   recallPalMemoriesForConversation,
 } from "@/lib/palConfirmedMemories.server";
 import {
-  palChatAnswer,
+  palChatLookupAnswer,
   palChatFailureRecorder,
   palUserMessageText,
   preparePalChatProviderTurn,
@@ -258,7 +258,7 @@ export async function runPalClaudeChatTurn(
             // A store that cannot be read in time costs the cards, never the
             // turn, as on the ElevenLabs path.
             const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId)).catch(() => null);
-            return palChatAnswer(turn, conversationId, memories);
+            return palChatLookupAnswer(turn, conversationId, { ownerId: input.ownerId, deadline, memories, onTool: input.onTool });
           }
 
           // The whole assistant turn goes back, thinking blocks included.

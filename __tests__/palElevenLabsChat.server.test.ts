@@ -191,9 +191,12 @@ const storeMocks = vi.hoisted(() => ({
 
 vi.mock("@/lib/pubPalToolTurnStore", () => ({
   registerPubPalToolTurn: storeMocks.registerPubPalToolTurn,
-  readPubPalToolTurn: vi.fn(async () =>
-    wsState.storeFilled ? toolTurnPayload : { ...toolTurnPayload, cards: [], toolsUsed: [] },
-  ),
+  readPubPalToolTurn: vi.fn(async () => wsState.storeFilled ? toolTurnPayload : {
+    ...toolTurnPayload,
+    query: (storeMocks.registerPubPalToolTurn.mock.calls.at(-1)?.[1] as { query?: string } | undefined)?.query ?? toolTurnPayload.query,
+    cards: [],
+    toolsUsed: [],
+  }),
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
   appendPubPalToolTurn: vi.fn(async () => {}),
 }));
@@ -1195,7 +1198,7 @@ describe("runPalElevenLabsChatTurn", () => {
         expect(outcome).toMatchObject({
           ok: true,
           message: control.ok ? control.message : null,
-          cards: withTool ? [expect.objectContaining({ venueId: "london-a" })] : [],
+          cards: control.ok ? control.cards : null,
         });
       });
     });

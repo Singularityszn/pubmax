@@ -301,8 +301,12 @@ Voice uses the same opening builder in its first-message override.
    and cards. A turn with only a memory card points to the card. A turn that
    ran no tool gets a reply from `lib/palRecordReply.ts`: a crawl asks for the
    area or start time it lacks, a memory question lists confirmed memories, and
-   a greeting or thanks gets its usual line. The model text is not sent, so the
-   agent cannot add a pub name, a feature or a figure. A memory card holds only
+   a greeting or thanks gets its usual line. A detailed venue or crawl ask the
+   model left unchecked is looked up with the keyless `runAsk` records path, and
+   only that lookup can say nothing is sourced. A tool's free-text place
+   argument (`area`, `borough`, `place`, `to`) is kept only when the person said
+   those words. The model text is not sent, so the agent cannot add a pub name,
+   a feature or a figure. A memory card holds only
    words the person said in this chat. A caller that sends
    `Accept: application/x-ndjson` to `/api/pub-pal/chat` gets a fixed progress
    line as each tool starts, then one `final` line carrying the same body the

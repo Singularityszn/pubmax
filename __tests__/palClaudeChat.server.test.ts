@@ -13,7 +13,8 @@ const { capturePosthogAiGeneration } = vi.hoisted(() => ({ capturePosthogAiGener
 
 vi.mock("@/lib/posthog/posthogAiCapture", () => ({ capturePosthogAiGeneration }));
 
-vi.mock("@/lib/pubPalLlmFence", () => ({
+vi.mock("@/lib/pubPalLlmFence", async (original) => ({
+  ...await original<typeof import("@/lib/pubPalLlmFence")>(),
   resolvePubPalFenceIntent: fenceMocks.resolvePubPalFenceIntent,
   pubPalGetHomeRegisterAnswer: vi.fn(() => "Getting Home has the trains."),
 }));
@@ -40,6 +41,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
   registerPubPalToolTurn: storeMocks.registerPubPalToolTurn,
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
   readPubPalToolTurn: storeMocks.readPubPalToolTurn,
+  appendPubPalToolTurn: vi.fn(async () => {}),
 }));
 
 vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: vi.fn(async () => null) }));
@@ -433,7 +435,7 @@ describe("runPalClaudeChatTurn", () => {
       expect(outcome).toMatchObject({
         ok: true,
         message: control.ok ? control.message : null,
-        cards: withTool ? storedTurn.cards : [],
+        cards: control.ok ? control.cards : null,
       });
     });
   });

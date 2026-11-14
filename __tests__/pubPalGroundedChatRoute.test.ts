@@ -125,8 +125,9 @@ describe("typed Pub Pal on Claude with no tool evidence", () => {
       const control = await ask(stream);
       claude.reply = reply;
       const { deltas, body } = await ask(stream);
-      expect(deltas).toEqual([]);
-      expect(body).toMatchObject({ status: "ready", cards: [], answer: control.body.answer });
+      expect(deltas).toEqual(control.deltas);
+      expect(deltas.join(" ")).not.toContain(reply);
+      expect(body).toMatchObject({ status: "ready", cards: control.body.cards, answer: control.body.answer });
       expect(control.body.answer).toBeTruthy();
     },
   );
