@@ -134,6 +134,99 @@ describe("original-question tool authority", () => {
     expect(result.answerHint).toMatch(/live[- ]music.*Camden/i);
     expect(result.answerHint).not.toMatch(/Soho|quiz/i);
   });
+
+  it("returns a dated quiz listing in the asked area and leaves other areas out", async () => {
+    const quiz = (id: string, placeName: string): WhatsOnRow => ({
+      id,
+      placeName,
+      kind: "quiz",
+      title: "Quiz night",
+      startsAt: "2026-08-15T19:30:00.000Z",
+      endsAt: "2026-08-15T21:30:00.000Z",
+      source: { label: "Venue site", url: `https://example.com/${id}` },
+      observedAt: "2026-08-14T09:00:00.000Z",
+      confidence: "listed",
+    });
+    state.whatsOn = { rows: [quiz("soho", "The Toucan, Soho"), quiz("camden", "The Lock, Camden")], kindObservedAt: {} };
+    const query = "Pub quiz tonight in Soho";
+    const result = await runAskTool("whats_on", { query }, ctx({ query }));
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => [card.title, card.place, card.provenance?.url])).toEqual([
+      ["Quiz night", "The Toucan, Soho", "https://example.com/soho"],
+    ]);
+    expect(result.data).toMatchObject({ kind: "quiz", area: "Soho", listings: [{ startsAt: "2026-08-15T19:30:00.000Z" }] });
+    expect(result.answerHint).toBe("Found 1 sourced quiz night in Soho tonight.");
+  });
+});
+
+describe("search_venues hard requirements", () => {
+  const recorded = (source: string, observedAt: string) => ({ source, observedAt });
+  const search = (query: string, limit = 4) => runAskTool("search_venues", { query, limit }, ctx({ query }));
+  const garden = venue({ id: "garden", name: "The Garden Pub", area: "Soho", amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false }, features: { garden: recorded("OpenStreetMap", "2026-07-05") } });
+  const pavement = venue({ id: "pavement", name: "The Pavement", area: "Soho", cheapestPrice: 4, amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false }, features: { outdoorSeating: recorded("Google Places", "2026-07-01") } });
+  const flagOnly = venue({ id: "flag", name: "The Flag", area: "Soho", cheapestPrice: 3, amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false } });
+
+  it("keeps pavement seating and undated flags out of a beer garden ask, and says how many qualify", async () => {
+    state.venues = [garden, pavement, flagOnly];
+    const result = await search("Three pubs in Soho with a beer garden", 3);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["garden"]);
+    expect(result.cards[0]?.note).toMatch(/^Beer garden on record \(OpenStreetMap, .*2026\)/);
+    expect(result.answerHint).toBe("Only 1 listed pub in Soho has a beer garden on record.");
+  });
+
+  it("lets dated outdoor seating answer a sit-outside ask and names it as seating, not a garden", async () => {
+    state.venues = [garden, pavement, flagOnly];
+    const result = await search("Pubs in Soho where we can sit outside");
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual(["garden", "pavement"]);
+    const note = result.cards.find((card) => card.venueId === "pavement")?.note ?? "";
+    expect(note).toMatch(/^Outdoor seating on record \(Google Places, /);
+    expect(note).not.toMatch(/garden/i);
+  });
+
+  it("matches a named drink only against the drinks a pub has on record", async () => {
+    state.venues = [
+      venue({ id: "guinness", name: "The Harp", area: "Soho", drinkText: "guinness ; peroni" }),
+      venue({ id: "lager", name: "The Lager House", area: "Soho", cheapestPrice: 3, drinkText: "peroni ; madri" }),
+      venue({ id: "unknown", name: "The Unknown", area: "Soho", cheapestPrice: 2.5 }),
+    ];
+    const guinness = await search("Show me 2 pubs in Soho that serve Guinness", 2);
+    expect(guinness.cards.map((card) => card.venueId)).toEqual(["guinness"]);
+    expect(guinness.cards[0]?.note).toContain("Guinness on its listed drinks");
+    expect(guinness.answerHint).toBe("Only 1 listed pub in Soho has Guinness on record.");
+    const stout = await search("Pubs in Soho with a stout");
+    expect(stout.cards.map((card) => card.venueId)).toEqual(["guinness"]);
+  });
+
+  it("answers honest scarcity instead of guessing a drink nobody has on record", async () => {
+    state.venues = [venue({ id: "guinness", name: "The Harp", area: "Soho", drinkText: "guinness ; peroni" })];
+    const query = "Show me 5 pubs in Soho that match my interest in gin and beer";
+    const result = await search(query, 5);
+    expect(result.cards).toEqual([]);
+    expect(result.answerHint).toBe("No listed pub in Soho has gin on record, so I won't guess.");
+  });
+
+  it("requires a recorded darts board when one is asked for", async () => {
+    state.venues = [
+      venue({ id: "darts", name: "The Oche", area: "Soho", amenities: { beerGarden: false, cocktails: false, food: false, liveSports: false, liveMusic: false, darts: true } }),
+      venue({ id: "plain", name: "The Plain", area: "Soho", cheapestPrice: 3 }),
+    ];
+    const result = await search("Pubs with a darts board in Soho");
+    expect(result.cards.map((card) => card.venueId)).toEqual(["darts"]);
+  });
+
+  it.each([
+    "Pubs in Camden",
+    "Quiet pubs in Covent Garden",
+    "Pubs near Hatton Garden",
+  ])("does not read a place name as a drink or a garden: %s", async (query) => {
+    const area = /Camden/.test(query) ? "Camden" : query.includes("Covent") ? "Covent Garden" : "Hatton Garden";
+    state.venues = [
+      venue({ id: "a", name: "The First", area }),
+      venue({ id: "b", name: "The Second", area, cheapestPrice: 4 }),
+    ];
+    const result = await search(query);
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual(["a", "b"]);
+  });
 });
 
 describe("cheapest_pint_near", () => {
