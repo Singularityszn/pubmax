@@ -166,8 +166,9 @@ export function legOptionsFromTfl(
 ): LegOption[] {
   const options: Omit<LegOption, "fastest" | "cheapest">[] = [];
   const walkJourney = (walking?.journeys ?? []).find((journey) => minutesOf(journey) !== null);
-  const walkParts = walkJourney ? toParts(walkJourney).filter((part) => part.path.length > 0) : [];
-  if (walkJourney && walkParts.length) {
+  const walkParts = walkJourney ? toParts(walkJourney) : [];
+  const walkPathParts = walkParts.filter((part) => part.path.length > 0);
+  if (walkJourney && walkPathParts.length) {
     options.push({
       id: "walk",
       kind: "walk",
@@ -176,7 +177,7 @@ export function legOptionsFromTfl(
       fareLevel: null,
       walkMetres: walkMetresOf(walkParts),
       estimate: false,
-      parts: walkParts,
+      parts: walkPathParts,
     });
   } else if (ends) {
     const estimate = straightWalk(ends.from, ends.to);

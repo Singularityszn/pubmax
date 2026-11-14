@@ -134,6 +134,14 @@ describe("the options for one leg", () => {
     // The bus's walk to the stop has no TfL distance, so no step figure is made up.
     expect(byId["transit-2"]).toMatchObject({ walkMetres: null, farePence: null, fareLevel: null });
     expect(estimatedRouteSteps(byId["transit-2"]!.walkMetres)).toBeNull();
+    for (const extraMetres of [150, undefined]) {
+      const legs = [...walking.journeys[0]!.legs, {
+        duration: 1, mode: { id: "walking" }, path: { lineString: "[]" },
+        ...(extraMetres === undefined ? {} : { distance: extraMetres }),
+      }];
+      const [walk] = legOptionsFromTfl(null, { journeys: [{ duration: 30, legs }] });
+      expect(walk?.walkMetres).toBe(extraMetres === undefined ? null : 2250);
+    }
   });
 
   it("measures a straight-line walk estimate by the straight line", () => {
