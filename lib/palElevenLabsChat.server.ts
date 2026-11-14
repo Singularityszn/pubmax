@@ -15,6 +15,7 @@ import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palT
 import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
 import { fetchPalSignedConversation, type PalSignedConversation } from "@/lib/palElevenLabsSignedUrl.server";
 import { log } from "@/lib/log";
+import { palReplyStreamGate, unsupportedPalReplyClaims } from "@/lib/palReplyGrounding";
 import { isPubPalConversationId, newPalLocalThreadId } from "@/lib/pubPalConversationId";
 import {
   pubPalGetHomeRegisterAnswer,
@@ -367,8 +368,8 @@ export async function preparePalChatProviderTurn(
 }
 
 /**
- * The finished answer: the model's own reply when it wrote one, else the
- * stored tool hints or cards, else a plain nothing-sourced line.
+ * The finished answer uses model prose only without recognised factual figures.
+ * Otherwise it uses stored hints or cards, else a plain nothing-sourced line.
  */
 export function palChatAnswer(
   modelMessage: string,
@@ -378,7 +379,7 @@ export function palChatAnswer(
   const cards = turn?.cards ?? [];
   const proposals = turn?.proposals ?? [];
   const message =
-    modelMessage ||
+    (unsupportedPalReplyClaims(modelMessage).length === 0 ? modelMessage : "") ||
     (turn?.hints.length
       ? composeAnswer(turn.hints, cards, [])
       : cards.length > 0
@@ -477,12 +478,23 @@ export async function runPalElevenLabsChatTurn(
     // earlier replies. An end_call request or successful response preserves
     // an eligible farewell.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
-    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome =>
-      palChatAnswer(agentMessage, turn, conversationId);
+    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => {
+      if (unsupportedPalReplyClaims(agentMessage).length > 0) resetStream();
+      else {
+        const rest = streamGate.rest();
+        if (rest) {
+          streamedText = true;
+          input.onProgress?.({ type: "delta", text: rest });
+        }
+      }
+      return palChatAnswer(agentMessage, turn, conversationId);
+    };
     // Text sent to the caller since the last reset. An invalidating tool event
     // or a newer reply tells the caller to clear it.
     let streamedText = false;
+    let streamGate = palReplyStreamGate();
     const resetStream = () => {
+      streamGate = palReplyStreamGate();
       if (!streamedText) return;
       streamedText = false;
       input.onProgress?.({ type: "reset" });
@@ -612,8 +624,11 @@ export async function runPalElevenLabsChatTurn(
         resetStream();
       } else if (part?.type === "delta" && part.text) {
         progress.streamDelta();
-        streamedText = true;
-        input.onProgress?.({ type: "delta", text: part.text });
+        const checked = streamGate.push(part.text);
+        if (checked) {
+          streamedText = true;
+          input.onProgress?.({ type: "delta", text: checked });
+        }
       } else {
         progress.streamPart(payload);
       }

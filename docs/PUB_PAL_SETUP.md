@@ -404,8 +404,10 @@ The snapshot contains elapsed times, event counts, the pending tool count and re
 The [progress type](../lib/palChatDeadlineProgress.ts) defines the fields.
 Other failure stages and the Claude transport omit this snapshot.
 
-The Claude transport emits a private `pub_pal.chat_unsupported_claim` warning with the figure kinds
-when it refuses a reply that states a price, time, date or year that no tool result holds.
+The Claude transport emits a private `pub_pal.chat_unsupported_claim` warning with the recognised figure kinds.
+Typed Claude and ElevenLabs replies use stored hints or cards when model prose contains a recognised price, time, date or year.
+Matching a number never proves its venue or meaning. Both transports hold complete sentences before streaming them.
+The check does not validate non-numeric venue claims or every possible way to write a figure.
 
 The diagnostic excludes prompts, transcripts, URLs, headers, secrets and personal data.
 It does not change the public error response or establish a provider failure's cause.

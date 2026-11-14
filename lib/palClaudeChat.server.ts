@@ -31,7 +31,7 @@ import {
   PAL_PROPOSE_MEMORY_TOOL,
   proposePalMemoryForConversation,
 } from "@/lib/palMemoryProposal.server";
-import { palReplyEvidence, palReplyStreamGate, unsupportedPalReplyClaims } from "@/lib/palReplyGrounding";
+import { palReplyStreamGate, unsupportedPalReplyClaims } from "@/lib/palReplyGrounding";
 import { pubPalTypedChatSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { traceArizeModelLoop } from "@/lib/observability/arize";
 import { newPalLocalThreadId } from "@/lib/pubPalConversationId";
@@ -210,13 +210,11 @@ export async function runPalClaudeChatTurn(
       invocationParameters: { max_tokens: MAX_TOKENS, effort: EFFORT },
       run: async ({ modelRound, toolCall, setError }) => {
         const messages: Anthropic.MessageParam[] = [{ role: "user", content: userText }];
-        // Every tool result the model has read this turn: the only records a figure in its reply may come from.
-        const records: string[] = [];
+        // Figures come from the record renderer, never from matching model prose to a bag of numbers.
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
           if (abort.signal.aborted) return failed("TIMEOUT");
           const span = modelRound({});
-          const evidence = palReplyEvidence(userText, records);
-          const gate = palReplyStreamGate(evidence);
+          const gate = palReplyStreamGate();
           let message: Anthropic.Message;
           try {
             const stream = client.stream(
@@ -263,9 +261,9 @@ export async function runPalClaudeChatTurn(
               setError(new Error(`Claude stopped with ${message.stop_reason ?? "no reason"}.`));
               return failed("PROVIDER_UNAVAILABLE");
             }
-            // A reply that states a figure no record holds is refused whole,
-            // and the turn answers from its records.
-            const unsupported = unsupportedPalReplyClaims(reply, evidence);
+            // A model-written price, time, date or year is refused whole,
+            // and the turn renders these facts from its records.
+            const unsupported = unsupportedPalReplyClaims(reply);
             if (unsupported.length > 0) {
               log("warn", "pub_pal.chat_unsupported_claim", { kinds: unsupported });
               if (gate.shown) input.onProgress?.({ type: "reset" });
@@ -297,7 +295,6 @@ export async function runPalClaudeChatTurn(
                 );
                 toolSpan?.end();
                 const content = toolResultText(result);
-                records.push(content);
                 return { type: "tool_result", tool_use_id: use.id, content };
               } catch (error) {
                 toolSpan?.setError(error);
