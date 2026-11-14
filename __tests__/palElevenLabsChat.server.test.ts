@@ -195,6 +195,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
     wsState.storeFilled ? toolTurnPayload : { ...toolTurnPayload, cards: [], toolsUsed: [] },
   ),
   readOwnedPubPalToolTurn: storeMocks.readOwnedPubPalToolTurn,
+  appendPubPalToolTurn: vi.fn(async () => {}),
 }));
 
 const tasteMocks = vi.hoisted(() => ({
@@ -1212,6 +1213,25 @@ describe("runPalElevenLabsChatTurn", () => {
       expect(outcome).toMatchObject({ ok: true, cards: [], toolsUsed: [] });
       expect(outcome.ok && outcome.message).toMatch(/which area/i);
       expect(outcome.ok && outcome.message).toMatch(/what time/i);
+    });
+
+    it("looks a detailed crawl up in the records when the agent runs no tool", async () => {
+      const query = "Plan a pub crawl in Camden tonight";
+      vi.mocked(readPubPalToolTurn).mockResolvedValueOnce({ ...toolTurnPayload, query, cards: [], toolsUsed: [] });
+      const tools: string[] = [];
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse("The Golden Lion has a garden.") },
+        { afterMs: 0, event: responseComplete() },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({ query, ownerId: OWNER, onTool: (tool) => tools.push(tool) });
+
+      expect(outcome.ok).toBe(true);
+      if (!outcome.ok) return;
+      expect(tools).toEqual(["propose_plan"]);
+      expect(outcome.toolsUsed).toContain("propose_plan");
+      expect(outcome.cards.length).toBeGreaterThan(0);
+      expect(outcome.message).not.toMatch(/nothing sourced|golden lion/i);
     });
 
     it("reports each data tool the agent starts, by name only", async () => {

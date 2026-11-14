@@ -11,6 +11,7 @@ vi.mock("@/lib/pubPalLlmFence", () => ({
 
 vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: vi.fn(async () => null) }));
 
+import { offlineFetch } from "@/evals/pal/offlineFetch";
 import { runPalClaudeChatTurn, type PalClaudeClient } from "@/lib/palClaudeChat.server";
 import { __resetPubPalStore } from "@/lib/pubPalStore";
 import {
@@ -64,6 +65,7 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     __resetPubPalToolTurnStore();
     __resetPubPalStore();
     vi.unstubAllEnvs();
+    vi.unstubAllGlobals();
   });
 
   it("answers a follow-up without the earlier ask's cards", async () => {
@@ -139,5 +141,45 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
       { conversationId: camden.conversationId, storedQuery: "pubs in Camden" },
       { conversationId: sohoOutcome.conversationId, storedQuery: "pubs in Soho" },
     ]);
+  });
+
+  it.each([
+    ["Plan a pub crawl in Camden tonight", "propose_plan"],
+    ["a quiet pub in Soho", "search_venues"],
+  ])("looks %j up in the records when Claude skips its tool", async (query, tool) => {
+    vi.stubGlobal("fetch", offlineFetch);
+    const tools: string[] = [];
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER, onTool: (name) => tools.push(name) }, undefined, {
+      client: scriptedClient(async () => say("The Golden Lion has a garden.")),
+    });
+
+    expect(outcome.ok).toBe(true);
+    if (!outcome.ok) return;
+    expect(tools).toEqual([tool]);
+    expect(outcome.toolsUsed).toContain(tool);
+    expect(outcome.cards.length).toBeGreaterThan(0);
+    expect(outcome.message).not.toMatch(/nothing sourced|golden lion/i);
+    expect((await readPubPalToolTurn(outcome.conversationId))?.cards).toEqual(outcome.cards);
+  });
+
+  it.each([
+    ["what's on round Soho tonight?", "area_buzz", { area: "Soho, where The Golden Lion has a dog-friendly beer garden" }],
+    ["show me Soho on the map", "propose_map_action", { lat: 51.5136, lng: -0.1365, place: "The Golden Lion, dog friendly, open till 2am" }],
+    ["how do I get to The Crown from London Bridge", "journey", { from: "London Bridge", to: "The Golden Lion beer garden" }],
+  ] as const)("keeps an invented venue fact in Claude's %s arguments out of the answer", async (query, name, input) => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    let round = 0;
+    const client = scriptedClient(async () => {
+      round += 1;
+      return round === 1
+        ? reply([{ type: "tool_use", id: "tu_1", name, input } as Anthropic.ToolUseBlock], "tool_use")
+        : say("Done.");
+    });
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
+
+    expect(outcome.ok).toBe(true);
+    expect(JSON.stringify(outcome)).not.toMatch(/golden lion|beer garden|dog.friendly|2am/i);
   });
 });
