@@ -136,8 +136,13 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
 
     @PluginMethod
     public void stop(PluginCall call) {
+        Double since = call.getDouble("since");
+        if (since == null) {
+            call.reject("Stopping needs the session start.", "invalid");
+            return;
+        }
         main.post(() -> {
-            release(false);
+            if (deadline.owns(since.longValue())) release(false);
             call.resolve();
         });
     }

@@ -47,18 +47,19 @@ export function writeOutingSteps(state: OutingStepsState): void {
   } catch { /* Storage can be full or blocked. The count still shows until the page closes. */ }
 }
 
-function someoneCounting(): boolean {
+function countingSince(): number | null {
   try {
-    const raw = localStore()?.getItem(OUTING_STEPS_STORAGE_KEY);
-    return Boolean(raw) && (JSON.parse(raw as string) as { phase?: unknown } | null)?.phase === "counting";
+    const row = JSON.parse(localStore()?.getItem(OUTING_STEPS_STORAGE_KEY) ?? "null") as { phase?: unknown; startedAt?: unknown } | null;
+    return row?.phase === "counting" && typeof row.startedAt === "number" ? row.startedAt : null;
   } catch {
-    return false;
+    return null;
   }
 }
 
 export function forgetOutingSteps(): void {
+  const since = countingSince();
   try { localStore()?.removeItem(OUTING_STEPS_STORAGE_KEY); } catch {}
-  void loadOutingStepsBridge().then((bridge) => bridge?.stop()).catch(() => {});
+  if (since !== null) void loadOutingStepsBridge().then((bridge) => bridge?.stop({ since })).catch(() => {});
 }
 
 async function refusal(bridge: OutingStepsBridge, error: unknown): Promise<Refused | Failed> {
@@ -80,7 +81,7 @@ export async function beginOutingSteps(
     const at = now();
     const sample = await bridge.sample({ since: at, until: at });
     if (signal.aborted) {
-      if (!someoneCounting()) void bridge.stop();
+      void bridge.stop({ since: at });
       return STALE;
     }
     return sample ? { kind: "started", event: { type: "start", planId, owner, at, sample } } : FAILED;
@@ -94,7 +95,10 @@ export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: Out
   if (!window || state.phase !== "counting") return { kind: "none" };
   try {
     const sample = await bridge.sample(window);
-    if (signal.aborted) return STALE;
+    if (signal.aborted) {
+      void bridge.stop({ since: state.startedAt });
+      return STALE;
+    }
     return sample ? { kind: "event", event: { type: "sample", startedAt: state.startedAt, at: now(), sample } } : { kind: "none" };
   } catch (error) {
     if (signal.aborted) return STALE;

@@ -57,7 +57,7 @@ describe("private counts and account changes", () => {
 
     clearDeviceAccountSessionArtifacts(window.sessionStorage);
     expect(window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
-    await vi.waitFor(() => expect(bridge.stop).toHaveBeenCalled());
+    await vi.waitFor(() => expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 }));
 
     const joined = await startFor("acct-b", bridge, T0 + 120_000);
     expect(joined).toMatchObject({ phase: "counting", planId: "p1", owner: "acct-b", steps: 0 });
@@ -75,11 +75,11 @@ describe("private counts and account changes", () => {
     pending.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
-    expect(bridge.stop).toHaveBeenCalledOnce();
+    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
     expect(window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
   });
 
-  it("keeps the new account's listener when an old start resolves after it began counting", async () => {
+  it("keeps the new account's stored count when an old start resolves after it began counting", async () => {
     const pending = deferred<{ platform: "android"; counter: number; bootCount: number; continuous: boolean }>();
     const oldBridge = fakeBridge({ sample: vi.fn(() => pending.promise) });
     const account = new AbortController();
@@ -91,8 +91,34 @@ describe("private counts and account changes", () => {
     pending.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
-    expect(oldBridge.stop).not.toHaveBeenCalled();
+    expect(oldBridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
     expect(readOutingSteps("acct-b")).toMatchObject({ phase: "counting", owner: "acct-b" });
+  });
+
+  it("lets an old account's late stop release only its own session, not a newer start", async () => {
+    let armed: number | null = null;
+    const oldReading = deferred<{ platform: "android"; counter: number; bootCount: number; continuous: boolean }>();
+    const native = fakeBridge({
+      sample: vi.fn(({ since }: { since: number; until: number }) => {
+        armed = since;
+        return since === T0 ? oldReading.promise : Promise.resolve({ platform: "android" as const, counter: 500, bootCount: 7, continuous: false });
+      }),
+      stop: vi.fn(async (session?: { since: number }) => {
+        if (!session || session.since === armed) armed = null;
+      }),
+    });
+    const accountA = new AbortController();
+    const oldStart = beginOutingSteps(native, { planId: "p1", owner: "acct-a", signal: accountA.signal, now: () => T0 });
+    await vi.waitFor(() => expect(native.sample).toHaveBeenCalledOnce());
+
+    accountA.abort();
+    const newStart = await beginOutingSteps(native, { planId: "p1", owner: "acct-b", signal: new AbortController().signal, now: () => T0 + 5_000 });
+    expect(newStart.kind).toBe("started");
+    oldReading.resolve({ platform: "android", counter: 10_000, bootCount: 7, continuous: false });
+
+    await expect(oldStart).resolves.toEqual({ kind: "stale" });
+    expect(native.stop).toHaveBeenCalledWith({ since: T0 });
+    expect(armed).toBe(T0 + 5_000);
   });
 
   it("drops a permission answer that arrives after the account changed", async () => {
@@ -124,6 +150,7 @@ describe("private counts and account changes", () => {
     pending.resolve({ platform: "android", counter: 10_700, bootCount: 7, continuous: true });
 
     await expect(outcome).resolves.toEqual({ kind: "stale" });
+    expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ since: T0 });
   });
 });
 

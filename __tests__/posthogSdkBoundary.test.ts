@@ -26,6 +26,7 @@ const PERMISSIVE_REMOTE_CONFIG = {
   heatmaps: true,
   surveys: true,
   autocaptureExceptions: true,
+  autocapture_opt_out: false,
 };
 
 type SentRequest = { url: string; body: string };
@@ -118,6 +119,14 @@ beforeAll(async () => {
   const { capturePosthogPageview } = await import("@/lib/posthogClient");
   capturePosthogPageview("/map", ANON);
   document.body.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 5, clientY: 5 }));
+  const stepPanel = document.createElement("section");
+  stepPanel.className = "outingSteps";
+  stepPanel.setAttribute("aria-label", "Steps tonight");
+  stepPanel.innerHTML = '<h3>Steps tonight</h3><p class="outingSteps__count">At least 4,321 steps</p><button type="button">Stop counting</button>';
+  document.body.append(stepPanel);
+  for (const target of [stepPanel.querySelector("p"), stepPanel.querySelector("p"), stepPanel.querySelector("p"), stepPanel.querySelector("button")]) {
+    target?.dispatchEvent(new MouseEvent("click", { bubbles: true, clientX: 9, clientY: 9 }));
+  }
   // The lazy flag, recorder, heatmap and survey loads that fire after init
   // when enabled all land inside this window. Capture is batched, so the
   // pageview is still queued here.
@@ -187,6 +196,16 @@ describe("PostHog SDK boundary (real posthog-js, stubbed fetch)", () => {
     expect(request).toContain('"$prev_pageview_id":');
     expect(request).toContain('"$prev_pageview_duration":');
     expect(request).toContain('"$prev_pageview_max_content_percentage":');
+  });
+
+  it("sends nothing from the measured step panel, even when it is clicked", () => {
+    expect(posthog.autocapture?.isEnabled).toBe(false);
+    expect(decodedRequests().length).toBeGreaterThan(0);
+    for (const request of decodedRequests()) {
+      expect(request).not.toMatch(/4,?321|Steps tonight|Stop counting|outingSteps/);
+    }
+    const clickEvents = emittedEvents().filter(({ event }) => ["$autocapture", "$rageclick", "$dead_click", "$snapshot"].includes(event));
+    expect(clickEvents).toEqual([]);
   });
 
   it("loads no recorder, heatmap or survey code and sends no $snapshot or $$heatmap", () => {

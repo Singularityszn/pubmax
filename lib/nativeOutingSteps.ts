@@ -8,14 +8,14 @@ type OutingStepsPlugin = {
   status: () => Promise<unknown>;
   requestPermission: () => Promise<unknown>;
   sample: (input: { since: number; until: number }) => Promise<unknown>;
-  stop: () => Promise<void>;
+  stop: (session: { since: number }) => Promise<void>;
 };
 
 export type OutingStepsBridge = {
   status: () => Promise<OutingStepsStatus>;
   requestPermission: () => Promise<OutingStepsStatus>;
   sample: (window: { since: number; until: number }) => Promise<OutingStepsSample | null>;
-  stop: () => Promise<void>;
+  stop: (session: { since: number }) => Promise<void>;
 };
 
 const PERMISSIONS = new Set<OutingStepsPermission>(["granted", "denied", "prompt"]);
@@ -45,7 +45,7 @@ async function loadPlugin(): Promise<OutingStepsPlugin | null> {
     status: () => plugin.status(),
     requestPermission: () => plugin.requestPermission(),
     sample: (input) => plugin.sample(input),
-    stop: () => plugin.stop(),
+    stop: (session) => plugin.stop(session),
   };
 }
 
@@ -62,6 +62,6 @@ export async function loadOutingStepsBridge(
     status: async () => parseStatus(await native.status()),
     requestPermission: async () => parseStatus(await native.requestPermission()),
     sample: async (window) => parseOutingStepsSample(await native.sample(window)),
-    stop: async () => { try { await native.stop(); } catch { /* Nothing is listening. */ } },
+    stop: async (session) => { try { await native.stop(session); } catch { /* Nothing is listening. */ } },
   };
 }

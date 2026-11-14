@@ -49,6 +49,10 @@ final class OutingStepsDeadline {
         return armed;
     }
 
+    boolean owns(long windowSince) {
+        return armed && windowSince == since;
+    }
+
     boolean expired() {
         return armed && elapsedClock.getAsLong() >= deadlineElapsed;
     }

@@ -50,6 +50,19 @@ public class OutingStepsDeadlineTest {
     }
 
     @Test
+    public void onlyTheArmedSessionOwnsTheListener() {
+        assertFalse(deadline.owns(START));
+        deadline.admit(START, START);
+        elapsed += HOUR;
+        wall += HOUR;
+        deadline.admit(wall, wall);
+        assertFalse(deadline.owns(START));
+        assertTrue(deadline.owns(wall));
+        deadline.disarm();
+        assertFalse(deadline.owns(wall));
+    }
+
+    @Test
     public void armsOnlyTheTimeLeftWhenTheListenerStartsLate() {
         wall = START + 11 * HOUR;
         assertEquals(OutingStepsDeadline.Verdict.OK, deadline.admit(START, wall));
