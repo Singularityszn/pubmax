@@ -29,6 +29,7 @@ import {
 } from "@/lib/pubPalStore";
 import {
   __resetPubPalToolTurnStore,
+  appendOwnedPubPalUserTurn,
   bindPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
@@ -44,7 +45,10 @@ async function pal(ownerId: string, memories: boolean) {
 }
 
 async function typedChat(ownerId: string) {
-  await registerPubPalToolTurn(CONVERSATION, { query: "a quiet pub tonight", cityId: "london", ownerId });
+  await registerPubPalToolTurn(CONVERSATION, {
+    query: "a quiet pub tonight, I drink cask ale, no lager", cityId: "london", ownerId,
+    turns: [{ role: "user", content: "I like quiet rooms" }],
+  });
 }
 
 function propose(body: Record<string, unknown>, authorization = "Bearer test-llm-secret") {
@@ -141,6 +145,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
   it("offers a visible voice confirm card and recalls only after the owner confirms", async () => {
     await pal(OWNER, true);
     await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    expect(await appendOwnedPubPalUserTurn(CONVERSATION, OWNER, { role: "user", content: "Remember cask ale for me" }, "london")).toBe(true);
 
     const body = await (
       await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" })
@@ -174,6 +179,29 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
       expect(body.result).toMatchObject({ ok: false, proposals: [] });
     }
     expect(await storedProposals()).toEqual([]);
+  });
+
+  it.each([
+    ["a venue fact", "The Crown has a beer garden"],
+    ["a paraphrase that adds a claim", "Loves the cask ale at The Crown"],
+    ["a word run that crosses no said line", "quiet rooms cask ale"],
+  ])("makes no card from %s the person never said", async (_label, value) => {
+    await pal(OWNER, true);
+    await typedChat(OWNER);
+
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value })).json();
+
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(await storedProposals()).toEqual([]);
+  });
+
+  it("makes a card from words the person said in an earlier line of the chat", async () => {
+    await pal(OWNER, true);
+    await typedChat(OWNER);
+
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "venue_preference", value: "Quiet rooms." })).json();
+
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value: "Quiet rooms." }] });
   });
 
   it("refuses the propose webhook without the shared secret", async () => {

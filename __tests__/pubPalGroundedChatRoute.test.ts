@@ -12,12 +12,13 @@ vi.mock("@/lib/paidSpendBudget.server", () => ({
   paidSpendBudgetRefusal: vi.fn(async () => Response.json({ error: "Paid budget spent" }, { status: 429 })),
 }));
 
-const claude = vi.hoisted(() => ({ reply: "" }));
+const claude = vi.hoisted(() => ({ reply: "", tool: "" }));
 vi.mock("@/lib/claudeClient.server", async (original) => ({
   ...await original<typeof import("@/lib/claudeClient.server")>(),
   claudeClient: () => ({
-    stream: () => {
+    stream: (body: { messages: unknown[] }) => {
       const listeners: Array<(delta: string) => void> = [];
+      const callsTool = Boolean(claude.tool) && body.messages.length === 1;
       return {
         on(_event: "text", listener: (delta: string) => void) {
           listeners.push(listener);
@@ -27,8 +28,11 @@ vi.mock("@/lib/claudeClient.server", async (original) => ({
           for (const listener of listeners) listener(`${claude.reply} `);
           return {
             id: "msg_test", type: "message", role: "assistant", model: "claude-haiku-5-5",
-            content: [{ type: "text", text: claude.reply, citations: null }],
-            stop_reason: "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 },
+            content: [
+              { type: "text", text: claude.reply, citations: null },
+              ...(callsTool ? [{ type: "tool_use", id: "tu_1", name: claude.tool, input: { query: "quiet pubs in Soho" } }] : []),
+            ],
+            stop_reason: callsTool ? "tool_use" : "end_turn", stop_sequence: null, usage: { input_tokens: 1, output_tokens: 1 },
           };
         },
       };
@@ -90,6 +94,7 @@ describe("configured Pub Pal local record answers", () => {
 describe("typed Pub Pal on Claude with no tool evidence", () => {
   beforeEach(() => {
     __resetPintDrops();
+    claude.tool = "";
     vi.stubEnv("ANTHROPIC_API_KEY", "test-key");
     vi.stubEnv("TYPESAFE_API_KEY", "");
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("External services are unavailable"); }));
@@ -107,6 +112,7 @@ describe("typed Pub Pal on Claude with no tool evidence", () => {
     const deltas: string[] = [];
     let body: AskResponseBody | null = null;
     await readPalChatStream(response.body!, (event) => {
+      if (event.type === "reset") deltas.length = 0;
       if (event.type === "delta") deltas.push(event.text);
       if (event.type === "final") body = event.body as AskResponseBody;
     });
@@ -124,4 +130,22 @@ describe("typed Pub Pal on Claude with no tool evidence", () => {
       expect(control.body.answer).toBeTruthy();
     },
   );
+
+  it("shows a tool progress line while a tool runs, never the model's text", async () => {
+    claude.tool = "search_venues";
+    claude.reply = "Checking The Golden Lion and its garden.";
+    const events: string[] = [];
+    const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
+      method: "POST", headers: { "content-type": "application/json", accept: PAL_CHAT_STREAM_TYPE },
+      body: JSON.stringify({ query: "Is The Crown in Soho any good?", cityId: "london" }),
+    }));
+    await readPalChatStream(response.body!, (event) => {
+      events.push(event.type === "delta" ? `delta:${event.text}` : event.type);
+    });
+
+    expect(events.at(-1)).toBe("final");
+    const progress = events.filter((event) => event.startsWith("delta:"));
+    expect(progress).toHaveLength(1);
+    expect(events.join(" ")).not.toMatch(/Golden Lion|garden/);
+  });
 });

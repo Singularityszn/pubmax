@@ -53,7 +53,8 @@ import {
 import { pubPalTypedChatSystemPrompt } from "@/lib/palVoicePrompt.mjs";
 import { PUB_PAL_TOOL_NAMES } from "@/lib/pubPalToolCatalog.mjs";
 import { isPalLocalThreadId } from "@/lib/pubPalConversationId";
-import { __resetPubPalStore } from "@/lib/pubPalStore";
+import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { __resetPubPalStore, confirmPalMemoryResult, createPubPalResult } from "@/lib/pubPalStore";
 import type { PubPalToolTurn } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -259,23 +260,86 @@ describe("runPalClaudeChatTurn", () => {
     expect(runTool.mock.calls).toEqual([["propose_plan", { query }, outcome.conversationId]]);
   });
 
-  it("answers without cards or proposals when Claude runs no tool for a crawl with no area", async () => {
-    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [], toolsUsed: [] });
+  it.each([
+    ["Plan a pub crawl for my birthday, six of us", [/which area/i, /what time/i], [/what kind of night/i]],
+    ["Plan a pub crawl in Soho for my birthday", [/what time/i], [/which area/i]],
+    ["Plan a pub crawl for Friday night", [/which area/i], [/what time/i]],
+    ["find me a pub", [/area, a mood or a budget/i], []],
+    ["thanks", [/welcome/i], [/what kind of night/i]],
+  ])("asks only for what %j leaves out when Claude runs no tool", async (query, asked, notAsked) => {
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, query, cards: [], proposals: [], hints: [], toolsUsed: [] });
+    const { client } = fakeClient([{ content: [text("The Golden Lion is perfect.")], stop_reason: "end_turn" }]);
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
+
+    expect(outcome).toMatchObject({ ok: true, cards: [], proposals: [], toolsUsed: [] });
+    if (!outcome.ok) return;
+    for (const pattern of asked) expect(outcome.message).toMatch(pattern);
+    for (const pattern of notAsked) expect(outcome.message).not.toMatch(pattern);
+    expect(outcome.message).not.toContain("Golden Lion");
+  });
+
+  it("takes the area from an earlier ask in the thread before asking for it", async () => {
+    const query = "plan a crawl for my birthday";
+    storeMocks.readPubPalToolTurn.mockResolvedValue({
+      ...storedTurn, query, turns: [{ role: "user", content: "pubs in Soho" }], cards: [], proposals: [], hints: [], toolsUsed: [],
+    });
+    const { client } = fakeClient([{ content: [text("Sure.")], stop_reason: "end_turn" }]);
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
+
+    expect(outcome.ok && outcome.message).toMatch(/what time/i);
+    expect(outcome.ok && outcome.message).not.toMatch(/which area/i);
+  });
+
+  it("answers a memory card turn with the card, not a nothing-sourced line", async () => {
+    const card = { id: "remember:1", kind: "remember_memory" as const, label: "Remember: cask ale", memoryKind: "drink_preference" as const, value: "cask ale" };
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, cards: [], proposals: [card], hints: [], toolsUsed: ["propose_memory"] });
     const { client } = fakeClient([
-      { content: [text("Which area would you like?")], stop_reason: "end_turn" },
+      { content: [toolUse("tu_1", "propose_memory", { kind: "drink_preference", value: "cask ale" })], stop_reason: "tool_use" },
+      { content: [text("Saved forever!")], stop_reason: "end_turn" },
     ]);
-    const runTool = vi.fn(async () => ({ ok: true }));
+
+    const outcome = await runPalClaudeChatTurn({ query: "remember I drink cask ale", ownerId: OWNER }, undefined, {
+      client, runTool: async () => ({ ok: true }),
+    });
+
+    expect(outcome).toMatchObject({ ok: true, proposals: [card] });
+    if (!outcome.ok) return;
+    expect(outcome.message).toMatch(/confirm/i);
+    expect(outcome.message).not.toMatch(/nothing sourced|saved forever/i);
+  });
+
+  it("answers a question about memories from the confirmed memories, with their provenance", async () => {
+    expect((await createPubPalResult(OWNER, { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Morrow" })).ok).toBe(true);
+    expect((await confirmPalMemoryResult(OWNER, { kind: "drink_preference", value: "Cask ale" })).ok).toBe(true);
+    const query = "what do you remember about me?";
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, query, cards: [], proposals: [], hints: [], toolsUsed: [] });
+    const { client } = fakeClient([{ content: [text("You love IPA.")], stop_reason: "end_turn" }]);
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
+
+    expect(outcome.ok && outcome.message).toMatch(/you confirmed/i);
+    expect(outcome.ok && outcome.message).toContain("Cask ale");
+    expect(outcome.ok && outcome.message).not.toContain("IPA");
+  });
+
+  it("reports each tool it starts, by name only, before the answer", async () => {
+    const { client } = fakeClient([
+      { content: [text("Checking The Golden Lion."), toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" },
+      { content: [toolUse("tu_2", "whats_on", { query: "quiz" })], stop_reason: "tool_use" },
+      { content: [text("Done.")], stop_reason: "end_turn" },
+    ]);
+    const tools: string[] = [];
 
     const outcome = await runPalClaudeChatTurn(
-      { query: "Plan a pub crawl for my birthday, six of us", ownerId: OWNER },
+      { query: "a quiet pub in Soho with a quiz", ownerId: OWNER, onTool: (tool) => tools.push(tool) },
       undefined,
-      { client, runTool },
+      { client, runTool: async () => ({ ok: true }) },
     );
 
-    expect(outcome).toMatchObject({
-      ok: true, cards: [], proposals: [], toolsUsed: [],
-    });
-    expect(runTool).not.toHaveBeenCalled();
+    expect(outcome.ok).toBe(true);
+    expect(tools).toEqual(["search_venues", "whats_on"]);
   });
 
   it("returns four recommendation cards without proposing a crawl when Claude searches four pubs", async () => {

@@ -1199,6 +1199,41 @@ describe("runPalElevenLabsChatTurn", () => {
       });
     });
 
+    it("asks a birthday crawl with no tool for its area and start time", async () => {
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse("The Golden Lion is perfect.") },
+        { afterMs: 0, event: responseComplete() },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({ query: "Plan a pub crawl for my birthday, six of us", ownerId: OWNER });
+
+      expect(outcome).toMatchObject({ ok: true, cards: [], toolsUsed: [] });
+      expect(outcome.ok && outcome.message).toMatch(/which area/i);
+      expect(outcome.ok && outcome.message).toMatch(/what time/i);
+    });
+
+    it("reports each data tool the agent starts, by name only", async () => {
+      const tools: string[] = [];
+      wsState.storeFilled = false;
+      wsState.replyScript = [
+        { afterMs: 0, event: agentResponse(CHECKING_LINE) },
+        { afterMs: 5, event: toolRequest("call_1") },
+        { afterMs: 5, event: toolResponse("call_1") },
+        { afterMs: 5, event: agentResponse(SOURCED_ANSWER) },
+        { afterMs: 5, event: responseComplete() },
+      ];
+
+      const outcome = await runPalElevenLabsChatTurn({
+        query: "Which quiet pubs near Soho have a beer garden?",
+        ownerId: OWNER,
+        onTool: (tool) => tools.push(tool),
+      });
+
+      expect(outcome.ok).toBe(true);
+      expect(tools).toEqual(["search_venues"]);
+    });
+
     it("checks a full provider reply even when the provider sends no stream parts", async () => {
       const reply = "The Coach charges £6 a pint.";
       wsState.replyScript = [
