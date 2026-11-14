@@ -34,6 +34,15 @@ describe("unsupportedPalReplyClaims", () => {
     expect(unsupportedPalReplyClaims(reply, evidence)).toEqual([kind]);
   });
 
+  it.each([
+    ["price", "The Coach charges £6 a pint.", palReplyEvidence("My budget is £6.", [])],
+    ["price", "The Coach charges £4.80 a pint.", palReplyEvidence("Find a pub", [JSON.stringify({ name: "The Anchor", price: 4.8 })])],
+    ["time", "The Coach closes at 11pm.", palReplyEvidence("We will arrive at 11pm.", [])],
+    ["date", "The quiz is on 21 November.", palReplyEvidence("Find a quiz", [JSON.stringify({ priceReadAt: "2026-11-21T12:00:00Z" })])],
+  ] as const)("refuses a %s borrowed from a different fact", (kind, reply, supplied) => {
+    expect(unsupportedPalReplyClaims(reply, supplied)).toEqual([kind]);
+  });
+
   it("does not read a price as a clock time", () => {
     expect(unsupportedPalReplyClaims("A pint is £4.50.", palReplyEvidence("", [JSON.stringify({ price: 4.5 })]))).toEqual([]);
   });
