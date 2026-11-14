@@ -11,6 +11,8 @@ const way = (over: Partial<LegOption>): LegOption => ({
   kind: "walk",
   minutes: 6,
   farePence: 0,
+  fareLevel: null,
+  walkMetres: null,
   estimate: false,
   fastest: false,
   cheapest: false,
@@ -23,9 +25,9 @@ describe("Pal leads the way", () => {
     const option = way({
       kind: "transit",
       parts: [
-        { mode: "walking", line: null, minutes: 2, path: [[-0.13, 51.51], [-0.131, 51.512]] },
-        { mode: "tube", line: "Central", minutes: 3, path: [[-0.131, 51.512], [-0.14, 51.515], [-0.15, 51.515]] },
-        { mode: "walking", line: null, minutes: 1, path: [[-0.15, 51.515], [-0.151, 51.516]] },
+        { mode: "walking", line: null, minutes: 2, metres: null, path: [[-0.13, 51.51], [-0.131, 51.512]] },
+        { mode: "tube", line: "Central", minutes: 3, metres: null, path: [[-0.131, 51.512], [-0.14, 51.515], [-0.15, 51.515]] },
+        { mode: "walking", line: null, minutes: 1, metres: null, path: [[-0.15, 51.515], [-0.151, 51.516]] },
       ],
     });
     expect(palLeadPath(option)).toEqual([

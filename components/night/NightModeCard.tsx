@@ -1323,6 +1323,7 @@ function NightModeSheet({
           legKey={legKeyFor(currentStop.venueId, nextStop.venueId)}
           from={currentCoord}
           to={nextCoord}
+          departAt={entry.startTime}
         />
       ) : null}
 

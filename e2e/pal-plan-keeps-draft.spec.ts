@@ -116,6 +116,97 @@ test("a draft Plan cannot walk says so, and never claims to have kept it", async
   expect(generations.length).toBeGreaterThanOrEqual(2);
 });
 
+const isGeneration = (request: Request) =>
+  request.method() === "POST" && new URL(request.url()).pathname === "/api/plans/generate";
+const draftIds = DRAFT.map((stop) => stop.venueId);
+const temporaryFailure = {
+  contentType: "application/json",
+  body: JSON.stringify({ error: "Planning is temporarily unavailable." }),
+};
+
+for (const failure of [503, 429, "network"] as const) {
+  test(`retrying a temporary generation failure keeps the Pal's drafted pubs after ${failure}`, async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await pinLondonEvening(page);
+    await stubPalDraft(page, DRAFT);
+    let failed = false;
+    await page.route("**/api/plans/generate", async (route) => {
+      if (failed) return route.continue();
+      failed = true;
+      if (failure === "network") return route.abort("failed");
+      await route.fulfill({ status: failure, ...temporaryFailure });
+    });
+    const generations = await openDraftInPlan(page);
+    await expect(page.locator("#plan-composer-error")).toBeVisible();
+    await expect(page.locator("#plan-concierge-query")).toHaveValue(ASK);
+    const first = generations[0]!.postDataJSON() as { anchor?: { venueIds?: string[] } };
+    expect(first.anchor?.venueIds).toEqual(draftIds);
+
+    const retried = page.waitForRequest(isGeneration);
+    await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+    const retry = (await retried).postDataJSON() as { anchor?: { venueIds?: string[] } };
+    expect(retry.anchor?.venueIds).toEqual(draftIds);
+    for (const stop of DRAFT) {
+      await expect(page.locator(".planStop__surface").filter({ hasText: stop.name })).toBeVisible();
+    }
+  });
+}
+
+test("changing the question after a failure spends the earlier Pal draft", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await pinLondonEvening(page);
+  await stubPalDraft(page, DRAFT);
+  let failed = false;
+  await page.route("**/api/plans/generate", async (route) => {
+    if (failed) return route.continue();
+    failed = true;
+    await route.fulfill({ status: 503, ...temporaryFailure });
+  });
+  await openDraftInPlan(page);
+  await expect(page.locator("#plan-composer-error")).toBeVisible();
+  await page.locator("#plan-concierge-query").fill("Three pubs in Clapham for 3");
+  const changed = page.waitForResponse((response) => isGeneration(response.request()));
+  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+  const changedResponse = await changed;
+  expect(changedResponse.ok()).toBe(true);
+  expect(changedResponse.request().postDataJSON().anchor).toBeUndefined();
+
+  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  await page.locator("#plan-concierge-query").fill(ASK);
+  const repeated = page.waitForRequest(isGeneration);
+  await page.locator(".planComposer__conciergeInput").getByRole("button").click();
+  expect((await repeated).postDataJSON().anchor).toBeUndefined();
+});
+
+test("a failure after another tab takes over the planning request does not give the Pal draft back", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await pinLondonEvening(page);
+  await stubPalDraft(page, DRAFT);
+  let takeOver!: () => void;
+  const takenOver = new Promise<void>((resolve) => { takeOver = resolve; });
+  let failed = false;
+  await page.route("**/api/plans/generate", async (route) => {
+    if (failed) return route.continue();
+    failed = true;
+    await takenOver;
+    await route.fulfill({ status: 503, ...temporaryFailure });
+  });
+  const sent = page.waitForRequest(isGeneration);
+  await openDraftInPlan(page);
+  expect((await sent).postDataJSON().anchor?.venueIds).toEqual(draftIds);
+  // Another tab saves its own planning request while this one waits.
+  await page.evaluate(() => localStorage.setItem(
+    "pubmax:plan-intake:v1",
+    JSON.stringify({ version: 1, answers: { stopCount: 5 }, completed: false, savedBy: "another tab" }),
+  ));
+  takeOver();
+  await expect(page.locator("#plan-composer-error")).toContainText("The saved planning request changed");
+
+  const retried = page.waitForRequest(isGeneration);
+  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+  expect((await retried).postDataJSON().anchor).toBeUndefined();
+});
+
 test("a /plan visit after the handoff does not reuse the draft", async ({ page }) => {
   await page.goto("/plan");
   await page.evaluate((draft) => sessionStorage.setItem("pubmax:ask-plan-draft:v1", JSON.stringify(draft)), {
