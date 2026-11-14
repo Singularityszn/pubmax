@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import MapKey from "@/components/map/MapKey";
 import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
@@ -18,16 +19,18 @@ export default function MobilePriceChoices({
   legend,
   drinkLabel,
   matches,
+  children,
   onMaxPriceChange,
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
   drinkLabel?: string;
   matches?: PintCapMatches | null;
+  children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
 }) {
   return (
-    <>
+    <div className="mobileMapFilters">
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
@@ -55,7 +58,8 @@ export default function MobilePriceChoices({
           <PintCapMatchSummary matches={matches} />
         </fieldset>
       )}
+      {children}
       <MapKey legend={legend} />
-    </>
+    </div>
   );
 }

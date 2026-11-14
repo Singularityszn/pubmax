@@ -19,7 +19,7 @@ import {
 import { useMemo } from "react";
 import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
-import { pintCapMatches } from "@/lib/pintCapMatches";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 
 import {
   nearestPintPriceCap,
@@ -99,6 +99,7 @@ type ControlRailProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   filteredVenues: Venue[];
+  pintCapMatches: PintCapMatches | null;
   builtCount: number;
   onClearBuilt: () => void;
   onLoadCrawl: (crawl: CuratedCrawl) => void;
@@ -123,6 +124,7 @@ export default function ControlRail({
   filters,
   onFiltersChange,
   filteredVenues,
+  pintCapMatches,
   builtCount,
   onClearBuilt,
   onLoadCrawl,
@@ -318,7 +320,7 @@ export default function ControlRail({
             if (next) onFiltersChange({ ...filters, maxPrice: next.maxPrice });
           }}
         />
-        <PintCapMatchSummary matches={pintCapMatches(filteredVenues, filters.maxPrice)} />
+        <PintCapMatchSummary matches={pintCapMatches} />
         {mode === "suggest" ? (
           <>
             <div className="rangeLine">

@@ -1,6 +1,6 @@
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
-import { nearestPintPriceCap } from "@/lib/pintPriceCaps";
+import { pintPriceCapFigure } from "@/lib/pintPriceCaps";
 import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
 
 export type PintCapMatches = {
@@ -23,14 +23,14 @@ export function pintCapMatches(venues: readonly Venue[], maxPrice: number): Pint
 }
 
 export function pintCapMatchLines(matches: PintCapMatches): { priced: string; unknown: string | null } {
-  const cap = nearestPintPriceCap(matches.cap).shortLabel;
+  const cap = pintPriceCapFigure(matches.cap);
   const priced = matches.priced === 0
-    ? `No loaded pub has a recorded pint at or under ${cap}.`
-    : `${matches.priced.toLocaleString("en-GB")} loaded ${matches.priced === 1 ? "pub has" : "pubs have"} a recorded pint at or under ${cap}.`;
+    ? `No pub in these results has a recorded pint at or under ${cap}. Try a higher limit or fewer filters.`
+    : `${matches.priced.toLocaleString("en-GB")} ${matches.priced === 1 ? "pub in these results has" : "pubs in these results have"} a recorded pint at or under ${cap}.`;
   if (matches.unknown === 0) return { priced, unknown: null };
   const subject = matches.unknown === 1 ? "1 pub has" : `${matches.unknown.toLocaleString("en-GB")} pubs have`;
   return {
     priced,
-    unknown: `${subject} no recorded pint price. ${matches.unknown === 1 ? "It stays visible, but the cap cannot judge it." : "They stay visible, but the cap cannot judge them."}`,
+    unknown: `${subject} no comparable pint price. ${matches.unknown === 1 ? "The cap does not exclude it." : "The cap does not exclude them."}`,
   };
 }

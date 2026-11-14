@@ -1358,9 +1358,8 @@ html:has(.appShell) {
      interior hairlines, and the fill carries the selection. */
   .mobilePriceChoices { display: grid; gap: 0; margin: 0; padding: 0; border: 0; }
   .mobilePriceChoices legend { margin-bottom: 6px; color: var(--color-text); font-size: var(--text-sm); font-weight: 800; }
-  .mobilePriceChoicesGroup { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
-  .mobilePriceChoices button { min-height: 44px; border: 0; border-inline-start: 1px solid var(--color-border-soft); border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
-  .mobilePriceChoices button:first-of-type { border-inline-start: 0; }
+  .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
+  .mobilePriceChoices button { flex: 1 1 4em; min-width: max-content; min-height: 44px; border: 0; border-radius: 0; box-shadow: -1px -1px 0 var(--color-border-soft); background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
   .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
 
   .mobileSheetPortal .tonightLane,
@@ -1377,9 +1376,10 @@ html:has(.appShell) {
   .mobileSheetPortal .mapLayersPanel { border: 0; padding: 0; background: transparent; box-shadow: none; }
   .mobileSheetPortal .logIntentFallback { position: static; inset: auto; width: 100%; max-width: none; margin: 0; box-shadow: none; }
   .mobileLayersPanel { display: grid; gap: 16px; }
+  .mobileMapControlTabs { flex-wrap: wrap; }
   .mobileMapControlTabs > [role="tab"] {
     flex: 1;
-    min-width: 0;
+    min-width: max-content;
     min-height: 44px;
     padding-inline: 8px;
   }

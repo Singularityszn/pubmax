@@ -2,7 +2,6 @@
 
 import { useMemo } from "react";
 
-import { pintCapMatches, type PintCapMatches } from "@/lib/pintCapMatches";
 import type { PriceStandingDecision } from "@/lib/priceTier";
 import type { Venue } from "@/lib/venues";
 import { zoneEstimatePinStandings, type VenuePriceReads } from "@/lib/zonePriceEstimate";
@@ -29,8 +28,4 @@ export function usePinPriceStandings(
     () => (favoritePint ? null : zoneEstimatePinStandings(venues, signals, zoneIndex, { price, drops }, pintCap)),
     [venues, signals, zoneIndex, favoritePint, price, drops, pintCap],
   );
-}
-
-export function usePintCapMatches(venues: readonly Venue[], pintCap: number): PintCapMatches | null {
-  return useMemo(() => pintCapMatches(venues, pintCap), [venues, pintCap]);
 }

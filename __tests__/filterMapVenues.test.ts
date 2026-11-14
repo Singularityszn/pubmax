@@ -6,11 +6,12 @@ import {
   mapFiltersSuspendUkBasePubs,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
-import { pintCapMatches } from "@/lib/pintCapMatches";
+import { pintCapMatchLines, pintCapMatches } from "@/lib/pintCapMatches";
 import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import { buildDrinkHints } from "@/scripts/build_slim_index.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function slimPin(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -174,9 +175,17 @@ describe("filterMapVenues", () => {
       expect(pintCapMatches([under, over, unknown], 6)).toEqual({ cap: 6, priced: 1, unknown: 1 });
     });
 
-    it("has nothing to say with no cap on", () => {
-      expect(pintCapMatches([under, unknown], initialFilters.maxPrice)).toBeNull();
-      expect(pintCapMatches([under, unknown], Number.POSITIVE_INFINITY)).toBeNull();
+    it.each([[6.5, "£6.50"], [9.5, "£9.50"], [4.5, "£4.50"]] as const)("prints the applied £%s cap rather than a nearby preset", (cap, figure) => {
+      const matches = defined(pintCapMatches([under, atCap, over, unknown], cap) ?? undefined);
+      expect(pintCapMatchLines(matches).priced).toContain(figure);
+    });
+
+    it("has nothing to say and excludes no price when no cap is on", () => {
+      const high = priced("pub-no-cap-high", 12);
+      for (const maxPrice of [initialFilters.maxPrice, 11, Number.POSITIVE_INFINITY]) {
+        expect(pintCapMatches([under, unknown], maxPrice)).toBeNull();
+        expect(filterMapVenues([high], { ...initialFilters, maxPrice }, () => false)).toEqual([high]);
+      }
     });
   });
 

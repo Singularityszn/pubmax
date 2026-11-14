@@ -391,7 +391,8 @@ import {
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
-import { usePinPriceStandings, usePintCapMatches } from "@/components/map/pubmap/usePinPriceStandings";
+import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
+import { pintCapMatches } from "@/lib/pintCapMatches";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -3167,7 +3168,7 @@ export default function PubMap({
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
-  const pintCapMatched = usePintCapMatches(filteredVenues, effectiveMapFilters.maxPrice);
+  const pintCapMatched = useMemo(() => pintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice), [kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));
@@ -5836,6 +5837,7 @@ export default function PubMap({
           filters={filters}
           onFiltersChange={setFilters}
           filteredVenues={filteredPubVenues}
+          pintCapMatches={pintCapMatched}
           builtCount={builtIds.length}
           onClearBuilt={clearBuilt}
           onLoadCrawl={loadCuratedCrawl}
@@ -6125,6 +6127,14 @@ export default function PubMap({
     requireCocktails: filters.requireCocktails,
   });
 
+  const mobilePriceChoicesProps = {
+    maxPrice: filters.maxPrice,
+    legend: activePriceLegend,
+    drinkLabel: activeLensLabel ?? undefined,
+    matches: pintCapMatched,
+    onMaxPriceChange: (maxPrice: number) => setFilters((current) => ({ ...current, maxPrice })),
+  };
+
   /* The phone's More sheet: the map key, the layer shortcuts, the price chips,
      tonight's events, and London's live transit panel. */
   function renderMobileLayersPanel() {
@@ -6226,18 +6236,13 @@ export default function PubMap({
           <MapLayersControl embedded poiHidden={poiHidden} onPoiHiddenChange={setPoiHidden} activeBandId={activeBandId} onBandChange={setActiveBandId} storyBands={cityStoryBands} cityId={cityId} />
         </TabsContent>
         {experienceLens === "all" ? (
-          <TabsContent value="prices" className="mobileMapFilters">
-            <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-            {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
-              <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
-            ) : null}
-            <MobilePriceChoices
-              maxPrice={filters.maxPrice}
-              legend={activePriceLegend}
-              drinkLabel={activeLensLabel ?? undefined}
-              matches={pintCapMatched}
-              onMaxPriceChange={(maxPrice) => setFilters((current) => ({ ...current, maxPrice }))}
-            />
+          <TabsContent value="prices">
+            <MobilePriceChoices {...mobilePriceChoicesProps}>
+              <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
+              {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
+                <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
+              ) : null}
+            </MobilePriceChoices>
           </TabsContent>
         ) : null}
         <TabsContent value="events">
@@ -6266,7 +6271,7 @@ export default function PubMap({
   /* The phone's Filters sheet. The desktop reads all of this off the toolbar and the rail. */
   function renderMobileFiltersPanel() {
     return (
-      <div className="mobileMapFilters">
+      <MobilePriceChoices {...mobilePriceChoicesProps}>
         {isLondon ? (
           <MobileMapTonightLens
             rowCount={tonightPubListingCount(whatsOnTonight.rows)}
@@ -6342,14 +6347,7 @@ export default function PubMap({
             />
           </>
         ) : null}
-        <MobilePriceChoices
-          maxPrice={filters.maxPrice}
-          legend={activePriceLegend}
-          drinkLabel={activeLensLabel ?? undefined}
-          matches={pintCapMatched}
-          onMaxPriceChange={(maxPrice) => setFilters((current) => ({ ...current, maxPrice }))}
-        />
-      </div>
+      </MobilePriceChoices>
     );
   }
 

@@ -5,9 +5,16 @@ import { describe, expect, it } from "vitest";
 
 import MapKey from "@/components/map/MapKey";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
 
 describe("MobilePriceChoices", () => {
+  it("makes no empty-price claim before any pubs can be counted", () => {
+    expect(PintCapMatchSummary({ matches: { cap: 6, priced: 0, unknown: 0 } })).toBeNull();
+    expect(PintCapMatchSummary({ matches: { cap: 6, priced: 0, unknown: 1 } })).not.toBeNull();
+    expect(PintCapMatchSummary({ matches: { cap: 6, priced: 1, unknown: 0 } })).not.toBeNull();
+  });
+
   it("renders the same derived MapKey tree and rows used by the map key", () => {
     const renderedState = {
       priceBands: [

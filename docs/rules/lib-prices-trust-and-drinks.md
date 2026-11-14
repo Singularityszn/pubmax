@@ -45,7 +45,9 @@ The slim builder uses the runtime bundle parser to exclude quarantined rows from
 
 Map pins withhold estimates while that pub's community-price or Pint Drop read is pending. `zoneEstimatePinStandings` checks only reads already started. A missing status entry means never asked and does not block a pin estimate.
 
-A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. While a cap is on, no pin prints an estimate, and each cap control prints two counts from `lib/pintCapMatches.ts`: the pubs with a recorded pint at or under the cap, and the pubs the cap could not judge. An estimate is in neither count. `__tests__/filterMapVenues.test.ts` and `__tests__/venuePriceLane.test.ts` cover these rules. The map list and the venue sheet still print their labelled estimates under a cap.
+A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. Each cap control separates recorded-price matches from pubs with no recorded comparable pint. Counts use the map's loaded, filtered pubs after drink-lens and venue-kind choices, not just the current viewport. A modelled figure never establishes a match.
+
+Pins withhold estimates while a cap is on. Map lists, phone peeks and venue sheets retain their labelled estimates. `lib/pintPriceCapValue.ts` owns whether a cap is active, and `lib/pintCapMatches.ts` owns the counts. `__tests__/filterMapVenues.test.ts` and `__tests__/venuePriceLane.test.ts` cover these rules.
 
 Cancelling a Pint Drop read marks it unavailable only while it still owns the request. Cancellation retains observed rows and releases the pending hold. An unavailable read does not establish price absence. `__tests__/venuePriceLane.test.ts` and `__tests__/usePintDropsReads.test.tsx` cover these rules.
 
