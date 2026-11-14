@@ -171,7 +171,10 @@ describe("search_venues hard requirements", () => {
     const result = await search("Three pubs in Soho with a beer garden", 3);
     expect(result.cards.map((card) => card.venueId)).toEqual(["garden"]);
     expect(result.cards[0]?.note).toMatch(/^Beer garden on record \(OpenStreetMap, .*2026\)/);
-    expect(result.answerHint).toBe("Only 1 listed pub in Soho has a beer garden on record.");
+    expect(result.answerHint).toBe("Only 1 listed pub in Soho has a beer garden on record. More have outdoor seating on record but no garden. Ask to sit outside to see them.");
+    state.venues = [garden, flagOnly];
+    const withoutSeating = await search("Three pubs in Soho with a beer garden", 3);
+    expect(withoutSeating.answerHint).toBe("Only 1 listed pub in Soho has a beer garden on record.");
   });
 
   it("lets dated outdoor seating answer a sit-outside ask and names it as seating, not a garden", async () => {
@@ -226,6 +229,18 @@ describe("search_venues hard requirements", () => {
     ];
     const result = await search(query);
     expect(result.cards.map((card) => card.venueId).sort()).toEqual(["a", "b"]);
+  });
+
+  it("keeps a brand that starts with a place name, and drops an adjective that only looks like a style", async () => {
+    state.venues = [
+      venue({ id: "hells", name: "The Hells", area: "Soho", drinkText: "camden hells" }),
+      venue({ id: "peroni", name: "The Peroni", area: "Soho", cheapestPrice: 3, drinkText: "peroni" }),
+    ];
+    const brand = await search("Camden Hells in Soho");
+    expect(brand.cards.map((card) => card.venueId)).toEqual(["hells"]);
+    expect(brand.cards[0]?.note).toContain("Camden Hells on its listed drinks");
+    const adjective = await search("Pubs in Soho for a hazy evening");
+    expect(adjective.cards.map((card) => card.venueId).sort()).toEqual(["hells", "peroni"]);
   });
 });
 

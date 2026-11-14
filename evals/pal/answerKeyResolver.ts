@@ -2,6 +2,7 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
+import { requirementEvidence, venueRequirementsInText } from "@/lib/concierge/requirements";
 import { buildWhatsOnAnswer, detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import { HERITAGE_AMBIGUOUS_PUB_HINT } from "@/lib/ask/heritageQuestion";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
@@ -95,7 +96,9 @@ async function firstSearchVenue(
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
-  const ranked = rankConciergeVenues(venues, parsed.intent, {
+  const requirements = venueRequirementsInText(query);
+  const eligible = venues.filter((venue) => requirements.every((requirement) => requirementEvidence(venue, requirement) !== null));
+  const ranked = rankConciergeVenues(eligible, parsed.intent, {
     limit: 1,
     now,
     areaCircle: areaCircleForAsk(cityId as "london", parsed.intent.area),

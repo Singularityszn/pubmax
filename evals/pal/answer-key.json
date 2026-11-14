@@ -205,8 +205,8 @@
     },
     "non-alcoholic-soho": {
       "minCards": 1,
-      "topVenueId": "venue-e1srzr",
-      "topPrice": 6.25,
+      "topVenueId": "venue-gvz1hf",
+      "topPrice": 7.05,
       "expectedTools": [
         "search_venues"
       ]

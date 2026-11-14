@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
-import type { ConciergeVenue } from "@/lib/concierge/rank";
+import type { ConciergeVenue, DatedVenueFact } from "@/lib/concierge/rank";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 
@@ -19,6 +19,43 @@ function bool(record: Record<string, unknown>, key: string): boolean {
 
 function optionalBool(record: Record<string, unknown>, key: string): boolean | undefined {
   return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
+}
+
+/** A `[true, source, YYYY-MM-DD]` hint from the slim builder. Anything else is not a fact. */
+function datedTrueFact(value: unknown): DatedVenueFact | undefined {
+  if (!Array.isArray(value) || value[0] !== true) return undefined;
+  const [, source, observedAt] = value;
+  if (typeof source !== "string" || !source.trim() || typeof observedAt !== "string") return undefined;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(observedAt) || !Number.isFinite(Date.parse(observedAt))) return undefined;
+  return { source: source.trim(), observedAt };
+}
+
+function amenityFlags(amenities: Record<string, unknown>): ConciergeVenue["amenities"] {
+  const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
+  return {
+    beerGarden: bool(amenities, "beerGarden"),
+    cocktails: bool(amenities, "cocktails"),
+    food: bool(amenities, "food"),
+    liveSports: bool(amenities, "liveSports"),
+    liveMusic: bool(amenities, "liveMusic"),
+    ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
+    ...(bool(amenities, "darts") ? { darts: true } : {}),
+    ...(bool(amenities, "pool") ? { pool: true } : {}),
+  };
+}
+
+function features(hints: Record<string, unknown>): Pick<ConciergeVenue, "features"> {
+  const garden = datedTrueFact(hints.beerGardenSource);
+  const outdoorSeating = datedTrueFact(hints.outdoorSeating);
+  const dogsWelcome = datedTrueFact(hints.dogsWelcome);
+  if (!garden && !outdoorSeating && !dogsWelcome) return {};
+  return {
+    features: {
+      ...(garden ? { garden } : {}),
+      ...(outdoorSeating ? { outdoorSeating } : {}),
+      ...(dogsWelcome ? { dogsWelcome } : {}),
+    },
+  };
 }
 
 function pintEvidence(row: SlimRow): Pick<ConciergeVenue, "priceSource" | "priceObservedAt" | "anchorLabel" | "cheapestPint" | "measure"> {
@@ -51,8 +88,6 @@ function toVenue(value: unknown): ConciergeVenue | null {
   const curation = hints.curation && typeof hints.curation === "object" && !Array.isArray(hints.curation)
     ? hints.curation as Record<string, unknown>
     : {};
-  const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
-
   return {
     id: row.id,
     name: displayVenueName(row.name),
@@ -63,14 +98,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
     cheapestPrice: row.cheapestPrice as number | null,
     ...(typeof row.zone === "number" && Number.isFinite(row.zone) ? { zone: row.zone } : {}),
     ...pintEvidence(row),
-    amenities: {
-      beerGarden: bool(amenities, "beerGarden"),
-      cocktails: bool(amenities, "cocktails"),
-      food: bool(amenities, "food"),
-      liveSports: bool(amenities, "liveSports"),
-      liveMusic: bool(amenities, "liveMusic"),
-      ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
-    },
+    amenities: amenityFlags(amenities),
+    ...features(hints),
     nearWater: bool(curation, "nearWater"),
     hasStory: bool(curation, "hasStory"),
     canonical: hints.canonical === true,

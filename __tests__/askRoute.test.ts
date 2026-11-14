@@ -633,7 +633,7 @@ describe("POST /api/ask", () => {
 
   it("answers a mood ask with grounded venue cards keyless", async () => {
     const response = await post(
-      { query: "Garden near Soho for 4, not pricey", cityId: "london" },
+      { query: "Quiet near Soho for 4, not pricey", cityId: "london" },
       "198.51.100.21",
     );
     expect(response.status).toBe(200);

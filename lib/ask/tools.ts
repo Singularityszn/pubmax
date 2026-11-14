@@ -23,6 +23,13 @@ import {
   rankConciergeVenues,
   type ConciergeVenue,
 } from "@/lib/concierge/rank";
+import {
+  outdoorSeatingInstead,
+  requirementEvidence,
+  requirementLabel,
+  requirementScarcityLine,
+  venueRequirementsInText,
+} from "@/lib/concierge/requirements";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { zoneEstimateNote, zonePriceEstimate } from "@/lib/zonePriceEstimate";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
@@ -143,17 +150,36 @@ async function toolSearchVenues(
     const venues = (await loadConciergeVenues(ctx.cityId)).filter((venue) => !exclude?.has(venue.id));
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
-    const eligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
+    const requirements = venueRequirementsInText(query);
+    const evidenceFor = (venue: ConciergeVenue, asked = requirements) =>
+      asked.map((requirement) => requirementEvidence(venue, requirement));
+    const priceEligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
       const price = comparablePint(venue, ctx.now);
       return price !== null && (ceiling === undefined || price <= ceiling);
     });
-    const ranked = rankConciergeVenues(eligible, parsed.intent, {
+    const eligible = priceEligible.filter((venue) => evidenceFor(venue).every((line) => line !== null));
+    const rankOptions = {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
-    });
+    };
+    const ranked = rankConciergeVenues(eligible, parsed.intent, rankOptions)
+      .map((row) => ({ ...row, evidence: evidenceFor(row.venue).filter((line): line is string => line !== null) }));
+    const seatingInstead = ranked.length < limit ? outdoorSeatingInstead(requirements) : null;
+    const outdoorSeatingOnly = seatingInstead !== null && rankConciergeVenues(
+      priceEligible.filter((venue) => !venue.features?.garden && evidenceFor(venue, seatingInstead).every((line) => line !== null)),
+      parsed.intent,
+      { ...rankOptions, limit: 1 },
+    ).length > 0;
     const cards = ranked.map((row) =>
-      venueCard(row.venue, rankedNote(row), row.venue.id, ctx.now),
+      venueCard(
+        row.venue,
+        requirements.length
+          ? [...row.evidence.slice(0, 2), row.nearAreaNote].filter(Boolean).join(" · ")
+          : rankedNote(row),
+        row.venue.id,
+        ctx.now,
+      ),
     );
     const proposals: AskProposal[] = cards
       .filter((c) => c.venueId)
@@ -170,7 +196,8 @@ async function toolSearchVenues(
       data: {
         intent: parsed.intent,
         intentSource: parsed.source,
-        venues: ranked.map(({ venue, score, reasons }) => ({
+        requirements: requirements.map(requirementLabel),
+        venues: ranked.map(({ venue, score, reasons, evidence }) => ({
           id: venue.id,
           name: venue.name,
           area: venue.area,
@@ -179,15 +206,18 @@ async function toolSearchVenues(
           cheapestPrice: venue.cheapestPrice,
           score,
           reasons,
+          ...(evidence.length ? { evidence } : {}),
         })),
       },
       provenance: [directoryProvenance()],
       cards,
       proposals,
       answerHint:
-        cards.length > 0
-          ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
-          : "Nothing listed matches that. Try a nearby area or a broader mood.",
+        requirements.length && cards.length < limit
+          ? requirementScarcityLine({ requirements, found: cards.length, area: parsed.intent.area, outdoorSeatingOnly })
+          : cards.length > 0
+            ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
+            : "Nothing listed matches that. Try a nearby area or a broader mood.",
     };
   } catch {
     return {

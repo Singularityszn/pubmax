@@ -33,6 +33,8 @@ type ConciergeContext = {
   timeOfDay?: "afternoon" | "evening" | "late";
 };
 
+export type DatedVenueFact = { source: string; observedAt: string };
+
 export type ConciergeVenue = {
   id: string;
   name: string;
@@ -56,6 +58,17 @@ export type ConciergeVenue = {
     liveSports: boolean;
     liveMusic: boolean;
     nonAlcoholic?: boolean;
+    darts?: boolean;
+    pool?: boolean;
+  };
+  /**
+   * Dated, sourced facts. `amenities.beerGarden` also holds outdoor seating
+   * and undated flags, so only these may answer a hard garden ask.
+   */
+  features?: {
+    garden?: DatedVenueFact;
+    outdoorSeating?: DatedVenueFact;
+    dogsWelcome?: DatedVenueFact;
   };
   nearWater: boolean;
   hasStory: boolean;
@@ -223,7 +236,9 @@ function scoreOne(
         quiet: "A calmer fit",
         lively: "Lively atmosphere",
         cosy: "Cosy character",
-        garden: "Beer garden",
+        garden: venue.features?.garden
+          ? "Beer garden"
+          : venue.features?.outdoorSeating ? "Outdoor seating" : "Outdoor space listed",
         riverside: "Near the water",
         sports: "Shows live sport",
         date: "Good date-night fit",
