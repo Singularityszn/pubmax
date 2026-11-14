@@ -10,8 +10,6 @@ import { isDrinkShapeArrival } from "@/lib/mapArrival";
 import { buildMapSeed, filtersForCuratedCrawl, type MapSeed } from "@/lib/pubMap";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
-export { mapSeedNeedsCuratedCrawlLookup };
-
 function matchBuiltIds(crawls: CuratedCrawl[], builtIds: string[]): CuratedCrawl | null {
   if (builtIds.length < 2) return null;
   return (

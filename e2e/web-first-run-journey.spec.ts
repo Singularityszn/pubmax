@@ -9,8 +9,8 @@ import { E2E_SERVER_ENV } from "../playwright.config";
 
 import {
   LANDING_FIRST_RUN_HREF,
-  LANDING_PRIMARY_HREF,
-  LANDING_PRIMARY_NAME,
+  LANDING_NEAR_HREF as LANDING_PRIMARY_HREF,
+  LANDING_NEAR_NAME as LANDING_PRIMARY_NAME,
   NEAR_FIRST_RUN_CHIP_NAME,
 } from "./helpers/landingHero";
 
@@ -78,7 +78,7 @@ async function saveShot(page: Page, name: string): Promise<void> {
 }
 
 function heroPrimary(page: Page): Locator {
-  return page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
+  return page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_PRIMARY_NAME });
 }
 
 /**
