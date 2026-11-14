@@ -1,6 +1,7 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { haversineKm } from "@/lib/haversine";
+import { positiveFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 
@@ -33,8 +34,6 @@ type ConciergeContext = {
   timeOfDay?: "afternoon" | "evening" | "late";
 };
 
-export type DatedVenueFact = { source: string; observedAt: string };
-
 export type ConciergeVenue = {
   id: string;
   name: string;
@@ -66,9 +65,9 @@ export type ConciergeVenue = {
    * and undated flags, so only these may answer a hard garden ask.
    */
   features?: {
-    garden?: DatedVenueFact;
-    outdoorSeating?: DatedVenueFact;
-    dogsWelcome?: DatedVenueFact;
+    garden?: VenueFeatureObservation;
+    outdoorSeating?: VenueFeatureObservation;
+    dogsWelcome?: VenueFeatureObservation;
   };
   nearWater: boolean;
   hasStory: boolean;
@@ -236,9 +235,11 @@ function scoreOne(
         quiet: "A calmer fit",
         lively: "Lively atmosphere",
         cosy: "Cosy character",
-        garden: venue.features?.garden
+        garden: positiveFeatureObservation(venue.features?.garden, "beerGarden", now)
           ? "Beer garden"
-          : venue.features?.outdoorSeating ? "Outdoor seating" : "Outdoor space listed",
+          : positiveFeatureObservation(venue.features?.outdoorSeating, "outdoorSeating", now)
+            ? "Outdoor seating"
+            : "Outdoor space listed",
         riverside: "Near the water",
         sports: "Shows live sport",
         date: "Good date-night fit",

@@ -3,7 +3,8 @@
 
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import { defaultKnownAreas, deterministicAreaInText, extractExplicitBudget } from "@/lib/concierge/intentPolicy";
-import { extractArea, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
+import { extractArea, requestedVenueCount, resolveAskPriceIntent, routeAskDeterministically, socialTurnKind } from "@/lib/ask/routingPolicy";
+import { venueRequirementsInText } from "@/lib/concierge/requirements";
 
 export { askRequestClauses } from "@/lib/ask/requestPolicy";
 export {
@@ -42,6 +43,12 @@ export function refineVenueBudgetFollowUp(query: string, priorUserContent: strin
   return priorArea ? query.replace(SAME_AREA_REFERENCE_RE, `pubs in ${priorArea}`) : null;
 }
 
+function isPlacelessRequirementAsk(text: string): boolean {
+  if (extractArea(text) || /\b(?:in|near|around|by)\s+\S/i.test(text)) return false;
+  return requestedVenueCount(text) !== null
+    || venueRequirementsInText(text).some((requirement) => requirement.kind !== "drink");
+}
+
 export function refineRoutedAskQuery(
   query: string,
   priorUserContent: string | null | undefined,
@@ -51,11 +58,13 @@ export function refineRoutedAskQuery(
   if (budgetFollowUp) return budgetFollowUp;
   const text = semanticAskRequest(query, false);
   const words = text.trim().split(/\s+/).filter(Boolean);
-  if (!priorUserContent || words.length === 0 || words.length > 4) return query;
+  if (!priorUserContent || words.length === 0) return query;
+  const requirementFollowUp = words.length > 4 && isPlacelessRequirementAsk(text);
+  if (words.length > 4 && !requirementFollowUp) return query;
   if (socialTurnKind(priorUserContent)) return query;
   const current = routeAskDeterministically(query);
   if (current.some((call) => call.name !== "search_venues")) return query;
   const priorPlace = extractArea(semanticAskRequest(priorUserContent, false));
   if (priorPlace) return `${query}${text === query ? "" : "."} in ${priorPlace}`;
-  return `${priorUserContent}; ${query}`;
+  return requirementFollowUp ? query : `${priorUserContent}; ${query}`;
 }

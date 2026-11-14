@@ -4,9 +4,10 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
-import type { ConciergeVenue, DatedVenueFact } from "@/lib/concierge/rank";
+import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 type SlimRow = Record<string, unknown>;
 
@@ -21,13 +22,8 @@ function optionalBool(record: Record<string, unknown>, key: string): boolean | u
   return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
 }
 
-/** A `[true, source, YYYY-MM-DD]` hint from the slim builder. Anything else is not a fact. */
-function datedTrueFact(value: unknown): DatedVenueFact | undefined {
-  if (!Array.isArray(value) || value[0] !== true) return undefined;
-  const [, source, observedAt] = value;
-  if (typeof source !== "string" || !source.trim() || typeof observedAt !== "string") return undefined;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(observedAt) || !Number.isFinite(Date.parse(observedAt))) return undefined;
-  return { source: source.trim(), observedAt };
+function positiveObservation(value: unknown): VenueFeatureObservation | undefined {
+  return isVenueFeatureObservation(value) && value[0] ? value : undefined;
 }
 
 function amenityFlags(amenities: Record<string, unknown>): ConciergeVenue["amenities"] {
@@ -45,9 +41,9 @@ function amenityFlags(amenities: Record<string, unknown>): ConciergeVenue["ameni
 }
 
 function features(hints: Record<string, unknown>): Pick<ConciergeVenue, "features"> {
-  const garden = datedTrueFact(hints.beerGardenSource);
-  const outdoorSeating = datedTrueFact(hints.outdoorSeating);
-  const dogsWelcome = datedTrueFact(hints.dogsWelcome);
+  const garden = positiveObservation(hints.beerGardenSource);
+  const outdoorSeating = positiveObservation(hints.outdoorSeating);
+  const dogsWelcome = positiveObservation(hints.dogsWelcome);
   if (!garden && !outdoorSeating && !dogsWelcome) return {};
   return {
     features: {

@@ -4,7 +4,7 @@
 import { londonDayKey } from "@/lib/pintContributions";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
 import { isIndependentAskTool, isVenueDiscoveryAsk, isVenueHoursQuestion, resolveAskJourney, resolveAskPriceIntent, routeAskDeterministically } from "@/lib/ask/router";
-import { isGenericMapAsk } from "@/lib/ask/routingPolicy";
+import { isGenericMapAsk, requestedVenueCount } from "@/lib/ask/routingPolicy";
 import { communityCategoryEvidence, listedPintEvidence } from "@/lib/ask/toolContract";
 import { formatGbp } from "@/lib/formatGbp";
 import { comparablePint, isComparablePintServing } from "@/lib/comparablePint.mjs";
@@ -25,10 +25,17 @@ import {
 } from "@/lib/concierge/rank";
 import {
   outdoorSeatingInstead,
-  requirementEvidence,
-  requirementLabel,
+  requirementCoverageGaps,
+  requirementKey,
+  requirementProof,
+  requirementProofLine,
+  requirementProofs,
   requirementScarcityLine,
+  venueQuizListings,
   venueRequirementsInText,
+  type RequirementContext,
+  type RequirementProof,
+  type VenueRequirement,
 } from "@/lib/concierge/requirements";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { zoneEstimateNote, zonePriceEstimate } from "@/lib/zonePriceEstimate";
@@ -52,7 +59,7 @@ import {
 } from "@/lib/citymcp/client";
 import { fetchCityArea } from "@/lib/citymcp/area";
 import { retrieveHeritage } from "@/lib/heritage";
-import { loadWhatsOn } from "@/lib/whatsOnStore";
+import { loadWhatsOn, type FetchLive } from "@/lib/whatsOnStore";
 import {
   isAskToolName,
   type AskCard,
@@ -137,13 +144,44 @@ function venueCard(
   };
 }
 
+const PAL_DRAFT_STOP_MAX = 6;
+
+const NO_LIVE_LISTINGS: FetchLive = async () => ({ rows: [], sourceObservedAt: null });
+
+async function requirementContext(
+  requirements: readonly VenueRequirement[],
+  ctx: AskToolContext,
+): Promise<RequirementContext> {
+  const now = ctx.now ?? Date.now();
+  if (!requirements.some((requirement) => requirement.kind === "quiz")) return { now, quizListings: new Map() };
+  try {
+    const { rows, readStatus } = await loadWhatsOn({ kind: "quiz" }, { now, fetchLive: NO_LIVE_LISTINGS });
+    return { now, quizListings: readStatus === "degraded" ? null : venueQuizListings(rows, now) };
+  } catch {
+    return { now, quizListings: null };
+  }
+}
+
+function requirementNote(
+  row: { venue: ConciergeVenue; nearAreaNote?: string },
+  requirements: readonly VenueRequirement[],
+  evidence: readonly RequirementProof[],
+  now: number,
+): string {
+  const proofs = requirements.flatMap((requirement, index) => {
+    const proof = evidence[index];
+    return proof ? [requirementProofLine(row.venue, requirement, proof, now)] : [];
+  });
+  return [...proofs.slice(0, 2), row.nearAreaNote].filter(Boolean).join(" · ");
+}
+
 async function toolSearchVenues(
   args: AskToolArgs,
   ctx: AskToolContext,
 ): Promise<AskToolResult> {
-  const limitRaw = typeof args.limit === "number" ? args.limit : 4;
-  const limit = Math.min(6, Math.max(1, Math.floor(limitRaw)));
   const query = str(args.query) || ctx.query;
+  const limitRaw = requestedVenueCount(query) ?? (typeof args.limit === "number" ? args.limit : 4);
+  const limit = Math.min(6, Math.max(1, Math.floor(limitRaw)));
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const exclude = ctx.excludeVenueIds;
@@ -151,23 +189,28 @@ async function toolSearchVenues(
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
     const requirements = venueRequirementsInText(query);
-    const evidenceFor = (venue: ConciergeVenue, asked = requirements) =>
-      asked.map((requirement) => requirementEvidence(venue, requirement));
+    const context = await requirementContext(requirements, ctx);
+    const coverageGaps = requirementCoverageGaps(requirements, context);
     const priceEligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
       const price = comparablePint(venue, ctx.now);
       return price !== null && (ceiling === undefined || price <= ceiling);
     });
-    const eligible = priceEligible.filter((venue) => evidenceFor(venue).every((line) => line !== null));
+    const proven = priceEligible.flatMap((venue) => {
+      const evidence = requirementProofs(venue, requirements, context);
+      return evidence ? [{ venue, evidence }] : [];
+    });
+    const evidenceById = new Map(proven.map((row) => [row.venue.id, row.evidence]));
     const rankOptions = {
       limit,
       areaCircle: areaCircleForAsk(ctx.cityId, parsed.intent.area),
       now: ctx.now,
     };
-    const ranked = rankConciergeVenues(eligible, parsed.intent, rankOptions)
-      .map((row) => ({ ...row, evidence: evidenceFor(row.venue).filter((line): line is string => line !== null) }));
+    const ranked = rankConciergeVenues(proven.map((row) => row.venue), parsed.intent, rankOptions)
+      .map((row) => ({ ...row, evidence: evidenceById.get(row.venue.id) ?? [] }));
     const seatingInstead = ranked.length < limit ? outdoorSeatingInstead(requirements) : null;
     const outdoorSeatingOnly = seatingInstead !== null && rankConciergeVenues(
-      priceEligible.filter((venue) => !venue.features?.garden && evidenceFor(venue, seatingInstead).every((line) => line !== null)),
+      priceEligible.filter((venue) => requirementProof(venue, { kind: "garden" }, context) === null
+        && requirementProofs(venue, seatingInstead, context) !== null),
       parsed.intent,
       { ...rankOptions, limit: 1 },
     ).length > 0;
@@ -175,7 +218,7 @@ async function toolSearchVenues(
       venueCard(
         row.venue,
         requirements.length
-          ? [...row.evidence.slice(0, 2), row.nearAreaNote].filter(Boolean).join(" · ")
+          ? requirementNote(row, requirements, row.evidence, context.now)
           : rankedNote(row),
         row.venue.id,
         ctx.now,
@@ -196,7 +239,10 @@ async function toolSearchVenues(
       data: {
         intent: parsed.intent,
         intentSource: parsed.source,
-        requirements: requirements.map(requirementLabel),
+        requirements: requirements.map(requirementKey),
+        coverageGaps,
+        found: ranked.length,
+        outdoorSeatingOnly,
         venues: ranked.map(({ venue, score, reasons, evidence }) => ({
           id: venue.id,
           name: venue.name,
@@ -213,8 +259,8 @@ async function toolSearchVenues(
       cards,
       proposals,
       answerHint:
-        requirements.length && cards.length < limit
-          ? requirementScarcityLine({ requirements, found: cards.length, area: parsed.intent.area, outdoorSeatingOnly })
+        requirements.length && (cards.length < limit || coverageGaps.length)
+          ? requirementScarcityLine({ requirements, found: cards.length, area: parsed.intent.area, coverageGaps, outdoorSeatingOnly })
           : cards.length > 0
             ? cards.length < limit ? `Only ${cards.length} listed ${cards.length === 1 ? "pub matches" : "pubs match"} those choices.` : ""
             : "Nothing listed matches that. Try a nearby area or a broader mood.",
@@ -790,10 +836,24 @@ async function toolProposePlan(
   const query = str(args.query) || ctx.query;
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
+    const requirements = venueRequirementsInText(query);
+    const context = await requirementContext(requirements, ctx);
+    const coverageGaps = requirementCoverageGaps(requirements, context);
+    const evidenceById = new Map<string, RequirementProof[]>();
     // A draft crawl may be sent to people who have never met, so it never
     // holds a members', students' or staff bar (lib/venueKindFilters.ts).
     const venues = (await loadConciergeVenues(ctx.cityId))
-      .filter((venue) => !isNonPublicVenueName(venue.name));
+      .filter((venue) => !isNonPublicVenueName(venue.name))
+      .filter((venue) => {
+        const evidence = requirementProofs(venue, requirements, context);
+        if (evidence) evidenceById.set(venue.id, evidence);
+        return evidence !== null;
+      });
+    const stopCount = Math.min(PAL_DRAFT_STOP_MAX, Math.max(2, requestedVenueCount(query) ?? 3));
+    const stopNote = (row: { venue: ConciergeVenue; reasons: string[]; nearAreaNote?: string }, fallback = "") => requirements.length
+      ? requirementNote(row, requirements, evidenceById.get(row.venue.id) ?? [], context.now)
+      : rankedNote(row, fallback);
+    const requirementData = { requirements: requirements.map(requirementKey), coverageGaps };
     // Rank a wider pool than the three stops, then keep only a crawl that
     // walks under Plan's own rule (lib/palPlanDraft.ts), so "Open in Plan"
     // hands over pubs Plan can keep rather than three that merely rank well.
@@ -807,30 +867,32 @@ async function toolProposePlan(
     // An ask with no area ranks across London, so its best pubs rarely share
     // a street: then each ranked pub in turn gets its best companions from
     // the pubs one walking leg away.
-    const ranked = walkableDraftRoute(pool.map(asCandidate), 3)
+    const ranked = walkableDraftRoute(pool.map(asCandidate), stopCount)
       ?? walkableDraftAround(pool.map(asCandidate), (seed) => rankConciergeVenues(
         venues.filter((venue) => venue.id !== seed.value.venue.id
           && straightLineWalkableKm([seed, venue]) !== null),
         parsed.intent,
         { limit: 10, now: ctx.now },
-      ).map(asCandidate), 3);
+      ).map(asCandidate), stopCount);
     if (!ranked) {
       return {
         ok: false,
         tool: "propose_plan",
-        data: { intent: parsed.intent },
+        data: { intent: parsed.intent, ...requirementData },
         provenance: [directoryProvenance()],
-        cards: pool.slice(0, 3).map((row) =>
-          venueCard(row.venue, rankedNote(row), undefined, ctx.now),
+        cards: pool.slice(0, stopCount).map((row) =>
+          venueCard(row.venue, stopNote(row), undefined, ctx.now),
         ),
         proposals: [],
-        answerHint: pool.length < 3
-          ? "No three-stop route meets that ask with the information available."
-          : "These pubs are too far apart to walk as one crawl. Pick one to start, or name a smaller area.",
+        answerHint: requirements.length && (pool.length < stopCount || coverageGaps.length)
+          ? requirementScarcityLine({ requirements, found: pool.length, area: parsed.intent.area, coverageGaps })
+          : pool.length < stopCount
+            ? `No ${stopCount}-stop route meets that ask with the information available.`
+            : "These pubs are too far apart to walk as one crawl. Pick one to start, or name a smaller area.",
       };
     }
     const cards = ranked.map((row, index) =>
-      venueCard(row.venue, `Stop ${index + 1}: ${rankedNote(row, "Listed pick")}`, undefined, ctx.now),
+      venueCard(row.venue, `Stop ${index + 1}: ${stopNote(row, "Listed pick")}`, undefined, ctx.now),
     );
     const stopIds = cards.map((c) => c.venueId);
     const stopNames = cards.map((c) => c.title);
@@ -853,6 +915,7 @@ async function toolProposePlan(
       tool: "propose_plan",
       data: {
         intent: parsed.intent,
+        ...requirementData,
         stops: ranked.map(({ venue }) => ({
           id: venue.id,
           name: venue.name,

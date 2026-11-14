@@ -2,7 +2,6 @@ import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
-import { requirementEvidence, venueRequirementsInText } from "@/lib/concierge/requirements";
 import { buildWhatsOnAnswer, detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
 import { HERITAGE_AMBIGUOUS_PUB_HINT } from "@/lib/ask/heritageQuestion";
 import { refineRoutedAskQuery } from "@/lib/ask/router";
@@ -56,6 +55,13 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   },
 };
 
+const ALCOHOL_FREE_DRINK_NAME = /\b(?:alcohol[- ]free|non[- ]alcoholic|0\.0%?|zero alcohol)\b/i;
+
+const PAL_EVAL_REQUIRED_FACT: Record<string, (venue: ConciergeVenue) => boolean> = {
+  "non-alcoholic-soho": (venue) => venue.amenities.nonAlcoholic === true
+    || (venue.drinkText ?? "").split(";").some((name) => ALCOHOL_FREE_DRINK_NAME.test(name)),
+};
+
 export type ResolveAnswerKeyContext = {
   now: number;
   cityId: string;
@@ -90,14 +96,15 @@ function cardFields(
 }
 
 async function firstSearchVenue(
+  caseId: string,
   query: string,
   cityId: string,
   now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
-  const requirements = venueRequirementsInText(query);
-  const eligible = venues.filter((venue) => requirements.every((requirement) => requirementEvidence(venue, requirement) !== null));
+  const required = PAL_EVAL_REQUIRED_FACT[caseId];
+  const eligible = required ? venues.filter(required) : venues;
   const ranked = rankConciergeVenues(eligible, parsed.intent, {
     limit: 1,
     now,
@@ -248,7 +255,7 @@ async function resolveGeneratedAnswerKeyFields(
     case "plan-soho":
     case "followup-cheaper-camden":
     case "crawl-refine-cheaper": {
-      const hit = await firstSearchVenue(query, cityId, ctx.now);
+      const hit = await firstSearchVenue(caseDef.id, query, cityId, ctx.now);
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     default:
