@@ -82,7 +82,7 @@ for (const signedIn of [false, true]) {
 }
 
 test.describe("landing hierarchy", () => {
-  test("keeps the near-me answer primary and the receipt door first in the quiet row", async ({ page }) => {
+  test("leads with Pal and keeps public price links in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHero");

@@ -64,7 +64,7 @@ function hero(rendered: string): string {
 }
 
 describe("landing hierarchy: the price receipt door", () => {
-  it("uses the near-me answer as the only primary action, the receipt door as the first quiet one", () => {
+  it("leads with Pal and keeps the receipt door first in the quiet row", () => {
     const h = hero(render());
     expect(h).toMatch(
       /data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/,
@@ -86,7 +86,7 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(h).not.toContain("lpButton");
   });
 
-  it("asks for location only from the one primary, never the footer", () => {
+  it("asks for location only from the public near-me door, never the footer", () => {
     for (const rendered of [render(false), render()]) {
       const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
       expect(footerNav, "footer nav present").toBeTruthy();
@@ -124,7 +124,7 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(textLinks).toEqual(["Browse pubs across the UK", "Open the map"]);
   });
 
-  it("puts Plan a crawl under the hunt, beside the near-you primary", () => {
+  it("keeps Plan in navigation and the near-me answer beside the receipt door", () => {
     // Captain decision 2 (1 Nov 2026): under the cheapest pint we can find,
     // the front door offers the cheapest near you and a crawl. Tonight keeps
     // its tap in the five-tab dock (decision 13) and the footer.
