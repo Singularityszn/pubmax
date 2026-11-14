@@ -6,6 +6,7 @@ import {
   mapFiltersSuspendUkBasePubs,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
+import { pintCapMatches } from "@/lib/pintCapMatches";
 import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
@@ -151,6 +152,32 @@ describe("filterMapVenues", () => {
     });
 
     expect(filterMapVenues([bar, pub], filters, () => false)).toEqual([bar]);
+  });
+
+  describe("what a pint price cap let through", () => {
+    const priced = (id: string, cheapestPrice: number) =>
+      slimPin({ id, kind: "pub", cheapestPrice, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+    const under = priced("pub-under", 5.2);
+    const atCap = priced("pub-at-cap", 6);
+    const over = priced("pub-over", 6.4);
+    const unknown = slimPin({ id: "pub-unknown", kind: "pub" });
+    const bar = slimPin({ id: "bar-anchor", kind: "bar", cheapestPrice: 14 });
+    const capped = { ...initialFilters, maxPrice: 6 };
+
+    it("keeps a pub with no recorded price, and counts it apart from the priced matches", () => {
+      const shown = filterMapVenues([under, atCap, over, unknown, bar], capped, () => false);
+      expect(shown.map((venue) => venue.id).sort()).toEqual(["bar-anchor", "pub-at-cap", "pub-under", "pub-unknown"]);
+      expect(pintCapMatches(shown, capped.maxPrice)).toEqual({ cap: 6, priced: 2, unknown: 1 });
+    });
+
+    it("never counts a pub over the cap as a match, even when a selection forces it onto the map", () => {
+      expect(pintCapMatches([under, over, unknown], 6)).toEqual({ cap: 6, priced: 1, unknown: 1 });
+    });
+
+    it("has nothing to say with no cap on", () => {
+      expect(pintCapMatches([under, unknown], initialFilters.maxPrice)).toBeNull();
+      expect(pintCapMatches([under, unknown], Number.POSITIVE_INFINITY)).toBeNull();
+    });
   });
 
   it("applies food and cocktail filters from slim venue hints", () => {
