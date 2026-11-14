@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, Fragment, StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
@@ -8,6 +8,15 @@ import { useMapOpeningArrival, useNamedMapAreaArrival } from "@/components/map/u
 import { getCity } from "@/lib/cities";
 import { mapAreaOpeningView, parseMapAreaArrival } from "@/lib/mapAreaArrival";
 import { openingViewportFrom } from "@/lib/pubMap";
+import ChooseAreaSheet from "@/components/map/ChooseAreaSheet";
+import FirstRunTour from "@/components/onboarding/FirstRunTour";
+import { setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrivalGate";
+import { promptBudgetHolder } from "@/lib/promptBudget";
+
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("next/navigation")>(),
+  usePathname: () => "/map",
+}));
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -98,6 +107,42 @@ it("consumes a pending named area when the reader takes the camera before venue 
     expect(onSelect).not.toHaveBeenCalled();
   } finally {
     act(() => root.unmount());
+  }
+});
+
+it.each([false, true])("keeps a deferred tour behind area selection (opening=%s)", async (opening) => {
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  window.history.replaceState(null, "", "/map");
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const picker = createElement(ChooseAreaSheet, {
+    cityId: "london", venues: [], showOpeningProgress: opening, onPick: () => {},
+  });
+  const render = (area: boolean, tour: boolean) => root.render(createElement(StrictMode, null,
+    createElement(Fragment, null, area ? picker : null, tour ? createElement(FirstRunTour) : null),
+  ));
+  try {
+    setMapFirstVisitArrivalCardVisible(true);
+    await act(async () => render(true, false));
+    await act(async () => setMapFirstVisitArrivalCardVisible(false));
+    await act(async () => render(true, true));
+    expect(host.querySelector(".chooseAreaSheet")).not.toBeNull();
+    expect(host.querySelector(".tourScrim")).toBeNull();
+    expect(promptBudgetHolder()).toBeNull();
+    expect(window.localStorage.getItem("pubmax-tour-v2-done")).toBeNull();
+
+    await act(async () => render(false, true));
+    expect(host.querySelector(".tourScrim")).not.toBeNull();
+    expect(promptBudgetHolder()).toBe("first-run-tour");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    setMapFirstVisitArrivalCardVisible(false);
+    window.localStorage.clear();
+    window.sessionStorage.clear();
   }
 });
 
