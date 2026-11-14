@@ -76,11 +76,6 @@ export function formatPence(pence: number): string {
   return Number.isInteger(pounds) ? `£${pounds}` : `£${pounds.toFixed(2)}`;
 }
 
-/** A stamp on a card: always pounds and pence, so a column of prices lines up. */
-export function formatPenceFixed(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`;
-}
-
 export function walkLabel(minutes: number): string {
   return `${minutes} min walk`;
 }

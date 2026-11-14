@@ -5,11 +5,11 @@ import { useId, useState } from "react";
 import {
   calculateCrawlCost,
   CRAWL_LIMITS,
-  formatPence,
   parsePriceToPence,
   parseWholeNumber,
   type CrawlCostField,
 } from "@/lib/crawlCostCalculator";
+import { formatPence } from "@/lib/formatGbp";
 
 export type PriceSuggestion = { price: string; label: string };
 
