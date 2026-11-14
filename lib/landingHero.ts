@@ -90,22 +90,15 @@ export type LandingAnswerScope =
   | "widened";
 
 /**
- * THE ONE PRIMARY ON THE FRONT DOOR (captain 7 Sep 2026).
- *
- * It used to be "Still £6.50?", the Pint Drop door for a pub the reader had
- * never seen, and that door ends in a sign-in ask before anybody has been given
- * anything (the live walk's B3, and PlanAstra section 3 removes it by name).
- * `/near` answers instead: it geolocates on this tap alone, and a reader who
- * says no is answered from a London patch rather than a wall
- * (components/nearme/NearMeNow.tsx). One tap, an answer, no account.
- *
- * It is the same door for EVERY visitor (owner decision 16 Oct 2026). It used
- * to send a first-time visitor through the five-step first-run journey first,
- * which made the answer wait behind a gate. The journey is offered on `/near`
- * as a chip instead (components/nearme/NearOnboardingChip.tsx), never in front.
+ * The Pal-first front door keeps model access behind sign-in.
+ * Signed-in readers go straight to chat without companion customisation.
+ * Guests keep that destination through the existing sign-in route.
+ * The quiet near-me door still answers without an account or setup.
  */
-export const LANDING_PRIMARY_HREF = "/near?locate=1";
-export const LANDING_PRIMARY_LABEL = "Cheapest pints near me";
+export const LANDING_PRIMARY_HREF = "/pal/chat";
+export const LANDING_PRIMARY_LABEL = "Ask your Pub Pal";
+export const LANDING_SIGN_IN_HREF = "/login?from=%2Fpal%2Fchat";
+export const LANDING_SIGN_IN_LABEL = "Sign in for Pub Pal";
 
 /**
  * The receipt door's one label, with or without a card behind it (UX audit
@@ -165,30 +158,19 @@ export function anchorZoneChip(station: { name: string; zone: number }): { text:
 }
 
 /**
- * The hero's quiet row (#1488, rebuilt 7 Sep 2026, and again 1 Nov 2026).
- *
- * Under the hunt card the front door offers two things to do with a cheap
- * pint: find the cheapest near you (the primary) and plan a crawl (captain
- * decision 2, 1 Nov 2026). Plan a crawl took the place of "What's on tonight",
- * which #1488 put here because Tonight then had no tap on the phone's home
- * screen. It has one now: the five-tab dock (decision 13) carries Tonight on
- * every route, the landing included, and the bar's link row carries it from
- * 641px. The Screen primitive caps this row at two doors, so one had to go.
- *
- * The Pint Drop door rides beside it as the FIRST quiet door. It was the
- * landing's primary until the captain moved the front door onto `/near`, and it
- * is dynamic (it carries the anchor pub's own id and price), so it cannot live
- * in this table. `components/landing/LandingHero.tsx` renders it and this table
- * holds the rest of the row.
+ * The quiet row keeps both price doors beside the Pal-first action.
+ * The receipt door starts with a pub choice, not the featured pub's price.
+ * Near me still answers without sign-in, including when location is refused.
+ * Plan remains in the existing navigation and follows a selected Pal answer.
  */
-const PLAN_DOOR_HREF = "/plan";
-const PLAN_DOOR_LABEL = "Plan a crawl";
+export const LANDING_NEAR_HREF = "/near?locate=1";
+const NEAR_DOOR_LABEL = "Cheapest pints near me";
 
 export type LandingQuietDoor = {
   href: Route;
   label: string;
   /** The `landing_cta_clicked` target this door reports. */
-  cta: "plan";
+  cta: "near";
   /** A class the door carries for its own width rule, where it has one. */
   className?: string;
 };
@@ -202,10 +184,10 @@ export type LandingQuietDoor = {
  */
 export const LANDING_QUIET_DOORS: readonly LandingQuietDoor[] = [
   {
-    href: PLAN_DOOR_HREF,
-    label: PLAN_DOOR_LABEL,
-    cta: "plan",
-    className: "lpPlanDoor",
+    href: LANDING_NEAR_HREF,
+    label: NEAR_DOOR_LABEL,
+    cta: "near",
+    className: "lpNearDoor",
   },
 ];
 
@@ -259,4 +241,4 @@ export function answerEvidenceFor(
 }
 
 /** The visible introduction stays independent of metadata and link-preview copy. */
-export const LANDING_INTRO = "Find a London pub, compare listed pint prices and plan your night.";
+export const LANDING_INTRO = "Tell your Pub Pal what you fancy. Pick a London pub and make a Plan your friends can join.";

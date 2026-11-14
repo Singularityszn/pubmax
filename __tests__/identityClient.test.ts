@@ -167,6 +167,17 @@ describe("post-callback handle claim routing", () => {
     return vi.fn(async () => Response.json({ handle }));
   }
 
+  it.each(["/pal/chat", "https://pubmaxxing.com/pal/chat"])("keeps Pal chat through callback and account claiming: %s", async (landedUrl) => {
+    const destination = await handleClaimRouteAfterSignIn(
+      SESSION,
+      landedUrl,
+      storageWith(new Map()),
+      requestAnswering(null),
+    );
+    expect(destination).toBe("/u/you?returnTo=%2Fpal%2Fchat");
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe("/pal/chat");
+  });
+
   it("keeps a tapped one-pub night through the claim", async () => {
     const door = "/social/crews/50000000-0000-4000-8000-000000000001?there=1";
     await expect(

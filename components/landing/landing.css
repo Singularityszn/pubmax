@@ -129,7 +129,7 @@ body:has(.lp) {
   letter-spacing: -.04em;
 }
 
-.lpHero .screenAnswer { min-width: 0; margin-top: var(--space-2); }
+.lpHero .lpHuntAnswer { min-width: 0; margin-top: var(--space-2); }
 
 /* On a desktop the copy and the answer share the first screen from the top:
    the grid starts under the nav rather than floating at the vertical centre.
@@ -162,7 +162,7 @@ body:has(.lp) {
   .lpHero .screenTitle { grid-area: title; }
   .lpHero .screenLede { grid-area: lede; max-width: 34ch; }
   .lpHero .screenActions { grid-area: actions; margin-top: var(--space-2); }
-  .lpHero .screenAnswer { grid-area: answer; align-self: end; margin-top: 0; }
+  .lpHero .lpHuntAnswer { grid-area: answer; align-self: end; margin-top: 0; }
   .lpHero .lpAnswerCard { grid-area: card; }
   .lpHero .lpRail { grid-area: rail; margin-top: var(--space-2); }
 }
@@ -699,7 +699,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
    states here is the width half of the 44px tap floor, which a short label
    alone does not promise. e2e/mobile-landing-entry.spec.ts measures the
    rendered box at 320, 360, 390 and 430. */
-.lpPlanDoor { min-width: 44px; justify-content: center; }
+.lpNearDoor { min-width: 44px; justify-content: center; }
 
 /* Variant B: three rows under the answer, one column at every width. Rows,
    not cards: a hairline between each, and the price stamp on the right. */
@@ -762,7 +762,7 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
 @media (max-width: 640px) and (max-height: 640px) {
   .lpHero { padding-top: calc(max(10px, env(safe-area-inset-top)) + var(--topbar-h, 52px) + var(--space-2)); }
   .lpHero .screenHead { gap: var(--space-1); }
-  .lpHero .screenAnswer { margin-top: 0; }
+  .lpHero .lpHuntAnswer { margin-top: 0; }
   .lpHero .lpHuntCard { padding-block: var(--space-2); }
   /* Compact card padding and a shared price/pub row keep the primary clear
      of the docked consent card at 320x568. The pub line wraps beside the badge

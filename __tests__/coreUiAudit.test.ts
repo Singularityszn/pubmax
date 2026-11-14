@@ -139,12 +139,12 @@ const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
 const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
-  it("makes the near-me answer the landing hero's one primary action", () => {
+  it("opens Pal through sign-in and keeps the public price door", () => {
     const rendered = renderToStaticMarkup(createElement(LandingPage));
     const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();
     expect(hero).toMatch(
-      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/,
     );
     expect(hero?.match(/data-primary-action/g)).toHaveLength(1);
     expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);

@@ -7,6 +7,10 @@ import { safeLeagueInviteReturnTo } from "@/lib/leagues";
 
 const RETURN_ORIGIN = "https://pubmax.invalid";
 
+export function safePalChatReturnTo(raw: string | null | undefined): Route | null {
+  return raw === "/pal/chat" ? "/pal/chat" : null;
+}
+
 export function safePlanReturnTo(raw: string | null | undefined): Route | null {
   if (typeof raw !== "string") return null;
   const candidate = raw.trim();
@@ -60,7 +64,8 @@ function accountClaimReturnTo(raw: string | null | undefined): Route | null {
     ?? safePlanReturnTo(raw)
     ?? safeTableRequestReturnTo(raw)
     ?? safePintDropDoorReturnTo(raw)
-    ?? safeStillTrueReturnTo(raw);
+    ?? safeStillTrueReturnTo(raw)
+    ?? safePalChatReturnTo(raw);
 }
 
 const STILL_TRUE_CREW_PATH = /^\/social\/crews\/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;

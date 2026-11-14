@@ -24,8 +24,8 @@ import {
 } from "@/lib/drinks";
 
 // ── Types ────────────────────────────────────────────────────────────────────
-export type PersonaKind = "person" | "fictional";
-export type PersonaConfidence = "high" | "medium" | "low";
+type PersonaKind = "person" | "fictional";
+type PersonaConfidence = "high" | "medium" | "low";
 
 // A single persona-drink fact. `drinkCategory` is already the closed
 // DrinkCategory id (the crawl mapped its raw categories to our set); the loader

@@ -7,6 +7,8 @@ import {
   LANDING_FIRST_RUN_HREF,
   LANDING_PRIMARY_HREF,
   LANDING_PRIMARY_NAME,
+  LANDING_NEAR_NAME,
+  LANDING_NEAR_HREF,
   NEAR_FIRST_RUN_CHIP_NAME,
   LANDING_RECEIPT_HREF,
   LANDING_RECEIPT_NAME,
@@ -41,7 +43,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "What a pint costs, pub by pub.",
+      name: "Make the group chat a real night.",
       exact: true,
     }),
   ).toBeVisible();
@@ -65,8 +67,22 @@ test("landing nav speaks the app's vocabulary and the footer keeps Social", asyn
   await expect(footerSocial).toHaveCount(1);
 });
 
+for (const signedIn of [false, true]) {
+  test(`Pal entry ${signedIn ? "opens chat without another sign-in" : "keeps the chat destination through sign-in"}`, async ({ page }) => {
+    await installAuthDoubles(page);
+    if (signedIn) await seedSignedIn(page, "A");
+    await page.goto("/");
+
+    const primary = page.locator(".lpHero [data-primary-action] a");
+    const destination = signedIn ? "/pal/chat" : "/login?from=%2Fpal%2Fchat";
+    await expect(primary).toHaveAttribute("href", destination);
+    await primary.click();
+    await expect(page).toHaveURL(new URL(destination, page.url()).href);
+  });
+}
+
 test.describe("landing hierarchy", () => {
-  test("keeps the near-me answer primary and the receipt door first in the quiet row", async ({ page }) => {
+  test("leads with Pal and keeps public price links in the quiet row", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHero");
@@ -83,8 +99,8 @@ test.describe("landing hierarchy", () => {
     await expect(secondary).toHaveCount(2);
     await expect(secondary.first()).toHaveAttribute("href", LANDING_RECEIPT_HREF);
     await expect(secondary.first()).toHaveText(LANDING_RECEIPT_NAME);
-    await expect(secondary.nth(1)).toHaveAttribute("href", "/plan");
-    await expect(secondary.nth(1)).toHaveText("Plan a crawl");
+    await expect(secondary.nth(1)).toHaveAttribute("href", LANDING_NEAR_HREF);
+    await expect(secondary.nth(1)).toHaveText(LANDING_NEAR_NAME);
 
     // Nothing else on the page is a filled button.
     await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
@@ -123,9 +139,9 @@ test.describe("landing hierarchy", () => {
       });
       await page.goto("/");
 
-      const primary = page.locator(".lpHero [data-primary-action]").getByRole("link", { name: LANDING_PRIMARY_NAME });
-      await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
-      await primary.click();
+      const near = page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME });
+      await expect(near).toHaveAttribute("href", LANDING_NEAR_HREF);
+      await near.click();
 
       await expect(page).toHaveURL(/\/near\?locate=1/);
       await expect(page.getByRole("heading", { name: "London is ready." })).toHaveCount(0);
@@ -287,7 +303,7 @@ test.describe("landing hierarchy", () => {
   test("reads the same order on a phone as on a desktop: heading, line, hunt card, primary, quiet row, pub, rail", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero .lpHuntCard", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpHuntCard", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );
@@ -393,8 +409,8 @@ test(`homepage quiet actions remain clickable on a narrow phone with ${textSize}
     expect(hits, await link.innerText()).toEqual(Array<boolean>(9).fill(true));
   }
 
-  await page.locator(".lpHero").getByRole("link", { name: "Plan a crawl", exact: true }).click();
-  await expect(page).toHaveURL(/\/plan$/);
+  await page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME, exact: true }).click();
+  await expect(page).toHaveURL(/\/near\?locate=1(?:&patch=[^&]+)?$/);
 });
 }
 
@@ -415,7 +431,7 @@ for (const viewport of [{ width: 320, height: 568 }, { width: 390, height: 844 }
         // create action stands over the first pub card (captain, 1 Nov 2026).
         const topBar = page.locator("header.lpNav");
         const palDoor = topBar.getByRole("link", { name: withPal ? "Pub Pal, Ripley" : "Pub Pal", exact: true });
-        await expect(primary).toHaveAttribute("href", LANDING_PRIMARY_HREF);
+        await expect(primary).toHaveAttribute("href", withPal ? "/pal/chat" : LANDING_PRIMARY_HREF);
         await expect(page.getByRole("button", { name: "Create", exact: true })).toHaveCount(0);
         await expect(palDoor).toBeVisible();
         await expect(palDoor).toHaveAttribute("href", "/pal");

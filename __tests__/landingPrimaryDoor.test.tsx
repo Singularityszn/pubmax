@@ -46,7 +46,7 @@ async function render(element: ReturnType<typeof createElement>) {
   });
 }
 
-function primaryHref(): string | null {
+function nearHref(): string | null {
   const link = [...container.querySelectorAll("a")].find(
     (anchor) => anchor.textContent === "Cheapest pints near me",
   );
@@ -74,29 +74,29 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 
-describe("the landing hero's primary", () => {
+describe("the landing hero's public price door", () => {
   it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 
   it("keeps /near for a returning visitor with the seen mark", async () => {
     markTourSeen();
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 
   it("does not move when the seen mark is recorded", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
 
     await act(async () => {
       markTourSeen();
     });
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 });
 
