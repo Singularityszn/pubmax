@@ -128,13 +128,13 @@ describe("home card figures are derived, never typed in", () => {
 });
 
 describe("home card copy", () => {
-  it("says what the landing page says", () => {
+  it("keeps the price-aware share card and the Pal-first landing distinct", () => {
     const landing = renderToStaticMarkup(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
     const hero = `${HOME_CARD_HERO_LEAD} ${HOME_CARD_HERO_TAIL} ${HOME_CARD_HERO_ACCENT}`;
     expect(hero).toBe("What a pint costs, pub by pub.");
-    expect(landing).toMatch(/<h1[^>]*>What a pint costs, pub by pub\.<\/h1>/u);
+    expect(landing).toMatch(/<h1[^>]*>Make the group chat a real night\.<\/h1>/u);
 
-    expect(landing).toContain("Find a London pub, compare listed pint prices and plan your night.");
+    expect(landing).toContain("Tell your Pub Pal what you fancy.");
     expect(HOME_CARD_SUPPORT).toContain("historic pubs cited and a listed price wherever we hold one");
     expect(HOME_CARD_SUPPORT).toContain("Plan a crawl and share the route with your mates");
     expect(homeMetadata.description).toBe(HOME_CARD_SUPPORT);
