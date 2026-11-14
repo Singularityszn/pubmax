@@ -221,8 +221,10 @@
 
 /* Touch floor on phones. Each link is a 44px box, but in prose its negative
    block margins return the line to its own height, so the paragraph keeps its
-   rhythm. Positioning paints the box above the next line, so a tap anywhere in
-   it reaches the link. Standalone links keep their own 44px row. */
+   rhythm. Inline padding with matching negative margins widens a short link,
+   such as "X", past the 24px width floor without moving the words around it.
+   Positioning paints the box above the next line, so a tap anywhere in it
+   reaches the link. Standalone links keep their own 44px row. */
 @media (pointer: coarse), (max-width: 640px) {
   .aboutLink {
     position: relative;
@@ -231,11 +233,14 @@
     min-height: var(--control-height);
     max-width: 100%;
     margin-block: min(0px, calc((1lh - var(--control-height)) / 2));
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
   }
 
   .aboutLogoLinks .aboutLink,
   .aboutCtaRow .aboutLink {
-    margin-block: 0;
+    margin: 0;
+    padding-inline: 0;
   }
 }
 
