@@ -66,6 +66,7 @@ import { useStepHistory } from "@/lib/useStepHistory";
 
 // How long the wake-up stretch plays after the person unmutes their Pal.
 const PAL_WAKE_MS = 1_400;
+const PAL_WRITTEN_ASK_HREF = "/pal/chat";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
@@ -244,10 +245,13 @@ export function PalMeetingScreen({
   appearance,
   onMeet,
   pending = false,
+  askInWriting = false,
 }: {
   appearance: PubPalAppearance;
   onMeet: () => void;
   pending?: boolean;
+  /** The viewer may ask in writing now, before choosing a look, name or voice. */
+  askInWriting?: boolean;
 }) {
   const clientReady = useClientReady();
   const yearDoor = useYearDoor();
@@ -270,7 +274,12 @@ export function PalMeetingScreen({
           {pending ? <p role="status">Opening your Pub Pal…</p> : null}
           </>
         }
-        secondary={<Link href="/map">Back to the map</Link>}
+        secondary={
+          <>
+            <Link href="/map">Back to the map</Link>
+            {askInWriting ? <Link href={PAL_WRITTEN_ASK_HREF} prefetch={false}>Ask in writing</Link> : null}
+          </>
+        }
       >
         <div className="palMeetingPortrait">
           {/* The meeting screen's LCP element on a desktop: measured at 403 CSS
@@ -444,7 +453,9 @@ function PalOnboardingScreen({
   signedIn,
   saving,
   createPal,
+  askInWriting,
 }: {
+  askInWriting: boolean;
   step: number;
   firstStep: number;
   stepCount: number;
@@ -469,7 +480,9 @@ function PalOnboardingScreen({
       <div className="palTopbar">
         <button type="button" onClick={() => step <= firstStep ? setMode("meeting") : setStep((current) => current - 1)}><ArrowLeft size={16} /> Back</button>
         <span>{step + 1 - firstStep} of {stepCount}</span>
-        <Link href="/map">Skip Pal</Link>
+        {askInWriting
+          ? <Link href={PAL_WRITTEN_ASK_HREF} prefetch={false}>Ask in writing</Link>
+          : <Link href="/map">Skip Pal</Link>}
       </div>
       <div className="palProgress" aria-hidden="true"><span style={{ width: `${((step + 1 - firstStep) / stepCount) * 100}%` }} /></div>
       <div className="palOnboardingLayout">
@@ -589,6 +602,9 @@ export default function PalExperience() {
   // The account already answered the age question as an adult (a stored date of
   // birth or the recorded tap), so setup does not ask it a second time.
   const [adultOnFile, setAdultOnFile] = useState(false);
+  // Only the server's explicit "not under 18" counts. An unknown answer offers
+  // no written-ask door, the rule voice follows (usePalVoiceEligibility.ts).
+  const [notUnder18, setNotUnder18] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
@@ -702,6 +718,7 @@ export default function PalExperience() {
       if (activeOwnerRef.current !== ownerId) return;
       setActiveOwnerId(ownerId);
       setAdultOnFile(false);
+      setNotUnder18(false);
       setPal(null);
       setMemories([]);
       setEditingMemoryId("");
@@ -718,9 +735,10 @@ export default function PalExperience() {
 
     void authedActionFetch("/api/pub-pal", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
-        const body = await response.json().catch(() => ({})) as { pal?: PubPal | null; adultOnFile?: boolean };
+        const body = await response.json().catch(() => ({})) as { pal?: PubPal | null; adultOnFile?: boolean; under18?: boolean };
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
         setAdultOnFile(response.ok && body.adultOnFile === true);
+        setNotUnder18(response.ok && body.under18 === false);
         const next = response.ok ? body.pal ?? null : readStoredPal(getCurrentUserId());
         if (next?.ownerId === ownerId) {
           setActivePlanPalContext({ id: next.id, name: next.name }, getCurrentUserId());
@@ -1059,6 +1077,12 @@ export default function PalExperience() {
     }
   };
 
+  // Look, name and voice are optional, so they must not stand between a
+  // signed-in adult and a written answer. The door needs an account (the chat
+  // route refuses a configured model without one) and the 18+ answer, on file
+  // or ticked in this setup. Until both hold, the age step stays in the way.
+  const askInWriting = Boolean(user) && notUnder18 && (adultOnFile || draft.adultConfirmed);
+
   const ownerTransitioning = !loading && (
     activeOwnerId !== (user?.id ?? "") ||
     draftOwner !== (user?.id ?? anonymousOwner)
@@ -1111,12 +1135,14 @@ export default function PalExperience() {
       <PalMeetingScreen
         appearance={draft.appearance}
         onMeet={() => setMode("onboarding")}
+        askInWriting={askInWriting}
       />
     );
   }
 
   return (
     <PalOnboardingScreen
+      askInWriting={askInWriting}
       step={step}
       firstStep={firstStep}
       stepCount={stepCount}

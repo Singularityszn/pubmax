@@ -521,7 +521,7 @@ body:has(.palOnboarding) .nightPill { display: none; }
      instead of hiding behind either. */
   .palExperience { padding: 1.75rem var(--page-gutter) calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 3.25rem + var(--night-pill-clearance, 0px)); }
   .palTopbar { grid-template-columns: 1fr auto; }
-  .palOnboarding .palTopbar { grid-template-columns: 1fr auto 1fr; }
+  .palOnboarding .palTopbar { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: clamp(4px, 2vw, 8px); }
   .palHomeHero, .palOnboardingLayout, .palControls { grid-template-columns: 1fr; }
   .palMeeting .palMeetingStage { min-height: auto; align-content: start; gap: 1rem; }
   .palMeetingPortrait, .palHomePortrait { min-height: 14rem; }

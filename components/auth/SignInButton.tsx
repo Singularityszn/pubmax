@@ -385,7 +385,7 @@ export default function SignInButton({
       // links point at /u/you, which is the claim surface itself.
       return (
         <div
-          className="authUser authUserNav"
+          className="authUser authUserNav authUserNavAccount"
           ref={rootRef}
           data-auth-configured="true"
           data-auth-resolved={clientHydrated ? "true" : "false"}
