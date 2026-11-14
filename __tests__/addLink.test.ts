@@ -58,6 +58,26 @@ describe("add-link doors", () => {
 });
 
 describe("the add link survives account creation", () => {
+  it("keeps Pal chat through both login doors and account claiming", () => {
+    const door = "/pal/chat";
+    expect(loginDestination("signin", door)).toBe(door);
+    const destination = loginDestination("signup", door);
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
+  });
+
+  it.each([
+    "//evil.test/pal/chat",
+    "https://evil.test/pal/chat",
+    "/pal/chat?returnTo=https://evil.test",
+    "/pal/chat#outside",
+    "/pal/chat/extra",
+    "/pal/../login",
+  ])("does not retain an unsupported Pal return through signup: %s", (door) => {
+    expect(loginDestination("signup", door)).toBe("/u/you");
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(door)}`)).toBeNull();
+  });
+
   it("keeps a league invitation through both login doors and handle claiming", () => {
     const invitation = "/social/leagues/join/ABCDEFGH";
     expect(loginDestination("signin", invitation)).toBe(invitation);

@@ -5,7 +5,7 @@ import {
   captureAccountAuth,
   type AccountBoundRequest,
 } from "@/lib/accountBoundFetch";
-import { safePintDropDoorReturnTo, safeStillTrueReturnTo } from "@/lib/accountClaimReturnTo";
+import { safePalChatReturnTo, safePintDropDoorReturnTo, safeStillTrueReturnTo } from "@/lib/accountClaimReturnTo";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import {
   deviceAccountOwner,
@@ -189,7 +189,8 @@ export async function handleClaimRouteAfterSignIn(
     const destination = `${landed.pathname}${landed.search}`;
     returnTo = safePintDropDoorReturnTo(destination)
       ?? safeLeagueInviteReturnTo(destination)
-      ?? safeStillTrueReturnTo(destination);
+      ?? safeStillTrueReturnTo(destination)
+      ?? safePalChatReturnTo(destination);
   } catch {
     return null;
   }
