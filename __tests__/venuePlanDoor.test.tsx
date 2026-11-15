@@ -382,7 +382,7 @@ describe("desktop reads the same one door", () => {
       initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: accept, onToggle: toggle, phone: false,
     })));
     expect(host.querySelector(".mapDrawer .venueActionCard")).toBeTruthy();
-    const secondary = expandMore();
+    const secondary = moreActions();
     expect(Array.from(secondary.querySelectorAll("button"), (button) => button.getAttribute("aria-label"))).toEqual([
       "Ask for a table at The Plan Door", "Summon mates to The Plan Door", "Share The Plan Door",
     ]);
