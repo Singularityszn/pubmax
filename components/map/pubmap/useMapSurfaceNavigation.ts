@@ -407,6 +407,8 @@ export function useMapSurfaceNavigation({
       ) {
         onSurfaceCloseRef.current();
       }
+      const journeyRoot = next[0] ?? previous[0];
+      if (journeyRoot) rootStateRef.current = journeyRoot.state;
       publishStack(next);
       onRestoreRef.current(currentSurface(next));
       if (next.length === 0 && rootStateRef.current?.returnCamera) {
