@@ -42,7 +42,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 export type VenueRequirement = (
   | { kind: "garden" | "outdoor-seating" | "darts" | "pool" | "dogs" | "quiz" }
   | { kind: "drink"; label: string; match: DrinkMatch }
-) & { excluded?: true };
+) & { excluded?: true; unclear?: true };
 
 type DrinkMatch =
   | { by: "brand"; brand: DrinkBrand }
@@ -118,18 +118,30 @@ function governingNegator(words: readonly string[], end: number, fillers: Readon
   return index >= 0 && NEGATORS.has(words[index]!) && !NEGATION_IDIOMS.has(words[index + 1] ?? "") ? index : null;
 }
 
-function negatedBefore(padded: string, at: number): boolean {
-  const words = padded.slice(0, Math.max(0, at)).trim().split(/\s+/).filter(Boolean);
-  if (governingNegator(words, words.length, NEGATION_FILLERS) !== null) return true;
-  let index = words.length - 1;
-  while (index >= 0 && DETERMINERS.has(words[index]!)) index -= 1;
-  if (index < 0 || !COORDINATORS.has(words[index]!)) return false;
-  for (let back = index - 1; back >= 0 && index - back <= NEGATION_REACH; back -= 1) {
+type NegationScope = "stated" | "unclear" | null;
+
+function negatorInClause(words: readonly string[], end: number): boolean {
+  for (let back = end - 1; back >= 0; back -= 1) {
     const word = words[back]!;
     if (CLAUSE_BREAKS.has(word)) return false;
     if (NEGATORS.has(word) && !NEGATION_IDIOMS.has(words[back + 1] ?? "")) return true;
   }
   return false;
+}
+
+function negatedBefore(padded: string, at: number): NegationScope {
+  const words = padded.slice(0, Math.max(0, at)).trim().split(/\s+/).filter(Boolean);
+  if (governingNegator(words, words.length, NEGATION_FILLERS) !== null) return "stated";
+  let index = words.length - 1;
+  while (index >= 0 && DETERMINERS.has(words[index]!)) index -= 1;
+  if (index >= 0 && COORDINATORS.has(words[index]!)) {
+    for (let back = index - 1; back >= 0 && index - back <= NEGATION_REACH; back -= 1) {
+      const word = words[back]!;
+      if (CLAUSE_BREAKS.has(word)) break;
+      if (NEGATORS.has(word) && !NEGATION_IDIOMS.has(words[back + 1] ?? "")) return "stated";
+    }
+  }
+  return negatorInClause(words, words.length) ? "unclear" : null;
 }
 
 function categoryIndex(padded: string, category: DrinkCategory): number {
@@ -144,12 +156,13 @@ function categoryIndex(padded: string, category: DrinkCategory): number {
   return hit?.at ?? -1;
 }
 
-function excludedIf<T extends VenueRequirement>(requirement: T, excluded: boolean): T {
-  return excluded ? { ...requirement, excluded: true } : requirement;
+function excludedIf<T extends VenueRequirement>(requirement: T, scope: NegationScope): T {
+  if (scope === "unclear") return { ...requirement, excluded: true, unclear: true };
+  return scope === "stated" ? { ...requirement, excluded: true } : requirement;
 }
 
 /** Takes the first needle found, so a brand's words cannot also count as a style. */
-function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: boolean } | null {
+function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: NegationScope } | null {
   const hit = needles.find((needle) => needle && padded.includes(` ${needle} `));
   return hit ? { rest: withoutPhrase(padded, hit), excluded: negatedBefore(padded, padded.indexOf(` ${hit} `)) } : null;
 }
@@ -189,7 +202,7 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
     const alcoholFree = category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.exec(padded) : null;
     if (category === "alcohol-free" ? alcoholFree : haystackMatchesCategory(padded, category)) {
       const at = alcoholFree?.index ?? categoryIndex(padded, category);
-      found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, at >= 0 && negatedBefore(padded, at)));
+      found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, at >= 0 ? negatedBefore(padded, at) : null));
     }
   }
   return { found, rest: padded };
@@ -199,7 +212,7 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 export function venueRequirementsInText(text: string): VenueRequirement[] {
   const drinks = drinkRequirements(text.replace(/[,;:.!?()]+/g, " but "));
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
-    if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, true)];
+    if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, "stated")];
     const hit = pattern.exec(drinks.rest);
     return hit ? [excludedIf({ kind }, negatedBefore(drinks.rest, hit.index))] : [];
   });
@@ -231,7 +244,7 @@ export type RequirementProof = { requirement: string; source: string; observedAt
 
 export function requirementKey(requirement: VenueRequirement): string {
   const key = requirement.kind === "drink" ? `drink:${requirement.label}` : requirement.kind;
-  return requirement.excluded ? `not:${key}` : key;
+  return requirement.unclear ? `unclear:${key}` : requirement.excluded ? `not:${key}` : key;
 }
 
 export function venueQuizListings(rows: readonly WhatsOnRow[], now: number): Map<string, QuizListing> {
@@ -417,6 +430,7 @@ function requirementLabel(requirement: VenueRequirement): string {
 }
 
 function coverageGapReason(requirement: VenueRequirement): string {
+  if (requirement.unclear) return `I can't tell whether you want ${requirementLabel(requirement)} or not`;
   if (requirement.excluded) {
     return requirement.kind === "dogs"
       ? "I can't check that a pub turns dogs away"
