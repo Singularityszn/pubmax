@@ -139,7 +139,7 @@
   cursor: default;
 }
 
-@media (max-width: 480px) {
+@media (max-width: 640px) {
   .starterPacks__card {
     grid-template-columns: minmax(0, 1fr) auto;
   }
