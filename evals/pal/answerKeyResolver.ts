@@ -1,5 +1,6 @@
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
 import type { VenuePrice } from "@/lib/venues";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
@@ -57,8 +58,6 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   },
 };
 
-const ALCOHOL_FREE_DRINK_NAME = /\b(?:alcohol[- ]free|non[- ]alcoholic|0\.0%?|zero alcohol|lucky saint|nanny state|big drop|becks? blue)\b/i;
-
 type EvalPriceRow = Pick<VenuePrice, "pint_name" | "pub_url" | "scraped_at_values">;
 
 function readBefore(row: EvalPriceRow, now: number): boolean {
@@ -69,7 +68,7 @@ function readBefore(row: EvalPriceRow, now: number): boolean {
 }
 
 const PAL_EVAL_REQUIRED_FACT: Record<string, (rows: readonly EvalPriceRow[], now: number) => boolean> = {
-  "non-alcoholic-soho": (rows, now) => rows.some((row) => ALCOHOL_FREE_DRINK_NAME.test(row.pint_name ?? "")
+  "non-alcoholic-soho": (rows, now) => rows.some((row) => isNonAlcoholicDrink(row.pint_name ?? "")
     && /^https?:\/\//.test(row.pub_url ?? "") && readBefore(row, now)),
 };
 

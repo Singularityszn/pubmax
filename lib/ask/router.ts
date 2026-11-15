@@ -44,7 +44,7 @@ export function refineVenueBudgetFollowUp(query: string, priorUserContent: strin
 }
 
 function isPlacelessRequirementAsk(text: string): boolean {
-  if (extractArea(text) || /\b(?:in|near|around|by)\s+\S/i.test(text)) return false;
+  if (extractArea(text)) return false;
   return requestedVenueCount(text) !== null
     || venueRequirementsInText(text).some((requirement) => requirement.kind !== "drink");
 }
