@@ -37,10 +37,12 @@ const EMPTY_BASE: Props["ukBaseModel"] = { rows: [], total: 0, shown: 0, truncat
 const EMPTY_RESTAURANTS: Props["restaurantModel"] = { rows: [], total: 0, shown: 0, truncated: false };
 
 /** A stand-in for the live MapLibre map: a container and a projection. */
-function fakeMap() {
+function fakeMap(alreadyIdle = false) {
   const container = document.createElement("div");
   const handlers = new Map<string, Set<() => void>>();
   const map = {
+    loaded: () => alreadyIdle,
+    isMoving: () => !alreadyIdle,
     getContainer: () => container,
     project: ([lng, lat]: [number, number]) => ({ x: Math.round((lng + 0.14) * 10_000), y: Math.round((51.52 - lat) * 10_000) }),
     on: (type: string, handler: () => void) => {
@@ -371,8 +373,8 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
   });
 
-  it("resumes the settled live view after return when the old viewport cannot be restored", () => {
-    const map = fakeMap();
+  it.each([false, true])("resumes the live view when the old viewport cannot be restored, already idle=%s", async (alreadyIdle) => {
+    const map = fakeMap(alreadyIdle);
     const filters = {};
     render({ map: map.map, detailOpen: false, filterState: filters });
     const scroller = host.querySelector<HTMLDivElement>(".mapSplitListScroll")!;
@@ -382,8 +384,8 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     scroller.scrollTop = 0;
     render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
-    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
-    act(() => map.emit("idle"));
+    await act(async () => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    if (!alreadyIdle) act(() => map.emit("idle"));
     expect(rowNames()).toEqual(["The Lamb"]);
     expect(host.querySelector(".mapSplitList")?.getAttribute("aria-busy")).toBe("false");
     expect(scroller.scrollTop).toBe(350);
