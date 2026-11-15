@@ -1,4 +1,7 @@
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
+import type { VenuePrice } from "@/lib/venues";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { rankConciergeVenues, type ConciergeVenue } from "@/lib/concierge/rank";
@@ -55,6 +58,20 @@ const PAL_EVAL_ROUTING: Record<string, Partial<PalEvalAnswerExpectations>> = {
   },
 };
 
+type EvalPriceRow = Pick<VenuePrice, "pint_name" | "pub_url" | "scraped_at_values">;
+
+function readBefore(row: EvalPriceRow, now: number): boolean {
+  return String(row.scraped_at_values ?? "").split("|").some((value) => {
+    const read = Date.parse(value.trim());
+    return Number.isFinite(read) && read <= now;
+  });
+}
+
+const PAL_EVAL_REQUIRED_FACT: Record<string, (rows: readonly EvalPriceRow[], now: number) => boolean> = {
+  "non-alcoholic-soho": (rows, now) => rows.some((row) => isNonAlcoholicDrink(row.pint_name ?? "")
+    && /^https?:\/\//.test(row.pub_url ?? "") && readBefore(row, now)),
+};
+
 export type ResolveAnswerKeyContext = {
   now: number;
   cityId: string;
@@ -89,13 +106,17 @@ function cardFields(
 }
 
 async function firstSearchVenue(
+  caseId: string,
   query: string,
   cityId: string,
   now: number,
 ): Promise<{ venueId: string; price: number | null } | null> {
   const venues = await loadConciergeVenues(cityId as "london");
   const parsed = await parseConciergeIntent(query, { skipModel: true });
-  const ranked = rankConciergeVenues(venues, parsed.intent, {
+  const required = PAL_EVAL_REQUIRED_FACT[caseId];
+  const rowsById = required ? new Map((await getPricedVenues()).map((venue) => [venue.id, venue.prices])) : null;
+  const eligible = required ? venues.filter((venue) => required(rowsById?.get(venue.id) ?? [], now)) : venues;
+  const ranked = rankConciergeVenues(eligible, parsed.intent, {
     limit: 1,
     now,
     areaCircle: areaCircleForAsk(cityId as "london", parsed.intent.area),
@@ -245,7 +266,7 @@ async function resolveGeneratedAnswerKeyFields(
     case "plan-soho":
     case "followup-cheaper-camden":
     case "crawl-refine-cheaper": {
-      const hit = await firstSearchVenue(query, cityId, ctx.now);
+      const hit = await firstSearchVenue(caseDef.id, query, cityId, ctx.now);
       return hit ? cardFields(hit.venueId, hit.price) : { expectEmpty: true };
     }
     default:

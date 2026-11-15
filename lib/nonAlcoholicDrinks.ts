@@ -23,14 +23,10 @@ const NA_BRANDS: readonly string[] = [
   "st peter's without",
 ];
 
+export const NON_ALCOHOLIC_QUALIFIER = /\b(?:alcohol[\s-]?free|non[\s-]?alcoholic|low[\s-]alcohol|zero[\s-]alcohol|0[.,]0\b|0[.,]5\s*%|0\s*%|AF\b)/i;
+
 const NA_PATTERNS: readonly RegExp[] = [
-  /alcohol[\s-]?free/i, // "Alcohol Free", "alcohol-free"
-  /non[\s-]?alcoholic/i,
-  /\balcohol[\s-]?free\b/i,
-  /\b0[.,]0\b/, // 0.0
-  /\b0[.,]5\s*%/, // 0.5%
-  /\b0\s*%/, // 0%
-  /\bAF\b/, // "Punk AF" (word-boundary, so it won't hit "half"/"café")
+  NON_ALCOHOLIC_QUALIFIER,
   /(guinness|heineken|peroni|san miguel|corona|stella|birra moretti|estrella|madri|asahi)\s*0/i,
 ];
 

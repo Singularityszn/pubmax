@@ -7,6 +7,7 @@ import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
+import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 type SlimRow = Record<string, unknown>;
 
@@ -19,6 +20,38 @@ function bool(record: Record<string, unknown>, key: string): boolean {
 
 function optionalBool(record: Record<string, unknown>, key: string): boolean | undefined {
   return typeof record[key] === "boolean" ? record[key] as boolean : undefined;
+}
+
+function positiveObservation(value: unknown): VenueFeatureObservation | undefined {
+  return isVenueFeatureObservation(value) && value[0] ? value : undefined;
+}
+
+function amenityFlags(amenities: Record<string, unknown>): ConciergeVenue["amenities"] {
+  const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
+  return {
+    beerGarden: bool(amenities, "beerGarden"),
+    cocktails: bool(amenities, "cocktails"),
+    food: bool(amenities, "food"),
+    liveSports: bool(amenities, "liveSports"),
+    liveMusic: bool(amenities, "liveMusic"),
+    ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
+    ...(bool(amenities, "darts") ? { darts: true } : {}),
+    ...(bool(amenities, "pool") ? { pool: true } : {}),
+  };
+}
+
+function features(hints: Record<string, unknown>): Pick<ConciergeVenue, "features"> {
+  const garden = positiveObservation(hints.beerGardenSource);
+  const outdoorSeating = positiveObservation(hints.outdoorSeating);
+  const dogsWelcome = positiveObservation(hints.dogsWelcome);
+  if (!garden && !outdoorSeating && !dogsWelcome) return {};
+  return {
+    features: {
+      ...(garden ? { garden } : {}),
+      ...(outdoorSeating ? { outdoorSeating } : {}),
+      ...(dogsWelcome ? { dogsWelcome } : {}),
+    },
+  };
 }
 
 function pintEvidence(row: SlimRow): Pick<ConciergeVenue, "priceSource" | "priceObservedAt" | "anchorLabel" | "cheapestPint" | "measure"> {
@@ -51,8 +84,6 @@ function toVenue(value: unknown): ConciergeVenue | null {
   const curation = hints.curation && typeof hints.curation === "object" && !Array.isArray(hints.curation)
     ? hints.curation as Record<string, unknown>
     : {};
-  const nonAlcoholic = optionalBool(amenities, "nonAlcoholic");
-
   return {
     id: row.id,
     name: displayVenueName(row.name),
@@ -63,14 +94,8 @@ function toVenue(value: unknown): ConciergeVenue | null {
     cheapestPrice: row.cheapestPrice as number | null,
     ...(typeof row.zone === "number" && Number.isFinite(row.zone) ? { zone: row.zone } : {}),
     ...pintEvidence(row),
-    amenities: {
-      beerGarden: bool(amenities, "beerGarden"),
-      cocktails: bool(amenities, "cocktails"),
-      food: bool(amenities, "food"),
-      liveSports: bool(amenities, "liveSports"),
-      liveMusic: bool(amenities, "liveMusic"),
-      ...(nonAlcoholic === undefined ? {} : { nonAlcoholic }),
-    },
+    amenities: amenityFlags(amenities),
+    ...features(hints),
     nearWater: bool(curation, "nearWater"),
     hasStory: bool(curation, "hasStory"),
     canonical: hints.canonical === true,
