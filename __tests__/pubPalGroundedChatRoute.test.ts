@@ -102,10 +102,10 @@ describe("typed Pub Pal on Claude with no tool evidence", () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 
-  async function ask(stream: boolean) {
+  async function ask(stream: boolean, query = "Is The Crown in Soho any good?") {
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {
       method: "POST", headers: { "content-type": "application/json", accept: stream ? PAL_CHAT_STREAM_TYPE : "application/json" },
-      body: JSON.stringify({ query: "Is The Crown in Soho any good?", cityId: "london" }),
+      body: JSON.stringify({ query, cityId: "london" }),
     }));
     expect(response.status).toBe(200);
     if (!stream) return { deltas: [] as string[], body: await response.json() as AskResponseBody };
@@ -118,6 +118,19 @@ describe("typed Pub Pal on Claude with no tool evidence", () => {
     });
     return { deltas, body: body as unknown as AskResponseBody };
   }
+
+  it.each([false, true].flatMap((stream) => ["", "propose_plan"].map((tool) => ({ stream, tool }))))(
+    "keeps missing crawl details out of a generated plan, stream=$stream, tool=$tool", async ({ stream, tool }) => {
+      claude.tool = tool;
+      claude.reply = "The Golden Lion is perfect for your crawl.";
+      const { deltas, body } = await ask(stream, "Plan a pub crawl for my birthday, six of us");
+      expect(body.cards).toEqual([]);
+      expect(body.proposals).toEqual([]);
+      expect(body.answer).toMatch(/which area/i);
+      expect(body.answer).toMatch(/what time/i);
+      expect(deltas.join(" ")).not.toContain("Golden Lion");
+    },
+  );
 
   it.each(INVENTED_VENUE_REPLIES.flatMap((reply) => [false, true].map((stream) => ({ reply, stream }))))(
     "sends no model prose for $reply, stream=$stream", async ({ reply, stream }) => {
