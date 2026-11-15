@@ -387,7 +387,7 @@ export async function palChatLookupAnswer(
  * person: the message is the stored tool hints and cards, a memory card line,
  * or a record-authored question about what the ask leaves out.
  */
-export function palChatAnswer(
+function palChatAnswer(
   turn: PubPalToolTurn | null,
   conversationId: string,
   memories?: PalRecalledMemory[] | null,

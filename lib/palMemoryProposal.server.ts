@@ -47,8 +47,8 @@ function supportsMemory(kind: PubPalMemoryKind, value: string, lines: string[]):
       const text = normalise(sentence);
       if (/^forget\b/.test(text) && text === wanted) return true;
       const match = text.match(/(?:^|,\s*)(i\s+(?:like|love|prefer|enjoy|drink|want|need|do not like|don['’]t like|don['’]t drink|only drink|have|use|take|went|visited|spent|was|am|had|no longer need|can['’]t stand)\s+.+|i['’]ve\s+gone off\s+.+|my\s+local\s+is\s+.+|remember\s+.+\s+for me)$/);
-      if (!match || /\b(?:my friend|my mate|my partner|he|she|they)\b/.test(text)) return false;
-      const statement = match[1];
+      const statement = match?.[1];
+      if (!statement || /\b(?:my friend|my mate|my partner|he|she|they)\b/.test(text)) return false;
       if (wanted === statement) return true;
       const simple = statement.match(/^(?:i\s+(?:like|love|prefer|enjoy|drink)\s+|remember\s+)(.+?)(?:\s+for me)?$/);
       return kind !== "correction" && kind !== "night_outcome" && simple?.[1] === wanted;
