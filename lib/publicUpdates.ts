@@ -13,7 +13,7 @@ export const PUBLIC_UPDATES = [
     title: "Steadier map prices and phone controls",
     changes: [
       "Map pins show an estimated price after a pub's own price reads settle, if no recorded price is available.",
-      "Phone map choices have larger tap targets.",
+      "About links have larger tap targets on phones.",
     ],
   },
   {
