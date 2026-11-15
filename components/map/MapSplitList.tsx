@@ -346,7 +346,7 @@ export default function MapSplitList({
     loaded,
   });
   const { displayed: { groups, key: listKey, order, coverageNote, heldIsStale }, release: releaseInspection } =
-    useMapSplitListInspectionHold({ current: pointerView, detailOpen, filterState, map, scrollRef, viewSettled: !viewLanding && settled === live });
+    useMapSplitListInspectionHold({ current: pointerView, detailOpen, filterState, map, scrollRef, viewSettled: !viewLanding && settled === live && pointerView.groups === liveGroups });
 
   // A new view starts at its first page again.
   const [limit, setLimit] = useState(MAP_SPLIT_LIST_PAGE_SIZE);
