@@ -611,6 +611,7 @@ import {
 } from "@/lib/mapCameraFocus";
 import {
   dismissMapFirstVisitArrivalOnMapUse,
+  shouldShowMapArrivalLocationCard,
   shouldShowMapFirstVisitArrival,
   subscribeMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrival";
@@ -1529,7 +1530,7 @@ export default function PubMap({
   // A recovery toast on the canvas owns the surface: the map keeps search plus
   // ONE toast, so the arrival card stands down while a failure is on screen.
   const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
-  const showMapArrivalCard = useSyncExternalStore(
+  const mapArrivalCardEligible = useSyncExternalStore(
     subscribeMapFirstVisitArrival,
     () =>
       shouldShowMapFirstVisitArrival({
@@ -1892,7 +1893,17 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const readerPosition = useMapReaderPosition(invalidatePrivateCamera);
+  const [geolocationPermission, setGeolocationPermission] = useState<PermissionState | null>(null);
+  const readerPosition = useMapReaderPosition(
+    invalidatePrivateCamera,
+    setGeolocationPermission,
+  );
+  const showMapArrivalCard = shouldShowMapArrivalLocationCard({
+    eligible: mapArrivalCardEligible,
+    mobile: mobileViewport,
+    permission: geolocationPermission,
+    hasPosition: readerPosition !== null,
+  });
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
   // precise journey request for every venue they inspect.

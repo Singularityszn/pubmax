@@ -54,6 +54,25 @@ it("taints the mounted map before the granted-permission watch delivers coordina
   expect(owner.capture(camera)).toBeNull();
 });
 
+it("reports prompt permission without requesting geolocation on mount", async () => {
+  vi.mocked(navigator.permissions.query).mockResolvedValue({
+    state: "prompt",
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  } as unknown as PermissionStatus);
+  const onPermissionState = vi.fn();
+  function Probe() {
+    useMapReaderPosition(() => {}, onPermissionState);
+    return null;
+  }
+
+  await act(async () => root.render(createElement(Probe)));
+
+  expect(onPermissionState).toHaveBeenCalledWith("prompt");
+  expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
+  expect(navigator.geolocation).not.toHaveProperty("getCurrentPosition");
+});
+
 it("consumes pre-React exposure even when the later permission query denies location", async () => {
   markMapLocationExposure();
   vi.mocked(navigator.permissions.query).mockResolvedValue({ state: "denied", addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as PermissionStatus);
