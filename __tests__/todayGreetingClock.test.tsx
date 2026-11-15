@@ -138,7 +138,7 @@ it("ages cached weather and derives quietness from the same Sunday clock as the 
   expect(document.body.textContent).not.toContain("Usually quiet on a Saturday");
   expect(screen.getByTestId("today-weather").textContent).toContain("Last checked yesterday");
   expect(screen.getByTestId("today-weather").textContent).not.toMatch(/\bnight\b|Checked 40 minutes ago/);
-  expect(document.body.textContent).toContain("Old page snapshot");
+  expect(screen.getByTestId("today-freshness-notice")).not.toBeNull();
   act(() => { vi.setSystemTime(new Date("2026-11-15T20:00:00Z")); vi.advanceTimersByTime(60_000); });
   expect(document.body.textContent).not.toContain("Usually quiet");
   expect(document.body.textContent).toContain("No current weather reading");

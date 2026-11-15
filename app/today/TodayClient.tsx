@@ -347,8 +347,8 @@ export default function TodayClient({
       >
       <PreparedBriefStamp preparedAt={nowIso} />
       {oldSnapshot ? (
-        <p className="todayStale" role="status">
-          Old page snapshot. Prepared content may be out of date. Weather uses its recorded source check.
+        <p className="todayStale" role="status" data-testid="today-freshness-notice">
+          This page was prepared earlier. Some details may be out of date.
         </p>
       ) : null}
       <div className="todayStack">
