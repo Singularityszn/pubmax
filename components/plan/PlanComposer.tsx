@@ -4380,13 +4380,16 @@ export default function PlanComposer() {
   const onboarding = hydrated && accountGeneration === 0
     && new URLSearchParams(window.location.search).get("from") === "onboarding"
     && Boolean(describeAskFromLocation().ask);
+  const incomingRequest = onboarding || (hydrated && accountGeneration === 0
+    && Boolean(palPlanDraftFor(safeSessionStorage()?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null,
+      describeAskFromLocation().handoffAsk)));
   const alternative = hydrated && accountGeneration === 0 && identityResolved
     ? readOnboardingAlternative(safeSessionStorage(), user?.id ?? null) : null;
   const requestId = hydrated && accountGeneration === 0 ? describeAskFromLocation().ask || null : null;
   const keepExisting = requestId !== null && keptRequest === requestId;
   const freshRequest = Boolean(alternative && requestId && requestId !== alternative.requestId);
   const hasExisting = Boolean(handoff?.heldVenueId || recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft);
-  const choosing = (onboarding || freshRequest) && identityResolved && (hasExisting || Boolean(alternative)) && (!alternative || freshRequest) && !keepExisting && alternative?.phase !== "deferred";
+  const choosing = (incomingRequest || freshRequest) && identityResolved && (hasExisting || Boolean(alternative)) && (!alternative || freshRequest) && !keepExisting && alternative?.phase !== "deferred";
   function switchPlan(archiveIndex?: number) {
     if (!ownsAcceptance(acceptedOwner) || !switchOnboardingPlan(safeSessionStorage(), safeLocalStorage(), user?.id ?? null, requestId, archiveIndex === undefined && freshRequest, archiveIndex)) {
       setSwitchError("We could not switch plans. Check any other open Plan tab, then try again.");
@@ -4439,7 +4442,7 @@ export default function PlanComposer() {
         fromUrl.handoffAsk,
     );
   }, [hydrated, handoff, recoveredDraft, recoveredRouteDraft, recoveredIntake]);
-  if (hydrated && !identityResolved && (onboarding || hasOnboardingAlternative(safeSessionStorage()))) {
+  if (hydrated && !identityResolved && (incomingRequest || hasOnboardingAlternative(safeSessionStorage()))) {
     return <p className="planComposer" role="status">Checking your saved plan…</p>;
   }
   if (alternative?.phase === "pending") {
@@ -4469,7 +4472,7 @@ export default function PlanComposer() {
     </section>;
   }
   return <>
-    {(alternative || (onboarding && keepExisting)) ? <section className="planComposerRecovery" aria-label="Switch planning request">
+    {(alternative || (incomingRequest && keepExisting)) ? <section className="planComposerRecovery" aria-label="Switch planning request">
       <p>{alternative?.phase === "deferred" ? "This plan is read-only while both saved plans wait for review." : requestId && alternative?.currentRequestId === requestId && !freshRequest ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
       {alternative?.phase === "deferred" && freshRequest ? <p>Your new request is waiting: {requestId}</p> : null}
       <div className="planComposerRecovery__actions">
