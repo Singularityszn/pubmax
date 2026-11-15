@@ -272,6 +272,19 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(readEntriesAboveRoot(window.history.state)).toBe(1);
   });
 
+  it("restores the outgoing journey camera after traversing an earlier area", async () => {
+    const camden = { center: [-0.14, 51.54] as [number, number], zoom: 14 };
+    const soho = { center: [-0.13, 51.51] as [number, number], zoom: 15 };
+    act(() => navigation.open({ ...venue, state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "camden-pub", returnCamera: camden } }));
+    openSurfaces({ id: "choose-area", title: "Choose area" });
+    act(() => navigation.complete("choose-area"));
+    act(() => navigation.open({ ...venue, state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "soho-pub", returnCamera: soho } }));
+    await traverse(() => navigation.back());
+    await traverse(() => window.history.back());
+    await traverse(() => navigation.back());
+    expect(onReturnToMap).toHaveBeenLastCalledWith(camden);
+  });
+
   it.each([false, true])("returns the held public camera only when location was not exposed: %s", async (privateLocation) => {
     const cameraOwnership = createMapCameraOwnership();
     cameraOwnership.beginPublicPlace(viewport.center, viewport.zoom);
