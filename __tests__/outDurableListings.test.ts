@@ -15,6 +15,7 @@ vi.mock("@/lib/whatsOnListings.server", () => ({
 }));
 
 import { buildOutResponse, loadServedOutEvents } from "@/lib/out/loadOut";
+import { outEmptyLane, outStatusLines, OUT_EMPTY_LINE } from "@/lib/out/outStatus";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -158,8 +159,64 @@ describe("Out city scope", () => {
 it("keeps grounded coordinates when the city pub index is unavailable", async () => {
   const body = await buildOutResponse({ city: "london", day: "today" }, {
     now: NOW, loadVenueMatchIndex: async () => null, liveProviders: [],
-    loadBaseline: () => [row(), row({ id: "unknown", lat: undefined, lng: undefined })],
+    loadBaseline: () => [row(), row({ id: "unknown", sourceId: "unlocated-show", lat: undefined, lng: undefined })],
   });
   expect(body.venueMatch).toBe("unavailable");
   expect(body.events.map((event) => event.id)).toEqual(["tm-white-hart-jazz"]);
+  expect(body.listingsStatus).toBe("degraded");
+  expect(outStatusLines({ body, failed: false }).join(" ")).toMatch(/location.*London/);
+  expect(outEmptyLane({ body, failed: false, pending: false })).toBeNull();
+});
+
+describe("Out location coverage status", () => {
+  it.each(["null", "throw"] as const)("offers retry when a %s city-index read withholds an unlocated pub", async (read) => {
+    const body = await buildOutResponse({ city: "london", day: "today" }, {
+      now: NOW,
+      loadBaseline: () => [row({ placeName: "The White Hart", lat: undefined, lng: undefined })],
+      liveProviders: [],
+      loadVenueMatchIndex: async () => {
+        if (read === "throw") throw new Error("City index unavailable");
+        return null;
+      },
+    });
+    expect(body.events).toEqual([]);
+    expect(body.venueMatch).toBe("unavailable");
+    const empty = outEmptyLane({ body, failed: false, pending: false });
+    expect(empty?.lines).not.toContain(OUT_EMPTY_LINE);
+    expect(empty?.way).toBe("retry");
+    expect(empty?.lines.join(" ")).toMatch(/location.*London/);
+    expect(body.listingsStatus).toBe("degraded");
+    expect(body.status).toBe("degraded");
+  });
+
+  it("serves the same unlocated pub when the city index verifies it", async () => {
+    const body = await buildOutResponse({ city: "london", day: "today" }, {
+      now: NOW,
+      loadBaseline: () => [row({ placeName: "The White Hart", lat: undefined, lng: undefined })],
+      liveProviders: noLiveLane,
+      loadVenueMatchIndex: async () => venueIndex,
+    });
+    expect(body.events.map((event) => event.id)).toEqual(["tm-white-hart-jazz"]);
+    expect(body.listingsStatus).toBe("ready");
+    expect(outEmptyLane({ body, failed: false, pending: false })).toBeNull();
+  });
+
+  it.each(["ready", "null", "throw"] as const)("keeps valid exclusions ready with a %s city-index read", async (read) => {
+    const body = await buildOutResponse({ city: "london", day: "today" }, {
+      now: NOW,
+      loadBaseline: () => [
+        row({ id: "swansea", placeName: "Swansea Building Society Arena", lat: 51.6178, lng: -3.9439 }),
+        row({ id: "unknown", lat: undefined, lng: undefined, venueId: undefined }),
+        row({ id: "partial-point", lng: undefined }),
+      ],
+      liveProviders: [],
+      loadVenueMatchIndex: async () => {
+        if (read === "throw") throw new Error("City index unavailable");
+        return read === "null" ? null : venueIndex;
+      },
+    });
+    expect(body.events).toEqual([]);
+    expect(body.listingsStatus).toBe("ready");
+    expect(outEmptyLane({ body, failed: false, pending: false })).toEqual({ lines: [OUT_EMPTY_LINE], way: "map" });
+  });
 });

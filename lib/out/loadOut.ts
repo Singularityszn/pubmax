@@ -398,11 +398,8 @@ export async function buildOutResponse(
     rowOverlapsWindow(row, window, query.day),
   );
 
-  // Match AFTER the window filter, so a past row never spends a lookup, and
-  // BEFORE the cap, so what the cap keeps is what the page can show. A read of
-  // the slim index that could not run is reported as its own finding: the rows
-  // are still real listings, so the lane stays ready, and the surface words
-  // "we could not check" apart from "not listed yet".
+  // Match after the window filter and before the cap. An unlocated pub needs
+  // the city index before we can admit its listing.
   let venueMatch: OutVenueMatchStatus = "ready";
   let matchedAtRequest = 0;
   let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
@@ -426,6 +423,16 @@ export async function buildOutResponse(
       day: query.day,
       error: err instanceof Error ? err.message : "venue index unreadable",
     });
+  }
+
+  if (venueMatch === "unavailable" && matchedRows.some((row) =>
+    row.lat === undefined && row.lng === undefined &&
+    canonicalOutVenueId(row.venueId) !== null &&
+    !eventIsInCity(row, city, verifiedVenueIds),
+  )) {
+    status = "degraded";
+    const locationReason = `Some listings are hidden because we could not verify their location in ${cityDisplayName(city)}. Try again.`;
+    reason = reason ? `${reason} ${locationReason}` : locationReason;
   }
 
   const matchedRowCount = matchedRows.length;
