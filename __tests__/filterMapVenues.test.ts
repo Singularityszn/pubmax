@@ -174,6 +174,13 @@ describe("filterMapVenues", () => {
       expect(pintCapMatches(shown, capped.maxPrice)).toEqual({ cap: 6, priced: 2, unknown: 1 });
     });
 
+    it("keeps map authority when only the venue record carries a contributor price", () => {
+      const lowReport = { ...priced("published-eight", 8), latestContributorPrice: 4, latestContributorAt: new Date().toISOString() };
+      const highReport = { ...priced("published-five", 5), latestContributorPrice: 9, latestContributorAt: new Date().toISOString() };
+      expect(filterMapVenues([lowReport, highReport], capped, () => false).map((venue) => venue.id)).toEqual([highReport.id]);
+      expect(pintCapMatches([lowReport, highReport], capped.maxPrice)).toEqual({ cap: 6, priced: 1, unknown: 0 });
+    });
+
     it("uses the same current contributor evidence for pins, cap counts and list qualification", () => {
       const signals = new Map([
         [under.id, { latestContributorPrice: 9, latestContributorAt: Date.parse("2026-11-14T12:00:00Z") }],

@@ -30,7 +30,7 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
 
 describe("buildMapVenueListModel — the list-toggle gate", () => {
   it.each(["missing", "null"])("ranks the displayed pint when the map signal is %s", (signalState) => {
-    const pubs = [venue({ id: "five", cheapestPrice: 5, latestContributorPrice: 8, latestContributorAt: Date.now() }),
+    const pubs = [venue({ id: "five", cheapestPrice: 5, latestContributorPrice: 8, latestContributorAt: new Date().toISOString() }),
       venue({ id: "six", cheapestPrice: 6 })];
     const signals = signalState === "null" ? new Map([["five", { latestContributorPrice: null }]]) : null;
     const model = buildMapVenueListModel(pubs, null, undefined, null, "this view", "ready", "cheapest", signals);
