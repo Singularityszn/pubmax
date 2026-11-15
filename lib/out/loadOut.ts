@@ -6,7 +6,7 @@ import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { log } from "@/lib/log";
-import { fillEventArea } from "@/lib/out/eventArea";
+import { eventIsInCity, fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
@@ -407,9 +407,11 @@ export async function buildOutResponse(
   let matchedAtRequest = 0;
   let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   let matchedRows = inWindow;
+  let verifiedVenueIds: ReadonlySet<string> = new Set();
   try {
     const index = await loadVenueMatchIndex(city as CityId);
     if (index) {
+      verifiedVenueIds = index.venueIds;
       const attached = attachOutVenues(inWindow, index, (row) => liveRowKeys.has(dedupeKey(row)));
       matchedRows = attached.rows;
       matchedAtRequest = attached.matchedAtRequest;
@@ -426,6 +428,9 @@ export async function buildOutResponse(
     });
   }
 
+  const matchedRowCount = matchedRows.length;
+  matchedRows = matchedRows.filter((row) => eventIsInCity(row, city, verifiedVenueIds));
+  unmatched = matchedRows.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
   const matchedCount = matchedRows.length - unmatched;
   const merged = matchedRows
@@ -451,6 +456,7 @@ export async function buildOutResponse(
     providers: reports.map((report) => `${report.name}:${report.status}:${report.rows}`),
     folded: folded.length,
     inWindow: inWindow.length,
+    geographyExcluded: matchedRowCount - matchedRows.length,
     served: merged.length,
     matchedAtRequest,
     matched: matchedCount,
