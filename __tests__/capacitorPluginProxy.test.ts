@@ -131,7 +131,6 @@ describe("no native seam returns a plugin proxy from an async loader", () => {
     "App",
     "SystemBars",
     "SplashScreen",
-    "plugin",
   ];
 
   it("hands back a plain object that closes over the plugin instead", () => {

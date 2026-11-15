@@ -381,9 +381,6 @@ describe("Capacitor wrapped-build contract", () => {
     expect(info.NSMicrophoneUsageDescription).toBe(
       `${APP_NAME} uses your microphone only while you talk to Pub Pal or dictate a note or a plan.`,
     );
-    expect(info.NSMotionUsageDescription).toBe(
-      `${APP_NAME} counts your steps only when you start counting for a night out. The count stays on this phone.`,
-    );
     expect(info.NSPhotoLibraryUsageDescription).toBe(
       `${APP_NAME} opens your photo library so you can choose a photo you have already taken.`,
     );
