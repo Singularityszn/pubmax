@@ -7368,10 +7368,7 @@ export default function PubMap({
           the stage starts at its right edge (components/map/mapSplitList.css). */}
       {desktopSplitList}
 
-      {/* Full-bleed map is the base layer; every panel slides in over it.
-          Named region so AT users get a landmark for the map surface (the
-          canvas pins are pointer-only; List view provides their operable DOM
-          parallel alongside search and the tonight lane). */}
+      {/* List view provides the keyboard alternative to the canvas pins. */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {/* One toast at a time. A soft retry owns the surface outright, so the
             arrival and national-browse banners stand down with the selection

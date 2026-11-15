@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useLayoutEffect, useReducer, useRef, type RefObject } from "react";
+import { transitionMapSplitListInspection } from "@/lib/mapSplitListInspection";
 import type { MapSplitListMap } from "./MapSplitList";
 import type { MapSplitListPointerView } from "./useMapSplitListPointerHold";
 
@@ -15,17 +16,15 @@ export function useMapSplitListInspectionHold({
   viewSettled: boolean;
   scrollRef: RefObject<HTMLDivElement | null>;
 }) {
-  const [held, setHeld] = useState<MapSplitListPointerView | null>(null);
-  const [returnIdle, setReturnIdle] = useState(false);
-  const savedScrollTop = useRef(0);
+  const [inspection, dispatch] = useReducer(transitionMapSplitListInspection<MapSplitListPointerView>, { phase: "following" });
+  const held = inspection.phase === "following" ? null : inspection.view;
   const restoreScrollTop = useRef<number | null>(null);
   const previousView = useRef(current);
   const previousOpen = useRef(detailOpen);
   const previousFilters = useRef(filterState);
   const release = useCallback(() => {
     restoreScrollTop.current = null;
-    setHeld(null);
-    setReturnIdle(false);
+    dispatch({ type: "released" });
   }, []);
 
   useLayoutEffect(() => {
@@ -34,9 +33,9 @@ export function useMapSplitListInspectionHold({
     if (filtersChanged) {
       release();
     } else if (detailOpen && !previousOpen.current && previousView.current.groups.total > 0) {
-      savedScrollTop.current = scrollRef.current?.scrollTop ?? 0;
-      setHeld(previousView.current);
-      setReturnIdle(false);
+      dispatch({ type: "opened", view: previousView.current, scrollTop: scrollRef.current?.scrollTop ?? 0 });
+    } else if (!detailOpen && previousOpen.current) {
+      dispatch({ type: "closed" });
     }
     previousOpen.current = detailOpen;
     if (!detailOpen && held === null) previousView.current = current;
@@ -47,7 +46,7 @@ export function useMapSplitListInspectionHold({
     const container = map.getContainer();
     const stage = container.closest(".mapStage") ?? container;
     let active = true;
-    const idle = () => { if (!detailOpen) setReturnIdle(true); };
+    const idle = () => { if (!detailOpen) dispatch({ type: "map_idle" }); };
     map.on("idle", idle);
     // Closing a drawer on an already idle map does not cause another idle event.
     queueMicrotask(() => {
@@ -67,13 +66,11 @@ export function useMapSplitListInspectionHold({
 
   useEffect(() => {
     // Clear the snapshot once the external map and its debounced rows agree.
-    if (held && !detailOpen && returnIdle && viewSettled) {
-      const top = savedScrollTop.current;
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- release the snapshot after the external map settles
-      release();
-      restoreScrollTop.current = top;
+    if (inspection.phase === "settling" && !detailOpen && viewSettled) {
+      restoreScrollTop.current = inspection.scrollTop;
+      dispatch({ type: "view_settled" });
     }
-  }, [detailOpen, held, release, returnIdle, viewSettled]);
+  }, [detailOpen, inspection, viewSettled]);
 
   useLayoutEffect(() => {
     if (held !== null || restoreScrollTop.current === null) return;
