@@ -266,3 +266,14 @@ export function buildQuietPint(input: BuildQuietPintInput): QuietPintModule | nu
 
   return { weekdayName, rows };
 }
+
+/** Retain the sourced selection, but evaluate its typical pattern at the displayed clock. */
+export function quietPintAt(module: QuietPintModule | null, now: Date): QuietPintModule | null {
+  if (!module) return null;
+  const band = estimateBusyness({ now, timeZone: "Europe/London" });
+  if (band.level !== "quiet") return null;
+  const weekdayName = londonWeekdayName(now);
+  return { ...module, weekdayName, rows: module.rows.map((row) => ({
+    ...row, quietLabel: `${band.label} on a ${weekdayName}`,
+  })) };
+}
