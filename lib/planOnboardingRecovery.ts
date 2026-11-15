@@ -1,7 +1,7 @@
-import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLAN_INTAKE_STORAGE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
+import { PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLAN_INTAKE_STORAGE_KEY, PLAN_ONBOARDING_ALTERNATIVE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
 import { PLANNING_INTENT_STORAGE_KEY } from "@/lib/planningIntent";
 
-const KEY = "pubmax:plan-onboarding-alternative:v1";
+const KEY = PLAN_ONBOARDING_ALTERNATIVE_KEY;
 const SESSION_KEYS = [PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLANNING_INTENT_STORAGE_KEY] as const;
 const LOCAL_KEYS = [PLAN_INTAKE_STORAGE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY] as const;
 type Records = { session: Record<string, string | null>; local: Record<string, string | null> };
