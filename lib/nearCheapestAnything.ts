@@ -140,7 +140,8 @@ export function nearGuinnessRows(
 
 /** Generic containers do not establish an equivalent serving size. */
 export function isComparableNearDrinkMeasure(measure: DrinkMeasure | null): measure is DrinkMeasure {
-  return measure !== null && measure !== "bottle" && measure !== "other";
+  return measure === "pint" || measure === "half"
+    || measure === "125ml" || measure === "175ml" || measure === "250ml";
 }
 
 function measureRank(measure: DrinkMeasure | null): number {
