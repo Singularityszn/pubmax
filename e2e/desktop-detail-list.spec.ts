@@ -30,6 +30,7 @@ for (const [width, following] of [[1024, false], [1440, false], [1440, true]] as
     const drawer = page.locator(".mapDrawer.right.open");
     await expect(drawer).toBeVisible();
     await expect(list).toBeHidden();
+    await expect(list).toHaveJSProperty("inert", true);
     const canvas = page.locator(".maplibreMap");
     await expect(canvas).toBeVisible();
     await expect.poll(() => canvas.evaluate((element) => !!element.closest("[inert]"))).toBe(false);
@@ -38,6 +39,7 @@ for (const [width, following] of [[1024, false], [1440, false], [1440, true]] as
     expect(boxes[1]!.x).toBeGreaterThanOrEqual(boxes[0]!.width - 1);
     await drawer.getByRole("button", { name: "Back to pubs in this view" }).click();
     await expect(list).toBeVisible();
+    await expect(list).toHaveJSProperty("inert", false);
     await page.getByRole("button", { name: "Zoom in", exact: true }).hover();
     await expect(list).toHaveAttribute("aria-busy", "false");
     await expect(list.locator(`[data-venue-id="${selectedId}"]`)).toBeAttached();
