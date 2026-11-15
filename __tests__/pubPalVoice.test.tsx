@@ -1850,23 +1850,33 @@ describe("Pub Pal voice transcript", () => {
     await act(async () => { session.onMessage?.({ role: "user", message: "Cheap pints in Soho", event_id: 2 }); });
     await endLiveCall(session, "cap");
     // The summary chunk request stalls, so this Carry on reaches the startup timeout.
-    vi.doMock("@/lib/palSessionSummary", () => new Promise(() => {}));
-    const tapCarryOn = async () => {
+    const summaryImportStarted = deferred<void>();
+    vi.doMock("@/lib/palSessionSummary", () => {
+      summaryImportStarted.resolve(undefined);
+      return new Promise(() => {});
+    });
+    const tapCarryOn = async (started?: Promise<void>) => {
       getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
       requests.authedActionFetch.mockResolvedValueOnce(Response.json({ signedUrl: "wss://voice.example/again", conversationId: "conv_voiceSession2" }));
       const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
       expect(carryOn).toBeTruthy();
-      await act(async () => { carryOn?.click(); });
-      await settle();
+      await act(async () => {
+        carryOn?.click();
+        if (started) await started;
+      });
     };
-    await tapCarryOn();
+    await tapCarryOn(summaryImportStarted.promise);
     await act(async () => { await vi.advanceTimersByTimeAsync(PAL_VOICE_START_TIMEOUT_MS); });
+    await vi.waitFor(() => {
+      const carryOn = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.includes("Carry on"));
+      expect(carryOn?.disabled).toBe(false);
+    });
     expect(voice.startSession).toHaveBeenCalledOnce();
     vi.doUnmock("@/lib/palSessionSummary");
     vi.resetModules();
-    await tapCarryOn();
-    await act(async () => { await vi.dynamicImportSettled(); });
-    await settle();
+    const retryStarted = deferred<void>();
+    voice.startSession.mockImplementation(() => retryStarted.resolve(undefined));
+    await tapCarryOn(retryStarted.promise);
     expect(voice.startSession).toHaveBeenCalledTimes(2);
   });
 
