@@ -38,10 +38,10 @@ export function useMapSplitListInspectionHold({
   }, [current, detailOpen, filterState, held, release]);
 
   useEffect(() => {
-    if (!held || detailOpen || !map) return;
+    if (!held || !map) return;
     const container = map.getContainer();
     const stage = container.closest(".mapStage") ?? container;
-    const idle = () => setReturnIdle(true);
+    const idle = () => { if (!detailOpen) setReturnIdle(true); };
     map.on("idle", idle);
     stage.addEventListener("pointerdown", release, true);
     stage.addEventListener("wheel", release, true);
