@@ -383,8 +383,8 @@ export default function LandingHero({
         </>
       }
     >
-      {hunt ? <div className="lpHuntAnswer">{hunt}</div> : null}
       {answer ? <AnswerCard answer={answer} near={near} photo={photo} /> : null}
+      {hunt ? <div className="lpHuntAnswer">{hunt}</div> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
   );
