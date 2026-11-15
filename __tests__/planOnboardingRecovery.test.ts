@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecovery";
-import { PLAN_DRAFT_KEY, PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
+import { readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
+import { PLAN_DRAFT_KEY, PLAN_INTAKE_STORAGE_KEY, PLAN_ONBOARDING_ALTERNATIVE_KEY, PLAN_DRAFT_V2_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY } from "@/lib/planDraftStorage";
+import { PLANNING_INTENT_STORAGE_KEY } from "@/lib/planningIntent";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
+import { transitionPlanRecovery, type OnboardingAlternative } from "@/lib/planOnboardingRecovery";
 
 function storage(): Storage {
   const values = new Map<string, string>();
@@ -16,6 +18,66 @@ function storage(): Storage {
 }
 
 describe("switching onboarding plans", () => {
+  it("preserves a legacy alternative when a different request arrives", () => {
+    const session = storage();
+    const local = storage();
+    const records = { session: { [PLAN_DRAFT_KEY]: "old private plan", [PLAN_DRAFT_V2_KEY]: null, [PLANNING_INTENT_STORAGE_KEY]: null }, local: { [PLAN_INTAKE_STORAGE_KEY]: null, [PLAN_ROUTE_DRAFT_KEY]: null, [PLAN_ROUTE_DRAFT_V2_KEY]: null } };
+    session.setItem(PLAN_ONBOARDING_ALTERNATIVE_KEY, JSON.stringify({ owner: "a", active: "new", other: records }));
+    session.setItem(PLAN_DRAFT_KEY, "current plan");
+    expect(switchOnboardingPlan(session, local, "b", "Camden", true)).toBe(false);
+    expect(switchOnboardingPlan(session, local, "a", "Camden", true)).toBe(true);
+    const recovered = readOnboardingAlternative(session, "a");
+    expect(recovered?.requestId).toBe("Camden");
+    expect(recovered?.other.session[PLAN_DRAFT_KEY]).toBe("current plan");
+    expect(recovered?.archived[0]?.records.session[PLAN_DRAFT_KEY]).toBe("old private plan");
+  });
+
+  it("refuses an incomplete saved candidate without changing current records", () => {
+    const session = storage();
+    const local = storage();
+    session.setItem(PLAN_DRAFT_KEY, "current request");
+    local.setItem(PLAN_INTAKE_STORAGE_KEY, "current access");
+    session.setItem(PLAN_ONBOARDING_ALTERNATIVE_KEY, JSON.stringify({ owner: null, active: "new", other: { session: {}, local: {} } }));
+    expect(switchOnboardingPlan(session, local, null)).toBe(false);
+    expect(session.getItem(PLAN_DRAFT_KEY)).toBe("current request");
+    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe("current access");
+  });
+  it("defers a conflicting switch, refuses recovery, and returns it to review without dropping candidates", () => {
+    const before = { session: { draft: "before" }, local: { intake: "before" } };
+    const target = { session: { draft: "target" }, local: { intake: "target" } };
+    const ready: OnboardingAlternative = { phase: "ready", owner: null, active: "old", requestId: "Soho", other: target, archived: [] };
+    const switched = transitionPlanRecovery(ready, { type: "switch", current: before, empty: target, requestId: "Soho", fresh: false });
+    expect(switched.state.phase).toBe("pending");
+    const changed = { session: { draft: "before" }, local: { intake: "another tab" } };
+    const refused = transitionPlanRecovery(switched.state, { type: "recover", current: changed, finish: true });
+    expect(refused.state).toBe(switched.state);
+    expect(refused.effect).toBeNull();
+    const deferred = transitionPlanRecovery(switched.state, { type: "defer" });
+    expect(deferred.state).toMatchObject({ phase: "deferred", before, target });
+    expect(transitionPlanRecovery(deferred.state, { type: "recover", current: before, finish: false }).state).toBe(deferred.state);
+    const reviewed = transitionPlanRecovery(deferred.state, { type: "review" });
+    expect(reviewed.state).toMatchObject({ phase: "pending", before, target });
+    expect(transitionPlanRecovery(reviewed.state, { type: "recover", current: before, finish: false }).effect).toMatchObject({ type: "replace", target: before, completed: ready });
+  });
+
+  it("requests effects only for valid state transitions", () => {
+    const a = { session: { draft: "A" }, local: {} };
+    const b = { session: { draft: "B" }, local: {} };
+    const empty = { session: { draft: null }, local: {} };
+    const ready: OnboardingAlternative = { phase: "ready", owner: "a", active: "new", requestId: "Soho £6", other: a, archived: [] };
+    const fresh = transitionPlanRecovery(ready, { type: "switch", current: b, empty, requestId: "Camden £5", fresh: true });
+    expect(fresh.effect).toMatchObject({ type: "replace", target: empty, completed: { phase: "ready", requestId: "Camden £5", other: b, archived: [{ records: a }] } });
+    const finished = transitionPlanRecovery(fresh.state, { type: "recover", current: b, finish: true });
+    expect(finished.effect).toMatchObject({ type: "replace", target: empty });
+    for (const event of [{ type: "defer" }, { type: "review" }, { type: "recover", current: b, finish: true }] as const) {
+      const refused = transitionPlanRecovery(ready, event);
+      expect(refused.state).toBe(ready);
+      expect(refused.effect).toBeNull();
+    }
+    const missing = transitionPlanRecovery(ready, { type: "switch", current: b, empty, requestId: null, fresh: false, archiveIndex: 0 });
+    expect(missing.state).toBe(ready);
+    expect(missing.effect).toBeNull();
+  });
   it("removes the former account's alternative on tab departure while another tab keeps its plan", () => {
     const local = storage();
     const formerTab = storage();
@@ -78,7 +140,7 @@ describe("switching onboarding plans", () => {
     local.setItem(PLAN_INTAKE_STORAGE_KEY, "new budget");
     const blocked = { ...local, removeItem: () => { throw new Error("blocked"); }, setItem: () => { throw new Error("blocked"); } } as Storage;
     expect(switchOnboardingPlan(session, blocked, null)).toBe(false);
-    expect(readOnboardingAlternative(session, null)?.pending).toBeDefined();
+    expect(readOnboardingAlternative(session, null)?.phase).toBe("pending");
     expect(recoverOnboardingSwitch(session, local, null, false)).toBe(true);
     expect(session.getItem(PLAN_DRAFT_KEY)).toBe("new plan");
     expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe("new budget");
@@ -101,7 +163,7 @@ describe("switching onboarding plans", () => {
     } as Storage;
     expect(switchOnboardingPlan(racingSession, local, null)).toBe(false);
     expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe("other tab edit");
-    expect(readOnboardingAlternative(session, null)?.pending).toBeDefined();
+    expect(readOnboardingAlternative(session, null)?.phase).toBe("pending");
     expect(recoverOnboardingSwitch(session, local, null, false)).toBe(false);
     expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe("other tab edit");
   });

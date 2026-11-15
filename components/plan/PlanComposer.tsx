@@ -1,7 +1,7 @@
 "use client";
 
 import { isProoflessReleasedRoute, recoverPlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
-import { hasOnboardingAlternative, readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecovery";
+import { deferOnboardingSwitch, hasOnboardingAlternative, readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
 
 import {
   FormEvent,
@@ -4326,7 +4326,7 @@ function PlanComposerForm({
 export default function PlanComposer() {
   const { user, identityResolved } = useAuth();
   const [recoveryVersion, setRecoveryVersion] = useState(0);
-  const [keepExisting, setKeepExisting] = useState(false);
+  const [keptRequest, setKeptRequest] = useState<string | null>(null);
   const [switchError, setSwitchError] = useState("");
   const hydrated = useSyncExternalStore(
     () => () => {},
@@ -4382,16 +4382,27 @@ export default function PlanComposer() {
     && Boolean(describeAskFromLocation().ask);
   const alternative = hydrated && accountGeneration === 0 && identityResolved
     ? readOnboardingAlternative(safeSessionStorage(), user?.id ?? null) : null;
+  const requestId = onboarding ? describeAskFromLocation().ask : null;
+  const keepExisting = requestId !== null && keptRequest === requestId;
+  const freshRequest = Boolean(alternative && requestId && requestId !== alternative.requestId);
   const hasExisting = Boolean(handoff?.heldVenueId || recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft);
-  const choosing = onboarding && identityResolved && hasExisting && !alternative && !keepExisting;
-  function switchPlan() {
-    if (!ownsAcceptance(acceptedOwner) || !switchOnboardingPlan(safeSessionStorage(), safeLocalStorage(), user?.id ?? null)) {
+  const choosing = onboarding && identityResolved && (hasExisting || Boolean(alternative)) && (!alternative || freshRequest) && !keepExisting && alternative?.phase !== "deferred";
+  function switchPlan(archiveIndex?: number) {
+    if (!ownsAcceptance(acceptedOwner) || !switchOnboardingPlan(safeSessionStorage(), safeLocalStorage(), user?.id ?? null, requestId, archiveIndex === undefined && freshRequest, archiveIndex)) {
       setSwitchError("We could not switch plans. Check any other open Plan tab, then try again.");
       setRecoveryVersion((version) => version + 1);
       return;
     }
     setSwitchError("");
-    setKeepExisting(false);
+    setKeptRequest(null);
+    setRecoveryVersion((version) => version + 1);
+  }
+  function deferSwitch(review = false) {
+    if (!deferOnboardingSwitch(safeSessionStorage(), user?.id ?? null, review)) {
+      setSwitchError("We could not keep the saved plans. Try again.");
+      return;
+    }
+    setSwitchError("");
     setRecoveryVersion((version) => version + 1);
   }
   function recoverSwitch(finish: boolean) {
@@ -4431,13 +4442,15 @@ export default function PlanComposer() {
   if (hydrated && !identityResolved && (onboarding || hasOnboardingAlternative(safeSessionStorage()))) {
     return <p className="planComposer" role="status">Checking your saved plan…</p>;
   }
-  if (alternative?.pending) {
+  if (alternative?.phase === "pending") {
     return <section className="planComposerRecovery" aria-label="Recover planning requests">
       <h1>Your plan switch was interrupted.</h1>
       <p>Both requests are saved. Choose which one to open.</p>
+      {freshRequest ? <p>Your new request is waiting: {requestId}</p> : null}
       <div className="planComposerRecovery__actions">
         <Button type="button" onClick={() => recoverSwitch(false)}>Restore the plan before the switch</Button>
         <Button type="button" variant="secondary" onClick={() => recoverSwitch(true)}>Continue switching plans</Button>
+        <Button type="button" variant="secondary" onClick={() => deferSwitch()}>Open current plan</Button>
       </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section>;
@@ -4449,18 +4462,23 @@ export default function PlanComposer() {
       <p>Existing plan: {recoveredDraft?.stops[0]?.venueName || "your kept pub"}{handoff?.area ? ` · ${acceptedPlanAreaLabel(handoff.area)}` : ""}</p>
       <p>New request: {describeAskFromLocation().ask}</p>
       <div className="planComposerRecovery__actions">
-        <Button type="button" onClick={() => setKeepExisting(true)}>Keep your existing plan</Button>
-        <Button type="button" variant="secondary" onClick={switchPlan}>Start the new request</Button>
+        <Button type="button" onClick={() => setKeptRequest(requestId)}>Keep your existing plan</Button>
+        <Button type="button" variant="secondary" onClick={() => switchPlan()}>Start the new request</Button>
       </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section>;
   }
   return <>
     {(alternative || (onboarding && keepExisting)) ? <section className="planComposerRecovery" aria-label="Switch planning request">
-      <p>{alternative?.active === "new" ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
-      <div className="planComposerRecovery__actions"><Button type="button" variant="secondary" onClick={switchPlan}>{alternative?.active === "new" ? "Restore previous plan" : "Start the new request"}</Button></div>
+      <p>{alternative?.phase === "deferred" ? "This plan is read-only while both saved plans wait for review." : alternative?.active === "new" ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
+      {alternative?.phase === "deferred" && freshRequest ? <p>Your new request is waiting: {requestId}</p> : null}
+      <div className="planComposerRecovery__actions">
+        {alternative?.phase === "deferred" ? <Button type="button" variant="secondary" onClick={() => deferSwitch(true)}>Review saved plans</Button> : <Button type="button" variant="secondary" onClick={() => switchPlan()}>{alternative?.active === "new" ? "Restore previous plan" : "Start the new request"}</Button>}
+        {alternative?.phase === "ready" ? alternative.archived.map((_, index) => <Button key={index} type="button" variant="secondary" onClick={() => switchPlan(index)}>Restore saved plan {index + 1}</Button>) : null}
+      </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section> : null}
+    <div inert={alternative?.phase === "deferred" ? true : undefined}>
     <PlanComposerForm
       key={`${remount ? "hydrated" : "server"}:${accountGeneration}:${recoveryVersion}`}
       recoveredDraft={recoveredDraft}
@@ -4475,10 +4493,11 @@ export default function PlanComposer() {
       provisionalRequest={recovery?.provisionalRequest ?? false}
       acceptedOwner={acceptedOwner}
       handoff={handoff}
-      canPersist={hydrated}
-      allowUrlPrefill={accountGeneration === 0 && !(onboarding && keepExisting) && alternative?.active !== "old"
+      canPersist={hydrated && alternative?.phase !== "deferred"}
+      allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !(onboarding && keepExisting) && alternative?.active !== "old"
         && !(alternative?.active === "new" && Boolean(recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft))}
     />
+    </div>
   </>;
 }
 

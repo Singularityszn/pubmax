@@ -67,6 +67,7 @@ import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/n
 import { releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
+import { readOnboardingAlternative, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
@@ -249,6 +250,90 @@ describe("onboarding after a kept pub", () => {
     });
     expect(document.querySelector('[role="alert"]')?.textContent).toContain("could not switch plans");
     expect(store.getItem("pubmax:planning-intent:v1")).toBe(before);
+  });
+
+  it.each(["new", "old"] as const)("asks about a different onboarding request when the %s side is active", async (side) => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    if (side === "old") {
+      await act(async () => {
+        [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+      });
+      await settle();
+    }
+    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
+    await remountComposer();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')?.textContent).toContain("Camden");
+    expect(document.body.textContent).toContain("Start the new request");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Camden");
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("£5 per pint");
+    expect(readOnboardingAlternative(sessionStorage, null)?.archived).toHaveLength(1);
+    expect(document.body.textContent).toContain("Restore saved plan 1");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    if (side === "old") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore saved plan 1")!.click();
+    });
+    await settle();
+    if (side === "new") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+  });
+
+  it("asks again when a different request arrives after keeping the current plan", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')?.textContent).toContain("Camden");
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+  });
+
+  it("opens the current plan after a conflicting interrupted switch without changing either saved candidate", async () => {
+    const racing = {
+      get length() { return localStorage.length; },
+      key: (index: number) => localStorage.key(index),
+      getItem: (key: string) => localStorage.getItem(key),
+      setItem: (key: string, value: string) => localStorage.setItem(key, value),
+      removeItem: (key: string) => { localStorage.setItem(key, "other tab change"); throw new Error("conflict"); },
+      clear: () => localStorage.clear(),
+    } satisfies Storage;
+    expect(switchOnboardingPlan(sessionStorage, racing, null)).toBe(false);
+    const before = readOnboardingAlternative(sessionStorage, null);
+    expect(before?.phase).toBe("pending");
+    const shared = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+    await mountComposer();
+    const exit = [...document.querySelectorAll("button")].find((button) => button.textContent === "Open current plan");
+    expect(exit).toBeDefined();
+    await act(async () => { exit!.click(); });
+    await settle();
+    expect(document.querySelector("#plan-composer")).not.toBeNull();
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "deferred", other: before?.other, target: before?.phase === "pending" ? before.target : null });
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(shared);
+    await remountComposer();
+    expect(document.querySelector("#plan-composer")).not.toBeNull();
+    expect(document.querySelector("#plan-composer")?.parentElement?.hasAttribute("inert")).toBe(true);
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "deferred", other: before?.other, target: before?.phase === "pending" ? before.target : null });
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(shared);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Review saved plans")!.click();
+    });
+    await settle();
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "pending", other: before?.other, target: before?.phase === "pending" ? before.target : null });
   });
 });
 
