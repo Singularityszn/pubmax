@@ -31,6 +31,8 @@ import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { trackEvent } from "@/lib/analytics";
+import type { VenueContactContract } from "@/lib/venueTruth";
+import { Button } from "@/components/ui/button";
 import {
   readProviderAccountRevision,
   subscribeProviderIdentityRevision,
@@ -40,9 +42,49 @@ import "./contributionGate.css";
 
 /** The dialog answers the gate, so it speaks the gate's own vocabulary. */
 export type ContributionGateDialogMode = ContributionGateStatus;
+export type ContributionGatePurpose = "contribution" | "table_request";
+type TableRequestGateContext = Readonly<{
+  venueName: string;
+  contacts: VenueContactContract;
+}>;
+
+function TableRequestAlternatives({
+  tableRequest,
+}: {
+  tableRequest?: TableRequestGateContext;
+}): React.JSX.Element | null {
+  const contacts = tableRequest?.contacts;
+  const venueName = tableRequest?.venueName;
+  if (!contacts || !venueName) return null;
+
+  return (
+    <>
+      {contacts.bookingHref ? (
+        <p>
+          <Button variant="secondary" asChild><a href={contacts.bookingHref}>Open {venueName}&apos;s booking page</a></Button>
+        </p>
+      ) : null}
+      {contacts.emailHref || contacts.phoneHref ? (
+        <p>
+          Contact the pub directly:{" "}
+          {contacts.emailHref ? <Button variant="secondary" asChild><a href={contacts.emailHref}>Email {venueName}</a></Button> : null}
+          {contacts.emailHref && contacts.phoneHref ? ", " : null}
+          {contacts.phoneHref ? <Button variant="secondary" asChild><a href={contacts.phoneHref}>Call {venueName}</a></Button> : null}
+        </p>
+      ) : null}
+      {!contacts.bookingHref && !contacts.emailHref && !contacts.phoneHref && contacts.websiteHref ? (
+        <p>
+          <Button variant="secondary" asChild><a href={contacts.websiteHref}>Visit {venueName}&apos;s website</a></Button> for contact details.
+        </p>
+      ) : null}
+    </>
+  );
+}
 
 type ContributionGateDialogProps = {
   mode: ContributionGateDialogMode;
+  purpose?: ContributionGatePurpose;
+  tableRequest?: TableRequestGateContext;
   error: string | null;
   onClose: () => void;
   /** Called once the one tap is recorded, so the held action can run. */
@@ -127,6 +169,8 @@ function AdultCheck({
 
 export function ContributionGateDialog({
   mode,
+  purpose = "contribution",
+  tableRequest,
   error,
   onClose,
   onAsserted,
@@ -161,12 +205,24 @@ export function ContributionGateDialog({
         {mode === "sign_in_required" ? (
           <>
             <p className="contributionGateEyebrow">Account needed</p>
-            <h2 id="contribution-gate-title">Sign in to contribute</h2>
-            <p>
-              Contributions show your public handle, so you need an account
-              first. Email sign-in works even when Google, Apple and
-              Microsoft are unavailable.
-            </p>
+            <h2 id="contribution-gate-title">
+              {purpose === "table_request" ? "Sign in to send a table request" : "Sign in to contribute"}
+            </h2>
+            {purpose === "table_request" ? (
+              <>
+                <p>
+                  Sign in to send a free table request. The pub can reply to you.
+                  This does not confirm a booking or take payment.
+                </p>
+                <TableRequestAlternatives tableRequest={tableRequest} />
+              </>
+            ) : (
+              <p>
+                Contributions show your public handle, so you need an account
+                first. Email sign-in works even when Google, Apple and
+                Microsoft are unavailable.
+              </p>
+            )}
             <SignInButton next={returnTo ? claimHref : undefined} />
           </>
         ) : mode === "adult_check_required" ? (
@@ -193,7 +249,9 @@ export function ContributionGateDialog({
             <p className="contributionGateEyebrow">Handle needed</p>
             <h2 id="contribution-gate-title">Choose your handle</h2>
             <p>
-              Pick a handle before you log a price.
+              {purpose === "table_request"
+                ? "Pick a handle before you send a table request."
+                : "Pick a handle before you log a price."}
             </p>
             <Link
               className="contributionGatePrimary"
