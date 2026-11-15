@@ -228,6 +228,35 @@ describe("search_venues hard requirements", () => {
     ...overrides,
   });
 
+  const withoutWetherspoons = [
+    "a beer garden in Hackney. No Wetherspoons",
+    "a beer garden in Hackney, not a Wetherspoon",
+  ];
+
+  it.each(withoutWetherspoons)("retains the garden and Wetherspoon exclusion: %s", (query) => {
+    expect(venueRequirementsInText(query).map(requirementKey)).toEqual(["garden", "not:wetherspoon"]);
+  });
+
+  it.each(withoutWetherspoons)("never offers a Wetherspoon for an excluded-chain garden ask: %s", async (query) => {
+    state.venues = [
+      { ...garden, id: "independent", name: "The Independent", area: "Hackney" },
+      {
+        ...garden,
+        id: "spoons",
+        name: "The Rochester Castle",
+        sourceName: "The Rochester Castle - JD Wetherspoon",
+        area: "Hackney",
+      },
+    ];
+
+    const result = await search(query);
+
+    expect(result.cards.map((card) => card.venueId)).not.toContain("spoons");
+    expect(result.proposals.flatMap((proposal) => proposal.kind === "open_venue" ? [proposal.venueId] : [])).not.toContain("spoons");
+    expect(searchData(result).venues.map((row) => row.id)).not.toContain("spoons");
+    expect(searchData(result).requirements).toEqual(["garden", "not:wetherspoon"]);
+  });
+
   it("keeps pavement seating and undated flags out of a beer garden ask, and counts how many qualify", async () => {
     state.venues = [garden, pavement, flagOnly];
     const result = await search("Three pubs in Soho with a beer garden", 3);
