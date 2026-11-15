@@ -768,17 +768,24 @@
 }
 
 @media (max-width: 360px) {
-  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
-    height: 28px;
+  .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
+    height: 0;
+    margin: 0;
     padding: 0;
+    border: 0;
   }
 
-  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named .pubSign__art {
-    max-height: 24px;
+  .mobileSharedSheet.right .mobileSharedSheetBody {
+    padding-top: 0;
   }
 
-  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named .pubSign__tag {
-    display: none;
+  .mobileSharedSheet .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueTabs {
+    margin-block: 0;
+  }
+
+  .mobileSharedSheet .venueInspector:has(.venueBaselinePhoto.venueImage--empty) .venueTabPanel {
+    margin-top: 0;
+    padding-top: 0;
   }
 }
 
