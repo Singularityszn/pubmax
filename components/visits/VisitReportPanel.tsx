@@ -50,6 +50,7 @@ export type VisitReportPanelMode = "full" | "peek";
 export type VisitReportPanelProps = {
   venueId: string;
   venueName: string;
+  onEmptyChange?: (empty: boolean) => void;
   /**
    * False while the panel is mounted but out of view (a tab the viewer hasn't
    * opened). It defers the venue read until the surface is first looked at; it
@@ -297,6 +298,7 @@ export default function VisitReportPanel({
   active = true,
   mode = "full",
   onOpenFull,
+  onEmptyChange,
 }: VisitReportPanelProps) {
   return (
     <VenueVisitReports
@@ -306,6 +308,7 @@ export default function VisitReportPanel({
       active={active}
       mode={mode}
       onOpenFull={onOpenFull}
+      onEmptyChange={onEmptyChange}
     />
   );
 }
@@ -316,6 +319,7 @@ function VenueVisitReports({
   active = true,
   mode = "full",
   onOpenFull,
+  onEmptyChange,
 }: VisitReportPanelProps) {
   const peek = mode === "peek";
   const now = new Date();
@@ -370,6 +374,9 @@ function VenueVisitReports({
       cancelled = true;
     };
   }, [active, venueId]);
+  useEffect(() => {
+    onEmptyChange?.(read?.status === "ready" && read.reports.length === 0);
+  }, [onEmptyChange, read]);
   const hasDraft = draftHasObservation(composerFields);
 
   async function submit() {

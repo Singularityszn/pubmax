@@ -5,6 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
@@ -274,6 +276,31 @@ export function LedgerPriceRecord({ venue, bundle }: {
         </p> : !priceLane ? <p role="status">Checking the price record.</p> : null}
       <VenuePriceThen venueId={venueId} currentPriceGbp={currentPriceGbp} />
     </section>
+  );
+}
+
+export function LedgerCommunity({ venueId, venueName, ledgerUrl, curatedClaims }: {
+  venueId: string;
+  venueName: string;
+  ledgerUrl: string;
+  curatedClaims: VenueClaim[];
+}) {
+  const { state } = useLedgerLive();
+  const [visitsEmpty, setVisitsEmpty] = useState(false);
+  const [photosEmpty, setPhotosEmpty] = useState(false);
+  const logEmpty = state.status === "ready" && state.log.claims.length === 0
+    && state.log.entries.length === 0 && state.log.familyEntries.length === 0
+    && curatedClaims.length === 0;
+  const allEmpty = logEmpty && visitsEmpty && photosEmpty;
+
+  return (
+    <details className="ledgerCommunity" open={!allEmpty}>
+      <summary hidden={!allEmpty}>Be the first to log here</summary>
+      <VisitReportPanel venueId={venueId} venueName={venueName} onEmptyChange={setVisitsEmpty} />
+      <VenuePhotoWall venueId={venueId} venueName={venueName} onEmptyChange={setPhotosEmpty} />
+      <p className="ledgerLaneNote">Public notes go in the logbook. Legacy notes stay at the Family Table below.</p>
+      <LedgerLogSections venueName={venueName} ledgerUrl={ledgerUrl} curatedClaims={curatedClaims} />
+    </details>
   );
 }
 

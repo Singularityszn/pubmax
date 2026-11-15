@@ -6,7 +6,7 @@
 // lands: a slow or hung read would otherwise show them to whoever is now
 // holding the device.
 
-import { act } from "react";
+import { act, useEffect } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -18,7 +18,21 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   }),
 }));
 
-import { LedgerLiveProvider, LedgerLogSections } from "@/components/ledger/LedgerLive";
+const community = vi.hoisted(() => ({ visitsEmpty: true, photosEmpty: true }));
+vi.mock("@/components/visits/VisitReportPanel", () => ({
+  default: function MockVisitReports({ onEmptyChange }: { onEmptyChange: (empty: boolean) => void }) {
+    useEffect(() => onEmptyChange(community.visitsEmpty), [onEmptyChange]);
+    return <div>Visit reports</div>;
+  },
+}));
+vi.mock("@/components/venue/VenuePhotoWall", () => ({
+  default: function MockPhotoWall({ onEmptyChange }: { onEmptyChange: (empty: boolean) => void }) {
+    useEffect(() => onEmptyChange(community.photosEmpty), [onEmptyChange]);
+    return <div>Photo wall</div>;
+  },
+}));
+
+import { LedgerCommunity, LedgerLiveProvider, LedgerLogSections } from "@/components/ledger/LedgerLive";
 
 const AUTHOR_LOG = {
   claims: [],
@@ -63,6 +77,8 @@ async function settle(): Promise<void> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   auth.token = "token-author";
+  community.visitsEmpty = true;
+  community.photosEmpty = true;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -97,5 +113,52 @@ describe("the Ledger's live half when the reader changes", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
     expect(container.textContent).not.toContain("1962");
     expect(container.textContent).toContain("Opening the logbook.");
+  });
+});
+
+describe("the Ledger's empty community sections", () => {
+  it("folds the sections only after every read confirms they are empty", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ claims: [], entries: [], familyEntries: [] }), { status: 200 }))));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-xjf3n0">
+        <LedgerCommunity venueId="venue-xjf3n0" venueName="The Test Arms" ledgerUrl="/ledger/venue-xjf3n0" curatedClaims={[]} />
+      </LedgerLiveProvider>,
+    ));
+    const group = container.querySelector("details");
+    expect(group?.open).toBe(false);
+  });
+
+  it("keeps existing family entries visible", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify(AUTHOR_LOG), { status: 200 }))));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-xjf3n0">
+        <LedgerCommunity venueId="venue-xjf3n0" venueName="The Test Arms" ledgerUrl="/ledger/venue-xjf3n0" curatedClaims={[]} />
+      </LedgerLiveProvider>,
+    ));
+    expect(container.querySelector("details")?.open).toBe(true);
+    expect(container.textContent).toContain("1962");
+  });
+
+  it("does not call an unavailable logbook empty", async () => {
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(null, { status: 503 }))));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-xjf3n0">
+        <LedgerCommunity venueId="venue-xjf3n0" venueName="The Test Arms" ledgerUrl="/ledger/venue-xjf3n0" curatedClaims={[]} />
+      </LedgerLiveProvider>,
+    ));
+    expect(container.querySelector("details")?.open).toBe(true);
+    expect(container.querySelector('button')?.textContent).toContain("Try again");
+  });
+
+  it("keeps the sections open when a read cannot confirm an empty result", async () => {
+    community.visitsEmpty = false;
+    vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ claims: [], entries: [], familyEntries: [] }), { status: 200 }))));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-xjf3n0">
+        <LedgerCommunity venueId="venue-xjf3n0" venueName="The Test Arms" ledgerUrl="/ledger/venue-xjf3n0" curatedClaims={[]} />
+      </LedgerLiveProvider>,
+    ));
+    expect(container.querySelector("details")?.open).toBe(true);
+    community.visitsEmpty = true;
   });
 });

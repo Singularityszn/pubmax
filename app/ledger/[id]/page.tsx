@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
@@ -19,14 +19,12 @@ import JsonLd from "@/components/seo/JsonLd";
 import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import {
   LedgerLiveProvider,
-  LedgerLogSections,
+  LedgerCommunity,
   LedgerReadAloud,
   LedgerPriceRecord,
 } from "@/components/ledger/LedgerLive";
 import ShareWithFamilyButton from "@/components/ledger/ShareWithFamilyButton";
-import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import { LEDGER_READ_UNAVAILABLE } from "./ledgerReadUnavailable";
-import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import { mergePriceUpdates, parsePriceUpdates } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
 import { BUNDLE_DEFAULT_CATEGORY, bundlePricesForCategory } from "@/lib/ukPriceBundle";
@@ -225,6 +223,32 @@ export default async function LedgerPage({ params }: PageProps) {
             {venueAreaLabel(venue)}
           </p>
 
+          <LedgerPriceRecord
+            venue={{
+              id: canonicalId,
+              cheapestPrice: priceVenue.cheapestPrice,
+              cheapestPint: priceVenue.cheapestPint,
+              prices: priceVenue.prices,
+              sourcedPrice: priceVenue.sourcedPrice,
+            }}
+            bundle={bundle}
+          />
+
+          <Link prefetch={false} className="ledgerPrimaryLink" href={`${venueMapUrl(canonicalId)}&log=1` as Route}>Log</Link>
+          <details className="ledgerSecondaryActions">
+            <summary>More actions</summary>
+            <div className="ledgerHeadActions">
+              <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
+                Open on the map
+              </Link>
+              <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
+                See the bar tab
+              </Link>
+              <LedgerReadAloud intro={speechIntro} />
+              <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
+            </div>
+          </details>
+
           {/* Listed-building brass plaque (Historic England NHLE). Rendered only
               when the pub is on the official register; the citation link is the
               attribution required by the Open Government Licence. */}
@@ -240,41 +264,10 @@ export default async function LedgerPage({ params }: PageProps) {
             </a>
           ) : null}
           {listedBuilding ? <DataCreditsLink className="ledgerCredits" /> : null}
-
-          <div className="ledgerHeadActions">
-            <Link prefetch={false} className="ledgerMapLink" href={venueMapUrl(canonicalId)}>
-              Open on the map
-            </Link>
-            <Link className="ledgerMapLink" href={`/bar-tab/${encodeURIComponent(canonicalId)}`}>
-              See the bar tab
-            </Link>
-            <LedgerReadAloud intro={speechIntro} />
-            <ShareWithFamilyButton venueName={venue.name} url={ledgerUrl} label="Share this ledger" />
-          </div>
-
-          <LedgerPriceRecord
-            venue={{
-              id: canonicalId,
-              cheapestPrice: priceVenue.cheapestPrice,
-              cheapestPint: priceVenue.cheapestPint,
-              prices: priceVenue.prices,
-              sourcedPrice: priceVenue.sourcedPrice,
-            }}
-            bundle={bundle}
-          />
-
-          {/* Individual, dated Visit Reports. No score or aggregate verdict. */}
-          <VisitReportPanel venueId={canonicalId} venueName={venue.name} />
-
-          {/* The pub's community photo wall - the same one the map sheet shows. */}
-          <VenuePhotoWall venueId={canonicalId} venueName={venue.name} />
         </header>
 
-        <p className="ledgerLaneNote">
-          Public notes go in the logbook. Legacy notes stay at the Family Table below.
-        </p>
-
-        <LedgerLogSections
+        <LedgerCommunity
+          venueId={canonicalId}
           venueName={venue.name}
           ledgerUrl={ledgerUrl}
           curatedClaims={buildVenueClaims(curation)}

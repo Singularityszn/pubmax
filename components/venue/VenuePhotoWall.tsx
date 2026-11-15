@@ -46,6 +46,7 @@ import "./venuePhotoWall.css";
 type VenuePhotoWallProps = {
   venueId: string;
   venueName: string;
+  onEmptyChange?: (empty: boolean) => void;
   /** The tab or section is on screen. Nothing is fetched until it is. */
   active?: boolean;
 };
@@ -66,6 +67,7 @@ export default function VenuePhotoWall({
   venueId,
   venueName,
   active = true,
+  onEmptyChange,
 }: VenuePhotoWallProps) {
   const { user, handle, configured } = useAuth();
   // Where the sign-in door comes back to. The wall reads from three places, so
@@ -201,6 +203,9 @@ export default function VenuePhotoWall({
 
   const canPost = !configured || Boolean(user && handle);
   const empty = loaded && wall.photos.length === 0;
+  useEffect(() => {
+    onEmptyChange?.(empty && wall.status === "ready");
+  }, [empty, onEmptyChange, wall.status]);
 
   return (
     <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
