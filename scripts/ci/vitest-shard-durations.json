@@ -2046,7 +2046,7 @@
   "__tests__/tonightYourPubs.test.tsx": 571,
   "__tests__/trackedBuildArtifacts.test.ts": 90,
   "__tests__/trustedHandoffAnalytics.test.ts": 33,
-  "__tests__/trustedHandoffFlags.test.ts": 176,
+  "__tests__/rolloutFlagRetirement.test.ts": 176,
   "__tests__/trustedSigning.test.ts": 1377,
   "__tests__/tubeOffsets.test.ts": 15,
   "__tests__/typesafe.server.test.ts": 62,

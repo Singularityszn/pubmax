@@ -5,10 +5,9 @@ import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
-import { socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV, socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
 import { socialLondonLaneOpen } from "@/lib/socialLondonLane.server";
 import { loadSocialAlternatives } from "@/lib/socialAlternatives.server";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
 
@@ -41,7 +40,7 @@ const SOCIAL_DISCOVER_DESCRIPTION =
 export async function generateMetadata(
   props: { searchParams: Promise<SearchParams> },
 ): Promise<Metadata> {
-  const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const friendsLaunchEnabled = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]);
   const state = props?.searchParams
     ? parseSocialShellSearch(toUrlSearchParams(await props.searchParams))
     : null;
@@ -73,7 +72,7 @@ export default async function SocialPage({
   const state = parseSocialShellSearch(toUrlSearchParams(await searchParams));
   if (!state.valid) redirect("/social");
 
-  const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const friendsLaunchEnabled = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]);
   // A stranger reads the London lane unless Social is rolled back or frozen.
   const londonLaneOpen = socialLondonLaneOpen();
 

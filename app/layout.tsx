@@ -36,7 +36,7 @@ import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import NightFallGate from "@/components/wild/NightFallGate";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
 import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
 import { BROWSER_BAR_THEME_COLORS } from "@/lib/browserBarColor";
@@ -321,7 +321,7 @@ export default async function RootLayout({
   // Server-only two-key check. Client components receive only this boolean,
   // never CLERK_SECRET_KEY or a value derived from its contents.
   const clerkIntegrationConfigured = isClerkMiddlewareConfigured();
-  const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const socialFriendsLaunchEnabled = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]);
   return (
     <html
       lang="en"

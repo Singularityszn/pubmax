@@ -1,19 +1,14 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const reads = vi.hoisted(() => ({
   rivalry: vi.fn(async () => [{ city: "London" }]),
   heritage: vi.fn(async () => [{ id: "crawl-1" }]),
-  launch: false,
 }));
 
 vi.mock("next/navigation", () => ({
   redirect: vi.fn(),
-}));
-
-vi.mock("@/lib/trustedHandoffFlags.server", () => ({
-  readTrustedHandoffFlag: () => reads.launch,
 }));
 
 vi.mock("@/lib/cityRivalry", () => ({
@@ -31,9 +26,9 @@ vi.mock("@/app/social/SocialPageClient", () => ({
 
 import SocialPage from "@/app/social/page";
 
-afterEach(() => {
-  reads.launch = false;
+beforeEach(() => {
   vi.unstubAllEnvs();
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
 });
 
 async function renderPage(search: Record<string, string> = {}): Promise<string> {
@@ -53,7 +48,7 @@ describe("Social server rollback boundary", () => {
   it("opens the signed-out London lane only while Social is live and not frozen", async () => {
     expect(await renderPage(), "rollback closes the lane").toContain("&quot;londonLaneOpen&quot;:false");
 
-    reads.launch = true;
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
     expect(await renderPage(), "live Social opens it").toContain("&quot;londonLaneOpen&quot;:true");
 
     vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");

@@ -14,7 +14,7 @@ import { LANDING_FALLBACK_RECEIPT_HREF } from "@/lib/landingHero";
 import { loadLandingDrinkLinks } from "@/lib/landingDiscovery.server";
 import { HISTORIC_PUB_COUNT } from "@/components/landing/londonMapGeometry";
 import { loadLandingHeroData } from "@/lib/landingPubCard.server";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 import { homeProductDescription } from "@/lib/siteProductCopy";
 import { appPageTitle, BRAND_NAME } from "@/lib/brandNaming";
 import JsonLd from "@/components/seo/JsonLd";
@@ -140,7 +140,7 @@ export default async function Home() {
   // Soft launch keeps friends-launch unset/off. Thread the same gate the Social
   // APIs use so Memory CTAs never promise "Open Social" while /social still
   // answers "not open yet."
-  const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const socialFriendsLaunchEnabled = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]);
 
   return (
     <>

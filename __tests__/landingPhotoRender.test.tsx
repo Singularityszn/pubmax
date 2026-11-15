@@ -21,9 +21,7 @@ vi.mock("@/lib/landingAnswers.server", () => ({
     tonight: { line: "Quiet.", stamp: "Wednesday 1 October", measured: false },
   }),
 }));
-vi.mock("@/lib/trustedHandoffFlags.server", () => ({
-  readTrustedHandoffFlag: () => false,
-}));
+vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
 vi.mock("@/lib/cheapestHunt.server", () => ({
   loadCheapestHunt: async () => ({ britain: null, cities: [], londonDearest: null }),
 }));

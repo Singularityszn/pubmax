@@ -365,8 +365,8 @@ approval of this PRD.
 ## Deploy / ops notes
 
 - Follow the [migration apply policy](../../supabase/AGENTS.md#traps).
-- New flags register in `lib/trustedHandoffFlags.server.ts` with ownerLane,
-  removalCondition, offBehavior.
+- A new rollout flag gets a line in `.env.example` and states its removal
+  condition and off behaviour beside its reader.
 - OpenAI moderation key remains captain-owned from Social Launch WP2.
 - No new OAuth app review until Wave G explicitly needs it; paste works
   without Meta app review.
