@@ -429,10 +429,15 @@ describe("search_venues hard requirements", () => {
   });
 
   it("keeps the unchecked quiet mood on a card matched by a garden", async () => {
-    state.venues = [venue({ id: "garden", name: "The Garden Pub", area: "Camden", amenities: { ...noAmenities, beerGarden: true, food: true }, features: { garden: observed("OpenStreetMap", "2026-07-05") } })];
+    state.venues = [
+      venue({ id: "garden", name: "The Garden Pub", area: "Camden", amenities: { ...noAmenities, beerGarden: true, food: true }, features: { garden: observed("OpenStreetMap", "2026-07-05") } }),
+      venue({ id: "music", name: "The Music Garden", area: "Camden", cheapestPrice: 3, amenities: { ...noAmenities, beerGarden: true, liveMusic: true }, features: { garden: observed("OpenStreetMap", "2026-07-05") } }),
+    ];
     const result = await search("Quiet pubs with a beer garden in Camden");
-    expect(result.cards.map((card) => card.venueId)).toEqual(["garden"]);
-    expect(result.cards[0]?.note).toContain(QUIET_NOT_CHECKED);
+    expect(result.cards.map((card) => card.venueId).sort()).toEqual(["garden", "music"]);
+    for (const card of result.cards) expect(card.note).toContain(QUIET_NOT_CHECKED);
+    const quietOnly = await search("Quiet pubs in Camden");
+    for (const card of quietOnly.cards) expect(card.note).toContain(QUIET_NOT_CHECKED);
   });
 
   it("drops website evidence from a page the committed chain list names", async () => {
