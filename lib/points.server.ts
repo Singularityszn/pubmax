@@ -25,11 +25,12 @@ import {
 } from "@/lib/points";
 import {
   defaultPassportDeps,
-  foldBeenVenues,
   type PassportDeps,
   type PassportResult,
 } from "@/lib/profilePassport.server";
 import { normalizeHandle } from "@/lib/profiles";
+import type { NearbyVisit } from "@/lib/nearbyVisit";
+import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
 import type { ProfileRecord } from "@/lib/profileStore";
 import { ratingsStore } from "@/lib/ratingsStore";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
@@ -42,10 +43,11 @@ type PointsDrop = { venueId: string; createdAt: string; priced: boolean; checked
 
 export type PointsDeps = Pick<
   PassportDeps,
-  "verifyCaller" | "profiles" | "withdrawn" | "diary" | "plans" | "beenHere" | "venue" | "venueAliases"
+  "verifyCaller" | "profiles" | "withdrawn" | "venueAliases"
 > & {
   /** The owner's own drops, read as the owner. */
   drops(ownerHandle: string): Promise<PointsDrop[]>;
+  nearbyVisits(ownerUserId: string): Promise<NearbyVisit[]>;
   /** Pubs the owner sent in that a person accepted. */
   addedPubs(ownerUserId: string): Promise<number>;
   /** Fixes the owner sent that a person resolved. */
@@ -114,11 +116,9 @@ async function readPointsRecords(
 ): Promise<{ breakdown: PointsBreakdown; visited: ReadonlySet<string> }> {
   const handle = normalizeHandle(owner.handle);
   const userId = owner.userId?.trim() || "";
-  const [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical] = await Promise.all([
-    userId ? settle(() => deps.diary(userId), []) : none([]),
+  const [drops, nearby, added, fixed, reviews, districts, challengeSet, canonical] = await Promise.all([
     handle ? settle(() => deps.drops(handle), [] as PointsDrop[]) : none([] as PointsDrop[]),
-    userId ? settle(() => deps.plans(userId), []) : none([]),
-    handle ? settle(() => deps.beenHere(handle), []) : none([]),
+    userId ? settle(() => deps.nearbyVisits(userId), [] as NearbyVisit[]) : none([] as NearbyVisit[]),
     userId ? settle(() => deps.addedPubs(userId), 0) : none(0),
     userId ? settle(() => deps.fixedPubs(userId), 0) : none(0),
     handle ? settle(() => deps.drinkReviews(handle), 0) : none(0),
@@ -127,31 +127,21 @@ async function readPointsRecords(
     settle(() => deps.venueAliases(), (venueId: string) => venueId),
   ]);
 
-  const venues = await foldBeenVenues(
-    { diary: diary.value, drops: drops.value, plans: plans.value, beenHere: beenHere.value },
-    canonical.value,
-    deps,
-  );
-  const visited = new Set(venues.map((venue) => venue.venueId));
+  const proof = [
+    ...drops.value.map((drop) => ({ venueId: drop.venueId, date: loggedAt(drop.createdAt) })),
+    ...nearby.value.map((visit) => ({ venueId: visit.venueId, date: loggedAt(visit.checkedAt) })),
+  ];
+  const visited = new Set(canonical.failed ? [] : proof.map((row) => canonical.value(row.venueId)).filter(Boolean));
   const finished = finishedDistricts(districts.value, visited);
   const priced = drops.value.filter((drop) => drop.priced);
-  const degraded = [diary, drops, plans, beenHere, added, fixed, reviews, districts, challengeSet, canonical].some(
-    (read) => read.failed,
-  );
-  const completeHistory = [diary, drops, plans, beenHere, canonical].every((read) => !read.failed);
-  const logged = firstLoggedDates(
-    [
-      ...[...diary.value, ...plans.value].map((row) => ({ venueId: row.venueId, date: loggedAt(row.date) })),
-      ...drops.value.map((drop) => ({ venueId: drop.venueId, date: loggedAt(drop.createdAt) })),
-      ...beenHere.value.map((row) => ({ venueId: row.venueId, date: loggedAt(row.savedAt) })),
-    ],
-    canonical.value,
-  );
+  const degraded = [drops, nearby, added, fixed, reviews, districts, challengeSet, canonical].some((read) => read.failed);
+  const completeHistory = [drops, nearby, canonical].every((read) => !read.failed);
+  const logged = firstLoggedDates(proof, canonical.value);
   const challenges = challengeProgress(challengeSet.value, visited, completeHistory ? logged : () => null);
 
   const breakdown = buildPointsBreakdown(
     {
-      been: venues.length,
+      been: visited.size,
       priceLogged: priced.length,
       drinkReview: reviews.value,
       priceChecked: priced.filter((drop) => drop.checked).length,
@@ -251,10 +241,7 @@ function defaultPointsDeps(): PointsDeps {
     verifyCaller: callerUserId,
     profiles: passport.profiles,
     withdrawn: passport.withdrawn,
-    diary: passport.diary,
-    plans: passport.plans,
-    beenHere: passport.beenHere,
-    venue: passport.venue,
+    nearbyVisits: (ownerUserId) => nearbyVisitStore().list(ownerUserId),
     venueAliases: async () => {
       const aliases = await loadVenueAliasResolver();
       if (aliases.status === "unavailable") throw new Error("Venue aliases unavailable");

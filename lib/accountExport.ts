@@ -1,3 +1,4 @@
+import type { NearbyVisit } from "@/lib/nearbyVisit";
 // What an account's own export IS, in ONE place.
 //
 // UK GDPR gives a person the right to a portable copy of what is held about
@@ -309,6 +310,7 @@ export type AccountExport = {
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   leagues: AccountExportLane<LeagueExportRecord>;
+  nearbyVisits: AccountExportLane<NearbyVisit>;
   socialLinks: AccountExportLane<PublicSocialConnection>;
   /** At most one row, the same way `identity` is. */
   nightProfile: AccountExportLane<NightProfile>;
@@ -340,6 +342,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "tableRequests",
   "pubListNightDrafts",
   "leagues",
+  "nearbyVisits",
   "socialLinks",
   "nightProfile",
   "messages",

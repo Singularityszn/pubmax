@@ -52,6 +52,7 @@ import { BEEN_HERE_CARRY_ACTION, BEEN_HERE_LIST } from "@/lib/beenHere";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import { getVenueIndex, resolveVenue } from "@/lib/venueIndex";
+import { resetNearbyVisitsForTests } from "@/lib/nearbyVisitStore";
 import { readPointsBreakdown } from "@/lib/points.server";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
@@ -71,6 +72,7 @@ beforeEach(async () => {
   diaryWrites.mockReset();
   __resetMemoryProfiles();
   __resetMemorySavedPubs();
+  resetNearbyVisitsForTests();
   await memoryProfileStore.createOwned("mia", "user-mia");
 });
 
@@ -138,6 +140,7 @@ describe("carryBeenHere", () => {
     const body = (await res.json()) as { saved: Array<{ venueId: string; listType: string }>; carried: string[]; refused: string[] };
     expect(body.carried).toEqual([lamb, grapes]);
     expect(body.refused).toEqual([]);
+    expect((await readPointsBreakdown({ handle: "mia", userId: caller.id! })).total).toBe(0);
     expect(body.saved.filter((row) => row.listType === BEEN_HERE_LIST).map((row) => row.venueId).sort()).toEqual(
       [lamb, grapes].sort(),
     );

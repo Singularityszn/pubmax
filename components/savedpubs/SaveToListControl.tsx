@@ -22,6 +22,8 @@ import type { VenueKind } from "@/lib/venues";
 
 import "./saveToList.css";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
+import NearbyVisitCheckIn from "@/components/savedpubs/NearbyVisitCheckIn";
+import { BEEN_HERE_LIST } from "@/lib/beenHere";
 
 // Save-a-venue-to-a-list control with CUSTOM LIST support (story 33). A small,
 // self-contained island: it shows the eligible built-in lists PLUS the viewer's
@@ -324,6 +326,16 @@ export default function SaveToListControl({
           </button>
         ))}
       </div>
+
+      {user && handle && allLists.includes(BEEN_HERE_LIST) ? (
+        <NearbyVisitCheckIn
+          key={`${accountKey}:${venueId}`}
+          venueId={venueId}
+          handle={handle}
+          disabled={busy || !ready}
+          onSaved={() => setSavedIn((held) => held.includes(BEEN_HERE_LIST) ? held : [...held, BEEN_HERE_LIST])}
+        />
+      ) : null}
 
       <div className="saveToListNew">
         <input

@@ -186,6 +186,17 @@ no side effect, as above.
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
 
+## Nearby Been proof (migration 0240)
+
+| Cell | anonymous | another account | owner |
+| --- | --- | --- | --- |
+| Nearby check-in (`POST /api/saved-pubs`, `action: nearbyCheckIn`) | denied | writes only its own proof | allowed with a fresh, accurate fix within 200 metres |
+| Read, insert, update or delete `nearby_visits` directly | denied | denied | denied |
+
+The server discards precise coordinates after checking proximity. It keeps only
+the account, canonical venue and first check-in time. Its insert is idempotent.
+The service role cannot update proof. Account deletion removes the records.
+
 ## Private leagues (migration 0239)
 
 These cells use Alice as the owner, Bob as a member, and Dave as an unrelated

@@ -278,10 +278,9 @@ type BeenRecords = {
 };
 
 /**
- * The passport's Been list and the points read share the same canonicalisation
- * and deduplication rules, even when their readers supply different records.
+ * Fold the passport's Been list onto current venue ids, counting each pub once.
  */
-export async function foldBeenVenues(
+async function foldBeenVenues(
   records: BeenRecords,
   canonical: (venueId: string) => string,
   deps: Pick<PassportDeps, "venue">,
