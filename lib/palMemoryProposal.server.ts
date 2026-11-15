@@ -34,24 +34,27 @@ const TOPIC: Record<Exclude<PubPalMemoryKind, "drink_preference" | "correction">
 function supportsMemory(kind: PubPalMemoryKind, value: string, lines: string[]): boolean {
   if (kind === "drink_preference" ? drinkCategoriesInText(value).size === 0 && !/\b(?:pints?|drinks?|budget)\b/i.test(value) : kind !== "correction" && !TOPIC[kind].test(value)) return false;
   if (kind === "correction" && !/\b(?:not|never|no longer|don['’]t|instead|rather|actually|correction|wrong)\b/i.test(value)) return false;
-  const normalise = (text: string) => text.trim().replace(/[.!]+$/, "").toLocaleLowerCase("en-GB");
+  const normalise = (text: string) => text.trim().replace(/\s+/g, " ").replace(/[.!]+$/, "").toLocaleLowerCase("en-GB");
   const wanted = normalise(value);
-  return lines.some((line) => line.split(/(?<=[.!?;])/).some((sentence) => {
-    if (sentence.includes("?")) return false;
-    const text = normalise(sentence);
-    const requested = text.match(/^remember\s+(.+?)\s+for me$/);
-    if (requested?.[1] === wanted) return true;
-    if (/^forget\b/.test(text) && text === wanted) return true;
-    // Only a complete first-person statement or its entire simple preference object is evidence.
-    const match = text.match(/(?:^|,\s*)(i\s+(?:like|love|prefer|enjoy|drink|want|need|do not like|don['’]t like|don['’]t drink|only drink|have|use|take|went|visited|spent|was|am|had|no longer need|can['’]t stand)\s+.+|i['’]ve\s+gone off\s+.+|my\s+local\s+is\s+.+|remember\s+.+\s+for me)$/);
-    if (!match || /\b(?:my friend|my mate|my partner|he|she|they)\b/.test(text)) return false;
-    const statement = match[1];
-    if (wanted === statement) return true;
-    const simple = statement.match(/^(?:i\s+(?:like|love|prefer|enjoy|drink)\s+|remember\s+)(.+?)(?:\s+for me)?$/);
-    return kind !== "correction" && kind !== "night_outcome" && simple?.[1] === wanted;
-  }));
+  return lines.some((line) => {
+    const source = normalise(line);
+    const requested = source.match(/^remember\s+(.+?)\s+for me$/);
+    if (!source.includes("?") && requested?.[1] === wanted) return true;
+    const index = source.indexOf(wanted);
+    if (index < 0 || /[.!?;]/.test(source.slice(0, index)) || /[^\s.!?;]/.test(source.slice(index + wanted.length))) return false;
+    return [line, ...line.split(/(?<=[.!?;])/)].some((sentence) => {
+      if (sentence.includes("?")) return false;
+      const text = normalise(sentence);
+      if (/^forget\b/.test(text) && text === wanted) return true;
+      const match = text.match(/(?:^|,\s*)(i\s+(?:like|love|prefer|enjoy|drink|want|need|do not like|don['’]t like|don['’]t drink|only drink|have|use|take|went|visited|spent|was|am|had|no longer need|can['’]t stand)\s+.+|i['’]ve\s+gone off\s+.+|my\s+local\s+is\s+.+|remember\s+.+\s+for me)$/);
+      if (!match || /\b(?:my friend|my mate|my partner|he|she|they)\b/.test(text)) return false;
+      const statement = match[1];
+      if (wanted === statement) return true;
+      const simple = statement.match(/^(?:i\s+(?:like|love|prefer|enjoy|drink)\s+|remember\s+)(.+?)(?:\s+for me)?$/);
+      return kind !== "correction" && kind !== "night_outcome" && simple?.[1] === wanted;
+    });
+  });
 }
-
 
 export type PalProposeMemoryToolResult = {
   result: {
