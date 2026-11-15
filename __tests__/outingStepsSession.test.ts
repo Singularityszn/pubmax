@@ -2,7 +2,7 @@
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { clearDeviceAccountSessionArtifacts } from "@/lib/deviceAccountIdentity";
+import { clearDeviceAccountArtifacts, clearDeviceAccountSessionArtifacts } from "@/lib/deviceAccountIdentity";
 import type { OutingStepsBridge } from "@/lib/nativeOutingSteps";
 import { OUTING_STEPS_STORAGE_KEY, transitionOutingSteps, type OutingStepsState } from "@/lib/outingSteps";
 import { beginOutingSteps, readOutingSteps, readOutingStepsEvent, writeOutingSteps } from "@/lib/outingStepsSession";
@@ -58,7 +58,7 @@ describe("private counts and account changes", () => {
     expect(readOutingSteps("acct-b")).toEqual(OFF);
     expect(readOutingSteps(null)).toEqual(OFF);
 
-    clearDeviceAccountSessionArtifacts(window.sessionStorage);
+    clearDeviceAccountArtifacts(window.localStorage, window.sessionStorage);
     expect(window.localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
     await vi.waitFor(() => expect(bridge.stop).toHaveBeenCalledExactlyOnceWith({ session: started.session }));
 
@@ -170,6 +170,33 @@ describe("native expiry", () => {
     const state = await startFor("acct-a", fakeBridge());
     const bridge = fakeBridge({ sample: vi.fn(async () => { throw Object.assign(new Error("expired"), { code: "expired" }); }) });
     const outcome = await readOutingStepsEvent(bridge, state, { signal: new AbortController().signal, now: () => T0 + 90_000 });
-    expect(outcome).toEqual({ kind: "event", event: { type: "stop", session: state.phase === "counting" ? state.session : "", at: T0 + 90_000 } });
+    if (outcome.kind !== "event") throw new Error("expected terminal event");
+    expect(transitionOutingSteps(state, outcome.event)).toMatchObject({ phase: "stopped", gap: true });
+  });
+
+  it("finishes an iOS session when its history can no longer be read", async () => {
+    const state = await startFor("acct-a", fakeBridge({ sample: vi.fn(async () => ({ platform: "ios" as const, steps: 0 })) }));
+    const bridge = fakeBridge({ sample: vi.fn(async () => { throw Object.assign(new Error("history expired"), { code: "history_expired" }); }) });
+    const outcome = await readOutingStepsEvent(bridge, state, { signal: new AbortController().signal, now: () => T0 + 8 * 24 * 60 * 60 * 1000 });
+    if (outcome.kind !== "event") throw new Error("expected terminal event");
+    expect(transitionOutingSteps(state, outcome.event)).toMatchObject({ phase: "stopped", gap: true });
+  });
+
+  it("does not finish on an invalid read or a stale history error", async () => {
+    const state = await startFor("acct-a", fakeBridge());
+    const invalid = fakeBridge({ sample: vi.fn(async () => { throw Object.assign(new Error("invalid"), { code: "invalid" }); }) });
+    expect(await readOutingStepsEvent(invalid, state, { signal: new AbortController().signal, now: () => T0 })).toEqual({ kind: "failed" });
+    const account = new AbortController();
+    const stale = fakeBridge({ sample: vi.fn(async () => { account.abort(); throw Object.assign(new Error("old"), { code: "history_expired" }); }) });
+    expect(await readOutingStepsEvent(stale, state, { signal: account.signal, now: () => T0 })).toEqual({ kind: "stale" });
+  });
+
+  it("leaves another tab's shared session intact during tab-only cleanup", async () => {
+    const bridge = fakeBridge();
+    shared.bridge = bridge;
+    const state = await startFor("acct-b", bridge);
+    clearDeviceAccountSessionArtifacts(window.sessionStorage);
+    expect(readOutingSteps("acct-b")).toEqual(state);
+    expect(bridge.stop).not.toHaveBeenCalled();
   });
 });

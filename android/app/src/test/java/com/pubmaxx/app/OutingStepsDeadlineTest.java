@@ -52,6 +52,16 @@ public class OutingStepsDeadlineTest {
     }
 
     @Test
+    public void expiredSessionRemainsExpiredWhenWallClockMovesBeforeStart() {
+        deadline.admit(START, START, A);
+        elapsed += 12 * HOUR;
+        wall = START - HOUR;
+        assertEquals(OutingStepsDeadline.Verdict.EXPIRED, deadline.admit(START, START, A));
+        deadline.expire();
+        assertEquals(OutingStepsDeadline.Verdict.EXPIRED, deadline.admit(START, START, A));
+    }
+
+    @Test
     public void onlyTheArmedSessionOwnsTheListener() {
         assertFalse(deadline.owns(A));
         deadline.admit(START, START, A);

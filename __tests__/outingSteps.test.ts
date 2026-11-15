@@ -138,6 +138,12 @@ describe("session scope", () => {
     expect(transitionOutingSteps(counted, { type: "stop", session: S, at: T0 + OUTING_STEPS_MAX_MS * 3 })).toMatchObject({ endedAt: T0 + OUTING_STEPS_MAX_MS });
   });
 
+  it("keeps a stopped session readable after the wall clock moves before its start", () => {
+    const stopped = transitionOutingSteps(startAndroid(), { type: "stop", session: S, at: T0 - 120_000 });
+    expect(stopped).toMatchObject({ phase: "stopped", endedAt: T0 });
+    expect(parseOutingSteps(serializeOutingSteps(stopped), "acct-a")).toEqual(stopped);
+  });
+
   it("clears a finished session", () => {
     const stopped = transitionOutingSteps(startAndroid(), { type: "stop", session: S, at: T0 + 1 });
     expect(transitionOutingSteps(stopped, { type: "clear" })).toEqual(OFF);
