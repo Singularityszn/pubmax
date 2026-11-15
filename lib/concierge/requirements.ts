@@ -33,7 +33,7 @@ import {
 } from "@/lib/drinkSubtypes";
 import type { DrinkCategory } from "@/lib/drinks";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
-import { isNonAlcoholicDrink } from "@/lib/nonAlcoholicDrinks";
+import { isNonAlcoholicDrink, NON_ALCOHOLIC_QUALIFIER } from "@/lib/nonAlcoholicDrinks";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { VenuePrice } from "@/lib/venues";
 import { positiveFeatureObservation, type VenueFeature, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
@@ -45,10 +45,11 @@ export type VenueRequirement = (
   | { kind: "wetherspoon"; excluded: true }
 ) & { excluded?: true; unclear?: true };
 
-type DrinkMatch =
+type DrinkMatch = (
   | { by: "brand"; brand: DrinkBrand }
   | { by: "subtype"; subtype: DrinkSubtype }
-  | { by: "category"; category: DrinkCategory };
+  | { by: "category"; category: DrinkCategory }
+) & { nonAlcoholic?: true };
 
 const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "drink" | "wetherspoon">, RegExp]> = [
   ["garden", /\b(?:beer )?gardens?\b/],
@@ -175,10 +176,17 @@ function excludedIf<T extends VenueRequirement>(requirement: T, scope: NegationS
 }
 
 /** Takes the first needle found, so a brand's words cannot also count as a style. */
-function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: NegationScope } | null {
+function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: NegationScope; nonAlcoholic?: true } | null {
   const hit = needles.find((needle) => needle && padded.includes(` ${needle} `));
-  const at = hit ? padded.indexOf(` ${hit} `) : -1;
-  return hit ? { rest: withoutPhrase(padded, hit), excluded: requirementScope(padded, at, at + hit.length + 1) } : null;
+  if (!hit) return null;
+  const qualified = [`alcoholfree ${hit}`, `${hit} alcoholfree`].find((phrase) => padded.includes(` ${phrase} `));
+  const phrase = qualified ?? hit;
+  const at = padded.indexOf(` ${phrase} `);
+  return {
+    rest: withoutPhrase(padded, phrase),
+    excluded: requirementScope(padded, at, at + phrase.length + 1),
+    ...(qualified ? { nonAlcoholic: true } : {}),
+  };
 }
 
 /** An adjective first, so a bare one never stands for the style: "a hazy evening". */
@@ -202,7 +210,7 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
     const taken = takeNeedle(padded, brandMatchNeedles(brand).filter((needle) => !places.has(needle)));
     if (taken === null) continue;
     padded = taken.rest;
-    found.push(excludedIf({ kind: "drink", label: brand.label, match: { by: "brand", brand } }, taken.excluded));
+    found.push(excludedIf({ kind: "drink", label: taken.nonAlcoholic ? `${brand.label} (alcohol-free)` : brand.label, match: { by: "brand", brand, nonAlcoholic: taken.nonAlcoholic } }, taken.excluded));
   }
   padded = withoutPlaces(padded);
   for (const subtype of DRINK_SUBTYPES) {
@@ -210,10 +218,11 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
     const taken = takeNeedle(padded, subtype.tokens.map(normalizeDrinkHaystack).filter((token) => !AMBIGUOUS_STYLE_TOKENS.has(token)));
     if (taken === null) continue;
     padded = taken.rest;
-    found.push(excludedIf({ kind: "drink", label: subtype.longLabel === "IPA" ? "IPA" : subtype.longLabel.toLowerCase(), match: { by: "subtype", subtype } }, taken.excluded));
+    const label = subtype.longLabel === "IPA" ? "IPA" : subtype.longLabel.toLowerCase();
+    found.push(excludedIf({ kind: "drink", label: taken.nonAlcoholic ? `${label} (alcohol-free)` : label, match: { by: "subtype", subtype, nonAlcoholic: taken.nonAlcoholic } }, taken.excluded));
   }
   for (const [category, label] of DRINK_CATEGORY_LABELS) {
-    const alcoholFree = category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.exec(padded) : null;
+    const alcoholFree = category === "alcohol-free" ? /\balcoholfree\b/.exec(padded) : null;
     if (category === "alcohol-free" ? alcoholFree : haystackMatchesCategory(padded, category)) {
       const span = alcoholFree ? { start: alcoholFree.index, end: alcoholFree.index + alcoholFree[0].length } : categorySpan(padded, category);
       found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, span ? requirementScope(padded, span.start, span.end) : null));
@@ -224,7 +233,8 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
-  const drinks = drinkRequirements(text.replace(/[,;.!?]+/g, " but "));
+  const qualifiedText = text.replace(new RegExp(NON_ALCOHOLIC_QUALIFIER.source, "gi"), " alcoholfree ");
+  const drinks = drinkRequirements(qualifiedText.replace(/[,;.!?]+/g, " but "));
   const chain = /\bwetherspoons?\b/.exec(drinks.rest);
   const chainScope = chain ? requirementScope(drinks.rest, chain.index, chain.index + chain[0].length) : null;
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
@@ -313,6 +323,7 @@ function observedFeature(
 }
 
 function drinkNameMatches(name: string, match: DrinkMatch): boolean {
+  if (match.nonAlcoholic && !isNonAlcoholicDrink(name)) return false;
   if (match.by === "category" && match.category === "alcohol-free" && isNonAlcoholicDrink(name)) return true;
   return match.by === "brand"
     ? haystackMatchesBrand(name, match.brand)
