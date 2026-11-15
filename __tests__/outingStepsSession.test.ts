@@ -166,6 +166,17 @@ describe("private counts and account changes", () => {
 });
 
 describe("native expiry", () => {
+  it.each(["failed", "denied", "empty"])("marks a stopped count incomplete after a %s final read", async (failure) => {
+    const state = await startFor("acct-a", fakeBridge());
+    const bridge = fakeBridge({ sample: vi.fn(async () => {
+      if (failure === "empty") return null;
+      throw Object.assign(new Error(failure), { code: failure });
+    }) });
+    const outcome = await readOutingStepsEvent(bridge, state, { signal: new AbortController().signal, now: () => T0 + 90_000, finishing: true });
+    if (outcome.kind !== "event") throw new Error("expected an incomplete final count");
+    expect(transitionOutingSteps(state, outcome.event)).toMatchObject({ phase: "stopped", gap: true });
+  });
+
   it("ends the session when the phone says the window has expired", async () => {
     const state = await startFor("acct-a", fakeBridge());
     const bridge = fakeBridge({ sample: vi.fn(async () => { throw Object.assign(new Error("expired"), { code: "expired" }); }) });
