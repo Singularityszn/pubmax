@@ -46,9 +46,9 @@ const STEP_COPY: Record<PlanIntakeStep, { short: string; eyebrow: string; title:
   },
   "group-size": {
     short: "Group",
-    eyebrow: "Make room",
+    eyebrow: "Count the group",
     title: "How many people?",
-    note: "We use it to judge room, pace and how easy it is to get in.",
+    note: "We use it for the cost of the night. We do not check that a pub has room for your group.",
   },
   budget: {
     short: "Budget",
@@ -242,18 +242,9 @@ export default function PlanIntake({
         </button>
       </header>
 
-      <p className="planIntake__palEntry">
-        Not sure?{" "}
-        <Link href="/pal/chat">Ask your Pub Pal…</Link>
-      </p>
-
-      <PlanStopCountPicker
-        value={draft.answers.stopCount}
-        onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount, stopCountSource: "picker" } })}
-      />
-
       <SheetStepProgress
         className="planIntake__progress"
+        compact
         label="Plan details progress"
         steps={PLAN_INTAKE_STEPS.map((step) => ({
           label: STEP_COPY[step].short,
@@ -441,6 +432,16 @@ export default function PlanIntake({
           </div>
         ) : null}
       </SheetStepReveal>
+
+      <PlanStopCountPicker
+        value={draft.answers.stopCount}
+        onChange={(stopCount) => onChange({ ...draft, answers: { ...draft.answers, stopCount, stopCountSource: "picker" } })}
+      />
+
+      <p className="planIntake__palEntry">
+        Not sure?{" "}
+        <Link href="/pal/chat">Ask your Pub Pal…</Link>
+      </p>
 
       <footer className="planIntake__actions">
         <button

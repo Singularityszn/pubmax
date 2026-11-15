@@ -691,7 +691,9 @@
   grid-column: 1 / -1;
   min-width: 0;
   margin: 0;
-  padding: 14px 16px 14px 34px;
+  display: grid;
+  gap: var(--space-3);
+  padding: 14px 16px;
   border: 1px solid color-mix(in srgb, var(--color-caution) 52%, var(--line));
   border-radius: var(--radius-lg);
   background: color-mix(in srgb, var(--color-caution) 9%, var(--panel));
@@ -699,6 +701,18 @@
   font-size: var(--text-sm);
   line-height: 1.45;
 }
+.planComposer__conflict { display: grid; gap: var(--space-2); min-width: 0; }
+.planComposer__conflict > p,
+.planComposer__conflictNext { margin: 0; }
+.planComposer__conflict > p { color: var(--ink); }
+.planComposer__conflictSides { display: grid; gap: var(--space-1); margin: 0; }
+.planComposer__conflictSides > div {
+  display: grid;
+  grid-template-columns: 5.5em minmax(0, 1fr);
+  gap: var(--space-2);
+}
+.planComposer__conflictSides dt { color: var(--muted); font-size: var(--text-xs); font-weight: 750; }
+.planComposer__conflictSides dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
 
 /* Describe-first entry: the default open for /plan and the route's head
    (components/ui/screen.tsx): kicker, the h1, the ask, one painted action.
@@ -845,14 +859,13 @@
   filter: none;
 }
 
-/* In the wizard this row is pinned above the step progress rail AND, on the
-   group step, above "How many people?" and its own row of small numbers.
-   Three number rows in a column is how a group of two was read as a two-pub
-   night, so the picker keeps a rule under it and its own breathing room. */
+/* In the wizard the current question leads. The pub-stop row sits under it,
+   behind a rule, so on the group step "How many people?" and its numbers are
+   read first and the two number rows are never taken for one. */
 .planIntake > .planStopCount {
-  margin: 12px 0 0;
-  padding: 0 0 14px;
-  border-bottom: 1px solid var(--line-soft);
+  margin: 0;
+  padding: 14px 0 0;
+  border-top: 1px solid var(--line-soft);
 }
 .planIntake__progress { margin: 20px 0 0; }
 
@@ -2240,6 +2253,8 @@ html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 }
 
 .planCard__actions .planCard__primary { grid-column: 1 / -1; }
+/* An ink action left alone on the last row takes the row, not half of it. */
+.planCard__actions .planCard__secondary:last-child:nth-child(even) { grid-column: 1 / -1; }
 
 /* "Who's in" lands on the crew block with its heading clear of the top bar. */
 .planCrew { scroll-margin-top: calc(var(--space-12) * 2); }

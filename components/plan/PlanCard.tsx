@@ -13,8 +13,10 @@ import { Button } from "@/components/ui/button";
 import { isPlanActiveNow, subscribeActivePlan } from "@/lib/activePlan";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import type { PlanState } from "@/lib/plan";
+import { planVisitedRevealPositions } from "@/lib/planPresentation";
 import { isPlanPreviewProjection } from "@/lib/planPrivacy";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { venueDirectionsUrl } from "@/lib/venueJourney";
 
 // THE PLAN AS ONE CARD (PlanAstra 7.4; launch UX variations, V2 "Plan").
 //
@@ -26,9 +28,10 @@ import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 // shared read the route and the crew spend (usePlanMemberRead, F-34). A read
 // that comes back as the preview takes the card down again.
 //
-// Coral is spent once here: "Send to the crew" is the card's one filled
-// action, and while the card stands the page head (which paints the same
-// action) steps aside in app/plan/plan.css. "Who's in" and "Night mode" are
+// Coral is spent once here. Before the night, "Send to the crew" is the card's
+// one filled action. While the night is on, "Night mode" takes it and the
+// invite is ink. While the card stands the page head (which paints the same
+// action) steps aside in app/plan/plan.css. "Who's in" and "Directions" are
 // ink.
 
 /** The id the crew block carries, so "Who's in" lands on it. */
@@ -59,16 +62,20 @@ export function planStartInWords(startTime: string): string | null {
   return `${weekday}, ${hour}${minute && minute !== "00" ? `:${minute}` : ""}${period}`;
 }
 
-type Cover = { imageUrl: string; kind: string };
+type Cover = { imageUrl: string; kind: string; point: { lat: number; lng: number } | null };
 
 function coverFromVenueBody(body: unknown): Cover | null {
   if (!body || typeof body !== "object") return null;
   const venue = (body as { venue?: unknown }).venue;
   if (!venue || typeof venue !== "object") return null;
-  const row = venue as { imageUrl?: unknown; kind?: unknown };
+  const row = venue as { imageUrl?: unknown; kind?: unknown; latitude?: unknown; longitude?: unknown };
   return {
     imageUrl: typeof row.imageUrl === "string" ? row.imageUrl.trim() : "",
     kind: typeof row.kind === "string" && row.kind ? row.kind : "pub",
+    point: typeof row.latitude === "number" && Number.isFinite(row.latitude)
+      && typeof row.longitude === "number" && Number.isFinite(row.longitude)
+      ? { lat: row.latitude, lng: row.longitude }
+      : null,
   };
 }
 
@@ -127,9 +134,13 @@ export default function PlanCard({ planId, completed = false }: { planId: string
   }, [planId]);
   usePlanMemberRead(planId, readPlan);
   const onTonight = usePlanOnTonight(planId);
-  const firstStop = state
-    ? state.stops.slice().sort((a, b) => a.position - b.position)[0] ?? null
-    : null;
+  // The card leads with the stop the crew goes to next: the first one in route
+  // order with no check-in or skip recorded. Before the night that is Stop 1.
+  // Once every stop is done it stays on the last one and says nothing more.
+  const orderedStops = state ? state.stops.slice().sort((a, b) => a.position - b.position) : [];
+  const visited = state ? planVisitedRevealPositions(state) : [];
+  const openStop = orderedStops.find((stop) => !visited.includes(stop.position)) ?? null;
+  const firstStop = openStop ?? orderedStops.at(-1) ?? null;
   const cover = usePlanCover(firstStop?.venueId ?? null);
 
   if (!state || completed || state.plan.status === "completed" || state.ending) return null;
@@ -151,7 +162,7 @@ export default function PlanCard({ planId, completed = false }: { planId: string
           <VenueImage
             className="planCard__photo"
             sources={[{ url: cover.imageUrl, provenance: "chain" }]}
-            alt={`${firstStop.venueName}, the first stop`}
+            alt={openStop ? `${firstStop.venueName}, ${visited.length ? "the next stop" : "the first stop"}` : firstStop.venueName}
             fill
             sizes="(max-width: 640px) 100vw, 560px"
             maxWidth={1080}
@@ -160,7 +171,11 @@ export default function PlanCard({ planId, completed = false }: { planId: string
         ) : (
           <div className="planCard__placeholder" aria-hidden="true" data-testid="plan-card-placeholder" />
         )}
-        {firstStop ? <figcaption className="planCard__firstStop">First up: {firstStop.venueName}</figcaption> : null}
+        {openStop ? (
+          <figcaption className="planCard__firstStop">
+            {visited.length ? "Next up" : "First up"}: {openStop.venueName}
+          </figcaption>
+        ) : null}
       </figure>
       <div className="planCard__body">
         {when ? <p className="planCard__when">{when}</p> : null}
@@ -173,15 +188,34 @@ export default function PlanCard({ planId, completed = false }: { planId: string
           </ul>
         ) : null}
         <div className="planCard__actions">
-          <Button asChild size="large" className="planCard__primary">
+          {/* One coral: while the night is on, going out is the next thing to
+              do, so Night mode leads and the invite steps back to ink. */}
+          {onTonight ? (
+            <Button type="button" size="large" className="planCard__primary" onClick={engageNightMode}>
+              Night mode
+            </Button>
+          ) : null}
+          <Button
+            asChild
+            variant={onTonight ? "secondary" : "primary"}
+            size="large"
+            className={onTonight ? "planCard__secondary" : "planCard__primary"}
+          >
             <a href="#share">Send to the crew</a>
           </Button>
           <Button asChild variant="secondary" size="large" className="planCard__secondary">
             <a href={`#${PLAN_CREW_ANCHOR}`}>Who&rsquo;s in</a>
           </Button>
-          {onTonight ? (
-            <Button type="button" variant="secondary" size="large" className="planCard__secondary" onClick={engageNightMode}>
-              Night mode
+          {openStop && cover?.point ? (
+            <Button asChild variant="secondary" size="large" className="planCard__secondary">
+              <a
+                href={venueDirectionsUrl(cover.point, null)}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Directions to ${openStop.venueName}`}
+              >
+                Directions
+              </a>
             </Button>
           ) : null}
         </div>

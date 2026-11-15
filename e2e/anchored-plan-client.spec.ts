@@ -145,9 +145,9 @@ test("existing Plan work wins without consuming a newer accepted Venue", async (
 
   await page.goto("/plan");
   await expect(page.locator(".planStop__name").first()).toHaveText(existing.name);
-  await expect(page.getByText(
-    "Kept existing Plan work instead of replacing it with a newer Venue acceptance.",
-  )).toBeVisible();
+  const kept = page.getByRole("region", { name: "Plan changes we kept safe" });
+  await expect(kept).toBeVisible();
+  await expect(kept).toContainText(existing.name);
   await expect(page.locator(".planStop__name").first()).not.toHaveText(accepted.name);
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();
