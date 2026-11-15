@@ -145,7 +145,6 @@ describe("Tonight selected-detail exemption behaviour", () => {
       { price_gbp: 3, pint_name: "Wrong lager", measure: "pint", pub_url: "https://wrong.example/menu", scraped_at_values: "2026-07-03" },
       { price_gbp: 4.5, pint_name: "Other lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-07-03" },
     ] } })); });
-    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
     expectUnavailable();
     expect(container.textContent).not.toContain("Wrong lager");
     expect(container.textContent).not.toContain("Other lager");
