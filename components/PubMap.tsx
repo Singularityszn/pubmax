@@ -5333,9 +5333,12 @@ export default function PubMap({
       areaTarget: searchAreaTarget,
       layersTab: mobileLayersTab,
       landmarkId: activeLandmarkId,
+      returnCamera: cameraOwnership.capture(mapViewport)
+        ? { center: mapViewport.center, zoom: mapViewport.zoom }
+        : null,
       ...(pricePickerOpen ? { pricePicker: true } : {}),
     }),
-    [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
+    [activeLandmarkId, cameraOwnership, mapViewport, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
   );
   const closeMapSurfaces = useCallback(() => {
     const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
@@ -5364,7 +5367,7 @@ export default function PubMap({
     return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
   }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
-    (entry: SurfaceEntry<MapSurfaceState> | null) => {
+    (entry: SurfaceEntry<MapSurfaceState> | null, rootState?: MapSurfaceState) => {
       const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
       if (entry?.id === "moment" && held.pricePicker) {
         closeMapSurfaces();
@@ -5374,7 +5377,10 @@ export default function PubMap({
         return;
       }
       closeEverySurface();
-      if (!entry) return;
+      if (!entry) {
+        if (rootState?.returnCamera) moveMapCameraTo(rootState.returnCamera);
+        return;
+      }
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
@@ -5408,7 +5414,7 @@ export default function PubMap({
       );
       setMapOverlay(entry.id as MapOverlay);
     },
-    [closeEverySurface, closeMapSurfaces, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
+    [closeEverySurface, closeMapSurfaces, moveMapCameraTo, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
   );
   const mapSurfaceTrail = useMapSurfaceNavigation({
     arrivalSearch,

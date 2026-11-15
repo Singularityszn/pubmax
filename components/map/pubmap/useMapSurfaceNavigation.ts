@@ -45,6 +45,7 @@ export type MapSurfaceState = {
   landmarkId: string;
   /** A "Choose a pub" picker opened for a `contribute=price` request. */
   pricePicker?: boolean;
+  returnCamera?: { center: [number, number]; zoom: number } | null;
 };
 
 export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
@@ -135,7 +136,7 @@ export function useMapSurfaceNavigation({
   surfaceTitle: string;
   surfaceState: MapSurfaceState;
   selectionHint: string;
-  onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
+  onRestore: (entry: SurfaceEntry<MapSurfaceState> | null, rootState?: MapSurfaceState) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
@@ -145,6 +146,7 @@ export function useMapSurfaceNavigation({
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
   );
   const stackRef = useRef(stack);
+  const rootStateRef = useRef<MapSurfaceState | undefined>(undefined);
   const initialisedRef = useRef(false);
   const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
@@ -172,6 +174,7 @@ export function useMapSurfaceNavigation({
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
       if (typeof window === "undefined") return;
+      if (stackRef.current.length === 0) rootStateRef.current = entry.state;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
       publishStack(transition.stack);
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
@@ -359,7 +362,11 @@ export function useMapSurfaceNavigation({
         onSurfaceCloseRef.current();
       }
       publishStack(next);
-      onRestoreRef.current(currentSurface(next));
+      if (next.length === 0 && rootStateRef.current?.returnCamera) {
+        onRestoreRef.current(null, rootStateRef.current);
+      } else {
+        onRestoreRef.current(currentSurface(next));
+      }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
