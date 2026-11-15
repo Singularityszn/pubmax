@@ -268,6 +268,11 @@ describe("onboarding after a kept pub", () => {
       });
       await settle();
     }
+    if (from === "pal") writeAskPlanDraft({
+      query: "Pubs in Camden, maximum £5 per pint", origin: "pal",
+      stopIds: ["venue-a", "venue-b", "venue-c"], stopNames: ["Pub A", "Pub B", "Pub C"], createdAt: new Date().toISOString(),
+    });
+    const pendingPalDraft = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
     window.history.replaceState({}, "", from === "pal"
       ? planPalRouteHandoffHref("Pubs in Camden, maximum £5 per pint")
       : "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
@@ -279,6 +284,7 @@ describe("onboarding after a kept pub", () => {
     });
     await settle();
     expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    if (from === "pal") expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBe(pendingPalDraft);
     if (side === "old") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
     await act(async () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
@@ -287,10 +293,11 @@ describe("onboarding after a kept pub", () => {
     if (from === "pal") {
       const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
       expect(call).toBeDefined();
-      const request = JSON.parse(String(call?.[1]?.body)) as { query: string; acceptedVenueId?: string };
+      const request = JSON.parse(String(call?.[1]?.body)) as { query: string; acceptedVenueId?: string; anchor?: { venueId: string; venueIds?: string[]; source: string } };
       expect(request.query).toContain("Camden");
       expect(request.query).toContain("£5 per pint");
-      expect(request.acceptedVenueId).toBeUndefined();
+      expect(request.anchor).toMatchObject({ source: "pal", venueId: "venue-a", venueIds: ["venue-a", "venue-b", "venue-c"] });
+      expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
     } else {
       expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Camden");
       expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("£5 per pint");
@@ -307,8 +314,12 @@ describe("onboarding after a kept pub", () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore saved plan 1")!.click();
     });
     await settle();
-    if (side === "new") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
-    else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+    if (side === "new") {
+      expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+      const description = document.querySelector<HTMLInputElement>("#plan-describe-first-query, #plan-concierge-query");
+      expect(description).not.toBeNull();
+      expect(description!.value).not.toContain("Camden");
+    } else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
   });
 
   it("asks again when a different request arrives after keeping the current plan", async () => {
