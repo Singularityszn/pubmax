@@ -121,6 +121,13 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     expect(await storedProposals()).toEqual([]);
   });
 
+  it("rejects an unsupported memory kind for the person's words", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I like quiet rooms", cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "quiet rooms" })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+  });
+
   it("proposes nothing when the owner has memory proposals off", async () => {
     await pal(OWNER, false);
     await typedChat(OWNER);
