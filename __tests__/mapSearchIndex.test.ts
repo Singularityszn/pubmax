@@ -25,6 +25,16 @@ const packs: MapSearchPack[] = [
 ];
 
 describe("map search index", () => {
+  it.each([
+    ["The Coach & Horses", "coach horses"],
+    ["Lamb & Flag", "lamb flag"],
+    ["The Dog & Duck", "dog duck"],
+  ])("keeps the conjunction-free alias for %s", (name, query) => {
+    const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
+      { id: "matched", name, area: "London" },
+    ] }]);
+    expect(searchMapSearchIndex(index, query).map((row) => row.id)).toEqual(["matched"]);
+  });
   it.each(["lamb & flagg", "lamb and flagg", "lambandflag", "lamb & flag", "lamb and flga"])("recovers a bounded name alias or typo: %s", (query) => {
     const index = buildMapSearchIndex(cities, [{ cityId: "london", venues: [
       { id: "lamb", name: "Lamb and Flag", area: "Covent Garden" },
