@@ -1,6 +1,7 @@
 // Map pin filtering for PubMap. Slim pins (prices: []) must stay visible through
 // filters whose evidence exists only after detail hydrates.
 
+import type { PintCapSignals } from "@/lib/comparableVenuePint";
 import { anyAccessibilityFilterActive } from "@/lib/venueAccessibility";
 import { filterVenues, type Filters, type Venue } from "@/lib/venues";
 
@@ -13,6 +14,7 @@ export function filterMapVenues(
   filters: Filters,
   hasPintDrops: (venueId: string) => boolean,
   openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
+  pintSignals: PintCapSignals | null = null,
 ): Venue[] {
   const slimPinFilters: Filters = {
     ...filters,
@@ -34,8 +36,8 @@ export function filterMapVenues(
   }
 
   return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState),
-    ...filterVenues(hydrated, filters, hasPintDrops, openNowState),
+    ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState, pintSignals),
+    ...filterVenues(hydrated, filters, hasPintDrops, openNowState, pintSignals),
   ];
 }
 

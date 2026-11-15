@@ -1,5 +1,5 @@
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
-import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { comparableVenuePint, pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
@@ -62,7 +62,7 @@ import {
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
-import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import type { VenueKind } from "@/lib/venueKinds";
 import { positiveFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
@@ -1400,6 +1400,7 @@ export function filterVenues(
    * caller never invents closures. Only `false` is dropped when openNow is on.
    */
   openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
+  pintSignals: PintCapSignals | null = null,
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
@@ -1417,13 +1418,7 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
-    const comparablePrice = hasPintPriceCap(filters.maxPrice)
-      ? comparableVenuePint(venue)
-      : null;
-    const matchesPrice =
-      !hasPintPriceSemantics(venue) ||
-      comparablePrice === null ||
-      comparablePrice <= filters.maxPrice;
+    const matchesPrice = pintCapQualification(venue, filters.maxPrice, pintSignals?.get(venue.id)) !== "over";
 
     const matchesPintDrops =
       !filters.requirePintDrops ||

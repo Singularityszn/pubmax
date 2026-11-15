@@ -1,8 +1,12 @@
+import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { legacyCheapestPriceEvidence, type LegacyPriceEvidenceRow } from "@/lib/legacyPriceEvidence.mjs";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
+
+export type ComparablePintSignal = { latestContributorPrice: number | null; latestContributorAt?: number | null };
+export type PintCapSignals = ReadonlyMap<string, ComparablePintSignal>;
 
 export type ComparablePintVenue = Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue,
   "kind" | "legacyOsmBar" | "priceSource" | "priceObservedAt" |
@@ -40,7 +44,7 @@ export function comparableLensPrice(price: MapLensPrice, venue: Venue): number |
 /** Compare the selected figure with evidence belonging to that same figure. */
 export function selectedComparableVenuePint(
   venue: ComparablePintVenue,
-  signal?: { latestContributorPrice: number | null; latestContributorAt?: number | null } | null,
+  signal?: ComparablePintSignal | null,
   allowVenueContributor = true,
   now?: number,
 ) {
@@ -78,10 +82,24 @@ export function selectedComparableVenuePint(
 /** Compare the selected figure with its own complete evidence. */
 export function comparableVenuePint(
   venue: ComparablePintVenue,
-  signal?: { latestContributorPrice: number | null; latestContributorAt?: number | null } | null,
+  signal?: ComparablePintSignal | null,
   allowVenueContributor = true,
   now?: number,
 ): number | null {
   const selected = selectedComparableVenuePint(venue, signal, allowVenueContributor, now);
   return selected ? comparablePint(selected, now) : null;
+}
+
+export type PintCapQualification = "match" | "over" | "unknown" | "not-pint" | "off";
+
+export function pintCapQualification(
+  venue: ComparablePintVenue,
+  maxPrice: number,
+  signal?: Parameters<typeof comparableVenuePint>[1],
+): PintCapQualification {
+  if (!hasPintPriceCap(maxPrice)) return "off";
+  const selected = selectedComparableVenuePint(venue, signal);
+  if (!selected) return "not-pint";
+  const price = comparablePint(selected);
+  return price === null ? "unknown" : price <= maxPrice ? "match" : "over";
 }

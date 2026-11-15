@@ -1143,7 +1143,7 @@ function useMapPinVenues({
 }: {
   venues: readonly Venue[];
   mapFilters: Filters;
-  venueSignals: ReadonlyMap<string, { hasPintDrops: boolean }>;
+  venueSignals: ReadonlyMap<string, { hasPintDrops: boolean; latestContributorPrice: number | null; latestContributorAt?: number | null }>;
   openNowStateById: ReadonlyMap<string, OpenNowState> | null;
   savedOnly: boolean;
   savedIds: ReadonlySet<string>;
@@ -1159,6 +1159,7 @@ function useMapPinVenues({
       pinFilters,
       (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
       (id) => openNowStateById?.get(id) ?? "unknown",
+      venueSignals,
     );
     const saved = savedOnly ? candidates.filter((venue) => savedIds.has(venue.id)) : candidates;
     return lastOrdersIds ? saved.filter((venue) => lastOrdersIds.has(venue.id)) : saved;
@@ -3098,6 +3099,7 @@ export default function PubMap({
           effectiveMapFilters,
           (id) => Boolean(venueSignals.get(id)?.hasPintDrops),
           (id) => openNowStateById?.get(id) ?? "unknown",
+          venueSignals,
         ),
       ),
     [effectiveMapFilters, venues, venueSignals, openNowStateById, stablePipelineVenues],
@@ -3170,7 +3172,7 @@ export default function PubMap({
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
   const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading, [loaded, loadedCityId, cityId, lastOrdersReading]);
   const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed, [venueIndexFailed, lastOrdersFailed]);
-  const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, settled: mapResultsSettled, failed: mapResultsFailed });
+  const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, venueSignals, settled: mapResultsSettled, failed: mapResultsFailed });
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
@@ -3339,6 +3341,7 @@ export default function PubMap({
             mapListSortMode,
             venueSignals,
             zoneIndex,
+            effectiveMapFilters.maxPrice,
           ),
     [
       activeLensNoun,
@@ -3346,6 +3349,7 @@ export default function PubMap({
       drinkIndexStatus,
       mapListOpen,
       mapListSortMode,
+      effectiveMapFilters.maxPrice,
       mapVenueListVenues,
       mapViewport.center,
       venueSignals,

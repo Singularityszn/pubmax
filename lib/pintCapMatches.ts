@@ -1,7 +1,8 @@
-import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
+export { pintCapQualification, type PintCapQualification } from "@/lib/comparableVenuePint";
 import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import { pintPriceCapFigure } from "@/lib/pintPriceCaps";
-import { hasPintPriceSemantics, type Venue } from "@/lib/venues";
+import { type Venue } from "@/lib/venues";
 
 export type PintCapMatches = {
   cap: number;
@@ -9,15 +10,14 @@ export type PintCapMatches = {
   unknown: number;
 };
 
-export function pintCapMatches(venues: readonly Venue[], maxPrice: number): PintCapMatches | null {
+export function pintCapMatches(venues: readonly Venue[], maxPrice: number, pintSignals: PintCapSignals | null = null): PintCapMatches | null {
   if (!hasPintPriceCap(maxPrice)) return null;
   let priced = 0;
   let unknown = 0;
   for (const venue of venues) {
-    if (!hasPintPriceSemantics(venue)) continue;
-    const price = comparableVenuePint(venue);
-    if (price === null) unknown += 1;
-    else if (price <= maxPrice) priced += 1;
+    const qualification = pintCapQualification(venue, maxPrice, pintSignals?.get(venue.id));
+    if (qualification === "unknown") unknown += 1;
+    else if (qualification === "match") priced += 1;
   }
   return { cap: maxPrice, priced, unknown };
 }
@@ -27,8 +27,9 @@ export function settledPintCapMatches(
   venues: readonly Venue[],
   maxPrice: number,
   reads: { settled: boolean; failed: boolean },
+  pintSignals: PintCapSignals | null = null,
 ): PintCapMatches | null {
-  return reads.settled && !reads.failed ? pintCapMatches(venues, maxPrice) : null;
+  return reads.settled && !reads.failed ? pintCapMatches(venues, maxPrice, pintSignals) : null;
 }
 
 export type PintCapMatchPart = string | { figure: string };
