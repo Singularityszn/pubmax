@@ -5300,26 +5300,15 @@ export default function PubMap({
     coordinatedMobileOverlay,
     mapListOpen,
   );
-  const mapSurfaceTitle = useMemo(
-    () =>
-      mapSurfaceTitleFor({
-        mapSurfaceId,
-        basePubOpen,
-        basePub: selectedBasePub,
-        selectedVenue,
-        detailLabel: selectedVenueLabels.detailLabel,
-        landmarkName: activeLandmark?.name ?? null,
-        sheetTitles: MAP_SHEET_TITLES,
-      }),
-    [
-      activeLandmark,
-      basePubOpen,
-      mapSurfaceId,
-      selectedBasePub,
-      selectedVenue,
-      selectedVenueLabels.detailLabel,
-    ],
-  );
+  const mapSurfaceTitle = mapSurfaceTitleFor({
+    mapSurfaceId,
+    basePubOpen,
+    basePub: selectedBasePub,
+    selectedVenue,
+    detailLabel: selectedVenueLabels.detailLabel,
+    landmarkName: activeLandmark?.name ?? null,
+    sheetTitles: MAP_SHEET_TITLES,
+  });
   const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
   const mapSurfaceState = useMapSurfaceState({
     venueTab: venueInitialTab,

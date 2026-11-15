@@ -192,7 +192,7 @@ export function clearPintDropDraft(
   }
 }
 
-export const LAST_LOGGED_DRINK_KEY = "pubmax:last-logged-drink:v1";
+const LAST_LOGGED_DRINK_KEY = "pubmax:last-logged-drink:v1";
 
 export function readLastLoggedDrink(storage: Pick<Storage, "getItem"> | null, accountId: string | null): string | null {
   if (!storage || !accountId) return null;
