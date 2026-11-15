@@ -68,6 +68,17 @@ export default function SurfaceNav({
           <ChevronLeft size={SURFACE_NAV_BACK_ICON_SIZE} aria-hidden="true" />
         </button>
       ) : null}
+      {!backLabel && onBack ? (
+        <button
+          type="button"
+          className="surfaceNavBack surfaceNavBack--desktop-list"
+          aria-label="Back to pubs in this view"
+          onClick={onHome}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <ChevronLeft size={SURFACE_NAV_BACK_ICON_SIZE} aria-hidden="true" />
+        </button>
+      ) : null}
       <button
         ref={closeRef}
         type="button"

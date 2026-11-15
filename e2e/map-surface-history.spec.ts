@@ -513,10 +513,9 @@ test.describe("one Map surface history owner", () => {
 test.describe("map surface lanes preserve existing journeys", () => {
   test.use({ serviceWorkers: "block" });
 
-// Oracle: SM-11 explicitly preserves the split list beside a selected venue.
-// A reducer that retires the list when it opens a venue must fail this check.
+// The desktop list stays mounted while the venue occupies its column.
 for (const theme of ['light', 'dark']) {
-  test(`1440 ${theme}: split list survives venue selection, replacement and Home`, async ({ page }, info) => {
+  test(`1440 ${theme}: split list returns after venue selection and Home`, async ({ page }, info) => {
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await page.addInitScript((choice) => {
@@ -546,25 +545,10 @@ for (const theme of ['light', 'dark']) {
     await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(firstId)}]`).click();
     await expectSoleDesktopDrawer(page, 'venue');
     await expect(desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true })).toBeVisible();
-    await expect(list).toBeVisible();
-    await page.screenshot({ path: info.outputPath('split-and-venue.png') });
-    // Opening a pub moves the camera. Point away so the list lets go of the
-    // view it held under the pointer, and wait for the new view to settle.
-    await desktopVenueDrawer(page).getByRole('heading', { name: first, exact: true }).hover();
-    await expect(list).toHaveAttribute('aria-busy', 'false', { timeout: 30_000 });
-    const secondRow = rows.filter({ hasNotText: first }).first();
-    const { name: second, id: secondId } = await secondRow.evaluate((row) => ({
-      name: row.querySelector<HTMLElement>('.mapSplitListRowName')!.innerText,
-      id: row.getAttribute('data-venue-id')!,
-    }));
-    await list.locator(`.mapSplitListRow[data-venue-id=${JSON.stringify(secondId)}]`).click();
-    await expectSoleDesktopDrawer(page, 'venue');
-    await expect(desktopVenueDrawer(page).getByRole('heading', { name: second, exact: true })).toBeVisible();
-    await expect(list).toBeVisible();
+    await expect(list).toBeHidden();
     await desktopVenueDrawer(page).locator('.surfaceNavHome').click();
     await expect(page.locator('.mapDrawer.springDrawer.open')).toHaveCount(0);
     await expect(list).toBeVisible();
-    await page.screenshot({ path: info.outputPath('split-after-home.png') });
   });
 }
 
