@@ -162,6 +162,36 @@ describe("onboarding after a kept pub", () => {
     window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Soho%2C+maximum+%C2%A36+per+pint");
   });
 
+  it("separates a first Pal handoff from the saved pub before consuming its draft", async () => {
+    const query = "Pubs in Camden, maximum £5 per pint";
+    writeAskPlanDraft({
+      query, origin: "pal", stopIds: ["venue-a", "venue-b", "venue-c"],
+      stopNames: ["Pub A", "Pub B", "Pub C"], createdAt: new Date().toISOString(),
+    });
+    const pending = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+    window.history.replaceState({}, "", planPalRouteHandoffHref(query));
+    await mountComposer();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')).not.toBeNull();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBe(pending);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+    expect(call).toBeDefined();
+    expect(JSON.parse(String(call![1]?.body)).anchor).toMatchObject({
+      source: "pal", venueId: "venue-a", venueIds: ["venue-a", "venue-b", "venue-c"],
+    });
+    expect(readPlanningIntent()).toBeNull();
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
   it("asks before combining the saved pub with the new area", async () => {
     const before = sessionStorage.getItem("pubmax:planning-intent:v1");
     await mountComposer();
