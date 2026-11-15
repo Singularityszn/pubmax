@@ -53,30 +53,20 @@ vi.mock("@/lib/communityPriceStore", () => ({
   readCommunityPricesWithStatus: vi.fn(async () => state.prices),
 }));
 
-// A tiny stand-in for the tonight window: rows are kept only when their own
-// start sits inside the twelve hours around the clock the CALLER handed in, so
-// a handler that leaves `now` out of the read answers about another day. A
-// DATE-ONLY row states a day and no clock time, and the real store windows it
-// by that day, so it is kept when its stated date is the caller's own.
-vi.mock("@/lib/whatsOnStore", () => ({
-  loadWhatsOn: vi.fn(async (_params: unknown, deps: { now?: number } = {}) => {
-    if (state.whatsOnThrows) throw new Error("down");
-    const now = deps.now ?? Date.now();
-    return {
-      ...state.whatsOn,
-      readStatus: state.whatsOnReadStatus,
-      rows: state.whatsOn.rows.filter((row) => {
-        if (!row.startsAt && row.startsDate) {
-          return row.startsDate === new Date(now).toISOString().slice(0, 10);
-        }
-        const startsAt = row.startsAt ? Date.parse(row.startsAt) : Number.NaN;
-        return (
-          Number.isFinite(startsAt) && Math.abs(startsAt - now) <= 12 * 3_600_000
-        );
-      }),
-    };
-  }),
-}));
+vi.mock("@/lib/whatsOnStore", async () => {
+  const { filterTonight } = await import("@/lib/whatsOn");
+  return {
+    loadWhatsOn: vi.fn(async (params: { window?: "tonight" }, deps: { now?: number } = {}) => {
+      if (state.whatsOnThrows) throw new Error("down");
+      const now = deps.now ?? Date.now();
+      return {
+        ...state.whatsOn,
+        readStatus: state.whatsOnReadStatus,
+        rows: params.window === "tonight" ? filterTonight(state.whatsOn.rows, now) : state.whatsOn.rows,
+      };
+    }),
+  };
+});
 
 vi.mock("@/lib/ask/deskVenues.server", () => ({
   loadDeskVenues: vi.fn(async () => state.desk),
@@ -674,6 +664,47 @@ describe("search_venues hard requirements", () => {
     });
     const quiz = await search("Two pubs with a quiz in Soho", 2);
     expect(quiz.cards.map((card) => card.venueId).sort()).toEqual(["garden", "quiz-only"]);
+  });
+
+  it.each([
+    ["tonight", "2026-08-15T21:30:00.000Z", "2026-08-22T21:30:00.000Z"],
+    ["today", "2026-08-15T21:30:00.000Z", "2026-08-16T00:30:00.000Z"],
+    ["this weekend", "2026-08-16T21:30:00.000Z", "2026-08-17T21:30:00.000Z"],
+    ["on Monday", "2026-08-17T21:30:00.000Z", "2026-08-18T21:30:00.000Z"],
+  ])("requires quiz evidence in the requested time: %s", async (when, matchingStart, otherStart) => {
+    state.venues = [
+      venue({ id: "matching", name: "The Matching Pub", area: "Soho" }),
+      venue({ id: "other-time", name: "The Other Pub", area: "Soho" }),
+    ];
+    state.whatsOn = {
+      rows: [
+        quizRow("other-time", { startsAt: otherStart }),
+        quizRow("matching", { startsAt: matchingStart }),
+      ],
+      kindObservedAt: {},
+    };
+    const query = `Show me two pubs with a quiz ${when} in Soho`;
+    expect(routeAskDeterministically(query)[0]?.name).toBe("search_venues");
+
+    const result = await search(query, 2);
+
+    expect(result.ok).toBe(true);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["matching"]);
+    expect(searchData(result)).toMatchObject({ found: 1, venues: [{ id: "matching" }] });
+    expect(result.proposals.flatMap((proposal) => proposal.kind === "open_venue" ? [proposal.venueId] : [])).toEqual(["matching"]);
+  });
+
+  it("keeps future quiz evidence eligible when no time is requested", async () => {
+    state.venues = [venue({ id: "next-week", name: "The Future Pub", area: "Soho" })];
+    state.whatsOn = {
+      rows: [quizRow("next-week", { startsAt: "2026-08-22T21:30:00.000Z" })],
+      kindObservedAt: {},
+    };
+
+    const result = await search("Show me two pubs with a quiz in Soho", 2);
+
+    expect(result.cards.map((card) => card.venueId)).toEqual(["next-week"]);
+    expect(searchData(result)).toMatchObject({ found: 1, venues: [{ id: "next-week" }] });
   });
 
   it.each([
