@@ -139,6 +139,7 @@ export function clearDeviceAccountArtifacts(
   session: SweepableStorage | null = null,
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
+  forgetOutingSteps();
   clearDeviceAccountSessionArtifacts(session);
   // A Night Profile mirrored off an account is that account's answer wearing a
   // device label. One typed on this device belongs to the device and stays.
@@ -150,7 +151,6 @@ export function clearDeviceAccountArtifacts(
 /** Clear this tab's private artifacts without changing another tab's shared owner. */
 export function clearDeviceAccountSessionArtifacts(session: SweepableStorage | null): void {
   showLegRouteOnMap(null);
-  forgetOutingSteps();
   for (const key of DEVICE_IDENTITY_SESSION_KEYS) removeKey(session, key);
   const prefixed: string[] = [];
   try {

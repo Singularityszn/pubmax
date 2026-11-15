@@ -110,7 +110,9 @@ export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: Out
     return sample ? { kind: "event", event: { type: "sample", session: state.session, at: now(), sample } } : { kind: "none" };
   } catch (error) {
     if (signal.aborted) return STALE;
-    if (errorCode(error) === "expired") return { kind: "event", event: { type: "stop", session: state.session, at: now() } };
+    if (errorCode(error) === "expired" || errorCode(error) === "history_expired") {
+      return { kind: "event", event: { type: "incomplete", session: state.session, at: now() } };
+    }
     return refusal(bridge, error);
   }
 }

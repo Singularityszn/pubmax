@@ -110,7 +110,7 @@ public class OutingStepsPlugin extends Plugin implements SensorEventListener {
                 return;
             }
             if (verdict == OutingStepsDeadline.Verdict.EXPIRED) {
-                release(true);
+                if (deadline.owns(session)) release(true);
                 call.reject("Step counting has ended for this night.", "expired");
                 return;
             }

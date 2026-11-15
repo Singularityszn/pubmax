@@ -28,6 +28,7 @@ export type OutingStepsEvent =
   | { type: "start"; planId: string; owner: string | null; session: string; at: number; sample: OutingStepsSample }
   | { type: "sample"; session: string; at: number; sample: OutingStepsSample }
   | { type: "stop"; session: string; at: number }
+  | { type: "incomplete"; session: string; at: number }
   | { type: "clear" };
 
 type Counting = Extract<OutingStepsState, { phase: "counting" }>;
@@ -91,8 +92,9 @@ export function transitionOutingSteps(state: OutingStepsState, event: OutingStep
     case "sample":
       return state.phase === "counting" && state.session === event.session ? readSample(state, event.at, event.sample) : state;
     case "stop":
+    case "incomplete":
       if (state.phase !== "counting" || state.session !== event.session) return state;
-      return finish(state, Math.min(event.at, state.startedAt + OUTING_STEPS_MAX_MS), state.steps, state.gap);
+      return finish(state, Math.max(state.startedAt, Math.min(event.at, state.startedAt + OUTING_STEPS_MAX_MS)), state.steps, state.gap || event.type === "incomplete");
     case "clear":
       return state.phase === "off" ? state : OFF;
     default: {

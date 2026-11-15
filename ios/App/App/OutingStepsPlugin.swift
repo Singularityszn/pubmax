@@ -52,6 +52,7 @@ public final class OutingStepsPlugin: CAPPlugin, CAPBridgedPlugin {
     @objc func sample(_ call: CAPPluginCall) {
         let now = Date()
         guard let sinceMs = call.getDouble("since"), let untilMs = call.getDouble("until"),
+              sinceMs.isFinite, untilMs.isFinite, sinceMs > 0,
               Self.validSession(call.getString("session")) else {
             call.reject("A step window needs a start, an end and a session.", "invalid")
             return
@@ -59,8 +60,12 @@ public final class OutingStepsPlugin: CAPPlugin, CAPBridgedPlugin {
         let since = Date(timeIntervalSince1970: sinceMs / 1000)
         let until = Date(timeIntervalSince1970: untilMs / 1000)
         guard until >= since, until.timeIntervalSince(since) <= Self.maxSpan + 1,
-              until <= now.addingTimeInterval(60), now.timeIntervalSince(since) <= Self.historyLimit else {
+              until <= now.addingTimeInterval(60) else {
             call.reject("That step window cannot be read.", "invalid")
+            return
+        }
+        guard now.timeIntervalSince(since) <= Self.historyLimit else {
+            call.reject("This step history is no longer available.", "history_expired")
             return
         }
         guard CMPedometer.isStepCountingAvailable() else {

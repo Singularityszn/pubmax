@@ -34,15 +34,16 @@ final class OutingStepsDeadline {
 
     Verdict admit(long windowSince, long windowUntil, String windowSession) {
         long now = wallClock.getAsLong();
-        if (!validSession(windowSession) || windowSince <= 0 || windowUntil < windowSince || windowUntil - windowSince > MAX_SPAN_MS
-            || windowSince > now + CLOCK_SLACK_MS || windowUntil > now + CLOCK_SLACK_MS) {
+        if (!validSession(windowSession) || windowSince <= 0 || windowUntil < windowSince || windowUntil - windowSince > MAX_SPAN_MS) {
             return Verdict.INVALID;
         }
         if (windowSession.equals(expiredSession)) return Verdict.EXPIRED;
         if (armed && windowSession.equals(session)) {
             if (windowSince != since) return Verdict.INVALID;
-            return expired() ? Verdict.EXPIRED : Verdict.OK;
+            if (expired()) return Verdict.EXPIRED;
         }
+        if (windowSince > now + CLOCK_SLACK_MS || windowUntil > now + CLOCK_SLACK_MS) return Verdict.INVALID;
+        if (armed && windowSession.equals(session)) return Verdict.OK;
         long remaining = windowSince + MAX_SPAN_MS - now;
         if (remaining <= 0) {
             expiredSession = windowSession;
