@@ -1,3 +1,5 @@
+import "server-only";
+
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
 import type { AskToolContext } from "@/lib/ask/toolContract";
 import {
