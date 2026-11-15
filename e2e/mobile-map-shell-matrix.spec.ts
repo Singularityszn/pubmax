@@ -161,6 +161,14 @@ for (const viewport of VIEWPORTS) {
 
       const utilityCorner = page.locator(".mobileMapUtilityCorner");
       await expect(utilityCorner).toBeVisible();
+      const palSignIn = page.locator(".palSummonSignIn");
+      const palDoor = utilityCorner.getByRole("link", { name: "Pub Pal", exact: true });
+      await expect(async () => {
+        if (await palSignIn.isVisible()) {
+          await palSignIn.getByRole("button", { name: "Close", exact: true }).click();
+        }
+        await expect(palDoor).toBeVisible({ timeout: 1_000 });
+      }).toPass();
       // The map edge holds the Near me FAB at the thumb and the Pub Pal's door
       // above it, and nothing else on a routine night: TfL comes to the edge
       // only for a badly disrupted line (components/mobile/MobileMapShell.tsx
