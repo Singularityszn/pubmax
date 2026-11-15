@@ -150,6 +150,33 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     expect(await listPalMemoriesResult(OWNER)).toEqual({ ok: true, value: [] });
   });
 
+  it.each([
+    ["venue_preference", "I like quiet rooms"],
+    ["atmosphere_preference", "I like quiet music"],
+    ["accessibility_preference", "I need step-free access"],
+    ["transport_preference", "I take the bus home"],
+    ["drink_preference", "I like stout"],
+    ["food_preference", "I like vegan food"],
+    ["night_outcome", "I had a good night at The Lamb"],
+    ["correction", "My local is The Lamb, not The Crown"],
+  ])("accepts an explicit statement for %s", async (kind, value) => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: value, cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind, value })).json();
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value }] });
+  });
+
+  it.each([
+    ["I like stout on Fridays", "stout"],
+    ["I like stout and my friend likes lager", "stout"],
+    ["I like stout, but not on Fridays", "stout"],
+  ])("keeps the full meaning of %s", async (query, value) => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query, cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+  });
+
   it("proposes nothing when the owner has memory proposals off", async () => {
     await pal(OWNER, false);
     await typedChat(OWNER);
