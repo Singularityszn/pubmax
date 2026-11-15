@@ -124,6 +124,8 @@ describe("propose_plan over the Pal webhook", () => {
     await registerPubPalToolTurn(conversationId, { query: "Find pubs in Soho", cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
     const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: { cityId: "manchester" }, conversationId });
     expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+    const londonIds = new Set((await loadConciergeVenues("london")).map((venue) => venue.id));
+    for (const card of result.cards as Array<{ venueId: string }>) expect(londonIds.has(card.venueId)).toBe(true);
   });
 
   it.each([

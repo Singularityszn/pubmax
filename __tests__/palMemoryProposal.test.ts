@@ -121,6 +121,15 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     expect(await storedProposals()).toEqual([]);
   });
 
+  it("keeps a condition stated after the preference in the same user turn", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I like stout. Only on Fridays", cityId: "london", ownerId: OWNER });
+    const shortened = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "stout" })).json();
+    expect(shortened.result).toMatchObject({ ok: false, proposals: [] });
+    const complete = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "I like stout. Only on Fridays" })).json();
+    expect(complete.result).toMatchObject({ ok: true, proposals: [{ value: "I like stout. Only on Fridays" }] });
+  });
+
   it("rejects an unsupported memory kind for the person's words", async () => {
     await pal(OWNER, true);
     await registerPubPalToolTurn(CONVERSATION, { query: "I like quiet rooms", cityId: "london", ownerId: OWNER });
