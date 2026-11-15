@@ -140,7 +140,7 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
 
 for (const width of [320, 540, 640]) {
   test(`${width}px: the collapsed More bar does not cover the primary price-log target`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 844 });
+    await page.setViewportSize({ width, height: width === 320 ? 640 : 844 });
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
     const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
     const log = portal.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true });
@@ -149,9 +149,11 @@ for (const width of [320, 540, 640]) {
     await page.screenshot({ path: testInfo.outputPath("price-log-targets.png") });
     expect(await log.evaluate((button) => {
       const box = button.getBoundingClientRect();
-      return [box.left + 1, box.left + box.width / 2, box.right - 1].every((x) =>
-        [box.top + 1, box.top + box.height / 2, box.bottom - 1].every((y) => document.elementFromPoint(x, y)?.closest("button") === button));
-    })).toBe(true);
+      const midX = box.left + box.width / 2;
+      const midY = box.top + box.height / 2;
+      return [[box.left + 1, midY], [box.right - 1, midY], [midX, box.top + 1], [midX, box.bottom - 1], [midX, midY]]
+        .map(([x, y]) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? null);
+    })).toEqual(Array(5).fill("Log what you paid at Arnos Arms"));
     await log.click();
     await expect(page.locator(".spillPriceStep")).toBeVisible();
   });
