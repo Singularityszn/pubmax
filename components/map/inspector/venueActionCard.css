@@ -141,16 +141,14 @@
 
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  @container venue-peek (max-width: 24em) {
-    .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
-      grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
-    }
+  .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
+    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
+  }
 
-    .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
-      grid-column: 1 / -1;
-      width: calc(100% - 96px);
-      justify-self: start;
-    }
+  .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
+    grid-column: 1 / -1;
+    width: calc(100% - 96px);
+    justify-self: start;
   }
 
   @container venue-peek (max-width: 18em) {
