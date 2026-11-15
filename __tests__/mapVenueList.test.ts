@@ -29,6 +29,14 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
 }
 
 describe("buildMapVenueListModel — the list-toggle gate", () => {
+  it.each(["missing", "null"])("ranks the displayed pint when the map signal is %s", (signalState) => {
+    const pubs = [venue({ id: "five", cheapestPrice: 5, latestContributorPrice: 8, latestContributorAt: Date.now() }),
+      venue({ id: "six", cheapestPrice: 6 })];
+    const signals = signalState === "null" ? new Map([["five", { latestContributorPrice: null }]]) : null;
+    const model = buildMapVenueListModel(pubs, null, undefined, null, "this view", "ready", "cheapest", signals);
+    expect(model.rows.map((row) => [row.id, row.priceLabel])).toEqual([["five", "£5.00"], ["six", "£6.00"]]);
+    expect(mapVenueListCheapest(pubs, null, signals)).toEqual({ venue: pubs[0], priceGbp: 5 });
+  });
   it("qualifies capped rows separately and never uses estimates to meet the cap", () => {
     const pubs = [venue({ id: "under", cheapestPrice: 4 }), venue({ id: "over", cheapestPrice: 9 }),
       venue({ id: "unknown", zone: 1 }), venue({ id: "unproven", cheapestPrice: 7.5, priceSource: undefined })];
