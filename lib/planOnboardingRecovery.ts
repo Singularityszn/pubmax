@@ -1,7 +1,7 @@
 export type PlanRecoveryRecords = { session: Record<string, string | null>; local: Record<string, string | null> };
-export type PlanRecoveryCandidate = { records: PlanRecoveryRecords };
+type PlanRecoveryCandidate = { records: PlanRecoveryRecords };
 type Common = { owner: string | null; active: "old" | "new"; requestId: string | null; archived: PlanRecoveryCandidate[] };
-export type ReadyPlanRecovery = Common & { phase: "ready"; other: PlanRecoveryRecords };
+type ReadyPlanRecovery = Common & { phase: "ready"; other: PlanRecoveryRecords };
 type InterruptedPlanRecovery = Common & { other: PlanRecoveryRecords; before: PlanRecoveryRecords; target: PlanRecoveryRecords; rollback: ReadyPlanRecovery };
 export type OnboardingAlternative = ReadyPlanRecovery
   | (InterruptedPlanRecovery & { phase: "pending" })
