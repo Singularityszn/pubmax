@@ -1864,6 +1864,7 @@ describe("Pub Pal voice transcript", () => {
     expect(voice.startSession).toHaveBeenCalledOnce();
     vi.doUnmock("@/lib/palSessionSummary");
     vi.resetModules();
+    await import("@/lib/palSessionSummary");
     await tapCarryOn();
     await act(async () => { await vi.dynamicImportSettled(); });
     await settle();
