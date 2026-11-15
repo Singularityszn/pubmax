@@ -22,6 +22,7 @@ import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
 import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import dynamic from "next/dynamic";
@@ -4385,7 +4386,7 @@ export default function PlanComposer() {
   const choosing = onboarding && identityResolved && hasExisting && !alternative && !keepExisting;
   function switchPlan() {
     if (!ownsAcceptance(acceptedOwner) || !switchOnboardingPlan(safeSessionStorage(), safeLocalStorage(), user?.id ?? null)) {
-      setSwitchError("We could not switch plans. Check device storage and any other open Plan tab, then try again.");
+      setSwitchError("We could not switch plans. Check any other open Plan tab, then try again.");
       setRecoveryVersion((version) => version + 1);
       return;
     }
@@ -4395,7 +4396,7 @@ export default function PlanComposer() {
   }
   function recoverSwitch(finish: boolean) {
     if (!recoverOnboardingSwitch(safeSessionStorage(), safeLocalStorage(), user?.id ?? null, finish)) {
-      setSwitchError("We could not restore the plans. Check device storage and any other open Plan tab, then try again.");
+      setSwitchError("We could not restore the plans. Check any other open Plan tab, then try again.");
       return;
     }
     setSwitchError("");
@@ -4431,29 +4432,33 @@ export default function PlanComposer() {
     return <p className="planComposer" role="status">Checking your saved plan…</p>;
   }
   if (alternative?.pending) {
-    return <section className="planComposer" aria-label="Recover planning requests">
+    return <section className="planComposerRecovery" aria-label="Recover planning requests">
       <h1>Your plan switch was interrupted.</h1>
       <p>Both requests are saved. Choose which one to open.</p>
-      <button type="button" onClick={() => recoverSwitch(false)}>Restore the plan before the switch</button>{" "}
-      <button type="button" onClick={() => recoverSwitch(true)}>Continue switching plans</button>
+      <div className="planComposerRecovery__actions">
+        <Button type="button" onClick={() => recoverSwitch(false)}>Restore the plan before the switch</Button>
+        <Button type="button" variant="secondary" onClick={() => recoverSwitch(true)}>Continue switching plans</Button>
+      </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section>;
   }
   if (choosing) {
-    return <section className="planComposer" aria-label="Choose a planning request">
+    return <section className="planComposerRecovery" aria-label="Choose a planning request">
       <h1>Which plan would you like to use?</h1>
-      <p>You have an existing plan and a new onboarding request. Your saved pub and requirements stay with your existing plan.</p>
+      <p>You have a saved plan and a new request. Your saved pub and requirements stay with your saved plan.</p>
       <p>Existing plan: {recoveredDraft?.stops[0]?.venueName || "your kept pub"}{handoff?.area ? ` · ${acceptedPlanAreaLabel(handoff.area)}` : ""}</p>
       <p>New request: {describeAskFromLocation().ask}</p>
-      <button type="button" onClick={() => setKeepExisting(true)}>Keep your existing plan</button>{" "}
-      <button type="button" onClick={switchPlan}>Start the new request</button>
+      <div className="planComposerRecovery__actions">
+        <Button type="button" onClick={() => setKeepExisting(true)}>Keep your existing plan</Button>
+        <Button type="button" variant="secondary" onClick={switchPlan}>Start the new request</Button>
+      </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section>;
   }
   return <>
-    {(alternative || (onboarding && keepExisting)) ? <section className="planComposer" aria-label="Switch planning request">
-      <p>{alternative?.active === "new" ? "Your previous plan is saved on this device." : "Your new onboarding request is separate from this plan."}</p>
-      <button type="button" onClick={switchPlan}>{alternative?.active === "new" ? "Restore previous plan" : "Start the new request"}</button>
+    {(alternative || (onboarding && keepExisting)) ? <section className="planComposerRecovery" aria-label="Switch planning request">
+      <p>{alternative?.active === "new" ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
+      <div className="planComposerRecovery__actions"><Button type="button" variant="secondary" onClick={switchPlan}>{alternative?.active === "new" ? "Restore previous plan" : "Start the new request"}</Button></div>
       {switchError ? <p role="alert">{switchError}</p> : null}
     </section> : null}
     <PlanComposerForm
