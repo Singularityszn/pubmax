@@ -54,6 +54,7 @@ import { GET } from "@/app/api/starter-packs/route";
 import { POST } from "@/app/api/starter-packs/[slug]/follow/route";
 import { followStore, __resetMemoryFollows } from "@/lib/followStore";
 import { __resetMemoryNotifications } from "@/lib/notificationsStore";
+import { __resetPintDrops } from "@/lib/pintDrops";
 import { memoryProfileStore, __resetMemoryProfiles, __tombstoneMemoryProfile } from "@/lib/profileStore";
 import { FOUNDING_STARTER_PACK_SLUG } from "@/lib/starterPacks";
 
@@ -108,6 +109,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = null;
   followFault.handle = "";
+  __resetPintDrops();
   __resetMemoryFollows();
   __resetMemoryNotifications();
   __resetMemoryProfiles();
@@ -206,7 +208,9 @@ describe("GET /api/starter-packs", () => {
         await memoryProfileStore.createOwned(handle, `user-${handle}`);
       }
 
-      const body = (await (await read()).json()) as PackBody;
+      const response = await read();
+      expect(response.status).toBe(200);
+      const body = (await response.json()) as PackBody;
       expect(body.coverage).toBe("partial");
       const founders = packBySlug(body, FOUNDING_STARTER_PACK_SLUG);
       expect(founders?.members).toContainEqual({
