@@ -6,7 +6,7 @@ import {
   mapFiltersSuspendUkBasePubs,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
-import { pintCapMatchLines, pintCapMatches } from "@/lib/pintCapMatches";
+import { pintCapMatchLines, pintCapMatches, settledPintCapMatches } from "@/lib/pintCapMatches";
 import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
@@ -178,6 +178,14 @@ describe("filterMapVenues", () => {
     it.each([[6.5, "£6.50"], [9.5, "£9.50"], [4.5, "£4.50"]] as const)("prints the applied £%s cap rather than a nearby preset", (cap, figure) => {
       const matches = defined(pintCapMatches([under, atCap, over, unknown], cap) ?? undefined);
       expect(pintCapMatchLines(matches).priced).toContain(figure);
+    });
+
+    it("makes no zero-match claim while a read is pending or after it failed", () => {
+      for (const reads of [{ settled: false, failed: false }, { settled: true, failed: true }, { settled: false, failed: true }]) {
+        expect(settledPintCapMatches([], 6, reads)).toBeNull();
+        expect(settledPintCapMatches([under, unknown], 6, reads)).toBeNull();
+      }
+      expect(settledPintCapMatches([], 6, { settled: true, failed: false })).toEqual({ cap: 6, priced: 0, unknown: 0 });
     });
 
     it("has nothing to say and excludes no price when no cap is on", () => {
