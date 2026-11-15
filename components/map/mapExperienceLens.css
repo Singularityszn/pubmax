@@ -71,6 +71,10 @@
     color var(--duration-base) var(--ease-out);
 }
 
+.mapExperienceLensOption > svg {
+  flex-shrink: 0;
+}
+
 .mapExperienceLensOption span {
   min-width: 0;
 }
