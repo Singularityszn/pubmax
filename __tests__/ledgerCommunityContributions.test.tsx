@@ -155,6 +155,47 @@ describe("Ledger contributions during pending reads", () => {
     expect(container.querySelector("details")?.open).toBe(false);
   });
 
+  it.each(["photos", "logbook"])("protects an edited visit date when the empty %s read arrives", async (pendingRead) => {
+    const pending = deferredResponse();
+    photos.read.mockImplementation(() => pendingRead === "photos" ? pending.promise : Promise.resolve(emptyPhotos()));
+    vi.stubGlobal("fetch", vi.fn((url: string) => {
+      if (url.startsWith("/api/ledger/")) {
+        return pendingRead === "logbook" ? pending.promise : Promise.resolve(emptyLog());
+      }
+      return Promise.resolve(emptyVisits());
+    }));
+    await renderCommunity();
+    await act(async () => button("Write yours").click());
+    const date = container.querySelector<HTMLInputElement>('input[type="date"]')!;
+    const today = date.value;
+    const yesterday = new Date(`${today}T12:00:00Z`);
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    const editedDate = yesterday.toISOString().slice(0, 10);
+    async function changeDate(value: string) {
+      await act(async () => {
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(date, value);
+        date.dispatchEvent(new Event("change", { bubbles: true }));
+      });
+    }
+    await changeDate(editedDate);
+    await act(async () => pending.resolve(pendingRead === "photos" ? emptyPhotos() : emptyLog()));
+    expect(container.querySelector("details")?.open).toBe(true);
+    expect(date.value).toBe(editedDate);
+    await act(async () => button("Add visit account").click());
+    expect(container.querySelector('[role="alert"]')?.textContent).toBe("Add one thing you found on the visit.");
+    await changeDate(today);
+    expect(container.querySelector("details")?.open).toBe(false);
+    await act(async () => container.querySelector("summary")!.click());
+    await changeDate("");
+    expect(container.querySelector("details")?.open).toBe(true);
+    await changeDate(today);
+    expect(container.querySelector("details")?.open).toBe(false);
+    await act(async () => container.querySelector("summary")!.click());
+    await changeDate(editedDate);
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Close visit report"]')!.click());
+    expect(container.querySelector("details")?.open).toBe(false);
+  });
+
   it("folds empty sections after a successful logbook retry", async () => {
     const retry = deferredResponse();
     photos.read.mockResolvedValue(emptyPhotos());

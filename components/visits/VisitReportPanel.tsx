@@ -375,7 +375,7 @@ function VenueVisitReports({
     };
   }, [active, venueId]);
   const hasDraft = draftHasObservation(composerFields);
-  const activeDraft = !peek && composerMode === "open" && hasDraft;
+  const activeDraft = !peek && composerMode === "open" && (hasDraft || visitedAt !== latest);
   useEffect(() => {
     onEmptyChange?.(read?.status === "ready" && read.reports.length === 0 && !activeDraft);
   }, [onEmptyChange, read, activeDraft]);
