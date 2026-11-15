@@ -61,7 +61,7 @@ const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "
 ];
 
 const NEGATED_FEATURE_TERMS: ReadonlyMap<Exclude<VenueRequirement["kind"], "drink">, RegExp> = new Map([
-  ["dogs", /\bno dogs?\b|\bdogs? (?:are |is )?(?:not|never|arent|isnt) (?:allowed|welcome|permitted)\b|\bdogs? banned\b/],
+  ["dogs", /\b(?:no|without) dogs?\b|\b(?:does not|do not|doesnt|dont|never) (?:allow|permit|welcome) dogs?\b|\bdogs? (?:are |is )?(?:not|never|arent|isnt) (?:allowed|welcome|permitted)\b|\bdogs? banned\b/],
   ["darts", /\bno darts\b/],
   ["pool", /\bno pool\b/],
 ]);
@@ -238,13 +238,23 @@ export function venueRequirementsInText(text: string): VenueRequirement[] {
   const chain = /\bwetherspoons?\b/.exec(drinks.rest);
   const chainScope = chain ? requirementScope(drinks.rest, chain.index, chain.index + chain[0].length) : null;
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
-    if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, "stated")];
-    const hit = pattern.exec(drinks.rest);
-    return hit ? [excludedIf({ kind }, requirementScope(drinks.rest, hit.index, hit.index + hit[0].length))] : [];
+    const matches = [...drinks.rest.matchAll(new RegExp(pattern.source, "g"))].map((hit) => ({
+      at: hit.index,
+      requirement: excludedIf({ kind }, requirementScope(drinks.rest, hit.index, hit.index + hit[0].length)),
+    }));
+    const negative = NEGATED_FEATURE_TERMS.get(kind);
+    if (negative) {
+      for (const hit of drinks.rest.matchAll(new RegExp(negative.source, "g"))) {
+        matches.push({ at: hit.index, requirement: excludedIf({ kind }, "stated") });
+      }
+    }
+    const unique = new Map<string, VenueRequirement>();
+    for (const { requirement } of matches.sort((a, b) => a.at - b.at)) unique.set(requirementKey(requirement), requirement);
+    return [...unique.values()];
   });
-  const outdoorCoveredByGarden = features.some((feature) => feature.kind === "garden");
+  const outdoorCoveredByGarden = features.some((feature) => feature.kind === "garden" && !feature.excluded);
   return [
-    ...features.filter((feature) => !(feature.kind === "outdoor-seating" && outdoorCoveredByGarden)),
+    ...features.filter((feature) => !(feature.kind === "outdoor-seating" && !feature.excluded && outdoorCoveredByGarden)),
     ...drinks.found,
     ...(chainScope ? [excludedIf({ kind: "wetherspoon", excluded: true } as const, chainScope)] : []),
   ];

@@ -160,6 +160,12 @@ describe("routeAskDeterministically", () => {
     expect(routeAskDeterministically(query).map((call) => call.name)).toEqual([tool]);
   });
 
+  it.each(["a pub without a quiz on Monday", "a pub with a garden but without a quiz on Monday"])(
+    "routes an excluded quiz to venue search: %s", (query) => {
+      expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+    },
+  );
+
   it("invents no area for a counted requirement ask with no area before it", async () => {
     const query = "Five pubs with a beer garden";
     for (const refined of [refineRoutedAskQuery(query, null), refineRoutedAskQuery(query, "Hello mate", ["Hello mate"])]) {

@@ -506,7 +506,7 @@ function quizRequirementCall(text: string, rawQuery: string): RoutedToolCall | n
   const count = requestedVenueCount(text);
   const requirements = venueRequirementsInText(text);
   return requirements.some((requirement) => requirement.kind === "quiz")
-    && (count !== null || requirements.some((requirement) => requirement.kind !== "quiz"))
+    && (count !== null || requirements.some((requirement) => requirement.kind !== "quiz" || requirement.excluded))
     ? { name: "search_venues", args: { query: rawQuery, limit: count ?? 4 } }
     : null;
 }
