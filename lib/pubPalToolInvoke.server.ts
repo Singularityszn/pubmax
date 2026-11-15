@@ -14,11 +14,13 @@ import {
   resolvePubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { extractArea, isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
+  pubPalTurnSaid,
   readPubPalToolTurn,
   readPubPalToolTurnBinding,
+  type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 import { palOnlyNewScope, type PalOnlyNewScope } from "@/lib/palTaste.server";
 
@@ -75,6 +77,20 @@ export function enrichPubPalToolArgs(
     if (isEmptyArg(merged[key])) merged[key] = value;
   }
   return merged;
+}
+
+const SHOWN_PLACE_ARGS = ["area", "borough", "place", "to"] as const;
+
+function placeArgsThePersonSaid(args: AskToolArgs, turn: PubPalToolTurn | null, query: string): AskToolArgs {
+  const kept: AskToolArgs = { ...args };
+  for (const key of SHOWN_PLACE_ARGS) {
+    const value = kept[key];
+    if (typeof value !== "string" || isEmptyArg(value) || pubPalTurnSaid(turn, value)) continue;
+    delete kept[key];
+    const area = key === "area" || key === "borough" ? extractArea(query) : null;
+    if (area) kept[key] = area;
+  }
+  return kept;
 }
 
 type PubPalToolWebhookBody = {
@@ -135,7 +151,7 @@ export async function invokePubPalAskTool(input: {
   const cityId = resolveAskCityId(
     typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
   );
-  const args = enrichPubPalToolArgs(input.toolName, input.args, query);
+  const args = enrichPubPalToolArgs(input.toolName, placeArgsThePersonSaid(input.args, turn, query), query);
 
   const threadTurns = turn?.turns ?? [];
   const unsupported = unsupportedPriceComparison(query);

@@ -15,6 +15,7 @@ import type { AskResponseBody, AskTurn } from "@/lib/ask/types";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import { DEFAULT_GROUP_SIZE, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
+import { PAL_ASK_FOR_CONSTRAINT, palSocialReply, palToolProgressLine } from "@/lib/palRecordReply";
 import {
   acceptsPalChatStream,
   encodePalChatStreamEvent,
@@ -83,7 +84,7 @@ function answerBody(outcome: Extract<PalElevenLabsChatOutcome, { ok: true }>) {
 }
 
 /**
- * The same turn as the JSON path, sent as it is written. Everything that can
+ * The same turn as the JSON path, sent as tool progress lines and one final event. Everything that can
  * refuse the ask (rate limit, sign-in, spend ceiling) has already answered with
  * its normal JSON status before this runs, so a refusal never opens a stream.
  * Only a failure after the stream began is an `error` event.
@@ -105,7 +106,10 @@ function streamTurn(input: PalElevenLabsChatInput, context: PalElevenLabsChatCon
         const outcome = await runTypedTurn({
           ...input,
           signal: abort.signal,
-          onProgress: send,
+          onTool: (tool) => {
+            send({ type: "reset" });
+            send({ type: "delta", text: palToolProgressLine(tool) });
+          },
         }, context);
         send(
           outcome.ok
@@ -209,14 +213,10 @@ async function openingReply(
 }
 
 function keylessSocialReply(query: string, turns: AskTurn[]): Response | null {
-  const social = socialTurnKind(query);
-  if (!social) return null;
+  const answer = palSocialReply(query, turns);
+  if (!answer) return null;
   return jsonNoStore({
-    answer: social === "thanks"
-      ? "You're welcome."
-      : turns.some((turn) => turn.role === "assistant")
-        ? "Hey."
-        : "Hi. What kind of night are you planning?",
+    answer,
     cards: [],
     proposals: [],
     sources: [],
@@ -355,7 +355,7 @@ export async function POST(request: Request): Promise<Response> {
             }
           }
           return jsonNoStore({
-            answer: "Tell me an area, a mood or a budget and I'll find you a pub.",
+            answer: PAL_ASK_FOR_CONSTRAINT,
             cards: [],
             proposals: [],
             sources: [],

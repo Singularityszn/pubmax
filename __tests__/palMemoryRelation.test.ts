@@ -92,6 +92,7 @@ import {
 } from "@/lib/pubPalStore";
 import {
   __resetPubPalToolTurnStore,
+  appendOwnedPubPalUserTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
@@ -260,6 +261,7 @@ describe("propose, then the person confirms: no case leaves two memories about o
   };
 
   async function propose(fact: { kind: string; value: string }): Promise<{ hint: string; cards: AskProposal[] }> {
+    expect(await appendOwnedPubPalUserTurn(CONVERSATION, OWNER, { role: "user", content: fact.value }, "london")).toBe(true);
     const response = await TOOL(
       new Request("http://localhost/api/pub-pal/tools/propose_memory", {
         method: "POST",

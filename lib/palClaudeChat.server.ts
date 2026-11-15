@@ -18,7 +18,7 @@ import {
   recallPalMemoriesForConversation,
 } from "@/lib/palConfirmedMemories.server";
 import {
-  palChatAnswer,
+  palChatLookupAnswer,
   palChatFailureRecorder,
   palUserMessageText,
   preparePalChatProviderTurn,
@@ -163,8 +163,10 @@ export async function runPalClaudeChatTurn(
   // never share a row.
   const conversationId = newPalLocalThreadId();
   let userText: string;
+  let memories: Awaited<typeof memoriesRead>;
   try {
-    const [, memories, taste] = await beforePalChatDeadline(deadline, () =>
+    let taste: Awaited<typeof tasteRead>;
+    [, memories, taste] = await beforePalChatDeadline(deadline, () =>
       Promise.all([
         registerPubPalToolTurn(conversationId, {
           deadline,
@@ -211,7 +213,6 @@ export async function runPalClaudeChatTurn(
         for (let round = 0; round < MAX_ROUNDS; round += 1) {
           if (abort.signal.aborted) return failed("TIMEOUT");
           const span = modelRound({});
-          let streamedText = false;
           let message: Anthropic.Message;
           try {
             const stream = client.stream(
@@ -230,11 +231,6 @@ export async function runPalClaudeChatTurn(
               },
               { signal: abort.signal },
             );
-            stream.on("text", (delta) => {
-              if (!delta) return;
-              streamedText = true;
-              input.onProgress?.({ type: "delta", text: delta });
-            });
             message = await stream.finalMessage();
           } catch (error) {
             span.setError(error);
@@ -259,16 +255,15 @@ export async function runPalClaudeChatTurn(
               setError(new Error(`Claude stopped with ${message.stop_reason ?? "no reason"}.`));
               return failed("PROVIDER_UNAVAILABLE");
             }
-            // The reply is the answer. A store that cannot be read in time
-            // costs the cards, never the reply, as on the ElevenLabs path.
+            // A store that cannot be read in time costs the cards, never the
+            // turn, as on the ElevenLabs path.
             const turn = await beforePalChatDeadline(deadline, () => readPubPalToolTurn(conversationId)).catch(() => null);
-            return palChatAnswer(reply, turn, conversationId);
+            return palChatLookupAnswer(turn, conversationId, { ownerId: input.ownerId, deadline, memories, onTool: input.onTool });
           }
 
-          // Text before a tool call is not the answer. Tell the reader to clear it.
-          if (streamedText) input.onProgress?.({ type: "reset" });
           // The whole assistant turn goes back, thinking blocks included.
           messages.push({ role: "assistant", content: message.content });
+          for (const use of toolUses) input.onTool?.(use.name);
           const results = await Promise.all(
             toolUses.map(async (use): Promise<Anthropic.ToolResultBlockParam> => {
               const args =
@@ -282,7 +277,8 @@ export async function runPalClaudeChatTurn(
                   beforePalChatDeadline(deadline, () => runTool(use.name, args, conversationId)),
                 );
                 toolSpan?.end();
-                return { type: "tool_result", tool_use_id: use.id, content: toolResultText(result) };
+                const content = toolResultText(result);
+                return { type: "tool_result", tool_use_id: use.id, content };
               } catch (error) {
                 toolSpan?.setError(error);
                 toolSpan?.end();

@@ -9,6 +9,8 @@ import type { PubPalMemory } from "@/lib/pubPal";
 import { getPubPalResult, listPalMemoriesResult } from "@/lib/pubPalStore";
 import {
   appendPubPalToolTurn,
+  pubPalTurnSaid,
+  readPubPalToolTurn,
   readPubPalToolTurnBinding,
   type PubPalToolTurnBinding,
 } from "@/lib/pubPalToolTurnStore";
@@ -18,6 +20,7 @@ import { cleanText } from "@/lib/textClean";
 export const PAL_PROPOSE_MEMORY_TOOL = "propose_memory";
 
 const PAL_PROPOSAL_VALUE_LIMIT = 200;
+
 
 export type PalProposeMemoryToolResult = {
   result: {
@@ -80,6 +83,9 @@ export async function proposePalMemoryForConversation(
   const value = cleanText(args.value, PAL_PROPOSAL_VALUE_LIMIT);
   if (!isPubPalMemoryKind(memoryKind) || !value) {
     return refuse("Give one memory kind and a short value in the person's words. Nothing was saved.");
+  }
+  if (!pubPalTurnSaid(await readPubPalToolTurn(conversationId).catch(() => null), value)) {
+    return refuse("Use only words the person said in this chat for the memory. Nothing was saved.");
   }
 
   let confirmed: PubPalMemory[] = [];
