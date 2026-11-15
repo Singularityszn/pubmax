@@ -45,7 +45,7 @@ import {
 } from "@/lib/summonMates";
 import type { ShareFeedback } from "@/lib/venueShare";
 import { isPubVenue } from "@/lib/venueKindFilters";
-import type { Venue } from "@/lib/venues";
+import { venueContacts, type Venue } from "@/lib/venues";
 
 import "./venueActionCard.css";
 
@@ -251,6 +251,8 @@ export default function VenueActionCard({
       {gateStatus ? (
         <ContributionGateDialog
           mode={gateStatus}
+          purpose="table_request"
+          tableRequest={{ venueName: venue.name, contacts: venueContacts(venue) }}
           error={null}
           onClose={closeGate}
           returnTo={initialPartySize === undefined ? undefined : venueTableRequestUrl(venue.id, initialPartySize)}

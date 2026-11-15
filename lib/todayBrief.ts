@@ -30,7 +30,7 @@ import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { formatConditionDate, londonMonth } from "@/lib/tonightConditions";
-import { latestWeatherForArea } from "@/lib/weatherSnapshots";
+import { latestWeatherForArea, type NightAreaWeatherObservation } from "@/lib/weatherSnapshots";
 import { observationFacts } from "@/lib/weatherObservationCopy";
 import { whatsOnBarePriceGbp, type WhatsOnConfidence, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
@@ -44,6 +44,8 @@ export const BRIEF_DEFAULT_AREA: NightAreaSlug = "piccadilly-soho";
 // ---------------------------------------------------------------------------
 
 export type WeatherBrief = {
+  /** Retained evidence lets a cached document age its claims at the viewer's clock. */
+  evidence?: { observation: NightAreaWeatherObservation; area: NightAreaSlug };
   /** "Saturday 19 Jul" (London time). */
   dateLabel: string;
   /** The verdict's calm line, e.g. "Beer garden weather. Lager or cider." */
@@ -91,6 +93,7 @@ export function buildWeatherBrief(
       });
 
   return {
+    evidence: { observation, area },
     dateLabel: formatConditionDate(now),
     verdictLine: verdict?.line ?? "",
     ruleId: verdict?.ruleId ?? null,
@@ -101,6 +104,17 @@ export function buildWeatherBrief(
     source: { publisher: observation.source.publisher, url: observation.source.sourceUrl },
     factsLine,
   };
+}
+
+/** Re-evaluate the retained reading without changing its source time or expiry. */
+export function weatherBriefAt(brief: WeatherBrief | null, now: Date): WeatherBrief | null {
+  if (!brief?.evidence) return brief;
+  const { observation, area } = brief.evidence;
+  return buildWeatherBrief({
+    version: 1,
+    generatedAt: observation.observedAt,
+    observations: [observation],
+  }, now, area);
 }
 
 // ---------------------------------------------------------------------------
