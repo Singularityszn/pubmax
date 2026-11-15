@@ -202,7 +202,7 @@ export default function VenuePhotoWall({
   }
 
   const canPost = !configured || Boolean(user && handle);
-  const empty = loaded && wall.photos.length === 0;
+  const empty = loaded && wall.photos.length === 0 && wall.nextCursor === null;
   useEffect(() => {
     onEmptyChange?.(empty && wall.status === "ready");
   }, [empty, onEmptyChange, wall.status]);
