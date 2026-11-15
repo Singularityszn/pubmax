@@ -213,7 +213,6 @@ test("keeps the expanded city-status feed inside an 800px viewport", async ({
 
 for (const action of ["map", "crawl"] as const) {
   test(`completes the nearby ${action} action with cached point rows`, async ({ page, context }) => {
-    test.setTimeout(90_000);
     const errors: string[] = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.setViewportSize({ width: action === "map" ? 390 : 1440, height: 844 });
@@ -233,9 +232,11 @@ for (const action of ["map", "crawl"] as const) {
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     if (action === "map") {
       const nearMe = await mobileMapShellControl(page, "nearMe");
-      await nearMe.click();
       const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
-      await expect(sheet).toBeVisible({ timeout: 20_000 });
+      await expect(async () => {
+        if (!(await sheet.isVisible())) await nearMe.click();
+        await expect(sheet).toBeVisible({ timeout: 1_000 });
+      }).toPass({ timeout: 20_000 });
       await expect(sheet.locator(".nmnList > li .nmnCard").first()).toBeVisible();
       await expect(nearMe).toBeEnabled();
     } else {
@@ -253,3 +254,53 @@ for (const action of ["map", "crawl"] as const) {
     expect(errors).toEqual([]);
   });
 }
+
+test("the Filters feature count reads the Near me results, not the city", async ({ page, context }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await installDeterministicMapBasemap(page);
+  await storeThemeChoice(page, "light");
+  await context.setGeolocation({ latitude: 51.5136, longitude: -0.1365, accuracy: 10 });
+  await context.grantPermissions(["geolocation"]);
+  await page.addInitScript(() => {
+    localStorage.setItem("pubmax-tour-v1-done", "1");
+    localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+  });
+  await page.goto("/map?max=6");
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+
+  const filtersSheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
+  const featureCount = filtersSheet.locator('.venueFeatureFilters [role="status"]');
+  const settledCount = async () => {
+    await expect(featureCount).toHaveText(/^[\d,]+ /);
+    return Number((await featureCount.textContent())?.match(/^[\d,]+/)?.[0].replace(/,/g, ""));
+  };
+
+  const filters = await mobileMapShellControl(page, "filters");
+  await expect(async () => {
+    if (!(await filtersSheet.isVisible())) await filters.click();
+    await expect(filtersSheet).toBeVisible({ timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+  await filtersSheet.getByRole("button", { name: "Dogs welcome", exact: true }).click();
+  const cityCount = await settledCount();
+  await page.keyboard.press("Escape");
+  await expect(filtersSheet).toHaveCount(0);
+
+  const nearMe = await mobileMapShellControl(page, "nearMe");
+  await nearMe.click();
+  const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');
+  await expect(nearMeSheet.locator(".nmnList > li .nmnCard").first()).toBeVisible({ timeout: 20_000 });
+  const badge = nearMe.locator(".mobileMapCornerBadge");
+  await expect(badge).toHaveText(/^\d+$/);
+  const nearbyCount = Number(await badge.textContent());
+  await page.keyboard.press("Escape");
+  await expect(nearMeSheet).toHaveCount(0);
+  expect(nearbyCount).toBeLessThan(cityCount);
+
+  await filters.click();
+  await expect(filtersSheet).toBeVisible();
+  expect(await settledCount()).toBe(nearbyCount);
+});

@@ -1,5 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
-import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
+import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 
 // ONE SET OF PINT PRICE CAPS. The desktop Layers chips offered Any, ≤ £5.50 and
 // ≤ £7; the phone's Map controls sheet offered Any, £7, £6 and £5.50; the
@@ -25,11 +25,15 @@ export function pintPriceCapFigure(maxPrice: number): string {
   return Number.isInteger(maxPrice) ? `£${maxPrice}` : formatGbp(maxPrice);
 }
 
+export function pintPriceCapLabel(maxPrice: number): string {
+  return hasPintPriceCap(maxPrice) ? `≤ ${pintPriceCapFigure(maxPrice)}` : "Any";
+}
+
 function cap(maxPrice: number, tone: PintPriceCap["tone"]): PintPriceCap {
-  if (maxPrice >= NO_PINT_PRICE_CAP) {
-    return { maxPrice: NO_PINT_PRICE_CAP, label: "Any", shortLabel: "Any", tone: "any" };
+  if (!hasPintPriceCap(maxPrice)) {
+    return { maxPrice: NO_PINT_PRICE_CAP, label: pintPriceCapLabel(maxPrice), shortLabel: "Any", tone: "any" };
   }
-  return { maxPrice, label: `≤ ${pintPriceCapFigure(maxPrice)}`, shortLabel: pintPriceCapFigure(maxPrice), tone };
+  return { maxPrice, label: pintPriceCapLabel(maxPrice), shortLabel: pintPriceCapFigure(maxPrice), tone };
 }
 
 const ANY_CAP = cap(NO_PINT_PRICE_CAP, "any");
@@ -51,10 +55,10 @@ export const PINT_PRICE_CAPS_ASCENDING: readonly PintPriceCap[] = [...PINT_PRICE
   (a, b) => a.maxPrice - b.maxPrice,
 );
 
-/** True when `maxPrice` is the cap in force. Every value at or over the OFF value is "Any". */
+/** True when `maxPrice` is the cap in force. "Any" is in force only when no cap applies. */
 export function pintPriceCapIsActive(currentMaxPrice: number, capMaxPrice: number): boolean {
-  return capMaxPrice >= NO_PINT_PRICE_CAP
-    ? currentMaxPrice >= NO_PINT_PRICE_CAP
+  return !hasPintPriceCap(capMaxPrice)
+    ? !hasPintPriceCap(currentMaxPrice)
     : Math.abs(currentMaxPrice - capMaxPrice) < 0.01;
 }
 
@@ -64,7 +68,7 @@ export function pintPriceCapIsActive(currentMaxPrice: number, capMaxPrice: numbe
  * tie goes to the looser cap, so a snap never hides a pub the reader could see.
  */
 export function nearestPintPriceCapIndex(maxPrice: number): number {
-  const value = Number.isFinite(maxPrice) ? Math.min(maxPrice, NO_PINT_PRICE_CAP) : NO_PINT_PRICE_CAP;
+  const value = hasPintPriceCap(maxPrice) ? maxPrice : NO_PINT_PRICE_CAP;
   let best = PINT_PRICE_CAPS_ASCENDING.length - 1;
   let bestGap = Number.POSITIVE_INFINITY;
   PINT_PRICE_CAPS_ASCENDING.forEach((candidate, index) => {

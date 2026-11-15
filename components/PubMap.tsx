@@ -48,11 +48,11 @@ import {
   buildCrawlRoute,
   formatPrice,
   mergeVenueDrops,
-  NO_PINT_PRICE_CAP,
   provisionalPintDropVenueIds,
   type Filters,
   type Venue,
 } from "@/lib/venues";
+import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import {
   venueBundlePrices,
   venuePriceLane,
@@ -392,7 +392,7 @@ import {
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
-import { settledPintCapMatches } from "@/lib/pintCapMatches";
+import { useMapQueryResults } from "@/components/map/pubmap/useMapQueryResults";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -3168,14 +3168,9 @@ export default function PubMap({
     [kindVisibleMapVenues, venueById, selectedVenueId, filters.query, searchPickedVenueId],
   );
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
-  const { mapResultsSettled, pintCapMatched } = useMemo(() => {
-    const settled = loaded && loadedCityId === cityId && !lastOrdersReading;
-    return { mapResultsSettled: settled, pintCapMatched: settledPintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice, { settled, failed: venueIndexFailed || lastOrdersFailed }) };
-  }, [loaded, loadedCityId, cityId, lastOrdersReading, venueIndexFailed, lastOrdersFailed, kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
-  const queryVenues = useMemo(() => {
-    const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
-    return canvasVenues.filter((venue) => matchingIds.has(venue.id));
-  }, [canvasVenues, filteredVenues]);
+  const mapResultsSettled = useMemo(() => loaded && loadedCityId === cityId && !lastOrdersReading, [loaded, loadedCityId, cityId, lastOrdersReading]);
+  const mapResultsFailed = useMemo(() => venueIndexFailed || lastOrdersFailed, [venueIndexFailed, lastOrdersFailed]);
+  const { queryVenues, pintCapMatched, resultCount: queryResultCount } = useMapQueryResults({ canvasVenues, filteredVenues, maxPrice: effectiveMapFilters.maxPrice, settled: mapResultsSettled, failed: mapResultsFailed });
   const experienceLensPrices = useMemo(
     () =>
       experienceLens === "all"
@@ -6281,7 +6276,7 @@ export default function PubMap({
             onOpen={() => changeMapOverlay("tonight")}
           />
         ) : null}>
-        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={mapResultsSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
+        <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl
           lens={experienceLens}
           allSelected={!drinkFiltersActive}
@@ -6412,7 +6407,7 @@ export default function PubMap({
         tflCount={tflStatus.issueCount}
         tflUrgentCount={tflStatus.urgentCount}
         tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
-        priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
+        priceLabel={hasPintPriceCap(filters.maxPrice) ? `≤${formatGbp(filters.maxPrice)}` : "Price"}
         drinkFiltersActive={drinkFiltersActive}
         drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
         drinkLaneSelected={activeMapDrinkLane !== DEFAULT_DRINK_LANE}
@@ -6436,7 +6431,7 @@ export default function PubMap({
         priceCapActive={
           experienceLens === "all" &&
           mapDrinkLensCategory === null &&
-          filters.maxPrice < NO_PINT_PRICE_CAP
+          hasPintPriceCap(filters.maxPrice)
         }
         planOpen={planningOpen}
         planActive={routeMappedActive || activePlanRoute.length >= 2}

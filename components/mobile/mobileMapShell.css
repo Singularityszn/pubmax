@@ -1361,6 +1361,8 @@ html:has(.appShell) {
   .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
   .mobilePriceChoices button { flex: 1 1 4em; min-width: max-content; min-height: 44px; margin: -1px 0 0 -1px; border: 0; border-block-start: 1px solid var(--color-border-soft); border-inline-start: 1px solid var(--color-border-soft); border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
   .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
+  .mobilePriceChoices button:focus-visible { outline-offset: -2px; }
+  html[data-legacy="1"] .mobilePriceChoices button:focus-visible { outline-offset: -3px; }
 
   .mobileSheetPortal .tonightLane,
   .mobileSheetPortal .mapLayersControl,
