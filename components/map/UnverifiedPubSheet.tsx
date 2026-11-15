@@ -4,9 +4,13 @@ import { applyPlacesEnrichment } from "@/lib/venuePlacesEnrichment";
 
 import { useEffect, useState } from "react";
 import { priceBand, priceBandAreaForVenue, priceBandNote } from "@/lib/priceBand";
-import { ExternalLink, MapPin, Sparkles } from "lucide-react";
+import { ExternalLink, MapPin, Sparkles, Share2 } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useVenueShare } from "@/components/map/inspector/useVenueShare";
+import { formatSelectionHint } from "@/lib/mapSelectionHistory";
+import { venueDirectionsUrl } from "@/lib/venueJourney";
+import { Button } from "@/components/ui/button";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
@@ -221,6 +225,7 @@ export default function UnverifiedPubSheet({
     address: pub.address,
     osmFacts,
   }, places?.id === pub.id ? places.record : null);
+  const { currentShareFeedback, shareVenue } = useVenueShare(detailVenue, null, formatSelectionHint(pub.lat, pub.lng));
   const communityStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const readStatus = sheetReadStatus(communityStatus, listed, pub.id, experienceLens, drinkLensCategory);
   const pricesKnown = readStatus === "ready";
@@ -312,6 +317,18 @@ export default function UnverifiedPubSheet({
           </p>
         ) : null}
       </div>
+
+      <div className="unverifiedPubActions" aria-label="Public venue actions">
+        <Button variant="secondary" asChild>
+          <a href={venueDirectionsUrl(pub, null)} target="_blank" rel="noopener noreferrer" aria-label={`Directions to ${pub.name}`}>
+            <MapPin size={14} aria-hidden="true" /> Directions
+          </a>
+        </Button>
+        <Button variant="secondary" aria-label={`Share ${pub.name}`} onClick={() => { void shareVenue(); }}>
+          <Share2 size={14} aria-hidden="true" /> Share
+        </Button>
+      </div>
+      {currentShareFeedback ? <p role={currentShareFeedback.tone === "error" ? "alert" : "status"}>{currentShareFeedback.text}</p> : null}
 
       {communityPrice ? (
         <>
