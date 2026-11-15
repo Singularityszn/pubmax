@@ -16,6 +16,20 @@ import {
 /** The peek's short word for an aging figure; the Overview says the whole why. */
 export const PEEK_AGING_SUFFIX = " · may have changed";
 
+function priceSourceLink(lane: VenuePriceLane | null): { label: string; href: string } | null {
+  if (!lane) return null;
+  if (lane.lane === "baseline") {
+    return lane.publisher ? { label: lane.publisher.label, href: lane.publisher.url } : null;
+  }
+  if (lane.lane === "sourced") {
+    return { label: lane.sourcedPrice.sourceLabel, href: lane.sourcedPrice.sourceUrl };
+  }
+  if (lane.lane === "listed") {
+    return { label: lane.listed.publisher || "View source", href: lane.listed.sourceUrl };
+  }
+  return null;
+}
+
 /**
  * Whether the peek's figure is a published price past its window (owner
  * decision 16 Oct 2026: an aging price must look aging, never fresh). The two
@@ -63,6 +77,7 @@ export default function VenuePeekPintPrice({
   if (pricePending) return <span role="status">{PRICE_PENDING_LINE}</span>;
 
   const price = peekPriceChip(lane, bundle, pintTrust);
+  const source = priceSourceLink(lane);
   if (isPub && !price?.observed && !firstDropNudgeMayClaimAbsence(dropReadStatus)) {
     return <span role="status"><small>{DROP_READ_UNAVAILABLE_LINE}</small></span>;
   }
@@ -86,6 +101,13 @@ export default function VenuePeekPintPrice({
           {aging ? PEEK_AGING_SUFFIX : null}
         </small>
         {dated ? <small data-price-dated="">{dated}</small> : null}
+        {source ? (
+          <small className="mobileVenuePeekSource" data-price-source="">
+            <a className="priceSourceLink" href={source.href} target="_blank" rel="noopener noreferrer">
+              {source.label}
+            </a>
+          </small>
+        ) : null}
       </span>
     );
   }

@@ -738,6 +738,10 @@
    max-height on the tab strip lets the strip and its labels grow with the
    user's font size instead of clipping. */
 @media (max-width: 640px) {
+  .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
+    height: clamp(48px, 3rem, 56px);
+  }
+
   .venueTabs {
     /* EVERY SECTION IS ON SCREEN, IN ONE ROW. The strip used to scroll
        sideways under a fade, which hid the last tabs past the edge (5 Sep
@@ -760,6 +764,21 @@
     height: auto;
     justify-content: center;
     text-align: center;
+  }
+}
+
+@media (max-width: 360px) {
+  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named {
+    height: 28px;
+    padding: 0;
+  }
+
+  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named .pubSign__art {
+    max-height: 24px;
+  }
+
+  html[data-text-scale="large"] .mobileSharedSheet .venueInspector .venueImage--header.venueImage--empty.venueImage--named .pubSign__tag {
+    display: none;
   }
 }
 
