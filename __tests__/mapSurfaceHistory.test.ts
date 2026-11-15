@@ -239,6 +239,15 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(trail()?.map((entry) => entry.id)).toEqual(["venue"]);
   });
 
+  it("returns the public map camera held before a venue opened", async () => {
+    const returnCamera = { center: [-0.134, 51.511] as [number, number], zoom: 14 };
+    act(() => navigation.open({
+      id: "venue", title: "A pub", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "venue-alma", returnCamera },
+    }));
+    await traverse(() => navigation.back());
+    expect(onRestore).toHaveBeenLastCalledWith(null, expect.objectContaining({ returnCamera }));
+  });
+
   it("today: open pushes one entry per new surface and replaces a reopened top", () => {
     const push = vi.spyOn(window.history, "pushState");
     const replace = vi.spyOn(window.history, "replaceState");
