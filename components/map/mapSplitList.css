@@ -54,11 +54,11 @@
   }
 
   .appShell:has(> .mapSplitList).detail-open .venueInspector .venueTabs {
-    gap: 2px;
+    gap: calc(var(--space-1) / 2);
   }
 
   .appShell:has(> .mapSplitList).detail-open .venueInspector .venueTab {
-    padding-inline: 8px;
+    padding-inline: var(--space-2);
   }
 
   .appShell:has(> .mapSplitList) > .mapStage {
