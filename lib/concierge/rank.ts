@@ -250,6 +250,8 @@ function scoreOne(
         heritage: "Venue heritage on record",
       };
       if (label[mood]) reasons.push(label[mood]!);
+    } else if (mood === "quiet") {
+      reasons.push(QUIET_NOT_CHECKED);
     }
   }
 

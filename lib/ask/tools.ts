@@ -125,7 +125,7 @@ function rankedNote(
   ranked: { reasons: string[]; nearAreaNote?: string },
   fallback = "",
 ): string {
-  return [ranked.reasons[0] ?? fallback, ranked.nearAreaNote]
+  return [ranked.reasons[0] ?? fallback, ...ranked.reasons.filter((reason) => reason === QUIET_NOT_CHECKED), ranked.nearAreaNote]
     .filter((part, index, all): part is string => Boolean(part) && all.indexOf(part) === index)
     .join(" · ");
 }
