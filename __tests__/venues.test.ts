@@ -239,6 +239,9 @@ describe("filterVenues", () => {
     expect(filterVenues(pricey, makeFilters({ maxPrice: 6 }))).toHaveLength(0);
     expect(filterVenues(nullPrice, makeFilters({ maxPrice: 6 }))).toHaveLength(1);
     expect(filterVenues(unsourced, makeFilters({ maxPrice: 6 }))).toHaveLength(1);
+    const overTen = groupVenuePrices([makeRow({ address: "D", price_gbp: 12, pub_url: "https://example.com/menu", scraped_at_values: "2026-01-01T12:00:00Z" })]);
+    expect(filterVenues(overTen, makeFilters({ maxPrice: 11 }))).toHaveLength(0);
+    expect(filterVenues(overTen, makeFilters({ maxPrice: 12.5 }))).toHaveLength(1);
   });
 
   it("requireWater gates on curation", () => {

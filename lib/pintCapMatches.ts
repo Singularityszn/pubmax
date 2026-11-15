@@ -31,15 +31,19 @@ export function settledPintCapMatches(
   return reads.settled && !reads.failed ? pintCapMatches(venues, maxPrice) : null;
 }
 
-export function pintCapMatchLines(matches: PintCapMatches): { priced: string; unknown: string | null } {
-  const cap = pintPriceCapFigure(matches.cap);
+export type PintCapMatchPart = string | { figure: string };
+
+export function pintCapMatchLines(matches: PintCapMatches): { priced: PintCapMatchPart[]; unknown: PintCapMatchPart[] | null } {
+  const cap = { figure: pintPriceCapFigure(matches.cap) };
   const priced = matches.priced === 0
-    ? `No pub in these results has a recorded pint at or under ${cap}. Try a higher limit or fewer filters.`
-    : `${matches.priced.toLocaleString("en-GB")} ${matches.priced === 1 ? "pub in these results has" : "pubs in these results have"} a recorded pint at or under ${cap}.`;
+    ? ["No pub in these results has a recorded pint at or under ", cap, ". Try a higher limit or fewer filters."]
+    : [{ figure: matches.priced.toLocaleString("en-GB") }, ` ${matches.priced === 1 ? "pub in these results has" : "pubs in these results have"} a recorded pint at or under `, cap, "."];
   if (matches.unknown === 0) return { priced, unknown: null };
-  const subject = matches.unknown === 1 ? "1 pub has" : `${matches.unknown.toLocaleString("en-GB")} pubs have`;
   return {
     priced,
-    unknown: `${subject} no comparable pint price. ${matches.unknown === 1 ? "The cap does not exclude it." : "The cap does not exclude them."}`,
+    unknown: [
+      { figure: matches.unknown.toLocaleString("en-GB") },
+      ` ${matches.unknown === 1 ? "pub has" : "pubs have"} no comparable pint price. ${matches.unknown === 1 ? "The cap does not exclude it." : "The cap does not exclude them."}`,
+    ],
   };
 }
