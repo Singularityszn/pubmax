@@ -7,6 +7,7 @@ import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
 import { useLogPickerLocation } from "@/components/map/pubmap/useLogPickerLocation";
 import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { mapLocationWasExposed, markMapLocationExposure } from "@/lib/mapLocationExposure";
+import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -22,6 +23,7 @@ beforeEach(() => {
   vi.stubGlobal("navigator", {
     permissions: { query: vi.fn(async () => ({ state: "granted", addEventListener: vi.fn(), removeEventListener: vi.fn() })) },
     geolocation: {
+      getCurrentPosition: vi.fn(),
       watchPosition: vi.fn((callback: PositionCallback) => { success = callback; return 1; }),
       clearWatch: vi.fn(),
     },
@@ -70,7 +72,36 @@ it("reports prompt permission without requesting geolocation on mount", async ()
 
   expect(onPermissionState).toHaveBeenCalledWith("prompt");
   expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
-  expect(navigator.geolocation).not.toHaveProperty("getCurrentPosition");
+  expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+});
+
+it.each(["absent", "rejected"] as const)("reports an explicit grant when the Permissions API is %s before a watch fix arrives", async (permissionsApi) => {
+  if (permissionsApi === "absent") {
+    vi.stubGlobal("navigator", { geolocation: navigator.geolocation });
+  } else {
+    vi.mocked(navigator.permissions.query).mockRejectedValue(new Error("Permissions API unavailable"));
+  }
+  const onPermissionState = vi.fn();
+  function Probe() {
+    useMapReaderPosition(() => {}, onPermissionState);
+    return null;
+  }
+
+  await act(async () => root.render(createElement(Probe)));
+  expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
+  expect(navigator.geolocation.getCurrentPosition).not.toHaveBeenCalled();
+
+  await act(async () => latchMapReaderLocationWatch());
+
+  expect(onPermissionState).toHaveBeenCalledWith("granted");
+  expect(navigator.geolocation.watchPosition).toHaveBeenCalledTimes(1);
+
+  await act(async () => success({ coords: { latitude: 55.9533, longitude: -3.1883, accuracy: 10 } } as GeolocationPosition));
+  expect(onPermissionState).toHaveBeenLastCalledWith("granted");
+
+  const onWatchError = vi.mocked(navigator.geolocation.watchPosition).mock.calls[0]?.[1];
+  await act(async () => onWatchError?.({ code: 1, message: "denied" } as GeolocationPositionError));
+  expect(onPermissionState).toHaveBeenLastCalledWith("denied");
 });
 
 it("consumes pre-React exposure even when the later permission query denies location", async () => {

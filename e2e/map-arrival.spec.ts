@@ -108,6 +108,44 @@ async function prepareFirstVisitMap(page: Page): Promise<void> {
 }
 
 test.describe("map first-visit arrival", () => {
+  for (const permissionsApi of ["absent", "rejected"] as const) {
+    test(`a successful opening read outside London hides the mobile location ask with the Permissions API ${permissionsApi}`, async ({ page }) => {
+      await prepareFirstVisitMap(page);
+      await page.addInitScript((mode) => {
+        const observed = window as typeof window & { __openingLocationReads: number };
+        observed.__openingLocationReads = 0;
+        Object.defineProperty(navigator, "permissions", {
+          configurable: true,
+          value: mode === "absent" ? undefined : {
+            query: async () => { throw new Error("Permissions API unavailable"); },
+          },
+        });
+        Object.defineProperty(navigator, "geolocation", {
+          configurable: true,
+          value: {
+            getCurrentPosition(success: PositionCallback) {
+              observed.__openingLocationReads += 1;
+              success({
+                coords: { latitude: 55.9533, longitude: -3.1883, accuracy: 10 },
+              } as GeolocationPosition);
+            },
+            watchPosition: () => 0,
+            clearWatch: () => {},
+          },
+        });
+      }, permissionsApi);
+
+      const response = await page.goto("/map");
+      expect(response?.status()).toBe(200);
+      await expectMobileMapShellReady(page, 45_000);
+      await waitForPins(page);
+      await expect.poll(() => page.evaluate(() =>
+        (window as typeof window & { __openingLocationReads?: number }).__openingLocationReads ?? 0,
+      )).toBeGreaterThan(0);
+      await expect(page.locator(".mapArrivalCard")).toBeHidden();
+    });
+  }
+
   test("a mobile first visit keeps the location ask while permission is prompt", async ({
     page,
     context,

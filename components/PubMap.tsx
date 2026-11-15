@@ -1433,6 +1433,7 @@ export default function PubMap({
       },
     }).then((location) => {
       if (cancelled) return;
+      if (location) latchMapReaderLocationWatch();
       if (
         location &&
         !openingLocationCancelledRef.current &&
@@ -1440,7 +1441,6 @@ export default function PubMap({
       ) {
         invalidatePrivateCamera();
         setGrantedOpeningLocation(location);
-        latchMapReaderLocationWatch();
       }
       setOpeningLocationPromptActive(false);
       setOpeningLocationResolved(true);

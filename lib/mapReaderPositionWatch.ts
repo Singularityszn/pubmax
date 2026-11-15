@@ -41,6 +41,7 @@ export function attachMapReaderPositionWatch(
 
   const onPosition = (fix: GeolocationPosition) => {
     if (detached) return;
+    onPermissionState("granted");
     onLocationExposure();
     onUpdate(mapReaderPositionFromGeolocation(fix));
   };
@@ -51,7 +52,10 @@ export function attachMapReaderPositionWatch(
     // refusal ends the watch.
     if (error.code !== PERMISSION_DENIED) return;
     stopWatch();
-    if (!detached) onUpdate(null);
+    if (!detached) {
+      onPermissionState("denied");
+      onUpdate(null);
+    }
   };
 
   const startWatch = () => {
@@ -90,6 +94,7 @@ export function attachMapReaderPositionWatch(
   };
 
   const onLatch = () => {
+    onPermissionState("granted");
     startWatch();
   };
 
