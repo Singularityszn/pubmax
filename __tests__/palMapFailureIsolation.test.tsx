@@ -33,6 +33,10 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: async () => points,
   loadSlimVenuesForCityResult: async () => ({ status: "ready", rows: points }),
+  retainSlimVenuesForCity: () => ({
+    promise: Promise.resolve({ status: "ready", rows: points }),
+    release: () => {},
+  }),
 }));
 vi.mock("@/components/map/canvas/webgl", () => ({ probeWebGl2: () => ({ hasContext: true, status: "" }) }));
 vi.mock("@/lib/palChatClient", async (original) => ({

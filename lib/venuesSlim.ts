@@ -27,6 +27,12 @@ import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind } from "@/lib/venueKinds";
 import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import {
+  INITIAL_SLIM_LOAD_LIFECYCLE,
+  transitionSlimLoadLifecycle,
+  type SlimLoadLifecycleEvent,
+  type SlimLoadLifecycleState,
+} from "@/lib/slimLoadLifecycle";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 import { isVenueFeatureObservation } from "@/lib/venueFeatureEvidence";
@@ -39,7 +45,19 @@ import {
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
-const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
+
+type SlimLoadEntry = {
+  promise: Promise<SlimVenueLoadResult>;
+  wire: SlimWire;
+};
+
+type SlimWire = {
+  controller: AbortController;
+  lifecycle: SlimLoadLifecycleState;
+  nextHoldId: number;
+};
+
+const slimLoads = new Map<string, SlimLoadEntry>();
 
 function offlineKeyForPath(path: string): string {
   return path === SLIM_VENUES_PATH
@@ -323,6 +341,7 @@ function directMonolithRequest(path: string): {
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
+  wire?: SlimWire,
   cache: RequestCache = "default",
 ): Promise<unknown> {
   let earlyPayloadRejected = false;
@@ -331,20 +350,27 @@ async function readSlimPayload(
       ? undefined
       : takeEarlyWarmJson(path);
   if (early) {
+    if (wire) applySlimLoadEvent(path, wire, { type: "landed" });
     try {
       return await early;
     } catch {
       earlyPayloadRejected = true;
     }
   }
+  if (wire) {
+    applySlimLoadEvent(path, wire, { type: "reopen" });
+    wire.controller.signal.throwIfAborted();
+  }
   const response = earlyPayloadRejected || cache === "no-store"
-    ? await fetch(path, { cache: "no-store" })
-    : await fetch(path);
+    ? await fetch(path, { cache: "no-store", signal: wire?.controller.signal })
+    : await fetch(path, { signal: wire?.controller.signal });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);
   }
-  return response.json();
+  const payload: unknown = await response.json();
+  if (wire) applySlimLoadEvent(path, wire, { type: "landed" });
+  return payload;
 }
 
 function rowsFromPayload(
@@ -401,22 +427,80 @@ async function readOfflineFallback(
   return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
+function joinSlimLoad(
+  path: string,
+  options: SlimVenueLoadOptions,
+): SlimLoadEntry {
+  if (!options.bypassInFlight) {
+    const inFlight = slimLoads.get(path);
+    if (inFlight) return inFlight;
+  }
+
+  const wire: SlimWire = {
+    controller: new AbortController(),
+    lifecycle: INITIAL_SLIM_LOAD_LIFECYCLE,
+    nextHoldId: 0,
+  };
+  const promise = loadSlimVenuesFromPathUnshared(path, options, wire);
+  const entry: SlimLoadEntry = {
+    promise,
+    wire,
+  };
+  slimLoads.set(path, entry);
+  void promise.then(
+    () => applySlimLoadEvent(path, wire, { type: "settled" }),
+    () => applySlimLoadEvent(path, wire, { type: "failed" }),
+  );
+  return entry;
+}
+
 export function loadSlimVenuesFromPathResult(
   path: string,
   options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenueLoadResult> {
-  if (!options.bypassInFlight) {
-    const inFlight = slimLoadPromises.get(path);
-    if (inFlight) return inFlight;
-  }
+  const entry = joinSlimLoad(path, options);
+  applySlimLoadEvent(path, entry.wire, { type: "rejoin" });
+  return entry.promise;
+}
 
-  const pending = loadSlimVenuesFromPathUnshared(path, options);
-  slimLoadPromises.set(path, pending);
-  const clearInFlight = () => {
-    if (slimLoadPromises.get(path) === pending) slimLoadPromises.delete(path);
+export type SlimVenueLoadHold = {
+  promise: Promise<SlimVenueLoadResult>;
+  release: () => void;
+};
+
+export function retainSlimVenuesFromPath(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): SlimVenueLoadHold {
+  const entry = joinSlimLoad(path, options);
+  const id = entry.wire.nextHoldId++;
+  applySlimLoadEvent(path, entry.wire, { type: "hold", id });
+  return {
+    promise: entry.promise,
+    release: () => applySlimLoadEvent(path, entry.wire, { type: "release", id }),
   };
-  void pending.then(clearInFlight, clearInFlight);
-  return pending;
+}
+
+function applySlimLoadEvent(path: string, wire: SlimWire, event: SlimLoadLifecycleEvent): void {
+  const result = transitionSlimLoadLifecycle(wire.lifecycle, event);
+  wire.lifecycle = result.state;
+  for (const effect of result.effects) {
+    switch (effect) {
+      case "check-unread":
+        queueMicrotask(() => applySlimLoadEvent(path, wire, { type: "check-unread" }));
+        break;
+      case "drop-entry":
+        if (slimLoads.get(path)?.wire === wire) slimLoads.delete(path);
+        break;
+      case "abort":
+        wire.controller.abort();
+        break;
+      default: {
+        const unreachable: never = effect;
+        return unreachable;
+      }
+    }
+  }
 }
 
 export async function loadSlimVenuesFromPath(
@@ -442,16 +526,17 @@ function offlineSnapshotIdentity(data: unknown): {
 async function loadSlimVenuesFromPathUnshared(
   path: string,
   options: SlimVenueLoadOptions = {},
+  wire?: SlimWire,
 ): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    let data: unknown = await readSlimPayload(path, options);
+    let data: unknown = await readSlimPayload(path, options, wire);
     let payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     if (
       (options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) &&
       (!payload || !payload.complete)
     ) {
-      data = await readSlimPayload(path, options, "no-store");
+      data = await readSlimPayload(path, options, wire, "no-store");
       payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     }
     if (
@@ -496,6 +581,7 @@ async function loadSlimVenuesFromPathUnshared(
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
+    if (wire?.controller.signal.aborted) throw error;
     const fallback = await readOfflineFallback(
       offlineKey,
       options.expectedRevision,
@@ -532,4 +618,12 @@ export function loadSlimVenuesForCityResult(
   const city = getCity(cityId);
   const request = directMonolithRequest(city.slimVenuesPath);
   return loadSlimVenuesFromPathResult(request.path, request.options);
+}
+
+export function retainSlimVenuesForCity(
+  cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
+): SlimVenueLoadHold {
+  const city = getCity(cityId);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return retainSlimVenuesFromPath(request.path, request.options);
 }

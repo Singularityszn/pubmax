@@ -32,6 +32,10 @@ vi.mock("@/lib/analytics", () => ({ trackEvent }));
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: loadSlim,
   loadSlimVenuesForCityResult: loadSlimResult,
+  retainSlimVenuesForCity: vi.fn(() => ({
+    promise: loadSlimResult(),
+    release: () => {},
+  })),
 }));
 vi.mock("@/lib/palChatClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/palChatClient")>()),
