@@ -22,6 +22,15 @@ export function pintCapMatches(venues: readonly Venue[], maxPrice: number): Pint
   return { cap: maxPrice, priced, unknown };
 }
 
+/** A failed or pending read is missing data, not a zero result, so it gets no summary. */
+export function settledPintCapMatches(
+  venues: readonly Venue[],
+  maxPrice: number,
+  reads: { settled: boolean; failed: boolean },
+): PintCapMatches | null {
+  return reads.settled && !reads.failed ? pintCapMatches(venues, maxPrice) : null;
+}
+
 export function pintCapMatchLines(matches: PintCapMatches): { priced: string; unknown: string | null } {
   const cap = pintPriceCapFigure(matches.cap);
   const priced = matches.priced === 0

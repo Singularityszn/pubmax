@@ -392,7 +392,7 @@ import {
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
-import { pintCapMatches } from "@/lib/pintCapMatches";
+import { settledPintCapMatches } from "@/lib/pintCapMatches";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
 import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
@@ -3170,8 +3170,8 @@ export default function PubMap({
   const pinPriceStandings = usePinPriceStandings(canvasVenues, venueSignals, zoneIndex, favoritePint, { price: communityPrices.venuePriceStatus, drops: pintDrops.venueDropStatus }, effectiveMapFilters.maxPrice);
   const { mapResultsSettled, pintCapMatched } = useMemo(() => {
     const settled = loaded && loadedCityId === cityId && !lastOrdersReading;
-    return { mapResultsSettled: settled, pintCapMatched: settled ? pintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice) : null };
-  }, [loaded, loadedCityId, cityId, lastOrdersReading, kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
+    return { mapResultsSettled: settled, pintCapMatched: settledPintCapMatches(kindVisibleMapVenues, effectiveMapFilters.maxPrice, { settled, failed: venueIndexFailed || lastOrdersFailed }) };
+  }, [loaded, loadedCityId, cityId, lastOrdersReading, venueIndexFailed, lastOrdersFailed, kindVisibleMapVenues, effectiveMapFilters.maxPrice]);
   const queryVenues = useMemo(() => {
     const matchingIds = new Set(filteredVenues.map((venue) => venue.id));
     return canvasVenues.filter((venue) => matchingIds.has(venue.id));
