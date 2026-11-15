@@ -370,7 +370,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   // Wait for the command bar to finish portaling into the sheet footer. The
   // footer is outside the scroll body, so actions remain reachable at full snap.
   const sheetFooter = sheet.locator(".mobileSharedSheetFooter");
-  const stickyActions = sheetFooter.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = sheetFooter.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
   // The Overview's getting-home fold is the single Train entry point (the

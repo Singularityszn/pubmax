@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 import { SURFACE_NAV_HOME_ICON_SIZE } from "@/components/ui/surface-nav";
 
@@ -128,11 +129,9 @@ async function tapWithTouch(page: Page, target: Locator): Promise<void> {
 }
 
 async function expectPrimaryActions(page: Page): Promise<void> {
-  const toolbar = page.locator(".venueSheetStickyBar");
-  await expect(toolbar).toBeVisible();
-  await expect(toolbar).toHaveAttribute("role", "toolbar");
-  await expect(toolbar).toHaveAttribute("aria-label", "Venue actions");
-  await expectInViewport(toolbar, "Venue actions toolbar", page);
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  const toolbar = await openVenueSecondaryActions(portal);
+  await expectInViewport(toolbar, "Venue actions", page);
 
   const actions = await toolbar.locator("button").evaluateAll((buttons) =>
     buttons.map((button) => {
