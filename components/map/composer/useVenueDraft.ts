@@ -98,9 +98,8 @@ export function useVenueDraft({
         const query = new URLSearchParams({ author: accountHandle });
         void authedActionFetch(`/api/pint-drops?${query}`, {}, { requiresIdentity: true })
           .then((response) => response.ok ? response.json() : null)
-          .then((data: { drops?: Array<{ drink?: unknown; handle?: unknown }> } | null) => {
+          .then((data: { drops?: Array<{ drink?: unknown }> } | null) => {
             if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount || !Array.isArray(data?.drops)) return;
-            if (data.drops[0] && (typeof data.drops[0].handle !== "string" || data.drops[0].handle.replace(/^@+/, "").toLowerCase() !== accountHandle.replace(/^@+/, "").toLowerCase())) return;
             const drink = typeof data.drops[0]?.drink === "string" ? data.drops[0].drink.trim() : "";
             writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
             setDropForm((current) => {

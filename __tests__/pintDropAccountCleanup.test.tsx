@@ -26,6 +26,7 @@ import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpi
 import PintDropComposer from "@/components/map/PintDropComposer";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readPintDropDraft, takePintDropSignInHandoff, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
+import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -471,8 +472,15 @@ it("restores the entry in the selected pub after sign-in", async () => {
   expect(drops.dropForm).toMatchObject({ price: "5.20", drink: "Guinness" });
 });
 
-it("prefills the last account drink on a new device", async () => {
+it.each(["alice", ANON_HANDLE_LABEL])("prefills the last account drink on a new device with public handle %s", async (handle) => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((url, init) => {
+    if (String(url).includes("/api/pint-drops?author=alice")) {
+      return Promise.resolve(new Response(JSON.stringify({ drops: [{ ...publicDrop, handle }] }), { status: 200 }));
+    }
+    return originalFetch(url, init);
+  });
   await act(async () => root.render(createElement(Probe, { composer: true })));
   expect(drops.dropForm.drink).toBe("Pale ale");
 });
@@ -492,7 +500,7 @@ it.each([false, true])("does not pass an abandoned anonymous entry to another ac
   });
   expect(drops.dropForm.note).toBe("");
   expect(drops.dropForm.withWho).toBe("");
-  expect(takePintDropSignInHandoff(localStorage, "venue-1", "abandoned-return")).toBeNull();
+  expect(takePintDropSignInHandoff(localStorage, "venue-1", departed ? "abandoned-return" : null)).toBeNull();
 });
 
 it.each(["", "Lager"])("preserves price edits while history fills only an unchanged drink: %s", async (editedDrink) => {

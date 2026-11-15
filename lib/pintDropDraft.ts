@@ -230,10 +230,7 @@ export function takePintDropSignInHandoff(storage: Pick<Storage, "getItem" | "re
       storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);
       return null;
     }
-    if (!token || saved.token !== token) {
-      storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);
-      return null;
-    }
+    if (!token || saved.token !== token) return null;
     if (saved.venueId !== venueId) return null;
     const draft = normalisePintDropDraft(saved.draft);
     storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);

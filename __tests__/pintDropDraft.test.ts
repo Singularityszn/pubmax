@@ -229,9 +229,10 @@ it("carries an entry to the chosen pub after sign-in, once", () => {
 });
 
 
-it.each([null, "another-return"])("does not recover a private draft without its originating return: %s", (token) => {
+it.each([null, "another-return"])("rejects an unrelated return without consuming the originating handoff: %s", (token) => {
   const storage = makeStorage();
   writePintDropSignInHandoff(storage, "venue-a", DRAFT, "original-return", 1000);
   expect(takePintDropSignInHandoff(storage, "venue-a", token, 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "original-return", 1100)).toEqual(DRAFT);
   expect(takePintDropSignInHandoff(storage, "venue-a", "original-return", 1100)).toBeNull();
 });
