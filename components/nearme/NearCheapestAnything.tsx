@@ -106,15 +106,20 @@ export default function NearCheapestAnything({
             {measured.length > 1 ? (
               <p className="nmnAnythingNote">Each size is its own answer. A size is never compared with another.</p>
             ) : null}
-            {measured.length > 0 ? <ul className="nmnAnythingList">
-              {measured.map((answer) => <AnswerRow key={`${answer.measure}-${answer.id}`} answer={answer} />)}
-            </ul> : null}
-            {unmeasured.length > 0 ? <>
-              <p className="nmnAnythingHeading">Other listed prices</p>
+            {measured.length > 0 ? (
               <ul className="nmnAnythingList">
-                {unmeasured.map((answer, index) => <AnswerRow key={`${answer.id}-${index}`} answer={answer} />)}
+                {measured.map((answer) => <AnswerRow key={`${answer.measure}-${answer.id}`} answer={answer} />)}
               </ul>
-            </> : null}
+            ) : null}
+            {unmeasured.length > 0 ? (
+              <details className="nmnUnrankedPrices">
+                <summary>Other listed prices ({unmeasured.length})</summary>
+                <p className="nmnAnythingNote">These serving sizes are not comparable, so these prices are not ranked.</p>
+                <ul className="nmnAnythingList">
+                  {unmeasured.map((answer, index) => <AnswerRow key={`${answer.id}-${index}`} answer={answer} />)}
+                </ul>
+              </details>
+            ) : null}
           </>
         )}
         {chip === "guinness" ? (
