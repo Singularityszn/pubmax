@@ -2,7 +2,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "@/e2e/helpers/mapNetworkFixtures";
 import { priceBandLegendLabel } from "@/lib/priceBand";
-import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl, openMobileFilterRefinements } from "@/e2e/helpers/mobileMapShell";
 
 const VIEWPORT = { width: 390, height: 844 };
 const CHIP_LABELS = ["Beer", "Wine", "Cocktails", "Whisky", "Gin", "Rum", "Coffee", "Alcohol-free", "Soft drinks"];
@@ -38,15 +38,20 @@ async function openFilters(page: Page): Promise<Locator> {
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   await expect(sheet).toBeVisible();
-  // The sheet SHELL paints before its content does: the venue types, the drink
-  // shapes and the fare zones are dynamic imports that arrive a chunk later.
-  // Returning on the shell alone let three tests read a sheet holding nothing
-  // but "Saved only" and "Open now", and report an empty fare-zone group and
-  // zero drink glyphs as if the controls had been deleted. Wait for the first
-  // content group, so the helper's promise matches its name.
+  await openMobileFilterRefinements(sheet);
   await expect(sheet.getByRole("group", { name: "Map view" })).toBeVisible({
     timeout: 45_000,
   });
+  return sheet;
+}
+
+async function openDrinkShapes(page: Page): Promise<Locator> {
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  await (await mobileMapShellControl(page, "more")).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="layers"]');
+  await sheet.getByRole("tab", { name: "Prices", exact: true }).click();
+  await expect(sheet.getByRole("group", { name: "Filter by drink shape" })).toBeVisible();
   return sheet;
 }
 
@@ -63,7 +68,7 @@ test("390px drink chip labels contain category names only", async ({
   page,
 }) => {
   test.setTimeout(90_000);
-  const sheet = await openFilters(page);
+  const sheet = await openDrinkShapes(page);
   const shapeGroup = sheet.getByRole("group", { name: "Filter by drink shape" });
 
   await expect(shapeGroup.getByRole("button")).toHaveText(CHIP_LABELS);
@@ -74,15 +79,18 @@ test("390px Prices and places controls show one truthful selection", async ({
 }) => {
   test.setTimeout(90_000);
   const sheet = await openFilters(page);
-  const shapeGroup = sheet.getByRole("group", { name: "Filter by drink shape" });
   const mapViewGroup = sheet.getByRole("group", { name: "Map view" });
+  await sheet.locator(".mobileFilterDrink button").click();
+  const drinks = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+  const shapeGroup = drinks.getByRole("group", { name: "Drink prices shown on the map" });
 
   await shapeGroup.getByRole("button", { name: "Gin", exact: true }).click();
   await expect(page).toHaveURL(/[?&]drink=gin(?:&|$)/);
-  expect([
-    ...(await pressedLabels(mapViewGroup)),
-    ...(await pressedLabels(shapeGroup)),
-  ]).toEqual(["Gin"]);
+  expect(await pressedLabels(shapeGroup)).toEqual(["Gin"]);
+  await drinks.locator(".surfaceNavHome").click();
+  await (await mobileMapShellControl(page, "filters")).click();
+  await openMobileFilterRefinements(sheet);
+  expect(await pressedLabels(mapViewGroup)).toEqual([]);
 });
 
 for (const viewport of [
@@ -249,6 +257,7 @@ test("390px fare-zone rows agree through selection and reset", async ({ page }) 
   const selectedFill = await backgroundOf(zoneFiveChip);
 
   await zoneGroup.getByRole("button", { name: "All", exact: true }).click();
+  await openMobileFilterRefinements(sheet);
   await expect.poll(() => pressedLabels(zoneGroup)).toEqual(["All"]);
   await expect(zonePriceGroup.locator('button[aria-pressed="true"]')).toHaveCount(0);
 
@@ -292,6 +301,7 @@ for (const width of [390, 320]) {
     const filtersSheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
+    await openMobileFilterRefinements(filtersSheet);
     const arc = filtersSheet.getByRole("group", {
       name: "Venue types",
     });
@@ -427,6 +437,7 @@ test("390px food and All views retain the five venue kinds and explicit exclusio
   await expect(pubs).toHaveAttribute("aria-pressed", "true");
   await expect(bars).toHaveAttribute("aria-pressed", "false");
   await bars.click();
+  await openMobileFilterRefinements(sheet);
   await expect(bars).toHaveAttribute("aria-pressed", "true");
 });
 
@@ -626,7 +637,7 @@ for (const width of [1280, 1440]) {
 
 test("390px drink glyphs keep the requested 22px box", async ({ page }) => {
   test.setTimeout(90_000);
-  const sheet = await openFilters(page);
+  const sheet = await openDrinkShapes(page);
   const shapeGroup = sheet.getByRole("group", { name: "Filter by drink shape" });
 
   const capturePath = process.env.DRINK_CHIP_CAPTURE_PATH;
