@@ -2,6 +2,7 @@
 
 import { warmMapEngine } from "@/lib/mapEngineWarm";
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
+import { resetMapRefinements } from "@/lib/mapFilterReset";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
 import { venueToPricedPoint } from "@/lib/nearMeAnswer";
 
@@ -640,6 +641,7 @@ import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
   hasSavedPubVenue,
+  hiddenVenueKindCount,
   isPubVenue,
   type VenueKindVisibility,
 } from "@/lib/venueKindFilters";
@@ -6266,82 +6268,48 @@ export default function PubMap({
     );
   }
 
-  /* The phone's Filters sheet. The desktop reads all of this off the toolbar and the rail. */
+  function clearMobileFilters() {
+    setExperienceLens("all");
+    experienceLensRestoreRef.current = null;
+    setExperienceLensHeldDrink(null);
+    changeFavoritePint(null);
+    setPersonaLensId(null);
+    setVenueKindVisibility(defaultVenueKindVisibility);
+    setSavedOnly(false);
+    setFilters((current) => resetMapRefinements(current, seedCrawlState("").filters));
+  }
+
   function renderMobileFiltersPanel() {
     return (
-      <MobilePriceChoices {...mobilePriceChoicesProps} lead={isLondon ? (
-          <MobileMapTonightLens
-            rowCount={tonightPubListingCount(whatsOnTonight.rows)}
-            nearReader={userLocation != null}
-            onOpen={() => changeMapOverlay("tonight")}
-          />
-        ) : null}>
+      <MobilePriceChoices
+        {...mobilePriceChoicesProps}
+        onClearFilters={clearMobileFilters}
+        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
+        drinkControl={<div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
+        lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
+      >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
-        <MapExperienceLensControl
-          lens={experienceLens}
-          allSelected={!drinkFiltersActive}
-          summary={experienceSummary}
-          onChange={changeExperienceLens}
-        />
-        {/* The phone's only copy of the venue-type toggles. */}
-        <TonightArcChips
-          visibility={venueKindVisibility}
-          experienceLens={experienceLens}
-          variant="sheet"
-          onChange={setVenueKindVisibility}
-        />
-        {/* Same Saved only field as the desktop ControlRail — narrows the
-            map to this device's saved pubs. Empty state when nothing is
-            saved yet points at Save on a pub sheet. */}
+        <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
+        <TonightArcChips visibility={venueKindVisibility} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
           <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
-            <input
-              type="checkbox"
-              checked={savedOnly}
-              onChange={(event) => changeSavedOnly(event.target.checked)}
-            />
+            <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
             Saved only
           </label>
           {savedOnly && !hasSavedPub ? (
             <div className="mobileMapSavedOnlyEmpty" role="status">
               <p>{SAVED_ONLY_EMPTY_NOTE}</p>
-              <Button
-                type="button"
-                variant="secondary"
-                className="w-full"
-                onClick={() => changeSavedOnly(false)}
-              >
-                Show all pubs
-              </Button>
+              <Button type="button" variant="secondary" className="w-full" onClick={() => changeSavedOnly(false)}>Show all pubs</Button>
             </div>
           ) : null}
         </section>
         {experienceLens === "all" ? (
           <>
-            <DrinkShapeChips filters={filters} onFiltersChange={setFilters} />
-            {isLondon ? (
-              <ZonePicker
-                variant="inline"
-                zone={filters.zone}
-                onZoneChange={(zone) => setFilters((current) => ({ ...current, zone }))}
-                index={zoneIndex}
-              />
-            ) : null}
-            {/* Brand is a pint refinement. The drink itself is chosen on
-                the map's own lane chip, never in this drawer. */}
+            {isLondon ? <ZonePicker variant="inline" zone={filters.zone} onZoneChange={(zone) => setFilters((current) => ({ ...current, zone }))} index={zoneIndex} /> : null}
             {activeMapDrinkLane === DEFAULT_DRINK_LANE ? (
-              <FavoritePintPicker
-                value={favoritePint}
-                onChange={changeFavoritePint}
-                drinkBrand={filters.drinkBrand}
-                onDrinkBrandChange={changeDrinkBrand}
-              />
+              <FavoritePintPicker value={favoritePint} onChange={changeFavoritePint} drinkBrand={filters.drinkBrand} onDrinkBrandChange={changeDrinkBrand} />
             ) : null}
-            <PersonaLensPicker
-              personaId={personaLensId}
-              onSelect={selectPersona}
-              tonightCategory={personaTonightCategory}
-            />
+            <PersonaLensPicker personaId={personaLensId} onSelect={selectPersona} tonightCategory={personaTonightCategory} />
           </>
         ) : null}
       </MobilePriceChoices>

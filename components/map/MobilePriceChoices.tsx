@@ -6,6 +6,9 @@ import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import type { PintCapMatches } from "@/lib/pintCapMatches";
 import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
+import { Button } from "@/components/ui/button";
+
+import "./mobileFilterDisclosure.css";
 
 /**
  * The caps this sheet can set: the one shared set (lib/pintPriceCaps.ts), so
@@ -22,19 +25,26 @@ export default function MobilePriceChoices({
   lead,
   children,
   onMaxPriceChange,
+  drinkControl,
+  onClearFilters,
+  refinementsActive = false,
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
   drinkLabel?: string | null;
   matches?: PintCapMatches | null;
-  /** Rendered above the pint caps: the What's On lens leads the phone Filters sheet. */
+  /** An event action within the additional filters, or above the standalone price controls. */
   lead?: ReactNode;
   children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
+  drinkControl?: ReactNode;
+  onClearFilters?: () => void;
+  refinementsActive?: boolean;
 }) {
+  const refinements = <>{lead}{children}<MapKey legend={legend} /></>;
   return (
     <div className="mobileMapFilters">
-      {lead}
+      {onClearFilters ? <Button type="button" variant="ghost" className="mobileFilterReset" onClick={onClearFilters}>Clear filters</Button> : lead}
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
@@ -62,8 +72,13 @@ export default function MobilePriceChoices({
           <PintCapMatchSummary matches={matches} />
         </fieldset>
       )}
-      {children}
-      <MapKey legend={legend} />
+      {drinkControl}
+      {onClearFilters ? (
+        <details className="mobileFilterDisclosure" open={refinementsActive || undefined}>
+          <summary>More filters{refinementsActive ? " · active" : ""}</summary>
+          <div className="mobileFilterRefinements">{refinements}</div>
+        </details>
+      ) : <>{children}<MapKey legend={legend} /></>}
     </div>
   );
 }
