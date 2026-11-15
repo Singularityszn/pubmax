@@ -90,7 +90,7 @@ export type PassportDeps = {
    * The owner's own "Been here" saved list (lib/beenHere.ts).
    * Never read this source for anybody else.
    * `savedAt` records the tick time, not a visit day. Passport visit dates
-   * stay unknown. See README.md's profile features for challenge bonus rules.
+   * stay unknown.
    */
   beenHere(ownerHandle: string): Promise<Array<PassportVenue & { savedAt?: string }>>;
   rankings(profileId: string): Promise<PassportRankedRow[]>;

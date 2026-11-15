@@ -98,7 +98,7 @@ export async function readPointsBreakdown(
   return (await readPointsRecords(owner, deps)).breakdown;
 }
 
-/** A standing, and the pubs on the owner's Been list by canonical venue id. */
+/** A standing, and the owner's proven visits by canonical venue id. */
 export type PointsStandingWithVisits = PointsStanding & { visited: ReadonlySet<string> };
 
 /** The owner's standing and the pubs it counted. Leagues colour their map from these. */
