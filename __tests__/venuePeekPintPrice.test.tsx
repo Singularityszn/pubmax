@@ -30,6 +30,7 @@ const HELD: Array<{
   trust?: Props["pintTrust"];
   figure: string;
   caption: string;
+  source?: { label: string; href: string };
 }> = [
   {
     name: "confirmed", lane: { lane: "contributor", contributorPrice: 4.7 },
@@ -45,12 +46,14 @@ const HELD: Array<{
       sourcedPrice: { provenance: "sourced", sourceLabel: "Pub menu", sourceUrl: "https://example.com/menu", observedAt: NOW },
     },
     figure: "£4.70", caption: "sourced price on record",
+    source: { label: "Pub menu", href: "https://example.com/menu" },
   },
   {
     name: "listed", lane: {
       lane: "listed", listed: { priceGbp: 4.7, sourceUrl: "https://example.com/menu", observedAt: NOW },
     },
     figure: "£4.70", caption: "published price",
+    source: { label: "View source", href: "https://example.com/menu" },
   },
   {
     name: "baseline", lane: {
@@ -98,6 +101,22 @@ async function render(overrides: Partial<Props>) {
   await act(async () => root.render(createElement(VenuePeekPintPrice, { ...DEFAULTS, ...overrides })));
 }
 
+function expectHeldEvidence(fixture: typeof HELD[number]) {
+  expect(host.querySelectorAll(".priceBadge, strong")).toHaveLength(1);
+  expect(host.querySelector(".priceBadge, strong")?.textContent).toBe(fixture.figure);
+  expect(host.querySelector("small:not([data-price-dated]):not([data-price-source])")?.textContent).toBe(fixture.caption);
+  if (fixture.trust) {
+    expect(host.querySelector("[data-pint-trust]")?.getAttribute("data-pint-trust")).toBe(fixture.trust);
+  }
+  const source = host.querySelector<HTMLAnchorElement>("[data-price-source] a");
+  if (fixture.source) {
+    expect(source?.textContent).toBe(fixture.source.label);
+    expect(source?.getAttribute("href")).toBe(fixture.source.href);
+  } else {
+    expect(source).toBeNull();
+  }
+}
+
 describe("held pint evidence while venue details load", () => {
   it.each(HELD)("preserves the $name figure and caption before and after detail settlement", async (fixture) => {
     for (const detailLoading of [true, false]) {
@@ -107,11 +126,8 @@ describe("held pint evidence while venue details load", () => {
           priceReadStatus: refreshing ? "loading" : "ready",
           dropReadStatus: refreshing ? "idle" : "ready",
         });
-        expect(host.textContent).toBe(fixture.figure + fixture.caption);
+        expectHeldEvidence(fixture);
         expect(host.querySelector('[role="status"]')).toBeNull();
-        if (fixture.trust) {
-          expect(host.querySelector("[data-pint-trust]")?.getAttribute("data-pint-trust")).toBe(fixture.trust);
-        }
       }
     }
   });
@@ -121,7 +137,7 @@ describe("held pint evidence while venue details load", () => {
       lane: fixture.lane, pintTrust: fixture.trust ?? null, detailLoading: false,
       priceReadStatus: "degraded", dropReadStatus: "unavailable",
     });
-    expect(host.textContent).toBe(fixture.figure + fixture.caption);
+    expectHeldEvidence(fixture);
     expect(host.querySelector('[role="status"]')).toBeNull();
   });
 
