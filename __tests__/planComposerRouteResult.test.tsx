@@ -150,6 +150,129 @@ async function mountComposer(): Promise<void> {
   }
 }
 
+describe("onboarding after a kept pub", () => {
+  beforeEach(() => {
+    writePlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: "garden-shed",
+      acceptedArea: { kind: "borough", name: "Merton" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Soho%2C+maximum+%C2%A36+per+pint");
+  });
+
+  it("asks before combining the saved pub with the new area", async () => {
+    const before = sessionStorage.getItem("pubmax:planning-intent:v1");
+    await mountComposer();
+    expect(document.body.textContent).toContain("Keep your existing plan");
+    expect(document.body.textContent).toContain("Start the new request");
+    expect(sessionStorage.getItem("pubmax:planning-intent:v1")).toBe(before);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Start the new request"))!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+    expect(document.querySelector("[aria-label='Accepted plan context']")).toBeNull();
+    expect(readPlanningIntent()).toBeNull();
+    expect(document.body.textContent).toContain("Restore previous plan");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    expect(sessionStorage.getItem("pubmax:planning-intent:v1")).toBe(before);
+    expect(document.querySelector("[aria-label='Accepted plan context']")).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).not.toContain("Soho");
+  });
+
+  it("restores both requests, including a new access need, across switches and reloads", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Soho, step-free, maximum £6 per pint");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    await remountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe("Soho, step-free, maximum £6 per pint");
+    expect(readPlanningIntent()).toBeNull();
+  });
+
+  it("submits the new area without carrying the earlier accepted pub", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
+    });
+    await settle();
+    const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+    expect(call).toBeDefined();
+    const body = JSON.parse(String(call![1]?.body));
+    expect(body.query).toContain("Soho");
+    expect(body.query).toContain("maximum £6 per pint");
+    expect(body.anchor).toBeUndefined();
+  });
+
+  it("keeps the existing pub and its area when the person chooses the old plan", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()).toMatchObject({ acceptedVenueId: "garden-shed", acceptedArea: { kind: "borough", name: "Merton" } });
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).not.toContain("Soho");
+    expect(document.body.textContent).toContain("Start the new request");
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
+
+  it("keeps the old plan when saving the alternative is refused", async () => {
+    const before = sessionStorage.getItem("pubmax:planning-intent:v1");
+    await mountComposer();
+    const store = blockStorageWrites("sessionStorage");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("could not switch plans");
+    expect(store.getItem("pubmax:planning-intent:v1")).toBe(before);
+  });
+});
+
+describe("route failure recovery", () => {
+  it("offers the map without losing the request after a refused route", async () => {
+    fetchMock.mockImplementation(async (input) => String(input).includes("/api/plans/generate")
+      ? Response.json({ error: { message: "We could not verify a 3-stop route in Soho with the information available." } }, { status: 422 })
+      : Response.json([]));
+    await mountComposer();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "3 pubs in Soho, step-free, under £20 each");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
+    });
+    await settle();
+    const map = document.querySelector<HTMLAnchorElement>('a[data-plan-recovery="map"]');
+    expect(map?.getAttribute("href")).toBe("/map");
+    expect(map?.getAttribute("target")).toBe("_blank");
+    expect(document.body.textContent).toContain("could not verify");
+    expect(JSON.stringify(sessionStorage)).toContain("step-free");
+  });
+});
+
 async function remountComposer(): Promise<void> {
   const current = root!;
   await act(async () => { current.unmount(); });

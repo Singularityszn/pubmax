@@ -48,8 +48,8 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
-  it("does not suggest dropping a requirement when the evidence cannot establish a recovery", () => {
-    const message = planGenerationRefusalMessage({ stopCount: 3, budgetLimitPence: null }, "Soho", ["step-free access"], null);
+  it.each([2, 3] as const)("does not suggest dropping a requirement for an unverified %i-stop route", (stopCount) => {
+    const message = planGenerationRefusalMessage({ stopCount, budgetLimitPence: null }, "Soho", ["step-free access"], null);
     expect(message).toContain("step-free access");
     expect(message).not.toMatch(/dropping one/i);
     expect(message).toContain("Browse pubs");

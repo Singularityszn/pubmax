@@ -288,7 +288,7 @@ export function MobilePlanActivation({
         <Chip aria-pressed={zeroProof} onClick={() => setZeroProof((current) => !current)}>Alcohol-free</Chip>
       </div>
       <Button type="submit" size="large" className="w-full" disabled={loading} aria-busy={loading}>{loading ? <span className="mobilePlannerIntentPending"><PubmaxxLoadingEmber size={15} />Planning…</span> : "Make a plan"}</Button>
-      {error ? <p className="mobilePlannerIntentError" role="alert">{error}</p> : null}
+      {error ? <><p className="mobilePlannerIntentError" role="alert">{error}</p><a href="/map" target="_blank" rel="noopener noreferrer">Browse pubs on the map</a></> : null}
       {result ? (
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>

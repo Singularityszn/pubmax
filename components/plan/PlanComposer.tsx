@@ -1,6 +1,7 @@
 "use client";
 
 import { isProoflessReleasedRoute, recoverPlanDrafts, resolveRequestedPlanIntent } from "@/lib/planDraftArbitration";
+import { hasOnboardingAlternative, readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecovery";
 
 import {
   FormEvent,
@@ -2657,6 +2658,7 @@ function PlanComposerForm({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPersist, allowUrlPrefill, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
+  const [generationFailed, setGenerationFailed] = useState(false);
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
   const recoveredExplicitNightContext = recoveredIntent.explicitNightContext;
@@ -3491,6 +3493,7 @@ function PlanComposerForm({
     }
     beginActivity("generating");
     setError("");
+    setGenerationFailed(false);
     setRouteStatus(palDraftCheckingLine(palDraft, routeSorted
       ? "Refreshing the route and rechecking every stop for your updated night."
       : "Building the route and checking every stop for your night."));
@@ -3541,6 +3544,7 @@ function PlanComposerForm({
         // Answered 200 with no Stops on purpose: the kept pub is what is in the
         // way, and only the server knows which check refused it.
         setConciergeNote(anchorConflict);
+        setGenerationFailed(true);
         setRouteStatus(anchorConflict);
         return;
       }
@@ -3549,6 +3553,7 @@ function PlanComposerForm({
         // Zero matches is guidance, not failure (friction sweep follow-up 9):
         // the polite status slot, never the red error banner.
         setConciergeNote(NO_VENUES_MATCHED);
+        setGenerationFailed(true);
         setRouteStatus(NO_VENUES_MATCHED);
         return;
       }
@@ -3610,6 +3615,7 @@ function PlanComposerForm({
       const failureStatus = planGenerationFailureStatus(message, routeSorted);
       trackErrorShown("plan", errorShownKindFromStatus(responseStatus));
       setError(failureStatus);
+      setGenerationFailed(true);
       pendingDraftSave.current = true;
       if (routeSorted) setRouteStale(true);
       setRouteStatus(failureStatus);
@@ -4217,6 +4223,7 @@ function PlanComposerForm({
   return (
     <form id="plan-composer" className="planComposer" data-result={resultMode ? "true" : undefined} onSubmit={submit} noValidate>
       {tuneOpen ? null : draftSaveNotice}
+      {generationFailed ? <p>Your request stays here. <a data-plan-recovery="map" href="/map" target="_blank" rel="noopener noreferrer">Browse pubs on the map</a></p> : null}
       {handoff && (
         <AcceptedContextPanel
           handoff={handoff}
@@ -4313,7 +4320,13 @@ function PlanComposerForm({
   );
 }
 
+// The recovery boundary arbitrates saved drafts before the composer mounts.
+// eslint-disable-next-line complexity
 export default function PlanComposer() {
+  const { user, identityResolved } = useAuth();
+  const [recoveryVersion, setRecoveryVersion] = useState(0);
+  const [keepExisting, setKeepExisting] = useState(false);
+  const [switchError, setSwitchError] = useState("");
   const hydrated = useSyncExternalStore(
     () => () => {},
     () => true,
@@ -4332,7 +4345,7 @@ export default function PlanComposer() {
   }, [accountGeneration]);
   // Account resets must read ownership again even when hydration is unchanged.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const records = useMemo(() => hydrated ? readComposerAcceptanceRecords() : null, [hydrated, accountGeneration]);
+  const records = useMemo(() => hydrated ? readComposerAcceptanceRecords() : null, [hydrated, accountGeneration, recoveryVersion]);
   const recovery = useMemo(() => {
     if (!records || accountGeneration > 0) return null;
     try {
@@ -4363,6 +4376,31 @@ export default function PlanComposer() {
   const recoveredRouteDraft = recovery?.route.route ?? null;
   const handoff = recovery?.handoff ?? null;
   const recoveredIntake = useMemo(() => selectRecoveredComposerIntake(recovery), [recovery]);
+  const onboarding = hydrated && accountGeneration === 0
+    && new URLSearchParams(window.location.search).get("from") === "onboarding"
+    && Boolean(describeAskFromLocation().ask);
+  const alternative = hydrated && accountGeneration === 0 && identityResolved
+    ? readOnboardingAlternative(safeSessionStorage(), user?.id ?? null) : null;
+  const hasExisting = Boolean(handoff?.heldVenueId || recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft);
+  const choosing = onboarding && identityResolved && hasExisting && !alternative && !keepExisting;
+  function switchPlan() {
+    if (!ownsAcceptance(acceptedOwner) || !switchOnboardingPlan(safeSessionStorage(), safeLocalStorage(), user?.id ?? null)) {
+      setSwitchError("We could not switch plans. Check device storage and any other open Plan tab, then try again.");
+      setRecoveryVersion((version) => version + 1);
+      return;
+    }
+    setSwitchError("");
+    setKeepExisting(false);
+    setRecoveryVersion((version) => version + 1);
+  }
+  function recoverSwitch(finish: boolean) {
+    if (!recoverOnboardingSwitch(safeSessionStorage(), safeLocalStorage(), user?.id ?? null, finish)) {
+      setSwitchError("We could not restore the plans. Check device storage and any other open Plan tab, then try again.");
+      return;
+    }
+    setSwitchError("");
+    setRecoveryVersion((version) => version + 1);
+  }
   // The form is MOUNTED AGAIN once hydrated when there is something to recover,
   // so its state initialisers read the recovered drafts and the URL's ask.
   // Whatever the server-painted form held is thrown away with it, so that form
@@ -4389,9 +4427,37 @@ export default function PlanComposer() {
         fromUrl.handoffAsk,
     );
   }, [hydrated, handoff, recoveredDraft, recoveredRouteDraft, recoveredIntake]);
-  return (
+  if (hydrated && !identityResolved && (onboarding || hasOnboardingAlternative(safeSessionStorage()))) {
+    return <p className="planComposer" role="status">Checking your saved plan…</p>;
+  }
+  if (alternative?.pending) {
+    return <section className="planComposer" aria-label="Recover planning requests">
+      <h1>Your plan switch was interrupted.</h1>
+      <p>Both requests are saved. Choose which one to open.</p>
+      <button type="button" onClick={() => recoverSwitch(false)}>Restore the plan before the switch</button>{" "}
+      <button type="button" onClick={() => recoverSwitch(true)}>Continue switching plans</button>
+      {switchError ? <p role="alert">{switchError}</p> : null}
+    </section>;
+  }
+  if (choosing) {
+    return <section className="planComposer" aria-label="Choose a planning request">
+      <h1>Which plan would you like to use?</h1>
+      <p>You have an existing plan and a new onboarding request. Your saved pub and requirements stay with your existing plan.</p>
+      <p>Existing plan: {recoveredDraft?.stops[0]?.venueName || "your kept pub"}{handoff?.area ? ` · ${acceptedPlanAreaLabel(handoff.area)}` : ""}</p>
+      <p>New request: {describeAskFromLocation().ask}</p>
+      <button type="button" onClick={() => setKeepExisting(true)}>Keep your existing plan</button>{" "}
+      <button type="button" onClick={switchPlan}>Start the new request</button>
+      {switchError ? <p role="alert">{switchError}</p> : null}
+    </section>;
+  }
+  return <>
+    {(alternative || (onboarding && keepExisting)) ? <section className="planComposer" aria-label="Switch planning request">
+      <p>{alternative?.active === "new" ? "Your previous plan is saved on this device." : "Your new onboarding request is separate from this plan."}</p>
+      <button type="button" onClick={switchPlan}>{alternative?.active === "new" ? "Restore previous plan" : "Start the new request"}</button>
+      {switchError ? <p role="alert">{switchError}</p> : null}
+    </section> : null}
     <PlanComposerForm
-      key={`${remount ? "hydrated" : "server"}:${accountGeneration}`}
+      key={`${remount ? "hydrated" : "server"}:${accountGeneration}:${recoveryVersion}`}
       recoveredDraft={recoveredDraft}
       recoveredRouteDraft={recoveredRouteDraft}
       recoveredIntake={recoveredIntake.draft}
@@ -4405,9 +4471,10 @@ export default function PlanComposer() {
       acceptedOwner={acceptedOwner}
       handoff={handoff}
       canPersist={hydrated}
-      allowUrlPrefill={accountGeneration === 0}
+      allowUrlPrefill={accountGeneration === 0 && !(onboarding && keepExisting) && alternative?.active !== "old"
+        && !(alternative?.active === "new" && Boolean(recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft))}
     />
-  );
+  </>;
 }
 
 /**
