@@ -7329,6 +7329,7 @@ export default function PubMap({
                 never had. */}
             <SurfaceNav
               backLabel={mapSurfaceTrail.backLabel}
+              rootListBackLabel={splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? "Back to pubs in this view" : undefined}
               onBack={mapSurfaceTrail.back}
               homeLabel={
                 mapSurfaceTrail.backLabel

@@ -39,6 +39,7 @@ export const SURFACE_NAV_HOME_ICON_SIZE = 20;
 
 export default function SurfaceNav({
   backLabel,
+  rootListBackLabel,
   onBack,
   homeLabel,
   onHome,
@@ -47,6 +48,7 @@ export default function SurfaceNav({
 }: {
   /** Where Back goes, as a full accessible name. Null hides the control. */
   backLabel: string | null;
+  rootListBackLabel?: string;
   onBack?: () => void;
   /** Where Home goes, as a full accessible name. */
   homeLabel: string;
@@ -68,11 +70,11 @@ export default function SurfaceNav({
           <ChevronLeft size={SURFACE_NAV_BACK_ICON_SIZE} aria-hidden="true" />
         </button>
       ) : null}
-      {!backLabel && onBack ? (
+      {!backLabel && rootListBackLabel ? (
         <button
           type="button"
           className="surfaceNavBack surfaceNavBack--desktop-list"
-          aria-label="Back to pubs in this view"
+          aria-label={rootListBackLabel}
           onClick={onHome}
           onPointerDown={(event) => event.stopPropagation()}
         >
