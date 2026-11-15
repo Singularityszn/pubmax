@@ -1,7 +1,10 @@
 "use client";
 
+import type { ReactNode } from "react";
 import MapKey from "@/components/map/MapKey";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
 
 /**
@@ -15,16 +18,23 @@ export default function MobilePriceChoices({
   maxPrice,
   legend,
   drinkLabel,
+  matches,
+  lead,
+  children,
   onMaxPriceChange,
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
-  drinkLabel?: string;
+  drinkLabel?: string | null;
+  matches?: PintCapMatches | null;
+  /** Rendered above the pint caps: the What's On lens leads the phone Filters sheet. */
+  lead?: ReactNode;
+  children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
 }) {
   return (
-    <>
-      <MapKey legend={legend} />
+    <div className="mobileMapFilters">
+      {lead}
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
@@ -49,8 +59,11 @@ export default function MobilePriceChoices({
               );
             })}
           </div>
+          <PintCapMatchSummary matches={matches} />
         </fieldset>
       )}
-    </>
+      {children}
+      <MapKey legend={legend} />
+    </div>
   );
 }
