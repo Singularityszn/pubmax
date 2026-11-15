@@ -120,6 +120,14 @@ describe("cheapestDrinksNearby", () => {
     expect(html).toContain("Other B");
   });
 
+  it.each(["single", "double"] as const)("retains %s servings whose volume is not stated", (measure) => {
+    const rows: NearDrinkRow[] = [
+      ["near", 3, "2026-10-02", "menu", "First drink", measure],
+      ["nearer", 4, "2026-10-02", "menu", "Second drink", measure],
+    ];
+    expect(cheapestDrinksNearby(here.lat, here.lng, [near, nearer], rows)).toHaveLength(2);
+  });
+
   it("answers nothing when no priced row is in the walk", () => {
     expect(cheapestDrinksNearby(here.lat, here.lng, [far], [["far", 2, "2026-10-02", null, "Espresso", null]])).toEqual([]);
     expect(cheapestDrinksNearby(here.lat, here.lng, [near], [])).toEqual([]);
