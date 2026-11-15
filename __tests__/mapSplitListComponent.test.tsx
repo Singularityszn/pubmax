@@ -340,7 +340,7 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
   });
 
-  it("holds the list through pub inspection, then follows a new map interaction", () => {
+  it.each([false, true])("holds the list through pub inspection, then follows a new map interaction with detail open=%s", (stillOpen) => {
     const map = fakeMap();
     const filters = {};
     render({ map: map.map, detailOpen: false, filterState: filters });
@@ -348,7 +348,7 @@ describe("the list beside the map, at desktop width", () => {
     render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
-    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    render({ map: map.map, detailOpen: stillOpen, filterState: filters, visibleVenues: [LAMB] });
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
     expect(host.querySelector<HTMLInputElement>(".mapSplitListFollow input")?.checked).toBe(true);
     act(() => map.container.dispatchEvent(new Event("pointerdown", { bubbles: true })));
