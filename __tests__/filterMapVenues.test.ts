@@ -174,6 +174,16 @@ describe("filterMapVenues", () => {
       expect(pintCapMatches(shown, capped.maxPrice)).toEqual({ cap: 6, priced: 2, unknown: 1 });
     });
 
+    it("uses the same current contributor evidence for pins, cap counts and list qualification", () => {
+      const signals = new Map([
+        [under.id, { latestContributorPrice: 9, latestContributorAt: Date.parse("2026-11-14T12:00:00Z") }],
+        [over.id, { latestContributorPrice: 4, latestContributorAt: Date.parse("2026-11-14T12:00:00Z") }],
+      ]);
+      const shown = filterMapVenues([under, over, unknown], capped, () => false, () => "unknown", signals);
+      expect(shown.map((venue) => venue.id)).toEqual([over.id, unknown.id]);
+      expect(pintCapMatches(shown, 6, signals)).toEqual({ cap: 6, priced: 1, unknown: 1 });
+    });
+
     it("never counts a pub over the cap as a match, even when a selection forces it onto the map", () => {
       expect(pintCapMatches([under, over, unknown], 6)).toEqual({ cap: 6, priced: 1, unknown: 1 });
     });

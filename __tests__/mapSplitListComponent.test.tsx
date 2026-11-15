@@ -440,7 +440,7 @@ describe("the list beside the map, at desktop width", () => {
       onSelectVenue,
       onSelectUkBasePub,
       ukBaseModel: {
-        rows: [{ id: BASE_PUB.id, name: BASE_PUB.name, priceLabel: "Other pub · no listed price", pub: BASE_PUB }],
+        rows: [{ id: BASE_PUB.id, name: BASE_PUB.name, priceLabel: "Other pub · price not checked", pub: BASE_PUB }],
         total: 1,
         shown: 1,
         truncated: false,
@@ -455,7 +455,7 @@ describe("the list beside the map, at desktop width", () => {
     act(() => rows()[1]!.click());
     expect(onSelectVenue).toHaveBeenCalledWith("venue-crown");
     const base = rows().find((row) => row.dataset.venueId === BASE_PUB.id)!;
-    expect(base.querySelector(".mapSplitListRowTrust")?.textContent).toBe("Other pub · no listed price");
+    expect(base.querySelector(".mapSplitListRowTrust")?.textContent).toBe("Other pub · price not checked");
     act(() => base.click());
     expect(onSelectUkBasePub).toHaveBeenCalledWith(BASE_PUB);
     expect(onSelectVenue).toHaveBeenCalledTimes(1);
