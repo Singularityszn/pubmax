@@ -91,10 +91,7 @@ import {
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatGbp } from "@/lib/formatGbp";
-import {
-  loadSlimVenuesForCity,
-  loadSlimVenuesForCityResult,
-} from "@/lib/venuesSlim";
+import { retainSlimVenuesForCity } from "@/lib/venuesSlim";
 import { VibeChipButton, VibeChips } from "@/components/vibe/VibeChips";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
@@ -423,7 +420,8 @@ function PalChatBody({ owner }: { owner: string | null }) {
 
   useEffect(() => {
     let alive = true;
-    void loadSlimVenuesForCityResult(DEFAULT_CITY_ID)
+    const hold = retainSlimVenuesForCity(DEFAULT_CITY_ID);
+    void hold.promise
       .then((result) => {
         if (!alive) return;
         setKnownVenueIds(
@@ -440,6 +438,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       });
     return () => {
       alive = false;
+      hold.release();
     };
   }, []);
 
@@ -478,11 +477,14 @@ function PalChatBody({ owner }: { owner: string | null }) {
   // "Take me there" and "where is The Lamb?" open that one pub when the chat
   // can name it, and otherwise reach the Pal, unless they ask for the map too.
   const mapAskRef = useRef(0);
+  const slimHoldsRef = useRef(new Set<() => void>());
   useEffect(() => () => {
     askRequestRef.current += 1;
     mapAskRef.current += 1;
     sessionControllerRef.current?.abort();
     sessionControllerRef.current = null;
+    for (const release of slimHoldsRef.current) release();
+    slimHoldsRef.current.clear();
   }, []);
   const entriesRef = useRef<Entry[]>([]);
   useEffect(() => {
@@ -513,7 +515,19 @@ function PalChatBody({ owner }: { owner: string | null }) {
         const venue = await palPubAskVenue(text, {
           lastVenue: last.venue,
           palLines: last.palLines,
-          loadVenues: () => loadSlimVenuesForCity(DEFAULT_CITY_ID),
+          loadVenues: async () => {
+            const hold = retainSlimVenuesForCity(DEFAULT_CITY_ID);
+            const releaseHold = () => {
+              slimHoldsRef.current.delete(releaseHold);
+              hold.release();
+            };
+            slimHoldsRef.current.add(releaseHold);
+            try {
+              return (await hold.promise).rows;
+            } finally {
+              releaseHold();
+            }
+          },
         });
         if (request !== mapAskRef.current || accountSignal.aborted) return true;
         if (venue) {
@@ -779,8 +793,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
   useEffect(() => {
     if (!empty || cheapest) return;
     let alive = true;
-    void loadSlimVenuesForCity(DEFAULT_CITY_ID)
-      .then((slim) => {
+    const hold = retainSlimVenuesForCity(DEFAULT_CITY_ID);
+    void hold.promise
+      .then((result) => {
+        const slim = result.rows;
         if (!alive || slim.length === 0) return;
         const remembered = readRememberedArea();
         const patch =
@@ -811,6 +827,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
       });
     return () => {
       alive = false;
+      hold.release();
     };
   }, [empty, cheapest]);
   const cheapestLine = useMemo(

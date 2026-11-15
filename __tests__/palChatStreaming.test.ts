@@ -31,6 +31,10 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: slimLoad,
   loadSlimVenuesForCityResult: vi.fn().mockResolvedValue({ status: "ready", rows: [] }),
+  retainSlimVenuesForCity: vi.fn(() => ({
+    promise: slimLoad().then((rows: SlimVenue[]) => ({ status: "ready" as const, rows })),
+    release: vi.fn(),
+  })),
 }));
 vi.mock("@/lib/palChatClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/palChatClient")>()),
@@ -43,6 +47,7 @@ vi.mock("@/lib/palChatClient", async (importOriginal) => ({
 import PalChat from "@/components/pal/PalChat";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import * as chatThread from "@/lib/palChatThread";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 let container: HTMLDivElement;
 let root: Root | null = null;

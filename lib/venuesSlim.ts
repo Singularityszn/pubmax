@@ -38,7 +38,24 @@ import {
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
-const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
+
+type SlimLoadEntry = {
+  promise: Promise<SlimVenueLoadResult>;
+  controller: AbortController;
+  holds: number;
+  /** A caller without a release contract joined: never abortable. */
+  shared: boolean;
+  wire: SlimWire;
+};
+
+type SlimWire = {
+  signal: AbortSignal;
+  /** Includes head-start payloads owned by another surface. */
+  landed: boolean;
+  reopen: () => void;
+};
+
+const slimLoads = new Map<string, SlimLoadEntry>();
 
 function offlineKeyForPath(path: string): string {
   return path === SLIM_VENUES_PATH
@@ -328,6 +345,7 @@ function directMonolithRequest(path: string): {
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
+  wire?: SlimWire,
   cache: RequestCache = "default",
 ): Promise<unknown> {
   let earlyPayloadRejected = false;
@@ -336,20 +354,27 @@ async function readSlimPayload(
       ? undefined
       : takeEarlyWarmJson(path);
   if (early) {
+    if (wire) wire.landed = true;
     try {
       return await early;
     } catch {
       earlyPayloadRejected = true;
     }
   }
+  if (wire) {
+    wire.reopen();
+    wire.signal.throwIfAborted();
+  }
   const response = earlyPayloadRejected || cache === "no-store"
-    ? await fetch(path, { cache: "no-store" })
-    : await fetch(path);
+    ? await fetch(path, { cache: "no-store", signal: wire?.signal })
+    : await fetch(path, { signal: wire?.signal });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);
   }
-  return response.json();
+  const payload: unknown = await response.json();
+  if (wire) wire.landed = true;
+  return payload;
 }
 
 function rowsFromPayload(
@@ -406,22 +431,81 @@ async function readOfflineFallback(
   return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
+function joinSlimLoad(
+  path: string,
+  options: SlimVenueLoadOptions,
+): SlimLoadEntry {
+  if (!options.bypassInFlight) {
+    const inFlight = slimLoads.get(path);
+    if (inFlight) return inFlight;
+  }
+
+  const controller = new AbortController();
+  const wire: SlimWire = {
+    signal: controller.signal,
+    landed: false,
+    reopen: () => {
+      if (!wire.landed) return;
+      wire.landed = false;
+      abandonIfUnread(path, entry);
+    },
+  };
+  const promise = loadSlimVenuesFromPathUnshared(path, options, wire);
+  const entry: SlimLoadEntry = {
+    promise,
+    controller,
+    holds: 0,
+    shared: false,
+    wire,
+  };
+  slimLoads.set(path, entry);
+  const finish = () => {
+    wire.landed = true;
+    if (slimLoads.get(path) === entry) slimLoads.delete(path);
+  };
+  void promise.then(finish, finish);
+  return entry;
+}
+
 export function loadSlimVenuesFromPathResult(
   path: string,
   options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenueLoadResult> {
-  if (!options.bypassInFlight) {
-    const inFlight = slimLoadPromises.get(path);
-    if (inFlight) return inFlight;
-  }
+  const entry = joinSlimLoad(path, options);
+  entry.shared = true;
+  return entry.promise;
+}
 
-  const pending = loadSlimVenuesFromPathUnshared(path, options);
-  slimLoadPromises.set(path, pending);
-  const clearInFlight = () => {
-    if (slimLoadPromises.get(path) === pending) slimLoadPromises.delete(path);
+export type SlimVenueLoadHold = {
+  promise: Promise<SlimVenueLoadResult>;
+  release: () => void;
+};
+
+export function retainSlimVenuesFromPath(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): SlimVenueLoadHold {
+  const entry = joinSlimLoad(path, options);
+  entry.holds += 1;
+  let released = false;
+  return {
+    promise: entry.promise,
+    release: () => {
+      if (released) return;
+      released = true;
+      entry.holds -= 1;
+      // StrictMode replay and replacement mounts can rejoin before this check.
+      queueMicrotask(() => {
+        if (!entry.wire.landed) abandonIfUnread(path, entry);
+      });
+    },
   };
-  void pending.then(clearInFlight, clearInFlight);
-  return pending;
+}
+
+function abandonIfUnread(path: string, entry: SlimLoadEntry): void {
+  if (entry.holds > 0 || entry.shared) return;
+  if (slimLoads.get(path) === entry) slimLoads.delete(path);
+  entry.controller.abort();
 }
 
 export async function loadSlimVenuesFromPath(
@@ -447,16 +531,17 @@ function offlineSnapshotIdentity(data: unknown): {
 async function loadSlimVenuesFromPathUnshared(
   path: string,
   options: SlimVenueLoadOptions = {},
+  wire?: SlimWire,
 ): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    let data: unknown = await readSlimPayload(path, options);
+    let data: unknown = await readSlimPayload(path, options, wire);
     let payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     if (
       (options.expectedRevision !== undefined || options.expectedPriceDatasetDigest !== undefined) &&
       (!payload || !payload.complete)
     ) {
-      data = await readSlimPayload(path, options, "no-store");
+      data = await readSlimPayload(path, options, wire, "no-store");
       payload = normalizedRowsFromPayload(data, options.expectedRevision, options.expectedPriceDatasetDigest);
     }
     if (
@@ -501,6 +586,7 @@ async function loadSlimVenuesFromPathUnshared(
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
+    if (wire?.signal.aborted) throw error;
     const fallback = await readOfflineFallback(
       offlineKey,
       options.expectedRevision,
@@ -537,4 +623,12 @@ export function loadSlimVenuesForCityResult(
   const city = getCity(cityId);
   const request = directMonolithRequest(city.slimVenuesPath);
   return loadSlimVenuesFromPathResult(request.path, request.options);
+}
+
+export function retainSlimVenuesForCity(
+  cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
+): SlimVenueLoadHold {
+  const city = getCity(cityId);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return retainSlimVenuesFromPath(request.path, request.options);
 }
