@@ -163,6 +163,7 @@
     display: inline-flex;
     flex: 0 0 auto;
     margin-inline-start: auto;
+    pointer-events: auto;
   }
 
   .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) {
@@ -172,6 +173,7 @@
   .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) .venueActionCardActions:not(:has(.venueActionSecondaryActions.isOpen)) {
     position: absolute;
     inset-inline: var(--space-4);
+    pointer-events: none;
     bottom: var(--space-3);
     margin: 0;
   }
