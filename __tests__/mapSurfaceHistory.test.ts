@@ -227,6 +227,18 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     vi.unstubAllGlobals();
   });
 
+  it("completes an area choice before opening a pub, so Back returns to the map", async () => {
+    openSurfaces({ id: "choose-area", title: "Choose area" });
+    act(() => navigation.complete("choose-area"));
+    expect(trail()).toEqual([]);
+    openSurfaces(venue);
+    await traverse(() => navigation.back());
+    expect(trail()).toEqual([]);
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    await traverse(() => window.history.forward());
+    expect(trail()?.map((entry) => entry.id)).toEqual(["venue"]);
+  });
+
   it("today: open pushes one entry per new surface and replaces a reopened top", () => {
     const push = vi.spyOn(window.history, "pushState");
     const replace = vi.spyOn(window.history, "replaceState");
