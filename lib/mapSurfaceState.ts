@@ -125,6 +125,6 @@ export function mapSurfaceSearch(search: string, surfaceId: string): string {
   return params.toString();
 }
 
-export function mobileShellIsReady(mapLoading: boolean, pickerVisible: boolean, logIntent: boolean, venueOpen: boolean): boolean {
-  return !mapLoading || pickerVisible || (logIntent && venueOpen);
+export function mobileShellIsReady(mapLoading: boolean, overlay: MapOverlay): boolean {
+  return !mapLoading || overlay !== "none";
 }

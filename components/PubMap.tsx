@@ -6108,7 +6108,7 @@ export default function PubMap({
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
 
-  const mobileShellReady = mobileShellIsReady(mapLoadingActive, logIntentFallbackVisible, hasReactiveLogIntent, mapSelection.detailOpen);
+  const mobileShellReady = mobileShellIsReady(mapLoadingActive, mobileShellState.overlay);
   // Desktop reader controls. Both live inside Layers rather than on the map
   // surface, which keeps its budget at search plus one toast. The phone reaches
   // the same two through the More sheet's Key and Prices tabs.
@@ -6346,7 +6346,6 @@ export default function PubMap({
     );
   }
 
-  /* The picker opens while the map loads. Other phone chrome waits for the map. */
   function renderMobileShellSection() {
     return (
       <>

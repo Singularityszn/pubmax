@@ -38,7 +38,6 @@ type UseVenueDraftArgs = {
    */
   priceSeed?: string | null;
   accountId: string | null;
-  accountHandle: string | null;
 };
 
 /**
@@ -58,7 +57,6 @@ export function useVenueDraft({
   transientVoiceNoteBaseline,
   priceSeed = null,
   accountId,
-  accountHandle,
 }: UseVenueDraftArgs): boolean {
   const revision = readDeviceAccountSessionRevision();
   const seededDrink = useRef<string | null>(null);
@@ -92,15 +90,14 @@ export function useVenueDraft({
         setDropForm(seeded);
       }
       setDraftReadyVenueId(venueId);
-      if (!draft && !lastDrink && ownedAccount && accountHandle) {
+      if (!draft && !lastDrink && ownedAccount) {
         const accountRevision = readProviderAccountRevision();
         const expectedDrink = seeded?.drink ?? "";
-        const query = new URLSearchParams({ author: accountHandle });
-        void authedActionFetch(`/api/pint-drops?${query}`, {}, { requiresIdentity: true })
+        void authedActionFetch("/api/pint-drops?ownLatestDrink=1", {}, { requiresIdentity: true })
           .then((response) => response.ok ? response.json() : null)
-          .then((data: { drops?: Array<{ drink?: unknown }> } | null) => {
-            if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount || !Array.isArray(data?.drops)) return;
-            const drink = data.drops.map((drop) => typeof drop.drink === "string" ? drop.drink.trim() : "").find(Boolean);
+          .then((data: { latestDrink?: unknown } | null) => {
+            if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount) return;
+            const drink = typeof data?.latestDrink === "string" ? data.latestDrink.trim() : "";
             if (!drink || readLastLoggedDrink(safeLocalStorage(), ownedAccount)) return;
             writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
             setDropForm((current) => {
@@ -115,7 +112,7 @@ export function useVenueDraft({
     return () => {
       active = false;
     };
-  }, [venueId, priceSeed, accountId, accountHandle, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, priceSeed, accountId, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
     if (revision !== readDeviceAccountSessionRevision() || draftReadyVenueId !== venueId) return;

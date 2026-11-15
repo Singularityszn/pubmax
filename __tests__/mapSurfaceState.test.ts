@@ -132,9 +132,14 @@ describe("transition", () => {
 });
 
 
-it("opens the pub picker while the map is loading", () => {
-  expect(mobileShellIsReady(true, true, true, false)).toBe(true);
-  expect(mobileShellIsReady(true, false, false, false)).toBe(false);
-  expect(mobileShellIsReady(false, false, false, false)).toBe(true);
-  expect(mobileShellIsReady(true, false, true, true)).toBe(true);
+it("keeps active phone surfaces reachable while the map is loading", () => {
+  const picker = mapSurfaceStateOf({ ...owners, logIntentFallbackVisible: true });
+  const search = transition(picker, { type: "overlay", overlay: "search", phone: true }).state;
+  const venue = transition(picker, { type: "open-venue" }).state;
+  const restoredPicker = mapSurfaceStateOf({ ...owners, mapOverlay: "moment" });
+  for (const state of [picker, search, venue, restoredPicker]) {
+    expect(mobileShellIsReady(true, mapSurfaceOverlay(state))).toBe(true);
+  }
+  expect(mobileShellIsReady(true, "none")).toBe(false);
+  expect(mobileShellIsReady(false, "none")).toBe(true);
 });

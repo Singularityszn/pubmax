@@ -112,6 +112,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Story Moment links at the table | denied | no rows | host rows only | no browser writes |
 | Published public or unlisted Story through the application reader | redacted public fields | redacted public fields for non-members | host retains source text | private drafts stay private |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
+| Read latest logged drink (`GET /api/pint-drops?ownLatestDrink=1`) | 401 | own drink only | own drink only | n/a |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |

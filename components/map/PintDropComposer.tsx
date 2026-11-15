@@ -132,7 +132,6 @@ function AccountPintDropComposer({
     transientVoiceNoteBaseline,
     priceSeed,
     accountId,
-    accountHandle: signedIn && identityReady ? accountHandle : null,
   });
 
   const mobile = useIsMobileComposer();

@@ -26,7 +26,6 @@ import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpi
 import PintDropComposer from "@/components/map/PintDropComposer";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readLastLoggedDrink, readPintDropDraft, takePintDropSignInHandoff, writeLastLoggedDrink, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
-import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -472,33 +471,30 @@ it("restores the entry in the selected pub after sign-in", async () => {
   expect(drops.dropForm).toMatchObject({ price: "5.20", drink: "Guinness" });
 });
 
-it.each(["alice", ANON_HANDLE_LABEL])("prefills the last named account drink after a note-only drop with public handle %s", async (handle) => {
+it("prefills the latest own drink when the public feed contains an older Lager", async () => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
   vi.mocked(fetch).mockImplementation((url, init) => {
-    if (String(url).includes("/api/pint-drops?author=alice")) {
-      return Promise.resolve(new Response(JSON.stringify({ drops: [
-        { ...publicDrop, drink: "", passedDownNote: "A quiet night" },
-        { ...publicDrop, handle },
-      ] }), { status: 200 }));
+    if (String(url).includes("/api/pint-drops?ownLatestDrink=1")) {
+      return Promise.resolve(new Response(JSON.stringify({ latestDrink: "Guinness" }), { status: 200 }));
+    }
+    if (String(url).startsWith("/api/pint-drops")) {
+      return Promise.resolve(new Response(JSON.stringify({ drops: [{ ...publicDrop, drink: "Lager" }] }), { status: 200 }));
     }
     return originalFetch(url, init);
   });
   await act(async () => root.render(createElement(Probe, { composer: true })));
-  expect(drops.dropForm.drink).toBe("Pale ale");
+  expect(drops.dropForm.drink).toBe("Guinness");
+  expect(drops.dropForm.price).toBe("");
 });
 
-it.each([
-  { history: [] },
-  { history: [{ ...publicDrop, drink: "" }] },
-  { history: [{ ...publicDrop, drink: "Lager" }] },
-])("retains the cached drink despite filtered history: $history", async ({ history }) => {
+it.each([null, "Lager"])("retains the cached drink: %s", async (latestDrink) => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   writeLastLoggedDrink(localStorage, auth.id, "Guinness");
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
   vi.mocked(fetch).mockImplementation((url, init) => {
-    if (String(url).includes("/api/pint-drops?author=alice")) {
-      return Promise.resolve(new Response(JSON.stringify({ drops: history }), { status: 200 }));
+    if (String(url).includes("/api/pint-drops?ownLatestDrink=1")) {
+      return Promise.resolve(new Response(JSON.stringify({ latestDrink }), { status: 200 }));
     }
     return originalFetch(url, init);
   });
@@ -507,12 +503,12 @@ it.each([
   expect(readLastLoggedDrink(localStorage, auth.id)).toBe("Guinness");
 });
 
-it("retains a drink logged while filtered history is pending", async () => {
+it("retains a drink logged while the latest-drink read is pending", async () => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
   let answerHistory!: (response: Response) => void;
   vi.mocked(fetch).mockImplementation((url, init) => {
-    if (String(url).includes("/api/pint-drops?author=alice")) {
+    if (String(url).includes("/api/pint-drops?ownLatestDrink=1")) {
       return new Promise<Response>((resolve) => { answerHistory = resolve; });
     }
     return originalFetch(url, init);
@@ -520,7 +516,7 @@ it("retains a drink logged while filtered history is pending", async () => {
   await act(async () => root.render(createElement(Probe, { composer: true })));
   writeLastLoggedDrink(localStorage, auth.id, "Guinness");
   await act(async () => answerHistory(new Response(JSON.stringify({
-    drops: [{ ...publicDrop, drink: "Lager" }],
+    latestDrink: "Lager",
   }), { status: 200 })));
   expect(readLastLoggedDrink(localStorage, auth.id)).toBe("Guinness");
   expect(drops.dropForm.drink).toBe("");
@@ -546,18 +542,18 @@ it.each([false, true])("does not pass an abandoned anonymous entry to another ac
   expect(takePintDropSignInHandoff(localStorage, "venue-1", departed ? "abandoned-return" : null)).toBeNull();
 });
 
-it.each(["", "Lager"])("preserves price edits while history fills only an unchanged drink: %s", async (editedDrink) => {
+it.each(["", "Lager"])("preserves price edits while the latest drink fills an unchanged field: %s", async (editedDrink) => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
   let answerHistory: (response: Response) => void;
   vi.mocked(fetch).mockImplementation((url, init) => {
-    if (String(url).includes("/api/pint-drops?author=alice")) {
+    if (String(url).includes("/api/pint-drops?ownLatestDrink=1")) {
       return new Promise<Response>((resolve) => { answerHistory = resolve; });
     }
     return originalFetch(url, init);
   });
   await act(async () => root.render(createElement(Probe, { composer: true })));
   await act(async () => drops.setDropForm((form) => ({ ...form, price: "5.20", note: "My note", drink: editedDrink })));
-  await act(async () => answerHistory!(new Response(JSON.stringify({ drops: [publicDrop] }), { status: 200 })));
+  await act(async () => answerHistory!(new Response(JSON.stringify({ latestDrink: "Pale ale" }), { status: 200 })));
   expect(drops.dropForm).toMatchObject({ price: "5.20", note: "My note", drink: editedDrink || "Pale ale" });
 });
