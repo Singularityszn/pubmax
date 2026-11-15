@@ -6,6 +6,7 @@ import { encodeCrawl, seedCrawlState, type CrawlUrlState } from "@/lib/crawlUrl"
 import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
 import { currentSurface } from "@/lib/surfaceStack";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
+import { PINT_DROP_SIGN_IN_RETURN_PARAM } from "@/lib/pintDropDraft";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 
 // (a) seedCrawlState reads the URL once on mount for a lazy useState initializer;
@@ -27,6 +28,7 @@ export const CRAWL_URL_DEBOUNCE_MS = 300;
 // its pub remains selected.
 const OWNED_PASSTHROUGH_PARAMS = [
   "log",
+  PINT_DROP_SIGN_IN_RETURN_PARAM,
   "contribute",
   "plan",
   "sel",

@@ -218,12 +218,20 @@ it("prefills only the last logged drink of the same account", () => {
 
 it("carries an entry to the chosen pub after sign-in, once", () => {
   const storage = makeStorage();
-  writePintDropSignInHandoff(storage, "venue-a", DRAFT, 1000);
-  expect(takePintDropSignInHandoff(storage, "venue-b", 1100)).toBeNull();
-  expect(takePintDropSignInHandoff(storage, "venue-a", 1100)?.form).toMatchObject({
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "return-a", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-b", "return-a", 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1100)?.form).toMatchObject({
     price: "5.8", drink: "Guinness", measure: "pint",
   });
-  expect(takePintDropSignInHandoff(storage, "venue-a", 1100)).toBeNull();
-  writePintDropSignInHandoff(storage, "venue-a", DRAFT, 1000);
-  expect(takePintDropSignInHandoff(storage, "venue-a", 1000 + 31 * 60_000)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1100)).toBeNull();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "return-a", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1000 + 31 * 60_000)).toBeNull();
+});
+
+
+it.each([null, "another-return"])("does not recover a private draft without its originating return: %s", (token) => {
+  const storage = makeStorage();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "original-return", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-a", token, 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "original-return", 1100)).toBeNull();
 });

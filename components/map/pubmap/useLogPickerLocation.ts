@@ -1,33 +1,33 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import type { LogNearbyOrigin } from "@/lib/mapLogIntent";
 
 export function useLogPickerLocation(active: boolean, userLocation: LogNearbyOrigin | null) {
   const [request, setRequest] = useState<{
+    lifetime: object;
     active: boolean;
     userLocation: LogNearbyOrigin | null;
     location: LogNearbyOrigin | null;
     locating: boolean;
-  }>({ active, userLocation, location: null, locating: active });
+  }>({ lifetime: {}, active, userLocation, location: null, locating: active });
 
   if (request.active !== active || request.userLocation !== userLocation) {
-    setRequest({ active, userLocation, location: null, locating: active });
+    setRequest({ lifetime: {}, active, userLocation, location: null, locating: active });
   }
 
-  const requestVersion = useRef(0);
+  const { lifetime } = request;
   useEffect(() => {
     if (!active) return;
     let cancelled = false;
-    const version = ++requestVersion.current;
     const settle = () => {
-      if (!cancelled && requestVersion.current === version) setRequest((current) => current.active && current.userLocation === userLocation ? { ...current, locating: false } : current);
+      if (!cancelled) setRequest((current) => current.lifetime === lifetime && current.locating ? { ...current, locating: false } : current);
     };
     const locate = () => {
       if (cancelled) return;
       if (!navigator.geolocation) { settle(); return; }
       navigator.geolocation.getCurrentPosition((position) => {
-        if (cancelled || requestVersion.current !== version) return;
-        setRequest((current) => current.active && current.userLocation === userLocation
+        if (cancelled) return;
+        setRequest((current) => current.lifetime === lifetime && current.locating
           ? { ...current, location: { lat: position.coords.latitude, lng: position.coords.longitude }, locating: false }
           : current);
       }, settle, { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 });
@@ -38,12 +38,11 @@ export function useLogPickerLocation(active: boolean, userLocation: LogNearbyOri
       else settle();
     }).catch(locate);
     return () => { cancelled = true; };
-  }, [active, userLocation]);
+  }, [active, userLocation, lifetime]);
 
   const setLocation = useCallback((location: LogNearbyOrigin) => {
-    requestVersion.current += 1;
-    setRequest((current) => active && current === request ? { ...current, location, locating: false } : current);
-  }, [active, request]);
+    setRequest((current) => active && current.lifetime === lifetime ? { ...current, location, locating: false } : current);
+  }, [active, lifetime]);
 
   return { location: request.location, locating: request.locating, setLocation };
 }

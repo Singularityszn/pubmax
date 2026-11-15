@@ -25,7 +25,7 @@ import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/compon
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import PintDropComposer from "@/components/map/PintDropComposer";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
-import { readPintDropDraft, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
+import { readPintDropDraft, takePintDropSignInHandoff, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
 import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -105,6 +105,7 @@ beforeEach(async () => {
   (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
   sessionStorage.clear();
+  window.history.replaceState(null, "", "/");
   localStorage.setItem("pubmax_handle", "alice");
   writeOptimisticSpills(localStorage, [
     { clientRequestId: "existing-saved-request", drop: publicDrop },
@@ -460,10 +461,12 @@ it("stores the measure and the bill in the retry payload of a pending price (R2,
 
 
 it("restores the entry in the selected pub after sign-in", async () => {
+  window.history.replaceState(null, "", "/map?log=1&sel=venue-1&pintDropReturn=original-return");
   writePintDropSignInHandoff(localStorage, "venue-1", {
     form: { price: "5.20", drink: "Guinness", measure: "pint", measureLabel: "", note: "", era: "", withWho: "" },
     visibility: "public", vibeTags: [], updatedAt: new Date().toISOString(),
-  });
+  }, "original-return");
+  bindDeviceAccountOwner(auth.id, localStorage, sessionStorage);
   await act(async () => root.render(createElement(Probe, { composer: true })));
   expect(drops.dropForm).toMatchObject({ price: "5.20", drink: "Guinness" });
 });
@@ -472,4 +475,38 @@ it("prefills the last account drink on a new device", async () => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   await act(async () => root.render(createElement(Probe, { composer: true })));
   expect(drops.dropForm.drink).toBe("Pale ale");
+});
+
+
+it.each([false, true])("does not pass an abandoned anonymous entry to another account, after departure: %s", async (departed) => {
+  writePintDropSignInHandoff(localStorage, "venue-1", {
+    form: { price: "5.20", drink: "Guinness", measure: "pint", measureLabel: "", note: "Private note", era: "", withWho: "Sam" },
+    visibility: "friends", vibeTags: [], updatedAt: new Date().toISOString(),
+  }, "abandoned-return");
+  if (departed) bindDeviceAccountOwner(auth.id, localStorage, sessionStorage);
+  await act(async () => {
+    if (departed) releaseDeviceAccountOwner(localStorage, sessionStorage);
+    switchAccount("account-b", "bob");
+    bindDeviceAccountOwner(auth.id, localStorage, sessionStorage);
+    root.render(createElement(Probe, { composer: true }));
+  });
+  expect(drops.dropForm.note).toBe("");
+  expect(drops.dropForm.withWho).toBe("");
+  expect(takePintDropSignInHandoff(localStorage, "venue-1", "abandoned-return")).toBeNull();
+});
+
+it.each(["", "Lager"])("preserves price edits while history fills only an unchanged drink: %s", async (editedDrink) => {
+  localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  let answerHistory: (response: Response) => void;
+  vi.mocked(fetch).mockImplementation((url, init) => {
+    if (String(url).includes("/api/pint-drops?author=alice")) {
+      return new Promise<Response>((resolve) => { answerHistory = resolve; });
+    }
+    return originalFetch(url, init);
+  });
+  await act(async () => root.render(createElement(Probe, { composer: true })));
+  await act(async () => drops.setDropForm((form) => ({ ...form, price: "5.20", note: "My note", drink: editedDrink })));
+  await act(async () => answerHistory!(new Response(JSON.stringify({ drops: [publicDrop] }), { status: 200 })));
+  expect(drops.dropForm).toMatchObject({ price: "5.20", note: "My note", drink: editedDrink || "Pale ale" });
 });

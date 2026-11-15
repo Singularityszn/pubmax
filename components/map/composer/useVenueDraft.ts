@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import {
+  PINT_DROP_SIGN_IN_RETURN_PARAM,
   pintDropDraftForPersistence,
   isEmptyPintDropDraft,
   readPintDropDraft,
@@ -73,7 +74,7 @@ export function useVenueDraft({
   useEffect(() => {
     let active = true;
     async function hydrateVenueDraft() {
-      const draft = (accountId ? takePintDropSignInHandoff(safeLocalStorage(), venueId) : null)
+      const draft = (accountId ? takePintDropSignInHandoff(safeLocalStorage(), venueId, new URLSearchParams(window.location.search).get(PINT_DROP_SIGN_IN_RETURN_PARAM)) : null)
         ?? readPintDropDraft(safeSessionStorage(), venueId);
       if (!active) return;
       resetComposer();
@@ -93,7 +94,7 @@ export function useVenueDraft({
       setDraftReadyVenueId(venueId);
       if (!draft && ownedAccount && accountHandle) {
         const accountRevision = readProviderAccountRevision();
-        const expected = seeded ?? { price: "", drink: "", measure: "pint", measureLabel: "", note: "", era: "", withWho: "" };
+        const expectedDrink = seeded?.drink ?? "";
         const query = new URLSearchParams({ author: accountHandle });
         void authedActionFetch(`/api/pint-drops?${query}`, {}, { requiresIdentity: true })
           .then((response) => response.ok ? response.json() : null)
@@ -103,7 +104,7 @@ export function useVenueDraft({
             const drink = typeof data.drops[0]?.drink === "string" ? data.drops[0].drink.trim() : "";
             writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
             setDropForm((current) => {
-              if (JSON.stringify(current) !== JSON.stringify(expected)) return current;
+              if (current.drink !== expectedDrink) return current;
               seededDrink.current = drink;
               return { ...current, drink };
             });

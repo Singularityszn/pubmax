@@ -213,25 +213,30 @@ export function writeLastLoggedDrink(storage: Pick<Storage, "setItem" | "removeI
   } catch { /* Storage may be unavailable. */ }
 }
 
-const SIGN_IN_HANDOFF_KEY = "pubmax:pint-drop-sign-in:v1";
+export const PINT_DROP_SIGN_IN_HANDOFF_KEY = "pubmax:pint-drop-sign-in:v1";
+export const PINT_DROP_SIGN_IN_RETURN_PARAM = "pintDropReturn";
 const SIGN_IN_HANDOFF_LIFETIME = 30 * 60_000;
 
-export function writePintDropSignInHandoff(storage: Pick<Storage, "setItem"> | null, venueId: string, draft: PintDropDraft, now = Date.now()): void {
-  if (!storage || !venueId) return;
-  try { storage.setItem(SIGN_IN_HANDOFF_KEY, JSON.stringify({ venueId, draft: { ...draft, version: 2 }, savedAt: now })); } catch { /* Storage may be unavailable. */ }
+export function writePintDropSignInHandoff(storage: Pick<Storage, "setItem"> | null, venueId: string, draft: PintDropDraft, token: string, now = Date.now()): void {
+  if (!storage || !venueId || !token) return;
+  try { storage.setItem(PINT_DROP_SIGN_IN_HANDOFF_KEY, JSON.stringify({ venueId, token, draft: { ...draft, version: 2 }, savedAt: now })); } catch { /* Storage may be unavailable. */ }
 }
 
-export function takePintDropSignInHandoff(storage: Pick<Storage, "getItem" | "removeItem"> | null, venueId: string, now = Date.now()): PintDropDraft | null {
+export function takePintDropSignInHandoff(storage: Pick<Storage, "getItem" | "removeItem"> | null, venueId: string, token: string | null, now = Date.now()): PintDropDraft | null {
   if (!storage || !venueId) return null;
   try {
-    const saved = JSON.parse(storage.getItem(SIGN_IN_HANDOFF_KEY) ?? "null");
+    const saved = JSON.parse(storage.getItem(PINT_DROP_SIGN_IN_HANDOFF_KEY) ?? "null");
     if (!saved || typeof saved.savedAt !== "number" || now < saved.savedAt || now - saved.savedAt > SIGN_IN_HANDOFF_LIFETIME) {
-      storage.removeItem(SIGN_IN_HANDOFF_KEY);
+      storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);
+      return null;
+    }
+    if (!token || saved.token !== token) {
+      storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);
       return null;
     }
     if (saved.venueId !== venueId) return null;
     const draft = normalisePintDropDraft(saved.draft);
-    storage.removeItem(SIGN_IN_HANDOFF_KEY);
+    storage.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY);
     return draft;
   } catch { return null; }
 }

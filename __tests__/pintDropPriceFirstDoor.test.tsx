@@ -264,7 +264,10 @@ describe("price-first Pint Drop door", () => {
     const gate = container.querySelector<HTMLAnchorElement>("a.spillSubmitLink")!;
     gate.addEventListener("click", (event) => event.preventDefault());
     await act(async () => gate.click());
-    expect(takePintDropSignInHandoff(localStorage, VENUE_ID)?.form).toMatchObject({ price: "5.20", drink: "Guinness" });
+    const destination = new URL(new URL(gate.href).searchParams.get("from")!, window.location.origin);
+    const token = destination.searchParams.get("pintDropReturn");
+    expect(token).toBeTruthy();
+    expect(takePintDropSignInHandoff(localStorage, VENUE_ID, token)?.form).toMatchObject({ price: "5.20", drink: "Guinness" });
   });
 
   it("signed in posts under the account handle with one Log it action and no handle input", async () => {

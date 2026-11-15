@@ -3821,8 +3821,9 @@ export default function PubMap({
     mapSurfaceRef.current = mapSurface;
   });
   const coordinatedMobileOverlay = mapSurfaceOverlay(mapSurface);
+  const logPickerActive = mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible;
   const { location: logPickerLocation, locating: logPickerLocating, setLocation: setLogPickerLocation } = useLogPickerLocation(
-    mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
+    logPickerActive,
     userLocation,
   );
   // A fix granted for the log picker is still the reader's location: it ends
@@ -3909,7 +3910,7 @@ export default function PubMap({
       return;
     }
     const loaderGeneration = slimLoaderGenerationRef.current;
-    const radiusKm = logIntentFallbackVisible ? LOG_NEARBY_MAX_KM : WALKABLE_RADIUS_KM;
+    const radiusKm = logPickerActive ? LOG_NEARBY_MAX_KM : WALKABLE_RADIUS_KM;
     let cancelled = false;
     if (
       nearbyLoadedPoint?.loader === loader &&
@@ -3970,7 +3971,7 @@ export default function PubMap({
     mapRoute,
     showLoadedRoute,
     logPickerLocation,
-    logIntentFallbackVisible,
+    logPickerActive,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,

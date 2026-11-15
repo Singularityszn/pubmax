@@ -64,6 +64,7 @@ vi.mock("@/lib/identityClient", async (original) => ({
   resolveCanonicalIdentity: async () => ({ ok: true, identity: null }),
 }));
 
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
 import { deviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { readDeviceAccounts, rememberDeviceAccount } from "@/lib/deviceAccountSessions";
 import { AuthProvider, useAuth } from "@/components/auth/AuthProvider";
@@ -284,4 +285,15 @@ describe("remembered-account refusal feedback", () => {
     expect(readDeviceAccounts(localStorage).find((account) => account.userId === "next")?.refreshToken).toBeNull();
     expect(document.querySelector('[role="alert"]')).toBeNull();
   });
+});
+
+
+it.each(["sign-out", "switch"] as const)("clears an abandoned draft on a provider %s event", async (transition) => {
+  await mountProvider();
+  localStorage.setItem(PINT_DROP_SIGN_IN_HANDOFF_KEY, JSON.stringify({ venueId: "venue-1", token: "old-return", draft: { form: { note: "Private note" } } }));
+  await act(async () => {
+    h.session = transition === "switch" ? { ...leaving, user: { ...leaving.user, id: "next" } } : null;
+    h.subscriber!(transition === "switch" ? "SIGNED_IN" : "SIGNED_OUT", h.session);
+  });
+  expect(localStorage.getItem(PINT_DROP_SIGN_IN_HANDOFF_KEY)).toBeNull();
 });

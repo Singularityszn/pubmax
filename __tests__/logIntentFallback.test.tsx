@@ -234,3 +234,38 @@ it("shows the picker while pubs load without claiming filters hid them", async (
     host.remove();
   }
 });
+
+
+it.each(["success", "error"] as const)("ignores an old manual fix while the reopened picker settles with %s", async (outcome) => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const callbacks: Array<{ success: PositionCallback; error?: PositionErrorCallback | null }> = [];
+  vi.stubGlobal("navigator", {
+    permissions: { query: vi.fn().mockResolvedValue({ state: "granted" }) },
+    geolocation: { getCurrentPosition: (success: PositionCallback, error?: PositionErrorCallback | null) => callbacks.push({ success, error }) },
+  });
+  let picker: ReturnType<typeof useLogPickerLocation>;
+  function Picker({ active }: { active: boolean }) {
+    picker = useLogPickerLocation(active, null);
+    return null;
+  }
+  try {
+    await act(async () => root.render(createElement(Picker, { active: true })));
+    const oldManualCallback = picker!.setLocation;
+    await act(async () => root.render(createElement(Picker, { active: false })));
+    await act(async () => root.render(createElement(Picker, { active: true })));
+    await act(async () => oldManualCallback({ lat: 51.4, lng: -0.1 }));
+    expect(picker!.location).toBeNull();
+    expect(picker!.locating).toBe(true);
+    await act(async () => {
+      if (outcome === "success") callbacks[1]!.success({ coords: { latitude: 51.5255, longitude: -0.0878 } } as GeolocationPosition);
+      else callbacks[1]!.error!({ code: 1 } as GeolocationPositionError);
+    });
+    expect(picker!.locating).toBe(false);
+    expect(picker!.location).toEqual(outcome === "success" ? { lat: 51.5255, lng: -0.0878 } : null);
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
+});
