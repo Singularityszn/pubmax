@@ -39,9 +39,10 @@ import type { VenuePrice } from "@/lib/venues";
 import { positiveFeatureObservation, type VenueFeature, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-export type VenueRequirement =
+export type VenueRequirement = (
   | { kind: "garden" | "outdoor-seating" | "darts" | "pool" | "dogs" | "quiz" }
-  | { kind: "drink"; label: string; match: DrinkMatch };
+  | { kind: "drink"; label: string; match: DrinkMatch }
+) & { excluded?: true };
 
 type DrinkMatch =
   | { by: "brand"; brand: DrinkBrand }
@@ -88,10 +89,24 @@ function withoutPlaces(padded: string): string {
   return padded;
 }
 
+const NEGATIONS = new Set(["no", "not", "without", "never", "dont", "doesnt", "isnt", "arent"]);
+const CLAUSE_WORDS = new Set(["but", "and", "or", "with"]);
+const NEGATION_WINDOW = 4;
+
+function negatedBefore(padded: string, index: number): boolean {
+  const words = padded.slice(0, Math.max(0, index)).trim().split(/\s+/).slice(-NEGATION_WINDOW);
+  const clauseStart = words.findLastIndex((word) => CLAUSE_WORDS.has(word));
+  return words.slice(clauseStart + 1).some((word) => NEGATIONS.has(word));
+}
+
+function excludedIf<T extends VenueRequirement>(requirement: T, excluded: boolean): T {
+  return excluded ? { ...requirement, excluded: true } : requirement;
+}
+
 /** Takes the first needle found, so a brand's words cannot also count as a style. */
-function takeNeedle(padded: string, needles: readonly string[]): string | null {
+function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: boolean } | null {
   const hit = needles.find((needle) => needle && padded.includes(` ${needle} `));
-  return hit ? withoutPhrase(padded, hit) : null;
+  return hit ? { rest: withoutPhrase(padded, hit), excluded: negatedBefore(padded, padded.indexOf(` ${hit} `)) } : null;
 }
 
 /** An adjective first, so a bare one never stands for the style: "a hazy evening". */
@@ -112,22 +127,24 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
   for (const brand of brands) {
     if (seenBrands.has(brand.id)) continue;
     seenBrands.add(brand.id);
-    const rest = takeNeedle(padded, brandMatchNeedles(brand).filter((needle) => !places.has(needle)));
-    if (rest === null) continue;
-    padded = rest;
-    found.push({ kind: "drink", label: brand.label, match: { by: "brand", brand } });
+    const taken = takeNeedle(padded, brandMatchNeedles(brand).filter((needle) => !places.has(needle)));
+    if (taken === null) continue;
+    padded = taken.rest;
+    found.push(excludedIf({ kind: "drink", label: brand.label, match: { by: "brand", brand } }, taken.excluded));
   }
   padded = withoutPlaces(padded);
   for (const subtype of DRINK_SUBTYPES) {
     if (subtype.category !== "beer") continue;
-    const rest = takeNeedle(padded, subtype.tokens.map(normalizeDrinkHaystack).filter((token) => !AMBIGUOUS_STYLE_TOKENS.has(token)));
-    if (rest === null) continue;
-    padded = rest;
-    found.push({ kind: "drink", label: subtype.longLabel === "IPA" ? "IPA" : subtype.longLabel.toLowerCase(), match: { by: "subtype", subtype } });
+    const taken = takeNeedle(padded, subtype.tokens.map(normalizeDrinkHaystack).filter((token) => !AMBIGUOUS_STYLE_TOKENS.has(token)));
+    if (taken === null) continue;
+    padded = taken.rest;
+    found.push(excludedIf({ kind: "drink", label: subtype.longLabel === "IPA" ? "IPA" : subtype.longLabel.toLowerCase(), match: { by: "subtype", subtype } }, taken.excluded));
   }
   for (const [category, label] of DRINK_CATEGORY_LABELS) {
-    if (category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.test(padded) : haystackMatchesCategory(padded, category)) {
-      found.push({ kind: "drink", label, match: { by: "category", category } });
+    const alcoholFree = category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.exec(padded) : null;
+    if (category === "alcohol-free" ? alcoholFree : haystackMatchesCategory(padded, category)) {
+      const at = alcoholFree?.index ?? padded.indexOf(` ${label} `);
+      found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, at >= 0 && negatedBefore(padded, at)));
     }
   }
   return { found, rest: padded };
@@ -136,20 +153,21 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
   const drinks = drinkRequirements(text);
-  const features = FEATURE_TERMS.filter(([, pattern]) => pattern.test(drinks.rest)).map(([kind]) => kind);
-  const outdoorCoveredByGarden = features.includes("garden");
+  const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
+    const hit = pattern.exec(drinks.rest);
+    return hit ? [excludedIf({ kind }, negatedBefore(drinks.rest, hit.index))] : [];
+  });
+  const outdoorCoveredByGarden = features.some((feature) => feature.kind === "garden");
   return [
-    ...features
-      .filter((kind) => !(kind === "outdoor-seating" && outdoorCoveredByGarden))
-      .map((kind) => ({ kind })),
+    ...features.filter((feature) => !(feature.kind === "outdoor-seating" && outdoorCoveredByGarden)),
     ...drinks.found,
   ];
 }
 
 /** The same ask with a garden relaxed to outdoor seating, for the scarcity line only. */
 export function outdoorSeatingInstead(requirements: readonly VenueRequirement[]): VenueRequirement[] | null {
-  if (!requirements.some((requirement) => requirement.kind === "garden")) return null;
-  return requirements.map((requirement) => requirement.kind === "garden" ? { kind: "outdoor-seating" } : requirement);
+  if (!requirements.some((requirement) => requirement.kind === "garden" && !requirement.excluded)) return null;
+  return requirements.map((requirement) => requirement.kind === "garden" && !requirement.excluded ? { kind: "outdoor-seating" } : requirement);
 }
 
 export type QuizListing = { source: string; observedAt: string };
@@ -166,7 +184,8 @@ export type RequirementContext = {
 export type RequirementProof = { requirement: string; source: string; observedAt: string };
 
 export function requirementKey(requirement: VenueRequirement): string {
-  return requirement.kind === "drink" ? `drink:${requirement.label}` : requirement.kind;
+  const key = requirement.kind === "drink" ? `drink:${requirement.label}` : requirement.kind;
+  return requirement.excluded ? `not:${key}` : key;
 }
 
 export function venueQuizListings(rows: readonly WhatsOnRow[], now: number): Map<string, QuizListing> {
@@ -200,7 +219,8 @@ export function venuePricedDrinks(
 }
 
 export function requirementCoverageGaps(requirements: readonly VenueRequirement[], context: RequirementContext): string[] {
-  return requirements.filter((requirement) => ((requirement.kind === "darts" || requirement.kind === "pool") && context.websiteAmenities === null)
+  return requirements.filter((requirement) => requirement.excluded
+    || ((requirement.kind === "darts" || requirement.kind === "pool") && context.websiteAmenities === null)
     || (requirement.kind === "quiz" && context.quizListings === null)
     || (requirement.kind === "drink" && context.pricedDrinks === null)).map(requirementKey);
 }
@@ -231,6 +251,7 @@ function drinkTagged(venue: ConciergeVenue, match: DrinkMatch): boolean {
 }
 
 function requirementTagged(venue: ConciergeVenue, requirement: VenueRequirement): boolean {
+  if (requirement.excluded) return false;
   switch (requirement.kind) {
     case "darts":
       return venue.amenities.darts === true;
@@ -249,6 +270,7 @@ export function requirementProof(
   requirement: VenueRequirement,
   context: RequirementContext,
 ): RequirementProof | null {
+  if (requirement.excluded) return null;
   const facts = venue.features ?? {};
   const key = requirementKey(requirement);
   switch (requirement.kind) {
@@ -349,6 +371,11 @@ function requirementLabel(requirement: VenueRequirement): string {
 }
 
 function coverageGapReason(requirement: VenueRequirement): string {
+  if (requirement.excluded) {
+    return requirement.kind === "dogs"
+      ? "I can't check that a pub turns dogs away"
+      : `I can't check that a pub has no ${requirement.kind === "drink" ? requirement.label : requirementLabel(requirement).replace(/^an? /, "")}`;
+  }
   switch (requirement.kind) {
     case "quiz": return "I can't check the quiz listings right now";
     case "drink": return `I can't check the dated price records for ${requirement.label} right now`;
