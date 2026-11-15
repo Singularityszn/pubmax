@@ -164,7 +164,7 @@ export async function invokePubPalAskTool(input: {
     : null;
   const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args, turns: turn?.turns });
   const cityId = resolveAskCityId(
-    typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
+    turn?.cityId ?? input.args.cityId,
   );
   const args = placeArgsThePersonSaid(enrichPubPalToolArgs(input.toolName, placeArgsThePersonSaid(input.args, turn, query), query), turn, query);
 
