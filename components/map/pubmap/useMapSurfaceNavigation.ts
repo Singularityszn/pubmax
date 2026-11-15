@@ -222,8 +222,8 @@ export function useMapSurfaceNavigation({
       if (typeof window === "undefined") return;
       if (stackRef.current.length === 0) rootStateRef.current = entry.state;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
-      publishStack(transition.stack);
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
+      publishStack(transition.stack);
       const state = stampMapSurfaceHistory(
         window.history.state,
         transition.stack,
@@ -421,7 +421,7 @@ export function useMapSurfaceNavigation({
     if (typeof window === "undefined") return;
     const held = stackRef.current;
     if (currentSurface(held)?.id !== id) return;
-    const next = held.slice(0, -1);
+    const next = id === "choose-area" ? ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState> : held.slice(0, -1);
     publishStack(next);
     window.history.replaceState(
       stampMapSurfaceHistory(window.history.state, next, selectedVenueId(next),
