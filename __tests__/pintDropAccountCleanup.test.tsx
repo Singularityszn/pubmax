@@ -491,7 +491,8 @@ it.each(["alice", ANON_HANDLE_LABEL])("prefills the last named account drink aft
 it.each([
   { history: [] },
   { history: [{ ...publicDrop, drink: "" }] },
-])("retains the cached drink when history has no named drinks: $history", async ({ history }) => {
+  { history: [{ ...publicDrop, drink: "Lager" }] },
+])("retains the cached drink despite filtered history: $history", async ({ history }) => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   writeLastLoggedDrink(localStorage, auth.id, "Guinness");
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
@@ -504,6 +505,27 @@ it.each([
   await act(async () => root.render(createElement(Probe, { composer: true })));
   expect(drops.dropForm.drink).toBe("Guinness");
   expect(readLastLoggedDrink(localStorage, auth.id)).toBe("Guinness");
+});
+
+it("retains a drink logged while filtered history is pending", async () => {
+  localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  let answerHistory!: (response: Response) => void;
+  vi.mocked(fetch).mockImplementation((url, init) => {
+    if (String(url).includes("/api/pint-drops?author=alice")) {
+      return new Promise<Response>((resolve) => { answerHistory = resolve; });
+    }
+    return originalFetch(url, init);
+  });
+  await act(async () => root.render(createElement(Probe, { composer: true })));
+  writeLastLoggedDrink(localStorage, auth.id, "Guinness");
+  await act(async () => answerHistory(new Response(JSON.stringify({
+    drops: [{ ...publicDrop, drink: "Lager" }],
+  }), { status: 200 })));
+  expect(readLastLoggedDrink(localStorage, auth.id)).toBe("Guinness");
+  expect(drops.dropForm.drink).toBe("");
+  await act(async () => root.render(createElement(Probe, { composer: true, venueId: "venue-2" })));
+  expect(drops.dropForm.drink).toBe("Guinness");
 });
 
 

@@ -2464,6 +2464,7 @@ export default function PubMap({
 
   const mergeSlimVenues = useCallback((rows: SlimVenue[]) => {
     if (rows.length === 0) return;
+    liveShardRowsCommittedRef.current = true;
     setSlimPins((prev) => {
       const byId = new Map(prev.map((pin) => [pin.id, pin]));
       let changed = false;
@@ -2652,7 +2653,6 @@ export default function PubMap({
             if (!isCurrentLoader()) return;
             const rows = result.rows;
             liveShardLoadStatusRef.current = result.status;
-            if (rows.length > 0) liveShardRowsCommittedRef.current = true;
             setVenueIndexFailed(result.status !== "ready");
             mergeSlimVenues(rows);
             if (rows.length > 0) {
@@ -2874,7 +2874,6 @@ export default function PubMap({
           if (!isCurrentLoader()) return;
           const rows = result.rows;
           liveShardLoadStatusRef.current = result.status;
-          if (rows.length > 0) liveShardRowsCommittedRef.current = true;
           setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {

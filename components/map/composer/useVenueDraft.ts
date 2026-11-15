@@ -92,7 +92,7 @@ export function useVenueDraft({
         setDropForm(seeded);
       }
       setDraftReadyVenueId(venueId);
-      if (!draft && ownedAccount && accountHandle) {
+      if (!draft && !lastDrink && ownedAccount && accountHandle) {
         const accountRevision = readProviderAccountRevision();
         const expectedDrink = seeded?.drink ?? "";
         const query = new URLSearchParams({ author: accountHandle });
@@ -101,7 +101,7 @@ export function useVenueDraft({
           .then((data: { drops?: Array<{ drink?: unknown }> } | null) => {
             if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount || !Array.isArray(data?.drops)) return;
             const drink = data.drops.map((drop) => typeof drop.drink === "string" ? drop.drink.trim() : "").find(Boolean);
-            if (!drink) return;
+            if (!drink || readLastLoggedDrink(safeLocalStorage(), ownedAccount)) return;
             writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
             setDropForm((current) => {
               if (current.drink !== expectedDrink) return current;
