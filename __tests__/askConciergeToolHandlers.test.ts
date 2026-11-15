@@ -433,12 +433,31 @@ describe("search_venues hard requirements", () => {
   });
 
   it.each([
+    ["Pubs without, frankly, a pool table in Hackney", "Hackney", "pool"],
+    ["Pubs without (to be clear) a pool table in Hackney", "Hackney", "pool"],
+    ["A pool-table-free pub in Hackney", "Hackney", "pool"],
+    ["A Guinness-free pub in Hackney", "Hackney", "drink:Guinness"],
+    ["Pubs where pool tables are not allowed in Hackney", "Hackney", "pool"],
+    ["Pubs where Guinness is not served in Hackney", "Hackney", "drink:Guinness"],
+    ["Pubs with free pool tables in Hackney", "Hackney", "pool"],
+  ])("confirms no pub when an aside or a trailing negative leaves scope open: %s", async (query, area, key) => {
+    hasEverything(area);
+    const result = await search(query);
+    expect(searchData(result).intent).toMatchObject({ area });
+    expect(result.cards).toEqual([]);
+    expect(searchData(result).coverageGaps.some((gap) => gap.endsWith(`:${key}`))).toBe(true);
+  });
+
+  it.each([
     ["Pubs not too pricey with a pool table in Hackney", ["pool"]],
     ["Pubs that have not only a pool table but also a darts board in Hackney", ["darts", "pool"]],
     ["Pubs that serve whiskey in Hackney", ["drink:whisky"]],
     ["Pubs with no TV but a pool table in Hackney", ["pool"]],
     ["Pubs with a pool table that are not too loud in Hackney", ["pool"]],
     ["Pubs with Guinness and a pool table in Hackney", ["pool", "drink:Guinness"]],
+    ["Pubs with a pool table, not too pricey, in Hackney", ["pool"]],
+    ["Not sure yet, but pubs with a pool table in Hackney", ["pool"]],
+    ["Pubs with Guinness and no music in Hackney", ["drink:Guinness"]],
   ])("keeps a positive requirement positive: %s", async (query, required) => {
     hasEverything("Hackney");
     const result = await search(query);
