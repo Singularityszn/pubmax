@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { readOnboardingAlternative, recoverOnboardingSwitch, switchOnboardingPlan } from "@/lib/planOnboardingRecovery";
 import { PLAN_DRAFT_KEY, PLAN_INTAKE_STORAGE_KEY } from "@/lib/planDraftStorage";
+import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY } from "@/lib/deviceAccountIdentity";
 
 function storage(): Storage {
   const values = new Map<string, string>();
@@ -15,6 +16,41 @@ function storage(): Storage {
 }
 
 describe("switching onboarding plans", () => {
+  it("removes the former account's alternative on tab departure while another tab keeps its plan", () => {
+    const local = storage();
+    const formerTab = storage();
+    const currentTab = storage();
+    formerTab.setItem(PLAN_DRAFT_KEY, "account A private request");
+    expect(switchOnboardingPlan(formerTab, local, "account-a")).toBe(true);
+    currentTab.setItem(PLAN_DRAFT_KEY, "account B private request");
+    expect(switchOnboardingPlan(currentTab, local, "account-b")).toBe(true);
+    local.setItem(PLAN_INTAKE_STORAGE_KEY, "account B current shared plan");
+
+    clearDeviceAccountSessionArtifacts(formerTab);
+
+    expect(readOnboardingAlternative(formerTab, "account-a")).toBeNull();
+    expect(readOnboardingAlternative(formerTab, "account-b")).toBeNull();
+    expect(readOnboardingAlternative(currentTab, "account-b")?.other.session[PLAN_DRAFT_KEY]).toBe("account B private request");
+    expect(local.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe("account B current shared plan");
+    formerTab.setItem(PLAN_DRAFT_KEY, "account B new request");
+    expect(switchOnboardingPlan(formerTab, local, "account-b")).toBe(true);
+    expect(readOnboardingAlternative(formerTab, "account-b")?.other.session[PLAN_DRAFT_KEY]).toBe("account B new request");
+  });
+
+  it("clears a guest alternative when a new account takes ownership, while a same-account refresh preserves it", () => {
+    const session = storage();
+    const local = storage();
+    session.setItem(PLAN_DRAFT_KEY, "guest private request");
+    expect(switchOnboardingPlan(session, local, null)).toBe(true);
+    expect(bindDeviceAccountOwner("account-b", local, session)).toBe(true);
+    expect(readOnboardingAlternative(session, null)).toBeNull();
+    expect(readOnboardingAlternative(session, "account-b")).toBeNull();
+    session.setItem(PLAN_DRAFT_KEY, "account B request");
+    expect(switchOnboardingPlan(session, local, "account-b")).toBe(true);
+    expect(local.getItem(DEVICE_ACCOUNT_OWNER_KEY)).toBe("account-b");
+    expect(bindDeviceAccountOwner("account-b", local, session)).toBe(false);
+    expect(readOnboardingAlternative(session, "account-b")?.other.session[PLAN_DRAFT_KEY]).toBe("account B request");
+  });
   it("retains both requests and scopes recovery to the account", () => {
     const session = storage();
     const local = storage();
