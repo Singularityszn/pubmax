@@ -175,6 +175,53 @@ describe("SaveToListControl nearby check-in mutations", () => {
     expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
   });
 
+  it.each([200, 503])("keeps a submitted check-in locked across close and reopen until HTTP %s settles", async (status) => {
+    const refresh = deferred<Response>();
+    const checkIn = deferred<Response>();
+    let reads = 0;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      reads += 1;
+      return reads === 2 ? refresh.promise : json({ saved: saved ? [row("Been here")] : [] });
+    });
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    await show();
+    await close();
+    await show();
+    expect(reads).toBe(2);
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(authedActionFetch).toHaveBeenCalledTimes(1);
+
+    await close();
+    await show();
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    expect(chip("Check in nearby").disabled).toBe(true);
+    await act(async () => {
+      chip("Been here").click();
+      chip("Date Night").click();
+    });
+    expect(saved).toBe(false);
+    await act(async () => {
+      saved = status === 200;
+      checkIn.resolve(new Response(JSON.stringify({ checkedIn: saved }), { status }));
+    });
+    await act(async () => { refresh.resolve(json({ saved: [] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe(String(status === 200));
+    expect(chip("Been here").disabled).toBe(false);
+    expect(chip("Date Night").disabled).toBe(false);
+    expect(chip("Check in nearby").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(status !== 200);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe(String(saved));
+  });
+
   it.each(["account", "venue"])("discards a late check-in response after a %s change", async (change) => {
     const oldResponse = deferred<Response>();
     const newResponse = deferred<Response>();

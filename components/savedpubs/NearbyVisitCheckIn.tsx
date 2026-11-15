@@ -36,9 +36,9 @@ export default function NearbyVisitCheckIn({ venueId, handle, disabled, onStart 
         navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true, maximumAge: 0, timeout: 10_000 });
       });
       controller.signal.throwIfAborted();
+      finish.current = null;
       const response = await authedActionFetch("/api/saved-pubs", {
         method: "POST",
-        signal: controller.signal,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ handle, venueId, action: "nearbyCheckIn", location: {
           lat: position.coords.latitude, lng: position.coords.longitude,
@@ -47,10 +47,9 @@ export default function NearbyVisitCheckIn({ venueId, handle, disabled, onStart 
       }, { requiresIdentity: true });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, "Couldn't save that check-in. Try again."));
-      controller.signal.throwIfAborted();
       if (!settle(true)) return;
       emitBeenHereChanged();
-      setMessage("Nearby visit checked. Saved to Been here.");
+      if (!controller.signal.aborted) setMessage("Nearby visit checked. Saved to Been here.");
     } catch (error) {
       if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Couldn't check your location. You can still save Been here.");
     } finally {
