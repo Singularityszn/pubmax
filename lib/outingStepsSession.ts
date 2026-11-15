@@ -98,7 +98,7 @@ export async function beginOutingSteps(
   }
 }
 
-export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: OutingStepsState, { signal, now }: Scope): Promise<OutingStepsRead> {
+export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: OutingStepsState, { signal, now, finishing = false }: Scope & { finishing?: boolean }): Promise<OutingStepsRead> {
   const window = outingStepsWindow(state, now());
   if (!window || state.phase !== "counting") return { kind: "none" };
   try {
@@ -107,10 +107,11 @@ export async function readOutingStepsEvent(bridge: OutingStepsBridge, state: Out
       void bridge.stop({ session: state.session });
       return STALE;
     }
+    if (!sample && finishing) return { kind: "event", event: { type: "incomplete", session: state.session, at: now() } };
     return sample ? { kind: "event", event: { type: "sample", session: state.session, at: now(), sample } } : { kind: "none" };
   } catch (error) {
     if (signal.aborted) return STALE;
-    if (errorCode(error) === "expired" || errorCode(error) === "history_expired") {
+    if (finishing || errorCode(error) === "expired" || errorCode(error) === "history_expired") {
       return { kind: "event", event: { type: "incomplete", session: state.session, at: now() } };
     }
     return refusal(bridge, error);

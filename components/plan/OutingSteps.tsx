@@ -62,9 +62,9 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     if (previous.phase === "counting" && next.phase !== "counting") void bridge?.stop({ session: previous.session });
   }, [bridge, ownerSignal]);
 
-  const read = useCallback(async () => {
+  const read = useCallback(async (finishing = false) => {
     if (!bridge) return;
-    const outcome = await readOutingStepsEvent(bridge, stateRef.current, { signal: ownerSignal, now: Date.now });
+    const outcome = await readOutingStepsEvent(bridge, stateRef.current, { signal: ownerSignal, now: Date.now, finishing });
     if (outcome.kind === "event") apply(outcome.event);
     if (outcome.kind === "refused") setStatus(outcome.status);
     if (outcome.kind === "stale") return;
@@ -98,7 +98,7 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     const current = stateRef.current;
     if (current.phase !== "counting") return;
     setBusy("stopping");
-    await read();
+    await read(true);
     apply({ type: "stop", session: current.session, at: Date.now() });
     setBusy(null);
   }
