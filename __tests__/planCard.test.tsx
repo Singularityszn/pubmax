@@ -27,6 +27,7 @@ import PlanCard, { planStartInWords } from "@/components/plan/PlanCard";
 import { clearPlanMemberProjectionRead } from "@/components/plan/usePlanMemberRead";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import { NIGHT_CRAWL_STOP_CONFIRMED_EVENT } from "@/lib/nightCrawlEngage";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -179,6 +180,26 @@ describe("PlanCard", () => {
     };
     await render();
     expect(venueReads[0]).toContain("/api/venue/v-second");
+  });
+
+  it("follows a stop Night mode confirms after the card has drawn", async () => {
+    await render();
+    expect(venueReads.at(-1)).toContain("/api/venue/v-first");
+    planBody = {
+      ...memberBody(),
+      actions: [{
+        id: "a1", type: "arrived", stopPosition: 1, ending: null,
+        createdAt: "2026-07-17T18:05:00.000Z", routeRevision: 1, venueId: "v-first",
+      }],
+    };
+    clearPlanMemberProjectionRead(PLAN);
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(NIGHT_CRAWL_STOP_CONFIRMED_EVENT, { detail: { planId: PLAN } }));
+    });
+    for (let i = 0; i < 6; i += 1) {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    }
+    expect(venueReads.at(-1)).toContain("/api/venue/v-second");
   });
 
   it.each([
