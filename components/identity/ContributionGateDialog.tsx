@@ -32,6 +32,7 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { trackEvent } from "@/lib/analytics";
 import type { VenueContactContract } from "@/lib/venueTruth";
+import { Button } from "@/components/ui/button";
 import {
   readProviderAccountRevision,
   subscribeProviderIdentityRevision,
@@ -60,20 +61,20 @@ function TableRequestAlternatives({
     <>
       {contacts.bookingHref ? (
         <p>
-          <a href={contacts.bookingHref}>Open {venueName}&apos;s booking page</a>
+          <Button variant="secondary" asChild><a href={contacts.bookingHref}>Open {venueName}&apos;s booking page</a></Button>
         </p>
       ) : null}
       {contacts.emailHref || contacts.phoneHref ? (
         <p>
           Contact the pub directly:{" "}
-          {contacts.emailHref ? <a href={contacts.emailHref}>email {venueName}</a> : null}
+          {contacts.emailHref ? <Button variant="secondary" asChild><a href={contacts.emailHref}>Email {venueName}</a></Button> : null}
           {contacts.emailHref && contacts.phoneHref ? ", " : null}
-          {contacts.phoneHref ? <a href={contacts.phoneHref}>call {venueName}</a> : null}
+          {contacts.phoneHref ? <Button variant="secondary" asChild><a href={contacts.phoneHref}>Call {venueName}</a></Button> : null}
         </p>
       ) : null}
       {!contacts.bookingHref && !contacts.emailHref && !contacts.phoneHref && contacts.websiteHref ? (
         <p>
-          <a href={contacts.websiteHref}>Visit {venueName}&apos;s website</a> for contact details.
+          <Button variant="secondary" asChild><a href={contacts.websiteHref}>Visit {venueName}&apos;s website</a></Button> for contact details.
         </p>
       ) : null}
     </>
