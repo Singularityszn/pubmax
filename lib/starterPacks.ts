@@ -122,7 +122,8 @@ export function listStarterPacks(): StarterPack[] {
   const founding: StarterPack = {
     slug: FOUNDING_STARTER_PACK_SLUG,
     title: "Founding hundred",
-    description: "The first hundred accounts here, in number order.",
+    description:
+      "The first hundred accounts here, in number order. Follow up to 12 in one tap.",
     kind: "founding",
   };
   const boroughs = LONDON_BOROUGHS.map((borough): StarterPack => ({
@@ -330,10 +331,14 @@ export type StarterPackFollowResult = {
 /** Copy the surface may print. Visible words live here so two cards cannot drift. */
 export const STARTER_PACKS_TITLE = "Start with your lot";
 export const STARTER_PACK_FOLLOW_LABEL = "Follow all";
+export const STARTER_PACK_FOUNDING_FOLLOW_LABEL = "Follow up to 12";
 export const STARTER_PACK_FOLLOW_WORKING_LABEL = "Following…";
 
 /** The accessible name on a follow-all button, which follows several people at once. */
 export function starterPackFollowAccessibleLabel(pack: StarterPack): string {
+  if (pack.kind === "founding") {
+    return "Follow up to 12 accounts in Founding hundred";
+  }
   return `Follow everyone in ${pack.title}`;
 }
 

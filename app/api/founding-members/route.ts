@@ -15,17 +15,11 @@
 // have gaps. That is the honest shape: reusing No. 7 would mean the mark named
 // two different people.
 
-import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { FOUNDING_MEMBER_CAP, isFoundingMemberNumber } from "@/lib/foundingMembers";
+import { FOUNDING_MEMBER_CAP } from "@/lib/foundingMembers";
 import { isLimited } from "@/lib/pintDrops";
-import {
-  isProfileTombstoned,
-  profileStore,
-  publicOwnedImageUrl,
-  type ProfileRecord,
-} from "@/lib/profileStore";
+import { readFoundingMembers } from "@/lib/foundingMembers.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
   clientIp,
@@ -35,24 +29,6 @@ import {
 } from "@/lib/supabase";
 
 assertServerEnv();
-
-export type FoundingMemberEntry = {
-  number: number;
-  handle: string;
-  displayName?: string;
-  avatarUrl?: string;
-};
-
-function toFoundingEntry(profile: ProfileRecord): FoundingMemberEntry | null {
-  if (!isFoundingMemberNumber(profile.foundingMemberNumber)) return null;
-  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
-  return {
-    number: profile.foundingMemberNumber,
-    handle: profile.handle,
-    ...(profile.displayName ? { displayName: profile.displayName } : {}),
-    ...(avatarUrl ? { avatarUrl } : {}),
-  };
-}
 
 export async function GET(request: Request): Promise<Response> {
   const limiterKey = `founding-members:${hashIp(clientIp(request))}`;
@@ -72,15 +48,7 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const rows = await profileStore().listFoundingMembers();
-    const live = await filterProfilesWithdrawnFromPublic(
-      rows.filter((row) => Boolean(row.userId) && !isProfileTombstoned(row)),
-    );
-    const members = live
-      .map(toFoundingEntry)
-      .filter((entry): entry is FoundingMemberEntry => entry !== null)
-      .sort((a, b) => a.number - b.number)
-      .slice(0, FOUNDING_MEMBER_CAP);
+    const members = await readFoundingMembers();
     return jsonNoStore({ members, cap: FOUNDING_MEMBER_CAP }, { status: 200 });
   } catch {
     return publicApiError(

@@ -64,6 +64,7 @@ type PackBody = {
     description: string;
     members: { handle: string; foundingMemberNumber?: number }[];
     memberCount: number;
+    foundingMemberTotal?: number;
   }[];
   viewerFollowing: number | null;
   coverage: "complete" | "partial";
@@ -176,6 +177,21 @@ describe("GET /api/starter-packs", () => {
     expect(founders?.members.map((member) => member.foundingMemberNumber)).toEqual([
       1, 2, 3,
     ]);
+  });
+
+  it("reports the full founders count while keeping one-tap follows capped at twelve", async () => {
+    for (let index = 0; index < 14; index += 1) {
+      await joinCamden(`founder${String(index).padStart(2, "0")}`);
+    }
+
+    const body = (await (await read()).json()) as PackBody;
+    const founders = packBySlug(body, FOUNDING_STARTER_PACK_SLUG);
+
+    expect(founders?.foundingMemberTotal).toBe(14);
+    expect(founders?.members).toHaveLength(12);
+    expect(founders?.members.map((member) => member.foundingMemberNumber)).toEqual(
+      Array.from({ length: 12 }, (_, index) => index + 1),
+    );
   });
 });
 

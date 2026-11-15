@@ -8,6 +8,40 @@
  */
 export const PUBLIC_UPDATES = [
   {
+    id: "2026-11-14-map-estimates-and-phone-targets",
+    date: "2026-11-14",
+    title: "Steadier map prices and phone controls",
+    changes: [
+      "Map pins keep an estimated price in place while a pub's own price reads finish.",
+      "Phone map choices have larger tap targets.",
+    ],
+  },
+  {
+    id: "2026-11-13-points-challenges-and-guides",
+    date: "2026-11-13",
+    title: "Points, pub challenges and London guides",
+    changes: [
+      "See points and levels for activity around pubs.",
+      "Take on London pub challenges, including monthly challenges with bonus points.",
+      "Read a mates leaderboard and join private leagues with postcode maps.",
+      "See UK pub counts before you zoom in.",
+      "Find Pub of the Week and London pub guides.",
+      "Open a one-pub night, read its shared facts and say I'll be there.",
+    ],
+  },
+  {
+    id: "2026-11-12-pub-nights-and-mates",
+    date: "2026-11-12",
+    title: "More ways to record and share a pub night",
+    changes: [
+      "Open up to 20 saved pub pages offline. Their listed prices keep their source dates.",
+      "Mark pubs you have visited and see your London postcode progress on the map.",
+      "See mates' recent Pint Drops on Social, then add a star rating to your own.",
+      "Find mates by QR code or shared connections, compare visited pubs and ask a mate to join you at one pub.",
+      "Share a personal Been card after five pubs.",
+    ],
+  },
+  {
     id: "2026-11-11-year-in-pints-door",
     date: "2026-11-11",
     title: "A way in to your Year in Pints",
