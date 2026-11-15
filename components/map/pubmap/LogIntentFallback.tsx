@@ -22,6 +22,7 @@ export function LogIntentFallback({
   categoryPriceIntent = false,
   origin,
   locating = false,
+  loading = false,
   filteredPubVenueCount,
   onPickVenue,
   onPrefetchVenue,
@@ -34,6 +35,7 @@ export function LogIntentFallback({
   categoryPriceIntent?: boolean;
   origin: LogNearbyOriginSource | null;
   locating?: boolean;
+  loading?: boolean;
   filteredPubVenueCount: number;
   onPickVenue: (id: string) => void;
   onPrefetchVenue: (id: string) => void;
@@ -82,6 +84,8 @@ export function LogIntentFallback({
         <p className="description">
           {locating
             ? "Finding your location and nearby pubs…"
+            : loading && !listed
+            ? "Finding nearby pubs…"
             : !listed
             ? `We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the ${destination}.`
             : origin === "user"
@@ -132,7 +136,7 @@ export function LogIntentFallback({
         <button type="button" className="addStopBtn" onClick={onFocusSearch}>
           Search pubs
         </button>
-        {filteredPubVenueCount === 0 ? (
+        {!loading && !locating && filteredPubVenueCount === 0 ? (
           <button type="button" className="addStopBtn" onClick={onResetFilters}>
             Show all pubs
           </button>

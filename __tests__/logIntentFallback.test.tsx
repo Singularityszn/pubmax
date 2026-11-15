@@ -215,3 +215,22 @@ it("does not offer map-centre pubs while a granted location is resolving", async
     vi.unstubAllGlobals();
   }
 });
+
+it("shows the picker while pubs load without claiming filters hid them", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(LogIntentFallback, {
+      candidates: [], origin: "map", loading: true, filteredPubVenueCount: 0,
+      onPickVenue: vi.fn(), onPrefetchVenue: vi.fn(), onFocusSearch: vi.fn(),
+      onResetFilters: vi.fn(), onLocation: vi.fn(),
+    })));
+    expect(host.textContent).toContain("Finding nearby pubs");
+    expect(host.textContent).not.toContain("Show all pubs");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});

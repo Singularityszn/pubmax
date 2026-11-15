@@ -490,7 +490,7 @@ import {
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
-  buildLogNearbyCandidates,
+  buildLogNearbyCandidates, logNearbyDataReady,
   clearMapLogIntentSearch,
   hasMapLogIntent,
   mapLogIntentPrice,
@@ -3832,15 +3832,13 @@ export default function PubMap({
     setLogPickerLocation(location);
   }, [invalidatePrivateCamera, setLogPickerLocation]);
 
-  // D1 — the picker is grounded in a real origin: the reader's fix, else the
-  // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
     () => resolveLogNearbyOrigin({ pickerLocation: logPickerLocation, userLocation, mapCenter: mapViewport.center }),
     [mapViewport.center, userLocation, logPickerLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
-      logNearbyOrigin?.source === "user" && !(nearbyLoadedPoint?.city === cityId && nearbyLoadedPoint.lat === logNearbyOrigin.origin.lat && nearbyLoadedPoint.lng === logNearbyOrigin.origin.lng && nearbyLoadedPoint.radiusKm >= LOG_NEARBY_MAX_KM) ? [] : buildLogNearbyCandidates(
+      !logNearbyDataReady(logNearbyOrigin, cityId, nearbyLoadedPoint) ? [] : buildLogNearbyCandidates(
         pubVenues,
         undefined,
         logNearbyOrigin?.origin ?? null,
@@ -6478,6 +6476,7 @@ export default function PubMap({
             categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
             locating={logPickerLocating}
+            loading={!loaded}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
@@ -7019,6 +7018,7 @@ export default function PubMap({
           categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
           locating={logPickerLocating}
+          loading={!loaded}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}

@@ -36,7 +36,7 @@ export function useLogPickerLocation(active: boolean, userLocation: LogNearbyOri
     else void navigator.permissions.query({ name: "geolocation" }).then((permission) => {
       if (permission.state === "granted") locate();
       else settle();
-    }).catch(settle);
+    }).catch(locate);
     return () => { cancelled = true; };
   }, [active, userLocation]);
 

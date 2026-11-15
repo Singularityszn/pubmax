@@ -95,6 +95,16 @@ export function resolveLogNearbyOrigin(input: {
   return null;
 }
 
+export function logNearbyDataReady(
+  origin: LogNearbyOriginResolution,
+  city: string,
+  coverage: { city: string; lat: number; lng: number; radiusKm: number } | null,
+): boolean {
+  if (origin?.source !== "user") return true;
+  return coverage !== null && coverage.city === city && coverage.lat === origin.origin.lat &&
+    coverage.lng === origin.origin.lng && coverage.radiusKm >= LOG_NEARBY_MAX_KM;
+}
+
 function priceLabelFor(
   venue: LogNearbyVenue,
   anchor: CompactVenueAnchor | null,
