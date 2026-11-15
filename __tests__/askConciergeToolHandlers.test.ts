@@ -418,7 +418,7 @@ describe("search_venues hard requirements", () => {
 
   it.each([
     ["Pubs not too pricey with a pool table in Hackney", ["pool"]],
-    ["Pubs that have not only a pool table but darts in Hackney", ["darts", "pool"]],
+    ["Pubs that have not only a pool table but also a darts board in Hackney", ["darts", "pool"]],
     ["Pubs that serve whiskey in Hackney", ["drink:whisky"]],
     ["Pubs with no TV but a pool table in Hackney", ["pool"]],
   ])("keeps a positive requirement positive: %s", async (query, required) => {
