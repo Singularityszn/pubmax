@@ -10,9 +10,9 @@ import { readFoundingMembers } from "@/lib/foundingMembers.server";
 //
 // The scan reuses the SAME closed row set the people directory reads
 // (`listClaimedProfiles`: claimed handle, no tombstone), so a pack can never
-// surface an account the directory would refuse to. The founders come through
-// `readFoundingMembers`, which is bounded by the public cohort itself, so the
-// founding pack does not depend on the paged scan reaching number 97.
+// surface an account the directory would refuse to. Founder numbers and the
+// full count use `readFoundingMembers`. Raw founder rows retain borough
+// eligibility when the paged scan stops before them.
 //
 // The scan is BOUNDED, and a bounded scan that stopped early is a fact rather
 // than a silence: `truncated` rides back with the packs. Truncation can only
