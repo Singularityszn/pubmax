@@ -2533,8 +2533,8 @@ function PlanComposerForm({
   }, [canPersist, allowUrlPrefill, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft, adoptFreshAsk]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
-    // which is a storage write and so waits for a browser that can persist.
-    if (!canPersist) return;
+    // which is a storage write and waits for its request to be selected.
+    if (!canPersist || !allowUrlPrefill) return;
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
     try {
@@ -4470,10 +4470,10 @@ export default function PlanComposer() {
   }
   return <>
     {(alternative || (onboarding && keepExisting)) ? <section className="planComposerRecovery" aria-label="Switch planning request">
-      <p>{alternative?.phase === "deferred" ? "This plan is read-only while both saved plans wait for review." : alternative?.active === "new" && !freshRequest ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
+      <p>{alternative?.phase === "deferred" ? "This plan is read-only while both saved plans wait for review." : requestId && alternative?.currentRequestId === requestId && !freshRequest ? "Your previous plan is saved." : "Your new request is separate from this plan."}</p>
       {alternative?.phase === "deferred" && freshRequest ? <p>Your new request is waiting: {requestId}</p> : null}
       <div className="planComposerRecovery__actions">
-        {alternative?.phase === "deferred" ? <Button type="button" variant="secondary" onClick={() => deferSwitch(true)}>Review saved plans</Button> : <Button type="button" variant="secondary" onClick={() => switchPlan()}>{alternative?.active === "new" && !freshRequest ? "Restore previous plan" : "Start the new request"}</Button>}
+        {alternative?.phase === "deferred" ? <Button type="button" variant="secondary" onClick={() => deferSwitch(true)}>Review saved plans</Button> : <Button type="button" variant="secondary" onClick={() => switchPlan()}>{!alternative || freshRequest || (requestId && alternative.otherRequestId === requestId) ? "Start the new request" : "Restore previous plan"}</Button>}
         {alternative?.phase === "ready" ? alternative.archived.map((_, index) => <Button key={index} type="button" variant="secondary" onClick={() => switchPlan(index)}>Restore saved plan {index + 1}</Button>) : null}
       </div>
       {switchError ? <p role="alert">{switchError}</p> : null}
@@ -4494,8 +4494,9 @@ export default function PlanComposer() {
       acceptedOwner={acceptedOwner}
       handoff={handoff}
       canPersist={hydrated && alternative?.phase !== "deferred"}
-      allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting && alternative?.active !== "old"
-        && !(alternative?.active === "new" && Boolean(recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft))}
+      allowUrlPrefill={accountGeneration === 0 && alternative?.phase !== "deferred" && !keepExisting
+        && (!alternative || (requestId !== null && alternative.currentRequestId === requestId))
+        && !(alternative && Boolean(recoveredDraft || recoveredRouteDraft || recoveredIntake.hasDurableDraft))}
     />
     </div>
   </>;

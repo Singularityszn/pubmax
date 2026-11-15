@@ -18,12 +18,13 @@ function storage(): Storage {
 }
 
 describe("switching onboarding plans", () => {
-  it("preserves a legacy alternative when a different request arrives", () => {
+  it.each([undefined, 2])("preserves version %s candidates without guessing request ownership", (version) => {
     const session = storage();
     const local = storage();
     const records = { session: { [PLAN_DRAFT_KEY]: "old private plan", [PLAN_DRAFT_V2_KEY]: null, [PLANNING_INTENT_STORAGE_KEY]: null }, local: { [PLAN_INTAKE_STORAGE_KEY]: null, [PLAN_ROUTE_DRAFT_KEY]: null, [PLAN_ROUTE_DRAFT_V2_KEY]: null } };
-    session.setItem(PLAN_ONBOARDING_ALTERNATIVE_KEY, JSON.stringify({ owner: "a", active: "new", other: records }));
+    session.setItem(PLAN_ONBOARDING_ALTERNATIVE_KEY, JSON.stringify({ version, phase: version === 2 ? "ready" : undefined, owner: "a", active: "new", requestId: "unproven prior request", other: records }));
     session.setItem(PLAN_DRAFT_KEY, "current plan");
+    expect(readOnboardingAlternative(session, "a")).toMatchObject({ requestId: null, currentRequestId: null, otherRequestId: null });
     expect(switchOnboardingPlan(session, local, "b", "Camden", true)).toBe(false);
     expect(switchOnboardingPlan(session, local, "a", "Camden", true)).toBe(true);
     const recovered = readOnboardingAlternative(session, "a");
@@ -45,7 +46,7 @@ describe("switching onboarding plans", () => {
   it("defers a conflicting switch, refuses recovery, and returns it to review without dropping candidates", () => {
     const before = { session: { draft: "before" }, local: { intake: "before" } };
     const target = { session: { draft: "target" }, local: { intake: "target" } };
-    const ready: OnboardingAlternative = { phase: "ready", owner: null, active: "old", requestId: "Soho", other: target, archived: [] };
+    const ready: OnboardingAlternative = { phase: "ready", owner: null, requestId: "Soho", currentRequestId: null, otherRequestId: "Soho", other: target, archived: [] };
     const switched = transitionPlanRecovery(ready, { type: "switch", current: before, empty: target, requestId: "Soho", fresh: false });
     expect(switched.state.phase).toBe("pending");
     const changed = { session: { draft: "before" }, local: { intake: "another tab" } };
@@ -64,7 +65,7 @@ describe("switching onboarding plans", () => {
     const a = { session: { draft: "A" }, local: {} };
     const b = { session: { draft: "B" }, local: {} };
     const empty = { session: { draft: null }, local: {} };
-    const ready: OnboardingAlternative = { phase: "ready", owner: "a", active: "new", requestId: "Soho £6", other: a, archived: [] };
+    const ready: OnboardingAlternative = { phase: "ready", owner: "a", requestId: "Soho £6", currentRequestId: "Soho £6", otherRequestId: null, other: a, archived: [] };
     const fresh = transitionPlanRecovery(ready, { type: "switch", current: b, empty, requestId: "Camden £5", fresh: true });
     expect(fresh.effect).toMatchObject({ type: "replace", target: empty, completed: { phase: "ready", requestId: "Camden £5", other: b, archived: [{ records: a }] } });
     const finished = transitionPlanRecovery(fresh.state, { type: "recover", current: b, finish: true });

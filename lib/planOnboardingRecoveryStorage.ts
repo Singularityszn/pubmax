@@ -5,7 +5,7 @@ import { transitionPlanRecovery, type OnboardingAlternative, type PlanRecoveryRe
 const KEY = PLAN_ONBOARDING_ALTERNATIVE_KEY;
 const SESSION_KEYS = [PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, PLANNING_INTENT_STORAGE_KEY] as const;
 const LOCAL_KEYS = [PLAN_INTAKE_STORAGE_KEY, PLAN_ROUTE_DRAFT_KEY, PLAN_ROUTE_DRAFT_V2_KEY] as const;
-function serialize(value: OnboardingAlternative): string { return JSON.stringify({ version: 2, ...value }); }
+function serialize(value: OnboardingAlternative): string { return JSON.stringify({ version: 3, ...value }); }
 function writeState(session: Storage, value: OnboardingAlternative): void {
   const encoded = serialize(value);
   session.setItem(KEY, encoded);
@@ -20,8 +20,36 @@ function readRecords(session: Storage, local: Storage): PlanRecoveryRecords {
 function emptyRecords(): PlanRecoveryRecords {
   return { session: Object.fromEntries(SESSION_KEYS.map((key) => [key, null])), local: Object.fromEntries(LOCAL_KEYS.map((key) => [key, null])) };
 }
-function valid(records: PlanRecoveryRecords): boolean {
-  return Boolean(records && records.session && records.local && [...SESSION_KEYS.map((key) => records.session[key]), ...LOCAL_KEYS.map((key) => records.local[key])].every((item) => item === null || typeof item === "string"));
+function record(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+function requestId(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+function valid(records: unknown): records is PlanRecoveryRecords {
+  if (!record(records) || !record(records.session) || !record(records.local)) return false;
+  const session = records.session;
+  const local = records.local;
+  return [...SESSION_KEYS.map((key) => session[key]), ...LOCAL_KEYS.map((key) => local[key])]
+    .every((item) => item === null || typeof item === "string");
+}
+function readReady(value: unknown, owner: string | null, legacy: boolean): Extract<OnboardingAlternative, { phase: "ready" }> | null {
+  if (!record(value) || value.owner !== owner || !valid(value.other)) return null;
+  if (legacy && value.active !== "old" && value.active !== "new") return null;
+  const ids = legacy
+    ? { requestId: null, currentRequestId: null, otherRequestId: null }
+    : { requestId: value.requestId, currentRequestId: value.currentRequestId, otherRequestId: value.otherRequestId };
+  if (!requestId(ids.requestId) || !requestId(ids.currentRequestId) || !requestId(ids.otherRequestId)) return null;
+  const entries = legacy && value.archived === undefined ? [] : value.archived;
+  if (!Array.isArray(entries)) return null;
+  const archived = [];
+  for (const candidate of entries) {
+    if (!record(candidate) || !valid(candidate.records)) return null;
+    const id = legacy ? null : candidate.requestId;
+    if (!requestId(id)) return null;
+    archived.push({ records: candidate.records, requestId: id });
+  }
+  return { phase: "ready", owner, requestId: ids.requestId, currentRequestId: ids.currentRequestId, otherRequestId: ids.otherRequestId, other: value.other, archived };
 }
 function writeRecords(records: PlanRecoveryRecords, session: Storage, local: Storage, expected: PlanRecoveryRecords): void {
   for (const [store, keys, values, prior] of [[session, SESSION_KEYS, records.session, expected.session], [local, LOCAL_KEYS, records.local, expected.local]] as const) {
@@ -35,18 +63,21 @@ function writeRecords(records: PlanRecoveryRecords, session: Storage, local: Sto
 }
 export function readOnboardingAlternative(session: Storage | null, owner: string | null): OnboardingAlternative | null {
   try {
-    const raw = JSON.parse(session?.getItem(KEY) ?? "null");
-    if (!raw || (raw.version !== undefined && raw.version !== 2) || raw.owner !== owner || (raw.active !== "old" && raw.active !== "new") || !valid(raw.other)) return null;
-    const common = { owner, active: raw.active as "old" | "new", requestId: typeof raw.requestId === "string" ? raw.requestId : null, archived: Array.isArray(raw.archived) ? raw.archived : [] };
-    if (!common.archived.every((candidate: { records: PlanRecoveryRecords }) => valid(candidate?.records))) return null;
-    if (!raw.phase && raw.version === undefined) {
-      if (!raw.pending) return { ...common, phase: "ready", other: raw.other };
+    const raw: unknown = JSON.parse(session?.getItem(KEY) ?? "null");
+    if (!record(raw) || (raw.version !== undefined && raw.version !== 2 && raw.version !== 3)) return null;
+    const legacy = raw.version !== 3;
+    const base = readReady(raw, owner, legacy);
+    if (!base) return null;
+    if (raw.version === undefined && !raw.phase) {
+      if (!raw.pending) return base;
       if (!valid(raw.pending)) return null;
-      return { ...common, phase: "pending", other: raw.other, before: raw.other, target: raw.pending, rollback: { ...common, phase: "ready", active: raw.active === "new" ? "old" : "new", other: raw.pending } };
+      return { ...base, phase: "pending", before: base.other, target: raw.pending, rollback: { ...base, other: raw.pending } };
     }
-    if (raw.phase === "ready") return { ...common, phase: "ready", other: raw.other };
-    if ((raw.phase !== "pending" && raw.phase !== "deferred") || !valid(raw.before) || !valid(raw.target) || !raw.rollback || raw.rollback.phase !== "ready" || raw.rollback.owner !== owner || (raw.rollback.active !== "old" && raw.rollback.active !== "new") || !valid(raw.rollback.other) || !Array.isArray(raw.rollback.archived) || !raw.rollback.archived.every((candidate: { records: PlanRecoveryRecords }) => valid(candidate?.records))) return null;
-    return { ...common, phase: raw.phase, other: raw.other, before: raw.before, target: raw.target, rollback: raw.rollback };
+    if (raw.phase === "ready") return base;
+    if ((raw.phase !== "pending" && raw.phase !== "deferred") || !valid(raw.before) || !valid(raw.target)
+      || !record(raw.rollback) || raw.rollback.phase !== "ready") return null;
+    const rollback = readReady(raw.rollback, owner, legacy);
+    return rollback ? { ...base, phase: raw.phase, before: raw.before, target: raw.target, rollback } : null;
   } catch { return null; }
 }
 function execute(session: Storage, local: Storage, effect: ReturnType<typeof transitionPlanRecovery>["effect"]): boolean {
@@ -67,7 +98,7 @@ export function switchOnboardingPlan(session: Storage | null, local: Storage | n
     const existing = readOnboardingAlternative(session, owner);
     if (previous && !existing) return false;
     const empty = emptyRecords();
-    const state: OnboardingAlternative = existing ?? { phase: "ready", owner, active: "old", requestId: null, other: empty, archived: [] };
+    const state: OnboardingAlternative = existing ?? { phase: "ready", owner, requestId: null, currentRequestId: null, otherRequestId: null, other: empty, archived: [] };
     const transition = transitionPlanRecovery(state, { type: "switch", current: readRecords(session, local), empty, requestId, fresh: !existing || fresh, initial: !existing, archiveIndex });
     const ok = execute(session, local, transition.effect);
     if (!ok) recoverOnboardingSwitch(session, local, owner, false);

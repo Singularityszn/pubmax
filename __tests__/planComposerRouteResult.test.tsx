@@ -319,6 +319,11 @@ describe("onboarding after a kept pub", () => {
       const description = document.querySelector<HTMLInputElement>("#plan-describe-first-query, #plan-concierge-query");
       expect(description).not.toBeNull();
       expect(description!.value).not.toContain("Camden");
+      await remountComposer();
+      expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+      const reloaded = document.querySelector<HTMLInputElement>("#plan-describe-first-query, #plan-concierge-query");
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.value).not.toContain("Camden");
     } else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
   });
 
