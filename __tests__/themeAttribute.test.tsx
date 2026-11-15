@@ -60,6 +60,36 @@ describe("ThemeAttribute", () => {
     expect(root.style.padding).toBe("8px");
   });
 
+  it("follows a browser font change without a page resume", () => {
+    const root = document.documentElement;
+    const fontSize = root.style.fontSize;
+    let notify: () => void = vi.fn();
+    vi.stubGlobal("ResizeObserver", class {
+      constructor(callback: ResizeObserverCallback) {
+        notify = () => callback([], this);
+      }
+      observe = vi.fn();
+      unobserve = vi.fn();
+      disconnect = vi.fn();
+    });
+    root.style.fontSize = "16px";
+    const unmount = mount();
+    try {
+      expect(root.dataset.textScale).toBeUndefined();
+      root.style.fontSize = "32px";
+      act(() => notify());
+      expect(root.dataset.textScale).toBe("large");
+      root.style.fontSize = "16px";
+      act(() => notify());
+      expect(root.dataset.textScale).toBeUndefined();
+    } finally {
+      unmount();
+      vi.unstubAllGlobals();
+      root.style.fontSize = fontSize;
+      delete root.dataset.textScale;
+    }
+  });
+
   it("restores theme state through StrictMode and a root remount", () => {
     const root = document.documentElement;
     mount(true)();
