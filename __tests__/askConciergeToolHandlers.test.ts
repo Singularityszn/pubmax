@@ -320,6 +320,35 @@ describe("search_venues hard requirements", () => {
     expect(stout.cards.map((card) => card.venueId)).toEqual(["guinness"]);
   });
 
+  it.each([
+    "Guinness 0.0",
+    "Guinness 0%",
+    "alcohol-free Guinness",
+    "Guinness AF",
+    "non-alcoholic Guinness",
+    "low alcohol Guinness",
+  ])("requires the brand and strength on the same drink record for %s", async (drink) => {
+    state.venues = [
+      venue({ id: "ordinary", name: "The Ordinary Stout", area: "Soho", drinkText: "Guinness", cheapestPrice: 3 }),
+      venue({ id: "split", name: "The Separate Drinks", area: "Soho", drinkText: "Guinness ; Lucky Saint", cheapestPrice: 4 }),
+      venue({ id: "matched", name: "The Zero Stout", area: "Soho", drinkText: "Guinness 0.0" }),
+    ];
+    state.pricedVenues = [
+      pricedDrinks("ordinary", { pint_name: "Guinness" }),
+      pricedDrinks("split", { pint_name: "Guinness" }, { pint_name: "Lucky Saint" }),
+      pricedDrinks("matched", { pint_name: "Guinness 0.0" }),
+    ];
+
+    const result = await search(`Show me pubs serving ${drink} in Soho`);
+
+    expect(result.cards.map((card) => card.venueId)).toEqual(["matched"]);
+    expect(searchData(result)).toMatchObject({
+      found: 1,
+      coverageGaps: [],
+      venues: [{ id: "matched", evidence: [{ source: "Pint Prices", observedAt: "2026-08-01T12:00:00.000Z" }] }],
+    });
+  });
+
   it("names the gap instead of matching drinks when the price rows cannot be read", async () => {
     state.venues = [venue({ id: "guinness", name: "The Harp", area: "Soho", drinkText: "guinness" })];
     state.pricedVenuesThrows = true;
