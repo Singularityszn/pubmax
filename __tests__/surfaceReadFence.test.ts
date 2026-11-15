@@ -126,6 +126,31 @@ describe("Tonight selected-detail exemption behaviour", () => {
     expectUnavailable();
   });
 
+  it("shows the selected real-style price and keeps an unstated serving unknown", async () => {
+    await render({ area: true });
+    await act(async () => { reply(detail({ venue: { id: "near", prices: [
+      { price_gbp: 4.5, pint_name: "PAULANER", pub_url: "https://www.pint-prices.com/pub/queens-head", scraped_at_values: "2026-11-09T13:07:13+00:00" },
+    ] } })); });
+    await vi.waitFor(() => {
+      expect(container.textContent).toContain("PAULANER");
+      expect(container.textContent).toContain("Pint Prices");
+      expect(container.textContent).toContain("9 Nov 2026");
+      expect(container.textContent).toContain("Serving not recorded");
+    });
+  });
+
+  it("does not attach a different first detail price even when a later row matches", async () => {
+    await render();
+    await act(async () => { reply(detail({ venue: { id: "near", prices: [
+      { price_gbp: 3, pint_name: "Wrong lager", measure: "pint", pub_url: "https://wrong.example/menu", scraped_at_values: "2026-07-03" },
+      { price_gbp: 4.5, pint_name: "Other lager", measure: "pint", pub_url: "https://other.example/menu", scraped_at_values: "2026-07-03" },
+    ] } })); });
+    await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    expectUnavailable();
+    expect(container.textContent).not.toContain("Wrong lager");
+    expect(container.textContent).not.toContain("Other lager");
+  });
+
   it("cancels detail when the nearby winner disappears and preserves city evidence", async () => {
     await render();
     expect(signal?.aborted).toBe(false);
