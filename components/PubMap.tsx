@@ -2617,6 +2617,7 @@ export default function PubMap({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       awaitViewShards();
+      setNearbyLoadedPoint(null);
       setVenueIndexFailed(false);
       setCompleteCountSlugs(null);
       if (!preserveSyncResume) {

@@ -25,7 +25,7 @@ import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/compon
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import PintDropComposer from "@/components/map/PintDropComposer";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
-import { readPintDropDraft, takePintDropSignInHandoff, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
+import { readLastLoggedDrink, readPintDropDraft, takePintDropSignInHandoff, writeLastLoggedDrink, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
 import { ANON_HANDLE_LABEL } from "@/lib/pintDropShared";
 import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
@@ -472,17 +472,38 @@ it("restores the entry in the selected pub after sign-in", async () => {
   expect(drops.dropForm).toMatchObject({ price: "5.20", drink: "Guinness" });
 });
 
-it.each(["alice", ANON_HANDLE_LABEL])("prefills the last account drink on a new device with public handle %s", async (handle) => {
+it.each(["alice", ANON_HANDLE_LABEL])("prefills the last named account drink after a note-only drop with public handle %s", async (handle) => {
   localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
   const originalFetch = vi.mocked(fetch).getMockImplementation()!;
   vi.mocked(fetch).mockImplementation((url, init) => {
     if (String(url).includes("/api/pint-drops?author=alice")) {
-      return Promise.resolve(new Response(JSON.stringify({ drops: [{ ...publicDrop, handle }] }), { status: 200 }));
+      return Promise.resolve(new Response(JSON.stringify({ drops: [
+        { ...publicDrop, drink: "", passedDownNote: "A quiet night" },
+        { ...publicDrop, handle },
+      ] }), { status: 200 }));
     }
     return originalFetch(url, init);
   });
   await act(async () => root.render(createElement(Probe, { composer: true })));
   expect(drops.dropForm.drink).toBe("Pale ale");
+});
+
+it.each([
+  { history: [] },
+  { history: [{ ...publicDrop, drink: "" }] },
+])("retains the cached drink when history has no named drinks: $history", async ({ history }) => {
+  localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+  writeLastLoggedDrink(localStorage, auth.id, "Guinness");
+  const originalFetch = vi.mocked(fetch).getMockImplementation()!;
+  vi.mocked(fetch).mockImplementation((url, init) => {
+    if (String(url).includes("/api/pint-drops?author=alice")) {
+      return Promise.resolve(new Response(JSON.stringify({ drops: history }), { status: 200 }));
+    }
+    return originalFetch(url, init);
+  });
+  await act(async () => root.render(createElement(Probe, { composer: true })));
+  expect(drops.dropForm.drink).toBe("Guinness");
+  expect(readLastLoggedDrink(localStorage, auth.id)).toBe("Guinness");
 });
 
 

@@ -100,7 +100,8 @@ export function useVenueDraft({
           .then((response) => response.ok ? response.json() : null)
           .then((data: { drops?: Array<{ drink?: unknown }> } | null) => {
             if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount || !Array.isArray(data?.drops)) return;
-            const drink = typeof data.drops[0]?.drink === "string" ? data.drops[0].drink.trim() : "";
+            const drink = data.drops.map((drop) => typeof drop.drink === "string" ? drop.drink.trim() : "").find(Boolean);
+            if (!drink) return;
             writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
             setDropForm((current) => {
               if (current.drink !== expectedDrink) return current;

@@ -213,7 +213,9 @@ it("prefills only the last logged drink of the same account", () => {
   expect(readLastLoggedDrink(storage, "account-b")).toBeNull();
   expect(readLastLoggedDrink(storage, null)).toBeNull();
   writeLastLoggedDrink(storage, "account-a", "");
-  expect(readLastLoggedDrink(storage, "account-a")).toBeNull();
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
+  writeLastLoggedDrink(storage, "account-a", "   ");
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
 });
 
 it("carries an entry to the chosen pub after sign-in, once", () => {

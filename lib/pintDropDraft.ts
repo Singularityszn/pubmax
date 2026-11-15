@@ -205,11 +205,10 @@ export function readLastLoggedDrink(storage: Pick<Storage, "getItem"> | null, ac
   }
 }
 
-export function writeLastLoggedDrink(storage: Pick<Storage, "setItem" | "removeItem"> | null, accountId: string | null, drink: string): void {
-  if (!storage || !accountId) return;
+export function writeLastLoggedDrink(storage: Pick<Storage, "setItem"> | null, accountId: string | null, drink: string): void {
+  if (!storage || !accountId || !drink.trim()) return;
   try {
-    if (drink.trim()) storage.setItem(LAST_LOGGED_DRINK_KEY, JSON.stringify({ accountId, drink: drink.trim().slice(0, MAX_FIELD_LENGTH) }));
-    else storage.removeItem(LAST_LOGGED_DRINK_KEY);
+    storage.setItem(LAST_LOGGED_DRINK_KEY, JSON.stringify({ accountId, drink: drink.trim().slice(0, MAX_FIELD_LENGTH) }));
   } catch { /* Storage may be unavailable. */ }
 }
 
