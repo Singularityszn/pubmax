@@ -21,6 +21,16 @@ export function notifyMapFirstVisitArrivalChange(): void {
 }
 
 let arrivalCardVisible = false;
+const areaPickers = new Set<symbol>();
+
+export function holdMapAreaPickerPrompts(): () => void {
+  const picker = Symbol();
+  areaPickers.add(picker);
+  notifyMapFirstVisitArrivalChange();
+  return () => {
+    if (areaPickers.delete(picker)) notifyMapFirstVisitArrivalChange();
+  };
+}
 
 /** The mounted card reports visibility so consent can wait behind it. */
 export function setMapFirstVisitArrivalCardVisible(visible: boolean): void {
@@ -30,7 +40,7 @@ export function setMapFirstVisitArrivalCardVisible(visible: boolean): void {
 }
 
 export function mapFirstVisitArrivalBlocksConsent(): boolean {
-  return arrivalCardVisible;
+  return arrivalCardVisible || areaPickers.size > 0;
 }
 
 export function subscribeMapFirstVisitArrival(

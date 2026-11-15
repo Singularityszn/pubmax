@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import type { LegOption } from "../lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
 // ways from this stop to the next, each with its time, TfL's fare and the
@@ -27,6 +28,7 @@ type LngLat = [number, number];
 
 test.beforeEach(async ({ page }) => {
   await installAuthDoubles(page);
+  await storeThemeChoice(page, "light");
   await seedSignedIn(page, "A");
 });
 
@@ -38,21 +40,24 @@ function waysBetween(from: LngLat, to: LngLat): LegOption[] {
   const at = (t: number, bend = 0): LngLat => [from[0] + dx * t - dy * bend, from[1] + dy * t + dx * bend];
   const walk: LegOption = {
     id: "walk", kind: "walk", minutes: 4, farePence: 0, estimate: false, fastest: false, cheapest: true,
-    parts: [{ mode: "walking", line: null, minutes: 4, path: [from, at(0.35, 0.15), at(0.7, 0.1), to] }],
+    fareLevel: null, walkMetres: 300,
+    parts: [{ mode: "walking", line: null, minutes: 4, metres: 300, path: [from, at(0.35, 0.15), at(0.7, 0.1), to] }],
   };
   const bus: LegOption = {
     id: "transit-0", kind: "transit", minutes: 3, farePence: 175, estimate: false, fastest: true, cheapest: false,
+    fareLevel: "Anytime", walkMetres: 75,
     parts: [
-      { mode: "walking", line: null, minutes: 1, path: [from, at(0.15, -0.25)] },
-      { mode: "bus", line: "14", minutes: 2, path: [at(0.15, -0.25), at(0.6, -0.3), to] },
+      { mode: "walking", line: null, minutes: 1, metres: 75, path: [from, at(0.15, -0.25)] },
+      { mode: "bus", line: "14", minutes: 2, metres: null, path: [at(0.15, -0.25), at(0.6, -0.3), to] },
     ],
   };
   const tube: LegOption = {
     id: "transit-1", kind: "transit", minutes: 6, farePence: null, estimate: false, fastest: false, cheapest: false,
+    fareLevel: null, walkMetres: null,
     parts: [
-      { mode: "walking", line: null, minutes: 2, path: [from, at(0.2, 0.4)] },
-      { mode: "tube", line: "Central", minutes: 2, path: [at(0.2, 0.4), at(0.8, 0.4)] },
-      { mode: "walking", line: null, minutes: 2, path: [at(0.8, 0.4), to] },
+      { mode: "walking", line: null, minutes: 2, metres: null, path: [from, at(0.2, 0.4)] },
+      { mode: "tube", line: "Central", minutes: 2, metres: null, path: [at(0.2, 0.4), at(0.8, 0.4)] },
+      { mode: "walking", line: null, minutes: 2, metres: null, path: [at(0.8, 0.4), to] },
     ],
   };
   return [bus, walk, tube];
@@ -126,7 +131,7 @@ test("Night Mode lists the ways to the next stop, and a tap draws the chosen one
       const [lat, lng] = url.searchParams.get(name)!.split(",").map(Number);
       return [lng!, lat!];
     };
-    return route.fulfill({ json: { status: "ok", options: waysBetween(point("from"), point("to")) } });
+    return route.fulfill({ json: { status: "ok", departure: { basis: "now" }, options: waysBetween(point("from"), point("to")) } });
   });
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Show tonight's plan" }).click({ timeout: 60_000 });
@@ -240,7 +245,7 @@ for (const opened of [true, false]) {
         const [lat, lng] = url.searchParams.get(name)!.split(",").map(Number);
         return [lng!, lat!];
       };
-      return route.fulfill({ json: { status: "ok", options: waysBetween(point("from"), point("to")) } });
+      return route.fulfill({ json: { status: "ok", departure: { basis: "now" }, options: waysBetween(point("from"), point("to")) } });
     });
     await page.goto("/tonight");
     await page.getByRole("button", { name: "Show tonight's plan" }).click({ timeout: 60_000 });

@@ -167,6 +167,69 @@ describe("parseConciergeIntent keyless fallback", () => {
     expect(parsed.intent).toEqual({ mood: ["quiet", "date"], groupSize: 2, area: "Soho" });
   });
 
+  it.each([
+    "Show me 5 pubs in Soho that match my interest in gin and beer. Use only your venue records and explain why each matches. Do not save any new memories.",
+    "Find three pubs in Soho that match my preferences",
+    "A pub in Soho to match my budget",
+    "Which pub in Soho is the best match for my taste?",
+    "Pubs in Soho that match on price",
+    "Find something in Soho that matches tonight's vibe",
+    "A perfect match for a first date in Soho",
+    "Find five pubs in Soho that are a good match for my interest in gin and beer",
+    "Pubs in Soho under 10 euros",
+    "Pubs with a darts board in Soho",
+    "Let me see what matches my budget in Soho",
+    "Show something in Soho to match my budget",
+    "Can you show a few options to match my vibe in Soho",
+  ])("does not turn preference matching into a sports request: %s", async (query) => {
+    const { intent } = await parseConciergeIntent(query, { skipModel: true });
+    expect(intent.mood).not.toContain("sports");
+    expect(intent.area).toBe("Soho");
+  });
+
+  it.each([
+    "A pub in Soho to watch the match",
+    "Where can I watch a football match in Soho?",
+    "Sports pubs in Soho",
+    "A pub showing the match in Soho",
+    "Find three pubs in Soho to watch tonight's match",
+    "Find three pubs in Soho to watch tonight’s match",
+    "Where is the match on tonight in Soho?",
+    "Pub showing the Arsenal match in Soho",
+    "Watch the England match near Bank",
+    "Big match in Soho tonight",
+    "Pub to catch the match in Camden",
+    "Where can I see the match?",
+    "The match is on, need a pub",
+    "A pub for matchday in Soho",
+    "A pub for footy near Bank",
+    "Cricket pubs in Soho",
+    "Six Nations in Soho",
+    "A pub in Soho to watch Arsenal's match",
+    "A pub in Soho to watch next week's match",
+    "Which pubs are showing the darts in Soho?",
+    "Pub showing the Euros in Soho",
+    "Showing the Grand Prix tonight in Soho",
+    "Any pubs showing the tennis in Soho?",
+    "A pub for the snooker in Soho",
+    "A pub for F1 in Soho",
+    "A pub for the Ashes in Soho",
+    "Which pubs are showing the Arsenal game?",
+    "Pubs showing the golf in Soho",
+    "Pubs showing the Super Bowl",
+    "Pubs showing the racing",
+    "Pubs showing the Grand National",
+    "A pub to watch tomorrow's fixture in Soho",
+    "A pub for Euro 2028 in Soho",
+    "A pub in Soho to watch a match on TV",
+    "Watch a match with friends in Soho",
+    "Somewhere in Soho to see a game with mates",
+    "A pub in Soho to watch the match for the atmosphere",
+  ])("keeps explicit sports requests: %s", async (query) => {
+    const { intent } = await parseConciergeIntent(query, { skipModel: true });
+    expect(intent.mood).toContain("sports");
+  });
+
   it("turns ordinary coordination language into a structured intent without a key", async () => {
     const parsed = await parseConciergeIntent("Quiet-ish near Bank, 4 of us, not pricey");
 

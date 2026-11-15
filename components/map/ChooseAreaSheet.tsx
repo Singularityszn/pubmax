@@ -7,6 +7,7 @@ import Kicker from "@/components/ui/kicker";
 import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
 import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { holdMapAreaPickerPrompts } from "@/lib/mapFirstVisitArrivalGate";
 
 import type { CityId } from "@/lib/cities";
 import type { Locality } from "@/lib/localities";
@@ -60,6 +61,7 @@ export default function ChooseAreaSheet({
   showOpeningProgress = false,
   onPick,
 }: ChooseAreaSheetProps) {
+  useEffect(() => holdMapAreaPickerPrompts(), []);
   const [query, setQuery] = useState("");
   const neighbourhoods = useMemo(
     () => londonNeighbourhoodRows(venues, cityId, completeCountSlugs),

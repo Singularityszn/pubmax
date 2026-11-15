@@ -11,6 +11,10 @@
 //   over about two kilometres, so then the walk is a straight-line estimate
 //   (`estimate`): its words say so, the map draws it as approximate, and it is
 //   never the fastest while TfL offers a timed option.
+// - Walking distance is TfL's own metres for each walking part. Steps are an
+//   estimate from that distance at ESTIMATED_STRIDE_METRES, never a count. A
+//   counted step total belongs to the phone, not to this answer.
+// - A departure is "now" unless TfL confirms the later time it was asked for.
 
 export type LegMode = "walking" | "tube" | "bus" | "overground" | "elizabeth-line" | "dlr" | "national-rail" | "tram" | "other";
 
@@ -20,6 +24,8 @@ export type LegPart = {
   /** The line or route name TfL gives ("Central", "98"), or null for a walk. */
   line: string | null;
   minutes: number;
+  /** TfL's distance for a walking part in metres, or null when TfL gives none or the part rides. */
+  metres: number | null;
   /** [lng, lat] points, in walking order. */
   path: [number, number][];
 };
@@ -31,6 +37,10 @@ export type LegOption = {
   minutes: number;
   /** TfL's fare in pence, 0 for a walk, or null when TfL lists none. */
   farePence: number | null;
+  /** TfL's charge level for the listed fare ("Off Peak"), or null when it gives none. */
+  fareLevel: string | null;
+  /** Metres on foot: TfL's walking distance, the straight line for an estimate, or null when unknown. */
+  walkMetres: number | null;
   parts: LegPart[];
   /** A straight-line walk estimate, not a route TfL planned. */
   estimate: boolean;
@@ -38,11 +48,67 @@ export type LegOption = {
   cheapest: boolean;
 };
 
-/** GET /api/leg-options: TfL's options for one leg, or "unavailable" with none. */
+/** The departure TfL answered for: now, or a later time it confirmed. */
+export type LegDeparture = { basis: "now" } | { basis: "at"; at: string };
+
+/**
+ * GET /api/leg-options: TfL's options for one leg, or "unavailable" with none.
+ * `departure` is null when no timetabled answer came back, so only walking is known.
+ */
 export type LegOptionsResponse = {
   status: "ok" | "unavailable";
   options: LegOption[];
+  departure: LegDeparture | null;
 };
+
+/** An average adult step, the stated basis of every estimated step figure. */
+const ESTIMATED_STRIDE_METRES = 0.75;
+
+/** Steps estimated from a route distance, to the nearest ten, or null without a distance. */
+export function estimatedRouteSteps(metres: number | null): number | null {
+  if (metres === null || !Number.isFinite(metres) || metres <= 0) return null;
+  return Math.max(10, Math.round(metres / ESTIMATED_STRIDE_METRES / 10) * 10);
+}
+
+function formatWalkDistance(metres: number): string {
+  return metres < 1000 ? `${Math.max(10, Math.round(metres / 10) * 10)} m` : `${(metres / 1000).toFixed(1)} km`;
+}
+
+/**
+ * The walking line under an option: "1.2 km · about 1,600 steps" for a walk,
+ * "~2.1 km straight line · ..." for an estimate, "450 m on foot · ..." for a
+ * ride. Null when the distance is unknown or the option has no walking.
+ */
+export function legWalkSummary(option: Pick<LegOption, "kind" | "estimate" | "walkMetres">): string | null {
+  const steps = estimatedRouteSteps(option.walkMetres);
+  if (steps === null || option.walkMetres === null) return null;
+  const distance = formatWalkDistance(option.walkMetres);
+  const stepsText = `about ${steps.toLocaleString("en-GB")} steps`;
+  if (option.kind === "transit") return `${distance} on foot · ${stepsText}`;
+  return option.estimate ? `~${distance} straight line · ${stepsText}` : `${distance} · ${stepsText}`;
+}
+
+const LONDON_CLOCK = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hourCycle: "h23" });
+
+/** The basis line under the options: what TfL answered, for when, and what is ours. */
+export function legOptionsSourceNote(departure: LegDeparture | null, options: readonly LegOption[]): string {
+  const notes: string[] = [];
+  if (departure?.basis === "at") {
+    notes.push(`Times, distances and fares from TfL, leaving at ${LONDON_CLOCK.format(new Date(departure.at))}.`);
+  } else if (departure?.basis === "now") {
+    notes.push("Times, distances and fares from TfL, if you leave now.");
+  } else if (options.some((option) => !option.estimate)) {
+    notes.push("Walking times and distances from TfL.");
+  }
+  if (options.some((option) => option.kind === "transit" && option.farePence !== null)) {
+    notes.push("A fare is TfL's listed pay as you go fare. Your final charge can differ.");
+  }
+  if (options.some((option) => option.estimate)) notes.push("A straight-line time is our own estimate.");
+  if (options.some((option) => estimatedRouteSteps(option.walkMetres) !== null)) {
+    notes.push(`Steps are estimated from distance at ${ESTIMATED_STRIDE_METRES * 100} cm a step, not counted.`);
+  }
+  return notes.join(" ");
+}
 
 const KNOWN_MODES = new Set<LegMode>(["walking", "tube", "bus", "overground", "elizabeth-line", "dlr", "national-rail", "tram"]);
 

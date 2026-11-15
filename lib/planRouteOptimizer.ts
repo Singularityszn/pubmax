@@ -611,6 +611,28 @@ function withOperatorFallback<T>(
 
 type RouteRejectionCounts = { safety: number; exclusions: number; accessibility: number; budgetEvidence: number; budgetCeiling: number };
 
+type CandidateRejection =
+  | { requirement: Exclude<keyof RouteRejectionCounts, "accessibility"> }
+  | { requirement: "accessibility"; need: PlanAccessibilityNeed };
+
+function candidateRejection<T>(
+  candidate: GroundedPlanRouteCandidate<T>,
+  constraints: GroundedPlanRouteConstraints,
+): CandidateRejection | null {
+  if (candidate.promoted) return { requirement: "exclusions" };
+  if (candidate.avoidedByReviewedSignal) return { requirement: "safety" };
+  if (constraints.budgetLimitPence !== null && !priceEvidenceUsableForCeiling(candidate.price)) {
+    return { requirement: "budgetEvidence" };
+  }
+  if (constraints.budgetLimitPence !== null && candidate.price.pence! > constraints.budgetLimitPence) {
+    return { requirement: "budgetCeiling" };
+  }
+  const failedNeed = constraints.accessibilityNeeds.find((need) => need === "low-noise"
+    ? !constraints.routeWindow || !candidate.access.lowNoise
+    : !accessNeedSatisfied(candidate.access, need, null));
+  return failedNeed ? { requirement: "accessibility", need: failedNeed } : null;
+}
+
 /** Apply hard per-candidate eligibility and keep one candidate per venue id. */
 function routeEligibleCandidates<T>(
   candidates: readonly GroundedPlanRouteCandidate<T>[],
@@ -624,26 +646,8 @@ function routeEligibleCandidates<T>(
   const eligible = [...unique.values()]
     .sort((left, right) => left.venueId.localeCompare(right.venueId, "en-GB"))
     .filter((candidate) => {
-      if (candidate.promoted) { rejected.exclusions += 1; return false; }
-      if (candidate.avoidedByReviewedSignal) { rejected.safety += 1; return false; }
-      if (constraints.budgetLimitPence !== null && !priceEvidenceUsableForCeiling(candidate.price)) {
-        rejected.budgetEvidence += 1;
-        return false;
-      }
-      if (constraints.budgetLimitPence !== null && candidate.price.pence! > constraints.budgetLimitPence) {
-        rejected.budgetCeiling += 1;
-        return false;
-      }
-      const staticNeeds = constraints.accessibilityNeeds.filter((need) => need !== "low-noise");
-      if (!staticNeeds.every((need) => accessNeedSatisfied(candidate.access, need, null))) {
-        rejected.accessibility += 1;
-        return false;
-      }
-      if (constraints.accessibilityNeeds.includes("low-noise")
-        && (!constraints.routeWindow || !candidate.access.lowNoise)) {
-        rejected.accessibility += 1;
-        return false;
-      }
+      const failure = candidateRejection(candidate, constraints);
+      if (failure) { rejected[failure.requirement] += 1; return false; }
       return true;
     });
 
@@ -735,7 +739,8 @@ export type AnchoredGroundedPlanRouteSelection<T> =
       anchor: SelectedGroundedPlanStop<T>;
       reason: "ANCHOR_COMPANIONS_INSUFFICIENT";
     }
-  | { ok: false; reason: "ANCHOR_MISSING" };
+  | { ok: false; reason: "ANCHOR_MISSING" }
+  | { ok: false; reason: "ANCHOR_INELIGIBLE"; failure: CandidateRejection };
 
 function anchorOnlyStop<T>(
   anchor: GroundedPlanRouteCandidate<T>,
@@ -768,6 +773,14 @@ export function selectAnchoredGroundedPlanRoute<T>(
 ): AnchoredGroundedPlanRouteSelection<T> {
   const anchor = candidates.find((candidate) => candidate.venueId === anchorVenueId);
   if (!anchor) return { ok: false, reason: "ANCHOR_MISSING" };
+
+  const failure = candidateRejection(anchor, constraints);
+  if (failure) return { ok: false, reason: "ANCHOR_INELIGIBLE", failure };
+  const failedNeed = constraints.accessibilityNeeds.find((need) =>
+    !accessNeedSatisfied(anchor.access, need, constraints.routeWindow?.startsAt ?? null));
+  if (failedNeed) {
+    return { ok: false, reason: "ANCHOR_INELIGIBLE", failure: { requirement: "accessibility", need: failedNeed } };
+  }
 
   const anchorStop = anchorOnlyStop(anchor, constraints.now);
   const insufficient: AnchoredGroundedPlanRouteSelection<T> = {

@@ -9,6 +9,8 @@
 // turns ago is not a companion. One quiet line, at most one per answer, naming
 // a subject the drinker themselves raised.
 
+import { PAL_RECALL_PLACES } from "@/lib/palRecallPlaces";
+
 /** Words that are in every ask and therefore recall nothing. */
 const STOPWORDS = new Set([
   "about",
@@ -22,6 +24,9 @@ const STOPWORDS = new Set([
   "close",
   "drink",
   "drinks",
+  "find",
+  "five",
+  "four",
   "near",
   "neighborhood",
   "neighbourhood",
@@ -34,14 +39,18 @@ const STOPWORDS = new Set([
   "please",
   "pubs",
   "quiet",
+  "recommend",
   "round",
   "same",
+  "show",
   "some",
   "somewhere",
+  "suggest",
   "there",
   "these",
   "thing",
   "things",
+  "three",
   "tonight",
   "under",
   "want",
@@ -53,20 +62,23 @@ const STOPWORDS = new Set([
   "your",
 ]);
 
-const MIN_TOPIC_LENGTH = 4;
+function escapeTopic(topic: string): string {
+  const escaped = topic.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replaceAll("'", "['’‘]");
+  return topic.toLowerCase() === "bank" ? `${escaped}(?!\\s+holidays?\\b)` : escaped;
+}
+
+const TOPIC_PATTERN = new RegExp(`\\b(?:${[
+  ...PAL_RECALL_PLACES, "music", "quiz", "garden", "riverside", "cocktails", "heritage", "sports",
+].filter((topic) => !STOPWORDS.has(topic.toLowerCase()))
+  .sort((a, b) => b.length - a.length).map(escapeTopic).join("|")})\\b`, "gi");
 
 function topics(ask: string): string[] {
-  return ask
-    .toLowerCase()
-    .replace(/[^a-z\s'-]/g, " ")
-    .split(/\s+/)
-    .map((word) => word.replace(/^['-]+|['-]+$/g, ""))
-    .filter((word) => word.length >= MIN_TOPIC_LENGTH && !STOPWORDS.has(word));
+  return [...ask.matchAll(TOPIC_PATTERN)].map((match) => match[0].toLowerCase().replace(/[’‘]/g, "'"));
 }
 
 /** Print the topic the way the drinker wrote it, not lowercased back at them. */
 function asWritten(ask: string, topic: string): string {
-  const match = ask.match(new RegExp(`\\b${topic}\\b`, "i"));
+  const match = ask.match(new RegExp(`\\b${escapeTopic(topic)}\\b`, "i"));
   return match ? match[0] : topic;
 }
 

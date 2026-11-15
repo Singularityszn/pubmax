@@ -60,6 +60,45 @@ describe("detectWhatsOnIntent", () => {
     expect(detectWhatsOnIntent("live music this weekend")).toMatchObject({ kind: "music" });
   });
 
+  it.each([
+    "A pub to watch tonight’s match in Soho",
+    "A pub showing the Arsenal match in Soho",
+    "A pub for matchday in Soho",
+    "A pub in Soho to watch Arsenal's match",
+    "A pub in Soho to watch next week's match",
+    "Which pubs are showing the darts in Soho?",
+    "Pub showing the Euros in Soho",
+    "Showing the Grand Prix tonight in Soho",
+    "Any pubs showing the tennis in Soho?",
+    "Which pubs are showing the Arsenal game?",
+    "Pubs showing the golf in Soho",
+    "Pubs showing the Super Bowl",
+    "Pubs showing the racing",
+    "Pubs showing the Grand National",
+    "A pub to watch tomorrow's fixture in Soho",
+    "A pub for Euro 2028 in Soho",
+  ])("recognises the same sports subject as venue ranking: %s", (query) => {
+    expect(detectWhatsOnIntent(query)?.kind).toBe("sport");
+  });
+
+  it.each([
+    "Pubs in Soho that match my interest in gin and beer",
+    "A pub to match my budget in Soho",
+    "Show me pubs matching my preferences in Soho",
+    "Which pub in Soho is the best match for my taste?",
+    "Pubs in Soho that match on price",
+    "Find something that matches tonight's vibe",
+    "A perfect match for a first date in Soho",
+    "Find five pubs in Soho that are a good match for my interest in gin and beer",
+    "Pubs in Soho under 10 euros",
+    "Pubs with a darts board in Soho",
+    "Let me see what matches my budget in Soho",
+    "Show something in Soho to match my budget",
+    "Can you show a few options to match my vibe",
+  ])("does not turn preference matching into a sports listing: %s", (query) => {
+    expect(detectWhatsOnIntent(query)).toBeNull();
+  });
+
   it("matches a generic what's-on phrase with no kind, and extracts area", () => {
     const intent = detectWhatsOnIntent("what's on in Soho");
     expect(intent).not.toBeNull();

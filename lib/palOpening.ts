@@ -17,8 +17,10 @@ export function palOpeningMessage(name: string, context?: PalOpeningContext): st
     const date = new Date(`${visit.on}T12:00:00Z`);
     const day = Number.isFinite(date.getTime()) ? ` on ${date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" })}` : "";
     const pint = visit.recordedPints?.[0];
-    const price = pint ? `, with ${pint.drink} at £${pint.priceGbp.toFixed(2)} a pint` : "";
-    return `${hello} You logged ${visit.name}${day}${price}. Something similar tonight?`;
+    const said = visit.usualDrink
+      ? ` and noted ${visit.usualDrink} as your usual there`
+      : pint ? ` and recorded ${pint.drink} at £${pint.priceGbp.toFixed(2)} a pint` : "";
+    return `${hello} You logged ${visit.name}${day}${said}. Something similar tonight?`;
   }
   if (context?.taste?.declaredDrink) return `${hello} Your profile says "${context.taste.declaredDrink}". Something along those lines tonight?`;
   return `${hello} What kind of night are you planning?`;
