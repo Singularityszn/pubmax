@@ -258,5 +258,5 @@ export const CHALLENGE_COPY = {
   doubled: "Finished in its month. Double points.",
   finished: "Finished.",
   leftTitle: "Still to do",
-  fence: "Counts come from the pubs we list. A pub counts once it is on your Been list.",
+  fence: "Counts come from the pubs we list. A pub counts once you log a Pint Drop there or check in nearby.",
 } as const;

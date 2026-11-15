@@ -73,6 +73,151 @@ async function settle(): Promise<void> {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe("SaveToListControl nearby check-in mutations", () => {
+  let priorLocation: PropertyDescriptor | undefined;
+  let deliver: PositionCallback;
+  let refuse: PositionErrorCallback;
+  const fix = {
+    coords: { latitude: 51.5, longitude: -0.1, accuracy: 20 },
+    timestamp: Date.now(),
+  } as GeolocationPosition;
+  const json = (body: unknown) => new Response(JSON.stringify(body));
+
+  beforeEach(() => {
+    priorLocation = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success: PositionCallback, error: PositionErrorCallback) {
+          deliver = success;
+          refuse = error;
+        },
+      },
+    });
+    authedFetch.mockImplementation(async (input: string) => json(
+      input.includes("lists=1") ? { lists: [] } : { saved: [] },
+    ));
+  });
+
+  afterEach(() => {
+    if (priorLocation) Object.defineProperty(navigator, "geolocation", priorLocation);
+    else Reflect.deleteProperty(navigator, "geolocation");
+  });
+
+  async function show(venueId = "venue-1") {
+    await act(async () => {
+      root.render(createElement(SaveToListControl, { venueId, venueName: "The Lamb" }));
+    });
+    const toggle = container.querySelector<HTMLButtonElement>("button.saveToListToggle");
+    if (toggle) await act(async () => { toggle.click(); });
+  }
+
+  async function close() {
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button.saveToListClose")!.click();
+    });
+  }
+
+  it("keeps confirmed Been membership when an older refresh answers after a check-in", async () => {
+    const refresh = deferred<Response>();
+    const checkIn = deferred<Response>();
+    let reads = 0;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      reads += 1;
+      return reads === 2 ? refresh.promise : json({ saved: [] });
+    });
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    await show();
+    await close();
+    await show();
+    expect(reads).toBe(2);
+    await act(async () => {
+      const input = container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Friday route");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.disabled).toBe(false);
+
+    await act(async () => { chip("Check in nearby").click(); });
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.disabled).toBe(true);
+    await act(async () => { deliver(fix); });
+    await act(async () => {
+      chip("Been here").click();
+      chip("Date Night").click();
+    });
+    expect(saved).toBe(false);
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+
+    await act(async () => { refresh.resolve(json({ saved: [] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it.each(["account", "venue"])("discards a late check-in response after a %s change", async (change) => {
+    const oldResponse = deferred<Response>();
+    const newResponse = deferred<Response>();
+    authedActionFetch.mockImplementationOnce(() => oldResponse.promise)
+      .mockImplementationOnce(() => newResponse.promise);
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    if (change === "account") Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+    await show(change === "venue" ? "venue-2" : "venue-1");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+
+    await act(async () => { oldResponse.resolve(json({ checkedIn: true })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => { newResponse.resolve(json({ checkedIn: true })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Been here").disabled).toBe(false);
+  });
+
+  it("releases pending membership after a location error or a closed picker", async () => {
+    authedActionFetch.mockImplementation(async () => json({ checkedIn: true }));
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { refuse({ message: "Location refused" } as GeolocationPositionError); });
+    expect(chip("Been here").disabled).toBe(false);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+
+    await act(async () => { chip("Check in nearby").click(); });
+    const oldFix = deliver;
+    await close();
+    await show();
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { oldFix(fix); });
+    expect(authedActionFetch).not.toHaveBeenCalled();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
 describe("SaveToListControl across an account change", () => {
   it("requests location only after a press and discards a fix from the previous account", async () => {
     const prior = Object.getOwnPropertyDescriptor(navigator, "geolocation");

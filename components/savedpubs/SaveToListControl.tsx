@@ -107,6 +107,7 @@ export default function SaveToListControl({
   const [customLists, setCustomLists] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
+  const activeMutation = useRef<symbol | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const showToast = useCallback((message: string, duration?: number) => {
@@ -130,6 +131,7 @@ export default function SaveToListControl({
   // never from the pub before: a signed-out reader has no server read to fix it.
   const [membershipVenueId, setMembershipVenueId] = useState(venueId);
   if (membershipVenueId !== venueId) {
+    setBusy(false);
     setMembershipVenueId(venueId);
     setSavedIn(listsHolding(venueId, null));
     setServerVenueId(null);
@@ -143,6 +145,7 @@ export default function SaveToListControl({
   useEffect(() => () => clearTimeout(toastTimer.current), [venueId, accountKey]);
   const [membershipAccountKey, setMembershipAccountKey] = useState(accountKey);
   if (membershipAccountKey !== accountKey) {
+    setBusy(false);
     setMembershipAccountKey(accountKey);
     setSavedIn(listsHolding(venueId, null));
     setCustomLists([]);
@@ -152,22 +155,21 @@ export default function SaveToListControl({
   // Which membership read may still land. A press (or a venue change) bumps it,
   // so an answer that was asked before the press cannot overwrite the newer one.
   const membershipRead = useRef(0);
-  // The pub on screen now, for the writes: a save that was still in flight when
-  // the inspector moved on must not paint its answer on the next pub.
-  const currentVenue = useRef(venueId);
   useEffect(() => {
     // Another pub: whatever was asked for the last one must not land on this one.
+    activeMutation.current = null;
     membershipRead.current += 1;
-    currentVenue.current = venueId;
   }, [venueId]);
   useEffect(() => {
     // Another account: nor may an answer that was asked for the last one.
+    activeMutation.current = null;
     membershipRead.current += 1;
   }, [accountKey]);
 
   // Load the handle's custom lists lazily when the picker opens (cheap GET,
   // fail-soft to just the built-ins).
   const loadLists = useCallback(async () => {
+    if (activeMutation.current) return;
     const h = handle.trim();
     const read = ++membershipRead.current;
     if (!h) {
@@ -185,6 +187,7 @@ export default function SaveToListControl({
       );
       if (res.ok) {
         const body = (await res.json()) as { lists?: string[] };
+        if (membershipRead.current !== read) return;
         setCustomLists(Array.isArray(body.lists) ? body.lists : []);
       } else {
         discardBody(res);
@@ -209,10 +212,9 @@ export default function SaveToListControl({
     // Defer through a promise callback so setState never runs synchronously in
     // the effect body (react-hooks/set-state-in-effect).
     if (open) void Promise.resolve().then(() => loadLists());
-  }, [open, loadLists]);
+  }, [open, loadLists, accountKey]);
 
-  const announce = useCallback((forVenue: string, listType: string, held: string[] | null) => {
-    if (currentVenue.current !== forVenue) return;
+  const announce = useCallback((listType: string, held: string[] | null) => {
     if (held) setSavedIn(held);
     showToast(
       !held
@@ -224,17 +226,44 @@ export default function SaveToListControl({
     );
   }, [handle, showToast]);
 
+  const beginMutation = useCallback(() => {
+    if (activeMutation.current || busy || !ready) return null;
+    const mutation = Symbol();
+    activeMutation.current = mutation;
+    membershipRead.current += 1;
+    setBusy(true);
+    return mutation;
+  }, [busy, ready]);
+
+  const finishMutation = useCallback((mutation: symbol) => {
+    if (activeMutation.current !== mutation) return false;
+    activeMutation.current = null;
+    membershipRead.current += 1;
+    setBusy(false);
+    return true;
+  }, []);
+
+  const beginNearbyCheckIn = useCallback(() => {
+    const mutation = beginMutation();
+    if (!mutation) return null;
+    return (saved: boolean) => {
+      if (!finishMutation(mutation)) return false;
+      if (saved) setSavedIn((held) => held.includes(BEEN_HERE_LIST) ? held : [...held, BEEN_HERE_LIST]);
+      return true;
+    };
+  }, [beginMutation, finishMutation]);
+
   const save = useCallback(
     async (listType: string) => {
-      if (busy || !ready) return;
-      membershipRead.current += 1;
-      setBusy(true);
+      const mutation = beginMutation();
+      if (!mutation) return;
       try {
         const wanted = !savedIn.includes(listType);
         const durable = await toggleSaveDurable(handle, venueId, listType, undefined, venueKind, wanted);
+        const local = handle ? [] : await readCanonicalSaved();
+        if (!finishMutation(mutation)) return;
         // The second press removes the save, so the toast says which happened.
         announce(
-          venueId,
           listType,
           afterPress(
             Boolean(handle),
@@ -243,25 +272,25 @@ export default function SaveToListControl({
             listType,
             wanted,
             durable,
-            handle ? [] : await readCanonicalSaved(),
+            local,
           ),
         );
       } finally {
-        setBusy(false);
+        finishMutation(mutation);
       }
     },
-    [handle, venueId, venueKind, busy, ready, savedIn, announce],
+    [handle, venueId, venueKind, beginMutation, finishMutation, savedIn, announce],
   );
 
   const createAndSave = useCallback(async () => {
     const name = cleanListType(newName);
-    if (!name || busy || !ready) return;
-    membershipRead.current += 1;
+    if (!name) return;
     if (!isListTypeEligibleForVenue(name, venueKind)) {
       showToast("Pint lists are for pubs", 2000);
       return;
     }
-    setBusy(true);
+    const mutation = beginMutation();
+    if (!mutation) return;
     try {
       const h = handle.trim();
       // Register the custom list (best-effort) then file the venue under it.
@@ -274,12 +303,13 @@ export default function SaveToListControl({
           }, { requiresIdentity: true });
           if (res.ok) {
             const body = (await res.json()) as { lists?: string[] };
-            if (Array.isArray(body.lists)) setCustomLists(body.lists);
+            if (activeMutation.current === mutation && Array.isArray(body.lists)) setCustomLists(body.lists);
           }
         } catch {
           /* the save below still works even if the registry write failed */
         }
       }
+      if (activeMutation.current !== mutation) return;
       // A name that already holds this pub is left as it is rather than pressed
       // a second time.
       const held = savedIn.includes(name)
@@ -293,12 +323,13 @@ export default function SaveToListControl({
             await toggleSaveDurable(handle, venueId, name, undefined, venueKind),
             handle ? [] : await readCanonicalSaved(),
           );
+      if (!finishMutation(mutation)) return;
       setNewName("");
-      announce(venueId, name, held);
+      announce(name, held);
     } finally {
-      setBusy(false);
+      finishMutation(mutation);
     }
-  }, [handle, venueId, venueKind, newName, busy, ready, showToast, savedIn, announce]);
+  }, [handle, venueId, venueKind, newName, beginMutation, finishMutation, showToast, savedIn, announce]);
 
   if (!open) {
     return (
@@ -333,7 +364,7 @@ export default function SaveToListControl({
           venueId={venueId}
           handle={handle}
           disabled={busy || !ready}
-          onSaved={() => setSavedIn((held) => held.includes(BEEN_HERE_LIST) ? held : [...held, BEEN_HERE_LIST])}
+          onStart={beginNearbyCheckIn}
         />
       ) : null}
 

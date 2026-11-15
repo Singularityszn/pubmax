@@ -6,19 +6,26 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { emitBeenHereChanged } from "@/lib/beenHere";
 
-export default function NearbyVisitCheckIn({ venueId, handle, disabled, onSaved }: {
+export default function NearbyVisitCheckIn({ venueId, handle, disabled, onStart }: {
   venueId: string;
   handle: string;
   disabled: boolean;
-  onSaved(): void;
+  onStart(): ((saved: boolean) => boolean) | null;
 }) {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const request = useRef<AbortController | null>(null);
-  useEffect(() => () => request.current?.abort(), []);
+  const finish = useRef<((saved: boolean) => boolean) | null>(null);
+  useEffect(() => () => {
+    request.current?.abort();
+    finish.current?.(false);
+  }, []);
 
   async function checkIn() {
-    request.current?.abort();
+    if (disabled || busy) return;
+    const settle = onStart();
+    if (!settle) return;
+    finish.current = settle;
     const controller = new AbortController();
     request.current = controller;
     setBusy(true);
@@ -41,12 +48,14 @@ export default function NearbyVisitCheckIn({ venueId, handle, disabled, onSaved 
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, "Couldn't save that check-in. Try again."));
       controller.signal.throwIfAborted();
-      onSaved();
+      if (!settle(true)) return;
       emitBeenHereChanged();
       setMessage("Nearby visit checked. Saved to Been here.");
     } catch (error) {
       if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Couldn't check your location. You can still save Been here.");
     } finally {
+      settle(false);
+      finish.current = null;
       if (!controller.signal.aborted) setBusy(false);
     }
   }
