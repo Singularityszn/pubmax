@@ -82,6 +82,17 @@ export function enrichPubPalToolArgs(
 
 const SHOWN_PLACE_ARGS = ["area", "borough", "place", "to", "from", "venueName", "name"] as const;
 
+function clarificationForTool(toolName: string, query: string, turns: readonly PubPalFenceTurn[], args: AskToolArgs) {
+  if (toolName === "propose_plan") {
+    const answerHint = palCrawlClarification(query, turns);
+    return answerHint ? { ok: true, answerHint } : null;
+  }
+  if (toolName === "journey" && !resolveAskJourney(query)?.from && !args.from) {
+    return { ok: false, answerHint: "Where are you travelling from?" };
+  }
+  return null;
+}
+
 function placeArgsThePersonSaid(args: AskToolArgs, turn: PubPalToolTurn | null, query: string): AskToolArgs {
   const kept: AskToolArgs = { ...args };
   const said = (value: string) => pubPalTurnSaid(turn ?? { query, turns: [] }, value);
@@ -179,10 +190,8 @@ export async function invokePubPalAskTool(input: {
   const startTool = async () => (!isIndependentAskTool(input.toolName)
     ? answerLateFoodQuestion({ cityId, query, skipModel: true }, threadTurns) : null)
     ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true, excludeVenueIds: (await scope)?.exclude });
-  const clarification = input.toolName === "propose_plan" ? palCrawlClarification(query, threadTurns) : null;
-  const journey = input.toolName === "journey" ? resolveAskJourney(query) : null;
-  const missingOrigin = input.toolName === "journey" && !journey?.from && !args.from;
-  const toolRun = priceRefusal || clarification || missingOrigin ? null : startTool();
+  const clarification = clarificationForTool(input.toolName, query, threadTurns, args);
+  const toolRun = priceRefusal || clarification ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.
   toolRun?.catch(() => {});
@@ -229,14 +238,10 @@ export async function invokePubPalAskTool(input: {
   }
 
   if (clarification) {
-    if (input.conversationId) await appendPubPalToolTurn(input.conversationId, { hints: [clarification] });
-    return { result: { ok: true, tool: input.toolName, answerHint: clarification, cards: [], proposals: [] } };
-  }
-
-  if (missingOrigin) {
-    const answerHint = "Where are you travelling from?";
-    if (input.conversationId) await appendPubPalToolTurn(input.conversationId, { hints: [answerHint], toolsUsed: [input.toolName] });
-    return { result: { ok: false, tool: input.toolName, answerHint, cards: [], proposals: [] } };
+    if (input.conversationId) await appendPubPalToolTurn(input.conversationId, {
+      hints: [clarification.answerHint], ...(clarification.ok ? {} : { toolsUsed: [input.toolName] }),
+    });
+    return { result: { ...clarification, tool: input.toolName, cards: [], proposals: [] } };
   }
 
   const toolResult = await (toolRun ?? startTool());
