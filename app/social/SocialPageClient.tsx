@@ -857,8 +857,7 @@ function SocialPageAccountState({
             /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
                 The slot keeps its size while the account answers, so nothing
-                under it moves when the title appears. It is the whole body when
-                the London lane is paused (rollback or freeze). */
+                under it moves when the title appears. */
             <section
               className="socialDoorSlot"
               aria-label={`${surfaceName} posts`}

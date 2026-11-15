@@ -23,10 +23,7 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 /** The `lane` value `GET /api/social/posts` reads for the signed-out lane. */
 export const SOCIAL_LONDON_LANE = "london";
 
-/**
- * Written once the lane has shown posts, or the first-visit line.
- * Absent means this browser has not met the lane yet.
- */
+/** Retired first-visit marker. The lane no longer reads or writes it. */
 export const SOCIAL_LONDON_LANE_SEEN_KEY = "pubmax:social-seen";
 
 /** How many posts one page of the lane asks for. */
