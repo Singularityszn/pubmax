@@ -51,7 +51,8 @@ import { GET, POST } from "@/app/api/saved-pubs/route";
 import { BEEN_HERE_CARRY_ACTION, BEEN_HERE_LIST } from "@/lib/beenHere";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
-import { getVenueIndex } from "@/lib/venueIndex";
+import { getVenueIndex, resolveVenue } from "@/lib/venueIndex";
+import { readPointsBreakdown } from "@/lib/points.server";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
 let lamb = "";
@@ -88,6 +89,48 @@ async function listFor(handle: string): Promise<Array<{ venueId: string; listTyp
 }
 
 describe("carryBeenHere", () => {
+  it("checks proximity on the server, saves Been idempotently, and awards five points", async () => {
+    caller.id = "user-mia";
+    const venue = (await resolveVenue(lamb))!;
+    const checkIn = () => POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({
+      handle: "mia", action: "nearbyCheckIn", venueId: lamb,
+      location: { lat: venue.lat, lng: venue.lng, accuracy: 20, timestamp: Date.now() },
+    }) }));
+    expect((await checkIn()).status).toBe(200);
+    expect((await checkIn()).status).toBe(200);
+    expect((await listFor("mia")).filter((row) => row.venueId === lamb && row.listType === BEEN_HERE_LIST)).toHaveLength(1);
+    const points = await readPointsBreakdown({ handle: "mia", userId: caller.id });
+    expect(points.lines.find((line) => line.key === "been")).toMatchObject({ count: 1, points: 5 });
+    expect((await readPointsBreakdown({ handle: "sam", userId: "user-sam" })).total).toBe(0);
+  });
+
+  it.each([
+    ["venue tag alone", undefined],
+    ["distant location", { lat: 0, lng: 0, accuracy: 10 }],
+    ["poor accuracy", { lat: 51.5, lng: -0.1, accuracy: 5000 }],
+    ["stale location", { lat: 51.5, lng: -0.1, accuracy: 10, timestamp: 1 }],
+  ])("refuses %s as nearby proof", async (_name, location) => {
+    caller.id = "user-mia";
+    const response = await POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({
+      handle: "mia", action: "nearbyCheckIn", venueId: lamb, location,
+      note: "verified", proven: true, userId: "user-sam",
+    }) }));
+    expect(response.status).toBe(400);
+    expect(await listFor("mia")).toEqual([]);
+    expect((await readPointsBreakdown({ handle: "mia", userId: caller.id })).total).toBe(0);
+  });
+
+  it("refuses an anonymous nearby check-in", async () => {
+    await memoryProfileStore.ensure("demo");
+    const venue = (await resolveVenue(lamb))!;
+    const response = await POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({
+      handle: "demo", action: "nearbyCheckIn", venueId: lamb,
+      location: { lat: venue.lat, lng: venue.lng, accuracy: 10, timestamp: Date.now() },
+    }) }));
+    expect(response.status).toBe(401);
+    expect(await listFor("demo")).toEqual([]);
+  });
+
   it("adds every tapped pub to the account's Been here list in one request", async () => {
     caller.id = "user-mia";
     const res = await carry([lamb, grapes]);
