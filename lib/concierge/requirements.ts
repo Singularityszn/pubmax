@@ -144,16 +144,32 @@ function negatedBefore(padded: string, at: number): NegationScope {
   return negatorInClause(words, words.length) ? "unclear" : null;
 }
 
-function categoryIndex(padded: string, category: DrinkCategory): number {
+function categorySpan(padded: string, category: DrinkCategory): { start: number; end: number } | null {
   let offset = 0;
   const words = padded.split(" ").map((word) => {
     const at = offset;
     offset += word.length + 1;
     return { word, at };
   });
-  const hit = words.find(({ word }) => word && haystackMatchesCategory(word, category))
-    ?? words.find(({ word }, index) => word && haystackMatchesCategory(`${word} ${words[index + 1]?.word ?? ""}`.trim(), category));
-  return hit?.at ?? -1;
+  const single = words.find(({ word }) => word && haystackMatchesCategory(word, category));
+  if (single) return { start: single.at, end: single.at + single.word.length };
+  const pairAt = words.findIndex(({ word }, index) => word && haystackMatchesCategory(`${word} ${words[index + 1]?.word ?? ""}`.trim(), category));
+  const pair = words[pairAt];
+  return pair ? { start: pair.at, end: pair.at + pair.word.length + 1 + (words[pairAt + 1]?.word.length ?? 0) } : null;
+}
+
+function requirementScope(padded: string, start: number, end: number): NegationScope {
+  const before = negatedBefore(padded, start);
+  if (before) return before;
+  const prior = padded.slice(0, start).trim().split(/\s+/).at(-1);
+  const after = padded.slice(end).trim().split(/\s+/).filter(Boolean);
+  if (prior === "free" || after[0] === "free") return "unclear";
+  for (let index = 0; index < after.length; index += 1) {
+    const word = after[index]!;
+    if (CLAUSE_BREAKS.has(word) || COORDINATORS.has(word)) break;
+    if (NEGATORS.has(word) && !NEGATION_IDIOMS.has(after[index + 1] ?? "")) return "unclear";
+  }
+  return null;
 }
 
 function excludedIf<T extends VenueRequirement>(requirement: T, scope: NegationScope): T {
@@ -164,7 +180,8 @@ function excludedIf<T extends VenueRequirement>(requirement: T, scope: NegationS
 /** Takes the first needle found, so a brand's words cannot also count as a style. */
 function takeNeedle(padded: string, needles: readonly string[]): { rest: string; excluded: NegationScope } | null {
   const hit = needles.find((needle) => needle && padded.includes(` ${needle} `));
-  return hit ? { rest: withoutPhrase(padded, hit), excluded: negatedBefore(padded, padded.indexOf(` ${hit} `)) } : null;
+  const at = hit ? padded.indexOf(` ${hit} `) : -1;
+  return hit ? { rest: withoutPhrase(padded, hit), excluded: requirementScope(padded, at, at + hit.length + 1) } : null;
 }
 
 /** An adjective first, so a bare one never stands for the style: "a hazy evening". */
@@ -201,8 +218,8 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
   for (const [category, label] of DRINK_CATEGORY_LABELS) {
     const alcoholFree = category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.exec(padded) : null;
     if (category === "alcohol-free" ? alcoholFree : haystackMatchesCategory(padded, category)) {
-      const at = alcoholFree?.index ?? categoryIndex(padded, category);
-      found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, at >= 0 ? negatedBefore(padded, at) : null));
+      const span = alcoholFree ? { start: alcoholFree.index, end: alcoholFree.index + alcoholFree[0].length } : categorySpan(padded, category);
+      found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, span ? requirementScope(padded, span.start, span.end) : null));
     }
   }
   return { found, rest: padded };
@@ -210,11 +227,11 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
-  const drinks = drinkRequirements(text.replace(/[,;:.!?()]+/g, " but "));
+  const drinks = drinkRequirements(text.replace(/[;.!?]+/g, " but "));
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
     if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, "stated")];
     const hit = pattern.exec(drinks.rest);
-    return hit ? [excludedIf({ kind }, negatedBefore(drinks.rest, hit.index))] : [];
+    return hit ? [excludedIf({ kind }, requirementScope(drinks.rest, hit.index, hit.index + hit[0].length))] : [];
   });
   const outdoorCoveredByGarden = features.some((feature) => feature.kind === "garden");
   return [
