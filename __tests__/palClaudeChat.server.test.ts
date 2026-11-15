@@ -266,6 +266,7 @@ describe("runPalClaudeChatTurn", () => {
     ["Plan a pub crawl for my birthday, six of us", [/which area/i, /what time/i], [/what kind of night/i]],
     ["Plan a pub crawl in Soho for my birthday", [/what time/i], [/which area/i]],
     ["Plan a pub crawl for Friday night", [/which area/i], [/what time/i]],
+    ["How do I change my password?", [/password/i], [/area, a mood or a budget/i]],
     ["find me a pub", [/area, a mood or a budget/i], []],
     ["thanks", [/welcome/i], [/what kind of night/i]],
   ])("asks only for what %j leaves out when Claude runs no tool", async (query, asked, notAsked) => {

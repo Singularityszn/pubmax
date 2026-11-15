@@ -93,6 +93,24 @@ describe("propose_plan over the Pal webhook", () => {
     vi.unstubAllGlobals();
   });
 
+  it("asks for area and time before a provider can propose a birthday crawl", async () => {
+    const conversationId = "conv_birthdayrepair01";
+    await registerPubPalToolTurn(conversationId, { query: "Plan a pub crawl for my birthday, six of us", cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "propose_plan", args: {}, conversationId });
+    expect(result.proposals).toEqual([]);
+    expect(result.cards).toEqual([]);
+    expect(result.answerHint).toMatch(/which area/i);
+    expect(result.answerHint).toMatch(/what time/i);
+  });
+
+  it("does not open a provider-invented pub or coordinates for a generic map request", async () => {
+    const conversationId = "conv_maprepair01";
+    await registerPubPalToolTurn(conversationId, { query: "Show me the map", cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "propose_map_action", args: { venueId: "venue-phg4ss", venueName: "Fox and Anchor", lat: 51.52, lng: -0.1 }, conversationId });
+    expect(result.cards).toEqual([]);
+    expect(result.proposals).toEqual([]);
+  });
+
   it.each([
     { toolName: "search_venues", args: { query: "Find four pubs in Soho" } },
     { toolName: "cheapest_pint_near", args: { query: "Cheapest pints in Westminster", area: "Westminster" } },

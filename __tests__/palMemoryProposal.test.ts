@@ -113,6 +113,14 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     ]);
   });
 
+  it("refuses a positive fragment that reverses a negative preference", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I don't like cask ale", cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "cask ale" })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(await storedProposals()).toEqual([]);
+  });
+
   it("proposes nothing when the owner has memory proposals off", async () => {
     await pal(OWNER, false);
     await typedChat(OWNER);
