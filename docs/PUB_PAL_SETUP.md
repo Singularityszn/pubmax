@@ -303,11 +303,12 @@ Voice uses the same opening builder in its first-message override.
    area or start time it lacks, a memory question lists confirmed memories, and
    a greeting or thanks gets its usual line. A detailed venue or crawl ask the
    model left unchecked is looked up with the keyless `runAsk` records path, and
-   only that lookup can say nothing is sourced. A tool's free-text place
-   argument (`area`, `borough`, `place`, `to`) is kept only when the person said
-   those words. The model text is not sent, so the agent cannot add a pub name,
-   a feature or a figure. A memory card holds only
-   words the person said in this chat. A caller that sends
+   only that lookup can say nothing is sourced. Tool inputs use the stored city.
+   Shown places must match the person's words or an available record reference.
+   Provider prose never reaches the typed reply. Memory proposals check the
+   stated subject, topic, negation and conditions before offering a confirm card.
+   These checks are bounded and can refuse valid wording. They do not prove
+   every natural-language meaning or model tool choice. A caller that sends
    `Accept: application/x-ndjson` to `/api/pub-pal/chat` gets a fixed progress
    line as each tool starts, then one `final` line carrying the same body the
    JSON path returns, cards and proposals included. Sign-in, the rate limit and the spend ceiling answer
