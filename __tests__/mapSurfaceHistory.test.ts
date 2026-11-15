@@ -12,11 +12,13 @@ import {
 } from "@/lib/mapSurfaceHistory";
 import { backSurface, openSurface, type SurfaceEntry, type SurfaceStack } from "@/lib/surfaceStack";
 import { buildMapSeed } from "@/lib/pubMap";
+import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
 import {
   EMPTY_MAP_SURFACE_STATE,
   useMapSurfaceNavigation,
+  useMapSurfaceState,
   type MapSurfaceState,
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
 
@@ -164,9 +166,21 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   let container: HTMLDivElement;
   let navigation: ReturnType<typeof useMapSurfaceNavigation>;
   const onRestore = vi.fn();
+  const onReturnToMap = vi.fn();
   const onHome = vi.fn();
 
-  function Harness({ selectionHint = "" }: { selectionHint?: string }) {
+  let assembledState: MapSurfaceState;
+  const viewport = { center: [-0.134, 51.511] as [number, number], zoom: 14, pitch: 38, bearing: -8 };
+
+  function Harness({ selectionHint = "", cameraOwnership }: {
+    selectionHint?: string;
+    cameraOwnership?: ReturnType<typeof createMapCameraOwnership>;
+  }) {
+    const [defaultCameraOwnership] = useState(() => createMapCameraOwnership());
+    assembledState = useMapSurfaceState({
+      venueTab: "", venueId: "", areaTarget: null, layersTab: "", landmarkId: "", pricePicker: false,
+      cameraOwnership: cameraOwnership ?? defaultCameraOwnership, viewport,
+    });
     navigation = useMapSurfaceNavigation({
       arrivalSearch: "",
       surfaceId: "none",
@@ -174,6 +188,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
       surfaceState: EMPTY_MAP_SURFACE_STATE,
       selectionHint,
       onRestore,
+      onReturnToMap,
       onHome,
       onSurfaceClose: () => {},
     });
@@ -212,6 +227,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   beforeEach(async () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     onRestore.mockClear();
+    onReturnToMap.mockClear();
     onHome.mockClear();
     window.history.replaceState(null, "", "/map");
     container = document.createElement("div");
@@ -239,13 +255,24 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(trail()?.map((entry) => entry.id)).toEqual(["venue"]);
   });
 
-  it("returns the public map camera held before a venue opened", async () => {
-    const returnCamera = { center: [-0.134, 51.511] as [number, number], zoom: 14 };
+  it.each([false, true])("returns the held public camera only when location was not exposed: %s", async (privateLocation) => {
+    const cameraOwnership = createMapCameraOwnership();
+    cameraOwnership.beginPublicPlace(viewport.center, viewport.zoom);
+    cameraOwnership.settle(viewport);
+    if (privateLocation) cameraOwnership.exposeLocation();
+    await act(async () => root.render(createElement(Harness, { cameraOwnership })));
     act(() => navigation.open({
-      id: "venue", title: "A pub", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "venue-alma", returnCamera },
+      id: "venue", title: "A pub", state: { ...assembledState, venueId: "venue-alma" },
     }));
+    const returnCamera = { center: viewport.center, zoom: viewport.zoom };
+    expect(trail()?.at(-1)?.state?.returnCamera).toEqual(privateLocation ? null : returnCamera);
     await traverse(() => navigation.back());
-    expect(onRestore).toHaveBeenLastCalledWith(null, expect.objectContaining({ returnCamera }));
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    if (privateLocation) expect(onReturnToMap).not.toHaveBeenCalled();
+    else {
+      expect(onReturnToMap).toHaveBeenLastCalledWith(returnCamera);
+      expect(onReturnToMap.mock.invocationCallOrder.at(-1)).toBeGreaterThan(onRestore.mock.invocationCallOrder.at(-1)!);
+    }
   });
 
   it("today: open pushes one entry per new surface and replaces a reopened top", () => {

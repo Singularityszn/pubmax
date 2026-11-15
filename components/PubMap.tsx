@@ -658,6 +658,7 @@ import {
 import {
   EMPTY_MAP_SURFACE_STATE,
   useMapSurfaceNavigation,
+  useMapSurfaceState,
   type MapSurfaceId,
   type MapSurfaceState,
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
@@ -5321,25 +5322,16 @@ export default function PubMap({
     ],
   );
   const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
-  const mapSurfaceState = useMemo<MapSurfaceState>(
-    () => ({
-      venueTab: venueInitialTab,
-      venueId: selectedVenueId,
-      areaTargetKey: searchAreaTarget
-        ? searchAreaTarget.kind === "area"
-          ? `area:${searchAreaTarget.area.slug}`
-          : `place:${searchAreaTarget.name}`
-        : "",
-      areaTarget: searchAreaTarget,
-      layersTab: mobileLayersTab,
-      landmarkId: activeLandmarkId,
-      returnCamera: cameraOwnership.capture(mapViewport)
-        ? { center: mapViewport.center, zoom: mapViewport.zoom }
-        : null,
-      ...(pricePickerOpen ? { pricePicker: true } : {}),
-    }),
-    [activeLandmarkId, cameraOwnership, mapViewport, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
-  );
+  const mapSurfaceState = useMapSurfaceState({
+    venueTab: venueInitialTab,
+    venueId: selectedVenueId,
+    areaTarget: searchAreaTarget,
+    layersTab: mobileLayersTab,
+    landmarkId: activeLandmarkId,
+    pricePicker: pricePickerOpen,
+    cameraOwnership,
+    viewport: mapViewport,
+  });
   const closeMapSurfaces = useCallback(() => {
     const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
       ? venueById.get(searchPickedVenueId)
@@ -5367,7 +5359,7 @@ export default function PubMap({
     return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
   }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
-    (entry: SurfaceEntry<MapSurfaceState> | null, rootState?: MapSurfaceState) => {
+    (entry: SurfaceEntry<MapSurfaceState> | null) => {
       const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
       if (entry?.id === "moment" && held.pricePicker) {
         closeMapSurfaces();
@@ -5377,10 +5369,7 @@ export default function PubMap({
         return;
       }
       closeEverySurface();
-      if (!entry) {
-        if (rootState?.returnCamera) moveMapCameraTo(rootState.returnCamera);
-        return;
-      }
+      if (!entry) return;
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
@@ -5414,7 +5403,7 @@ export default function PubMap({
       );
       setMapOverlay(entry.id as MapOverlay);
     },
-    [closeEverySurface, closeMapSurfaces, moveMapCameraTo, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
+    [closeEverySurface, closeMapSurfaces, restoreLogIntent, setPlanningOpen, setSelectedVenueId],
   );
   const mapSurfaceTrail = useMapSurfaceNavigation({
     arrivalSearch,
@@ -5423,6 +5412,7 @@ export default function PubMap({
     surfaceState: mapSurfaceState,
     selectionHint,
     onRestore: restoreMapSurface,
+    onReturnToMap: moveMapCameraTo,
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,

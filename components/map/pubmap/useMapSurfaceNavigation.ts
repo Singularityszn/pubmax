@@ -30,7 +30,8 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
-import type { MapOverlay } from "@/lib/mobileShell";
+import type { MapOverlay, MapViewportSnapshot } from "@/lib/mobileShell";
+import type { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
 export type MapSurfaceId = MapOverlay | "venue-list";
@@ -56,6 +57,47 @@ export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
   layersTab: "",
   landmarkId: "",
 };
+
+type MapSurfaceAreaTarget =
+  | { kind: "area"; area: { slug: string } }
+  | { kind: "place"; name: string };
+
+export function useMapSurfaceState({
+  venueTab,
+  venueId,
+  areaTarget,
+  layersTab,
+  landmarkId,
+  pricePicker,
+  cameraOwnership,
+  viewport,
+}: {
+  venueTab: string;
+  venueId: string;
+  areaTarget: MapSurfaceAreaTarget | null;
+  layersTab: string;
+  landmarkId: string;
+  pricePicker: boolean;
+  cameraOwnership: Pick<ReturnType<typeof createMapCameraOwnership>, "capture">;
+  viewport: MapViewportSnapshot;
+}): MapSurfaceState {
+  return useMemo(() => ({
+    venueTab,
+    venueId,
+    areaTargetKey: areaTarget
+      ? areaTarget.kind === "area"
+        ? `area:${areaTarget.area.slug}`
+        : `place:${areaTarget.name}`
+      : "",
+    areaTarget,
+    layersTab,
+    landmarkId,
+    returnCamera: cameraOwnership.capture(viewport)
+      ? { center: viewport.center, zoom: viewport.zoom }
+      : null,
+    ...(pricePicker ? { pricePicker: true } : {}),
+  }), [areaTarget, cameraOwnership, landmarkId, layersTab, pricePicker, venueId, venueTab, viewport]);
+}
 
 function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean {
   return Boolean(
@@ -127,6 +169,7 @@ export function useMapSurfaceNavigation({
   surfaceState,
   selectionHint,
   onRestore,
+  onReturnToMap,
   onHome,
   onSurfaceClose,
   landedEntry = 0,
@@ -136,7 +179,8 @@ export function useMapSurfaceNavigation({
   surfaceTitle: string;
   surfaceState: MapSurfaceState;
   selectionHint: string;
-  onRestore: (entry: SurfaceEntry<MapSurfaceState> | null, rootState?: MapSurfaceState) => void;
+  onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
+  onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
@@ -151,6 +195,7 @@ export function useMapSurfaceNavigation({
   const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
+  const onReturnToMapRef = useRef(onReturnToMap);
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
@@ -166,10 +211,11 @@ export function useMapSurfaceNavigation({
 
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
+    onReturnToMapRef.current = onReturnToMap;
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
@@ -362,10 +408,9 @@ export function useMapSurfaceNavigation({
         onSurfaceCloseRef.current();
       }
       publishStack(next);
+      onRestoreRef.current(currentSurface(next));
       if (next.length === 0 && rootStateRef.current?.returnCamera) {
-        onRestoreRef.current(null, rootStateRef.current);
-      } else {
-        onRestoreRef.current(currentSurface(next));
+        onReturnToMapRef.current?.(rootStateRef.current.returnCamera);
       }
     };
     window.addEventListener("popstate", onPop);
