@@ -288,19 +288,22 @@ export function LedgerCommunity({ venueId, venueName, ledgerUrl, curatedClaims }
   const { state } = useLedgerLive();
   const [visitsEmpty, setVisitsEmpty] = useState(false);
   const [photosEmpty, setPhotosEmpty] = useState(false);
-  const logEmpty = state.status === "ready" && state.log.claims.length === 0
-    && state.log.entries.length === 0 && state.log.familyEntries.length === 0
-    && curatedClaims.length === 0;
+  const claims = state.status === "ready" ? state.log.claims : curatedClaims;
+  const logEmpty = state.status === "ready"
+    && state.log.entries.length === 0 && state.log.familyEntries.length === 0;
   const allEmpty = logEmpty && visitsEmpty && photosEmpty;
 
   return (
-    <details className="ledgerCommunity" open={!allEmpty}>
-      <summary hidden={!allEmpty}>Be the first to log here</summary>
-      <VisitReportPanel venueId={venueId} venueName={venueName} onEmptyChange={setVisitsEmpty} />
-      <VenuePhotoWall venueId={venueId} venueName={venueName} onEmptyChange={setPhotosEmpty} />
-      <p className="ledgerLaneNote">Public notes go in the logbook. Legacy notes stay at the Family Table below.</p>
-      <LedgerLogSections venueName={venueName} ledgerUrl={ledgerUrl} curatedClaims={curatedClaims} />
-    </details>
+    <>
+      <ClaimList claims={claims} />
+      <details className="ledgerCommunity" open={!allEmpty}>
+        <summary hidden={!allEmpty}>Be the first to log here</summary>
+        <VisitReportPanel venueId={venueId} venueName={venueName} onEmptyChange={setVisitsEmpty} />
+        <VenuePhotoWall venueId={venueId} venueName={venueName} onEmptyChange={setPhotosEmpty} />
+        <p className="ledgerLaneNote">Public notes go in the logbook. Legacy notes stay at the Family Table below.</p>
+        <LedgerLogSections venueName={venueName} ledgerUrl={ledgerUrl} />
+      </details>
+    </>
   );
 }
 
@@ -352,29 +355,18 @@ function LiveStatus({ state, reload }: LedgerLiveValue) {
   );
 }
 
-/**
- * The story, the logbook and the Family Table. `curatedClaims` is the story the
- * bundled dataset tells (the document's own copy, so a crawler and a reader
- * with no script still get it); once the live read lands, its list (the same
- * curated line first, then every drop-derived line) takes its place.
- */
-export function LedgerLogSections({
+function LedgerLogSections({
   venueName,
   ledgerUrl,
-  curatedClaims,
 }: {
   venueName: string;
   ledgerUrl: string;
-  curatedClaims: VenueClaim[];
 }) {
   const live = useLedgerLive();
   const { state } = live;
-  const claims = state.status === "ready" ? state.log.claims : curatedClaims;
 
   return (
     <>
-      <ClaimList claims={claims} />
-
       <section className="ledgerSection" aria-labelledby="ledgerEntriesHeading">
         <h2 id="ledgerEntriesHeading" className="ledgerSectionTitle">
           Logbook

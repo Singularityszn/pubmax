@@ -32,7 +32,8 @@ vi.mock("@/components/venue/VenuePhotoWall", () => ({
   },
 }));
 
-import { LedgerCommunity, LedgerLiveProvider, LedgerLogSections } from "@/components/ledger/LedgerLive";
+import { LedgerCommunity, LedgerLiveProvider } from "@/components/ledger/LedgerLive";
+import type { VenueClaim } from "@/lib/curation";
 
 const AUTHOR_LOG = {
   claims: [],
@@ -57,7 +58,8 @@ let root: Root;
 function view() {
   return (
     <LedgerLiveProvider venueId="venue-xjf3n0">
-      <LedgerLogSections
+      <LedgerCommunity
+        venueId="venue-xjf3n0"
         venueName="The Test Arms"
         ledgerUrl="/ledger/venue-xjf3n0"
         curatedClaims={[]}
@@ -117,6 +119,36 @@ describe("the Ledger's live half when the reader changes", () => {
 });
 
 describe("the Ledger's empty community sections", () => {
+  it("keeps the pub's story visible outside the folded empty contributions", async () => {
+    const claims: VenueClaim[] = [{
+      kind: "sourced",
+      label: "Heritage",
+      content: "The pub opened in 1842.",
+    }];
+    let answer!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; })));
+    await act(async () => root.render(
+      <LedgerLiveProvider venueId="venue-xjf3n0">
+        <LedgerCommunity venueId="venue-xjf3n0" venueName="The Test Arms" ledgerUrl="/ledger/venue-xjf3n0" curatedClaims={claims} />
+      </LedgerLiveProvider>,
+    ));
+
+    expect(container.querySelector('[aria-labelledby="ledgerClaimsHeading"]')?.closest("details")).toBeNull();
+    expect(container.textContent).toContain("The pub opened in 1842.");
+    expect(container.querySelector("details")?.open).toBe(true);
+
+    await act(async () => answer(new Response(JSON.stringify({ claims, entries: [], familyEntries: [] }), { status: 200 })));
+
+    const group = container.querySelector("details");
+    expect(container.querySelectorAll("details")).toHaveLength(1);
+    expect(group?.open).toBe(false);
+    expect(group?.querySelector("summary")?.hidden).toBe(false);
+    expect(group?.querySelector("summary")?.textContent).toBe("Be the first to log here");
+    expect(container.querySelectorAll('[aria-labelledby="ledgerClaimsHeading"]')).toHaveLength(1);
+    expect(container.querySelector('[aria-labelledby="ledgerClaimsHeading"]')?.closest("details")).toBeNull();
+    expect(container.textContent).toContain("The pub opened in 1842.");
+  });
+
   it("folds the sections only after every read confirms they are empty", async () => {
     vi.stubGlobal("fetch", vi.fn(() => Promise.resolve(new Response(JSON.stringify({ claims: [], entries: [], familyEntries: [] }), { status: 200 }))));
     await act(async () => root.render(
