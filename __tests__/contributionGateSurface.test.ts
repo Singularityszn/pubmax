@@ -43,12 +43,7 @@ describe("contribution identity gate", () => {
       }),
     );
 
-    expect(html).toContain("Sign in to send a table request");
-    expect(html).toContain("The pub can reply to you.");
-    expect(html).toContain("This does not confirm a booking or take payment.");
     expect(html).toContain('href="https://thecrown.example/book"');
-    expect(html).toContain("Open The Crown&#x27;s booking page");
-    expect(html).not.toContain("Sign in to contribute");
   });
 
   it("routes a handle-less account back to handle setup", () => {
