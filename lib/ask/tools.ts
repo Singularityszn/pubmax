@@ -33,10 +33,7 @@ import {
   requirementProofs,
   requirementScarcityLine,
   unverifiedRequirements,
-  venuePricedDrinks,
-  venueQuizListings,
   venueRequirementsInText,
-  type RequirementContext,
   type RequirementProof,
   type VenueRequirement,
 } from "@/lib/concierge/requirements";
@@ -62,9 +59,8 @@ import {
 } from "@/lib/citymcp/client";
 import { fetchCityArea } from "@/lib/citymcp/area";
 import { retrieveHeritage } from "@/lib/heritage";
-import { loadWhatsOn, type FetchLive } from "@/lib/whatsOnStore";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
-import { loadWebsiteAmenitiesByVenue } from "@/lib/pubWebsiteAmenityEvidence.server";
+import { loadWhatsOn } from "@/lib/whatsOnStore";
+import { requirementContext } from "@/lib/ask/requirementContext.server";
 import {
   isAskToolName,
   type AskCard,
@@ -151,29 +147,6 @@ function venueCard(
 
 const PAL_DRAFT_STOP_MAX = 6;
 
-const NO_LIVE_LISTINGS: FetchLive = async () => ({ rows: [], sourceObservedAt: null });
-
-async function requirementContext(
-  requirements: readonly VenueRequirement[],
-  ctx: AskToolContext,
-): Promise<RequirementContext> {
-  const now = ctx.now ?? Date.now();
-  const asks = (kind: VenueRequirement["kind"]) => requirements.some((requirement) => requirement.kind === kind);
-  const [quizListings, pricedDrinks, websiteAmenities] = await Promise.all([
-    asks("quiz")
-      ? loadWhatsOn({ kind: "quiz" }, { now, fetchLive: NO_LIVE_LISTINGS })
-        .then(({ rows, readStatus }) => readStatus === "degraded" ? null : venueQuizListings(rows, now), () => null)
-      : new Map(),
-    asks("drink") && ctx.cityId === "london"
-      ? getPricedVenues().then((venues) => venuePricedDrinks(venues, now), () => null)
-      : asks("drink") ? null : new Map(),
-    (asks("darts") || asks("pool")) && ctx.cityId === "london"
-      ? loadWebsiteAmenitiesByVenue().catch(() => null)
-      : asks("darts") || asks("pool") ? null : new Map(),
-  ]);
-  return { now, quizListings, pricedDrinks, websiteAmenities };
-}
-
 function requirementNote(
   row: { venue: ConciergeVenue; reasons: readonly string[]; nearAreaNote?: string },
   requirements: readonly VenueRequirement[],
@@ -202,7 +175,7 @@ async function toolSearchVenues(
     const ceiling = parsed.intent.maxPintPrice;
     const requiresPintPrice = resolveAskPriceIntent(query).kind === "pint";
     const requirements = venueRequirementsInText(query);
-    const context = await requirementContext(requirements, ctx);
+    const context = await requirementContext(requirements, ctx, query);
     const coverageGaps = requirementCoverageGaps(requirements, context);
     const priceEligible = ceiling === undefined && !requiresPintPrice ? venues : venues.filter((venue) => {
       const price = comparablePint(venue, ctx.now);
@@ -857,7 +830,7 @@ async function toolProposePlan(
   try {
     const parsed = await parseConciergeIntent(query, { skipModel: true });
     const requirements = venueRequirementsInText(query);
-    const context = await requirementContext(requirements, ctx);
+    const context = await requirementContext(requirements, ctx, query);
     const coverageGaps = requirementCoverageGaps(requirements, context);
     const evidenceById = new Map<string, RequirementProof[]>();
     // A draft crawl may be sent to people who have never met, so it never
