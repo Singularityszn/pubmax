@@ -43,6 +43,7 @@ import type { Venue } from "@/lib/venues";
 import type { ZonePintIndex } from "@/lib/zones";
 
 import { useMapSplitListPointerHold } from "./useMapSplitListPointerHold";
+import { useMapSplitListInspectionHold } from "./useMapSplitListInspectionHold";
 
 import "./mapSplitList.css";
 
@@ -224,6 +225,8 @@ export default function MapSplitList({
   reader,
   loaded,
   viewLanding,
+  detailOpen = false,
+  filterState,
   map,
   onSelectVenue,
   onSelectUkBasePub,
@@ -250,6 +253,8 @@ export default function MapSplitList({
   loaded: boolean;
   /** The view's own shards are still on their way, so the venues in view are a partial set. */
   viewLanding: boolean;
+  detailOpen?: boolean;
+  filterState?: object;
   /** The live map, for the halo; null until the canvas hands it over. */
   map: MapSplitListMap | null;
   onSelectVenue: (id: string) => void;
@@ -326,7 +331,7 @@ export default function MapSplitList({
   const liveCoverageNote =
     lensPrices !== null ? drinkLensCoverageNote(lensNoun?.toLowerCase() ?? "this view", lensStatus) : null;
   const {
-    displayed: { groups, key: listKey, order, coverageNote, heldIsStale },
+    displayed: pointerView,
     release: releasePointerView,
   } = useMapSplitListPointerHold({
     current: {
@@ -339,6 +344,8 @@ export default function MapSplitList({
     pointerInside,
     loaded,
   });
+  const { displayed: { groups, key: listKey, order, coverageNote, heldIsStale }, release: releaseInspection } =
+    useMapSplitListInspectionHold({ current: pointerView, detailOpen, filterState, map, viewSettled: !viewLanding && settled === live });
 
   // A new view starts at its first page again.
   const [limit, setLimit] = useState(MAP_SPLIT_LIST_PAGE_SIZE);
@@ -426,11 +433,13 @@ export default function MapSplitList({
   };
 
   const toggleFollow = (next: boolean) => {
+    releaseInspection();
     releasePointerView();
     setFollowMap(next);
     setHeld(next ? null : holdView(settled, settledKey));
   };
   const searchThisView = () => {
+    releaseInspection();
     releasePointerView();
     setHeld(holdView(live, liveKey));
   };
@@ -518,6 +527,7 @@ export default function MapSplitList({
               className="mapSplitListSortChip"
               aria-pressed={sort === "cheapest"}
               onClick={() => {
+                releaseInspection();
                 releasePointerView();
                 setSort("cheapest");
               }}
@@ -529,6 +539,7 @@ export default function MapSplitList({
               className="mapSplitListSortChip"
               aria-pressed={sort === "nearest"}
               onClick={() => {
+                releaseInspection();
                 releasePointerView();
                 setSort("nearest");
               }}

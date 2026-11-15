@@ -62,6 +62,6 @@ test("the desktop map controls remain usable beside a pub", async ({ page }) => 
   await list.locator(".mapSplitListRow").first().click();
   const canvas = page.locator(".maplibreMap");
   await expect.poll(() => canvas.evaluate((element) => !!element.closest("[inert]"))).toBe(false);
-  await page.getByRole("button", { name: "Zoom in" }).click();
+  await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   await expect(page.locator(".mapDrawer.right.open")).toBeVisible();
 });

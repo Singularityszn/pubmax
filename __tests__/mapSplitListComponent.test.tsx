@@ -58,6 +58,7 @@ function fakeMap() {
     container,
     halo: () => container.querySelector<HTMLElement>(".mapSplitListHalo"),
     listening: (type: string) => handlers.get(type)?.size ?? 0,
+    emit: (type: string) => handlers.get(type)?.forEach((handler) => handler()),
   };
 }
 
@@ -337,6 +338,49 @@ describe("the list beside the map, at desktop width", () => {
     expect(host.querySelector(".mapSplitListNote")).not.toBeNull();
     act(() => button("Cheapest").click());
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+  });
+
+  it("holds the list through pub inspection, then follows a new map interaction", () => {
+    const map = fakeMap();
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    expect(host.querySelector<HTMLInputElement>(".mapSplitListFollow input")?.checked).toBe(true);
+    act(() => map.container.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+    expect(rowNames()).toEqual(["The Lamb"]);
+  });
+
+  it("resumes following when the restored view has settled and the map becomes idle", () => {
+    const map = fakeMap();
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [CROWN, ANCHOR] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    act(() => map.emit("idle"));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+  });
+
+  it("releases the inspection view when the map filters change", () => {
+    const filters = {};
+    render({ detailOpen: false, filterState: filters });
+    render({ detailOpen: true, filterState: filters });
+    render({ detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    render({ detailOpen: false, filterState: {}, visibleVenues: [LAMB] });
+    expect(rowNames()).toEqual(["The Lamb"]);
   });
 
   it("applies the follow toggle and a requested search during pointer holds", () => {
