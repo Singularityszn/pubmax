@@ -29,7 +29,7 @@ afterEach(async () => {
   host.remove();
 });
 
-it("puts the quiet feed before crew tools and gives useful next steps without inventing posts", async () => {
+it("hides an empty feed and keeps crew tools and next steps", async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   transport.request.mockImplementation(async (href: string) => new Response(JSON.stringify(
     href === "/api/social/access"
@@ -45,12 +45,11 @@ it("puts the quiet feed before crew tools and gives useful next steps without in
   });
   const feed = host.querySelector('[aria-label="Social posts"]');
   const crews = [...host.querySelectorAll("h2")].find((heading) => heading.textContent === "Your crews");
-  expect(feed).not.toBeNull();
+  expect(feed).toBeNull();
   expect(crews).not.toBeUndefined();
-  expect(feed!.compareDocumentPosition(crews!)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
   expect(host.querySelector('a[href="/messages"]')?.textContent).toContain("Messages");
   expect(host.querySelector('a[href="/pal"]')?.textContent).toContain("Pub Pal");
   expect(host.querySelector('a[href="/plan"]')?.textContent).toContain("Plan a crawl");
-  expect(feed!.textContent).toContain("No posts here yet.");
+  expect(host.textContent).not.toContain("No posts here yet.");
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(0);
 });
