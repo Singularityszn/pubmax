@@ -70,7 +70,6 @@ export function MobilePlanActivation({
 }) {
   const { user } = useAuth();
   const areas = getNightAreasForCity(cityId);
-  const [query, setQuery] = useState("");
   // The first-run journey leaves the patch and budget the reader gave. They
   // are read once here and cleared in the effect below.
   const [handoff] = useState(() => {
@@ -81,6 +80,7 @@ export function MobilePlanActivation({
     const ceiling = held?.budget ? budgetCeiling(held.budget) : null;
     return { area: patchArea?.slug ?? null, pintCeiling: ceiling };
   });
+  const [query, setQuery] = useState(() => handoff.pintCeiling ? `maximum £${handoff.pintCeiling} per pint` : "");
   const [area, setArea] = useState<NightAreaSlug | null>(handoff.area ?? initialNightArea);
   const [areaTouched, setAreaTouched] = useState(handoff.area !== null);
   const [daypart, setDaypart] = useState<NightContext["daypart"]>("evening");
@@ -89,14 +89,10 @@ export function MobilePlanActivation({
   const [moodTouched, setMoodTouched] = useState(false);
   const [pace, setPace] = useState<(typeof PACES)[number]>("balanced pace");
   const [paceTouched, setPaceTouched] = useState(false);
-  // The journey's budget is a pint ceiling. Until the reader types their own
-  // Max each, it stands for one listed pint per stop, the same basis the plan's
-  // budget line uses, so it follows the Stops choice.
   const [typedBudgetLimit, setTypedBudgetLimit] = useState<string | null>(null);
   const [groupSize, setGroupSize] = useState(4);
   const [stopCount, setStopCount] = useState<PlanStopCount>(DEFAULT_PLAN_STOP_COUNT);
-  const budgetLimit =
-    typedBudgetLimit ?? (handoff.pintCeiling ? String(handoff.pintCeiling * stopCount) : "");
+  const budgetLimit = typedBudgetLimit ?? "";
   const [groupSizeTouched, setGroupSizeTouched] = useState(false);
   const [stepFree, setStepFree] = useState(false);
   const [zeroProof, setZeroProof] = useState(false);

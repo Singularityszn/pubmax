@@ -757,7 +757,7 @@ describe("first-run handoff to the planner", () => {
 
     expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven", nightArea: "piccadilly-soho" });
     const href = new URL(onboardingPlanHref(readPlannerHandoff()), "http://localhost");
-    expect(href.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £21 per person, maximum £7 per pint");
+    expect(href.searchParams.get("query")).toBe("Pubs in Piccadilly & Soho, maximum £7 per pint");
     expect(href.searchParams.get("from")).toBe("onboarding");
     for (const storage of [window.localStorage, window.sessionStorage]) {
       const stored = JSON.stringify(Object.entries(storage));
@@ -829,7 +829,7 @@ describe("first-run handoff to the planner", () => {
     const firstCall = openPlanner.mock.calls[0];
     if (!firstCall) throw new Error("The planner did not receive the onboarding choices.");
     const href = new URL(onboardingPlanHref(firstCall[0]), "http://localhost");
-    expect(href.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(href.searchParams.get("query")).toBe("Pubs in Soho, maximum £6 per pint");
     expect(href.searchParams.get("from")).toBe("onboarding");
   });
 
