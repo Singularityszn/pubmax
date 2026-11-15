@@ -37,16 +37,18 @@ export function mapSearchNameTier(labels: readonly string[], rawQuery: string): 
   if (!query) return null;
   let tier: 1 | 2 | 3 | null = null;
   for (const label of labels) {
-    const name = normaliseMapSearchText(label);
-    if (!name) continue;
-    if (name === query || compactName(name) === compactName(query)) return 0;
-    if (name.startsWith(query) || words(name).some((word) => word.startsWith(query))) {
-      tier = 1;
-    } else if (query.length >= 2 && name.includes(query)) {
-      if (tier !== 1) tier = 2;
-    } else if (oneNameEdit(compactName(query), compactName(name)) ||
-      words(name).some((word) => oneNameEdit(query, word))) {
-      tier ??= 3;
+    const aliases = new Set([normaliseMapSearchText(label), normaliseMapSearchText(label.replace(/&/g, " "))]);
+    for (const name of aliases) {
+      if (!name) continue;
+      if (name === query || compactName(name) === compactName(query)) return 0;
+      if (name.startsWith(query) || words(name).some((word) => word.startsWith(query))) {
+        tier = 1;
+      } else if (query.length >= 2 && name.includes(query)) {
+        if (tier !== 1) tier = 2;
+      } else if (oneNameEdit(compactName(query), compactName(name)) ||
+        words(name).some((word) => oneNameEdit(query, word))) {
+        tier ??= 3;
+      }
     }
   }
   return tier;
