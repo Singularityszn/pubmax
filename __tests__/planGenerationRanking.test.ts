@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { NightContext } from "@/lib/nightPlanning";
+import { planGenerationRefusalMessage } from "@/lib/planGenerationSelection.server";
 import {
   planDietaryMenuWarning,
   planGenerationEvidenceGaps,
@@ -47,6 +48,12 @@ const AFTER_WORK_GROUP: NightContext = {
 };
 
 describe("Plan generation ranking evidence", () => {
+  it("does not suggest dropping a requirement when the evidence cannot establish a recovery", () => {
+    const message = planGenerationRefusalMessage({ stopCount: 3, budgetLimitPence: null }, "Soho", ["step-free access"], null);
+    expect(message).toContain("step-free access");
+    expect(message).not.toMatch(/dropping one/i);
+    expect(message).toContain("Browse pubs");
+  });
   // £9 at 0.10 km versus £7 at 0.22 km. Daytime distance weight leaves the
   // cheaper glass ahead. After 23:00 the weight is three, so the nearer glass
   // leads. A price weight of 24 would keep the cheaper glass ahead at night.
