@@ -11,9 +11,14 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
+const auth = vi.hoisted(() => ({ user: { id: "signed-in-drinker" } as { id: string } | null }));
+
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ user: { id: "signed-in-drinker" }, handle: "night_owl", identityResolved: true, loading: false, configured: true }),
+  useAuth: () => ({ user: auth.user, handle: "night_owl", identityResolved: true, loading: false, configured: true }),
 }));
+
+const shareNightObject = vi.hoisted(() => vi.fn<(input: unknown) => Promise<"shared">>(async () => "shared"));
+vi.mock("@/lib/shareSheet", () => ({ shareNightObject }));
 
 const pub: UkBasePub = { id: "venue-osm-n1", name: "The Test Arms", address: "1 Test Street", lat: 51.5, lng: -0.1, curatedVenueId: "", kind: "pub" };
 
@@ -94,5 +99,29 @@ it("keeps a listed price despite degraded metadata and clears it for another pub
     expect(container.querySelector(".unverifiedPubTag")?.textContent).not.toContain("No price yet");
   } finally {
     await act(async () => root.unmount());
+  }
+});
+
+it("keeps known identity, directions and sharing available without an account or price", async () => {
+  auth.user = null;
+  vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ overlay: null, listedPriceStatus: "empty" }))));
+  const container = document.createElement("div");
+  const root = createRoot(container);
+  try {
+    await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
+    expect(container.querySelector("h2")?.textContent).toBe(pub.name);
+    const directions = container.querySelector<HTMLAnchorElement>('a[aria-label="Directions to The Test Arms"]');
+    expect(new URL(directions!.href).searchParams.get("destination")).toBe("51.5,-0.1");
+    const share = container.querySelector<HTMLButtonElement>('button[aria-label="Share The Test Arms"]');
+    expect(share).not.toBeNull();
+    await act(async () => share!.click());
+    const payload = shareNightObject.mock.calls.at(-1)![0] as { title: string; url: string; text: string };
+    expect(payload.title).toBe(pub.name);
+    expect(new URL(payload.url).searchParams.get("sel")).toBe(pub.id);
+    expect(new URL(payload.url).searchParams.get("at")).toBe("51.5000,-0.1000");
+    expect(payload.text).not.toContain("£");
+  } finally {
+    await act(async () => root.unmount());
+    auth.user = { id: "signed-in-drinker" };
   }
 });
