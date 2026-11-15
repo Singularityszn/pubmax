@@ -658,6 +658,7 @@ import {
 import {
   EMPTY_MAP_SURFACE_STATE,
   useMapSurfaceNavigation,
+  useMapSurfaceState,
   type MapSurfaceId,
   type MapSurfaceState,
 } from "@/components/map/pubmap/useMapSurfaceNavigation";
@@ -2251,6 +2252,7 @@ export default function PubMap({
   // worse than one. The trail is assembled further down this component, so the
   // gesture reaches it through a ref.
   const surfaceBackRef = useRef<() => void>(() => {});
+  const surfaceCompleteRef = useRef<(id: MapOverlay) => void>(() => {});
   const surfaceLeaveRef = useRef<(id: MapSurfaceId, close: () => void) => void>((_id, close) => close());
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
@@ -5163,6 +5165,7 @@ export default function PubMap({
 
   const handleChooseAreaPick = useCallback(
     (pick: ChooseAreaPick) => {
+      surfaceCompleteRef.current("choose-area");
       changeMapOverlay("none");
       setChooseAreaLocationNote(null);
       if (pick.kind === "near-me") {
@@ -5319,22 +5322,16 @@ export default function PubMap({
     ],
   );
   const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
-  const mapSurfaceState = useMemo<MapSurfaceState>(
-    () => ({
-      venueTab: venueInitialTab,
-      venueId: selectedVenueId,
-      areaTargetKey: searchAreaTarget
-        ? searchAreaTarget.kind === "area"
-          ? `area:${searchAreaTarget.area.slug}`
-          : `place:${searchAreaTarget.name}`
-        : "",
-      areaTarget: searchAreaTarget,
-      layersTab: mobileLayersTab,
-      landmarkId: activeLandmarkId,
-      ...(pricePickerOpen ? { pricePicker: true } : {}),
-    }),
-    [activeLandmarkId, mobileLayersTab, pricePickerOpen, searchAreaTarget, selectedVenueId, venueInitialTab],
-  );
+  const mapSurfaceState = useMapSurfaceState({
+    venueTab: venueInitialTab,
+    venueId: selectedVenueId,
+    areaTarget: searchAreaTarget,
+    layersTab: mobileLayersTab,
+    landmarkId: activeLandmarkId,
+    pricePicker: pricePickerOpen,
+    cameraOwnership,
+    viewport: mapViewport,
+  });
   const closeMapSurfaces = useCallback(() => {
     const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
       ? venueById.get(searchPickedVenueId)
@@ -5415,6 +5412,7 @@ export default function PubMap({
     surfaceState: mapSurfaceState,
     selectionHint,
     onRestore: restoreMapSurface,
+    onReturnToMap: moveMapCameraTo,
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
@@ -5450,10 +5448,11 @@ export default function PubMap({
   );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
+    surfaceCompleteRef.current = mapSurfaceTrail.complete;
     surfaceLeaveRef.current = mapSurfaceTrail.leave;
     surfaceOpenRef.current = mapSurfaceTrail.open;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.complete, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
 
   // ── The landmark story ───────────────────────────────────────────────────
   // One body (components/map/LandmarkStoryBody.tsx) in the frame each width
