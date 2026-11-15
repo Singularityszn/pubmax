@@ -54,6 +54,17 @@ function crawlQuestion(needsArea: boolean, needsTime: boolean): string | null {
   return null;
 }
 
+export function palCrawlClarification(query: string, turns: readonly PalTurnLine[]): string | null {
+  const asks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
+  const routed = refineRoutedAskQuery(query, asks.at(-1), asks);
+  if (!routeAskDeterministically(routed).some((call) => call.name === "propose_plan")) return null;
+  const lines = [routed, ...asks];
+  return crawlQuestion(
+    !lines.some((line) => conciergeConstraintsInText(line, defaultKnownAreas()).area),
+    !lines.some((line) => START_TIME_RE.test(line)),
+  );
+}
+
 type PalNoRecordAnswer = { reply: string } | { lookup: { query: string; tool: string } };
 
 function palNoRecordAnswer(
@@ -75,13 +86,13 @@ function palNoRecordAnswer(
   const routed = refineRoutedAskQuery(query, asks.at(-1), asks);
   const tools = routeAskDeterministically(routed).map((call) => call.name);
   const intent = conciergeConstraintsInText(routed, defaultKnownAreas());
-  if (tools.includes("propose_plan")) {
-    const lines = [routed, ...asks];
-    const question = crawlQuestion(
-      !lines.some((line) => conciergeConstraintsInText(line, defaultKnownAreas()).area),
-      !lines.some((line) => START_TIME_RE.test(line)),
-    );
-    if (question) return { reply: question };
+  const question = palCrawlClarification(query, turns);
+  if (question) return { reply: question };
+  if (/\b(?:password|passcode|log[ -]?in|sign[ -]?in|account)\b/i.test(query) && /\b(?:how|change|reset|forgot|help)\b/i.test(query)) {
+    return { reply: "I can't help with account or password changes here." };
+  }
+  if (/^\s*(?:how|why|what|where|when|who|can|could|does|is)\b/i.test(query) && tools.length === 0) {
+    return { reply: "I can help with pubs and planning a night out, but I can't answer that here." };
   }
   const unconstrained = !intent.area && intent.mood.length === 0 && intent.maxPintPrice === undefined && intent.groupSize === undefined;
   return tools.length > 0 && !(tools.includes("search_venues") && unconstrained)

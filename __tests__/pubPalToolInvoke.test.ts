@@ -111,6 +111,14 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.proposals).toEqual([]);
   });
 
+  it("asks for an origin instead of accepting one invented by the provider", async () => {
+    const conversationId = "conv_originrepair01";
+    await registerPubPalToolTurn(conversationId, { query: "Directions to Fox and Anchor", cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "journey", args: { from: "Bank", to: "Fox and Anchor" }, conversationId });
+    expect(result.cards).toEqual([]);
+    expect(result.answerHint).toMatch(/from/i);
+  });
+
   it.each([
     { toolName: "search_venues", args: { query: "Find four pubs in Soho" } },
     { toolName: "cheapest_pint_near", args: { query: "Cheapest pints in Westminster", area: "Westminster" } },
@@ -255,7 +263,7 @@ describe("propose_plan over the Pal webhook", () => {
     expect((await readPubPalToolTurn("conv_supportedoriginal01"))?.toolsUsed).toEqual([toolName]);
   });
 
-  it.each(["Directions to Fox and Anchor", "Directions to Fox & Anchor"])("keeps the stored journey destination over provider fragments: %s", async (query) => {
+  it.each(["Directions to Fox and Anchor from Bank", "Directions to Fox & Anchor from Bank"])("keeps the stored journey destination over provider fragments: %s", async (query) => {
     resetJourneyCache();
     const journeyFetch = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({
       jsonrpc: "2.0", result: { structuredContent: { journeys: [{ durationMinutes: 12, legs: [] }] } },
@@ -393,7 +401,7 @@ describe("propose_plan over the Pal webhook", () => {
   });
 
   it.each([null, "conv_planningchip01"])("preserves the planning chip through provider and stored questions: %s", async (conversationId) => {
-    const query = "Plan a big night for four of us, with cheap pints and a lively route";
+    const query = "Plan a pub crawl in Shoreditch tonight for four of us, with a lively route";
     if (conversationId) {
       await registerPubPalToolTurn(conversationId, {
         query, cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111",
@@ -639,7 +647,7 @@ describe("propose_plan over the Pal webhook", () => {
   // "Shoreditch crawl" planned three pubs across London.
   it.each([
     "Plan me a 3 pub crawl in Shoreditch tonight",
-    "Can you plan a Shoreditch crawl?",
+    "Can you plan a Shoreditch crawl tonight?",
   ])("drafts three Shoreditch stops for %j", async (query) => {
     const result = await planFor(query);
 

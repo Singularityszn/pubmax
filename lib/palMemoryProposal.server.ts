@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { drinkCategoriesInText } from "@/lib/drinkCategoryFromText";
 import type { AskProposal } from "@/lib/ask/types";
 import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 import { classifyPalMemoryRelation } from "@/lib/palMemoryRelation.server";
@@ -84,9 +85,27 @@ export async function proposePalMemoryForConversation(
   if (!isPubPalMemoryKind(memoryKind) || !value) {
     return refuse("Give one memory kind and a short value in the person's words. Nothing was saved.");
   }
-  if (!pubPalTurnSaid(await readPubPalToolTurn(conversationId).catch(() => null), value)) {
+  if (memoryKind === "drink_preference" && drinkCategoriesInText(value).size === 0) {
+    return refuse("Give a drink preference in the person's words. Nothing was saved.");
+  }
+  const turn = await readPubPalToolTurn(conversationId).catch(() => null);
+  if (!pubPalTurnSaid(turn, value)) {
     return refuse("Use only words the person said in this chat for the memory. Nothing was saved.");
   }
+
+  const lines = [turn?.query ?? "", ...(turn?.turns.filter((line) => line.role === "user").map((line) => line.content) ?? [])];
+  const relation = /\b(?:not|never|no|don['’]?t|doesn['’]?t|hate|dislike|avoid|only|except|sometimes|occasionally|rarely|cannot|can['’]?t)\b/i;
+  const supportsRelation = lines.some((line) => {
+    const clauses = line.split(/[.!?;]+/);
+    return clauses.some((clause) => {
+      const lower = clause.toLocaleLowerCase("en-GB");
+      const index = lower.indexOf(value.toLocaleLowerCase("en-GB").replace(/[.!?;]+$/, ""));
+      if (index < 0) return false;
+      const outside = clause.slice(0, index) + " " + clause.slice(index + value.replace(/[.!?;]+$/, "").length);
+      return !relation.test(outside);
+    });
+  });
+  if (!supportsRelation) return refuse("Include the person's full preference and its qualifiers. Nothing was saved.");
 
   let confirmed: PubPalMemory[] = [];
   try {
