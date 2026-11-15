@@ -89,4 +89,12 @@
     overflow: hidden;
     clip: rect(0, 0, 0, 0);
   }
+
+  .sheetStepProgress--compact .sheetStepProgress__marker {
+    display: none;
+  }
+
+  .sheetStepProgress--compact .sheetStepProgress__segment::after {
+    margin-top: 0;
+  }
 }

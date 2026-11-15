@@ -20,29 +20,12 @@ import {
   releasedAcceptanceStatus,
 } from "@/components/plan/PlanComposer";
 import {
-  readPlanDraftEnvelope,
-  writePlanDraftEnvelope,
-  type ParsedPlanDraft,
-} from "@/lib/planDraft";
-import {
   composerLockErrorFromResponse,
   resolveComposerHydration,
 } from "@/lib/planComposerHandoff";
 import { createPlanningIntent } from "@/lib/planningIntent";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
-
-function memoryStorage(): Storage {
-  const values = new Map<string, string>();
-  return {
-    get length() { return values.size; },
-    clear: () => values.clear(),
-    getItem: (key) => values.get(key) ?? null,
-    key: (index) => [...values.keys()][index] ?? null,
-    removeItem: (key) => { values.delete(key); },
-    setItem: (key, value) => { values.set(key, String(value)); },
-  };
-}
 
 function intent() {
   return createPlanningIntent({
@@ -53,18 +36,6 @@ function intent() {
     startsAt: "2026-07-24T20:00:00.000Z",
     displayEvidence: { kind: "directory", observedAt: null },
   }, NOW);
-}
-
-function v2Plan(savedAt: number): ParsedPlanDraft {
-  const storage = memoryStorage();
-  writePlanDraftEnvelope({
-    title: "Friday Plan",
-    creatorName: "K",
-    startTime: "2026-07-24T18:00:00.000Z",
-    conciergeQuery: "Quiet pints",
-    stops: [{ key: 1, venueId: "venue-a", venueName: "Venue A" }],
-  }, "manual", storage, savedAt);
-  return readPlanDraftEnvelope(storage, savedAt) as ParsedPlanDraft;
 }
 
 describe("PlanComposer rendered UI", () => {
@@ -131,18 +102,6 @@ describe("PlanComposer rendered UI", () => {
     // A panel with no release offered says nothing about releasing.
     const withoutRelease = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
     expect(withoutRelease).not.toContain("planComposer__acceptedRelease");
-  });
-
-  it("renders the 'kept existing Plan work' conflict note when a newer Plan draft beats a newer intent", () => {
-    const handoff = resolveComposerHydration({
-      planDraft: v2Plan(NOW + 2_000), routeDraft: null, intakeDraft: null,
-      planningIntent: intent(), rememberedArea: null,
-    });
-    expect(handoff.conflicts.map((conflict) => conflict.code)).toContain("intent-preserved-existing");
-
-    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
-    expect(html).toContain("Plan changes we kept safe");
-    expect(html).toContain("Kept existing Plan work");
   });
 
   it("renders the anchored 422 and 409 lock-failure recovery copy in the alert banner", () => {

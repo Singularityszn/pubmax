@@ -169,10 +169,8 @@
 }
 
 .mapToolbarSearchStatusCopy {
-  display: flex;
+  display: block;
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  align-items: baseline;
   min-width: 0;
   overflow-wrap: break-word;
   white-space: normal;
@@ -180,12 +178,12 @@
 
 .mapToolbarSearchQuery {
   display: inline-block;
-  flex: 0 1 20ch;
   max-width: min(20ch, 45%);
   min-width: 4ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .mapToolbarSearchQualifier {

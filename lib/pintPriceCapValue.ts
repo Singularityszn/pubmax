@@ -12,3 +12,7 @@
  * offers it as "Any", and it sits above every priced pub so it caps nothing.
  */
 export const NO_PINT_PRICE_CAP = 10;
+
+export function hasPintPriceCap(maxPrice: number): boolean {
+  return Number.isFinite(maxPrice) && maxPrice < NO_PINT_PRICE_CAP;
+}

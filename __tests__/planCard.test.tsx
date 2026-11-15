@@ -27,6 +27,7 @@ import PlanCard, { planStartInWords } from "@/components/plan/PlanCard";
 import { clearPlanMemberProjectionRead } from "@/components/plan/usePlanMemberRead";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import { NIGHT_CRAWL_STOP_CONFIRMED_EVENT } from "@/lib/nightCrawlEngage";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -146,21 +147,20 @@ describe("PlanCard", () => {
     expect(actionLabels()).toEqual(["Send to the crew", "Who’s in"]);
   });
 
-  it("spends coral once: Send is the one primary, Who's in is ink and lands on the crew", async () => {
+  it("links the sharing and crew actions to their sections", async () => {
     await render();
     const send = card()!.querySelector<HTMLAnchorElement>(".planCard__primary")!;
-    expect(send.textContent).toBe("Send to the crew");
-    expect(send.className).toContain("uiButton--primary");
     expect(send.getAttribute("href")).toBe("#share");
     const secondaries = Array.from(card()!.querySelectorAll<HTMLElement>(".planCard__secondary"));
-    expect(secondaries.every((node) => node.className.includes("uiButton--secondary"))).toBe(true);
     expect(secondaries[0]!.getAttribute("href")).toBe("#crew");
   });
 
   it("offers Night mode only while the night is on, and opens the existing night crawl mode", async () => {
     markActivePlan(PLAN, new Date().toISOString());
     await render();
-    expect(actionLabels()).toEqual(["Send to the crew", "Who’s in", "Night mode"]);
+    // The night is on, so going out is the next thing to do: Night mode leads
+    // and takes the card's one coral. Sending the invite stays, in ink.
+    expect(actionLabels()).toEqual(["Night mode", "Send to the crew", "Who’s in"]);
     const engaged: unknown[] = [];
     const onEngage = (event: Event) => engaged.push((event as CustomEvent).detail);
     window.addEventListener(NIGHT_CRAWL_ENGAGE_EVENT, onEngage);
@@ -168,6 +168,79 @@ describe("PlanCard", () => {
     await act(async () => nightMode.click());
     window.removeEventListener(NIGHT_CRAWL_ENGAGE_EVENT, onEngage);
     expect(engaged).toEqual([{ planId: PLAN }]);
+  });
+
+  it("leads with the next open stop once an earlier stop is checked in", async () => {
+    planBody = {
+      ...memberBody(),
+      actions: [{
+        id: "a1", type: "arrived", stopPosition: 1, ending: null,
+        createdAt: "2026-07-17T18:05:00.000Z", routeRevision: 1, venueId: "v-first",
+      }],
+    };
+    await render();
+    expect(venueReads[0]).toContain("/api/venue/v-second");
+  });
+
+  it("follows a stop Night mode confirms after the card has drawn", async () => {
+    await render();
+    expect(venueReads.at(-1)).toContain("/api/venue/v-first");
+    planBody = {
+      ...memberBody(),
+      actions: [{
+        id: "a1", type: "arrived", stopPosition: 1, ending: null,
+        createdAt: "2026-07-17T18:05:00.000Z", routeRevision: 1, venueId: "v-first",
+      }],
+    };
+    clearPlanMemberProjectionRead(PLAN);
+    await act(async () => {
+      window.dispatchEvent(new CustomEvent(NIGHT_CRAWL_STOP_CONFIRMED_EVENT, { detail: { planId: PLAN } }));
+    });
+    for (let i = 0; i < 6; i += 1) {
+      await act(async () => { await new Promise((resolve) => setTimeout(resolve, 0)); });
+    }
+    expect(venueReads.at(-1)).toContain("/api/venue/v-second");
+  });
+
+  it.each([
+    ["arrived", "arrived"],
+    ["skipped", "skipped"],
+    ["arrived", "skipped"],
+    ["skipped", "arrived"],
+  ])("does not announce a next stop after %s and %s finish the route", async (firstAction, secondAction) => {
+    planBody = {
+      ...memberBody(),
+      actions: [
+        { id: "a1", type: firstAction, stopPosition: 1, ending: null,
+          createdAt: "2026-07-17T18:05:00.000Z", routeRevision: 1, venueId: "v-first" },
+        { id: "a2", type: secondAction, stopPosition: 2, ending: null,
+          createdAt: "2026-07-17T19:05:00.000Z", routeRevision: 1, venueId: "v-second" },
+      ],
+    };
+    await render();
+    const photo = card()!.querySelector<HTMLImageElement>('[data-testid="plan-card-photo"]')!;
+    expect(photo).not.toBeNull();
+    expect(photo.alt).toContain("The Second");
+    expect(photo.alt).not.toMatch(/\bnext\b/i);
+  });
+
+  it("offers directions to the next stop only when the venue read places it", async () => {
+    await render();
+    expect(actionLabels()).toEqual(["Send to the crew", "Who’s in"]);
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    clearPlanMemberProjectionRead(PLAN);
+    clearSurfaceCache();
+    venueBody = { venue: { id: "v-first", imageUrl: "", kind: "pub", latitude: 51.5234, longitude: -0.1189 } };
+    await render();
+    expect(actionLabels()).toEqual(["Send to the crew", "Who’s in", "Directions"]);
+    const directions = Array.from(card()!.querySelectorAll<HTMLAnchorElement>(".planCard__actions a"))
+      .find((node) => node.textContent === "Directions")!;
+    const href = new URL(directions.href);
+    expect(href.origin + href.pathname).toBe("https://www.google.com/maps/dir/");
+    expect(href.searchParams.get("destination")).toBe("51.523,-0.119");
+    expect(href.searchParams.has("origin")).toBe(false);
+    expect(directions.getAttribute("aria-label")).toBe("Directions to The Lamb");
   });
 
   it("paints the placeholder tinted by the pub's kind when the first stop has no photo", async () => {

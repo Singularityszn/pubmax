@@ -20,7 +20,7 @@ export type PintPriceCap = {
   tone: "any" | "green" | "amber";
 };
 
-function capLabel(maxPrice: number): string {
+export function pintPriceCapFigure(maxPrice: number): string {
   // A whole-pound cap reads "£7", never "£7.00".
   return Number.isInteger(maxPrice) ? `£${maxPrice}` : formatGbp(maxPrice);
 }
@@ -29,7 +29,7 @@ function cap(maxPrice: number, tone: PintPriceCap["tone"]): PintPriceCap {
   if (maxPrice >= NO_PINT_PRICE_CAP) {
     return { maxPrice: NO_PINT_PRICE_CAP, label: "Any", shortLabel: "Any", tone: "any" };
   }
-  return { maxPrice, label: `≤ ${capLabel(maxPrice)}`, shortLabel: capLabel(maxPrice), tone };
+  return { maxPrice, label: `≤ ${pintPriceCapFigure(maxPrice)}`, shortLabel: pintPriceCapFigure(maxPrice), tone };
 }
 
 const ANY_CAP = cap(NO_PINT_PRICE_CAP, "any");

@@ -19,6 +19,7 @@ import {
   venueSourcedPrice,
 } from "@/lib/venuePriceLane";
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
+import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import { recordedPintVenueIdsFromSlimPayload, rowsFromSlimPayload } from "@/lib/slimPayload";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
@@ -136,15 +137,17 @@ export type VenuePriceReads = {
  * receive an estimate standing. This does not establish complete public-price
  * absence. See docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
  * A pub whose own price or drop read is in flight gets no estimate until the
- * read settles, the same hold the sheet and the peek apply.
+ * read settles, the same hold the sheet and the peek apply. No pin gets one
+ * while a pint price cap is on.
  */
 export function zoneEstimatePinStandings(
   venues: readonly Venue[],
   signals: ReadonlyMap<string, { latestContributorPrice: number | null; pintTrust?: unknown }>,
   index: ZonePintIndex | null | undefined,
   reads: VenuePriceReads | null = null,
+  pintCap: number = NO_PINT_PRICE_CAP,
 ): ReadonlyMap<string, PriceStandingDecision> | null {
-  if (!index?.computedAt) return null;
+  if (!index?.computedAt || hasPintPriceCap(pintCap)) return null;
   const standings = new Map<string, PriceStandingDecision>();
   for (const venue of venues) {
     if (!isPubVenueKind(venue.kind)) continue;

@@ -25,7 +25,7 @@ import {
   type VenuePriceLaneName,
 } from "@/lib/venuePriceLane";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import type { Venue } from "@/lib/venues";
+import { NO_PINT_PRICE_CAP, type Venue } from "@/lib/venues";
 import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
 import { mapSplitListPrice } from "@/lib/mapSplitList";
 import { buildMapVenueListModel } from "@/lib/mapVenueList";
@@ -531,6 +531,14 @@ describe("the fare-zone estimate", () => {
     expect(pinWith([[pub.id, "ready"]], [[pub.id, "ready"]])?.get(pub.id)?.priceGbp).toBe(5.45);
     expect(pinWith([[pub.id, "degraded"]], [[pub.id, "unavailable"]])?.get(pub.id)?.priceGbp).toBe(5.45);
     expect(pinWith([], [])?.get(pub.id)?.priceGbp).toBe(5.45);
+  });
+
+  it("prints no estimate on a pin while a pint price cap is on", () => {
+    const pub = makeVenue({ zone: 2 });
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 5)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, 7)?.has(pub.id) ?? false).toBe(false);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, NO_PINT_PRICE_CAP)?.get(pub.id)?.priceGbp).toBe(5.45);
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED, null, Number.POSITIVE_INFINITY)?.get(pub.id)?.priceGbp).toBe(5.45);
   });
 
   it("puts an estimate on a pin only when the pin holds no price and no drop", () => {
