@@ -391,6 +391,27 @@ describe("the list beside the map, at desktop width", () => {
     expect(scroller.scrollTop).toBe(350);
   });
 
+  it("retains the scroll until the returning pointer view catches up", async () => {
+    const map = fakeMap(true);
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    const list = host.querySelector(".mapSplitList")!;
+    const scroller = host.querySelector<HTMLDivElement>(".mapSplitListScroll")!;
+    scroller.scrollTop = 350;
+    pointer(list, "pointerover");
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    await act(async () => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    scroller.scrollTop = 0;
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(scroller.scrollTop).toBe(350);
+  });
+
   it("releases the inspection view when the map filters change", () => {
     const filters = {};
     render({ detailOpen: false, filterState: filters });

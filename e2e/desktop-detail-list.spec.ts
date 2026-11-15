@@ -38,6 +38,7 @@ for (const [width, following] of [[1024, false], [1440, false], [1440, true]] as
     expect(boxes[1]!.x).toBeGreaterThanOrEqual(boxes[0]!.width - 1);
     await drawer.getByRole("button", { name: "Back to pubs in this view" }).click();
     await expect(list).toBeVisible();
+    await page.getByRole("button", { name: "Zoom in", exact: true }).hover();
     await expect(list).toHaveAttribute("aria-busy", "false");
     await expect(list.locator(`[data-venue-id="${selectedId}"]`)).toBeAttached();
     await expect(list.getByRole("button", { name: "Nearest" })).toHaveAttribute("aria-pressed", "true");
