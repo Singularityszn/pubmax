@@ -190,6 +190,7 @@ describe("original-question tool authority", () => {
 describe("search_venues hard requirements", () => {
   type Proof = { requirement: string; source: string | null; observedAt: string | null };
   type SearchData = {
+    intent: { area?: string };
     requirements: string[];
     coverageGaps: string[];
     found: number;
@@ -417,10 +418,27 @@ describe("search_venues hard requirements", () => {
   });
 
   it.each([
+    ["Pubs without anything resembling a pool table in Hackney", "Hackney", "pool"],
+    ["Pubs without anything that anybody at all could ever honestly describe as a real pool table in Hackney", "Hackney", "pool"],
+    ["Pubs that are not in any conceivable way dog friendly in Soho", "Soho", "dogs"],
+    ["Pubs that never under any circumstances serve Guinness in Hackney", "Hackney", "drink:Guinness"],
+    ["Pubs that do not ever seem to have anything resembling a decent pint of Guinness on tap in Hackney", "Hackney", "drink:Guinness"],
+  ])("confirms no pub when a negative's scope is not understood: %s", async (query, area, key) => {
+    hasEverything(area);
+    const result = await search(query);
+    expect(searchData(result).intent).toMatchObject({ area });
+    expect(result.cards).toEqual([]);
+    expect(searchData(result).requirements.some((requirement) => requirement.endsWith(`:${key}`))).toBe(true);
+    expect(searchData(result).coverageGaps.some((gap) => gap.endsWith(`:${key}`))).toBe(true);
+  });
+
+  it.each([
     ["Pubs not too pricey with a pool table in Hackney", ["pool"]],
     ["Pubs that have not only a pool table but also a darts board in Hackney", ["darts", "pool"]],
     ["Pubs that serve whiskey in Hackney", ["drink:whisky"]],
     ["Pubs with no TV but a pool table in Hackney", ["pool"]],
+    ["Pubs with a pool table that are not too loud in Hackney", ["pool"]],
+    ["Pubs with Guinness and a pool table in Hackney", ["pool", "drink:Guinness"]],
   ])("keeps a positive requirement positive: %s", async (query, required) => {
     hasEverything("Hackney");
     const result = await search(query);
