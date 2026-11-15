@@ -374,10 +374,11 @@ function VenueVisitReports({
       cancelled = true;
     };
   }, [active, venueId]);
-  useEffect(() => {
-    onEmptyChange?.(read?.status === "ready" && read.reports.length === 0);
-  }, [onEmptyChange, read]);
   const hasDraft = draftHasObservation(composerFields);
+  const activeDraft = !peek && composerMode === "open" && hasDraft;
+  useEffect(() => {
+    onEmptyChange?.(read?.status === "ready" && read.reports.length === 0 && !activeDraft);
+  }, [onEmptyChange, read, activeDraft]);
 
   async function submit() {
     if (!draft || !composerAuth) return;

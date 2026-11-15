@@ -77,6 +77,7 @@ export default function VenuePhotoWall({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -94,6 +95,7 @@ export default function VenuePhotoWall({
     setWall(EMPTY);
     setLoaded(false);
     setComposerOpen(false);
+    setHasDraft(false);
     setNote(null);
     setRemovingId(null);
     setRemoveError(null);
@@ -203,9 +205,10 @@ export default function VenuePhotoWall({
 
   const canPost = !configured || Boolean(user && handle);
   const empty = loaded && wall.photos.length === 0 && wall.nextCursor === null;
+  const activeDraft = composerOpen && hasDraft;
   useEffect(() => {
-    onEmptyChange?.(empty && wall.status === "ready");
-  }, [empty, onEmptyChange, wall.status]);
+    onEmptyChange?.(empty && wall.status === "ready" && !activeDraft);
+  }, [empty, onEmptyChange, wall.status, activeDraft]);
 
   return (
     <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
@@ -300,6 +303,7 @@ export default function VenuePhotoWall({
         <VenuePhotoComposer
           venueId={venueId}
           venueName={venueName}
+          onDraftChange={setHasDraft}
           onCancel={() => setComposerOpen(false)}
           onPosted={(photo, message) => {
             setComposerOpen(false);

@@ -288,7 +288,6 @@ export function LedgerCommunity({ venueId, venueName, ledgerUrl, curatedClaims }
   const { state } = useLedgerLive();
   const [visitsEmpty, setVisitsEmpty] = useState(false);
   const [photosEmpty, setPhotosEmpty] = useState(false);
-  const [contributionStarted, setContributionStarted] = useState(false);
   const claims = state.status === "ready" ? state.log.claims : curatedClaims;
   const logEmpty = state.status === "ready"
     && state.log.entries.length === 0 && state.log.familyEntries.length === 0;
@@ -297,12 +296,9 @@ export function LedgerCommunity({ venueId, venueName, ledgerUrl, curatedClaims }
   return (
     <>
       <ClaimList claims={claims} />
-      <details className="ledgerCommunity" open={!allEmpty || contributionStarted}>
+      <details className="ledgerCommunity" open={!allEmpty}>
         <summary hidden={!allEmpty}>Be the first to log here</summary>
-        <div
-          onClickCapture={() => setContributionStarted(true)}
-          onFocusCapture={() => setContributionStarted(true)}
-        >
+        <div>
           <VisitReportPanel venueId={venueId} venueName={venueName} onEmptyChange={setVisitsEmpty} />
           <VenuePhotoWall venueId={venueId} venueName={venueName} onEmptyChange={setPhotosEmpty} />
           <p className="ledgerLaneNote">Public notes go in the logbook. Legacy notes stay at the Family Table below.</p>
