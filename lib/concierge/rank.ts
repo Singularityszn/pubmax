@@ -34,6 +34,8 @@ type ConciergeContext = {
   timeOfDay?: "afternoon" | "evening" | "late";
 };
 
+export const QUIET_NOT_CHECKED = "Quietness not checked";
+
 export type ConciergeVenue = {
   id: string;
   name: string;
@@ -232,7 +234,7 @@ function scoreOne(
     score += contribution;
     if (contribution > 0) {
       const label: Partial<Record<ConciergeMood, string>> = {
-        quiet: "Quietness not checked",
+        quiet: QUIET_NOT_CHECKED,
         lively: "Lively atmosphere",
         cosy: "Cosy character",
         garden: positiveFeatureObservation(venue.features?.garden, "beerGarden", now)
