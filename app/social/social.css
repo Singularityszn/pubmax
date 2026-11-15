@@ -339,11 +339,39 @@ html[data-text-scale="large"] .socialPage .screenHead {
   overflow-wrap: anywhere;
 }
 
-.socialLondonEmpty h3 {
+.socialLondonEmpty h2 {
   margin: 0 0 var(--space-2);
   font-family: var(--font-display);
   font-size: var(--text-md);
   line-height: var(--leading-snug);
+}
+
+.socialOpenTable {
+  padding: var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-surface);
+}
+
+.socialOpenTable p {
+  margin: 0 0 var(--space-3);
+}
+
+.socialOpenTable .socialOpenTableKicker {
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.socialLondonEmpty .socialOpenTableAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-sm);
+  background: var(--color-text);
+  color: var(--color-surface);
+  font-weight: 700;
+  text-decoration: none;
 }
 
 .socialAlternativeList {

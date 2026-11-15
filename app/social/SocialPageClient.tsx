@@ -62,6 +62,7 @@ import "./social.css";
 import MatesActivity from "./MatesActivity";
 import PintDropRecovery from "./PintDropRecovery";
 import SocialLondonLane from "./SocialLondonLane";
+import SocialLondonEmpty from "./SocialLondonEmpty";
 import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
 
@@ -452,14 +453,6 @@ function SocialPageAccountState({
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
-  const headerSignInRef = useRef<HTMLAnchorElement | null>(null);
-  const emptyLanePending = useRef(false);
-  const [emptyLanePromoted, setEmptyLanePromoted] = useState(false);
-  const onLondonEmptyChange = useCallback((empty: boolean) => {
-    emptyLanePending.current = empty;
-    if (empty && headerSignInRef.current === document.activeElement) return;
-    setEmptyLanePromoted(empty);
-  }, []);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
@@ -740,18 +733,11 @@ function SocialPageAccountState({
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
     friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
-  const showEmptyAlternatives = friendsLaunchEnabled && isPosts && londonLaneOpen
-    && viewerPhase === "signed-out" && emptyLanePromoted;
-
   // The route's one primary action is Post (docs/design/LAUNCH_SCREENS.md).
   // For a verified account it IS the composer: the trigger sits in the Screen's
   // primary slot and the sheet it opens is fixed, so nothing else on the page
   // wears the fill.
   //
-  // A stranger keeps the sign-in door while posts load, fail or exist.
-  // A confirmed empty London lane offers a night first, with sign-in below.
-  // A focused header door stays in place until focus leaves it. Unresolved
-  // identity, the rollback and the freeze keep their existing boundaries.
   const composeReady = showPostsControls && draftScope !== null;
   const primary: ReactElement = composeReady ? (
     <SocialComposer
@@ -772,18 +758,7 @@ function SocialPageAccountState({
     // whatever the flag says, and the preview boundary keeps its own quiet
     // sign-in way onward underneath.
     isPosts && friendsLaunchEnabled ? (
-      showEmptyAlternatives ? <Link prefetch={false} href="/plan">Plan a night</Link> : (
-        <Link
-          ref={headerSignInRef}
-          prefetch={false}
-          href={SOCIAL_SIGN_IN_HREF}
-          onBlur={() => {
-            if (emptyLanePending.current) setEmptyLanePromoted(true);
-          }}
-        >
-          Sign in
-        </Link>
-      )
+      <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>
     ) : (
       <Link prefetch={false} href="/map">
         Open the map
@@ -875,12 +850,9 @@ function SocialPageAccountState({
           <div className="socialDoor">
             {switcher}
             {logInPublicSection}
+            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {londonLane ? (
-              <SocialLondonLane
-                alternatives={publicAlternatives}
-                onEmptyChange={onLondonEmptyChange}
-                showSignInOffer={showEmptyAlternatives}
-              />
+              <SocialLondonLane />
             ) : (
             /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
@@ -939,6 +911,7 @@ function SocialPageAccountState({
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
             {logInPublicSection}
+            {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
@@ -1007,7 +980,7 @@ function SocialPageAccountState({
             </section>
           ) : (
             <>
-            <section
+            {!(feedStatus === "ready" && posts.length === 0 && !nextCursor) ? <section
               className="socialFeed"
               aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
@@ -1088,7 +1061,7 @@ function SocialPageAccountState({
                   {loadingMore ? "Loading…" : "Load more"}
                 </button>
               ) : null}
-            </section>
+            </section> : null}
             {initialState.feed === "following" ? <MatesActivity /> : null}
             </>
           )}

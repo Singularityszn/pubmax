@@ -1,23 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Link from "next/link";
 
 import SocialPostCard from "@/components/social/SocialPostCard";
 import EmptyState from "@/components/ui/empty-state";
-import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
-import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { discardBody } from "@/lib/responseBody";
-import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   parseSocialLondonLanePage,
   SOCIAL_LONDON_LANE_COPY,
-  SOCIAL_LONDON_LANE_SEEN_KEY,
   socialLondonLaneHref,
   type SocialLondonLanePage,
   type SocialLondonLanePost,
 } from "@/lib/socialLondonLane";
-import SocialLondonEmpty from "./SocialLondonEmpty";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -70,18 +64,9 @@ function keepFocusBelowInView(lane: HTMLElement | null): void {
  * THE LONDON LANE, AS A STRANGER READS IT (captain decision 7, 1 Nov 2026).
  *
  * Read-only: each card prints one quiet way to sign in where a reader's cheer
- * and comment row sits. A confirmed empty lane offers public alternatives
- * before a quiet sign-in offer. Nothing here writes Social data.
+ * and comment row sits. A confirmed empty lane is hidden.
  */
-export default function SocialLondonLane({
-  alternatives,
-  onEmptyChange,
-  showSignInOffer = false,
-}: {
-  alternatives?: SocialAlternatives;
-  onEmptyChange?: (empty: boolean) => void;
-  showSignInOffer?: boolean;
-}) {
+export default function SocialLondonLane() {
   const [status, setStatus] = useState<LoadState>("loading");
   const [posts, setPosts] = useState<SocialLondonLanePost[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -90,51 +75,12 @@ export default function SocialLondonLane({
   const requestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
   const laneRef = useRef<HTMLElement | null>(null);
-  // Null until mount: server and the first client paint cannot read storage,
-  // so they stay on the loading line and cannot flash the empty museum.
-  const [socialSeen, setSocialSeen] = useState<boolean | null>(null);
   const confirmedEmpty = status === "ready" && posts.length === 0 && nextCursor === null;
-
-  useEffect(() => {
-    onEmptyChange?.(confirmedEmpty);
-  }, [confirmedEmpty, onEmptyChange]);
-
-  useEffect(() => {
-    let active = true;
-    // Read once per mount, after hydration, outside the effect body: the line
-    // must not change in this visit when the lane writes the key below.
-    void Promise.resolve().then(() => {
-      if (!active) return;
-      const storage = safeLocalStorage();
-      let seen = false;
-      try {
-        seen = storage?.getItem(SOCIAL_LONDON_LANE_SEEN_KEY) != null;
-      } catch {
-        // Blocked storage reads as a first visit.
-      }
-      setSocialSeen(seen);
-    });
-    return () => {
-      active = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (socialSeen !== false || status !== "ready") return;
-    if (posts.length === 0 && !confirmedEmpty) return;
-    try {
-      safeLocalStorage()?.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
-    } catch {
-      // Storage can be blocked. This visit still shows the quiet line.
-    }
-  }, [socialSeen, status, posts.length, confirmedEmpty]);
-
-  useEffect(() => () => onEmptyChange?.(false), [onEmptyChange]);
 
   // On mount (the lane replaced the slot) and on every change of its height.
   useLayoutEffect(() => {
     keepFocusBelowInView(laneRef.current);
-  }, [status, posts.length, nextCursor, loadingMore, showSignInOffer, socialSeen]);
+  }, [status, posts.length, nextCursor, loadingMore]);
 
   useEffect(() => {
     const id = ++requestId.current;
@@ -190,6 +136,8 @@ export default function SocialLondonLane({
     }
   }, [loadingMore, nextCursor]);
 
+  if (confirmedEmpty) return null;
+
   return (
     <section
       ref={laneRef}
@@ -226,27 +174,6 @@ export default function SocialLondonLane({
               </button>
             }
           />
-        </div>
-      ) : confirmedEmpty && socialSeen !== null ? (
-        <div className="socialFeedEmpty socialFeedEmpty--london">
-          {socialSeen ? (
-            <p className="socialLondonEmptyNotice" role="status">{COPY.emptyTitle}</p>
-          ) : (
-            // A first visit asks for a pint log in place of the empty headline.
-            <p className="socialLondonEmptyNotice">
-              <Link prefetch={false} href="/map?log=1">{COPY.firstVisit}</Link>
-            </p>
-          )}
-          <SocialLondonEmpty alternatives={alternatives} />
-          {showSignInOffer ? <p className="socialEmptySignIn">
-            Want to share your own night? <Link prefetch={false} href={SOCIAL_SIGN_IN_HREF}>Sign in</Link>.
-          </p> : null}
-        </div>
-      ) : confirmedEmpty ? (
-        <div className="socialSkeletons" aria-hidden="true">
-          <span />
-          <span />
-          <span />
         </div>
       ) : posts.length === 0 ? (
         <p className="socialLondonEmptyNotice">No posts on this page. You can read more London posts below.</p>

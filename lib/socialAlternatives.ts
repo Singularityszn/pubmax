@@ -16,6 +16,8 @@ import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 import type { Venue } from "@/lib/venues";
 import { londonDayKey } from "@/lib/londonHour";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 
 /** Public menu facts only. No post, account, crew or viewer fields cross here. */
 export type SocialAlternatives = {
@@ -58,6 +60,17 @@ export function buildSocialAlternatives(
   const prices: SocialAlternatives["prices"][number][] = [];
   const seen = new Set<string>();
   const candidates = [
+    ...venues.flatMap((venue) => venue.prices.flatMap((row) => {
+      const observedAt = legacyPintPriceObservedAt(row, now);
+      const source = namedLegacyPintPriceSource(row);
+      if (!isLivePriceRow(row) || !observedAt || !source || !row.pint_name?.trim()
+        || !isComparablePintServing({ measure: row.measure, cheapestPint: row.pint_name })
+        || typeof row.price_gbp !== "number") return [];
+      return [{
+        venueKey: venue.id, drinkName: row.pint_name, servingSize: "pint", priceGbp: row.price_gbp,
+        observedAt, publisher: source.label, sourceUrl: source.url,
+      }];
+    })),
     ...updates.filter((update) => update.lane === "publisher" && update.source.licence.trim()).map((update) => ({
       ...update, publisher: update.source.label, sourceUrl: update.source.url,
     })),
