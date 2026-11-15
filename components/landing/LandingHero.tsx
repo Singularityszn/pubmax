@@ -48,12 +48,10 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import LandingZoneChip from "./LandingZoneChip";
 
-// The Pal-first hero keeps the claim, one line under it, the one filled
-// action and two quiet price doors before the sourced hunt and pub cards.
+// Hero layout and action hierarchy live in
+// docs/rules/components-design-system-and-launch-primitives.md.
 // Signed-in readers open chat; guests keep that destination through sign-in.
 // The hunt stays a server-rendered slot and prices still need no account.
-// The DOM order is the phone order; the desktop seats the hunt card and the
-// next-cheapest rows beside the copy.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
@@ -76,7 +74,7 @@ import LandingZoneChip from "./LandingZoneChip";
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
 // /near is the filled one (lib/landingHero.ts).
 //
-// The pub card under the picture stands on the pub's OWN photograph where we
+// The pub card uses the pub's OWN photograph where we
 // hold one, keyed on its venue id, and is a text-and-price card where we hold
 // none: a borough or city view behind a pub's name reads as that pub's front
 // door. Everything the card prints is a fact with its source beside it, and

@@ -102,11 +102,7 @@ body:has(.lp) {
 
 /* ── Hero: the whole first screen ────────────────────────────────────────── */
 
-/* The Screen primitive owns the head (kicker, h1, the answer, one primary, one
-   secondary) and the rail rides as its children. The head is its own grid, so
-   the phone reads the DOM top to bottom, kicker, claim, answer, action, second
-   door, rail, and the desktop only seats the answer beside the copy and the
-   rail under the answer. Full viewport height at every width. */
+/* Hero layout: docs/rules/components-design-system-and-launch-primitives.md. */
 .lpHero {
   min-height: 100dvh;
   padding-top: clamp(96px, 12vh, 132px);
@@ -738,11 +734,6 @@ a.lpPubPint { text-decoration: underline; text-underline-offset: 3px; }
   .lpAnswerCard { width: 100%; }
 }
 
-/* Phone: the answer sits between the heading and the tap, so the heading
-   gives up one size step and the cards their outer padding, and the whole
-   screen still reads claim, hunt card, action inside 844px. The hunt card is
-   text, so it takes its own height and never a share of the screen the way
-   the photograph it replaced had to. */
 @media (max-width: 640px) {
   .lpHero { padding-top: 80px; gap: var(--space-5); }
   .lpHero .screenTitle { font-size: clamp(2.125rem, 10vw, 2.75rem); line-height: .94; }
