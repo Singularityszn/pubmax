@@ -362,6 +362,36 @@ describe("search_venues hard requirements", () => {
     expect(searchData(result)).toMatchObject({ coverageGaps: ["darts"], found: 0, unverified: [{ id: "site" }] });
   });
 
+  it.each([
+    ["Pubs without a pool table in Hackney", ["not:pool"]],
+    ["Pubs that are not dog friendly in Soho", ["not:dogs"]],
+    ["Pubs in Soho without Guinness", ["not:drink:Guinness"]],
+  ])("names an exclusion it cannot check instead of matching the opposite: %s", async (query, excluded) => {
+    const area = query.includes("Hackney") ? "Hackney" : "Soho";
+    state.venues = [
+      venue({ id: "has-it", name: "The Has It", area, amenities: { ...noAmenities, pool: true }, drinkText: "guinness", features: { dogsWelcome: observed("OpenStreetMap", "2026-07-01") } }),
+      venue({ id: "plain", name: "The Plain", area, cheapestPrice: 3 }),
+    ];
+    state.amenityRows = [siteRow("has-it", { pool: "two pool tables" })];
+    state.pricedVenues = [pricedDrinks("has-it", { pint_name: "Guinness" })];
+    const result = await search(query);
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({ requirements: excluded, coverageGaps: excluded, found: 0, unverified: [] });
+    const positive = await search(query.replace(/without a|not|without/, "with").replace("with dog", "dog"));
+    expect(positive.cards.map((card) => card.venueId)).toEqual(["has-it"]);
+  });
+
+  it("keeps a positive requirement and an exclusion apart in one ask", async () => {
+    state.venues = [
+      venue({ id: "garden-pool", name: "The Garden Pool", area: "Soho", amenities: { ...noAmenities, pool: true }, features: { garden: observed("OpenStreetMap", "2026-07-05") } }),
+      venue({ id: "garden-only", name: "The Garden Only", area: "Soho", cheapestPrice: 3, features: { garden: observed("OpenStreetMap", "2026-07-05") } }),
+    ];
+    state.amenityRows = [siteRow("garden-pool", { pool: "two pool tables" })];
+    const result = await search("Pubs in Soho with a beer garden but no pool table");
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({ requirements: ["garden", "not:pool"], coverageGaps: ["not:pool"], found: 0, unverified: [] });
+  });
+
   it("keeps a verified requirement apart from an unproven tag in the same ask", async () => {
     state.venues = [
       venue({ id: "garden-pool", name: "The Garden Pool", area: "Soho", amenities: { ...noAmenities, pool: true }, features: { garden: observed("OpenStreetMap", "2026-07-05") } }),
