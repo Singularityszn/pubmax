@@ -382,6 +382,7 @@ describe("the list beside the map, at desktop width", () => {
     act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     scroller.scrollTop = 0;
     render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
     act(() => map.emit("idle"));
     expect(rowNames()).toEqual(["The Lamb"]);
     expect(host.querySelector(".mapSplitList")?.getAttribute("aria-busy")).toBe("false");
