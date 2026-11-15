@@ -86,6 +86,7 @@ import { CHEAPEST_NEAR_NO_ANCHOR, VENUE_DRINKS_NO_VENUE } from "@/lib/ask/concie
 import { routeAskDeterministically } from "@/lib/ask/router";
 import { runAskTool } from "@/lib/ask/tools";
 import { QUIET_NOT_CHECKED } from "@/lib/concierge/rank";
+import { requirementKey, venueRequirementsInText } from "@/lib/concierge/requirements";
 import type { AskToolContext } from "@/lib/ask/toolContract";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -433,7 +434,6 @@ describe("search_venues hard requirements", () => {
   });
 
   it.each([
-    ["Pubs without, frankly, a pool table in Hackney", "Hackney", "pool"],
     ["Pubs without (to be clear) a pool table in Hackney", "Hackney", "pool"],
     ["A pool-table-free pub in Hackney", "Hackney", "pool"],
     ["A Guinness-free pub in Hackney", "Hackney", "drink:Guinness"],
@@ -446,6 +446,29 @@ describe("search_venues hard requirements", () => {
     expect(searchData(result).intent).toMatchObject({ area });
     expect(result.cards).toEqual([]);
     expect(searchData(result).coverageGaps.some((gap) => gap.endsWith(`:${key}`))).toBe(true);
+  });
+
+  it.each([
+    ["a beer garden in Hackney, no music", ["garden"]],
+    ["pubs with a pool table, no TVs, in Hackney", ["pool"]],
+    ["dog friendly pubs, nothing fancy", ["dogs"]],
+    ["pub quiz in hackney, no football", ["quiz"]],
+    ["pubs with a garden that don't play music", ["garden"]],
+    ["pubs with a garden that do not play music", ["garden"]],
+    ["pubs with a garden, don't play music", ["garden"]],
+    ["pubs with a garden, not a music venue", ["garden"]],
+    ["pubs with a garden; no music", ["garden"]],
+    ["pubs with a garden. No music", ["garden"]],
+    ["no music, pubs with a garden", ["garden"]],
+    ["no music; pubs with a garden", ["garden"]],
+    ["no music. Pubs with a garden", ["garden"]],
+    ["Pubs without, frankly, a pool table in Hackney", ["pool"]],
+    ["pubs with Guinness, no music", ["drink:Guinness"]],
+    ["no music, pubs with Guinness", ["drink:Guinness"]],
+    ["pubs with a garden, no pool table", ["garden", "not:pool"]],
+    ["pubs with a pool table not allowed", ["unclear:pool"]],
+  ])("scopes a negator to its own feature and clause: %s", (query, required) => {
+    expect(venueRequirementsInText(query).map(requirementKey)).toEqual(required);
   });
 
   it.each([

@@ -53,7 +53,7 @@ const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "
   ["garden", /\b(?:beer )?gardens?\b/],
   ["outdoor-seating", /\boutdoors?\b|\bal fresco\b|\bterraces?\b|\b(?:sit|sitting|seats?|seating|drinks?|drinking|tables?|space)\s+outside\b/],
   ["darts", /\bdarts? ?boards?\b|\b(?:play|playing|with|has|have|got)\s+(?:a\s+)?darts\b/],
-  ["pool", /\bpool tables?\b|\b(?:play|playing|shoot|shooting)\s+pool\b|\bwith\s+(?:a\s+)?pool\b/],
+  ["pool", /\bpool tables?\b|\b(?:play|playing|shoot|shooting)\s+pool(?: tables?)?\b|\bwith\s+(?:a\s+)?pool(?: tables?)?\b/],
   ["dogs", /\bdog friendly\b|\bdogs? (?:allowed|welcome)\b|\b(?:bring|with)\s+(?:my|our|the|a)\s+dogs?\b/],
   ["quiz", /\bquiz(?:zes)?\b|\btrivia\b/],
 ];
@@ -164,11 +164,7 @@ function requirementScope(padded: string, start: number, end: number): NegationS
   const prior = padded.slice(0, start).trim().split(/\s+/).at(-1);
   const after = padded.slice(end).trim().split(/\s+/).filter(Boolean);
   if (prior === "free" || after[0] === "free") return "unclear";
-  for (let index = 0; index < after.length; index += 1) {
-    const word = after[index]!;
-    if (CLAUSE_BREAKS.has(word) || COORDINATORS.has(word)) break;
-    if (NEGATORS.has(word) && !NEGATION_IDIOMS.has(after[index + 1] ?? "")) return "unclear";
-  }
+  if (/^(?:(?:is|are|was|were) )?(?:not|never|isnt|arent|wasnt|werent) (?:allowed|welcome|permitted|served|available|wanted|needed)\b/.test(after.join(" "))) return "unclear";
   return null;
 }
 
@@ -227,7 +223,7 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
-  const drinks = drinkRequirements(text.replace(/[;.!?]+/g, " but "));
+  const drinks = drinkRequirements(text.replace(/[,;.!?]+/g, " but "));
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
     if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, "stated")];
     const hit = pattern.exec(drinks.rest);
