@@ -19,6 +19,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
+import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -2119,11 +2120,13 @@ function conciergeStatusText(
 export function AcceptedContextPanel({
   handoff,
   acceptedVenueName = null,
+  venues = [],
   onRelease,
   releaseDisabled = false,
 }: {
   handoff: ComposerHydration;
   acceptedVenueName?: string | null;
+  venues?: readonly Pick<PlanVenueOption, "id" | "name">[];
   onRelease?: () => void;
   releaseDisabled?: boolean;
 }) {
@@ -2163,13 +2166,7 @@ export function AcceptedContextPanel({
           ) : null}
         </section>
       )}
-      {handoff.conflicts.length > 0 && (
-        <ul className="planComposer__conflicts" aria-label="Plan changes we kept safe">
-          {handoff.conflicts.map((conflict, index) => (
-            <li key={`${conflict.code}-${index}`}>{conflict.message}</li>
-          ))}
-        </ul>
-      )}
+      <PlanDraftConflicts conflicts={handoff.conflicts} areaLabel={acceptedPlanAreaLabel} venues={venues} />
     </>
   );
 }
@@ -4224,6 +4221,7 @@ function PlanComposerForm({
         <AcceptedContextPanel
           handoff={handoff}
           acceptedVenueName={acceptedVenueName}
+          venues={venues}
           onRelease={releaseAcceptance}
           releaseDisabled={submitting}
         />

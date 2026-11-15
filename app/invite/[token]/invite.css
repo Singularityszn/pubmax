@@ -135,6 +135,44 @@
   font-weight: 600;
 }
 
+/* Where to meet: the first stop, its address and one ink link out to a map.
+   It sits under the time so who, when and where read as one block. */
+.invite__meet {
+  margin: 10px 0 0;
+  display: grid;
+  gap: 2px;
+  justify-items: start;
+}
+
+.invite__meetName,
+.invite__meetAddress {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.invite__meetName {
+  color: var(--ink);
+  font-size: var(--text-base);
+  font-weight: 600;
+}
+
+.invite__meetAddress {
+  color: var(--ink-soft);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.invite__meetDirections {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-sm);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
 .invite__spend {
   margin: 4px 0 0;
   color: var(--color-text-muted);

@@ -3205,6 +3205,28 @@ describe("an accepted place the venue index has no name for", () => {
     }, { timeout: 4000 });
   }
 
+  it("resolves each conflict pub by its own venue ID without replacing the saved first stop", async () => {
+    const existing = { id: "venue-existing", name: "The Existing Arms" };
+    const accepted = { id: HELD, name: "The Accepted Arms" };
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({
+      title: "Saved night",
+      creatorName: "K",
+      startTime: "",
+      conciergeQuery: "",
+      stops: [{ key: 1, venueId: existing.id, venueName: existing.name }],
+    }));
+    holdAcceptedPlace();
+    serveIndex([accepted, existing]);
+
+    await mountHeld();
+
+    const sides = document.querySelector(".planComposer__conflictSides");
+    const names = [...sides!.querySelectorAll("dd")].map((side) => side.textContent?.split(" · ")[0]);
+    expect(names).toEqual([existing.name, accepted.name]);
+    expect(stopNames()).toEqual([existing.name]);
+    expect(readPlanningIntent()?.acceptedVenueId).toBe(accepted.id);
+  });
+
   it("shows a held place that is not a pub as a card, and Swap releases it for a pub of the reader's choosing", async () => {
     holdAcceptedPlace();
     serveIndex([

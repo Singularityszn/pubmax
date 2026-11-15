@@ -763,6 +763,71 @@ describe("pure Plan draft arbitration", () => {
     }));
   });
 
+  it("reports one outcome with both sides when a Venue acceptance meets an existing Plan", () => {
+    const result = arbitratePlanDrafts({
+      planDraft: v2Plan(NOW + 2_000),
+      intakeDraft: intake(NOW + 1_000, "2026-07-24T18:00:00.000Z"),
+      planningIntent: intent(),
+    });
+    const preserved = result.conflicts.filter((conflict) => conflict.code === "intent-preserved-existing");
+    expect(preserved).toHaveLength(1);
+    expect(preserved[0]).toMatchObject({
+      recoveryAction: "review-existing-plan",
+      kept: {
+        venueId: "venue-a",
+        venueName: "Venue A",
+        area: { kind: "night-patch", id: "soho" },
+        startsAt: "2026-07-24T18:00:00.000Z",
+      },
+      setAside: {
+        venueId: "venue-intent",
+        area: { kind: "night-patch", id: "shoreditch" },
+        startsAt: "2026-07-24T20:00:00.000Z",
+      },
+    });
+    // The existing Plan stays the winner. The report changes nothing.
+    expect(result.acceptedVenueId.value).toBe("venue-a");
+    expect(result.area.value).toEqual({ kind: "night-patch", id: "soho" });
+    expect(result.startsAt.value).toBe("2026-07-24T18:00:00.000Z");
+  });
+
+  it.each(["venue-intent", "venue-b"])("reports the final anchor after explicit replacement with %s", (selectedVenueId) => {
+    const result = arbitratePlanDrafts({
+      planDraft: v2Plan(NOW),
+      planningIntent: intent(),
+      url: { surface: "plan", selectedVenueId, replaceAnchor: true },
+    });
+    expect(result.acceptedVenueId).toEqual({ value: selectedVenueId, source: "explicit-url" });
+    const preserved = result.conflicts.find((conflict) => conflict.code === "intent-preserved-existing");
+    expect(preserved).toBeDefined();
+    const intentAccepted = selectedVenueId === "venue-intent";
+    expect(preserved?.kept?.venueId).toBe(intentAccepted ? undefined : selectedVenueId);
+    expect(preserved?.kept?.venueName).toBe(intentAccepted ? undefined : null);
+    expect(preserved?.setAside?.venueId).toBe(intentAccepted ? undefined : "venue-intent");
+    expect(preserved?.kept?.startsAt).toBe("2026-07-24T18:00:00.000Z");
+    expect(preserved?.setAside?.startsAt).toBe("2026-07-24T20:00:00.000Z");
+  });
+
+  it("names only the fields that differ, and both times of an overlap", () => {
+    const sameVenue = arbitratePlanDrafts({
+      intakeDraft: intake(NOW, "2026-07-24T20:00:00.000Z"),
+      planningIntent: intent(),
+    });
+    const [areaOnly] = sameVenue.conflicts.filter((conflict) => conflict.code === "intent-preserved-existing");
+    expect(areaOnly?.kept).toEqual({ area: { kind: "night-patch", id: "soho" } });
+    expect(areaOnly?.setAside).toEqual({ area: { kind: "night-patch", id: "shoreditch" } });
+
+    const overlap = arbitratePlanDrafts({
+      planDraft: v2Plan(NOW + 1_000),
+      intakeDraft: intake(NOW + 2_000),
+    });
+    expect(overlap.conflicts).toContainEqual(expect.objectContaining({
+      code: "draft-overlap",
+      kept: { startsAt: "2026-07-24T19:00:00.000Z" },
+      setAside: { startsAt: "2026-07-24T18:00:00.000Z" },
+    }));
+  });
+
   it("lets intent fill missing fields only, then remembered area, then defaults", () => {
     const fromIntent = arbitratePlanDrafts({
       planningIntent: intent(),

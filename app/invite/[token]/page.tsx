@@ -20,6 +20,7 @@ import {
   type PlanInviteSpendBand,
 } from "@/lib/shareArtifacts";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { venueDirectionsUrl } from "@/lib/venueJourney";
 import { planAlcoholOptionalInviteLine } from "@/lib/planAlcoholOptional";
 import { openCrawlCrewIdForPlan } from "@/lib/openCrawlInvite.server";
 import { crewPath, isCrewId } from "@/lib/socialCrewsUi";
@@ -66,6 +67,7 @@ type InviteStop = {
   position: number;
   listedPint: VenueListedPint | null;
   coordinates: [number, number] | null;
+  address: string | null;
 };
 
 // The card may be opened days before the event, so it needs a date on it, not
@@ -91,8 +93,8 @@ function formatStartLabel(startTime: string): string {
 
 // Bounded to PLAN_STOP_MAX (a Plan never exceeds it, but the slice is a
 // defensive floor). A venue lookup that fails ("unavailable") keeps the stop's
-// own trusted name from the Plan record but drops its price and route point
-// rather than guessing either.
+// own trusted name from the Plan record but drops its price, address and route
+// point rather than guessing any of them.
 async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
   const ordered = [...stops].sort((a, b) => a.position - b.position).slice(0, PLAN_STOP_MAX);
   const details = await Promise.all(
@@ -106,6 +108,7 @@ async function loadStops(stops: PlanStopDTO[]): Promise<InviteStop[]> {
       position: stop.position,
       listedPint: venue ? venueListedPint(venue) : null,
       coordinates: venue ? ([venue.longitude, venue.latitude] as [number, number]) : null,
+      address: venue?.address.trim() || null,
     };
   });
 }
@@ -280,6 +283,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
   );
   const routePoints = routeStops.map((entry) => entry.point);
   const spendBand = inviteSpendBand(stops);
+  // Where to meet is the first stop in route order. The directions link names
+  // the pub only, so it sends the guest's position nowhere.
+  const meet = numbered[0] ?? null;
 
   return (
     <main id="main" className="invite">
@@ -297,6 +303,22 @@ export default async function PlanInvitePage({ params }: PageProps) {
           <p className="invite__eyebrow">Hosted by {hostHandle}</p>
           <h1 className="invite__title">{state.plan.title}</h1>
           <p className="invite__start">{startLabel}</p>
+          {meet ? (
+            <div className="invite__meet">
+              <p className="invite__meetName">Meet at {meet.venueName}</p>
+              {meet.address ? <p className="invite__meetAddress">{meet.address}</p> : null}
+              {meet.coordinates ? (
+                <a
+                  className="invite__meetDirections"
+                  href={venueDirectionsUrl({ lat: meet.coordinates[1], lng: meet.coordinates[0] }, null)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open directions
+                </a>
+              ) : null}
+            </div>
+          ) : null}
           {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
           {alcoholOptionalLine ? (
             <p className="invite__softNote">{alcoholOptionalLine}</p>
