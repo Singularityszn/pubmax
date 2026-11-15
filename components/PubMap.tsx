@@ -6274,14 +6274,13 @@ export default function PubMap({
   /* The phone's Filters sheet. The desktop reads all of this off the toolbar and the rail. */
   function renderMobileFiltersPanel() {
     return (
-      <MobilePriceChoices {...mobilePriceChoicesProps}>
-        {isLondon ? (
+      <MobilePriceChoices {...mobilePriceChoicesProps} lead={isLondon ? (
           <MobileMapTonightLens
             rowCount={tonightPubListingCount(whatsOnTonight.rows)}
             nearReader={userLocation != null}
             onOpen={() => changeMapOverlay("tonight")}
           />
-        ) : null}
+        ) : null}>
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={mapResultsSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />
         <MapExperienceLensControl
           lens={experienceLens}

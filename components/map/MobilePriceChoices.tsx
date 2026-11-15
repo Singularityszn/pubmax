@@ -19,6 +19,7 @@ export default function MobilePriceChoices({
   legend,
   drinkLabel,
   matches,
+  lead,
   children,
   onMaxPriceChange,
 }: {
@@ -26,11 +27,14 @@ export default function MobilePriceChoices({
   legend: MapPriceLegendModel;
   drinkLabel?: string | null;
   matches?: PintCapMatches | null;
+  /** Rendered above the pint caps: the What's On lens leads the phone Filters sheet. */
+  lead?: ReactNode;
   children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
 }) {
   return (
     <div className="mobileMapFilters">
+      {lead}
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
