@@ -783,7 +783,7 @@ export default function PubmaxxAccountHub() {
       <p className="profileSectionKicker">Your PUBMAXX</p>
       <h2>On this device</h2>
       <div className="accountHubSignIn">
-        <p>Nothing saved on this device moves to an account until you review it.</p>
+        <p>Been here taps move when you sign in and open your profile. Night preferences and recaps wait for your choice.</p>
       </div>
       {deviceNightProfile ? <DeviceNightProfileReadout profile={deviceNightProfile} /> : null}
       {/* ONE CONSENT CONTROL ON ANY SCREEN. The signed-out panel used to carry

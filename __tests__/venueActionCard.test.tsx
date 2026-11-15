@@ -218,6 +218,8 @@ describe("table request arrival", () => {
     window.history.replaceState(null, "", `/map?sel=${VENUE_ID}&table=8`);
     await show();
     expect(document.querySelector(".contributionGate")).not.toBeNull();
+    expect(document.querySelector(".contributionGate h2")?.textContent).toBe("Sign in to send a table request");
+    expect(document.querySelector(".contributionGate")?.textContent).toContain("This does not confirm a booking");
     expect(document.querySelector("select")).toBeNull();
     expect(new URLSearchParams(window.location.search).get("table")).toBe("8");
     await act(async () => defined(document.querySelector<HTMLButtonElement>(".contributionGateClose") ?? undefined).click());

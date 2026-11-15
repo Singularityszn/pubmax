@@ -23,6 +23,34 @@ describe("contribution identity gate", () => {
     expect(render("sign_in_required")).toContain("Sign in to contribute");
   });
 
+  it("explains the table request and offers only a known pub booking route", () => {
+    const html = renderToStaticMarkup(
+      createElement(ContributionGateDialog, {
+        mode: "sign_in_required",
+        purpose: "table_request",
+        tableRequest: {
+          venueName: "The Crown",
+          contacts: {
+            bookingHref: "https://thecrown.example/book",
+            emailHref: null,
+            phoneHref: null,
+            phoneNumber: null,
+            websiteHref: null,
+          },
+        },
+        error: null,
+        onClose: () => {},
+      }),
+    );
+
+    expect(html).toContain("Sign in to send a table request");
+    expect(html).toContain("The pub can reply to you.");
+    expect(html).toContain("This does not confirm a booking or take payment.");
+    expect(html).toContain('href="https://thecrown.example/book"');
+    expect(html).toContain("Open The Crown&#x27;s booking page");
+    expect(html).not.toContain("Sign in to contribute");
+  });
+
   it("routes a handle-less account back to handle setup", () => {
     const html = render("onboarding_required");
     expect(html).toContain("Choose your handle");
