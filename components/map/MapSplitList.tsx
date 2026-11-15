@@ -50,7 +50,8 @@ import "./mapSplitList.css";
 type Point = { lng: number; lat: number };
 
 /** The slice of the live MapLibre map the halo needs, so a test can hand in its own. */
-export type MapSplitListMap = Pick<maplibregl.Map, "getContainer" | "project" | "on" | "off">;
+export type MapSplitListMap = Pick<maplibregl.Map, "getContainer" | "project" | "on" | "off">
+  & Partial<Pick<maplibregl.Map, "loaded" | "isMoving">>;
 
 /** What the list held when "Search as I move the map" was switched off. */
 type HeldView = {

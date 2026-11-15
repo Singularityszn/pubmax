@@ -46,12 +46,18 @@ export function useMapSplitListInspectionHold({
     if (!held || !map) return;
     const container = map.getContainer();
     const stage = container.closest(".mapStage") ?? container;
+    let active = true;
     const idle = () => { if (!detailOpen) setReturnIdle(true); };
     map.on("idle", idle);
+    // Closing a drawer on an already idle map does not cause another idle event.
+    queueMicrotask(() => {
+      if (active && !detailOpen && map.loaded?.() === true && map.isMoving?.() === false) idle();
+    });
     stage.addEventListener("pointerdown", release, true);
     stage.addEventListener("wheel", release, true);
     stage.addEventListener("keydown", release, true);
     return () => {
+      active = false;
       map.off("idle", idle);
       stage.removeEventListener("pointerdown", release, true);
       stage.removeEventListener("wheel", release, true);
