@@ -1,8 +1,16 @@
-import { pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
-export { pintCapQualification, type PintCapQualification } from "@/lib/comparableVenuePint";
+import { pintCapQualification as qualifyPintCap, type PintCapSignals } from "@/lib/comparableVenuePint";
+export { type PintCapQualification } from "@/lib/comparableVenuePint";
 import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import { pintPriceCapFigure } from "@/lib/pintPriceCaps";
 import { type Venue } from "@/lib/venues";
+
+export function pintCapQualification(
+  venue: Parameters<typeof qualifyPintCap>[0],
+  maxPrice: number,
+  signal?: Parameters<typeof qualifyPintCap>[2],
+) {
+  return qualifyPintCap(venue, maxPrice, signal, false);
+}
 
 export type PintCapMatches = {
   cap: number;

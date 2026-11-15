@@ -1401,6 +1401,7 @@ export function filterVenues(
    */
   openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
   pintSignals: PintCapSignals | null = null,
+  allowVenueContributor = true,
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
@@ -1418,7 +1419,7 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
-    const matchesPrice = pintCapQualification(venue, filters.maxPrice, pintSignals?.get(venue.id)) !== "over";
+    const matchesPrice = pintCapQualification(venue, filters.maxPrice, pintSignals?.get(venue.id), allowVenueContributor) !== "over";
 
     const matchesPintDrops =
       !filters.requirePintDrops ||

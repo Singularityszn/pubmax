@@ -96,9 +96,10 @@ export function pintCapQualification(
   venue: ComparablePintVenue,
   maxPrice: number,
   signal?: Parameters<typeof comparableVenuePint>[1],
+  allowVenueContributor = true,
 ): PintCapQualification {
   if (!hasPintPriceCap(maxPrice)) return "off";
-  const selected = selectedComparableVenuePint(venue, signal);
+  const selected = selectedComparableVenuePint(venue, signal, allowVenueContributor);
   if (!selected) return "not-pint";
   const price = comparablePint(selected);
   return price === null ? "unknown" : price <= maxPrice ? "match" : "over";

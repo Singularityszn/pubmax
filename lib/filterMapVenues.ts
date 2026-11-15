@@ -36,8 +36,8 @@ export function filterMapVenues(
   }
 
   return [
-    ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState, pintSignals),
-    ...filterVenues(hydrated, filters, hasPintDrops, openNowState, pintSignals),
+    ...filterVenues(slim, slimPinFilters, hasPintDrops, openNowState, pintSignals, false),
+    ...filterVenues(hydrated, filters, hasPintDrops, openNowState, pintSignals, false),
   ];
 }
 

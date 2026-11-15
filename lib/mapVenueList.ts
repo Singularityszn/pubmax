@@ -201,7 +201,7 @@ function mapVenueListSortPrice(
       ? price
       : null;
   }
-  return comparableVenuePint(venue, venueSignals?.get(venue.id));
+  return comparableVenuePint(venue, venueSignals?.get(venue.id), false);
 }
 
 /**
