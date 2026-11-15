@@ -11,7 +11,7 @@ import PlanRoundForecast from "@/components/plan/PlanRoundForecast";
 import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import { Button } from "@/components/ui/button";
 import { isPlanActiveNow, subscribeActivePlan } from "@/lib/activePlan";
-import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import { NIGHT_CRAWL_ENGAGE_EVENT, NIGHT_CRAWL_STOP_CONFIRMED_EVENT } from "@/lib/nightCrawlEngage";
 import type { PlanState } from "@/lib/plan";
 import { planVisitedRevealPositions } from "@/lib/planPresentation";
 import { isPlanPreviewProjection } from "@/lib/planPrivacy";
@@ -133,6 +133,17 @@ export default function PlanCard({ planId, completed = false }: { planId: string
     });
   }, [planId]);
   usePlanMemberRead(planId, readPlan);
+  useEffect(() => {
+    let active = true;
+    const onConfirmed = (event: Event) => {
+      if ((event as CustomEvent<{ planId?: string }>).detail?.planId === planId) readPlan(() => active);
+    };
+    window.addEventListener(NIGHT_CRAWL_STOP_CONFIRMED_EVENT, onConfirmed);
+    return () => {
+      active = false;
+      window.removeEventListener(NIGHT_CRAWL_STOP_CONFIRMED_EVENT, onConfirmed);
+    };
+  }, [planId, readPlan]);
   const onTonight = usePlanOnTonight(planId);
   // The card leads with the stop the crew goes to next: the first one in route
   // order with no check-in or skip recorded. Before the night that is Stop 1.
