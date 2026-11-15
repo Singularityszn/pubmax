@@ -12,7 +12,7 @@ export const PUBLIC_UPDATES = [
     date: "2026-11-14",
     title: "Steadier map prices and phone controls",
     changes: [
-      "Map pins keep an estimated price in place while a pub's own price reads finish.",
+      "Map pins show an estimated price after a pub's own price reads settle, if no recorded price is available.",
       "Phone map choices have larger tap targets.",
     ],
   },
@@ -27,6 +27,7 @@ export const PUBLIC_UPDATES = [
       "See UK pub counts before you zoom in.",
       "Find Pub of the Week and London pub guides.",
       "Open a one-pub night, read its shared facts and say I'll be there.",
+      "Ask a mate to join you at one pub.",
     ],
   },
   {
@@ -37,7 +38,7 @@ export const PUBLIC_UPDATES = [
       "Open up to 20 saved pub pages offline. Their listed prices keep their source dates.",
       "Mark pubs you have visited and see your London postcode progress on the map.",
       "See mates' recent Pint Drops on Social, then add a star rating to your own.",
-      "Find mates by QR code or shared connections, compare visited pubs and ask a mate to join you at one pub.",
+      "Find mates by QR code or shared connections and compare visited pubs.",
       "Share a personal Been card after five pubs.",
     ],
   },

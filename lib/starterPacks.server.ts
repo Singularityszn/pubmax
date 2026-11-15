@@ -90,15 +90,8 @@ async function readCandidates(): Promise<{
   const foundingNumberByHandle = new Map(
     founders.map((founder) => [founder.handle, founder.number]),
   );
-  for (const founder of founders) {
-    byHandle.set(founder.handle, {
-      handle: founder.handle,
-      ...(founder.displayName ? { displayName: founder.displayName } : {}),
-      ...(founder.avatarUrl ? { avatarUrl: founder.avatarUrl } : {}),
-      foundingMemberNumber: founder.number,
-      claimed: true,
-      tombstoned: false,
-    });
+  for (const founder of await store.listFoundingMembers()) {
+    byHandle.set(founder.handle, toCandidate(founder, foundingNumberByHandle));
   }
 
   let afterHandle = "";

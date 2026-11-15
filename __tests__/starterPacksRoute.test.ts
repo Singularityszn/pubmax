@@ -193,6 +193,53 @@ describe("GET /api/starter-packs", () => {
       Array.from({ length: 12 }, (_, index) => index + 1),
     );
   });
+
+  it.each(["public", "private"] as const)(
+    "keeps a %s founder's borough eligibility beyond the scan budget",
+    async (visibility) => {
+      await joinCamden("zzfounder");
+      await memoryProfileStore.update("zzfounder", { visibility });
+      await joinCamden("ada");
+      await joinCamden("bex");
+      for (let index = 0; index < 478; index += 1) {
+        const handle = `member${String(index).padStart(3, "0")}`;
+        await memoryProfileStore.createOwned(handle, `user-${handle}`);
+      }
+
+      const body = (await (await read()).json()) as PackBody;
+      expect(body.coverage).toBe("partial");
+      const founders = packBySlug(body, FOUNDING_STARTER_PACK_SLUG);
+      expect(founders?.members).toContainEqual({
+        handle: "zzfounder",
+        foundingMemberNumber: 1,
+      });
+      const camden = packBySlug(body, "camden");
+      asUser("user-zed");
+      const followed = await followPack("camden", { follower: "zed" });
+
+      if (visibility === "public") {
+        expect(camden?.members).toEqual([
+          { handle: "ada", foundingMemberNumber: 2 },
+          { handle: "bex", foundingMemberNumber: 3 },
+          { handle: "zzfounder", foundingMemberNumber: 1 },
+        ]);
+        expect(followed.status).toBe(200);
+        const result = (await followed.json()) as FollowBody;
+        expect(result.results).toEqual([
+          { handle: "ada", outcome: "followed" },
+          { handle: "bex", outcome: "followed" },
+          { handle: "zzfounder", outcome: "followed" },
+        ]);
+        expect((await followStore().listFollowing("zed")).sort()).toEqual([
+          "ada", "bex", "zzfounder",
+        ]);
+      } else {
+        expect(camden).toBeUndefined();
+        expect(followed.status).toBe(404);
+        expect(await followStore().listFollowing("zed")).toEqual([]);
+      }
+    },
+  );
 });
 
 describe("POST /api/starter-packs/[slug]/follow", () => {
