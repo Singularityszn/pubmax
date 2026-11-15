@@ -84,6 +84,7 @@ const PIN_READY_TARGET_MS =
   PERFORMANCE_BUDGETS.routes.find((route) => route.path === "/map")?.pinReady?.targetMs ?? 4_000;
 
 test.use({
+  serviceWorkers: PIN_SLA_ENFORCED ? "allow" : "block",
   launchOptions: {
     args: PIN_SLA_ENFORCED
       ? []
@@ -97,9 +98,14 @@ test.use({
 
 test.setTimeout(120_000);
 
+test.beforeEach(async ({ page }) => {
+  if (!PIN_SLA_ENFORCED) await installDeterministicMapBasemap(page);
+});
+
 test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   page,
 }) => {
+  test.info().annotations.push({ type: "basemap", description: PIN_SLA_ENFORCED ? "live" : "deterministic" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -125,6 +131,7 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
           __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
         }
       ).__pubmaxPaintedMapTapPoints?.().length > 0,
+    undefined,
     // A wait, not a ceiling: the recorded envelope in perf/route-budgets.json
     // is 9.8-25.5s on this SwiftShader build, so a shorter wait here would
     // fail the very run whose figure it exists to record. The enforced ceiling
@@ -208,6 +215,8 @@ async function openPhoneMap(
     page.getByRole("button", { name: "Plan a pub crawl" }),
   ).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeVisible();
 }
 
 async function openLimitedPhoneMap(
@@ -449,6 +458,7 @@ for (const viewport of VIEWPORTS) {
     // is measured beside Near me.
     await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
     await expect(await mobileMapShellControl(page, "tfl")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".mapPeek")).toHaveAttribute("data-state", "answer");
     const layout = await shellLayout(page);
     console.log(
       `mobile-map-chrome-layout ${viewport.width}px ${JSON.stringify(layout)}`,
