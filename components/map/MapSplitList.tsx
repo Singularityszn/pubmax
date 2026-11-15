@@ -511,6 +511,8 @@ export default function MapSplitList({
       className="mapSplitList"
       aria-label={`${cityName} pubs in this view`}
       aria-busy={busy}
+      aria-hidden={detailOpen || undefined}
+      inert={detailOpen || undefined}
       tabIndex={-1}
       onPointerEnter={() => setPointerInside(true)}
       onPointerLeave={() => setPointerInside(false)}

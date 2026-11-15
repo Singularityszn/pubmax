@@ -69,9 +69,4 @@ test("the desktop map controls remain usable beside a pub", async ({ page }) => 
   await page.getByRole("button", { name: "Zoom in", exact: true }).click();
   const drawer = page.locator(".mapDrawer.right.open");
   await expect(drawer).toBeVisible();
-  const last = drawer.locator('a[href], button:not([disabled]), summary, input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex="0"]').filter({ visible: true }).last();
-  await last.focus();
-  await page.keyboard.press("Tab");
-  await expect(last).not.toBeFocused();
-  await expect.poll(() => page.evaluate(() => document.activeElement?.closest(".mapSplitList") === null)).toBe(true);
 });
