@@ -232,7 +232,7 @@ function scoreOne(
     score += contribution;
     if (contribution > 0) {
       const label: Partial<Record<ConciergeMood, string>> = {
-        quiet: "A calmer fit",
+        quiet: "Quietness not checked",
         lively: "Lively atmosphere",
         cosy: "Cosy character",
         garden: positiveFeatureObservation(venue.features?.garden, "beerGarden", now)
