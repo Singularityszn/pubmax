@@ -138,17 +138,21 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   await expect(reopenedPortal.locator("#venuePanel-overview")).toBeVisible();
 });
 
-test("the collapsed More bar does not cover the primary price-log target", async ({ page }) => {
-  await page.setViewportSize({ width: 320, height: 640 });
-  await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
-  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  const log = portal.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true });
-  await expect(log).toBeVisible();
-  await expect(portal.getByRole("button", { name: "More actions for Arnos Arms" })).toHaveAttribute("aria-expanded", "false");
-  expect(await log.evaluate((button) => {
-    const box = button.getBoundingClientRect();
-    return document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)?.closest("button") === button;
-  })).toBe(true);
-  await log.click();
-  await expect(page.locator(".spillPriceStep")).toBeVisible();
-});
+for (const width of [320, 540, 640]) {
+  test(`${width}px: the collapsed More bar does not cover the primary price-log target`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const log = portal.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true });
+    await expect(log).toBeVisible();
+    await expect(portal.getByRole("button", { name: "More actions for Arnos Arms" })).toHaveAttribute("aria-expanded", "false");
+    await page.screenshot({ path: testInfo.outputPath("price-log-targets.png") });
+    expect(await log.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      return [box.left + 1, box.left + box.width / 2, box.right - 1].every((x) =>
+        [box.top + 1, box.top + box.height / 2, box.bottom - 1].every((y) => document.elementFromPoint(x, y)?.closest("button") === button));
+    })).toBe(true);
+    await log.click();
+    await expect(page.locator(".spillPriceStep")).toBeVisible();
+  });
+}
