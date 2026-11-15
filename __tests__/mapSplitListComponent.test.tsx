@@ -371,6 +371,23 @@ describe("the list beside the map, at desktop width", () => {
     expect(rowNames()).toEqual(["The Lamb"]);
   });
 
+  it("resumes the settled live view after return when the old viewport cannot be restored", () => {
+    const map = fakeMap();
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    const scroller = host.querySelector<HTMLDivElement>(".mapSplitListScroll")!;
+    scroller.scrollTop = 350;
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    scroller.scrollTop = 0;
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    act(() => map.emit("idle"));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(host.querySelector(".mapSplitList")?.getAttribute("aria-busy")).toBe("false");
+    expect(scroller.scrollTop).toBe(350);
+  });
+
   it("releases the inspection view when the map filters change", () => {
     const filters = {};
     render({ detailOpen: false, filterState: filters });
