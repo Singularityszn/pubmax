@@ -27,6 +27,12 @@ import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind } from "@/lib/venueKinds";
 import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import {
+  INITIAL_SLIM_LOAD_LIFECYCLE,
+  transitionSlimLoadLifecycle,
+  type SlimLoadLifecycleEvent,
+  type SlimLoadLifecycleState,
+} from "@/lib/slimLoadLifecycle";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
 import {
@@ -41,18 +47,13 @@ export const SLIM_VENUES_PATH = "/data/venues_slim.json";
 
 type SlimLoadEntry = {
   promise: Promise<SlimVenueLoadResult>;
-  controller: AbortController;
-  holds: number;
-  /** A caller without a release contract joined: never abortable. */
-  shared: boolean;
   wire: SlimWire;
 };
 
 type SlimWire = {
-  signal: AbortSignal;
-  /** Includes head-start payloads owned by another surface. */
-  landed: boolean;
-  reopen: () => void;
+  controller: AbortController;
+  lifecycle: SlimLoadLifecycleState;
+  nextHoldId: number;
 };
 
 const slimLoads = new Map<string, SlimLoadEntry>();
@@ -354,7 +355,7 @@ async function readSlimPayload(
       ? undefined
       : takeEarlyWarmJson(path);
   if (early) {
-    if (wire) wire.landed = true;
+    if (wire) applySlimLoadEvent(path, wire, { type: "landed" });
     try {
       return await early;
     } catch {
@@ -362,18 +363,18 @@ async function readSlimPayload(
     }
   }
   if (wire) {
-    wire.reopen();
-    wire.signal.throwIfAborted();
+    applySlimLoadEvent(path, wire, { type: "reopen" });
+    wire.controller.signal.throwIfAborted();
   }
   const response = earlyPayloadRejected || cache === "no-store"
-    ? await fetch(path, { cache: "no-store", signal: wire?.signal })
-    : await fetch(path, { signal: wire?.signal });
+    ? await fetch(path, { cache: "no-store", signal: wire?.controller.signal })
+    : await fetch(path, { signal: wire?.controller.signal });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);
   }
   const payload: unknown = await response.json();
-  if (wire) wire.landed = true;
+  if (wire) applySlimLoadEvent(path, wire, { type: "landed" });
   return payload;
 }
 
@@ -440,30 +441,21 @@ function joinSlimLoad(
     if (inFlight) return inFlight;
   }
 
-  const controller = new AbortController();
   const wire: SlimWire = {
-    signal: controller.signal,
-    landed: false,
-    reopen: () => {
-      if (!wire.landed) return;
-      wire.landed = false;
-      abandonIfUnread(path, entry);
-    },
+    controller: new AbortController(),
+    lifecycle: INITIAL_SLIM_LOAD_LIFECYCLE,
+    nextHoldId: 0,
   };
   const promise = loadSlimVenuesFromPathUnshared(path, options, wire);
   const entry: SlimLoadEntry = {
     promise,
-    controller,
-    holds: 0,
-    shared: false,
     wire,
   };
   slimLoads.set(path, entry);
-  const finish = () => {
-    wire.landed = true;
-    if (slimLoads.get(path) === entry) slimLoads.delete(path);
-  };
-  void promise.then(finish, finish);
+  void promise.then(
+    () => applySlimLoadEvent(path, wire, { type: "settled" }),
+    () => applySlimLoadEvent(path, wire, { type: "failed" }),
+  );
   return entry;
 }
 
@@ -472,7 +464,7 @@ export function loadSlimVenuesFromPathResult(
   options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenueLoadResult> {
   const entry = joinSlimLoad(path, options);
-  entry.shared = true;
+  applySlimLoadEvent(path, entry.wire, { type: "rejoin" });
   return entry.promise;
 }
 
@@ -486,26 +478,34 @@ export function retainSlimVenuesFromPath(
   options: SlimVenueLoadOptions = {},
 ): SlimVenueLoadHold {
   const entry = joinSlimLoad(path, options);
-  entry.holds += 1;
-  let released = false;
+  const id = entry.wire.nextHoldId++;
+  applySlimLoadEvent(path, entry.wire, { type: "hold", id });
   return {
     promise: entry.promise,
-    release: () => {
-      if (released) return;
-      released = true;
-      entry.holds -= 1;
-      // StrictMode replay and replacement mounts can rejoin before this check.
-      queueMicrotask(() => {
-        if (!entry.wire.landed) abandonIfUnread(path, entry);
-      });
-    },
+    release: () => applySlimLoadEvent(path, entry.wire, { type: "release", id }),
   };
 }
 
-function abandonIfUnread(path: string, entry: SlimLoadEntry): void {
-  if (entry.holds > 0 || entry.shared) return;
-  if (slimLoads.get(path) === entry) slimLoads.delete(path);
-  entry.controller.abort();
+function applySlimLoadEvent(path: string, wire: SlimWire, event: SlimLoadLifecycleEvent): void {
+  const result = transitionSlimLoadLifecycle(wire.lifecycle, event);
+  wire.lifecycle = result.state;
+  for (const effect of result.effects) {
+    switch (effect) {
+      case "check-unread":
+        queueMicrotask(() => applySlimLoadEvent(path, wire, { type: "check-unread" }));
+        break;
+      case "drop-entry":
+        if (slimLoads.get(path)?.wire === wire) slimLoads.delete(path);
+        break;
+      case "abort":
+        wire.controller.abort();
+        break;
+      default: {
+        const unreachable: never = effect;
+        return unreachable;
+      }
+    }
+  }
 }
 
 export async function loadSlimVenuesFromPath(
@@ -586,7 +586,7 @@ async function loadSlimVenuesFromPathUnshared(
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
-    if (wire?.signal.aborted) throw error;
+    if (wire?.controller.signal.aborted) throw error;
     const fallback = await readOfflineFallback(
       offlineKey,
       options.expectedRevision,
