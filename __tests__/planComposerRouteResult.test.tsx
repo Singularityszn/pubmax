@@ -278,13 +278,23 @@ describe("onboarding after a kept pub", () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
     });
     await settle();
-    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).not.toContain("Camden");
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    if (side === "old") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
     await act(async () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
     });
     await settle();
-    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Camden");
-    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("£5 per pint");
+    if (from === "pal") {
+      const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+      expect(call).toBeDefined();
+      const request = JSON.parse(String(call?.[1]?.body)) as { query: string; acceptedVenueId?: string };
+      expect(request.query).toContain("Camden");
+      expect(request.query).toContain("£5 per pint");
+      expect(request.acceptedVenueId).toBeUndefined();
+    } else {
+      expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Camden");
+      expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("£5 per pint");
+    }
     expect(readOnboardingAlternative(sessionStorage, null)?.archived).toHaveLength(1);
     expect(document.body.textContent).toContain("Restore saved plan 1");
     await act(async () => {
