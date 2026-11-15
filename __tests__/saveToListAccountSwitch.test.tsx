@@ -222,26 +222,90 @@ describe("SaveToListControl nearby check-in mutations", () => {
     expect(chip("Been here").getAttribute("aria-pressed")).toBe(String(saved));
   });
 
-  it.each(["account", "venue"])("discards a late check-in response after a %s change", async (change) => {
-    const oldResponse = deferred<Response>();
-    const newResponse = deferred<Response>();
-    authedActionFetch.mockImplementationOnce(() => oldResponse.promise)
-      .mockImplementationOnce(() => newResponse.promise);
+  it.each(["account", "venue"])("reconciles the current %s after a superseded check-in", async (change) => {
+    const checkIn = deferred<Response>();
+    let saved = false;
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    authedFetch.mockImplementation(async (input: string) => json(
+      input.includes("lists=1") ? { lists: [] } : { saved: saved && input.includes("handle=mia") ? [row("Been here")] : [] },
+    ));
     await show();
     await act(async () => { chip("Check in nearby").click(); });
     await act(async () => { deliver(fix); });
     if (change === "account") Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
     await show(change === "venue" ? "venue-2" : "venue-1");
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
     expect(chip("Been here").disabled).toBe(false);
+  });
+
+  it.each(["account", "venue"])("waits for a fresh membership read after returning to the submitting %s", async (change) => {
+    const checkIn = deferred<Response>();
+    const membership = deferred<Response>();
+    let submitted = false;
+    let saved = false;
+    authedActionFetch.mockImplementation(() => { submitted = true; return checkIn.promise; });
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      return submitted ? membership.promise : json({ saved: [] });
+    });
+    await show();
     await act(async () => { chip("Check in nearby").click(); });
     await act(async () => { deliver(fix); });
-
-    await act(async () => { oldResponse.resolve(json({ checkedIn: true })); });
-    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+    if (change === "account") Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+    await show(change === "venue" ? "venue-2" : "venue-1");
+    if (change === "account") Object.assign(session, { user: { id: "user-1" }, handle: "mia" });
+    await show();
     expect(chip("Been here").disabled).toBe(true);
-    await act(async () => { newResponse.resolve(json({ checkedIn: true })); });
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => { membership.resolve(json({ saved: [row("Been here")] })); });
     expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
     expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
+  });
+
+  it.each(["http", "network", "body"])("reconciles persisted membership after a failed %s response", async (failure) => {
+    const membership = deferred<Response>();
+    let submitted = false;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      return submitted ? membership.promise : json({ saved: [] });
+    });
+    authedActionFetch.mockImplementation(async () => {
+      submitted = true;
+      saved = true;
+      if (failure === "network") throw new Error("Connection lost");
+      if (failure === "body") return new Response("invalid JSON");
+      return new Response(JSON.stringify({ error: "Save unavailable" }), { status: 503 });
+    });
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    await act(async () => { membership.resolve(json({ saved: [row("Been here")] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
   });
 
   it("releases pending membership after a location error or a closed picker", async () => {

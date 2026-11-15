@@ -47,8 +47,9 @@ export default function NearbyVisitCheckIn({ venueId, handle, disabled, onStart 
       }, { requiresIdentity: true });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, "Couldn't save that check-in. Try again."));
-      if (!settle(true)) return;
+      const current = settle(true);
       emitBeenHereChanged();
+      if (!current) return;
       if (!controller.signal.aborted) setMessage("Nearby visit checked. Saved to Been here.");
     } catch (error) {
       if (!controller.signal.aborted) setMessage(error instanceof Error ? error.message : "Couldn't check your location. You can still save Been here.");

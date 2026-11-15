@@ -107,7 +107,8 @@ export default function SaveToListControl({
   const [customLists, setCustomLists] = useState<string[]>([]);
   const [newName, setNewName] = useState("");
   const [busy, setBusy] = useState(false);
-  const activeMutation = useRef<symbol | null>(null);
+  const activeMutation = useRef<{ read: number } | null>(null);
+  const [membershipRefresh, setMembershipRefresh] = useState(0);
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const showToast = useCallback((message: string, duration?: number) => {
@@ -131,7 +132,6 @@ export default function SaveToListControl({
   // never from the pub before: a signed-out reader has no server read to fix it.
   const [membershipVenueId, setMembershipVenueId] = useState(venueId);
   if (membershipVenueId !== venueId) {
-    setBusy(false);
     setMembershipVenueId(venueId);
     setSavedIn(listsHolding(venueId, null));
     setServerVenueId(null);
@@ -145,7 +145,6 @@ export default function SaveToListControl({
   useEffect(() => () => clearTimeout(toastTimer.current), [venueId, accountKey]);
   const [membershipAccountKey, setMembershipAccountKey] = useState(accountKey);
   if (membershipAccountKey !== accountKey) {
-    setBusy(false);
     setMembershipAccountKey(accountKey);
     setSavedIn(listsHolding(venueId, null));
     setCustomLists([]);
@@ -157,12 +156,10 @@ export default function SaveToListControl({
   const membershipRead = useRef(0);
   useEffect(() => {
     // Another pub: whatever was asked for the last one must not land on this one.
-    activeMutation.current = null;
     membershipRead.current += 1;
   }, [venueId]);
   useEffect(() => {
     // Another account: nor may an answer that was asked for the last one.
-    activeMutation.current = null;
     membershipRead.current += 1;
   }, [accountKey]);
 
@@ -212,7 +209,7 @@ export default function SaveToListControl({
     // Defer through a promise callback so setState never runs synchronously in
     // the effect body (react-hooks/set-state-in-effect).
     if (open) void Promise.resolve().then(() => loadLists());
-  }, [open, loadLists, accountKey]);
+  }, [open, loadLists, accountKey, membershipRefresh]);
 
   const announce = useCallback((listType: string, held: string[] | null) => {
     if (held) setSavedIn(held);
@@ -228,26 +225,30 @@ export default function SaveToListControl({
 
   const beginMutation = useCallback(() => {
     if (activeMutation.current || busy || !ready) return null;
-    const mutation = Symbol();
+    const mutation = { read: ++membershipRead.current };
     activeMutation.current = mutation;
-    membershipRead.current += 1;
     setBusy(true);
     return mutation;
   }, [busy, ready]);
 
-  const finishMutation = useCallback((mutation: symbol) => {
+  const finishMutation = useCallback((mutation: { read: number }, refresh = false) => {
     if (activeMutation.current !== mutation) return false;
+    const current = membershipRead.current === mutation.read;
     activeMutation.current = null;
     membershipRead.current += 1;
+    if (refresh || !current) {
+      setServerVenueId(null);
+      setMembershipRefresh((version) => version + 1);
+    }
     setBusy(false);
-    return true;
+    return current;
   }, []);
 
   const beginNearbyCheckIn = useCallback(() => {
     const mutation = beginMutation();
     if (!mutation) return null;
     return (saved: boolean) => {
-      if (!finishMutation(mutation)) return false;
+      if (!finishMutation(mutation, !saved)) return false;
       if (saved) setSavedIn((held) => held.includes(BEEN_HERE_LIST) ? held : [...held, BEEN_HERE_LIST]);
       return true;
     };
@@ -303,13 +304,13 @@ export default function SaveToListControl({
           }, { requiresIdentity: true });
           if (res.ok) {
             const body = (await res.json()) as { lists?: string[] };
-            if (activeMutation.current === mutation && Array.isArray(body.lists)) setCustomLists(body.lists);
+            if (activeMutation.current === mutation && membershipRead.current === mutation.read && Array.isArray(body.lists)) setCustomLists(body.lists);
           }
         } catch {
           /* the save below still works even if the registry write failed */
         }
       }
-      if (activeMutation.current !== mutation) return;
+      if (activeMutation.current !== mutation || membershipRead.current !== mutation.read) return;
       // A name that already holds this pub is left as it is rather than pressed
       // a second time.
       const held = savedIn.includes(name)

@@ -52,7 +52,7 @@ import { BEEN_HERE_CARRY_ACTION, BEEN_HERE_LIST } from "@/lib/beenHere";
 import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import { getVenueIndex, resolveVenue } from "@/lib/venueIndex";
-import { resetNearbyVisitsForTests } from "@/lib/nearbyVisitStore";
+import { nearbyVisitStore, resetNearbyVisitsForTests } from "@/lib/nearbyVisitStore";
 import { readPointsBreakdown } from "@/lib/points.server";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
@@ -104,6 +104,24 @@ describe("carryBeenHere", () => {
     const points = await readPointsBreakdown({ handle: "mia", userId: caller.id });
     expect(points.lines.find((line) => line.key === "been")).toMatchObject({ count: 1, points: 5 });
     expect((await readPointsBreakdown({ handle: "sam", userId: "user-sam" })).total).toBe(0);
+  });
+
+  it("returns 503 without saving Been when proof storage fails", async () => {
+    caller.id = "user-mia";
+    const venue = (await resolveVenue(lamb))!;
+    const proof = vi.spyOn(nearbyVisitStore(), "record").mockRejectedValueOnce(new Error("Proof unavailable"));
+    try {
+      const response = await POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({
+        handle: "mia", action: "nearbyCheckIn", venueId: lamb,
+        location: { lat: venue.lat, lng: venue.lng, accuracy: 20, timestamp: Date.now() },
+      }) }));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ code: "STORE_UNAVAILABLE" });
+      expect(await listFor("mia")).toEqual([]);
+      expect(await nearbyVisitStore().list(caller.id)).toEqual([]);
+    } finally {
+      proof.mockRestore();
+    }
   });
 
   it.each([

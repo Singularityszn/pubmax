@@ -19,8 +19,8 @@ export async function checkInBeenHere(userId: string, handle: string, venueId: u
   }
   const profile = await profileStore().getByHandle(handle);
   if (!profile || profile.userId !== userId) throw new Error("Profile ownership unavailable");
+  await nearbyVisitStore().record(userId, id);
   const saved = await savedPubsStore().ensureSaved({ profileId: profile.id, handle, venueId: id, listType: BEEN_HERE_LIST });
   if (saved.outcome === "unavailable") throw new Error("Saved lists unavailable");
-  await nearbyVisitStore().record(userId, id);
   return { ok: true } as const;
 }
