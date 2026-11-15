@@ -69,6 +69,7 @@ import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, re
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
 import { readOnboardingAlternative, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
@@ -252,7 +253,10 @@ describe("onboarding after a kept pub", () => {
     expect(store.getItem("pubmax:planning-intent:v1")).toBe(before);
   });
 
-  it.each(["new", "old"] as const)("asks about a different onboarding request when the %s side is active", async (side) => {
+  it.each([
+    { side: "new", from: "onboarding" }, { side: "old", from: "onboarding" },
+    { side: "new", from: "pal" }, { side: "old", from: "pal" },
+  ])("asks about a different $from request when the $side side is active", async ({ side, from }) => {
     await mountComposer();
     await act(async () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
@@ -264,10 +268,17 @@ describe("onboarding after a kept pub", () => {
       });
       await settle();
     }
-    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
+    window.history.replaceState({}, "", from === "pal"
+      ? planPalRouteHandoffHref("Pubs in Camden, maximum £5 per pint")
+      : "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
     await remountComposer();
     expect(document.querySelector('[aria-label="Choose a planning request"]')?.textContent).toContain("Camden");
     expect(document.body.textContent).toContain("Start the new request");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).not.toContain("Camden");
     await act(async () => {
       [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
     });
