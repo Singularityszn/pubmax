@@ -255,6 +255,8 @@ describe("search_venues hard requirements", () => {
     expect(result.proposals.flatMap((proposal) => proposal.kind === "open_venue" ? [proposal.venueId] : [])).not.toContain("spoons");
     expect(searchData(result).venues.map((row) => row.id)).not.toContain("spoons");
     expect(searchData(result).requirements).toEqual(["garden", "not:wetherspoon"]);
+    expect(searchData(result)).toMatchObject({ coverageGaps: ["not:wetherspoon"], found: 0, unverified: [] });
+    expect(result.answerHint).toContain("I can't check that a pub is outside Wetherspoon");
   });
 
   it("keeps pavement seating and undated flags out of a beer garden ask, and counts how many qualify", async () => {

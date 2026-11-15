@@ -42,6 +42,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 export type VenueRequirement = (
   | { kind: "garden" | "outdoor-seating" | "darts" | "pool" | "dogs" | "quiz" }
   | { kind: "drink"; label: string; match: DrinkMatch }
+  | { kind: "wetherspoon"; excluded: true }
 ) & { excluded?: true; unclear?: true };
 
 type DrinkMatch =
@@ -49,7 +50,7 @@ type DrinkMatch =
   | { by: "subtype"; subtype: DrinkSubtype }
   | { by: "category"; category: DrinkCategory };
 
-const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "drink">, RegExp]> = [
+const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "drink" | "wetherspoon">, RegExp]> = [
   ["garden", /\b(?:beer )?gardens?\b/],
   ["outdoor-seating", /\boutdoors?\b|\bal fresco\b|\bterraces?\b|\b(?:sit|sitting|seats?|seating|drinks?|drinking|tables?|space)\s+outside\b/],
   ["darts", /\bdarts? ?boards?\b|\b(?:play|playing|with|has|have|got)\s+(?:a\s+)?darts\b|\bdarts\b/],
@@ -224,6 +225,8 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
   const drinks = drinkRequirements(text.replace(/[,;.!?]+/g, " but "));
+  const chain = /\bwetherspoons?\b/.exec(drinks.rest);
+  const chainScope = chain ? requirementScope(drinks.rest, chain.index, chain.index + chain[0].length) : null;
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
     if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, "stated")];
     const hit = pattern.exec(drinks.rest);
@@ -233,6 +236,7 @@ export function venueRequirementsInText(text: string): VenueRequirement[] {
   return [
     ...features.filter((feature) => !(feature.kind === "outdoor-seating" && outdoorCoveredByGarden)),
     ...drinks.found,
+    ...(chainScope ? [excludedIf({ kind: "wetherspoon", excluded: true } as const, chainScope)] : []),
   ];
 }
 
@@ -427,6 +431,8 @@ export function requirementProofLine(
       return `Quiz listed${dated}`;
     case "drink":
       return `${requirement.label} on its listed drinks${dated}`;
+    case "wetherspoon":
+      return "Wetherspoon ownership not checked";
   }
 }
 
@@ -439,12 +445,14 @@ function requirementLabel(requirement: VenueRequirement): string {
     case "dogs": return "dogs welcome";
     case "quiz": return "a quiz";
     case "drink": return requirement.label;
+    case "wetherspoon": return "a Wetherspoon pub";
   }
 }
 
 function coverageGapReason(requirement: VenueRequirement): string {
   if (requirement.unclear) return `I can't tell whether you want ${requirementLabel(requirement)} or not`;
   if (requirement.excluded) {
+    if (requirement.kind === "wetherspoon") return "I can't check that a pub is outside Wetherspoon";
     return requirement.kind === "dogs"
       ? "I can't check that a pub turns dogs away"
       : `I can't check that a pub has no ${requirement.kind === "drink" ? requirement.label : requirementLabel(requirement).replace(/^an? /, "")}`;
