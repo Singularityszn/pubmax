@@ -1358,8 +1358,9 @@ html:has(.appShell) {
      interior hairlines, and the fill carries the selection. */
   .mobilePriceChoices { display: grid; gap: 0; margin: 0; padding: 0; border: 0; }
   .mobilePriceChoices legend { margin-bottom: 6px; color: var(--color-text); font-size: var(--text-sm); font-weight: 800; }
-  .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
-  .mobilePriceChoices button { flex: 1 1 4em; min-width: max-content; min-height: 44px; margin: -1px 0 0 -1px; border: 0; border-block-start: 1px solid var(--color-border-soft); border-inline-start: 1px solid var(--color-border-soft); border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
+  .mobilePriceChoicesGroup { display: flex; flex-wrap: wrap; gap: 1px; overflow: hidden; border: 1px solid var(--color-border-soft); border-radius: var(--radius); }
+  .mobilePriceChoices button { position: relative; flex: 1 1 4em; min-width: max-content; min-height: 44px; border: 0; border-radius: 0; background: transparent; color: var(--color-text-muted); font: inherit; font-size: var(--text-sm); font-weight: 700; }
+  .mobilePriceChoices button::before { content: ""; position: absolute; inset-block-start: -1px; inset-inline-start: -1px; width: calc(100% + 1px); height: calc(100% + 1px); border-block-start: 1px solid var(--color-border-soft); border-inline-start: 1px solid var(--color-border-soft); pointer-events: none; }
   .mobilePriceChoices button.isActive { background: var(--color-surface-raised); color: var(--color-text); font-weight: 800; }
 
   .mobileSheetPortal .tonightLane,
