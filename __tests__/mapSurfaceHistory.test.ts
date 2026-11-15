@@ -255,6 +255,23 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(trail()?.map((entry) => entry.id)).toEqual(["venue"]);
   });
 
+  it("retires a parent pub when an area choice replaces every visible sheet", async () => {
+    openSurfaces(venue, { id: "choose-area", title: "Choose area" });
+    act(() => navigation.complete("choose-area"));
+    expect(trail()).toEqual([]);
+    expect(new URLSearchParams(window.location.search).has("sel")).toBe(false);
+    openSurfaces({ ...venue, state: { venueId: "venue-harp", tab: "overview" } });
+    await traverse(() => navigation.back());
+    expect(trail()).toEqual([]);
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+  });
+
+  it("counts a new sheet from the prior stack when router state loses navigation metadata", () => {
+    window.history.replaceState({}, "", window.location.href);
+    openSurfaces(venue);
+    expect(readEntriesAboveRoot(window.history.state)).toBe(1);
+  });
+
   it.each([false, true])("returns the held public camera only when location was not exposed: %s", async (privateLocation) => {
     const cameraOwnership = createMapCameraOwnership();
     cameraOwnership.beginPublicPlace(viewport.center, viewport.zoom);
