@@ -1,6 +1,6 @@
 import "server-only";
 
-import { pubSpecificEvidence, type HarvestEvidenceRow } from "@/lib/harvest/pubWebsiteAmenities";
+import { parseChainDenylist, pubSpecificEvidence, type ChainDenylist, type HarvestEvidenceRow } from "@/lib/harvest/pubWebsiteAmenities";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import { isVenueFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
@@ -10,7 +10,7 @@ type VenueWebsiteAmenities = Partial<Record<WebsiteAmenityKey, readonly VenueFea
 
 const WEBSITE_AMENITY_KEYS: readonly WebsiteAmenityKey[] = ["darts", "pool"];
 
-const byRows = new WeakMap<object, ReadonlyMap<string, VenueWebsiteAmenities>>();
+const byRows = new WeakMap<object, { chainFile: unknown; byVenue: ReadonlyMap<string, VenueWebsiteAmenities> }>();
 
 function evidenceRow(value: unknown): HarvestEvidenceRow | null {
   const row = value as Record<string, unknown> | null;
@@ -26,10 +26,10 @@ function evidenceRow(value: unknown): HarvestEvidenceRow | null {
   };
 }
 
-function websiteAmenitiesByVenue(rows: readonly unknown[]): ReadonlyMap<string, VenueWebsiteAmenities> {
+function websiteAmenitiesByVenue(rows: readonly unknown[], chain: ChainDenylist): ReadonlyMap<string, VenueWebsiteAmenities> {
   const byVenue = new Map<string, VenueWebsiteAmenities>();
   const parsed = rows.flatMap((row) => evidenceRow(row) ?? []);
-  for (const row of pubSpecificEvidence(parsed)) {
+  for (const row of pubSpecificEvidence(parsed, chain)) {
     if (!row.venueId) continue;
     for (const key of WEBSITE_AMENITY_KEYS) {
       const observation = [true, "Pub website", row.verifiedAt] as const;
@@ -45,9 +45,10 @@ export async function loadWebsiteAmenitiesByVenue(): Promise<ReadonlyMap<string,
   const file = (await import("@/data/amenities/london_pub_website_evidence.json")).default as { version?: unknown; rows?: unknown };
   const rows = file.rows;
   if (file.version !== 1 || !Array.isArray(rows)) throw new Error("pub website evidence has no rows");
+  const chainFile: unknown = (await import("@/data/amenities/london_pub_website_chain_pages.json")).default;
   const held = byRows.get(rows);
-  if (held) return held;
-  const byVenue = websiteAmenitiesByVenue(rows);
-  byRows.set(rows, byVenue);
+  if (held && held.chainFile === chainFile) return held.byVenue;
+  const byVenue = websiteAmenitiesByVenue(rows, parseChainDenylist(chainFile));
+  byRows.set(rows, { chainFile, byVenue });
   return byVenue;
 }

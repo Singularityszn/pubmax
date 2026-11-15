@@ -58,6 +58,12 @@ const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "
   ["quiz", /\bquiz(?:zes)?\b|\btrivia\b/],
 ];
 
+const NEGATED_FEATURE_TERMS: ReadonlyMap<Exclude<VenueRequirement["kind"], "drink">, RegExp> = new Map([
+  ["dogs", /\bno dogs?\b|\bdogs? (?:are |is )?(?:not|never|arent|isnt) (?:allowed|welcome|permitted)\b|\bdogs? banned\b/],
+  ["darts", /\bno darts\b/],
+  ["pool", /\bno pool\b/],
+]);
+
 /** Drinks a pub's priced drink names can answer. Soft drinks and coffee never reach them. */
 const DRINK_CATEGORY_LABELS: ReadonlyArray<readonly [DrinkCategory, string]> = [
   ["gin", "gin"],
@@ -89,14 +95,53 @@ function withoutPlaces(padded: string): string {
   return padded;
 }
 
-const NEGATIONS = new Set(["no", "not", "without", "never", "dont", "doesnt", "isnt", "arent"]);
-const CLAUSE_WORDS = new Set(["but", "and", "or", "with"]);
-const NEGATION_WINDOW = 4;
+const NEGATORS = new Set([
+  "no", "not", "without", "never", "dont", "doesnt", "isnt", "arent", "cant", "wont",
+  "avoid", "avoiding", "skip", "except", "excluding", "nothing", "none",
+]);
+const NEGATION_IDIOMS = new Set(["only", "just", "too", "so", "sure", "bothered", "fussed", "far", "more", "less", "much", "mind", "quite", "necessarily"]);
+const NEGATION_FILLERS = new Set([
+  "a", "an", "the", "any", "some", "sort", "kind", "type", "of", "in", "at", "all", "slightest", "least", "bit",
+  "whatsoever", "really", "even", "pub", "pubs", "bar", "bars", "place", "places", "venue", "venues", "somewhere",
+  "anywhere", "one", "ones", "with", "that", "which", "where", "who", "have", "has", "having", "had", "got",
+  "serve", "serves", "serving", "sell", "sells", "offer", "offers", "do", "does", "want", "wanna", "need", "like",
+  "fancy", "to", "go", "be", "is", "are", "there", "i", "we", "me", "us", "my", "our", "it",
+]);
+const CLAUSE_BREAKS = new Set(["but", "though", "although", "plus", "also"]);
+const COORDINATORS = new Set(["and", "or", "nor"]);
+const DETERMINERS = new Set(["a", "an", "the", "any"]);
+const NEGATION_REACH = 10;
 
-function negatedBefore(padded: string, index: number): boolean {
-  const words = padded.slice(0, Math.max(0, index)).trim().split(/\s+/).slice(-NEGATION_WINDOW);
-  const clauseStart = words.findLastIndex((word) => CLAUSE_WORDS.has(word));
-  return words.slice(clauseStart + 1).some((word) => NEGATIONS.has(word));
+function governingNegator(words: readonly string[], end: number, fillers: ReadonlySet<string>): number | null {
+  let index = end - 1;
+  while (index >= 0 && end - index <= NEGATION_REACH && fillers.has(words[index]!)) index -= 1;
+  return index >= 0 && NEGATORS.has(words[index]!) && !NEGATION_IDIOMS.has(words[index + 1] ?? "") ? index : null;
+}
+
+function negatedBefore(padded: string, at: number): boolean {
+  const words = padded.slice(0, Math.max(0, at)).trim().split(/\s+/).filter(Boolean);
+  if (governingNegator(words, words.length, NEGATION_FILLERS) !== null) return true;
+  let index = words.length - 1;
+  while (index >= 0 && DETERMINERS.has(words[index]!)) index -= 1;
+  if (index < 0 || !COORDINATORS.has(words[index]!)) return false;
+  for (let back = index - 1; back >= 0 && index - back <= NEGATION_REACH; back -= 1) {
+    const word = words[back]!;
+    if (CLAUSE_BREAKS.has(word)) return false;
+    if (NEGATORS.has(word) && !NEGATION_IDIOMS.has(words[back + 1] ?? "")) return true;
+  }
+  return false;
+}
+
+function categoryIndex(padded: string, category: DrinkCategory): number {
+  let offset = 0;
+  const words = padded.split(" ").map((word) => {
+    const at = offset;
+    offset += word.length + 1;
+    return { word, at };
+  });
+  const hit = words.find(({ word }) => word && haystackMatchesCategory(word, category))
+    ?? words.find(({ word }, index) => word && haystackMatchesCategory(`${word} ${words[index + 1]?.word ?? ""}`.trim(), category));
+  return hit?.at ?? -1;
 }
 
 function excludedIf<T extends VenueRequirement>(requirement: T, excluded: boolean): T {
@@ -143,7 +188,7 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
   for (const [category, label] of DRINK_CATEGORY_LABELS) {
     const alcoholFree = category === "alcohol-free" ? /\b(?:non alcoholic|alcohol free|low alcohol|zero alcohol)\b/.exec(padded) : null;
     if (category === "alcohol-free" ? alcoholFree : haystackMatchesCategory(padded, category)) {
-      const at = alcoholFree?.index ?? padded.indexOf(` ${label} `);
+      const at = alcoholFree?.index ?? categoryIndex(padded, category);
       found.push(excludedIf({ kind: "drink", label, match: { by: "category", category } }, at >= 0 && negatedBefore(padded, at)));
     }
   }
@@ -152,8 +197,9 @@ function drinkRequirements(text: string): { found: VenueRequirement[]; rest: str
 
 /** Hard requirements the ask names, in a stable order. Moods and budgets are not here. */
 export function venueRequirementsInText(text: string): VenueRequirement[] {
-  const drinks = drinkRequirements(text);
+  const drinks = drinkRequirements(text.replace(/[,;:.!?()]+/g, " but "));
   const features = FEATURE_TERMS.flatMap(([kind, pattern]) => {
+    if (NEGATED_FEATURE_TERMS.get(kind)?.test(drinks.rest)) return [excludedIf({ kind }, true)];
     const hit = pattern.exec(drinks.rest);
     return hit ? [excludedIf({ kind }, negatedBefore(drinks.rest, hit.index))] : [];
   });

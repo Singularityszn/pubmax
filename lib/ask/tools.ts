@@ -20,6 +20,7 @@ import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
 import { parseConciergeIntent } from "@/lib/concierge/intent";
 import {
+  QUIET_NOT_CHECKED,
   rankConciergeVenues,
   type ConciergeVenue,
 } from "@/lib/concierge/rank";
@@ -174,7 +175,7 @@ async function requirementContext(
 }
 
 function requirementNote(
-  row: { venue: ConciergeVenue; nearAreaNote?: string },
+  row: { venue: ConciergeVenue; reasons: readonly string[]; nearAreaNote?: string },
   requirements: readonly VenueRequirement[],
   evidence: readonly RequirementProof[],
   now: number,
@@ -183,7 +184,8 @@ function requirementNote(
     const proof = evidence[index];
     return proof ? [requirementProofLine(row.venue, requirement, proof, now)] : [];
   });
-  return [...proofs.slice(0, 2), row.nearAreaNote].filter(Boolean).join(" · ");
+  const unchecked = row.reasons.filter((reason) => reason === QUIET_NOT_CHECKED);
+  return [...proofs.slice(0, 2), ...unchecked, row.nearAreaNote].filter(Boolean).join(" · ");
 }
 
 async function toolSearchVenues(
