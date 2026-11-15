@@ -52,8 +52,8 @@ type DrinkMatch =
 const FEATURE_TERMS: ReadonlyArray<readonly [Exclude<VenueRequirement["kind"], "drink">, RegExp]> = [
   ["garden", /\b(?:beer )?gardens?\b/],
   ["outdoor-seating", /\boutdoors?\b|\bal fresco\b|\bterraces?\b|\b(?:sit|sitting|seats?|seating|drinks?|drinking|tables?|space)\s+outside\b/],
-  ["darts", /\bdarts? ?boards?\b|\b(?:play|playing|with|has|have|got)\s+(?:a\s+)?darts\b/],
-  ["pool", /\bpool tables?\b|\b(?:play|playing|shoot|shooting)\s+pool(?: tables?)?\b|\bwith\s+(?:a\s+)?pool(?: tables?)?\b/],
+  ["darts", /\bdarts? ?boards?\b|\b(?:play|playing|with|has|have|got)\s+(?:a\s+)?darts\b|\bdarts\b/],
+  ["pool", /\bpool tables?\b|\b(?:play|playing|shoot|shooting)\s+pool(?: tables?)?\b|\bwith\s+(?:a\s+)?pool(?: tables?)?\b|\bpool\b/],
   ["dogs", /\bdog friendly\b|\bdogs? (?:allowed|welcome)\b|\b(?:bring|with)\s+(?:my|our|the|a)\s+dogs?\b/],
   ["quiz", /\bquiz(?:zes)?\b|\btrivia\b/],
 ];

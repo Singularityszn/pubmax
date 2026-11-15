@@ -317,6 +317,51 @@ describe("search_venues hard requirements", () => {
   const dartsTagged = (id: string) =>
     venue({ id, name: `The Oche ${id}`, area: "Soho", cheapestPrice: 4, amenities: { ...noAmenities, darts: true } });
 
+  it.each([
+    ["a pub with darts and pool", ["darts", "pool"]],
+    ["pubs with a dart board and pool", ["darts", "pool"]],
+    ["a pub where I can play pool and darts", ["darts", "pool"]],
+    ["no pool but darts please", ["darts", "not:pool"]],
+    ["darts, not pool", ["darts", "not:pool"]],
+  ])("keeps both joined game requirements: %s", (query, required) => {
+    expect(venueRequirementsInText(query).map(requirementKey)).toEqual(required);
+  });
+
+  it("confirms joined games only when both have dated website evidence", async () => {
+    state.venues = ["both", "darts-only"].map((id) => dartsTagged(id));
+    state.amenityRows = [
+      siteRow("both", { darts: "dart board", pool: "two pool tables" }),
+      siteRow("darts-only", { darts: "dart board" }),
+    ];
+    const result = await search("a pub with darts and pool in Soho");
+    expect(searchData(result).requirements).toEqual(["darts", "pool"]);
+    expect(result.cards.map((card) => card.venueId)).toEqual(["both"]);
+    expect(searchData(result).venues).toMatchObject([{
+      id: "both",
+      evidence: [
+        { requirement: "darts", source: "Pub website", observedAt: "2026-08-01" },
+        { requirement: "pool", source: "Pub website", observedAt: "2026-08-01" },
+      ],
+    }]);
+  });
+
+  it("discloses the unchecked joined game instead of confirming a partial match", async () => {
+    state.venues = [venue({
+      id: "both", name: "The Games Room", area: "Soho",
+      amenities: { ...noAmenities, darts: true, pool: true },
+    })];
+    state.amenityRows = [siteRow("both", { darts: "dart board" })];
+    const result = await search("a pub with darts and pool in Soho");
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({
+      requirements: ["darts", "pool"],
+      found: 0,
+      unverified: [{ id: "both", requirements: ["pool"] }],
+    });
+    expect(result.answerHint).toContain("pool table");
+    expect(result.answerHint).toContain("unchecked tag");
+  });
+
   it("confirms darts and pool only from a dated pub website quote linked to that exact venue", async () => {
     state.venues = ["site", "future", "televised", "unlinked", "elsewhere", "bad-url", "bad-day"].map((id) => dartsTagged(id));
     state.amenityRows = [
