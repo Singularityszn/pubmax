@@ -74,6 +74,38 @@ async function settle(): Promise<void> {
 }
 
 describe("SaveToListControl across an account change", () => {
+  it("requests location only after a press and discards a fix from the previous account", async () => {
+    const prior = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    let deliver: PositionCallback = () => {};
+    const locate = vi.fn((success: PositionCallback) => { deliver = success; });
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: locate } });
+    authedFetch.mockImplementation(async (input: string) => new Response(JSON.stringify(
+      input.includes("lists=1") ? { lists: [] } : { saved: [] },
+    )));
+    authedActionFetch.mockImplementation(async () => new Response(JSON.stringify({ checkedIn: true })));
+    const render = () => root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb", open: true }));
+    const fix = { coords: { latitude: 51.5, longitude: -0.1, accuracy: 20 }, timestamp: Date.now() } as GeolocationPosition;
+    try {
+      await act(async () => { render(); });
+      expect(locate).not.toHaveBeenCalled();
+      await act(async () => { chip("Check in nearby").click(); });
+      expect(locate).toHaveBeenCalledTimes(1);
+      const oldFix = deliver;
+      Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+      await act(async () => { render(); });
+      await act(async () => { oldFix(fix); });
+      expect(authedActionFetch).not.toHaveBeenCalled();
+      await act(async () => { chip("Check in nearby").click(); });
+      await act(async () => { deliver(fix); });
+      const [, options] = authedActionFetch.mock.calls[0]!;
+      expect(JSON.parse(options.body)).toMatchObject({ handle: "zed", venueId: "venue-1", action: "nearbyCheckIn" });
+      expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    } finally {
+      if (prior) Object.defineProperty(navigator, "geolocation", prior);
+      else Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
+
   it("drops the previous account's pressed chips and reads the next account's membership", async () => {
     const reads: string[] = [];
     authedFetch.mockImplementation(async (input: string) => {
