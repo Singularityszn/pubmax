@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MapOverlay } from "@/lib/mobileShell";
 import {
   mapSurfaceOverlay,
+  mobileShellIsReady,
   mapSurfaceStateOf,
   transition,
   type MapSurface,
@@ -128,4 +129,12 @@ describe("transition", () => {
       }
     }
   });
+});
+
+
+it("opens the pub picker while the map is loading", () => {
+  expect(mobileShellIsReady(true, true, true, false)).toBe(true);
+  expect(mobileShellIsReady(true, false, false, false)).toBe(false);
+  expect(mobileShellIsReady(false, false, false, false)).toBe(true);
+  expect(mobileShellIsReady(true, false, true, true)).toBe(true);
 });

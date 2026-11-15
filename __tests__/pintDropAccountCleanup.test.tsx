@@ -25,7 +25,7 @@ import { usePintDrops, type DropWithPhotos, type PintDropsState } from "@/compon
 import { readOptimisticSpills, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import PintDropComposer from "@/components/map/PintDropComposer";
 import { bindDeviceAccountOwner, clearDeviceAccountSessionArtifacts, DEVICE_ACCOUNT_OWNER_KEY, releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
-import { readPintDropDraft } from "@/lib/pintDropDraft";
+import { readPintDropDraft, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
 import type { SpeechRecognitionLike } from "@/lib/pintDropSpeech";
 import { defined } from "@/__tests__/helpers/defined";
 
@@ -456,4 +456,20 @@ it("stores the measure and the bill in the retry payload of a pending price (R2,
   const entry = readOptimisticSpills(localStorage).find(({ drop }) => drop.id === optimistic.id);
   expect(entry?.retry).toMatchObject({ measure: "half", measureLabel: "", priceGbp: "5.50" });
   expect(entry?.retry?.receiptPhotoUrl).toMatch(/^blob:pending-preview-/);
+});
+
+
+it("restores the entry in the selected pub after sign-in", async () => {
+  writePintDropSignInHandoff(localStorage, "venue-1", {
+    form: { price: "5.20", drink: "Guinness", measure: "pint", measureLabel: "", note: "", era: "", withWho: "" },
+    visibility: "public", vibeTags: [], updatedAt: new Date().toISOString(),
+  });
+  await act(async () => root.render(createElement(Probe, { composer: true })));
+  expect(drops.dropForm).toMatchObject({ price: "5.20", drink: "Guinness" });
+});
+
+it("prefills the last account drink on a new device", async () => {
+  localStorage.setItem(DEVICE_ACCOUNT_OWNER_KEY, auth.id);
+  await act(async () => root.render(createElement(Probe, { composer: true })));
+  expect(drops.dropForm.drink).toBe("Pale ale");
 });

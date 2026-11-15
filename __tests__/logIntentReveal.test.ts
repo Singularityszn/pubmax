@@ -56,6 +56,14 @@ describe("reduced motion changes the glide, never the move", () => {
 });
 
 describe("waiting for the composer", () => {
+  it("focuses the price field when the selected pub opens", () => {
+    requestLogIntentReveal(rootWith(null), true, () => {});
+    const focus = vi.fn();
+    const step = { scrollIntoView: vi.fn(), getClientRects: () => [{}], querySelector: () => ({ focus }) } as unknown as HTMLElement;
+    expect(takeLogIntentReveal(step)).toBe(true);
+    expect(focus).toHaveBeenCalledOnce();
+  });
+
   it("keeps the reveal until the mounted price step is visible", () => {
     requestLogIntentReveal(rootWith(null), true, () => {});
     const scrollIntoView = vi.fn();

@@ -6,6 +6,10 @@ import {
   pintDropDraftForPersistence,
   pintDropDraftStorageKey,
   readPintDropDraft,
+  readLastLoggedDrink,
+  writeLastLoggedDrink,
+  writePintDropSignInHandoff,
+  takePintDropSignInHandoff,
   seededPintDropDraftForm,
   writePintDropDraft,
   type PintDropDraft,
@@ -199,4 +203,27 @@ describe("seededPintDropDraftForm", () => {
     };
     expect(seededPintDropDraftForm(draft, null)).toBe(draft);
   });
+});
+
+
+it("prefills only the last logged drink of the same account", () => {
+  const storage = makeStorage();
+  writeLastLoggedDrink(storage, "account-a", "Guinness");
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
+  expect(readLastLoggedDrink(storage, "account-b")).toBeNull();
+  expect(readLastLoggedDrink(storage, null)).toBeNull();
+  writeLastLoggedDrink(storage, "account-a", "");
+  expect(readLastLoggedDrink(storage, "account-a")).toBeNull();
+});
+
+it("carries an entry to the chosen pub after sign-in, once", () => {
+  const storage = makeStorage();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-b", 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", 1100)?.form).toMatchObject({
+    price: "5.8", drink: "Guinness", measure: "pint",
+  });
+  expect(takePintDropSignInHandoff(storage, "venue-a", 1100)).toBeNull();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-a", 1000 + 31 * 60_000)).toBeNull();
 });
