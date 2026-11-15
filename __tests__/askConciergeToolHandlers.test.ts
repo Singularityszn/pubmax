@@ -497,6 +497,24 @@ describe("search_venues hard requirements", () => {
   };
 
   it.each([
+    ["find a pub without dogs in Soho", ["not:dogs"]],
+    ["a pub that does not allow dogs in Soho", ["not:dogs"]],
+    ["a pub without a quiz on Monday in Soho", ["not:quiz"]],
+    ["a pub with a garden but without outdoor seating in Soho", ["garden", "not:outdoor-seating"]],
+    ["a pub with a garden but without a garden in Soho", ["garden", "not:garden"]],
+    ["a dog friendly pub but no dogs in Soho", ["dogs", "not:dogs"]],
+  ])("fails closed for an explicit exclusion: %s", async (query, requirements) => {
+    state.venues = [
+      venue({ id: "has-it", name: "The Has It", area: "Soho", features: { garden: observed("OpenStreetMap", "2026-07-05"), dogsWelcome: observed("OpenStreetMap", "2026-07-01") } }),
+      venue({ id: "plain", name: "The Plain", area: "Soho" }),
+    ];
+    state.whatsOn = { rows: [quizRow("has-it")], kindObservedAt: {} };
+    const result = await search(query);
+    expect(result.cards).toEqual([]);
+    expect(searchData(result)).toMatchObject({ requirements, coverageGaps: requirements.filter((key) => key.startsWith("not:")), found: 0 });
+  });
+
+  it.each([
     ["Pubs without any sort of a pool table in Hackney", "not:pool"],
     ["Avoid pubs with a pool table in Hackney", "not:pool"],
     ["I don't want a pub with a pool table in Hackney", "not:pool"],
