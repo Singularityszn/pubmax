@@ -1,6 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { mkdir, writeFile } from "node:fs/promises";
 import { expectMobileMapShellReady, mobileMapShellControl, routeTubeStatus } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 
 const VIEWPORTS = [
@@ -81,6 +82,7 @@ async function waitForMapPaint(page: Page): Promise<void> {
 for (const viewport of VIEWPORTS) {
   for (const theme of THEMES) {
     test(`coordinated map shell ${viewport.width}x${viewport.height} ${theme}`, async ({ page }) => {
+      await installDeterministicMapBasemap(page);
       await page.setViewportSize(viewport);
       await page.emulateMedia({ reducedMotion: "reduce" });
       await page.addInitScript((initialTheme) => {
@@ -88,6 +90,7 @@ for (const viewport of VIEWPORTS) {
         window.localStorage.setItem("pubmax-tour-v1-done", "1");
         window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
         window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+        window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
         window.sessionStorage.setItem("pubmax-e2e-geo-calls", "0");
         Object.defineProperty(navigator, "geolocation", {
           configurable: true,
@@ -143,10 +146,10 @@ for (const viewport of VIEWPORTS) {
       })).toBeNull();
       await waitForMapPaint(page);
       const nearMeClose = page.getByRole("button", { name: "Close Near me" });
-      if (await nearMeClose.isVisible().catch(() => false)) {
-        await nearMeClose.click();
-        await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
-      }
+      await expect(nearMeClose).toBeVisible();
+      await nearMeClose.click();
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(0);
 
       const chromeRows = page.locator(".mobileMapChrome > :visible");
       await expect(chromeRows).toHaveCount(2);
