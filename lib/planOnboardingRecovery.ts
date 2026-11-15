@@ -22,6 +22,7 @@ function writeRecords(records: Records, session: Storage, local: Storage, expect
   for (const [store, keys, values, prior] of [[session, SESSION_KEYS, records.session, expected?.session], [local, LOCAL_KEYS, records.local, expected?.local]] as const) {
     for (const key of keys) {
       const value = values[key];
+      if (value === undefined) throw new Error("Missing saved plan value");
       if (prior && store.getItem(key) !== prior[key]) throw new Error("The saved plan changed");
       if (value === null) store.removeItem(key);
       else store.setItem(key, value);
