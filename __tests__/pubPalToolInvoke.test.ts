@@ -119,6 +119,13 @@ describe("propose_plan over the Pal webhook", () => {
     expect(result.answerHint).toMatch(/from/i);
   });
 
+  it("keeps a venue search in the person's stored city when the provider supplies another city", async () => {
+    const conversationId = "conv_cityrepair01";
+    await registerPubPalToolTurn(conversationId, { query: "Find pubs in Soho", cityId: "london", ownerId: "11111111-1111-4111-8111-111111111111" });
+    const { result } = await invokePubPalAskTool({ toolName: "search_venues", args: { cityId: "manchester" }, conversationId });
+    expect(result.cards).toEqual(expect.arrayContaining([expect.objectContaining({ venueId: expect.any(String) })]));
+  });
+
   it.each([
     { toolName: "search_venues", args: { query: "Find four pubs in Soho" } },
     { toolName: "cheapest_pint_near", args: { query: "Cheapest pints in Westminster", area: "Westminster" } },
