@@ -1,4 +1,4 @@
-import { mapSearchNameTier } from "@/lib/mapSearchIndex";
+import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";

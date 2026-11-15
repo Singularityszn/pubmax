@@ -9,7 +9,7 @@
 // these models (same house pattern as lib/mapSearchSuggest.ts).
 
 import { haversineKm } from "@/lib/haversine";
-import { mapSearchNameTier } from "@/lib/mapSearchIndex";
+import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { normalizeSearchText } from "@/lib/textSlug";
 import {
   formatSuggestDistance,
