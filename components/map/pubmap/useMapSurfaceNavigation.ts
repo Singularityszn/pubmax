@@ -365,6 +365,20 @@ export function useMapSurfaceNavigation({
     return () => window.removeEventListener("popstate", onPop);
   }, [publishStack]);
 
+  const complete = useCallback((id: MapSurfaceId) => {
+    if (typeof window === "undefined") return;
+    const held = stackRef.current;
+    if (currentSurface(held)?.id !== id) return;
+    const next = held.slice(0, -1);
+    publishStack(next);
+    window.history.replaceState(
+      stampMapSurfaceHistory(window.history.state, next, selectedVenueId(next),
+        readEntriesAboveRoot(window.history.state) ?? held.length),
+      "",
+      urlForStack(next, selectionHintRef.current),
+    );
+  }, [publishStack]);
+
   const back = useCallback(() => {
     if (!stackRef.current.length || typeof window === "undefined") return;
     window.history.back();
@@ -465,6 +479,7 @@ export function useMapSurfaceNavigation({
   return useMemo(
     () => ({
       backLabel: backActionLabel(stack),
+      complete,
       back,
       home,
       leave,
@@ -473,6 +488,6 @@ export function useMapSurfaceNavigation({
       resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, leave, open, rejectSelection, resolveSelection, stack],
+    [back, complete, home, leave, open, rejectSelection, resolveSelection, stack],
   );
 }

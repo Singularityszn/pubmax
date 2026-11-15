@@ -2251,6 +2251,7 @@ export default function PubMap({
   // worse than one. The trail is assembled further down this component, so the
   // gesture reaches it through a ref.
   const surfaceBackRef = useRef<() => void>(() => {});
+  const surfaceCompleteRef = useRef<(id: MapOverlay) => void>(() => {});
   const surfaceLeaveRef = useRef<(id: MapSurfaceId, close: () => void) => void>((_id, close) => close());
   const surfaceOpenRef = useRef<
     (entry: SurfaceEntry<MapSurfaceState>) => void
@@ -5163,6 +5164,7 @@ export default function PubMap({
 
   const handleChooseAreaPick = useCallback(
     (pick: ChooseAreaPick) => {
+      surfaceCompleteRef.current("choose-area");
       changeMapOverlay("none");
       setChooseAreaLocationNote(null);
       if (pick.kind === "near-me") {
@@ -5450,10 +5452,11 @@ export default function PubMap({
   );
   useLayoutEffect(() => {
     surfaceBackRef.current = mapSurfaceTrail.back;
+    surfaceCompleteRef.current = mapSurfaceTrail.complete;
     surfaceLeaveRef.current = mapSurfaceTrail.leave;
     surfaceOpenRef.current = mapSurfaceTrail.open;
     surfaceStateRef.current = mapSurfaceState;
-  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
+  }, [mapSurfaceState, mapSurfaceTrail.back, mapSurfaceTrail.complete, mapSurfaceTrail.leave, mapSurfaceTrail.open]);
 
   // ── The landmark story ───────────────────────────────────────────────────
   // One body (components/map/LandmarkStoryBody.tsx) in the frame each width
