@@ -4,7 +4,7 @@ import { warmMapEngine } from "@/lib/mapEngineWarm";
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { resetMapRefinements } from "@/lib/mapFilterReset";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
-import { venueToPricedPoint } from "@/lib/nearMeAnswer";
+import { venueToPricedPoint, WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 
 import { CalendarClock, ChevronRight, Compass, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
@@ -103,7 +103,7 @@ import {
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
-import { mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
+import { mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -408,13 +408,7 @@ const MapOnboardingOverlay = dynamic(
     })),
   { ssr: false },
 );
-const LogIntentFallback = dynamic(
-  () =>
-    import("@/components/map/pubmap/LogIntentFallback").then(
-      (m) => m.LogIntentFallback,
-    ),
-  { ssr: false },
-);
+import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
@@ -1829,6 +1823,8 @@ export default function PubMap({
     generation: number;
     lat: number;
     lng: number;
+    radiusKm: number;
+    city: CityId;
   } | null>(null);
   const {
     mode,
@@ -3825,7 +3821,7 @@ export default function PubMap({
     mapSurfaceRef.current = mapSurface;
   });
   const coordinatedMobileOverlay = mapSurfaceOverlay(mapSurface);
-  const { location: logPickerLocation, setLocation: setLogPickerLocation } = useLogPickerLocation(
+  const { location: logPickerLocation, locating: logPickerLocating, setLocation: setLogPickerLocation } = useLogPickerLocation(
     mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
     userLocation,
   );
@@ -3844,15 +3840,15 @@ export default function PubMap({
   );
   const logNearbyCandidates = useMemo(
     () =>
-      buildLogNearbyCandidates(
-        filteredPubVenues,
+      logNearbyOrigin?.source === "user" && !(nearbyLoadedPoint?.city === cityId && nearbyLoadedPoint.lat === logNearbyOrigin.origin.lat && nearbyLoadedPoint.lng === logNearbyOrigin.origin.lng && nearbyLoadedPoint.radiusKm >= LOG_NEARBY_MAX_KM) ? [] : buildLogNearbyCandidates(
+        pubVenues,
         undefined,
         logNearbyOrigin?.origin ?? null,
         LOG_NEARBY_MAX_KM,
         mapDrinkLensCategory,
         drinkLensPrices,
       ),
-    [filteredPubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices],
+    [pubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices, nearbyLoadedPoint, cityId],
   );
 
   const showLoadedRoute = useCallback(
@@ -3915,12 +3911,13 @@ export default function PubMap({
       return;
     }
     const loaderGeneration = slimLoaderGenerationRef.current;
+    const radiusKm = logIntentFallbackVisible ? LOG_NEARBY_MAX_KM : WALKABLE_RADIUS_KM;
     let cancelled = false;
     if (
       nearbyLoadedPoint?.loader === loader &&
       nearbyLoadedPoint.generation === loaderGeneration &&
       nearbyLoadedPoint.lat === location.lat &&
-      nearbyLoadedPoint.lng === location.lng
+      nearbyLoadedPoint.lng === location.lng && nearbyLoadedPoint.radiusKm >= radiusKm
     ) {
       void Promise.resolve().then(() => {
         if (!cancelled) finish();
@@ -3938,7 +3935,7 @@ export default function PubMap({
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
     };
-    void loader.nearPoint(location.lat, location.lng)
+    void loader.nearPoint(location.lat, location.lng, radiusKm)
       .then((result) => {
         if (
           cancelled ||
@@ -3951,7 +3948,7 @@ export default function PubMap({
           failNearbyLoad();
           return;
         }
-        setNearbyLoadedPoint({ loader, generation: loaderGeneration, lat: location.lat, lng: location.lng });
+        setNearbyLoadedPoint({ loader, generation: loaderGeneration, lat: location.lat, lng: location.lng, radiusKm, city: cityId });
       })
       .catch(() => {
         failNearbyLoad();
@@ -3975,6 +3972,7 @@ export default function PubMap({
     mapRoute,
     showLoadedRoute,
     logPickerLocation,
+    logIntentFallbackVisible,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,
@@ -6111,7 +6109,7 @@ export default function PubMap({
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
 
-  const mobileShellReady = !mapLoadingActive;
+  const mobileShellReady = mobileShellIsReady(mapLoadingActive, logIntentFallbackVisible, hasReactiveLogIntent, mapSelection.detailOpen);
   // Desktop reader controls. Both live inside Layers rather than on the map
   // surface, which keeps its budget at search plus one toast. The phone reaches
   // the same two through the More sheet's Key and Prices tabs.
@@ -6349,8 +6347,7 @@ export default function PubMap({
     );
   }
 
-  /* The phone's whole chrome: top bar, chip row and every sheet it can open.
-     Held back until the loading frame lets go so no chrome paints over it. */
+  /* The picker opens while the map loads. Other phone chrome waits for the map. */
   function renderMobileShellSection() {
     return (
       <>
@@ -6480,6 +6477,7 @@ export default function PubMap({
             candidates={logNearbyCandidates}
             categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
+            locating={logPickerLocating}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
@@ -7020,6 +7018,7 @@ export default function PubMap({
           candidates={logNearbyCandidates}
           categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
+          locating={logPickerLocating}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}

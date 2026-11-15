@@ -39,6 +39,7 @@ export const DEVICE_IDENTITY_CHANGED_EVENT = "pubmax:device-identity-changed";
 export const DEVICE_IDENTITY_LOCAL_KEYS = [
   // The handle every composer, actor and profile route signs with.
   "pubmax_handle",
+  "pubmax:last-logged-drink:v1",
   // Pre-Wave-I comment-only handle; still migrated into the key above on read.
   "pubmax:comment:handle",
   // A self-asserted Round handle, which the diary attributes spend to.

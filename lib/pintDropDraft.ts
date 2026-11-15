@@ -87,9 +87,10 @@ function emptyPintDropDraftForm(): PintDropDraftForm {
 export function seededPintDropDraftForm(
   draftForm: PintDropDraftForm | null,
   priceSeed: string | null,
+  drinkSeed: string | null = null,
 ): PintDropDraftForm | null {
   if (!draftForm) {
-    return priceSeed ? { ...emptyPintDropDraftForm(), price: priceSeed } : null;
+    return priceSeed || drinkSeed ? { ...emptyPintDropDraftForm(), price: priceSeed ?? "", drink: drinkSeed ?? "" } : null;
   }
   if (draftForm.price || !priceSeed) return draftForm;
   return { ...draftForm, price: priceSeed };
@@ -189,4 +190,48 @@ export function clearPintDropDraft(
   } catch {
     // Same storage-failure posture as writes: fail soft.
   }
+}
+
+export const LAST_LOGGED_DRINK_KEY = "pubmax:last-logged-drink:v1";
+
+export function readLastLoggedDrink(storage: Pick<Storage, "getItem"> | null, accountId: string | null): string | null {
+  if (!storage || !accountId) return null;
+  try {
+    const saved = JSON.parse(storage.getItem(LAST_LOGGED_DRINK_KEY) ?? "null");
+    return saved?.accountId === accountId && typeof saved.drink === "string" && saved.drink.trim()
+      ? saved.drink.slice(0, MAX_FIELD_LENGTH) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function writeLastLoggedDrink(storage: Pick<Storage, "setItem" | "removeItem"> | null, accountId: string | null, drink: string): void {
+  if (!storage || !accountId) return;
+  try {
+    if (drink.trim()) storage.setItem(LAST_LOGGED_DRINK_KEY, JSON.stringify({ accountId, drink: drink.trim().slice(0, MAX_FIELD_LENGTH) }));
+    else storage.removeItem(LAST_LOGGED_DRINK_KEY);
+  } catch { /* Storage may be unavailable. */ }
+}
+
+const SIGN_IN_HANDOFF_KEY = "pubmax:pint-drop-sign-in:v1";
+const SIGN_IN_HANDOFF_LIFETIME = 30 * 60_000;
+
+export function writePintDropSignInHandoff(storage: Pick<Storage, "setItem"> | null, venueId: string, draft: PintDropDraft, now = Date.now()): void {
+  if (!storage || !venueId) return;
+  try { storage.setItem(SIGN_IN_HANDOFF_KEY, JSON.stringify({ venueId, draft: { ...draft, version: 2 }, savedAt: now })); } catch { /* Storage may be unavailable. */ }
+}
+
+export function takePintDropSignInHandoff(storage: Pick<Storage, "getItem" | "removeItem"> | null, venueId: string, now = Date.now()): PintDropDraft | null {
+  if (!storage || !venueId) return null;
+  try {
+    const saved = JSON.parse(storage.getItem(SIGN_IN_HANDOFF_KEY) ?? "null");
+    if (!saved || typeof saved.savedAt !== "number" || now < saved.savedAt || now - saved.savedAt > SIGN_IN_HANDOFF_LIFETIME) {
+      storage.removeItem(SIGN_IN_HANDOFF_KEY);
+      return null;
+    }
+    if (saved.venueId !== venueId) return null;
+    const draft = normalisePintDropDraft(saved.draft);
+    storage.removeItem(SIGN_IN_HANDOFF_KEY);
+    return draft;
+  } catch { return null; }
 }

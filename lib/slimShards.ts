@@ -299,7 +299,7 @@ export type SlimShardLoader = {
    * reports whether every required shard loaded. Partial rows must not establish
    * a nearby cheapest winner.
    */
-  nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
+  nearPoint(lat: number, lng: number, radiusKm?: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
@@ -892,7 +892,7 @@ export function createSlimShardLoader(
 
     initialResult,
 
-    async nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult> {
+    async nearPoint(lat: number, lng: number, radiusKm = WALKABLE_RADIUS_KM): Promise<SlimShardLoadResult> {
       const m = await manifest();
       if (!m) {
         return {
@@ -902,7 +902,7 @@ export function createSlimShardLoader(
       }
       const needed = shardsForBounds(
         m,
-        boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
+        boundsForRadius(lat, lng, radiusKm),
         0,
         true,
       ).filter((s) => s.partition !== "kind");

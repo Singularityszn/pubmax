@@ -21,6 +21,7 @@ export function LogIntentFallback({
   candidates,
   categoryPriceIntent = false,
   origin,
+  locating = false,
   filteredPubVenueCount,
   onPickVenue,
   onPrefetchVenue,
@@ -32,6 +33,7 @@ export function LogIntentFallback({
   candidates: LogNearbyCandidate[];
   categoryPriceIntent?: boolean;
   origin: LogNearbyOriginSource | null;
+  locating?: boolean;
   filteredPubVenueCount: number;
   onPickVenue: (id: string) => void;
   onPrefetchVenue: (id: string) => void;
@@ -57,7 +59,7 @@ export function LogIntentFallback({
       { enableHighAccuracy: false, timeout: 5000, maximumAge: 60_000 },
     );
   };
-  const listed = candidates.length > 0 && origin !== null;
+  const listed = !locating && candidates.length > 0 && origin !== null;
   const destination = categoryPriceIntent ? "price form" : "Pint Drop composer";
   return (
     <div className="logIntentFallback" role="status" aria-live="polite">
@@ -78,11 +80,13 @@ export function LogIntentFallback({
           ) : null}
         </div>
         <p className="description">
-          {!listed
+          {locating
+            ? "Finding your location and nearby pubs…"
+            : !listed
             ? `We won’t guess which pub you’re in. Search for it, or tap it on the map. Then we’ll open the ${destination}.`
             : origin === "user"
               ? `Nearest pubs to you first. Choose one, search, or tap the map. Then we’ll open the ${destination}.`
-              : `Nearest pubs to the map centre. Choose one, search, or tap the map. Then we’ll open the ${destination}.`}
+              : `Your location is unavailable. Nearest pubs to the map centre. Choose one, search, or tap the map. Then we’ll open the ${destination}.`}
         </p>
       </div>
       {listed ? (

@@ -1,15 +1,21 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   pintDropDraftForPersistence,
+  isEmptyPintDropDraft,
   readPintDropDraft,
+  readLastLoggedDrink,
+  takePintDropSignInHandoff,
+  writeLastLoggedDrink,
   seededPintDropDraftForm,
   writePintDropDraft,
 } from "@/lib/pintDropDraft";
-import { readDeviceAccountSessionRevision } from "@/lib/deviceAccountIdentity";
+import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderAccountRevision } from "@/lib/authProviderRevision";
+import { deviceAccountOwner, readDeviceAccountSessionRevision } from "@/lib/deviceAccountIdentity";
 import { trackEvent } from "@/lib/analytics";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { safeSessionStorage } from "@/lib/safeStorage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type UseVenueDraftArgs = {
@@ -30,6 +36,8 @@ type UseVenueDraftArgs = {
    * takes the seed, so the door's promise survives a half-typed note.
    */
   priceSeed?: string | null;
+  accountId: string | null;
+  accountHandle: string | null;
 };
 
 /**
@@ -48,8 +56,11 @@ export function useVenueDraft({
   vibeTags,
   transientVoiceNoteBaseline,
   priceSeed = null,
+  accountId,
+  accountHandle,
 }: UseVenueDraftArgs): boolean {
   const revision = readDeviceAccountSessionRevision();
+  const seededDrink = useRef<string | null>(null);
   const [draftReadyVenueId, setDraftReadyVenueId] = useState<string | null>(null);
   if (draftReadyVenueId !== null && draftReadyVenueId !== venueId) {
     // React adjust-state-during-render pattern: block stale shared composer
@@ -62,10 +73,14 @@ export function useVenueDraft({
   useEffect(() => {
     let active = true;
     async function hydrateVenueDraft() {
-      const draft = readPintDropDraft(safeSessionStorage(), venueId);
+      const draft = (accountId ? takePintDropSignInHandoff(safeLocalStorage(), venueId) : null)
+        ?? readPintDropDraft(safeSessionStorage(), venueId);
       if (!active) return;
       resetComposer();
-      const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed);
+      const ownedAccount = accountId && deviceAccountOwner(safeLocalStorage()) === accountId ? accountId : null;
+      const lastDrink = draft ? null : readLastLoggedDrink(safeLocalStorage(), ownedAccount);
+      seededDrink.current = lastDrink;
+      const seeded = seededPintDropDraftForm(draft?.form ?? null, priceSeed, lastDrink);
       if (draft) {
         writePintDropDraft(safeSessionStorage(), venueId, draft);
         if (seeded) setDropForm(seeded);
@@ -76,25 +91,44 @@ export function useVenueDraft({
         setDropForm(seeded);
       }
       setDraftReadyVenueId(venueId);
+      if (!draft && ownedAccount && accountHandle) {
+        const accountRevision = readProviderAccountRevision();
+        const expected = seeded ?? { price: "", drink: "", measure: "pint", measureLabel: "", note: "", era: "", withWho: "" };
+        const query = new URLSearchParams({ author: accountHandle });
+        void authedActionFetch(`/api/pint-drops?${query}`, {}, { requiresIdentity: true })
+          .then((response) => response.ok ? response.json() : null)
+          .then((data: { drops?: Array<{ drink?: unknown; handle?: unknown }> } | null) => {
+            if (!active || accountRevision !== readProviderAccountRevision() || deviceAccountOwner(safeLocalStorage()) !== ownedAccount || !Array.isArray(data?.drops)) return;
+            if (data.drops[0] && (typeof data.drops[0].handle !== "string" || data.drops[0].handle.replace(/^@+/, "").toLowerCase() !== accountHandle.replace(/^@+/, "").toLowerCase())) return;
+            const drink = typeof data.drops[0]?.drink === "string" ? data.drops[0].drink.trim() : "";
+            writeLastLoggedDrink(safeLocalStorage(), ownedAccount, drink);
+            setDropForm((current) => {
+              if (JSON.stringify(current) !== JSON.stringify(expected)) return current;
+              seededDrink.current = drink;
+              return { ...current, drink };
+            });
+          }).catch(() => undefined);
+      }
     }
     void hydrateVenueDraft();
     return () => {
       active = false;
     };
-  }, [venueId, priceSeed, resetComposer, setDropForm, setVisibility, setVibeTags]);
+  }, [venueId, priceSeed, accountId, accountHandle, resetComposer, setDropForm, setVisibility, setVibeTags]);
 
   useEffect(() => {
     if (revision !== readDeviceAccountSessionRevision() || draftReadyVenueId !== venueId) return;
-    writePintDropDraft(
-      safeSessionStorage(),
-      venueId,
-      pintDropDraftForPersistence({
-        form: dropForm,
-        visibility,
-        vibeTags,
-        updatedAt: new Date().toISOString(),
-      }, transientVoiceNoteBaseline),
-    );
+    const draft = pintDropDraftForPersistence({
+      form: dropForm,
+      visibility,
+      vibeTags,
+      updatedAt: new Date().toISOString(),
+    }, transientVoiceNoteBaseline);
+    const withoutSeed = { ...draft, form: { ...draft.form, drink: "" } };
+    writePintDropDraft(safeSessionStorage(), venueId,
+      seededDrink.current !== null && draft.form.drink === seededDrink.current && isEmptyPintDropDraft(withoutSeed)
+        ? withoutSeed : draft);
+
   }, [revision, venueId, draftReadyVenueId, dropForm, transientVoiceNoteBaseline, visibility, vibeTags]);
 
   useEffect(() => {

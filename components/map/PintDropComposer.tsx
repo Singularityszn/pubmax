@@ -36,6 +36,8 @@ import { useIsMobileComposer } from "@/components/map/composer/useIsMobileCompos
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
+import { pintDropDraftForPersistence, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { pintDropDoorHref } from "@/lib/landingHero";
 import {
   readDeviceAccountSessionRevision,
@@ -72,6 +74,7 @@ function AccountPintDropComposer({
   const {
     handle,
     accountHandle,
+    accountId,
     authConfigured,
     signedIn,
     identityReady,
@@ -127,6 +130,8 @@ function AccountPintDropComposer({
     vibeTags,
     transientVoiceNoteBaseline,
     priceSeed,
+    accountId,
+    accountHandle: signedIn && identityReady ? accountHandle : null,
   });
 
   const mobile = useIsMobileComposer();
@@ -312,6 +317,9 @@ function AccountPintDropComposer({
           <Link
             href={`/login?mode=signin&from=${encodeURIComponent(signedOutReturnDoor)}`}
             className="spillSubmitLink"
+            onClick={() => writePintDropSignInHandoff(safeLocalStorage(), venueId, pintDropDraftForPersistence({
+              form: dropForm, visibility, vibeTags, updatedAt: new Date().toISOString(),
+            }, transientVoiceNoteBaseline))}
           >
             Sign in to post
           </Link>
