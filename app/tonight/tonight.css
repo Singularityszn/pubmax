@@ -25,10 +25,10 @@
   padding-top: var(--space-3);
 }
 
-/* The one painted primary and its quiet secondary share ONE row at every
-   width. Stacked, the pair cost a phone a second 44px row in front of the
-   first pub; side by side the head stays short enough that the first row of
-   the list still clears the tab bar (docs/rules/app-landing-city-and-listing-pages.md). */
+/* The one painted primary and its quiet secondary share a row when the
+   labels fit. At normal text sizes, the compact head leaves room for the
+   first pub. Enlarged text can wrap without hiding either door
+   (docs/rules/app-landing-city-and-listing-pages.md). */
 @media (max-width: 640px) {
   .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
     flex-direction: row;
@@ -43,12 +43,11 @@
   }
 }
 
-/* The smallest phones (320 to 360 wide) still hold the pair on one row: the
-   gap tightens and the primary gives back side padding, so the first pub
-   clears a docked consent card at 320x568 (e2e/consent-after-first-answer). */
+/* The smallest phones (320 to 360 wide) tighten the gap and primary
+   padding so the first pub clears a docked consent card at 320x568.
+   Enlarged text can still wrap (e2e/consent-after-first-answer). */
 @media (max-width: 360px) {
   .tonightPage > .tonightDesktopGrid > .screenHead .screenActions {
-    flex-wrap: nowrap;
     column-gap: var(--space-3);
   }
 
