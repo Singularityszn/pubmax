@@ -255,4 +255,5 @@ Ranking regressions cover these boundaries in `__tests__/comparablePintRankingBo
 Fact evidence and FAQ parity are covered in `__tests__/factBlockPriceEvidence.test.tsx`.
 Share-image captions are covered in `__tests__/boroughOgPriceEvidence.test.tsx`.
 Coverage and count boundaries are covered in `__tests__/drinkCoverage.test.ts` and `__tests__/pricedPubCountOneAnswer.test.tsx`.
-The separate source-read contract and its limits are documented beside `cheapestPriceReads` in `__tests__/helpers/cheapestPriceReadFence.ts`.
+ESLint enforces reviewed raw reads through `price-read/reviewed` in `lib/priceReadLint.mjs`.
+The source-read contract and its limits are documented beside `cheapestPriceReads` in `__tests__/helpers/cheapestPriceReadFence.ts`.

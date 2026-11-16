@@ -6,9 +6,8 @@
 // docs/WRITE_SURFACE_CERTIFICATION.md#appapioperator-proposals--reviewed-operator-proposals-route-69.
 // Browser permissions are documented in docs/security/PERMISSION_MATRIX.md.
 //
-// It NEVER writes a venue fact, a price, hours or a pin. Nothing that ranks,
-// colours or orders a venue may import this module
-// (__tests__/operatorFactsFence.test.ts).
+// Operator-fact separation follows
+// docs/rules/lib-venues-areas-listings-and-nights.md.
 //
 // Reads are fail-soft. A hard durable publish failure throws to the caller.
 // A missing production table is refused on the publish path
