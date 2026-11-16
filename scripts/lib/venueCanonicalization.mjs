@@ -258,6 +258,12 @@ const VERIFIED_FAR_MERGE_METERS = 100;
 // than stretching it to a record nobody checked.
 export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
   Object.freeze({
+    // Both records name Unit 26, Hay's Galleria. The latter point is at the
+    // pub, as shown by https://www.geograph.org.uk/photo/1999727.
+    from: "venue-aihlwx",
+    to: "venue-7qifhm",
+  }),
+  Object.freeze({
     // "Maruquis of Cornwallis", Bethnal Green Road, about 640 m west of the pub.
     from: "venue-j71x23",
     // The Marquis of Cornwallis, 304 Bethnal Green Rd, E2 0AG. OpenStreetMap

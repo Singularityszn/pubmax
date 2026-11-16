@@ -357,6 +357,26 @@ describe("canonicalizeDataset — safety guards", () => {
     });
   });
 
+  it("preserves Horniman prices while resolving the misplaced Hays Galleria record", () => {
+    const pub = makeRow({
+      pub_name: "The Horniman at Hays",
+      address: "Unit 26 Hays Galleria, , London, UK",
+      latitude: 51.5061, longitude: -0.082997, price_gbp: 7.15,
+    });
+    const misplaced = makeRow({
+      pub_name: "The Horniman at Hays",
+      address: "Unit 26, Hay’s Galleria, Greater, London SE1 2HD, UK",
+      latitude: 51.4971, longitude: -0.0663029, price_gbp: 7,
+    });
+    expect(stableVenueIdFromKey(venueGroupingKey(pub))).toBe("venue-7qifhm");
+    expect(stableVenueIdFromKey(venueGroupingKey(misplaced))).toBe("venue-aihlwx");
+    const result = canonicalizeDataset([pub, misplaced]);
+    expect(result.aliases).toEqual({ "venue-aihlwx": "venue-7qifhm" });
+    expect(result.rows.map((row) => row.price_gbp)).toEqual([7.15, 7]);
+    expect(groupVenuePrices(result.rows).map((venue) => venue.id)).toEqual(["venue-7qifhm"]);
+    expect(canonicalizeDataset(result.rows).aliases).toEqual({});
+  });
+
   describe("the postcode-only Three Colts Tavern", () => {
     const pub = makeRow({
       pub_name: "The Three Colts Tavern",
