@@ -5,6 +5,7 @@
 # `next typegen` first to create it in a clean checkout.
 next-env.d.ts
 node_modules/
+/.ci-job-cache/
 # `out/` is the static-export build directory. It also matches every source
 # directory named `out`, so each one has to be un-ignored by hand or its files
 # never reach a commit.
