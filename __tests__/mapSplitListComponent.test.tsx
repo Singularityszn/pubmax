@@ -37,18 +37,20 @@ const EMPTY_BASE: Props["ukBaseModel"] = { rows: [], total: 0, shown: 0, truncat
 const EMPTY_RESTAURANTS: Props["restaurantModel"] = { rows: [], total: 0, shown: 0, truncated: false };
 
 /** A stand-in for the live MapLibre map: a container and a projection. */
-function fakeMap() {
+function fakeMap(alreadyIdle = false) {
   const container = document.createElement("div");
-  const handlers = new Map<string, Set<() => void>>();
+  const handlers = new Map<string, Set<(event?: { originalEvent?: Event }) => void>>();
   const map = {
+    loaded: () => alreadyIdle,
+    isMoving: () => !alreadyIdle,
     getContainer: () => container,
     project: ([lng, lat]: [number, number]) => ({ x: Math.round((lng + 0.14) * 10_000), y: Math.round((51.52 - lat) * 10_000) }),
-    on: (type: string, handler: () => void) => {
+    on: (type: string, handler: (event?: { originalEvent?: Event }) => void) => {
       if (!handlers.has(type)) handlers.set(type, new Set());
       handlers.get(type)!.add(handler);
       return map;
     },
-    off: (type: string, handler: () => void) => {
+    off: (type: string, handler: (event?: { originalEvent?: Event }) => void) => {
       handlers.get(type)?.delete(handler);
       return map;
     },
@@ -58,6 +60,7 @@ function fakeMap() {
     container,
     halo: () => container.querySelector<HTMLElement>(".mapSplitListHalo"),
     listening: (type: string) => handlers.get(type)?.size ?? 0,
+    emit: (type: string, event: { originalEvent?: Event } = {}) => handlers.get(type)?.forEach((handler) => handler(event)),
   };
 }
 
@@ -337,6 +340,101 @@ describe("the list beside the map, at desktop width", () => {
     expect(host.querySelector(".mapSplitListNote")).not.toBeNull();
     act(() => button("Cheapest").click());
     expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+  });
+
+  it.each([false, true])("holds the list through pub inspection, then follows a new map interaction with detail open=%s", (stillOpen) => {
+    const map = fakeMap();
+    const stage = document.createElement("div");
+    stage.className = "mapStage";
+    const toolbar = document.createElement("button");
+    stage.append(map.container, toolbar);
+    document.body.append(stage);
+    try {
+      const filters = {};
+      render({ map: map.map, detailOpen: false, filterState: filters });
+      render({ map: map.map, detailOpen: true, filterState: filters });
+      render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+      act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      render({ map: map.map, detailOpen: stillOpen, filterState: filters, visibleVenues: [LAMB] });
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      expect(host.querySelector<HTMLInputElement>(".mapSplitListFollow input")?.checked).toBe(true);
+      act(() => toolbar.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      act(() => map.emit("movestart"));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      act(() => map.emit("movestart", { originalEvent: new Event("pointerdown") }));
+      expect(rowNames()).toEqual(["The Lamb"]);
+    } finally {
+      stage.remove();
+    }
+  });
+
+  it("resumes following when the restored view has settled and the map becomes idle", () => {
+    const map = fakeMap();
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [CROWN, ANCHOR] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    act(() => map.emit("idle"));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+  });
+
+  it.each([false, true])("resumes the live view when the old viewport cannot be restored, already idle=%s", async (alreadyIdle) => {
+    const map = fakeMap(alreadyIdle);
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    const scroller = host.querySelector<HTMLDivElement>(".mapSplitListScroll")!;
+    scroller.scrollTop = 350;
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    scroller.scrollTop = 0;
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    await act(async () => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    if (!alreadyIdle) act(() => map.emit("idle"));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(host.querySelector(".mapSplitList")?.getAttribute("aria-busy")).toBe("false");
+    expect(scroller.scrollTop).toBe(350);
+  });
+
+  it("retains the scroll until the returning pointer view catches up", async () => {
+    const map = fakeMap(true);
+    const filters = {};
+    render({ map: map.map, detailOpen: false, filterState: filters });
+    const list = host.querySelector(".mapSplitList")!;
+    const scroller = host.querySelector<HTMLDivElement>(".mapSplitListScroll")!;
+    scroller.scrollTop = 350;
+    pointer(list, "pointerover");
+    render({ map: map.map, detailOpen: true, filterState: filters });
+    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ map: map.map, detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    await act(async () => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    scroller.scrollTop = 0;
+    pointer(list, "pointerout");
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    expect(rowNames()).toEqual(["The Lamb"]);
+    expect(scroller.scrollTop).toBe(350);
+  });
+
+  it("releases the inspection view when the map filters change", () => {
+    const filters = {};
+    render({ detailOpen: false, filterState: filters });
+    render({ detailOpen: true, filterState: filters });
+    render({ detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+    render({ detailOpen: false, filterState: filters, visibleVenues: [LAMB] });
+    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+    render({ detailOpen: false, filterState: {}, visibleVenues: [LAMB] });
+    expect(rowNames()).toEqual(["The Lamb"]);
   });
 
   it("applies the follow toggle and a requested search during pointer holds", () => {

@@ -6571,8 +6571,7 @@ export default function PubMap({
   /* From 1024px Explore is a list beside the map: the venues in view, priced
      the way the venue sheet prices them, opened the way a pin tap opens them.
      No map, no "in view", so a canvas that cannot draw takes the list with it. */
-  function renderDesktopSplitList() {
-    return splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
+  const desktopSplitList = splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
       <MapSplitList
         cityName={mapContextName}
         visibleVenues={mapVenueListVenues}
@@ -6593,13 +6592,14 @@ export default function PubMap({
           (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
         }
         viewLanding={viewShardsLanding}
+        detailOpen={detailOpen}
+        filterState={effectiveMapFilters}
         map={liveMap}
         onSelectVenue={handleVenueClick}
         onSelectUkBasePub={handleUkBasePubClick}
         onPrefetchVenue={prefetchVenueDetail}
       />
     ) : null;
-  }
 
   /* Desktop reader controls. Both live inside Layers rather than on the map
      surface, which keeps its budget at search plus one toast. The phone reaches
@@ -7289,6 +7289,7 @@ export default function PubMap({
                 never had. */}
             <SurfaceNav
               backLabel={mapSurfaceTrail.backLabel}
+              rootListBackLabel={splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? "Back to pubs in this view" : undefined}
               onBack={mapSurfaceTrail.back}
               homeLabel={
                 mapSurfaceTrail.backLabel
@@ -7325,12 +7326,9 @@ export default function PubMap({
 
       {/* From 1024px the list sits beside the map, before it in reading order;
           the stage starts at its right edge (components/map/mapSplitList.css). */}
-      {renderDesktopSplitList()}
+      {desktopSplitList}
 
-      {/* Full-bleed map is the base layer; every panel slides in over it.
-          Named region so AT users get a landmark for the map surface (the
-          canvas pins are pointer-only; List view provides their operable DOM
-          parallel alongside search and the tonight lane). */}
+      {/* List view provides the keyboard alternative to the canvas pins. */}
       <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {/* One toast at a time. A soft retry owns the surface outright, so the
             arrival and national-browse banners stand down with the selection
