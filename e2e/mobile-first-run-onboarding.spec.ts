@@ -89,9 +89,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page).toHaveURL(/\/onboarding$/);
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.getByRole("heading", { name: "London is ready." })).toBeVisible();
-    await expect(page.getByText("Clapham", { exact: true })).toBeVisible();
-    await expect(page.getByText("Victoria", { exact: true })).toBeVisible();
-    await expect(page.getByText("Canary Wharf", { exact: true })).toBeVisible();
+    await expect(page.locator(".firstRunLead")).toBeVisible();
+    await expect(page.locator(".firstRunAreaList article")).toHaveCount(0);
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeHidden();
     await expect(page.getByRole("dialog", { name: NATIVE_PUSH_PROMPT_COPY.title })).toHaveCount(0);
     await expectTouchTarget(page.getByRole("button", { name: "Use London" }));
@@ -150,6 +149,11 @@ test("native first run with analytics decided hands one useful Plan to the conte
 
   await expect(page).toHaveURL(/\/plan\?query=/);
   await expect(page.getByText("Balanced plan", { exact: true })).toHaveCount(0);
+  const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
+  await expect(query).toHaveValue("Pubs in Soho, maximum £6 per pint");
+  await expect(query).toBeEditable();
+  expect(await page.evaluate(() => localStorage.getItem("pubmax:nativePush:actionSeq:v1"))).toBeNull();
+  await page.getByRole("button", { name: "Plan it", exact: true }).click();
   await expect.poll(() => page.evaluate(
     () => window.localStorage.getItem("pubmax:nativePush:actionSeq:v1"),
   )).toBe("1");
