@@ -129,6 +129,15 @@ export function mobileShellIsReady(mapLoading: boolean, overlay: MapOverlay): bo
   return !mapLoading || overlay !== "none";
 }
 
-export function logPickerIsActive(phone: boolean, momentOpen: boolean, fallbackVisible: boolean): boolean {
-  return phone ? momentOpen : fallbackVisible;
+export function logPickerStateOf(
+  phone: boolean,
+  overlay: MapOverlay,
+  fallbackVisible: boolean,
+  categoryPriceIntent: boolean,
+) {
+  const momentOpen = overlay === "moment";
+  return {
+    active: phone ? momentOpen : fallbackVisible,
+    pricePicker: momentOpen && categoryPriceIntent,
+  };
 }
