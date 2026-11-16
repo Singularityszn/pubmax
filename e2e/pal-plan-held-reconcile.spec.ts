@@ -2,9 +2,8 @@ import { test, expect, type Page, type TestInfo } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import { pinLondonEvening } from "./helpers/planFirstPint";
 
-// F31 acceptance oracle: an accepted first pub outranks a draft. A failed
-// crawl must retain that pub and explain scarcity. One or two requested
-// stops are complete routes, rather than reasons to discard the draft.
+// An accepted pub remains separate from a new request until the reader chooses.
+// A route must retain the pub and report unconfirmed access honestly.
 // Seed only the public persisted handoff contracts. The page, generator,
 // venue data, grounding proof and rendered result all run without mocks.
 const PUBS = [
@@ -68,6 +67,13 @@ async function openHandoff(page: Page, options: Options) {
     }
   });
   await page.goto(`/plan?query=${encodeURIComponent(options.query)}`);
+  if (options.held) {
+    await expect(page.getByRole("region", { name: "Choose a planning request" })).toBeVisible();
+    expect(requests).toHaveLength(0);
+    await page.getByRole("button", { name: "Keep your existing plan" }).click();
+    await page.getByRole("textbox", { name: "Where, how many, what budget" }).fill(options.query);
+    await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+  }
   return { requests, responses, startsAt };
 }
 
@@ -108,25 +114,21 @@ test("a matching draft keeps the accepted pub, area and time", async ({ page }, 
 
 for (const origin of ["pal", "map"] as const) {
   for (const count of [3, 6]) {
-    test(`${origin} draft keeps the accepted pub and scarcity after a refused ${count}-stop crawl`, async ({ page }, info) => {
+    test(`${origin} draft keeps the accepted pub when ${count}-stop access is unconfirmed`, async ({ page }, info) => {
       const run = await openHandoff(page, {
         query: `${count} pubs in Clapham for 4 with step-free access and accessible toilets, under £5 total`,
         origin, held: PUBS[0]!.id,
       });
       const status = page.locator("#plan-route-status");
-      await expect(status).toContainText(HELD_LINE, { timeout: 45_000 });
-      await expect(status).toContainText("We could not build");
-      await expect(status).not.toContainText("Plan built");
-      await expect(page.locator("#plan-concierge-status")).toContainText("We could not build");
+      await expect(status).toHaveText("We can't confirm step-free access at that pub for your plan. Your draft is kept.", { timeout: 45_000 });
+      await expect(page.getByRole("region", { name: "Accepted plan context" })).toContainText(PUBS[0]!.name);
       await expect(page.locator("#plan-concierge-status")).not.toContainText("Plan built");
-      await expect(page.locator(".planStop__surface")).toHaveCount(1);
-      await expect(page.locator(".planStop__surface")).toContainText(PUBS[0]!.name);
-      expect(run.requests).toHaveLength(count === 3 ? 3 : 2);
+      expect(run.requests.length).toBeGreaterThan(0);
       for (const request of run.requests) {
         expect(request.anchor).toMatchObject({ venueId: PUBS[0]!.id, source: "near", startsAt: run.startsAt });
       }
-      const results = await Promise.all(run.responses) as { outcome?: string }[];
-      expect(results.at(-1)?.outcome).toBe("anchor-only");
+      const results = await Promise.all(run.responses) as { outcome?: string; reason?: string }[];
+      expect(results.at(-1)).toMatchObject({ outcome: "anchor-conflict", reason: "ANCHOR_ROUTE_CONFLICT" });
       await evidence(page, info, run);
     });
   }
