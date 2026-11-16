@@ -101,13 +101,13 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await pinLondonEvening(page);
   await page.goto("/near?patch=clapham");
   await page.getByRole("button", { name: /The Coach & Horses.*View pub/ }).click();
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
     .getByRole("button", { name: "Make it Stop 1: The Coach & Horses" }).click();
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
   await description.fill("Five pubs in Clapham, all step-free, with listed pint prices.");
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
-  await expect(page.locator("#plan-route-status")).toContainText("5-stop route");
-  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  await expect(page.locator("#plan-route-status")).toHaveText("We can't confirm step-free access at that pub for your plan. Your draft is kept.");
   const stops = page.getByRole("combobox", { name: "Stops", exact: true });
   await expect(stops).toHaveValue("5");
   await description.click();
@@ -133,7 +133,7 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await description.fill("Three pubs in Clapham with listed pint prices.");
   const resized = page.waitForResponse((next) =>
     next.request().method() === "POST" && next.url().endsWith("/api/plans/generate"));
-  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
+  await page.getByRole("button", { name: "Plan it again", exact: true }).click();
   const resizedResponse = await resized;
   const resizedResult = await resizedResponse.json();
   await testInfo.attach("three-stop-description.json", {
