@@ -28,6 +28,10 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: vi.fn().mockResolvedValue([]),
   loadSlimVenuesForCityResult: vi.fn().mockResolvedValue({ status: "ready", rows: [] }),
+  retainSlimVenuesForCity: vi.fn(() => ({
+    promise: Promise.resolve({ status: "ready", rows: [] }),
+    release: vi.fn(),
+  })),
 }));
 vi.mock("@/lib/palChatClient", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/palChatClient")>()),

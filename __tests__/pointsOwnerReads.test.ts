@@ -60,6 +60,7 @@ import { defaultPassportDeps } from "@/lib/profilePassport.server";
 import { venueCorrectionsStore } from "@/lib/venueCorrectionsStore";
 import { venueSubmissionStore } from "@/lib/venueSubmissionStore";
 import { ratingsStore } from "@/lib/ratingsStore";
+import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
 
 const id = (value: number) => String(value).padStart(8, "0");
 
@@ -69,6 +70,17 @@ afterEach(() => {
 });
 
 describe("complete server owner reads for points", () => {
+  it("reads every nearby proof for only its account and fails on an incomplete read", async () => {
+    database.tables.nearby_visits = [
+      ...Array.from({ length: 201 }, (_, i) => ({ id: id(i), user_id: "owner", venue_id: id(i), checked_at: "2026-11-15T20:00:00Z" })),
+      { id: id(202), user_id: "other", venue_id: "other-pub", checked_at: "2026-11-15T20:00:00Z" },
+    ];
+    expect(await nearbyVisitStore().list("owner")).toHaveLength(201);
+    expect(await nearbyVisitStore().list("other")).toEqual([{ venueId: "other-pub", checkedAt: "2026-11-15T20:00:00Z" }]);
+    database.failAfterPage = true;
+    await expect(nearbyVisitStore().list("owner")).rejects.toThrow("page unavailable");
+  });
+
   it("counts distinct reviewed drinks across historic handles and all result pages", async () => {
     database.tables.profile_handle_aliases = [
       { id: id(0), profile_id: "owner", handle: "old_reviewer", is_current: false },

@@ -7,7 +7,7 @@ import { probeWebGl2 } from "@/components/map/canvas/webgl";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import type { PalCard } from "@/lib/palChat";
 import { palRecommendationPoints, type PalRecommendationPoint } from "@/lib/palRecommendationMap";
-import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import { retainSlimVenuesForCity } from "@/lib/venuesSlim";
 import "./palChat.css";
 
 const MapCanvas = dynamic(() => import("@/components/map/PalRecommendationMapCanvas"), {
@@ -44,16 +44,17 @@ export default function PalRecommendationMap({ cards }: { cards: PalCard[] }) {
 
   useEffect(() => {
     let current = true;
-    void loadSlimVenuesForCity(DEFAULT_CITY_ID).then((venues) => {
+    const hold = retainSlimVenuesForCity(DEFAULT_CITY_ID);
+    void hold.promise.then((result) => {
       if (!current) return;
-      const next = palRecommendationPoints(cards, venues);
+      const next = palRecommendationPoints(cards, result.rows);
       setPoints((previous) => previous && previous.length === next.length && previous.every((point, index) => {
         const other = next[index]!;
         return point.venueId === other.venueId && point.name === other.name && point.lat === other.lat && point.lng === other.lng && point.number === other.number;
       }) ? previous : next);
       setUnavailable(typeof WebGL2RenderingContext !== "function" || !probeWebGl2().hasContext);
     }, () => { if (current) setUnavailable(true); });
-    return () => { current = false; };
+    return () => { current = false; hold.release(); };
   }, [cards]);
 
   if (unavailable || (points && !points.length)) {

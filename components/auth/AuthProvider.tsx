@@ -77,6 +77,7 @@ import {
   liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
 import { clearPersistedPlanDrafts, clearPlanIntakeDraft } from "@/lib/planDraftStorage";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import {
@@ -431,6 +432,7 @@ export function AuthProvider({
       // tab's sessionStorage still belongs to its previous live account.
       const tabOwnerChanged = liveAccountDeparted(previousUserId, nextUserId);
       if (tabOwnerChanged) {
+        try { browserLocalStorage()?.removeItem(PINT_DROP_SIGN_IN_HANDOFF_KEY); } catch {}
         // Plan storage at departure:
         // Clear pubmaxx:plan-draft:v1 and pubmax:plan-draft:v2 from this session.
         // Clear pubmax:plan-host-name:v1 from local storage on every departure.

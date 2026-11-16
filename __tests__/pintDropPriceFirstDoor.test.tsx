@@ -53,6 +53,7 @@ vi.mock("@/components/map/composer/useActiveRound", () => ({
 import PintDropComposer from "@/components/map/PintDropComposer";
 import VenuePintsTab from "@/components/map/inspector/VenuePintsTab";
 import { SPILL_EXTRAS_TOGGLE_LABEL, SPILL_LOG_ACTION_LABEL } from "@/lib/spill";
+import { takePintDropSignInHandoff } from "@/lib/pintDropDraft";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 vi.mock("@/components/map/VenuePriceStory", () => ({ default: () => null }));
@@ -255,6 +256,18 @@ describe("price-first Pint Drop door", () => {
 
     // And the door says so up front, in words that name the account rule.
     expect(container.textContent).toContain("Sign in to post it under your name.");
+  });
+
+  it("keeps the entered price and drink when the reader chooses the sign-in action", async () => {
+    localStorage.clear();
+    await render(makeState({ authConfigured: true, dropForm: { price: "5.20", drink: "Guinness" } }));
+    const gate = container.querySelector<HTMLAnchorElement>("a.spillSubmitLink")!;
+    gate.addEventListener("click", (event) => event.preventDefault());
+    await act(async () => gate.click());
+    const destination = new URL(new URL(gate.href).searchParams.get("from")!, window.location.origin);
+    const token = destination.searchParams.get("pintDropReturn");
+    expect(token).toBeTruthy();
+    expect(takePintDropSignInHandoff(localStorage, VENUE_ID, token)?.form).toMatchObject({ price: "5.20", drink: "Guinness" });
   });
 
   it("signed in posts under the account handle with one Log it action and no handle input", async () => {

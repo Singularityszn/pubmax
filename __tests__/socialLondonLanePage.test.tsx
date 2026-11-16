@@ -51,7 +51,7 @@ vi.mock("@/app/social/SocialTagInbox", () => { loadedPrivateTools.tags++; return
 import { buildOptimisticSpillDrop, buildOptimisticSpillRetryPayload, createOptimisticSpillPhotoPreview, revokeOptimisticSpillPhotoPreview, failOptimisticSpill, readOptimisticSpills, upsertOptimisticSpill, writeOptimisticSpills } from "@/lib/optimisticSpillPost";
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGN_IN_HREF } from "@/components/social/SocialViewerState";
-import { SOCIAL_LONDON_LANE_COPY, SOCIAL_LONDON_LANE_SEEN_KEY } from "@/lib/socialLondonLane";
+import { SOCIAL_LONDON_LANE_COPY } from "@/lib/socialLondonLane";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { namedRoutePath } from "@/lib/namedRoutes";
 
@@ -114,7 +114,6 @@ function setSession(phase: ViewerSession["phase"]): void {
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-  localStorage.setItem(SOCIAL_LONDON_LANE_SEEN_KEY, "1");
   setSession("signed-out");
   laneRequests = [];
   transport.request.mockReset();
@@ -161,62 +160,19 @@ describe("/social signed out, London lane open", () => {
     expect(host.textContent).toContain("Proper pint at the Lamb");
     expect(loadedPrivateTools).toEqual({ composer: 0, outbox: 0, tags: 0, ranking: 0, crews: 0 });
   });
-  it("puts real crawls, dated prices and a plan action before the empty lane's sign-in offer", async () => {
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
-    await renderSocial(true, ALTERNATIVES);
-    const offer = host.querySelector(".socialEmptySignIn a");
-    expect(offer?.getAttribute("href")).toBe(SOCIAL_SIGN_IN_HREF);
-    for (const href of ["/routes/victorian-soho", "/map?sel=venue-lamb", "/plan"]) {
-      const choice = host.querySelector(`a[href='${href}']`);
-      expect(choice, href).not.toBeNull();
-      expect(choice!.compareDocumentPosition(offer!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    }
-    expect(host.textContent).toContain("Latest pint prices we hold");
-    expect(host.textContent).toContain("a pint");
-    expect(host.querySelector("a[href='https://lamb.example/menu']")?.textContent).toBe("The Lamb");
-    expect(host.querySelector("time[dateTime='2026-10-30']")).not.toBeNull();
-    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Plan a night");
-  });
-
-  it("keeps the loading sign-in link in place while it holds focus", async () => {
-    let answer!: (response: Response) => void;
-    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { answer = resolve; })));
-    await renderSocial(true, ALTERNATIVES);
-    const original = host.querySelector<HTMLAnchorElement>("[data-primary-action] a")!;
-    expect(original.textContent).toBe("Sign in");
-    expect(host.querySelector(".socialLondonEmpty")).toBeNull();
-    await act(async () => { original.focus(); });
-    await act(async () => {
-      answer(Response.json({ posts: [], nextCursor: null }));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-    expect(document.activeElement).toBe(original);
-    expect(original.getAttribute("href")).toBe(SOCIAL_SIGN_IN_HREF);
-    expect(original.textContent).toBe("Sign in");
-    expect(host.querySelector(".socialEmptySignIn")).toBeNull();
-    await act(async () => { host.querySelector<HTMLAnchorElement>(".socialSwitcher a")!.focus(); });
-    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Plan a night");
-    expect(host.querySelector(".socialEmptySignIn a")).not.toBeNull();
-  });
-
-  it.each(["ready", "unavailable"] as const)("keeps a real browse action when the price read is %s and has no eligible rows", async (priceRead) => {
+  it.each(["ready", "unavailable"] as const)("keeps a browse action when the price read is %s", async (priceRead) => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
     await renderSocial(true, { ...ALTERNATIVES, prices: [], priceRead });
-    const text = host.querySelector(".socialLondonEmpty")?.textContent ?? "";
-    expect(text).toContain(priceRead === "ready" ? "No dated menu prices to show here yet." : "We could not read the listed prices.");
+    expect(host.textContent).toContain(priceRead === "ready" ? "No dated menu prices to show here yet." : "We could not read the listed prices.");
     expect(host.querySelector(".socialAlternativeBrowse")?.getAttribute("href")).toBe("/pubs");
-    expect(host.querySelector(".socialEmptySignIn a")).not.toBeNull();
+    expect(host.querySelector("[data-primary-action] a")?.getAttribute("href")).toBe(SOCIAL_SIGN_IN_HREF);
   });
 
-  it("does not call a page with a continuation cursor an empty London feed", async () => {
+  it("keeps the continuation action when an empty page has a cursor", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: "next-page" })));
     await renderSocial(true, ALTERNATIVES);
-    expect(host.querySelector(".socialLondonEmpty")).toBeNull();
-    expect(host.querySelector(".socialEmptySignIn")).toBeNull();
-    expect(host.querySelector("[data-primary-action] a")?.textContent).toBe("Sign in");
     expect(host.querySelector(".socialLondonMore")).not.toBeNull();
   });
-
 
   it("reads the lane with no credentials and renders its posts read-only", async () => {
     await renderSocial(true);
@@ -272,39 +228,10 @@ describe("/social signed out, London lane open", () => {
     expect(host.textContent).not.toContain("Sign in to use Social.");
   });
 
-  it("leads a first visit with the log line, then the empty headline next time", async () => {
-    localStorage.removeItem(SOCIAL_LONDON_LANE_SEEN_KEY);
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
-    await renderSocial(true, ALTERNATIVES);
-    const line = host.querySelector("a[href='/map?log=1']");
-    expect(line?.textContent).toBe(SOCIAL_LONDON_LANE_COPY.firstVisit);
-    expect(host.textContent).not.toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
-    // The line replaces only the headline: the alternatives and the sign-in
-    // offer still stand on a first visit.
-    expect(host.textContent).toContain("Latest pint prices we hold");
-    expect(host.querySelector(".socialEmptySignIn a")?.textContent).toBe("Sign in");
-    expect(localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY)).not.toBeNull();
-
-    await act(async () => root.unmount());
-    root = createRoot(host);
-    await renderSocial(true, ALTERNATIVES);
-    expect(host.textContent).toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
-    expect(host.textContent).toContain("Latest pint prices we hold");
-    expect(host.querySelector("a[href='/map?log=1']")).toBeNull();
-  });
-
-  it("shows posts on a first visit and remembers that the lane was seen", async () => {
-    localStorage.removeItem(SOCIAL_LONDON_LANE_SEEN_KEY);
-    await renderSocial(true);
-    expect(host.textContent).toContain("Proper pint at the Lamb");
-    expect(host.textContent).not.toContain(SOCIAL_LONDON_LANE_COPY.firstVisit);
-    expect(localStorage.getItem(SOCIAL_LONDON_LANE_SEEN_KEY)).not.toBeNull();
-  });
-
   it("says so honestly when the lane is empty or unavailable", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => new Response(JSON.stringify({ posts: [], nextCursor: null }), { status: 200 })));
     await renderSocial(true);
-    expect(host.textContent).toContain(SOCIAL_LONDON_LANE_COPY.emptyTitle);
+    expect(host.querySelector('section[aria-labelledby="social-london-lane-title"]')).toBeNull();
     await act(async () => root.unmount());
     root = createRoot(host);
 
@@ -312,6 +239,25 @@ describe("/social signed out, London lane open", () => {
     await renderSocial(true);
     expect(host.querySelector('[role="alert"]')?.textContent).toContain(SOCIAL_LONDON_LANE_COPY.unavailable);
     expect(host.querySelectorAll("[data-primary-action]")).toHaveLength(1);
+  });
+});
+
+describe("Social first view", () => {
+  it("shows the open table and dated prices while the London lane is frozen", async () => {
+    await renderSocial(false, ALTERNATIVES);
+    const table = host.querySelector("a[href='/crawls']");
+    const price = host.querySelector("time[datetime='2026-10-30']");
+    expect(table).not.toBeNull();
+    expect(price).not.toBeNull();
+    expect(table!.compareDocumentPosition(price!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(laneRequests).toEqual([]);
+  });
+
+  it("hides an empty London lane", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ posts: [], nextCursor: null })));
+    await renderSocial(true, ALTERNATIVES);
+    expect(host.querySelector('section[aria-labelledby="social-london-lane-title"]')).toBeNull();
+    expect(host.textContent).not.toContain("0 London posts");
   });
 });
 

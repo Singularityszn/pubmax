@@ -47,9 +47,10 @@ plans, and discovery all render normally.
 
 One read pauses with the freeze on purpose: the **signed-out London lane** on
 `/social` (`GET /api/social/posts?lane=london` and its photo door). It is the
-widest read Social has, so during an incident strangers see the sign-in wall
-again, while signed-in readers keep reading. `socialLondonLaneOpen` in
-`lib/socialLondonLane.server.ts` owns this. Unfreezing opens it again.
+widest read Social has, so the freeze withholds it while signed-in readers
+keep reading. `socialLondonLaneOpen` in `lib/socialLondonLane.server.ts` owns
+this. Unfreezing opens it again. The [Social screen contract](design/LAUNCH_SCREENS.md#social-action-order)
+owns the public sections that remain visible while this lane is paused.
 
 These **safety and legal floors stay OPEN even while frozen** and were wired to
 sit outside the guard on purpose:

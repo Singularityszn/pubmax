@@ -323,14 +323,14 @@ describe("what each scope runs", () => {
     { event: "pull_request", labels: ["layout-pins"], cancelled: true, expected: false },
     { event: "pull_request", action: "labeled", label: "needs-triage", labels: ["layout-pins", "needs-triage"], expected: false },
     { event: "pull_request", action: "labeled", label: "layout-pins", labels: ["layout-pins"], expected: true },
-    // The merge queue runs them on the commit that lands.
-    { event: "merge_group", expected: true },
-    { event: "merge_group", result: "failure", layout: "", expected: true },
+    // The nightly dispatch runs the pins. Merge groups do not.
+    { event: "merge_group", expected: false },
+    { event: "merge_group", result: "failure", layout: "", expected: false },
     { event: "merge_group", cancelled: true, expected: false },
     { event: "push", expected: false },
     { event: "push", result: "failure", layout: "", expected: false },
-    { event: "workflow_dispatch", expected: false },
-    { event: "workflow_dispatch", result: "failure", expected: false },
+    { event: "workflow_dispatch", expected: true },
+    { event: "workflow_dispatch", result: "failure", expected: true },
   ] as const)("applies layout-pin eligibility to $event ($expected)", ({ expected, ...context }) => {
     const e2e = defined(workflows.find(({ file }) => file === "e2e.yml")).parsed;
     for (const id of LAYOUT_PIN_JOBS) {

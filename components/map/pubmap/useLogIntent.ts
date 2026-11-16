@@ -41,6 +41,11 @@ export function useLogIntent(deps: {
       return;
     }
     if (!shouldRunMapLogIntent({ hasLogIntent: hasLogIntent || hasCategoryPriceIntent, handled: handled.current === "open" })) return;
+    if (!loaded && !selectedVenueId) {
+      if (handled.current !== "fallback") setFallbackVisible(true);
+      handled.current = "fallback";
+      return;
+    }
     const resolution = resolveMapLogIntent({
       hasLogIntent: hasLogIntent || hasCategoryPriceIntent,
       loaded,

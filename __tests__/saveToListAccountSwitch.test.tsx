@@ -73,7 +73,295 @@ async function settle(): Promise<void> {
   });
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => { resolve = done; });
+  return { promise, resolve };
+}
+
+describe("SaveToListControl nearby check-in mutations", () => {
+  let priorLocation: PropertyDescriptor | undefined;
+  let deliver: PositionCallback;
+  let refuse: PositionErrorCallback;
+  const fix = {
+    coords: { latitude: 51.5, longitude: -0.1, accuracy: 20 },
+    timestamp: Date.now(),
+  } as GeolocationPosition;
+  const json = (body: unknown) => new Response(JSON.stringify(body));
+
+  beforeEach(() => {
+    priorLocation = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    Object.defineProperty(navigator, "geolocation", {
+      configurable: true,
+      value: {
+        getCurrentPosition(success: PositionCallback, error: PositionErrorCallback) {
+          deliver = success;
+          refuse = error;
+        },
+      },
+    });
+    authedFetch.mockImplementation(async (input: string) => json(
+      input.includes("lists=1") ? { lists: [] } : { saved: [] },
+    ));
+  });
+
+  afterEach(() => {
+    if (priorLocation) Object.defineProperty(navigator, "geolocation", priorLocation);
+    else Reflect.deleteProperty(navigator, "geolocation");
+  });
+
+  async function show(venueId = "venue-1") {
+    await act(async () => {
+      root.render(createElement(SaveToListControl, { venueId, venueName: "The Lamb" }));
+    });
+    const toggle = container.querySelector<HTMLButtonElement>("button.saveToListToggle");
+    if (toggle) await act(async () => { toggle.click(); });
+  }
+
+  async function close() {
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button.saveToListClose")!.click();
+    });
+  }
+
+  it("keeps confirmed Been membership when an older refresh answers after a check-in", async () => {
+    const refresh = deferred<Response>();
+    const checkIn = deferred<Response>();
+    let reads = 0;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      reads += 1;
+      return reads === 2 ? refresh.promise : json({ saved: [] });
+    });
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    await show();
+    await close();
+    await show();
+    expect(reads).toBe(2);
+    await act(async () => {
+      const input = container.querySelector<HTMLInputElement>("input[aria-label='New list name']")!;
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "Friday route");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    expect(container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.disabled).toBe(false);
+
+    await act(async () => { chip("Check in nearby").click(); });
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    expect(container.querySelector<HTMLButtonElement>("button.saveToListCreate")!.disabled).toBe(true);
+    await act(async () => { deliver(fix); });
+    await act(async () => {
+      chip("Been here").click();
+      chip("Date Night").click();
+    });
+    expect(saved).toBe(false);
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+
+    await act(async () => { refresh.resolve(json({ saved: [] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Date Night").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+  });
+
+  it.each([200, 503])("keeps a submitted check-in locked across close and reopen until HTTP %s settles", async (status) => {
+    const refresh = deferred<Response>();
+    const checkIn = deferred<Response>();
+    let reads = 0;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      reads += 1;
+      return reads === 2 ? refresh.promise : json({ saved: saved ? [row("Been here")] : [] });
+    });
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    await show();
+    await close();
+    await show();
+    expect(reads).toBe(2);
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(authedActionFetch).toHaveBeenCalledTimes(1);
+
+    await close();
+    await show();
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    expect(chip("Check in nearby").disabled).toBe(true);
+    await act(async () => {
+      chip("Been here").click();
+      chip("Date Night").click();
+    });
+    expect(saved).toBe(false);
+    await act(async () => {
+      saved = status === 200;
+      checkIn.resolve(new Response(JSON.stringify({ checkedIn: saved }), { status }));
+    });
+    await act(async () => { refresh.resolve(json({ saved: [] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe(String(status === 200));
+    expect(chip("Been here").disabled).toBe(false);
+    expect(chip("Date Night").disabled).toBe(false);
+    expect(chip("Check in nearby").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(status !== 200);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe(String(saved));
+  });
+
+  it.each(["account", "venue"])("reconciles the current %s after a superseded check-in", async (change) => {
+    const checkIn = deferred<Response>();
+    let saved = false;
+    authedActionFetch.mockImplementation(() => checkIn.promise);
+    authedFetch.mockImplementation(async (input: string) => json(
+      input.includes("lists=1") ? { lists: [] } : { saved: saved && input.includes("handle=mia") ? [row("Been here")] : [] },
+    ));
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    if (change === "account") Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+    await show(change === "venue" ? "venue-2" : "venue-1");
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+    expect(chip("Been here").disabled).toBe(false);
+  });
+
+  it.each(["account", "venue"])("waits for a fresh membership read after returning to the submitting %s", async (change) => {
+    const checkIn = deferred<Response>();
+    const membership = deferred<Response>();
+    let submitted = false;
+    let saved = false;
+    authedActionFetch.mockImplementation(() => { submitted = true; return checkIn.promise; });
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      return submitted ? membership.promise : json({ saved: [] });
+    });
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    if (change === "account") Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+    await show(change === "venue" ? "venue-2" : "venue-1");
+    if (change === "account") Object.assign(session, { user: { id: "user-1" }, handle: "mia" });
+    await show();
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => {
+      saved = true;
+      checkIn.resolve(json({ checkedIn: true }));
+    });
+    expect(chip("Been here").disabled).toBe(true);
+    await act(async () => { membership.resolve(json({ saved: [row("Been here")] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
+  });
+
+  it.each(["http", "network", "body"])("reconciles persisted membership after a failed %s response", async (failure) => {
+    const membership = deferred<Response>();
+    let submitted = false;
+    let saved = false;
+    authedFetch.mockImplementation(async (input: string, init?: RequestInit) => {
+      if (input.includes("lists=1")) return json({ lists: [] });
+      if (init?.method === "POST") {
+        saved = !saved;
+        return json({ saved: saved ? [row("Been here")] : [] });
+      }
+      return submitted ? membership.promise : json({ saved: [] });
+    });
+    authedActionFetch.mockImplementation(async () => {
+      submitted = true;
+      saved = true;
+      if (failure === "network") throw new Error("Connection lost");
+      if (failure === "body") return new Response("invalid JSON");
+      return new Response(JSON.stringify({ error: "Save unavailable" }), { status: 503 });
+    });
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(chip("Been here").disabled).toBe(true);
+    expect(chip("Date Night").disabled).toBe(true);
+    await act(async () => { membership.resolve(json({ saved: [row("Been here")] })); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { chip("Been here").click(); });
+    expect(saved).toBe(false);
+  });
+
+  it("releases pending membership after a location error or a closed picker", async () => {
+    authedActionFetch.mockImplementation(async () => json({ checkedIn: true }));
+    await show();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { refuse({ message: "Location refused" } as GeolocationPositionError); });
+    expect(chip("Been here").disabled).toBe(false);
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("false");
+
+    await act(async () => { chip("Check in nearby").click(); });
+    const oldFix = deliver;
+    await close();
+    await show();
+    expect(chip("Been here").disabled).toBe(false);
+    await act(async () => { oldFix(fix); });
+    expect(authedActionFetch).not.toHaveBeenCalled();
+    await act(async () => { chip("Check in nearby").click(); });
+    await act(async () => { deliver(fix); });
+    expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+  });
+});
+
 describe("SaveToListControl across an account change", () => {
+  it("requests location only after a press and discards a fix from the previous account", async () => {
+    const prior = Object.getOwnPropertyDescriptor(navigator, "geolocation");
+    let deliver: PositionCallback = () => {};
+    const locate = vi.fn((success: PositionCallback) => { deliver = success; });
+    Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: locate } });
+    authedFetch.mockImplementation(async (input: string) => new Response(JSON.stringify(
+      input.includes("lists=1") ? { lists: [] } : { saved: [] },
+    )));
+    authedActionFetch.mockImplementation(async () => new Response(JSON.stringify({ checkedIn: true })));
+    const render = () => root.render(createElement(SaveToListControl, { venueId: "venue-1", venueName: "The Lamb", open: true }));
+    const fix = { coords: { latitude: 51.5, longitude: -0.1, accuracy: 20 }, timestamp: Date.now() } as GeolocationPosition;
+    try {
+      await act(async () => { render(); });
+      expect(locate).not.toHaveBeenCalled();
+      await act(async () => { chip("Check in nearby").click(); });
+      expect(locate).toHaveBeenCalledTimes(1);
+      const oldFix = deliver;
+      Object.assign(session, { user: { id: "user-2" }, handle: "zed" });
+      await act(async () => { render(); });
+      await act(async () => { oldFix(fix); });
+      expect(authedActionFetch).not.toHaveBeenCalled();
+      await act(async () => { chip("Check in nearby").click(); });
+      await act(async () => { deliver(fix); });
+      const [, options] = authedActionFetch.mock.calls[0]!;
+      expect(JSON.parse(options.body)).toMatchObject({ handle: "zed", venueId: "venue-1", action: "nearbyCheckIn" });
+      expect(chip("Been here").getAttribute("aria-pressed")).toBe("true");
+    } finally {
+      if (prior) Object.defineProperty(navigator, "geolocation", prior);
+      else Reflect.deleteProperty(navigator, "geolocation");
+    }
+  });
+
   it("drops the previous account's pressed chips and reads the next account's membership", async () => {
     const reads: string[] = [];
     authedFetch.mockImplementation(async (input: string) => {

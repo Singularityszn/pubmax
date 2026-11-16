@@ -41,8 +41,8 @@ test.describe("canonical Social route", () => {
     expect(response?.status()).toBe(200);
     await expectStreamedPageSettled(page);
     await expect(page.locator("h1.screenTitle")).toBeVisible();
-    // The read-only London lane, not a wall (captain decision 7, 1 Nov 2026).
-    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
+    // The first view offers Open Table and dated prices.
+    await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Sign in", exact: true }).last()).toHaveAttribute("href", "/login?mode=signin&from=%2Fsocial");
     await expect(page.getByRole("heading", { name: "Your crews", exact: true })).toHaveCount(0);
     await expect(page.getByRole("heading", { name: "Find your lot" })).toBeVisible();

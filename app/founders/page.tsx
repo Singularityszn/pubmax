@@ -17,22 +17,15 @@ import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
-import { filterProfilesWithdrawnFromPublic } from "@/lib/accountPublicAccess.server";
 import {
   FOUNDERS_WALL_EMPTY,
   FOUNDERS_WALL_LEDE,
   FOUNDERS_WALL_TITLE,
   FOUNDERS_WALL_UNAVAILABLE,
-  FOUNDING_MEMBER_CAP,
   foundingSlotsRemainingLine,
-  isFoundingMemberNumber,
 } from "@/lib/foundingMembers";
 import { displayHandle } from "@/lib/handleDisplay";
-import {
-  isProfileTombstoned,
-  profileStore,
-  publicOwnedImageUrl,
-} from "@/lib/profileStore";
+import { readFoundingMembers, type FoundingMemberEntry } from "@/lib/foundingMembers.server";
 
 import "./founders.css";
 
@@ -46,40 +39,13 @@ export const metadata: Metadata = {
   alternates: { canonical: "/founders" },
 };
 
-type WallEntry = {
-  number: number;
-  handle: string;
-  displayName?: string;
-  avatarUrl?: string;
-};
-
 type Wall =
-  | { status: "ready"; members: WallEntry[] }
+  | { status: "ready"; members: FoundingMemberEntry[] }
   | { status: "unavailable" };
 
 async function readWall(): Promise<Wall> {
   try {
-    const rows = await profileStore().listFoundingMembers();
-    const live = await filterProfilesWithdrawnFromPublic(
-      rows.filter(
-        (row) =>
-          isFoundingMemberNumber(row.foundingMemberNumber) &&
-          Boolean(row.userId) &&
-          !isProfileTombstoned(row),
-      ),
-    );
-    const members = live
-      .map((row) => {
-        const avatarUrl = publicOwnedImageUrl(row, "avatar");
-        return {
-          number: row.foundingMemberNumber!,
-          handle: row.handle,
-          ...(row.displayName ? { displayName: row.displayName } : {}),
-          ...(avatarUrl ? { avatarUrl } : {}),
-        } satisfies WallEntry;
-      })
-      .sort((a, b) => a.number - b.number)
-      .slice(0, FOUNDING_MEMBER_CAP);
+    const members = await readFoundingMembers();
     return { status: "ready", members };
   } catch {
     // A read that failed is not an empty wall. Saying "nobody yet" here would

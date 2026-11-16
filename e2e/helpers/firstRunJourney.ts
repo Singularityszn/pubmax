@@ -12,7 +12,7 @@ export async function answerFirstRunQuestions(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByRole("button", { name: "Pick a London patch instead" }).click();
   await page.getByRole("button", { name: "Soho" }).click();
-  await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "That looks right" }).click();
+  await expect(page.getByRole("button", { name: "Keep this pub" })).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Choose a Pub Pal" }).click();
   await expect(page.getByRole("heading", { name: "Pick your Pub Pal." })).toBeVisible();
 }

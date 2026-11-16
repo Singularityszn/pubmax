@@ -41,6 +41,8 @@ import {
 } from "@/lib/onboardingFlow";
 import { readHistoryStep } from "@/lib/useStepHistory";
 import { decideEntry, readEntryContext } from "@/lib/entryDecision";
+import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
+import { readFirstRunCompanion } from "@/lib/firstRunTour";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -127,6 +129,45 @@ async function reachLocation() {
   await tap("Continue");
 }
 
+it("lets a person keep the first pub without choosing a Pal or generating a route", async () => {
+  stubGeolocation((_ok, fail) => fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError));
+  await reachLocation();
+  await tap("Use my location");
+  await tap("Soho");
+  await settle();
+  await tap("Keep this pub");
+  await historySettles();
+  expect(readPlanningIntent()?.acceptedVenueId).toBe("a");
+  expect(router.push).toHaveBeenCalledWith(expect.stringContaining("sel=a&accept=1&src=near"));
+  expect(hasSeenTour()).toBe(true);
+  expect(openPlanner).not.toHaveBeenCalled();
+});
+
+it("offers a walking plan without requiring a Pal choice", async () => {
+  stubGeolocation((_ok, fail) => fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError));
+  await reachLocation();
+  await tap("Use my location");
+  await tap("Soho");
+  await settle();
+  await tap("Make a walking plan");
+  await historySettles();
+  expect(openPlanner).toHaveBeenCalledOnce();
+  expect(readFirstRunCompanion()).toBeNull();
+});
+
+it("does not replace an already kept pub when choosing the new result", async () => {
+  writePlanningIntent({ source: "near", cityId: "london", acceptedVenueId: "garden-shed", acceptedArea: { kind: "borough", name: "Merton" }, startsAt: null, displayEvidence: { kind: "directory", observedAt: null } });
+  stubGeolocation((_ok, fail) => fail({ code: 1, PERMISSION_DENIED: 1 } as GeolocationPositionError));
+  await reachLocation();
+  await tap("Use my location");
+  await tap("Soho");
+  await settle();
+  await tap("Keep this pub");
+  expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+  expect(container.querySelector('[role="alert"]')?.textContent).toContain("already kept a pub");
+  expect(router.push).not.toHaveBeenCalled();
+});
+
 beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
@@ -198,7 +239,7 @@ describe("interrupted native onboarding", () => {
     await tap("Pick a London patch instead");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await tap("Black Cat");
     await relaunch();
 
@@ -555,7 +596,7 @@ describe("first-run result and companion choice", () => {
 
   it("preselects robin and enables planning when companion step opens", async () => {
     await reachResult();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
 
     const robin = buttonContaining("Circuit Robin");
     const plan = buttonContaining("Plan my night");
@@ -619,7 +660,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await tap("Plan my night");
 
     expect(readPlannerHandoff()).toEqual({
@@ -638,7 +679,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await act(async () => {
       root?.unmount();
     });
@@ -669,7 +710,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await act(async () => {
       root?.unmount();
     });
@@ -696,7 +737,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await act(async () => {
       root?.unmount();
     });
@@ -720,7 +761,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Use my location");
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await tap("Back");
     await historySettles();
 
@@ -741,7 +782,7 @@ describe("first-run handoff to the planner", () => {
     await tap("Continue");
     await tap("Use my location");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     if (reload) {
       await act(async () => root?.unmount());
       if (isNative) {
@@ -757,7 +798,7 @@ describe("first-run handoff to the planner", () => {
 
     expect(readPlannerHandoff()).toEqual({ patch: null, budget: "seven", nightArea: "piccadilly-soho" });
     const href = new URL(onboardingPlanHref(readPlannerHandoff()), "http://localhost");
-    expect(href.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £21 per person, maximum £7 per pint");
+    expect(href.searchParams.get("query")).toBe("Pubs in Piccadilly & Soho, maximum £7 per pint");
     expect(href.searchParams.get("from")).toBe("onboarding");
     for (const storage of [window.localStorage, window.sessionStorage]) {
       const stored = JSON.stringify(Object.entries(storage));
@@ -776,7 +817,7 @@ describe("first-run handoff to the planner", () => {
     expect(container.textContent).toContain("Arnos Arms");
     expect(container.textContent).toContain("£5.50");
     expect(container.textContent).not.toContain("We don't list prices where you are yet");
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await tap("Plan my night");
     expect(openPlanner).not.toHaveBeenCalled();
     expect(hasSeenTour()).toBe(false);
@@ -784,7 +825,7 @@ describe("first-run handoff to the planner", () => {
     await historySettles();
     await tap("Soho");
     await settle();
-    await tap("That looks right");
+    await tap("Choose a Pub Pal");
     await tap("Plan my night");
     await historySettles();
     expect(openPlanner).toHaveBeenCalledOnce();
@@ -815,7 +856,7 @@ describe("first-run handoff to the planner", () => {
       await tap("Pick a London patch instead");
       await tap("Soho");
       await settle();
-      await tap("That looks right");
+      await tap("Choose a Pub Pal");
       await tap("Fox");
       await tap("Plan my night");
       await historySettles();
@@ -829,7 +870,7 @@ describe("first-run handoff to the planner", () => {
     const firstCall = openPlanner.mock.calls[0];
     if (!firstCall) throw new Error("The planner did not receive the onboarding choices.");
     const href = new URL(onboardingPlanHref(firstCall[0]), "http://localhost");
-    expect(href.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(href.searchParams.get("query")).toBe("Pubs in Soho, maximum £6 per pint");
     expect(href.searchParams.get("from")).toBe("onboarding");
   });
 

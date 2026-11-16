@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "9 November 2026";
+const LAST_UPDATED = "15 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -411,10 +411,21 @@ export default function PrivacyPage() {
           &ldquo;Find my pint&rdquo; asks your browser for your location and
           ranks nearby pubs there, so those coordinates never leave your
           device. Viewer coordinates never leave your device at full precision,
-          except when you share your live location with your crew.
+          except when you share your live location with your crew or check in
+          nearby.
           Other location features work like this:
         </p>
         <ul className="legalList">
+          <li>
+            <strong>Nearby check-ins:</strong>{" "}tapping Check in nearby asks
+            your browser for a fresh location fix. We send its precise
+            coordinates, accuracy and time to our <code>/api/saved-pubs</code>
+            route to check that you are near the pub. We discard the precise
+            coordinates after the check. We keep your account ID, pub and
+            first check-in time as visit proof until you delete your account.
+            Your data download includes the pub and time. The proof counts
+            towards points, districts and challenges.
+          </li>
           <li>
             <strong>What&rsquo;s on:</strong>{" "}sharing location on the map or
             Tonight rounds your point to three decimal places, roughly 70 to

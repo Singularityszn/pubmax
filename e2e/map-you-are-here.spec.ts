@@ -148,7 +148,7 @@ test("picker location refresh preserves the settled and saved camera", async ({ 
 });
 
 test.describe("map you are here dot", () => {
-  test("granted location paints a dot that moves without moving the camera", async ({
+  test("granted location hides the arrival card and paints a dot without moving the camera", async ({
     page,
     context,
   }) => {
@@ -167,16 +167,10 @@ test.describe("map you are here dot", () => {
     await waitForPins(page);
 
     const arrival = page.locator(".mapArrivalCard");
-    await expect(arrival).toBeVisible({ timeout: 15_000 });
-    // A server-painted control is tappable before React attaches, so the tap
-    // is retried rather than the assertion after it (e2e/AGENTS.md).
-    const useMyLocation = arrival.getByRole("button", { name: "Use my location" });
-    await expect(async () => {
-      await useMyLocation.click();
-      await expect(page.locator('[data-user-location="shown"]')).toBeVisible({
-        timeout: 2_000,
-      });
-    }).toPass({ timeout: 30_000 });
+    await expect(arrival).toBeHidden({ timeout: 15_000 });
+    await expect(page.locator('[data-user-location="shown"]')).toBeVisible({
+      timeout: 30_000,
+    });
 
     await expect
       .poll(async () => page.evaluate(() => "__pubmaxMapReaderPosition" in window), {

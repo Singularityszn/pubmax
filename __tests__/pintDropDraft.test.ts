@@ -6,6 +6,10 @@ import {
   pintDropDraftForPersistence,
   pintDropDraftStorageKey,
   readPintDropDraft,
+  readLastLoggedDrink,
+  writeLastLoggedDrink,
+  writePintDropSignInHandoff,
+  takePintDropSignInHandoff,
   seededPintDropDraftForm,
   writePintDropDraft,
   type PintDropDraft,
@@ -199,4 +203,38 @@ describe("seededPintDropDraftForm", () => {
     };
     expect(seededPintDropDraftForm(draft, null)).toBe(draft);
   });
+});
+
+
+it("prefills only the last logged drink of the same account", () => {
+  const storage = makeStorage();
+  writeLastLoggedDrink(storage, "account-a", "Guinness");
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
+  expect(readLastLoggedDrink(storage, "account-b")).toBeNull();
+  expect(readLastLoggedDrink(storage, null)).toBeNull();
+  writeLastLoggedDrink(storage, "account-a", "");
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
+  writeLastLoggedDrink(storage, "account-a", "   ");
+  expect(readLastLoggedDrink(storage, "account-a")).toBe("Guinness");
+});
+
+it("carries an entry to the chosen pub after sign-in, once", () => {
+  const storage = makeStorage();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "return-a", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-b", "return-a", 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1100)?.form).toMatchObject({
+    price: "5.8", drink: "Guinness", measure: "pint",
+  });
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1100)).toBeNull();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "return-a", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-a", "return-a", 1000 + 31 * 60_000)).toBeNull();
+});
+
+
+it.each([null, "another-return"])("rejects an unrelated return without consuming the originating handoff: %s", (token) => {
+  const storage = makeStorage();
+  writePintDropSignInHandoff(storage, "venue-a", DRAFT, "original-return", 1000);
+  expect(takePintDropSignInHandoff(storage, "venue-a", token, 1100)).toBeNull();
+  expect(takePintDropSignInHandoff(storage, "venue-a", "original-return", 1100)).toEqual(DRAFT);
+  expect(takePintDropSignInHandoff(storage, "venue-a", "original-return", 1100)).toBeNull();
 });

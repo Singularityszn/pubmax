@@ -80,7 +80,7 @@ export default async function SocialPage({
     friendsLaunchEnabled && state.tab === "discover"
       ? await Promise.all([buildCityRivalrySnapshot(), loadHeritageCrawls()])
       : [[], []];
-  const publicAlternatives = londonLaneOpen && state.tab === "posts"
+  const publicAlternatives = friendsLaunchEnabled && state.tab === "posts"
     ? await loadSocialAlternatives()
     : undefined;
 

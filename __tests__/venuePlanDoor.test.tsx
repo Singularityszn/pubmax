@@ -193,6 +193,7 @@ function PhoneSheet({
   onAcceptStop1,
   onToggle,
   onLog = () => {},
+  onShare = async () => {},
   phone = true,
   drops = [drop()],
   communityPrices,
@@ -202,6 +203,7 @@ function PhoneSheet({
   onAcceptStop1: () => void;
   onToggle?: (id: string) => void;
   onLog?: () => void;
+  onShare?: () => Promise<void>;
   phone?: boolean;
   drops?: SummaryDrop[];
   communityPrices?: CommunityPrice[];
@@ -236,7 +238,7 @@ function PhoneSheet({
       walkMinutes: null,
       planDoor: doors.coral,
     }),
-    shareVenue: async () => {},
+    shareVenue: onShare,
     currentShareFeedback: null,
   });
   if (!phone) return createElement("div", { className: "mapDrawer right" }, card);
@@ -265,6 +267,25 @@ function peekDoor(): HTMLButtonElement {
   const door = host.querySelector<HTMLButtonElement>(".mobileVenuePeekSummary button");
   if (!door) throw new Error("the peek carries no plan door");
   return door;
+}
+
+function moreDisclosure(scope: ParentNode = host): HTMLButtonElement {
+  const more = scope.querySelector<HTMLButtonElement>('button[aria-controls][aria-expanded]');
+  if (!more) throw new Error("More actions disclosure is missing");
+  return more;
+}
+
+function moreActions(scope: ParentNode = host): HTMLElement {
+  const actions = scope.querySelector<HTMLElement>('[role="group"][aria-label="Venue actions"] [role="group"][aria-label="More actions for The Plan Door"]');
+  if (!actions) throw new Error("the venue card has no More actions group");
+  return actions;
+}
+
+function expandMore(): HTMLElement {
+  const more = moreDisclosure();
+  if (more.getAttribute("aria-expanded") === "false") act(() => more.click());
+  expect(more.getAttribute("aria-expanded")).toBe("true");
+  return moreActions();
 }
 
 describe("the phone sheet shows one plan door that follows state", () => {
@@ -321,18 +342,32 @@ describe("the phone sheet shows one plan door that follows state", () => {
     expect(accept).toHaveBeenCalledTimes(1);
   });
 
-  it("the card in the phone footer holds the one door, Ask for a table, Summon mates and Share, in either mode", () => {
+  it("the phone footer opens and closes More while preserving its actions and one plan door", () => {
     for (const mode of ["suggest", "build"] as const) {
+      const share = vi.fn(async () => {});
       act(() => root.render(createElement(PhoneSheet, {
-        key: mode, initialMode: mode, initialBuiltIds: [VENUE_ID], onAcceptStop1: vi.fn(),
+        key: mode, initialMode: mode, initialBuiltIds: [VENUE_ID], onAcceptStop1: vi.fn(), onShare: share,
       })));
       const footer = host.querySelector(".mobileSharedSheetFooter");
       expect(footer?.querySelector(".venueActionCard")).toBeTruthy();
-      const toolbar = footer?.querySelector('[role="toolbar"][aria-label="Venue actions"]');
-      const names = Array.from(toolbar?.querySelectorAll("button") ?? [], (button) =>
+      const more = moreDisclosure();
+      expect(more.getAttribute("aria-expanded")).toBe("false");
+      const actions = expandMore();
+      expect(footer?.contains(actions)).toBe(true);
+      expect(more.getAttribute("aria-controls")).toBe(actions.id);
+      const names = Array.from(actions.querySelectorAll("button"), (button) =>
         button.getAttribute("aria-label") ?? button.textContent?.trim());
       expect(names).toEqual(["Ask for a table at The Plan Door", "Summon mates to The Plan Door", "Share The Plan Door"]);
+      act(() => actions.querySelector<HTMLButtonElement>("[data-venue-share]")?.click());
+      expect(share).toHaveBeenCalledOnce();
+      act(() => more.click());
+      expect(more.getAttribute("aria-expanded")).toBe("false");
       expect(planControls()).toHaveLength(1);
+      act(() => more.click());
+      expect(more.getAttribute("aria-expanded")).toBe("true");
+      expect(moreActions().querySelectorAll("button")).toHaveLength(3);
+      act(() => moreActions().querySelector<HTMLButtonElement>("[data-venue-share]")?.click());
+      expect(share).toHaveBeenCalledTimes(2);
       // Nothing that plans is left in the body above the footer.
       expect(host.querySelector(".mobileSharedSheetBody button")).toBeNull();
     }
@@ -347,7 +382,10 @@ describe("desktop reads the same one door", () => {
       initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: accept, onToggle: toggle, phone: false,
     })));
     expect(host.querySelector(".mapDrawer .venueActionCard")).toBeTruthy();
-    expect(buttons().map((button) => button.textContent?.trim())).toEqual(["Plan stop", "Ask for a table", "Summon mates", "Share"]);
+    const secondary = moreActions();
+    expect(Array.from(secondary.querySelectorAll("button"), (button) => button.getAttribute("aria-label"))).toEqual([
+      "Ask for a table at The Plan Door", "Summon mates to The Plan Door", "Share The Plan Door",
+    ]);
     expect(planControls()).toHaveLength(1);
     act(() => peekDoor().click());
     expect(toggle).toHaveBeenCalledWith(VENUE_ID);
@@ -371,8 +409,7 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
     act(() => coral[0]?.click());
     expect(log).toHaveBeenCalledTimes(1);
 
-    const toolbar = host.querySelector('[role="toolbar"][aria-label="Venue actions"]');
-    const ghosts = Array.from(toolbar?.querySelectorAll("button") ?? []);
+    const ghosts = Array.from(expandMore().querySelectorAll("button"));
     expect(ghosts.map((button) => button.getAttribute("aria-label"))).toEqual([
       "Make it Stop 1: The Plan Door",
       "Ask for a table at The Plan Door",
@@ -392,7 +429,8 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
       drops: [drop(66)], communityPrices: [communityPrice(66), communityPrice(1, "wine")],
     })));
     expect(peekDoor().textContent).toBe("Make it Stop 1");
-    expect(host.querySelector('[role="toolbar"] [data-plan-door]')).toBeNull();
+    expect(moreActions().querySelector("[data-plan-door]")).toBeNull();
+    expect(planControls()).toHaveLength(1);
     act(() => peekDoor().click());
     expect(accept).toHaveBeenCalledTimes(1);
     expect(log).not.toHaveBeenCalled();
@@ -403,8 +441,9 @@ describe("a pub with no fresh drinker price leads with Log what you paid", () =>
     act(() => root.render(createElement(PhoneSheet, {
       initialMode: "build", initialBuiltIds: [OTHER_ID], onAcceptStop1: vi.fn(), onToggle: toggle, drops: [],
     })));
+    expandMore();
     const ghost = () => {
-      const door = host.querySelector<HTMLButtonElement>('[role="toolbar"] [data-plan-door]');
+      const door = moreActions().querySelector<HTMLButtonElement>("[data-plan-door]");
       if (!door) throw new Error("the action row carries no plan door");
       return door;
     };

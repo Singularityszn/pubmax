@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
 import { E2E_SERVER_ENV } from "../playwright.config";
 
@@ -55,6 +55,16 @@ const canonicalPriceTest = test.extend({
     await provide({ ...state, origins: state.origins.map((origin) => ({ ...origin, origin: baseURL! })) });
   },
 });
+
+function isPlanGeneration(request: Request): boolean {
+  return request.url().includes("/api/plans/generate") && request.method() === "POST";
+}
+
+function watchPlanGeneration(page: Page): Request[] {
+  const requests: Request[] = [];
+  page.on("request", (request) => { if (isPlanGeneration(request)) requests.push(request); });
+  return requests;
+}
 
 async function expectNoHorizontalOverflow(page: Page): Promise<void> {
   await expect.poll(() => page.evaluate(() => Math.max(
@@ -141,7 +151,7 @@ for (const size of SIZES) {
     await saveShot(page, `web-5-patches-${size.name}`);
     await page.getByRole("button", { name: "Soho" }).click();
 
-    const confirm = page.getByRole("button", { name: "That looks right" });
+    const confirm = page.getByRole("button", { name: "Keep this pub" });
     await expect(confirm).toBeVisible({ timeout: 45_000 });
     await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^£\d+\.\d{2} at .+\.$/);
     await expect(page.getByText(/Cheapest listed around Soho|Nearest priced pubs around Soho/)).toBeVisible();
@@ -150,7 +160,7 @@ for (const size of SIZES) {
     await expectNoHorizontalOverflow(page);
     await saveShot(page, `web-6-result-${size.name}`);
 
-    await confirm.click();
+    await page.getByRole("button", { name: "Choose a Pub Pal" }).click();
     await expect(page.getByRole("heading", { name: "Pick your Pub Pal." })).toBeVisible();
     const progress = page.getByRole("progressbar", { name: "Onboarding progress" });
     await expect(progress).toHaveAttribute("aria-valuenow", "5");
@@ -160,7 +170,7 @@ for (const size of SIZES) {
     await page.getByRole("button", { name: "Plan my night" }).click();
     await expect(page).toHaveURL(/\/plan\?query=/);
     const arrival = new URL(page.url());
-    expect(arrival.searchParams.get("query")).toBe("3 pubs in Soho, under £18 per person, maximum £6 per pint");
+    expect(arrival.searchParams.get("query")).toBe("Pubs in Soho, maximum £6 per pint");
     expect(arrival.searchParams.get("from")).toBe("onboarding");
     await expect(page.getByText("Balanced plan", { exact: true })).toHaveCount(0);
   });
@@ -171,7 +181,7 @@ for (const size of SIZES) {
 // older handoff left in the tab never stands in for them.
 const HANDOFF_KEY = "pubmax:onboarding:planner-handoff:v1";
 const REFUSAL_KEY = "pubmax:e2e:planner-handoff-refusal";
-const SOHO_AT_SIX = "3 pubs in Soho, under £18 per person, maximum £6 per pint";
+const SOHO_AT_SIX = "Pubs in Soho, maximum £6 per pint";
 const HANDOFF_CASES = [
   { name: "writable storage", refuse: false, prior: false },
   { name: "a refused handoff write", refuse: true, prior: false },
@@ -214,17 +224,23 @@ for (const size of SIZES) {
       await page.getByRole("button", { name: "Continue" }).click();
       await page.getByRole("button", { name: "Pick a London patch instead" }).click();
       await page.getByRole("button", { name: "Soho" }).click();
-      await page.getByRole("button", { name: "That looks right" }).click({ timeout: 45_000 });
+      await page.getByRole("button", { name: "Choose a Pub Pal" }).click({ timeout: 45_000 });
       const fox = page.getByRole("button", { name: /^Fox/ });
       await fox.click();
       await expect(fox).toHaveAttribute("aria-pressed", "true");
-      const generated = page.waitForRequest((request) => request.url().includes("/api/plans/generate") && request.method() === "POST");
+      const generations = watchPlanGeneration(page);
       await page.getByRole("button", { name: "Plan my night" }).click();
 
       await expect(page).toHaveURL(/\/plan\?/);
       const arrival = new URL(page.url());
       expect(arrival.searchParams.get("query")).toBe(SOHO_AT_SIX);
       expect(arrival.searchParams.get("from")).toBe("onboarding");
+      const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
+      await expect(query).toHaveValue(SOHO_AT_SIX);
+      await expect(query).toBeEditable();
+      expect(generations).toHaveLength(0);
+      const generated = page.waitForRequest(isPlanGeneration);
+      await page.getByRole("button", { name: "Plan it", exact: true }).click();
       const request = await generated;
       expect(request.postDataJSON().query).toBe(SOHO_AT_SIX);
 
@@ -250,29 +266,37 @@ for (const size of SIZES) {
 test.describe("with location allowed", () => {
   test.use({ geolocation: { latitude: 51.5136, longitude: -0.1365 }, permissions: ["geolocation"] });
 
-  canonicalPriceTest("carries a located Soho area and bounded budget into the planner", async ({ page }) => {
+  canonicalPriceTest("carries a located Soho area and per-pint cap into an explicitly requested walk", async ({ page }) => {
     test.setTimeout(120_000);
     await openJourneyFromTheApp(page);
     await page.getByRole("button", { name: "Use London" }).click();
     await page.getByRole("button", { name: "£6 or less" }).click();
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "Use my location" }).click();
-    await page.getByRole("button", { name: "That looks right" }).click();
-    const generated = page.waitForRequest((request) => request.url().includes("/api/plans/generate") && request.method() === "POST");
-    await page.getByRole("button", { name: "Plan my night" }).click();
+    const generations = watchPlanGeneration(page);
+    await page.getByRole("button", { name: "Make a walking plan" }).click();
     await expect(page).toHaveURL(/\/plan\?query=/);
     const arrival = new URL(page.url());
-    expect(arrival.searchParams.get("query")).toBe("3 pubs in Piccadilly & Soho, under £18 per person, maximum £6 per pint");
+    expect(arrival.searchParams.get("query")).toBe("Pubs in Piccadilly & Soho, maximum £6 per pint");
     expect(arrival.searchParams.get("from")).toBe("onboarding");
+    const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
+    await expect(query).toHaveValue(arrival.searchParams.get("query")!);
+    await expect(query).toBeEditable();
+    expect(generations).toHaveLength(0);
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:first-run-companion:v1"))).toBeNull();
+    const explicitQuery = "3 pubs in Piccadilly & Soho, maximum £6 per pint";
+    await query.fill(explicitQuery);
+    const generated = page.waitForRequest(isPlanGeneration);
+    await page.getByRole("button", { name: "Plan it", exact: true }).click();
     const request = await generated;
-    expect(request.postDataJSON().query).toBe(arrival.searchParams.get("query"));
+    expect(request.postDataJSON().query).toBe(explicitQuery);
     const response = await request.response();
     expect(response).not.toBeNull();
     const result = await response!.json();
     expect(response!.status(), JSON.stringify(result)).toBe(200);
     expect(result.code).not.toBe("NIGHT_AREA_REQUIRED");
-    expect(result.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: 1800 });
-    expect(result.budgetSummary).toMatchObject({ limitPence: 1800, withinLimit: true });
+    expect(result.inferredContext).toMatchObject({ nightArea: "piccadilly-soho", budgetLimitPence: null });
+    expect(result.budgetSummary).toMatchObject({ limitPence: null, withinLimit: null });
     expect(result.stops).toHaveLength(3);
     for (const stop of result.stops) {
       expect(stop.estimatedPintPricePence).toBeGreaterThan(0);
@@ -283,7 +307,7 @@ test.describe("with location allowed", () => {
     expect(storage).not.toContain("-0.1365");
   });
 
-  test("answers from where the reader stands", async ({ page }) => {
+  test("answers from where the reader stands and keeps the first pub without a Pal", async ({ page }) => {
     test.setTimeout(120_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await openJourneyFromTheApp(page);
@@ -292,10 +316,19 @@ test.describe("with location allowed", () => {
     await page.getByRole("button", { name: "Continue" }).click();
     await page.getByRole("button", { name: "Use my location" }).click();
 
-    await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole("button", { name: "Keep this pub" })).toBeVisible({ timeout: 45_000 });
     await expect(page.getByText(/Cheapest listed near you|Nearest priced pubs near you/)).toBeVisible();
     // No limit, so no count is made.
     await expect(page.getByText(/come in at/)).toHaveCount(0);
+    const generations = watchPlanGeneration(page);
+    await page.getByRole("button", { name: "Keep this pub" }).click();
+    await expect(page).toHaveURL(/\/map\?.*sel=/);
+    const selected = new URL(page.url()).searchParams.get("sel");
+    const accepted = await page.evaluate(() => JSON.parse(sessionStorage.getItem("pubmax:planning-intent:v1") ?? "null"));
+    expect(accepted).toMatchObject({ acceptedVenueId: selected, cityId: "london" });
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:planning-intent:v1"))).toBeNull();
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:first-run-companion:v1"))).toBeNull();
+    expect(generations).toHaveLength(0);
   });
 });
 

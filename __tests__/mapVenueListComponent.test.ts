@@ -67,7 +67,7 @@ describe("MapVenueList", () => {
         {
           id: "venue-uk-n123",
           name: "Base Arms",
-          priceLabel: "Other pub · no listed price",
+          priceLabel: "Other pub · price not checked",
           pub: {
             id: "venue-uk-n123",
             name: "Base Arms",
@@ -99,9 +99,9 @@ describe("MapVenueList", () => {
     );
 
     expect(html).toContain('aria-label="Listed pubs and venues"');
-    expect(html).toContain('aria-label="Other pubs and bars with no listed price"');
+    expect(html).toContain('aria-label="Other pubs and bars with prices not checked"');
     expect(html).toContain("Base Arms");
-    expect(html).toContain("Other pub · no listed price");
+    expect(html).toContain("Other pub · price not checked");
   });
 
   it("gives every restaurant pin in view a row, so a keyboard reader can open it", () => {

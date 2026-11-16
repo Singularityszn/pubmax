@@ -22,6 +22,10 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({ useWhatsOnTonight: () => 
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: async () => [],
   loadSlimVenuesForCityResult: async () => ({ status: "ready", rows: [] }),
+  retainSlimVenuesForCity: () => ({
+    promise: Promise.resolve({ status: "ready", rows: [] }),
+    release: () => {},
+  }),
 }));
 
 import { AuthContext, useAuth } from "@/components/auth/authContext";

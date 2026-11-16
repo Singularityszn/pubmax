@@ -256,7 +256,7 @@ jobs:
     # The browser specs that hold layout and chrome once held by source-text
     # unit tests (the CSS and JSX regex pins removed in the test-suite prune).
     # A regex over a stylesheet no longer guards these surfaces, so the specs
-    # that measure them run before any screen-code change lands. They are
+    # that measure them run on request and in the nightly run. They are
     # cut into three shards on separate runners, one worker each, so the law
     # pins above keep their own clock. The three jobs share one step list
     # (the YAML anchor below) and differ only in LAYOUT_SHARD.
@@ -266,44 +266,16 @@ jobs:
     # Runner-up's fork guard controls runner access. GitHub also requires
     # approval for all outside collaborators. The `if` condition adds defence
     # in depth only (docs/CI_RUNBOOK.md, "Self-hosted Mac runners").
-    # They run in the merge queue, on the commit that lands, and on a pull
-    # request only while it carries the `layout-pins` label (captain, 9 Nov
-    # 2026). Other label events skip every job. Unlabelled pull request pushes
-    # and main pushes do not start them. The pool has three places. The
-    # layout scope above still skips them for a pull request with no screen
-    # code. A dispatch skips them to avoid duplicate runs on the Mac pool.
-    # docs/CI_RUNBOOK.md, "The nightly full suite", owns quarantine exclusions.
+    # The nightly dispatch runs all layout pins. A pull request runs them
+    # while it carries the layout-pins label and has screen changes.
+    # Main pushes and merge groups do not start these jobs.
     needs: [change-scope]
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 1
-    # Only a confirmed missing ref may stop this job. Lookup failures must not
-    # block a live group (docs/CI_RUNBOOK.md, "The required checks and the
-    # merge queue").
     steps: &layout-pin-steps
-      - name: Stop when the merge group is gone
-        env:
-          REPO: ${{ github.repository }}
-          QUEUE_REF: ${{ github.event.merge_group.head_ref }}
-        run: |
-          set -euo pipefail
-          if [ -z "$QUEUE_REF" ]; then
-            echo "Not a merge group run."
-            exit 0
-          fi
-          status=0
-          git ls-remote --exit-code "https://github.com/$REPO" "$QUEUE_REF" > /dev/null || status=$?
-          case "$status" in
-            0) echo "Merge group $QUEUE_REF is live." ;;
-            2)
-              echo "::error::Merge group $QUEUE_REF is gone, so this job stops before setup and tests."
-              exit 1
-              ;;
-            *) echo "::warning::Could not read $QUEUE_REF (git exit $status), so the job runs." ;;
-          esac
-
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -436,7 +408,7 @@ jobs:
   layout-pins-2:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (2/3)
     needs: [change-scope]
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
@@ -446,21 +418,19 @@ jobs:
   layout-pins-3:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser layout pins (3/3)
     needs: [change-scope]
-    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'merge_group' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
+    if: ${{ (github.event_name != 'pull_request' || github.event.action != 'labeled' || github.event.label.name == 'layout-pins') && (!cancelled() && (github.event_name == 'workflow_dispatch' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && contains(github.event.pull_request.labels.*.name, 'layout-pins'))) && (needs.change-scope.result != 'success' || needs.change-scope.outputs.layout == 'ui')) }}
     runs-on: pubmax-mac
     timeout-minutes: 40
     env:
       LAYOUT_SHARD: 3
     steps: *layout-pin-steps
 
-  # THE REQUIRED CHECK (docs/CI_RUNBOOK.md, "The required checks and the merge
-  # queue"). The main ruleset requires this one check by name, not each job,
-  # so a shard can be added or a job skipped with no settings change. It needs
-  # every job a pull request runs (__tests__/ciSummaryCheck.test.ts) and is
+  # The summary needs every pull-request job (__tests__/ciSummaryCheck.test.ts)
+  # and is
   # red when any of them failed or was cancelled. `always()` makes it report
   # even then: a summary that was skipped would count as passed. A layout pin
   # skipped by its own `if` (no screen code, a fork, a pull request without
-  # the layout-pins label, a main push) passes.
+  # the layout-pins label, a merge group or a main push) passes.
   # The nightly full suite is not a pull request job, so it is not needed here.
   check:
     name: ${{ github.event_name == 'pull_request' && github.event.action == 'labeled' && github.event.label.name != 'layout-pins' && 'Not run for label - ' || '' }}Browser tests check

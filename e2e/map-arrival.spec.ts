@@ -108,6 +108,61 @@ async function prepareFirstVisitMap(page: Page): Promise<void> {
 }
 
 test.describe("map first-visit arrival", () => {
+  for (const permissionsApi of ["absent", "rejected"] as const) {
+    test(`a successful opening read outside London hides the mobile location ask with the Permissions API ${permissionsApi}`, async ({ page }) => {
+      await prepareFirstVisitMap(page);
+      await page.addInitScript((mode) => {
+        const observed = window as typeof window & { __openingLocationReads: number };
+        observed.__openingLocationReads = 0;
+        Object.defineProperty(navigator, "permissions", {
+          configurable: true,
+          value: mode === "absent" ? undefined : {
+            query: async () => { throw new Error("Permissions API unavailable"); },
+          },
+        });
+        Object.defineProperty(navigator, "geolocation", {
+          configurable: true,
+          value: {
+            getCurrentPosition(success: PositionCallback) {
+              observed.__openingLocationReads += 1;
+              success({
+                coords: { latitude: 55.9533, longitude: -3.1883, accuracy: 10 },
+              } as GeolocationPosition);
+            },
+            watchPosition: () => 0,
+            clearWatch: () => {},
+          },
+        });
+      }, permissionsApi);
+
+      const response = await page.goto("/map");
+      expect(response?.status()).toBe(200);
+      await expectMobileMapShellReady(page, 45_000);
+      await waitForPins(page);
+      await expect.poll(() => page.evaluate(() =>
+        (window as typeof window & { __openingLocationReads?: number }).__openingLocationReads ?? 0,
+      )).toBeGreaterThan(0);
+      await expect(page.locator(".mapArrivalCard")).toBeHidden();
+    });
+  }
+
+  test("a mobile first visit keeps the location ask while permission is prompt", async ({
+    page,
+    context,
+  }) => {
+    await context.clearPermissions();
+    await prepareFirstVisitMap(page);
+    const response = await page.goto("/map");
+    expect(response?.status()).toBe(200);
+    await expectMobileMapShellReady(page, 45_000);
+    await waitForPins(page);
+
+    await expect
+      .poll(() => page.evaluate(async () => (await navigator.permissions.query({ name: "geolocation" })).state))
+      .toBe("prompt");
+    await expect(page.locator(".mapArrivalCard").getByRole("button", { name: "Use my location" })).toBeVisible();
+  });
+
   // On a phone the pill offers location alone, so the opening area picker is
   // what a refusal hands over.
   test("a refused location opens the area picker, which remembers Camden", async ({
@@ -166,7 +221,9 @@ test.describe("map first-visit arrival", () => {
   // beside it lists that area's pubs.
   test("picking an area after Near me paints that area, not an empty map", async ({
     page,
+    context,
   }) => {
+    await context.grantPermissions(["geolocation"]);
     await grantLocation(page);
     await prepareFirstVisitMap(page);
     const response = await page.goto("/map");
@@ -175,8 +232,8 @@ test.describe("map first-visit arrival", () => {
     await waitForPins(page);
 
     const arrival = page.locator(".mapArrivalCard");
-    await expect(arrival).toBeVisible({ timeout: 15_000 });
-    await arrival.getByRole("button", { name: "Use my location" }).click();
+    await expect(arrival).toBeHidden({ timeout: 15_000 });
+    await page.getByRole("button", { name: "Near me", exact: true }).click();
 
     // The membership really is held: the near-me sheet is the tap path's answer.
     const nearMeSheet = page.locator('.mobileSheetPortal[data-sheet-kind="near-me"]');

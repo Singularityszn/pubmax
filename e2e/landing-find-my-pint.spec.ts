@@ -300,10 +300,10 @@ test.describe("landing hierarchy", () => {
     });
   }
 
-  test("reads the same order on a phone as on a desktop: heading, line, hunt card, primary, quiet row, pub, rail", async ({ page }) => {
+  test("reads heading, line, primary, quiet row, pub card, hunt card, rail at 390px", async ({ page }) => {
     await openLanding(page, { width: 390, height: 844 });
     const tops = await page.evaluate(() =>
-      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpHuntCard", ".lpHero .lpPubCard", ".lpHero .lpRail"].map(
+      ["#hero-title", ".lpHero .screenLede", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpHuntCard", ".lpHero .lpRail"].map(
         (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
       ),
     );

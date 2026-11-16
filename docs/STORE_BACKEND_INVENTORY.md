@@ -61,6 +61,7 @@ silently stale.
 | kitchenReportsStore | factory-ready | "Still serving" and "Kitchen closed" taps on a pub's food row: 90 minute read window, one confirmation by another account. |
 | leagueStore | factory-ready | Private leagues and their members (migration 0239). The member and league limits live in the create and join functions. A missing table reads as "not open yet", never as memory. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
+| nearbyVisitStore | factory-ready | Nearby visit proof with shared backend selection. See the [permission matrix](security/PERMISSION_MATRIX.md#nearby-been-proof-migration-0240). |
 | nightMemoryStore | legacy-exception | Multiple inline Supabase configuration checks around private memory policy. |
 | nightProfileStore | factory-ready | Night Profile preference rows with shared backend selection. |
 | notificationsStore | factory-ready | Notification rows with shared backend selection. |
@@ -203,6 +204,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/messagePhotoMedia.server.ts",
     "lib/messageSafety.server.ts",
     "lib/messagesStore.ts",
+    "lib/nearbyVisitStore.ts",
     "lib/nightMemoryStore.ts",
     "lib/nightMomentMedia.ts",
     "lib/nightProfileStore.ts",

@@ -276,6 +276,40 @@ describe("VenuePhotoWall owner control", () => {
     expect(container.querySelectorAll(".venuePhotoTile")).toHaveLength(1);
   });
 
+  it("keeps older photos reachable after removing every loaded photo", async () => {
+    authedFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        photos: Array.from({ length: 24 }, (_, index) => photo(`mine-${index}`, true)),
+        nextCursor: "older-page",
+        status: "ready",
+      })))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        photos: [photo("oldest", true)], nextCursor: null, status: "ready",
+      })));
+    authedActionFetch.mockImplementation(async () => new Response(JSON.stringify({ ok: true })));
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    let empty = false;
+    await act(async () => root.render(createElement(VenuePhotoWall, {
+      venueId: "venue-1", venueName: "The Lamb", onEmptyChange: (value) => { empty = value; },
+    })));
+
+    for (let index = 0; index < 24; index += 1) {
+      await act(async () => container.querySelector<HTMLButtonElement>(".venuePhotoRemove")!.click());
+    }
+
+    expect(empty).toBe(false);
+    expect(container.querySelector(".venuePhotoWallEmpty")).toBeNull();
+    await act(async () => button("Show more").click());
+    expect(container.querySelectorAll(".venuePhotoTile")).toHaveLength(1);
+    expect(hasButton("Show more")).toBe(false);
+    expect(empty).toBe(false);
+
+    await act(async () => container.querySelector<HTMLButtonElement>(".venuePhotoRemove")!.click());
+    expect(container.querySelectorAll(".venuePhotoTile")).toHaveLength(0);
+    expect(empty).toBe(true);
+    expect(container.querySelector(".venuePhotoWallEmpty")).not.toBeNull();
+  });
+
   it("reads the wall again for the next account after an in-place switch", async () => {
     viewer.auth = { user: { id: "user-1" }, handle: "mia", configured: true };
     authedFetch.mockImplementation(async () =>

@@ -79,12 +79,12 @@ export function useTonightNearbyVenues(near: Coord | null): { rows: readonly Ton
  * The slim producer selects that row, including ties. A numeric price match cannot
  * establish row identity. A retired request must not publish evidence.
  */
-export function useTonightPintEvidence(venueId: string | null, digest: string | null) {
-  const request = useMemo(() => venueId && digest ? { venueId, digest } : null, [venueId, digest]);
+export function useTonightPintEvidence(venueId: string | null, digest: string | null, priceGbp: number | null) {
+  const request = useMemo(() => venueId && digest && priceGbp !== null ? { venueId, digest, priceGbp } : null, [venueId, digest, priceGbp]);
   const [answer, setAnswer] = useState<{ request: NonNullable<typeof request>; drinkLabel: string | null; servingSize: string | null; publisher: { label: string; url: string } | null; observedAt: string | null } | null>(null);
   useEffect(() => {
     if (!request) return;
-    const { venueId, digest } = request;
+    const { venueId, digest, priceGbp } = request;
     const controller = new AbortController();
     void fetch(`/api/venue/${encodeURIComponent(venueId)}`, { signal: controller.signal })
       .then(async (response) => response.ok ? response.json() as Promise<unknown> : null)
@@ -93,7 +93,7 @@ export function useTonightPintEvidence(venueId: string | null, digest: string | 
         const payload = body as { priceDatasetDigest?: unknown; venue?: { id?: unknown; prices?: unknown } };
         if (payload.priceDatasetDigest !== digest || payload.venue?.id !== venueId || !Array.isArray(payload.venue.prices)) return;
         const row = payload.venue.prices[0];
-        if (!row || typeof row !== "object") return;
+        if (!row || typeof row !== "object" || row.price_gbp !== priceGbp) return;
         const { legacyPintPriceObservedAt, namedLegacyPintPriceSource } = await import("@/lib/legacyPriceEvidence.mjs");
         if (controller.signal.aborted) return;
         setAnswer({ request, drinkLabel: typeof row.pint_name === "string" && row.pint_name.trim() ? row.pint_name : null,
