@@ -166,10 +166,10 @@ describe("restored Plan price estimates", () => {
       ...stop, priceKind: "estimated", estimatedPintPricePence: 600,
     }));
     localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ stops: restoredStops, nightContext: null }));
-    let resolvePresence!: (response: Response) => void;
-    const presenceResponse = new Promise<Response>((resolve) => { resolvePresence = resolve; });
+    let resolvePresence!: (presence: Record<string, string>) => void;
+    const presenceResponse = new Promise<Record<string, string>>((resolve) => { resolvePresence = resolve; });
     fetchMock.mockImplementation(async (input) => {
-      if (String(input).includes("scope=public-price-presence")) return presenceResponse;
+      if (String(input).includes("scope=public-price-presence")) return Response.json({ presence: await presenceResponse });
       return Response.json([]);
     });
 
@@ -181,7 +181,7 @@ describe("restored Plan price estimates", () => {
     expect(document.querySelector(".planStops")?.textContent).not.toContain("£6.00");
 
     await act(async () => {
-      resolvePresence(Response.json({ presence: { "venue-a": first, "venue-b": second } }));
+      resolvePresence({ "venue-a": first, "venue-b": second });
     });
     if (first === "absent" && second === "absent") {
       expect(summary()).toContain("Estimated £12 each for drinks");
