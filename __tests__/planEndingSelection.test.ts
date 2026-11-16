@@ -37,7 +37,7 @@ describe("canonical ending selections", () => {
       optionId: "late-food-evidence-piccadilly-soho-balans-no-60",
       externalPlaceId: "late-food-evidence-piccadilly-soho-balans-no-60",
       evidenceSnapshot: { label: "Client label", confidence: "unknown" },
-    }, "venue-aihlwx", Date.parse("2026-10-17T23:00:00.000Z"));
+    }, "venue-aihlwx", Date.parse("2026-11-21T23:00:00.000Z"));
     expect(selected).toMatchObject({ kind: "food", evidenceSnapshot: { label: "Balans No.60" } });
     expect(historical.stops[0]?.venueId).toBe("venue-aihlwx");
   });
