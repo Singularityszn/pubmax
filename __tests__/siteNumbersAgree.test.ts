@@ -90,7 +90,9 @@ describe("headline cheapest prices", () => {
     const [stats, hunt, venues] = await Promise.all([loadAboutStats(), loadLondonHuntPints(), loadGroupedVenues()]);
     expect(hunt.length).toBeGreaterThan(0);
     expect(stats.cheapestPint).toBe(hunt[0]?.priceGbp);
-    for (const area of arrivalAreas(venues)) {
+    const areas = arrivalAreas(venues, hunt);
+    expect(areas.length).toBeGreaterThan(0);
+    for (const area of areas) {
       expect(hunt.some((pint) => pint.venueId === area.cheapestVenueId && pint.priceGbp === area.cheapestGbp)).toBe(true);
     }
   });

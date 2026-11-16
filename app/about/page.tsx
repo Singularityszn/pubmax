@@ -338,8 +338,8 @@ export default async function AboutPage() {
             </p>
             <p className="aboutPriceLine">
               Across <Figure>{fmtInt(stats.boroughsCovered)}</Figure> London
-              boroughs and neighbourhoods, the cheapest listed pint we hold is{" "}
-              <Pint gbp={stats.cheapestPint} />. The dearest is{" "}
+              boroughs and neighbourhoods, {stats.cheapestPint === null ? "the dearest is " : <>the cheapest listed pint we hold is{" "}
+              <Pint gbp={stats.cheapestPint} />. The dearest is{" "}</>}
               <Pint gbp={stats.dearestPint} />. The average listed pint across{" "}
               {averageBasePhrase(stats.pubsTracked)} is{" "}
               <Pint gbp={stats.averagePint} />, the same figure the homepage gives,

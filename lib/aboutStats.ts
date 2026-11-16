@@ -15,6 +15,7 @@ import "server-only";
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { averagePriceGbp } from "@/lib/pintSavings";
+import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -77,7 +78,7 @@ export function computeAboutStats(
   // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
   // number on /about matches what a user would count on the map — but only
   // venues carrying at least one accepted price observation qualify.
-  const pubs = listedPriceCohort(groupVenuePrices(pricedRows));
+  const pubs = listedPriceCohort(groupVenuePrices(safeRows));
   const pubsTracked = pubs.length;
 
   const prices = pricedRows.map((row) => row.price_gbp as number);
@@ -137,12 +138,15 @@ export function resetAboutStatsForTests(): void {
 }
 
 async function readAboutStats(): Promise<AboutStats> {
-  const [historic, rows] = await Promise.all([loadHistoricPubs(), loadPriceRows()]);
+  const [historic, rows, hunt] = await Promise.all([loadHistoricPubs(), loadPriceRows(), loadLondonHuntPints()]);
 
-  return computeAboutStats(rows, {
-    historicPubsCited: historic.length,
-    citiesCovered: listEnabledCities().length,
-  });
+  return {
+    ...computeAboutStats(rows, {
+      historicPubsCited: historic.length,
+      citiesCovered: listEnabledCities().length,
+    }),
+    cheapestPint: hunt[0]?.priceGbp ?? null,
+  };
 }
 
 async function loadPriceRows(): Promise<VenuePrice[]> {

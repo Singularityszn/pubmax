@@ -35,7 +35,7 @@ export const ARRIVAL_PARAM_VALUE = "pint-index";
 export type ArrivalArea = {
   slug: string;
   name: string;
-  /** Pubs in the area carrying a price on the map. */
+  /** Pubs in the area with a hunt-eligible price on the map. */
   pricedCount: number;
   /** The cheapest of them, and the pub the tap opens on. */
   cheapestGbp: number;
@@ -48,11 +48,12 @@ export type ArrivalArea = {
  * map with nothing to read. Ties on price break on venue id so the pub a chip
  * opens is stable between renders.
  */
-export function arrivalAreas(venues: readonly Venue[], limit = ARRIVAL_AREA_LIMIT): ArrivalArea[] {
+export function arrivalAreas(venues: readonly Venue[], pints: readonly { venueId: string; priceGbp: number }[], limit = ARRIVAL_AREA_LIMIT): ArrivalArea[] {
+  const eligible = new Set(pints.map((pint) => `${pint.venueId}:${pint.priceGbp}`));
   const areas = new Map<string, ArrivalArea>();
   for (const venue of venues) {
     const price = comparableVenuePint(venue, null, false);
-    if (price === null || !venue.id || !isPublicRankablePub(venue)) continue;
+    if (price === null || !venue.id || !isPublicRankablePub(venue) || !eligible.has(`${venue.id}:${price}`)) continue;
     const name = canonicalBorough(venue);
     if (!name) continue;
     const slug = slugifyBorough(name);
