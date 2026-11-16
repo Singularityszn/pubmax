@@ -60,7 +60,7 @@ function fakeMap(alreadyIdle = false) {
     container,
     halo: () => container.querySelector<HTMLElement>(".mapSplitListHalo"),
     listening: (type: string) => handlers.get(type)?.size ?? 0,
-    emit: (type: string, event?: { originalEvent?: Event }) => handlers.get(type)?.forEach((handler) => handler(event)),
+    emit: (type: string, event: { originalEvent?: Event } = {}) => handlers.get(type)?.forEach((handler) => handler(event)),
   };
 }
 
@@ -369,6 +369,7 @@ describe("the list beside the map, at desktop width", () => {
       stage.remove();
     }
   });
+
   it("resumes following when the restored view has settled and the map becomes idle", () => {
     const map = fakeMap();
     const filters = {};
