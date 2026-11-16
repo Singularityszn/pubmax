@@ -458,6 +458,11 @@ describe("the fare-zone estimate", () => {
     expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
   });
 
+  it("withholds an estimate when public-price absence was never established", () => {
+    const pub = makeVenue({ zone: 2 });
+    expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED)?.has(pub.id)).toBe(false);
+  });
+
   it("keeps a confirmed empty price lane through saved slim pins", () => {
     const pin = makeVenue({ zone: 2 });
     const restored = slimVenueToPin(pinsToSlimVenues([pin])[0]!);
