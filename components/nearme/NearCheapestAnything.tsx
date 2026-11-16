@@ -8,6 +8,7 @@ import { Chip } from "@/components/ui/chip";
 import { formatGbp } from "@/lib/formatGbp";
 import {
   cheapestDrinksNearby,
+  isComparableNearDrinkMeasure,
   NEAR_DRINK_CHIPS,
   nearDrinkAnswerHeading,
   nearDrinkEmptyLine,
@@ -76,11 +77,13 @@ export default function NearCheapestAnything({
     () => (rows ? cheapestDrinksNearby(centre.lat, centre.lng, venues, rows) : []),
     [centre.lat, centre.lng, rows, venues],
   );
+  const measured = answers.filter((answer) => isComparableNearDrinkMeasure(answer.measure));
+  const unmeasured = answers.filter((answer) => !isComparableNearDrinkMeasure(answer.measure));
   const entry = NEAR_DRINK_CHIPS.find((candidate) => candidate.id === chip) ?? NEAR_DRINK_CHIPS[0];
 
   return (
     <section className="nmnAnything" aria-labelledby="near-anything-title" data-testid="near-cheapest-anything">
-      <h3 id="near-anything-title" className="nmnPlayfulTitle">Cheapest anything</h3>
+      <h3 id="near-anything-title" className="nmnPlayfulTitle">Drink prices nearby</h3>
       <div className="nmnAnythingChips" role="group" aria-label="Pick a drink">
         {NEAR_DRINK_CHIPS.map((candidate) => (
           <Chip
@@ -93,21 +96,30 @@ export default function NearCheapestAnything({
         ))}
       </div>
       <div className="nmnAnythingAnswer" aria-live="polite">
-        <p className="nmnAnythingHeading">{nearDrinkAnswerHeading(chip)}</p>
+        {(measured.length > 0 || !rows || answers.length === 0) ? <p className="nmnAnythingHeading">{nearDrinkAnswerHeading(chip)}</p> : null}
         {!rows ? (
           <p className="nmnAnythingEmpty">We could not read listed {entry.answerNoun} prices just now.</p>
         ) : answers.length === 0 ? (
           <p className="nmnAnythingEmpty">{nearDrinkEmptyLine(chip)}</p>
         ) : (
           <>
-            {answers.length > 1 ? (
+            {measured.length > 1 ? (
               <p className="nmnAnythingNote">Each size is its own answer. A size is never compared with another.</p>
             ) : null}
-            <ul className="nmnAnythingList">
-              {answers.map((answer) => (
-                <AnswerRow key={`${answer.measure ?? "unstated"}-${answer.id}`} answer={answer} />
-              ))}
-            </ul>
+            {measured.length > 0 ? (
+              <ul className="nmnAnythingList">
+                {measured.map((answer) => <AnswerRow key={`${answer.measure}-${answer.id}`} answer={answer} />)}
+              </ul>
+            ) : null}
+            {unmeasured.length > 0 ? (
+              <details className="nmnUnrankedPrices">
+                <summary>Other listed prices ({unmeasured.length})</summary>
+                <p className="nmnAnythingNote">These serving sizes are not comparable, so these prices are not ranked.</p>
+                <ul className="nmnAnythingList">
+                  {unmeasured.map((answer, index) => <AnswerRow key={`${answer.id}-${index}`} answer={answer} />)}
+                </ul>
+              </details>
+            ) : null}
           </>
         )}
         {chip === "guinness" ? (

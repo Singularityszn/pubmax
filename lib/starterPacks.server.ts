@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readFoundingMembers } from "@/lib/foundingMembers.server";
+
 // Reading the accounts a starter pack is made of.
 //
 // The policy lives in `lib/starterPacks.ts` and stays pure; this is the one
@@ -8,9 +10,9 @@ import "server-only";
 //
 // The scan reuses the SAME closed row set the people directory reads
 // (`listClaimedProfiles`: claimed handle, no tombstone), so a pack can never
-// surface an account the directory would refuse to. The founders come through
-// `listFoundingMembers`, which is bounded by the cohort itself, so the founding
-// pack does not depend on the paged scan reaching number 97.
+// surface an account the directory would refuse to. Founder numbers and the
+// full count use `readFoundingMembers`. Raw founder rows retain borough
+// eligibility when the paged scan stops before them.
 //
 // The scan is BOUNDED, and a bounded scan that stopped early is a fact rather
 // than a silence: `truncated` rides back with the packs. Truncation can only
@@ -40,6 +42,7 @@ const SCAN_MAX_PAGES = 10;
 export type StarterPackView = StarterPack & {
   members: StarterPackMember[];
   memberCount: number;
+  foundingMemberTotal?: number;
 };
 
 export type StarterPackScan = {
@@ -48,8 +51,12 @@ export type StarterPackScan = {
   truncated: boolean;
 };
 
-function toCandidate(profile: ProfileRecord): StarterPackCandidate {
+function toCandidate(
+  profile: ProfileRecord,
+  foundingNumberByHandle: ReadonlyMap<string, number>,
+): StarterPackCandidate {
   const avatarUrl = publicOwnedImageUrl(profile, "avatar");
+  const foundingMemberNumber = foundingNumberByHandle.get(profile.handle);
   return {
     handle: profile.handle,
     ...(profile.displayName ? { displayName: profile.displayName } : {}),
@@ -58,8 +65,8 @@ function toCandidate(profile: ProfileRecord): StarterPackCandidate {
     // The choice travels so the borough lane can refuse a private account: see
     // `selectBoroughPackMembers` for why membership there IS the disclosure.
     ...(profile.visibility ? { visibility: profile.visibility } : {}),
-    ...(profile.foundingMemberNumber !== undefined
-      ? { foundingMemberNumber: profile.foundingMemberNumber }
+    ...(foundingMemberNumber !== undefined
+      ? { foundingMemberNumber }
       : {}),
     claimed: Boolean(profile.userId),
     tombstoned: isProfileTombstoned(profile),
@@ -74,12 +81,17 @@ function toCandidate(profile: ProfileRecord): StarterPackCandidate {
 async function readCandidates(): Promise<{
   candidates: StarterPackCandidate[];
   truncated: boolean;
+  foundingMemberTotal: number;
 }> {
   const store = profileStore();
   const byHandle = new Map<string, StarterPackCandidate>();
 
+  const founders = await readFoundingMembers();
+  const foundingNumberByHandle = new Map(
+    founders.map((founder) => [founder.handle, founder.number]),
+  );
   for (const founder of await store.listFoundingMembers()) {
-    byHandle.set(founder.handle, toCandidate(founder));
+    byHandle.set(founder.handle, toCandidate(founder, foundingNumberByHandle));
   }
 
   let afterHandle = "";
@@ -89,24 +101,35 @@ async function readCandidates(): Promise<{
       limit: SCAN_PAGE_SIZE,
       ...(afterHandle ? { afterHandle } : {}),
     });
-    for (const row of rows) byHandle.set(row.handle, toCandidate(row));
+    for (const row of rows) {
+      byHandle.set(row.handle, toCandidate(row, foundingNumberByHandle));
+    }
     if (rows.length < SCAN_PAGE_SIZE) break;
     afterHandle = rows[rows.length - 1]!.handle;
     // A full last page means the budget ran out with rows still unread.
     if (page === SCAN_MAX_PAGES - 1) truncated = true;
   }
 
-  return { candidates: [...byHandle.values()], truncated };
+  return {
+    candidates: [...byHandle.values()],
+    truncated,
+    foundingMemberTotal: founders.length,
+  };
 }
 
 /** Every pack that has enough real members to show, in policy order. */
 export async function loadStarterPacks(): Promise<StarterPackScan> {
-  const { candidates, truncated } = await readCandidates();
+  const { candidates, truncated, foundingMemberTotal } = await readCandidates();
   const packs: StarterPackView[] = [];
   for (const pack of listStarterPacks()) {
     const members = selectStarterPackMembers(pack, candidates);
     if (!starterPackShows(members.length)) continue;
-    packs.push({ ...pack, members, memberCount: members.length });
+    packs.push({
+      ...pack,
+      members,
+      memberCount: members.length,
+      ...(pack.kind === "founding" ? { foundingMemberTotal } : {}),
+    });
   }
   return { packs, truncated };
 }

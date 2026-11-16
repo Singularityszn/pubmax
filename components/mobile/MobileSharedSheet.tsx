@@ -225,7 +225,10 @@ export default function MobileSharedSheet({
     initialSnapRequestRef.current = initialSnap;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap);
-    const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
+    const frame = requestAnimationFrame(() => {
+      const sheet = sheetRef.current;
+      if (sheet && !sheet.contains(document.activeElement)) sheet.focus({ preventScroll: true });
+    });
     const onKey = (event: KeyboardEvent) => {
       // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
       // checks event.defaultPrevented) does not also step back for the same

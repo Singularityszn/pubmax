@@ -151,6 +151,9 @@ export function ResultPanel({
   budgetLabel,
   onChangeBudget,
   onChangeArea,
+  onChoosePal,
+  onExtendWalk,
+  keepError,
 }: {
   status: "loading" | "ready" | "empty" | "unavailable";
   result: OnboardingResult | null;
@@ -159,6 +162,9 @@ export function ResultPanel({
   budgetLabel: string | null;
   onChangeBudget: () => void;
   onChangeArea: () => void;
+  onChoosePal: () => void;
+  onExtendWalk: () => void;
+  keepError: string;
 }) {
   if (status === "loading") {
     return (
@@ -224,6 +230,12 @@ export function ResultPanel({
         </ul>
       ) : null}
       <p className="firstRunPermissionNote firstRunTrustNote">{NEAR_PRICE_TRUST_CAPTION}</p>
+
+      <div className="firstRunQuietRow">
+        <button type="button" className="firstRunQuiet pressable" onClick={onExtendWalk}>Make a walking plan</button>
+        <button type="button" className="firstRunQuiet pressable" onClick={onChoosePal}>Choose a Pub Pal</button>
+      </div>
+      {keepError ? <p role="alert">{keepError}</p> : null}
 
       <div className="firstRunQuietRow">
         <button type="button" className="firstRunQuiet pressable" onClick={onChangeBudget}>

@@ -120,6 +120,13 @@ afterEach(() => {
 });
 
 describe("curated crawl URL hydration hold", () => {
+  it("keeps the sign-in return token while the selected pub syncs", async () => {
+    window.history.replaceState({}, "", "/map?log=1&sel=venue-1&pintDropReturn=original-return");
+    await act(async () => root.render(createElement(Harness, { query: "", pending: false, selectedVenueId: "venue-1" })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    expect(new URLSearchParams(window.location.search).get("pintDropReturn")).toBe("original-return");
+  });
+
   it("preserves a named area until a new venue query replaces it", async () => {
     window.history.replaceState({}, "", "/map?area=piccadilly-soho");
     await act(async () => root.render(createElement(Harness, { query: "", pending: false })));

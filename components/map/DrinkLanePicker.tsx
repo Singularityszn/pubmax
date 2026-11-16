@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import {
   useEffect,
   useLayoutEffect,
@@ -16,7 +15,6 @@ import { GlassWater, X } from "lucide-react";
 import { IconButton } from "@/components/ui/icon-button";
 import { MAP_DRINK_LANES } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
-import { findSubtype } from "@/lib/drinkSubtypes";
 import {
   drinkLensCoverageNote,
   type CategoryPriceIndexStatus,
@@ -113,7 +111,6 @@ export default function DrinkLanePicker({
       live = false;
     };
   }, [wantsTaps, TapHandles]);
-  const lucia = findSubtype("soft-drink-lucia-special");
   const active = MAP_DRINK_LANES.find((option) => option.category === lane);
   // A lane still loading, or one we could not read, must not be worded as a
   // settled map. The default pint lane has no cross-venue index to report on.
@@ -173,20 +170,6 @@ export default function DrinkLanePicker({
           })}
         </div>
       )}
-      {/* Lucia lives under soft drinks: the one shortcut this picker carries,
-          on the phone sheet and the desktop panel alike, straight to its
-          listed prices. */}
-      {lucia ? (
-        <Link
-          prefetch={false}
-          href="/soft-drinks-and-water?sub=soft-drink-lucia-special"
-          className="drinkLanePickerLucia"
-        >
-          <span className="drinkLanePickerLuciaLane">Soft drinks</span>
-          <strong>{lucia.label}</strong>
-          <span>{lucia.longLabel} prices</span>
-        </Link>
-      ) : null}
       {/* What the chosen lane can and cannot do. The pint lane keeps the map it
           always had; every other lane colours pins only where drinkers have
           logged and confirmed that drink, so its silence is honest rather than

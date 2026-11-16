@@ -3,6 +3,15 @@ import { expect, type Locator, type Page } from "@playwright/test";
 import { MAP_CANVAS_READINESS_CEILING_MS } from "@/lib/mapCanvasAvailability";
 import { SURFACE_CACHE_NAMESPACE } from "@/lib/surfaceDataCache";
 
+export async function openMobileFilterRefinements(sheet: Locator): Promise<void> {
+  const disclosure = sheet.locator(".mobileFilterDisclosure");
+  await expect(disclosure).toBeVisible();
+  if ((await disclosure.getAttribute("open")) === null) {
+    await disclosure.locator(":scope > summary").click();
+  }
+  await expect(disclosure).toHaveAttribute("open", "");
+}
+
 /**
  * Headroom past the product's ceiling. When the canvas never reports in, the
  * shell's own 18s clock starts in a post-hydration effect, after `goto` has

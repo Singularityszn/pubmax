@@ -114,6 +114,7 @@ for (const theme of ["light", "dark"] as const) {
         await lanePending;
         await route.fulfill({ json: { posts: [], nextCursor: null } });
       });
+      const laneResponse = page.waitForResponse("**/api/social/posts?lane=london**");
       await page.goto("/social", { waitUntil: "domcontentloaded" });
       await firstRouteRecorded(page);
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
@@ -122,10 +123,12 @@ for (const theme of ["light", "dark"] as const) {
       const primarySlot = page.locator(".socialPage .screenPrimary").filter({ visible: true });
       await expect(primarySlot.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
       releaseLane();
-      const primary = primarySlot.getByRole("link", { name: "Plan a night", exact: true });
+      await laneResponse;
+      const primary = primarySlot.getByRole("link", { name: "Sign in", exact: true });
       await expect(primary).toBeVisible();
-      const bodySignIn = page.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
-      await expect(bodySignIn).toBeVisible();
+      const openTable = page.getByRole("link", { name: "Explore open crawls", exact: true });
+      await expect(openTable).toBeVisible();
+      await expect(page.locator(".socialLondonLane")).toHaveCount(0);
       await page.evaluate(() => document.fonts.ready);
       const freshBox = await primary.boundingBox();
       expect(freshBox).not.toBeNull();
@@ -187,10 +190,10 @@ for (const theme of ["light", "dark"] as const) {
       expect(beacons, "analytics fired without Allow").toEqual([]);
       await test.info().attach("social-primary-enlarged-text", { body: await page.screenshot(), contentType: "image/png" });
 
-      await primary.click();
-      await expect(page).toHaveURL(/\/plan\/?$/);
+      await openTable.click();
+      await expect(page).toHaveURL(/\/crawls\/?$/);
       await page.goto("/social", { waitUntil: "domcontentloaded" });
-      await bodySignIn.click();
+      await primary.click();
       await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
       expect(beacons, "analytics fired after denied reader actions").toEqual([]);
     });

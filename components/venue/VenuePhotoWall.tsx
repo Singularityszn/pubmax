@@ -46,6 +46,7 @@ import "./venuePhotoWall.css";
 type VenuePhotoWallProps = {
   venueId: string;
   venueName: string;
+  onEmptyChange?: (empty: boolean) => void;
   /** The tab or section is on screen. Nothing is fetched until it is. */
   active?: boolean;
 };
@@ -66,6 +67,7 @@ export default function VenuePhotoWall({
   venueId,
   venueName,
   active = true,
+  onEmptyChange,
 }: VenuePhotoWallProps) {
   const { user, handle, configured } = useAuth();
   // Where the sign-in door comes back to. The wall reads from three places, so
@@ -75,6 +77,7 @@ export default function VenuePhotoWall({
   const [loading, setLoading] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [hasDraft, setHasDraft] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [removeError, setRemoveError] = useState<string | null>(null);
@@ -92,6 +95,7 @@ export default function VenuePhotoWall({
     setWall(EMPTY);
     setLoaded(false);
     setComposerOpen(false);
+    setHasDraft(false);
     setNote(null);
     setRemovingId(null);
     setRemoveError(null);
@@ -200,7 +204,11 @@ export default function VenuePhotoWall({
   }
 
   const canPost = !configured || Boolean(user && handle);
-  const empty = loaded && wall.photos.length === 0;
+  const empty = loaded && wall.photos.length === 0 && wall.nextCursor === null;
+  const activeDraft = composerOpen && hasDraft;
+  useEffect(() => {
+    onEmptyChange?.(empty && wall.status === "ready" && !activeDraft);
+  }, [empty, onEmptyChange, wall.status, activeDraft]);
 
   return (
     <section className="venuePhotoWall" aria-label={`Photos of ${venueName}`}>
@@ -295,6 +303,7 @@ export default function VenuePhotoWall({
         <VenuePhotoComposer
           venueId={venueId}
           venueName={venueName}
+          onDraftChange={setHasDraft}
           onCancel={() => setComposerOpen(false)}
           onPosted={(photo, message) => {
             setComposerOpen(false);

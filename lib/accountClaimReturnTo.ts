@@ -1,4 +1,5 @@
 import type { Route } from "next";
+import { PINT_DROP_SIGN_IN_RETURN_PARAM } from "@/lib/pintDropDraft";
 import { parseCityId } from "@/lib/cities";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { isPlanId } from "@/lib/planId";
@@ -35,7 +36,7 @@ export function safePlanReturnTo(raw: string | null | undefined): Route | null {
   }
 }
 
-const PINT_DROP_DOOR_KEYS = new Set(["sel", "log", "price"]);
+const PINT_DROP_DOOR_KEYS = new Set(["sel", "log", "price", PINT_DROP_SIGN_IN_RETURN_PARAM]);
 
 /**
  * The Pint Drop composer's own door (`pintDropDoorHref` in lib/landingHero.ts):
@@ -51,9 +52,12 @@ export function safePintDropDoorReturnTo(raw: string | null | undefined): Route 
   if (keys.some((key) => !PINT_DROP_DOOR_KEYS.has(key)) || new Set(keys).size !== keys.length) return null;
   const venueId = params.get("sel");
   const price = params.get("price");
+  const token = params.get(PINT_DROP_SIGN_IN_RETURN_PARAM);
   if (!venueId || !/^[\w:-]{1,200}$/.test(venueId) || params.get("log") !== "1") return null;
   if (price !== null && (!/^\d{1,4}\.\d{2}$/.test(price) || Number(price) <= 0)) return null;
+  if (token !== null && !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(token)) return null;
   const door = new URLSearchParams({ sel: venueId, log: "1", ...(price === null ? {} : { price }) });
+  if (token !== null) door.set(PINT_DROP_SIGN_IN_RETURN_PARAM, token);
   return `${address[1]}?${door.toString()}` as Route;
 }
 

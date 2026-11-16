@@ -186,21 +186,20 @@ function venueDrinkUpdateKey(venue: Venue): string | null {
   return venueGroupingKey(lead);
 }
 
-export function selectObservedSubtypePriceForVenue(
+export function observedSubtypePricesForVenue(
   venue: Venue,
   subtypeId: string,
   drinkUpdates: readonly DrinkPriceUpdate[] = [],
   bundleRows: readonly UkPriceBundleRow[] = [],
-): ObservedSubtypePrice | null {
+): Array<{ observed: ObservedSubtypePrice; servingSize: unknown }> {
   const subtype = findSubtype(subtypeId);
-  if (!subtype) return null;
+  if (!subtype) return [];
   const members = drinkSubtypeMembers(subtype);
-
-  const candidates: ObservedSubtypePrice[] = [];
+  const candidates: Array<{ observed: ObservedSubtypePrice; servingSize: unknown }> = [];
   for (const price of venue.prices) {
     for (const member of members) {
       const hit = observedFromVenuePrice(price, member);
-      if (hit) candidates.push(hit);
+      if (hit) candidates.push({ observed: hit, servingSize: price.measure });
     }
   }
   const venueKey = venueDrinkUpdateKey(venue);
@@ -209,14 +208,27 @@ export function selectObservedSubtypePriceForVenue(
       if (update.venueKey !== venueKey) continue;
       for (const member of members) {
         const hit = observedFromDrinkUpdate(update, member);
-        if (hit) candidates.push(hit);
+        if (hit) candidates.push({ observed: hit, servingSize: update.servingSize });
       }
     }
   }
-  candidates.push(...observedFromBundleRows(bundleRows, members));
+  for (const row of authoritativeBundleRows(bundleRows)) {
+    for (const member of members) {
+      const hit = observedFromBundleRow(row, member);
+      if (hit) candidates.push({ observed: hit, servingSize: row.servingSize });
+    }
+  }
+  return candidates;
+}
 
-  if (candidates.length === 0) return null;
-  return candidates.sort(compareObservedSubtypePrices)[0] ?? null;
+export function selectObservedSubtypePriceForVenue(
+  venue: Venue,
+  subtypeId: string,
+  drinkUpdates: readonly DrinkPriceUpdate[] = [],
+  bundleRows: readonly UkPriceBundleRow[] = [],
+): ObservedSubtypePrice | null {
+  return observedSubtypePricesForVenue(venue, subtypeId, drinkUpdates, bundleRows)
+    .map(({ observed }) => observed).sort(compareObservedSubtypePrices)[0] ?? null;
 }
 
 function observedFromBundleRows(

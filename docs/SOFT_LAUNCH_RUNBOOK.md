@@ -136,8 +136,8 @@ Social ships behind one server-checked launch switch:
 2. Confirm `OPENAI_API_KEY`, `SUPABASE_*`, `ADMIN_TOKEN`, and `RATE_LIMIT_SALT` are already set (avatar scan + moderation queue).
 3. Follow the [gated API deploy](DEPLOYMENT.md#gated-api-deploy) to release the environment change.
 4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
-5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface. The freeze also pauses the signed-out London lane (captain decision 7, 1 November 2026): strangers see the sign-in wall until it is unset.
-6. Open `/social` signed out and confirm the read-only **Across London** lane shows public posts tagged a London patch, each card with one quiet "Sign in to cheer or comment" link and no cheer, comment or compose control.
+5. Follow the [freeze runbook](OPS_FREEZE_RUNBOOK.md) for write and public-lane availability.
+6. Open `/social` signed out and check the [Social screen contract](design/LAUNCH_SCREENS.md#social-action-order), including empty and paused lanes.
 
 **Emergency rollback (captain act):**
 

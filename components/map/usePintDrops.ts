@@ -45,7 +45,7 @@ import {
   type VenueDropRead,
   type VenueDropReadStatus,
 } from "@/lib/venueDropRead";
-import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { clearPintDropDraft, writeLastLoggedDrink } from "@/lib/pintDropDraft";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -908,6 +908,7 @@ export function usePintDrops(
           markFailed(answered.message, data?.status);
           return;
         }
+        writeLastLoggedDrink(safeLocalStorage(), user?.id ?? null, submittedDrink);
         const ratingNotSaved = submittedRatingNotSaved(submittedRating, data);
         trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
         notifyCheapPintPingQualified();
@@ -1155,6 +1156,7 @@ export function usePintDrops(
     handle,
     setHandle,
     accountHandle,
+    accountId: signedIn && identityReady ? user?.id ?? null : null,
     authConfigured,
     signedIn,
     identityReady,

@@ -66,23 +66,19 @@ test.describe("mobile Social actions", () => {
     // The read-only London lane sits under the door (captain decision 7).
     await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
 
-    // A response may promote the primary only after the reader leaves it.
+    // An empty response hides the lane without replacing the focused door.
     await loadingSignIn.focus();
     releaseLane();
-    await expect(page.locator(".socialLondonEmpty")).toBeVisible();
+    await expect(page.locator(".socialLondonLane")).toHaveCount(0);
     await expect(loadingSignIn).toBeFocused();
     await expectTappable(loadingSignIn, "Focused Social Sign in");
-    await expect(primarySlot.getByRole("link", { name: "Plan a night", exact: true })).toHaveCount(0);
-    await page.locator(".socialSwitcher a").first().focus();
-    const primary = primarySlot.getByRole("link", { name: "Plan a night", exact: true });
-    await expectTappable(primary, "Social Plan a night");
-    const bodySignIn = page.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
-    await expect(bodySignIn).toBeVisible();
+    const openTable = page.getByRole("link", { name: "Explore open crawls", exact: true });
+    await expectTappable(openTable, "Social Open Table");
     await expectNoHorizontalOverflow(page);
-    await primary.click();
-    await expect(page).toHaveURL(/\/plan\/?$/);
+    await openTable.click();
+    await expect(page).toHaveURL(/\/crawls\/?$/);
     await page.goto("/social");
-    await bodySignIn.click();
+    await loadingSignIn.click();
     await expect(page).toHaveURL(/\/login\?mode=signin&from=%2Fsocial/);
     expect(errors).toEqual([]);
   });

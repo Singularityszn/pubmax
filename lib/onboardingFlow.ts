@@ -26,7 +26,6 @@ import { WALKABLE_RADIUS_KM, walkMinutesFromKm, type NearMeCard } from "@/lib/ne
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { NIGHT_PATCHES } from "@/lib/nightPatches";
-import { DEFAULT_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 import { appliedPintPriceCap } from "@/lib/pintPriceCaps";
 
 /** The steps in the order a reader meets them. */
@@ -153,11 +152,8 @@ export function onboardingPlanHref(handoff: PlannerHandoff | null): string {
   const ceiling = handoff?.budget ? budgetCeiling(handoff.budget) : null;
   if (!label && ceiling === null) return "/plan?from=onboarding";
   const query = [
-    `${DEFAULT_PLAN_STOP_COUNT} pubs${label ? ` in ${label}` : ""}`,
-    ...(ceiling === null ? [] : [
-      `under £${ceiling * DEFAULT_PLAN_STOP_COUNT} per person`,
-      `maximum £${ceiling} per pint`,
-    ]),
+    `Pubs${label ? ` in ${label}` : ""}`,
+    ...(ceiling === null ? [] : [`maximum £${ceiling} per pint`]),
   ].join(", ");
   return `/plan?${new URLSearchParams({ query, from: "onboarding" })}`;
 }

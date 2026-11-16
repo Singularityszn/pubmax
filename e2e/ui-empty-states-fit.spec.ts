@@ -23,10 +23,9 @@ test.describe("UI empty states and layout fit", () => {
       "aria-current",
       "page",
     );
-    // A stranger reads the London lane (captain decision 7, 1 Nov 2026) in the
-    // slot the sign-in wall used to hold.
-    await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
-    await expect(page.locator(".socialLondonLane")).toBeVisible();
+    // Open Table stays available before any public posts.
+    await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
+    await expect(page.getByRole("link", { name: "Explore open crawls", exact: true })).toHaveAttribute("href", "/crawls");
     await expect(page.getByText("Sign in to use Social.")).toHaveCount(0);
   });
 

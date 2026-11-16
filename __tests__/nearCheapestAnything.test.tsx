@@ -65,9 +65,9 @@ describe("the chip row", () => {
 describe("cheapestDrinksNearby", () => {
   it("answers the cheapest listed row within the walk, nearer on a tie", () => {
     const rows: NearDrinkRow[] = [
-      ["near", 4.2, "2026-10-02", "pub.co.uk", "Espresso", null],
-      ["nearer", 4.2, "2026-10-01", "pub.co.uk", "Americano", null],
-      ["far", 1.5, "2026-10-02", "pub.co.uk", "Espresso", null],
+      ["near", 4.2, "2026-10-02", "pub.co.uk", "Espresso", "175ml"],
+      ["nearer", 4.2, "2026-10-01", "pub.co.uk", "Americano", "175ml"],
+      ["far", 1.5, "2026-10-02", "pub.co.uk", "Espresso", "175ml"],
     ];
     const answers = cheapestDrinksNearby(here.lat, here.lng, [near, nearer, far], rows);
     expect(answers).toHaveLength(1);
@@ -91,6 +91,41 @@ describe("cheapestDrinksNearby", () => {
     expect(nearDrinkMeasureLabel("175ml")).toBe("175 ml");
     expect(nearDrinkMeasureLabel(null)).toBe(NEAR_DRINK_SIZE_NOT_STATED);
     expect(NEAR_DRINK_SIZE_NOT_STATED).toBe("Size not stated");
+  });
+
+  it("keeps unstated sizes as unranked listings", () => {
+    const rows: NearDrinkRow[] = [
+      ["near", 6.2, "2026-10-02", "menu", "House red", null],
+      ["nearer", 7, "2026-10-02", "menu", "House white", null],
+    ];
+    expect(cheapestDrinksNearby(here.lat, here.lng, [near, nearer], rows).map((answer) => answer.drinkLabel)).toEqual(["House red", "House white"]);
+    const html = renderToStaticMarkup(<NearCheapestAnything centre={here} venues={[near, nearer]} lanes={{ wine: rows }} initialChip="wine" />);
+    expect(html).toContain("Other listed prices");
+    expect(html).not.toContain("Cheapest red, white or rosé wine within 15 minutes");
+    expect(html).toContain("House red");
+    expect(html).toContain("House white");
+  });
+
+  it("lists generic bottles and other measures without ranking them", () => {
+    const rows: NearDrinkRow[] = [
+      ["near", 3, "2026-10-02", "menu", "Bottle A", "bottle"],
+      ["nearer", 4, "2026-10-02", "menu", "Bottle B", "bottle"],
+      ["near", 2, "2026-10-02", "menu", "Other A", "other"],
+      ["nearer", 5, "2026-10-02", "menu", "Other B", "other"],
+    ];
+    expect(cheapestDrinksNearby(here.lat, here.lng, [near, nearer], rows)).toHaveLength(4);
+    const html = renderToStaticMarkup(<NearCheapestAnything centre={here} venues={[near, nearer]} lanes={{ wine: rows }} initialChip="wine" />);
+    expect(html).not.toContain("Cheapest red, white or rosé wine within 15 minutes");
+    expect(html).toContain("Bottle B");
+    expect(html).toContain("Other B");
+  });
+
+  it.each(["single", "double"] as const)("retains %s servings whose volume is not stated", (measure) => {
+    const rows: NearDrinkRow[] = [
+      ["near", 3, "2026-10-02", "menu", "First drink", measure],
+      ["nearer", 4, "2026-10-02", "menu", "Second drink", measure],
+    ];
+    expect(cheapestDrinksNearby(here.lat, here.lng, [near, nearer], rows)).toHaveLength(2);
   });
 
   it("answers nothing when no priced row is in the walk", () => {
@@ -190,12 +225,14 @@ describe("buildNearDrinkLanes (the server half)", () => {
       bundle({ drinkLabel: "Merlot", priceGbp: 7.5, servingSize: "175ml" }),
       bundle({ drinkLabel: "Shiraz", priceGbp: 6.8, servingSize: "175 ml" }),
       bundle({ drinkLabel: "House white", priceGbp: 5.1 }),
+      bundle({ drinkLabel: "House red", priceGbp: 6.2 }),
       bundle({ drinkLabel: "Prosecco", priceGbp: 4 }),
       bundle({ drinkLabel: "Merlot", priceGbp: 3, lane: "estimate", standing: "estimate" }),
     ]]]));
     expect(lanes.wine).toEqual([
       ["venue-crown", 6.8, "2026-10-17", "thecrown.co.uk", "Shiraz", "175ml"],
       ["venue-crown", 5.1, "2026-10-17", "thecrown.co.uk", "House white", null],
+      ["venue-crown", 6.2, "2026-10-17", "thecrown.co.uk", "House red", null],
     ]);
   });
 
@@ -213,6 +250,28 @@ describe("buildNearDrinkLanes (the server half)", () => {
       bundle({ category: "coffee", drinkLabel: "Flat white", priceGbp: 0.5, lane: "estimate", standing: "estimate" }),
     ]]]));
     expect(lanes.coffee).toEqual([]);
+  });
+
+  it("retains both generic bottle prices at one venue", () => {
+    const lanes = buildNearDrinkLanes([venue], [], new Map([["venue-crown", [
+      bundle({ category: "alcohol-free", drinkLabel: "Lucky Saint", priceGbp: 3, servingSize: "bottle" }),
+      bundle({ category: "alcohol-free", drinkLabel: "Free Damm", priceGbp: 4, servingSize: "bottle" }),
+    ]]]));
+    expect(lanes["alcohol-free"].map((row) => row[4])).toEqual(["Lucky Saint", "Free Damm"]);
+  });
+
+  it("retains Coke candidates and compares only the same stated measure", () => {
+    const lanes = buildNearDrinkLanes([venue], [], new Map([["venue-crown", [
+      bundle({ category: "soft-drink", drinkLabel: "Diet Coke", priceGbp: 3, servingSize: "175ml" }),
+      bundle({ category: "soft-drink", drinkLabel: "Coke Zero", priceGbp: 4, servingSize: "250ml" }),
+      bundle({ category: "soft-drink", drinkLabel: "Diet Coke", priceGbp: 2 }),
+      bundle({ category: "soft-drink", drinkLabel: "Coke Zero", priceGbp: 2.5 }),
+      bundle({ category: "soft-drink", drinkLabel: "Diet Coke", priceGbp: 3.5, servingSize: "175ml" }),
+    ]]]));
+    expect(lanes.coke.map((row) => [row[1], row[5]])).toEqual([[3, "175ml"], [4, "250ml"], [2, null], [2.5, null], [3.5, "175ml"]]);
+    const matchingVenue = point("venue-crown", 0.001);
+    expect(cheapestDrinksNearby(here.lat, here.lng, [matchingVenue], lanes.coke).map((row) => [row.priceGbp, row.measure]))
+      .toEqual([[3, "175ml"], [4, "250ml"], [2, null], [2.5, null]]);
   });
 
   it("reads Coke through the soft-drinks page's Coca-Cola lens, size not stated", () => {
@@ -234,7 +293,7 @@ describe("the chip row renders", () => {
 
   it("opens on Pint with the listed pint, its source and day, and the walk", () => {
     const html = renderToStaticMarkup(<NearCheapestAnything centre={here} venues={venues} lanes={lanes} />);
-    expect(html).toContain("Cheapest anything");
+    expect(html).toContain("Drink prices nearby");
     expect(html).toMatch(/aria-pressed="true"[^>]*>Pint</);
     expect(html).toContain("Cheapest pint within 15 minutes");
     expect(html).toContain("£5.00");
@@ -246,7 +305,7 @@ describe("the chip row renders", () => {
     const html = renderToStaticMarkup(<NearCheapestAnything centre={here} venues={venues} lanes={lanes} initialChip="wine" />);
     expect(html).toContain("175 ml");
     expect(html).toContain("Size not stated");
-    expect(html).toContain("Each size is its own answer.");
+    expect(html).toContain("Other listed prices");
     expect(html).toContain("Merlot");
   });
 

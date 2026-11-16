@@ -108,6 +108,10 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
 }) => {
   const errors = watchPageErrors(page);
   await dismissMapFirstRunTour(page);
+  await page.route("**/api/social/posts?lane=london**", (route) =>
+    route.fulfill({ json: { posts: [], nextCursor: null } }),
+  );
+  const laneResponse = page.waitForResponse("**/api/social/posts?lane=london**");
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
@@ -118,8 +122,12 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  // A stranger reads the London lane (captain decision 7, 1 Nov 2026).
-  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
+  // The first view offers a crawl before any public posts.
+  await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore open crawls", exact: true })).toHaveAttribute("href", "/crawls");
+  await expect(page.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
+  await laneResponse;
+  await expect(page.locator(".socialLondonLane")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 

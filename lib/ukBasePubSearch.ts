@@ -9,6 +9,7 @@
 // these models (same house pattern as lib/mapSearchSuggest.ts).
 
 import { haversineKm } from "@/lib/haversine";
+import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { normalizeSearchText } from "@/lib/textSlug";
 import {
   formatSuggestDistance,
@@ -52,14 +53,7 @@ export type SearchUkBasePubsInput = {
  * Mirrors lib/mapSearchSuggest.ts so curated and base rows rank alike.
  */
 function matchTier(name: string, query: string): number | null {
-  const hay = normalizeSearchText(name);
-  if (!hay) return null;
-  if (hay === query) return 0;
-  if (hay.startsWith(query) || hay.split(" ").some((word) => word.startsWith(query))) {
-    return 1;
-  }
-  if (query.length >= 2 && hay.includes(query)) return 2;
-  return null;
+  return mapSearchNameTier([name], query);
 }
 
 function distanceKmFrom(origin: [number, number], point: [number, number]): number {

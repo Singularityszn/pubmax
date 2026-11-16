@@ -244,11 +244,17 @@ export default function MapVenueList({
             </p>
           ) : (
             <div className="mapVenueListGroups">
-              {model.rows.length > 0 ? (
-                <section className="mapVenueListGroup" aria-label="Listed pubs and venues">
-                  <h3 className="mapVenueListGroupTitle">Listed pubs and venues</h3>
-                  <ul className="mapVenueListItems" aria-label="Listed pubs and venues">
-                    {model.rows.map((row) => (
+              {[
+                { title: "Pints within your cap", rows: model.rows.filter((row) => row.capQualification === "match") },
+                { title: "Cap not verified · no comparable pint price", rows: model.rows.filter((row) => row.capQualification === "unknown") },
+                { title: "Outside your pint cap", rows: model.rows.filter((row) => row.capQualification === "over") },
+                { title: "Other drinks and food · pint cap does not apply", rows: model.rows.filter((row) => row.capQualification === "not-pint") },
+                { title: "Listed pubs and venues", rows: model.rows.filter((row) => !row.capQualification || row.capQualification === "off") },
+              ].filter((group) => group.rows.length > 0).map((group) => (
+                <section key={group.title} className="mapVenueListGroup" aria-label={group.title}>
+                  <h3 className="mapVenueListGroupTitle">{group.title}</h3>
+                  <ul className="mapVenueListItems" aria-label={group.title}>
+                    {group.rows.map((row) => (
                       <li key={row.id}>
                         <button
                           ref={row.id === firstRowId ? firstVenueRef : undefined}
@@ -284,11 +290,11 @@ export default function MapVenueList({
                     ))}
                   </ul>
                 </section>
-              ) : null}
+              ))}
               {ukBaseModel.rows.length > 0 ? (
-                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with no listed price">
-                  <h3 className="mapVenueListGroupTitle">Other pubs and bars · no listed price</h3>
-                  <ul className="mapVenueListItems" aria-label="Other pubs and bars with no listed price">
+                <section className="mapVenueListGroup mapVenueListGroup--unverified" aria-label="Other pubs and bars with prices not checked">
+                  <h3 className="mapVenueListGroupTitle">Other pubs and bars · prices not checked</h3>
+                  <ul className="mapVenueListItems" aria-label="Other pubs and bars with prices not checked">
                     {ukBaseModel.rows.map((row) => (
                       <li key={row.id}>
                         <button

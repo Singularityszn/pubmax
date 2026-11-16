@@ -74,12 +74,10 @@ describe("the London lane and a focused control", () => {
     act(() => root!.render(createElement(SocialLondonLane)));
     // The lane replaced the slot: the field is asked back into view at once.
     expect(scrollCalls.filter((call) => call.element === field).length).toBeGreaterThanOrEqual(1);
-    const atMount = scrollCalls.length;
 
     await settle();
-    // The lane loaded (the empty line), so it changed size again.
-    expect(container.textContent).toContain("No London posts yet.");
-    expect(scrollCalls.length).toBeGreaterThan(atMount);
+    expect(container.querySelector(".socialLondonLane")).toBeNull();
+    expect(document.activeElement).toBe(field);
     for (const call of scrollCalls) {
       expect(call.element).toBe(field);
       expect(call.options).toEqual({ block: "nearest" });

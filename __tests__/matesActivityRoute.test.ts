@@ -28,6 +28,7 @@ import { __resetDiary, diaryStore } from "@/lib/diaryStore";
 import * as passportReader from "@/lib/profilePassport.server";
 import * as venueIndex from "@/lib/venueIndex";
 import * as venueAliases from "@/lib/venueAliases";
+import { nearbyVisitStore, resetNearbyVisitsForTests } from "@/lib/nearbyVisitStore";
 import { __resetPintDrops, addPintDrop, type PintDrop } from "@/lib/pintDrops";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile, profileStore } from "@/lib/profileStore";
 import {
@@ -84,6 +85,7 @@ afterEach(() => {
   vi.restoreAllMocks();
   __resetPintDrops();
   __resetDiary();
+  resetNearbyVisitsForTests();
   __resetMemoryFollows();
   __resetMemoryProfiles();
   clearSocialMemoryBlocks();
@@ -263,7 +265,7 @@ describe("GET /api/social/mates-activity", () => {
     }));
     addPintDrop(drop("repeat-pint", "finisher", "2026-09-03T19:00:00.000Z", { venueId: pubs[0]!.id }));
     const own = await pointsReader.readPointsBreakdown(mate);
-    expect(own.challenges.find(({ id }) => id === "red-lion")?.finishedAt).toBe("2026-08-01T00:00:00.000Z");
+    expect(own.challenges.find(({ id }) => id === "red-lion")?.finishedAt).toBe("2026-09-02T19:00:00.000Z");
 
     const answer = await ask();
     expect(answer.status).toBe(200);
@@ -305,8 +307,8 @@ describe("GET /api/social/mates-activity", () => {
     },
   );
 
-  it.each(["diary", "anonymous", "plan", "been-here"])(
-    "keeps a challenge finished through private %s records in the owner's progress alone",
+  it.each(["diary", "anonymous", "plan", "been-here", "nearby"])(
+    "keeps private %s records out of public challenge activity and scores only proven visits",
     async (source) => {
       const mate = seed("finisher");
       await mutual("finisher");
@@ -323,6 +325,7 @@ describe("GET /api/social/mates-activity", () => {
         }));
       }
       for (const pub of pubs) {
+        if (source === "nearby") await nearbyVisitStore().record(mate.userId!, pub.id);
         if (source === "diary") {
           await diaryStore().create({
             ownerUserId: mate.userId!, venueId: pub.id, venueName: pub.name,
@@ -337,8 +340,9 @@ describe("GET /api/social/mates-activity", () => {
       }
       const own = await pointsReader.readPointsBreakdown(mate);
       expect(own.status).toBe("ready");
-      expect(own.challenges.find(({ id }) => id === "red-lion")).toMatchObject({ done: 2, total: 2, finished: true });
-      expect(own.lines.find(({ key }) => key === "challenge")).toMatchObject({ count: 1, points: 500 });
+      const proven = source === "anonymous" || source === "nearby";
+      expect(own.challenges.find(({ id }) => id === "red-lion")).toMatchObject({ done: proven ? 2 : 0, total: 2, finished: proven });
+      expect(own.lines.find(({ key }) => key === "challenge")).toMatchObject({ count: proven ? 1 : 0, points: proven ? 500 : 0 });
       const answer = await ask();
       expect(answer.status).toBe(200);
       expect(answer.items).toEqual([]);
