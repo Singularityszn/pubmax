@@ -79,6 +79,7 @@ describe("a pub's price while its reads settle", () => {
 // fully-unpriced pub so each fixture overrides only the field it exercises.
 function makeVenue(overrides: Partial<Venue> = {}): Venue {
   return {
+    publicPricePresence: "absent",
     id: "venue-1",
     name: "The Test Arms",
     address: "Somewhere",
@@ -458,17 +459,17 @@ describe("the fare-zone estimate", () => {
     expect(pinsToSlimVenues([pin])[0]?.hasRecordedPrice).toBe(hasRecordedPrice);
   });
 
-  it("withholds an estimate when public-price absence was never established", () => {
-    const pub = makeVenue({ zone: 2 });
+  it.each([undefined, "unknown", "present"] as const)("withholds an estimate when public-price presence is %s", (publicPricePresence) => {
+    const pub = makeVenue({ zone: 2, publicPricePresence });
     expect(zoneEstimatePinStandings([pub], new Map(), PUBLISHED)?.has(pub.id)).toBe(false);
   });
 
   it("keeps a confirmed empty price lane through saved slim pins", () => {
     const pin = makeVenue({ zone: 2 });
     const restored = slimVenueToPin(pinsToSlimVenues([pin])[0]!);
-    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBe(5.45);
-    expect(buildMapVenueListModel([restored], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
-    expect(mapSplitListPrice(restored, undefined, undefined, PUBLISHED).figure).toContain("5.45");
+    expect(zoneEstimatePinStandings([restored], new Map(), PUBLISHED)?.get(pin.id)?.priceGbp).toBeUndefined();
+    expect(buildMapVenueListModel([{ ...restored, publicPricePresence: "absent" }], null, 1, null, "this view", "ready", "nearest", null, PUBLISHED).rows[0]?.priceLabel).toBe("est. £5.45");
+    expect(mapSplitListPrice({ ...restored, publicPricePresence: "absent" }, undefined, undefined, PUBLISHED).figure).toContain("5.45");
   });
 
   it("uses published bundle availability for pins whose shards carry no price metadata", () => {

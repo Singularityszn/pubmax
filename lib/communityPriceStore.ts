@@ -199,6 +199,7 @@ export type ModeratorCommunityPrice = ModeratorObservationBase &
 type CanonicalVenueId = (venueId: string) => string;
 
 export type CommunityPriceStore = {
+  publicPricedVenueIds(storedIds: readonly string[]): Promise<Set<string>>;
   /**
    * Record an observation and return it as stored. NEVER throws; a durable
    * write that hard-fails resolves with `failed: true` so the route can answer
@@ -1059,6 +1060,10 @@ export function submitMemoryCommunityPrice(
 }
 
 export const memoryCommunityPriceStore: CommunityPriceStore = {
+  async publicPricedVenueIds(storedIds) {
+    return new Set(storedIds.filter((id) => (venues.get(id) ?? []).some((row) => !row.hidden)));
+  },
+
   async submit(input, now = Date.now()) {
     return submitMemoryCommunityPrice(input, now);
   },
@@ -1455,6 +1460,30 @@ function contributorCountRows(rows: unknown): CommunityContributorCount[] {
 }
 
 export const supabaseCommunityPriceStore: CommunityPriceStore = {
+  async publicPricedVenueIds(storedIds) {
+    const priced = new Set<string>();
+    let afterId: string | undefined;
+    for (;;) {
+      let query = admin().from("community_prices")
+        .select("id, venue_id, drink_category, price_pennies", { count: "exact" })
+        .in("venue_id", [...storedIds]).is("hidden_at", null)
+        .not("drink_category", "is", null).order("id", { ascending: true }).limit(VENUE_SCAN_ROWS);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error, count } = await query;
+      if (error) throw new Error(error.message);
+      if (!Array.isArray(data) || count === null || count < data.length) throw new Error("Incomplete community price read.");
+      for (const row of data) {
+        if (!isDrinkCategory(row.drink_category) || typeof row.price_pennies !== "number"
+          || !Number.isFinite(row.price_pennies) || !storedIds.includes(row.venue_id)) throw new Error("Invalid community price row.");
+        priced.add(row.venue_id);
+      }
+      if (count === data.length) return priced;
+      const nextId = data.at(-1)?.id;
+      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) throw new Error("Community price pagination did not advance.");
+      afterId = nextId;
+    }
+  },
+
   async submit(input, now = Date.now()) {
     const key = normalize(input);
     if (!key) return { price: null };

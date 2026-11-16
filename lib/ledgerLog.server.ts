@@ -1,5 +1,7 @@
 import "server-only";
 
+import { readPublicPricePresence } from "@/lib/publicPricePresence.server";
+import type { PublicPricePresence } from "@/lib/publicPricePresence";
 import type { VenueCuration, VenueClaim } from "@/lib/curation";
 import {
   buildFamilyTableEntries,
@@ -32,6 +34,7 @@ import { isSupabaseConfigured } from "@/lib/supabase";
 // drop leaves the page the moment the store stops returning it.
 
 export type LedgerLog = {
+  publicPricePresence: PublicPricePresence;
   /** The same public pint reading as the map sheet, never a private or demo row. */
   pintPrice: LedgerPintPrice | null;
   /** The pub's story: the curated note first, then every drop-derived line. */
@@ -72,7 +75,7 @@ export async function readLedgerLog(
   viewer: ViewerContext | undefined,
 ): Promise<LedgerLog> {
   const store = pintDropStoreFor();
-  const publicDrops = await store.listVisible(canonicalId);
+  const [publicDrops, presence] = await Promise.all([store.listVisible(canonicalId), readPublicPricePresence([canonicalId])]);
   const sources = publicDrops.map(sourceOf);
   const trust = pintTrustFor(publicDrops);
   const pintPrice: LedgerPintPrice | null = trust.drop && trust.state !== "none" ? {
@@ -94,6 +97,7 @@ export async function readLedgerLog(
   const legacySources = (await store.listLegacyForVenue(canonicalId)).map(sourceOf);
   return {
     pintPrice,
+    publicPricePresence: presence[canonicalId] ?? "unknown",
     claims: buildVenueClaims(curation, ledgerClaimDrops(sources)),
     entries: buildLedgerEntries(sources),
     familyEntries: resolveFamilyTableDisplay(

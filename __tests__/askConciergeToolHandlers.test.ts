@@ -49,6 +49,10 @@ vi.mock("@/data/amenities/london_pub_website_chain_pages.json", () => ({
   },
 }));
 
+vi.mock("@/lib/publicPricePresence.server", () => ({
+  readPublicPricePresence: async (ids: string[]) => Object.fromEntries(ids.map((id) => [id, "absent"])),
+}));
+
 vi.mock("@/lib/communityPriceStore", () => ({
   readCommunityPricesWithStatus: vi.fn(async () => state.prices),
 }));

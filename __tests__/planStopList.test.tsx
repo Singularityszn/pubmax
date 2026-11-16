@@ -126,6 +126,15 @@ describe("PlanStopList", () => {
     expect(host!.textContent).not.toContain("Estimated price");
   });
 
+  it("shows a saved estimate only after a complete absence read", async () => {
+    let resolve!: (value: Response) => void;
+    vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
+    await mount({ ...unpricedStopProps, stops: [{ ...picked, priceKind: "estimated", estimatedPintPricePence: 600 }] });
+    expect(host!.textContent).not.toContain("£6.00");
+    await act(async () => resolve(Response.json({ presence: { [picked.venueId]: "absent" } })));
+    expect(host!.textContent).toContain("£6.00");
+  });
+
   it("waits for the selected stop's shared presence read", async () => {
     let resolve!: (value: Response) => void;
     vi.mocked(fetch).mockImplementation(() => new Promise<Response>((done) => { resolve = done; }));
@@ -141,7 +150,7 @@ describe("PlanStopList", () => {
       return {
         ok: failure !== "non-ok",
         json: async () => failure === "malformed" ? {} : {
-          drops: failure === "malformed-row" ? [{}] : [], prices: [], degraded: failure === "degraded",
+          presence: { [picked.venueId]: failure === "malformed-row" ? {} : "absent" }, degraded: failure === "degraded",
         },
       } as Response;
     });

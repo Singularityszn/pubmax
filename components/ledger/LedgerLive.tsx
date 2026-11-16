@@ -36,6 +36,7 @@ import type { FamilyTableEntry, LedgerEntry, RedactedFamilyEntry } from "@/lib/l
 
 type LedgerLog = {
   pintPrice?: LedgerPintPrice | null;
+  publicPricePresence?: import("@/lib/publicPricePresence").PublicPricePresence;
   claims: VenueClaim[];
   entries: LedgerEntry[];
   familyEntries: Array<FamilyTableEntry | RedactedFamilyEntry>;
@@ -237,7 +238,7 @@ export function LedgerPriceRecord({ venue, bundle }: {
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
   // A cached document cannot know whether a public report exists.
-  const readableBundle = state.status === "ready" ? bundle : { ...bundle, estimate: null };
+  const readableBundle = state.status === "ready" && state.log.publicPricePresence === "absent" ? bundle : { ...bundle, estimate: null };
   const reportLanes = ledgerReportLanes(publicPint);
   const priceLane = venuePriceLane(
     pintVenue,
@@ -269,8 +270,9 @@ export function LedgerPriceRecord({ venue, bundle }: {
     <section className="ledgerSection" aria-labelledby="ledgerPriceHeading">
       <h2 className="ledgerSectionTitle" id="ledgerPriceHeading">Price record</h2>
       {priceLane && venuePriceLaneIsDrinkerLog(priceLane) ? <>{reportRecord}{publishedRecord}</> : <>{publishedRecord}{reportRecord}</>}
-      {!priceLane && state.status === "ready" ? <p>No pint price is on record yet.</p>
-        : !priceLane && state.status === "unavailable" ? <p role="status">
+      {!priceLane && state.status === "ready" && state.log.publicPricePresence === "absent" ? <p>No pint price is on record yet.</p>
+        : !priceLane && state.status === "ready" && state.log.publicPricePresence === "present" ? <p>A public price is on record.</p>
+        : !priceLane && (state.status === "unavailable" || state.status === "ready") ? <p role="status">
           The price record did not answer just now.{" "}
           <button type="button" className="ledgerMapLink" onClick={reload}>Try again</button>
         </p> : !priceLane ? <p role="status">Checking the price record.</p> : null}

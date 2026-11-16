@@ -42,6 +42,11 @@ function stampFor(
   return { text: formatPence(pence), bandClass: priceBandClass(band) };
 }
 
+function readablePriceStop(stop: DraftStop, publicPriceAbsent: boolean): DraftStop {
+  return stop.priceKind === "estimated" && !publicPriceAbsent
+    ? { ...stop, estimatedPintPricePence: undefined, priceKind: undefined } : stop;
+}
+
 /**
  * A stop with no price of its own reads its fare zone's estimate. It never
  * wears a band and never joins a total, because nobody recorded it here.
@@ -238,7 +243,7 @@ export default function PlanStopList({
   const options = useMemo(() => finderOptions(venues), [venues]);
   const venueById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
   const estimateVenueIds = useMemo(() => [...new Set(stops
-    .filter((stop) => stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex))
+    .filter((stop) => (stop.priceKind === "estimated" && !stop.selectedDrinkPriceEvidence) || stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex))
     .map((stop) => stop.venueId))], [stops, venueById, zoneIndex]);
   const publicPriceAbsent = usePlanPriceAbsence(estimateVenueIds, refreshKey);
   const byValue = useMemo(
@@ -288,9 +293,10 @@ export default function PlanStopList({
           const pintServingKnown = pintEvidence?.serving === "pint";
           const estimate = publicPriceAbsent.has(stop.venueId)
             ? stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex) : null;
-          const stamp = stampFor(stop, pintServingKnown, estimate);
+          const priceStop = readablePriceStop(stop, publicPriceAbsent.has(stop.venueId));
+          const stamp = stampFor(priceStop, pintServingKnown, estimate);
           const drinkLine = selectedDrinkPriceDescription(stop.selectedDrinkPriceEvidence);
-          const meta = metaFor(stop, areaName, pintServingKnown, estimate);
+          const meta = metaFor(priceStop, areaName, pintServingKnown, estimate);
           const lifted = gestures.liftedIndex === index;
           const movable = index >= lowest && stops.length - lowest > 1;
           const canDelete = removable && !removeDisabled(stop, index);

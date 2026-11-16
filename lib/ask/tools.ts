@@ -1,3 +1,4 @@
+import { readPublicPricePresence } from "@/lib/publicPricePresence.server";
 // Night OS Ask tool registry (ADR 0014). Server-only handlers with typed I/O
 // and provenance. No tool invents a price.
 
@@ -14,7 +15,6 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
-import { pintDropsStore } from "@/lib/pintDropsStore";
 import { areaCircleForAsk } from "@/lib/concierge/areaCircle";
 import { walkableDraftAround, walkableDraftRoute } from "@/lib/palPlanDraft";
 import { straightLineWalkableKm } from "@/lib/planRouteOptimizer";
@@ -477,17 +477,9 @@ async function toolVenuePrices(
     : venue;
   const intent = resolveAskPriceIntent(ctx.query);
   const trusted = communityRead.prices.filter((p) => drivesMap(p) && (intent.kind !== "pint" || p.drinkCategory === "beer"));
-  let pintDropPriceAbsent = false;
-  let pintDropsUnavailable = false;
-  if (recordedPrice === null && !communityRead.degraded && !communityRead.prices.some((price) => price.drinkCategory === "beer") && bundleRead.status !== "unavailable") {
-    try {
-      const drops = await pintDropsStore().listVisible(venue.id);
-      pintDropPriceAbsent = !drops.some((drop) => drop.priceGbp !== null);
-    } catch {
-      pintDropsUnavailable = true;
-    }
-  }
-  const pricesUnavailable = communityRead.degraded || bundleRead.status === "unavailable" || pintDropsUnavailable;
+  const publicPresence = (await readPublicPricePresence([venue.id]))[venue.id] ?? "unknown";
+  const pricesUnavailable = publicPresence === "unknown" || communityRead.degraded || bundleRead.status === "unavailable";
+  const pintDropPriceAbsent = publicPresence === "absent" && !pricesUnavailable;
   // A pub with no recorded pint gets its fare zone's estimate, named as one.
   // It is never price evidence and never the card's price.
   const zoneEstimate = pintDropPriceAbsent

@@ -50,7 +50,6 @@ const UkNationalBrowseBanner = dynamic(
 import {
   buildCrawlRoute,
   formatPrice,
-  mergeVenueDrops,
   provisionalPintDropVenueIds,
   type Filters,
   type Venue,
@@ -83,7 +82,7 @@ import {
   type WetherspoonsPub,
 } from "@/lib/wetherspoonsDirectory";
 import type { WetherspoonsMatchVenue } from "@/lib/wetherspoonsMatch";
-import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
+import { parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import {
   NEAR_ME_MAP_MIN_VENUES,
@@ -393,6 +392,7 @@ import {
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
+import { usePublicPriceVenues } from "@/components/map/pubmap/usePublicPriceVenues";
 import { usePinPriceStandings } from "@/components/map/pubmap/usePinPriceStandings";
 import { useMapQueryResults } from "@/components/map/pubmap/useMapQueryResults";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
@@ -678,7 +678,6 @@ import {
   mapSelectionNoticeFromSearch,
   retiredSelectionNameFor,
   MAP_SELECTION_NOTICE_PARAM,
-  venueUpdateKey,
   normaliseTonightVenueLookup,
   activeLensLabelFor,
   activeLensPricesFor,
@@ -2935,15 +2934,7 @@ export default function PubMap({
   // a non-London city never sees stale gazetteer rows in its search.
   const localities = cityId === "london" ? londonLocalities : NO_LOCALITIES;
 
-  const venues = useMemo<Venue[]>(
-    () =>
-      mergePriceUpdates(
-        mergeVenueDrops(baseVenues, dropsByVenueId),
-        cityId === "london" ? priceUpdates : [],
-        venueUpdateKey,
-      ),
-    [baseVenues, dropsByVenueId, priceUpdates, cityId],
-  );
+  const venues = usePublicPriceVenues(baseVenues, dropsByVenueId, priceUpdates, cityId);
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
   const drinkCoverage = useMemo(() => ({
     loadedPubIds: pubVenues.map((venue) => venue.id),
