@@ -2,7 +2,7 @@
 
 import { act, createElement, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Map, LngLatBounds } from "maplibre-gl";
+import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
@@ -86,7 +86,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
         getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
           getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
-      } as unknown as Map },
+      } as unknown as MapLibreMap },
       reducedRef: { current: true },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
@@ -176,7 +176,7 @@ describe("query camera with contextual price pins", () => {
           layer: { id: layer }, properties: { cluster_id: 7 },
           geometry: { type: "Point", coordinates: [-0.2, 51.6] },
         }],
-      } as unknown as Map, {
+      } as unknown as MapLibreMap, {
         selectLandmark: vi.fn(), setHoveredVenue: vi.fn(), setActivePoi: vi.fn(),
         onVenueClickRef: { current: vi.fn() }, onUkBasePubClickRef: { current: vi.fn() },
         onRouteStopClickRef: { current: vi.fn() }, onTonightOpportunityClickRef: { current: vi.fn() },

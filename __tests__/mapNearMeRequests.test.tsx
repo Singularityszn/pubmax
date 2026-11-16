@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useRef, useState } from "react";
+import { act, createElement, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -15,7 +15,7 @@ let root: Root;
 let host: HTMLDivElement;
 let actions: ReturnType<typeof useNearMeRequests>;
 let pendingRequest: PendingNearMeRequest | null;
-const callbacks: { success: PositionCallback; error: PositionErrorCallback | null | undefined }[] = [];
+const callbacks: { success: PositionCallback; error: PositionErrorCallback | null | undefined; options: PositionOptions | undefined }[] = [];
 const position: GeolocationPosition = {
   coords: { latitude: 51.51, longitude: -0.13, accuracy: 10, altitude: null, altitudeAccuracy: null, heading: null, speed: null, toJSON: () => ({}) },
   timestamp: 1, toJSON: () => ({}),
@@ -25,17 +25,20 @@ const area = { cityId: "london", label: "Soho", slug: "soho", kind: "night-area"
 
 function Probe() {
   const [request, setRequest] = useState<PendingNearMeRequest | null>(null);
-  pendingRequest = request;
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [token, setToken] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [picker, setPicker] = useState<string | null>(null);
-  actions = useNearMeRequests({
+  const requests = useNearMeRequests({
     cityId: "london", stopCount: 3, invalidatePrivateCamera: () => {},
     setNearbyError: setError, setNearbyLoading: setLoading, setUserLocation: setLocation,
     setNearbyRequestToken: setToken, setPendingNearMeRequest: setRequest,
     openChooseAreaRef: useRef((note?: string | null) => setPicker(note ?? null)),
+  });
+  useEffect(() => {
+    pendingRequest = request;
+    actions = requests;
   });
   return createElement("output", null, JSON.stringify({ request, location, token, error, loading, picker }));
 }
@@ -45,7 +48,7 @@ beforeEach(() => {
   root = createRoot(host);
   callbacks.length = 0;
   vi.stubGlobal("navigator", { geolocation: {
-    getCurrentPosition: (success: PositionCallback, error?: PositionErrorCallback | null) => callbacks.push({ success, error }),
+    getCurrentPosition: (success: PositionCallback, error?: PositionErrorCallback | null, options?: PositionOptions) => callbacks.push({ success, error, options }),
   } });
   writeMapChosenArea(area);
   act(() => root.render(createElement(Probe)));
@@ -117,6 +120,7 @@ it.each(["tap", "arrival", "resume", "crawl"] as const)("publishes current %s lo
   act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
   const requestToken = currentCameraRequestToken();
   expect(requestToken).toBe(mode === "resume" ? previousToken : previousToken + 1);
+  expect(callbacks[0]!.options).toEqual({ enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 });
   act(() => callbacks[0]!.success(position));
   expect(JSON.parse(host.textContent ?? "{}")).toMatchObject({
     request: { kind: mode === "crawl" ? "crawl" : "map", location: { lat: 51.51, lng: -0.13 }, requestToken },
@@ -127,15 +131,26 @@ it.each(["tap", "arrival", "resume", "crawl"] as const)("publishes current %s lo
   });
 });
 
-it.each(["tap", "arrival", "resume", "crawl"] as const)("handles a current %s location refusal", (mode) => {
-  act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
-  act(() => callbacks[0]!.error?.(error));
-  const state = JSON.parse(host.textContent ?? "{}");
-  expect(state.loading).toBe(false);
-  expect(state.request).toBeNull();
-  expect(state.location).toBeNull();
-  if (mode === "arrival") expect(state.picker).toBeTruthy();
-  else if (mode !== "resume") expect(state.error).toBeTruthy();
-  else expect(state.error).toBeNull();
-  expect(readMapChosenArea()).toEqual(area);
+const failures = [
+  { code: 1, message: "Location access was denied. Pick an area or allow location in your browser settings." },
+  { code: 2, message: "We could not find your location. Check your signal or pick an area." },
+  { code: 3, message: "We could not get your location in time. Try again or pick an area." },
+  { code: null, message: "This browser cannot share your location. Pick an area instead." },
+];
+
+it.each(["tap", "arrival", "resume", "crawl"] as const)("reports current %s location failures and releases loading", (mode) => {
+  for (const { code, message } of failures) {
+    if (code === null) vi.stubGlobal("navigator", {});
+    act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
+    if (code !== null) {
+      act(() => callbacks.at(-1)!.error?.({ ...error, code }));
+    }
+    const state = JSON.parse(host.textContent ?? "{}");
+    expect(state.loading).toBe(false);
+    expect(state.request).toBeNull();
+    expect(state.location).toBeNull();
+    expect(state.error).toBe(mode === "tap" || mode === "crawl" ? message : null);
+    expect(state.picker).toBe(mode === "arrival" ? message : null);
+    expect(readMapChosenArea()).toEqual(area);
+  }
 });

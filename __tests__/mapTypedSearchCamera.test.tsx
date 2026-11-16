@@ -2,7 +2,7 @@
 
 import { act, createElement, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Map, LngLatBounds } from "maplibre-gl";
+import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useMapCamera, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
@@ -29,12 +29,13 @@ let pendingFrame: FrameRequestCallback | undefined;
 let plan: ReturnType<typeof useMapPlanCoordinator>;
 
 function SearchCamera({ focused, matchCount }: { focused: boolean; matchCount: number }) {
-  plan = useMapPlanCoordinator({
+  const coordinator = useMapPlanCoordinator({
     mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: false,
     planningOpen: false, nightArea: null,
   });
+  useEffect(() => { plan = coordinator; });
   const presentation = useMapPlanPresentation({
-    mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
+    mode: coordinator.mode, builtIds: coordinator.builtIds, routeMapped: coordinator.routeMapped,
     suggestedRoute: [], activePlanRoute: [], venueById,
   });
   const routeRef = useRef(presentation.routeForMap);
@@ -46,13 +47,13 @@ function SearchCamera({ focused, matchCount }: { focused: boolean; matchCount: n
     setSelection({ id, token });
   };
   const queryVenuesRef = useRef(matches.slice(0, matchCount));
-  const camera = useMapCamera({
-    latestRequestToken: Math.max(plan.routeRequestToken, searchToken, selection.token),
+  const { fitQueryVenues, fitRoute, cinematic } = useMapCamera({
+    latestRequestToken: Math.max(coordinator.routeRequestToken, searchToken, selection.token),
     mapRef: useRef({
       stop: vi.fn(), fitBounds, easeTo, getBearing: () => 0,
       getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
         getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
-    } as unknown as Map),
+    } as unknown as MapLibreMap),
     reducedRef: useRef(true),
     cityViewRef: useRef({ center: [-0.13, 51.51] as [number, number], zoom: 12, pitch: 40, bearing: 0 }),
     cityBoundsRef: useRef<[[number, number], [number, number]]>([[-0.3, 51.4], [0.1, 51.7]]),
@@ -63,16 +64,16 @@ function SearchCamera({ focused, matchCount }: { focused: boolean; matchCount: n
     gestureCameraRef: useRef({ active: false, endedAt: null }),
   });
   useEffect(() => {
-    if (searchToken) camera.fitQueryVenues("search-recovery", searchToken);
-  }, [camera.fitQueryVenues, searchToken]);
+    if (searchToken) fitQueryVenues("search-recovery", searchToken);
+  }, [fitQueryVenues, searchToken]);
   useRouteCameraFraming({
     mapReady: true, routeKey: presentation.routeForMap.map((venue) => venue.id).join(">"),
-    selectedVenueId: selection.id, requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
+    selectedVenueId: selection.id, requestToken: coordinator.routeRequestToken, fitRoute,
   });
   useEffect(() => {
     const venue = matches.find((venue) => venue.id === selection.id);
-    if (venue) camera.cinematic({ center: [venue.longitude, venue.latitude] }, "venue", "user", selection.token);
-  }, [camera.cinematic, selection]);
+    if (venue) cinematic({ center: [venue.longitude, venue.latitude] }, "venue", "user", selection.token);
+  }, [cinematic, selection]);
   useTypedSearchCamera({
     disabled: false, query: "Soho", searchFieldFocused: focused, searchOverlayOpen: false,
     venuesRef: queryVenuesRef, ownedQueryRef: useRef(null), selectVenue,
