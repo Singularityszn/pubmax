@@ -506,10 +506,12 @@ for (const width of [390, 1440]) {
     const contact = await page.context().newCDPSession(page);
     await contact.send("Emulation.setTouchEmulationEnabled", { enabled: true });
     const stationary = await camera();
+    const stationarySequence = (await picks())!.sequence;
     await contact.send("Input.dispatchTouchEvent", {
       type: "touchStart", touchPoints: [{ id: 1, x: box.x + box.width / 2, y: box.y + box.height / 3 }],
     });
     deliver(answer.cards.slice(0, 2));
+    await expect.poll(async () => (await picks())?.sequence).toBeGreaterThan(stationarySequence);
     await expect.poll(async () => (await picks())?.picks.length).toBe(2);
     await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
     const whileStationary = await camera();
@@ -523,7 +525,9 @@ for (const width of [390, 1440]) {
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 3 + 30, { steps: 5 });
     const held = await camera();
+    const heldSequence = (await picks())!.sequence;
     deliver(answer.cards.slice(0, 2));
+    await expect.poll(async () => (await picks())?.sequence, { timeout: 5_000 }).toBeGreaterThan(heldSequence);
     await expect.poll(async () => (await picks())?.picks.length, { timeout: 5_000 }).toBe(2);
     await page.mouse.up();
     const after = await camera();

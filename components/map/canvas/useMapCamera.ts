@@ -546,7 +546,7 @@ export function useMapCamera(refs: CameraRefs) {
       if (owner === "user") pendingOwnerRef.current = owner;
       whenBottomSheetSettles(container.top, (coverTop) => {
         sheetWaitsRef.current -= 1;
-        if (owner === "user" && requestVersion !== userRequestRef.current) return;
+        if (requestVersion !== userRequestRef.current) return;
         const band = mapVisibleBand({
           height: viewport.height,
           topInset: isPhone

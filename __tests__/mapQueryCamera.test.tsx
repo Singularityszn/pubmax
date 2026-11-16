@@ -317,6 +317,29 @@ describe("query camera with contextual price pins", () => {
     },
   );
 
+  it.each(["automatic", "user"] as const)("discards a delayed %s Nearby move after a newer venue selection runs", (owner) => {
+    mount({ current: soho });
+    const sheet = document.createElement("div");
+    sheet.className = "mobileSharedSheet open";
+    vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+    host.append(sheet);
+    camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, owner);
+    const sheetFrame = pendingFrame;
+    expect(sheetFrame).toBeTypeOf("function");
+    camera.cinematic({ center: [-0.22, 51.56] }, "venue", "user");
+    flush();
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-0.22, 51.56] }));
+    pendingFrame = sheetFrame;
+    flush();
+    flush();
+    flush();
+    flush();
+    flush();
+    expect(camera.cameraLanePending()).toBe(false);
+    expect(easeTo).toHaveBeenCalledOnce();
+  });
+
   it("releases Pal ownership when a user removes the second-to-last stop", () => {
     const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
     mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef);
