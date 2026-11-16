@@ -101,13 +101,13 @@ The mounted form keeps one key for its cleaned submitted payload. Retries reuse 
 
 The server derives one request ID from the account and key. Before provider or recipient lookup, it stores a `resolving` row. Migration `0241` adds that state, terminal `not_sent`, and the guarded `transition_table_request` RPC. The RPC checks the requester, current state and revision.
 
-Only one transition from `resolving` can win: `pending` permits sending, while `not_sent` permanently prevents sending under that key. An `emailed` attempt replays success. A `not_sent` attempt replays manual contact even if an operator or provider later returns. A negative lookup against a pending attempt stays retryable.
+Only one transition from `resolving` can win: `pending` permits sending, while `not_sent` permanently prevents sending under that key. An `emailed` attempt replays success. A `not_sent` attempt replays manual contact even if an operator or provider later returns. A negative lookup cannot change a pending attempt to `not_sent`. It replays a stored terminal result or remains retryable.
 
 The existing contact fields and account-deletion cascade also cover these rows. No operator address or additional contact field is stored.
 
 Each email key combines the request ID with a hash of the normalised recipient address, so recipient order does not change it.
 
-Pending attempts can resend only while their age is valid, non-negative and below 23 hours. Older attempts remain pending and return 503 without another send or manual-contact fallback. This limit keeps retries within the email seam's deduplication window. A failed `emailed` stamp also leaves the row available for retry. Retry regression coverage is in `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestsStore.test.ts` and `__tests__/venueActionCard.test.tsx`.
+Before sending, both resolving and pending attempts must have a valid, non-negative age below 23 hours. Older attempts cannot start or repeat a send. With recipients available, they remain in their current state and return 503 without manual-contact fallback. A resolving attempt can still become `not_sent` if no operator, address or provider is available. This limit keeps sends within the email seam's deduplication window. A failed `emailed` stamp also leaves the row available for retry. Retry regression coverage is in `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestsStore.test.ts` and `__tests__/venueActionCard.test.tsx`.
 
 <a id="email-is-sent-through-one-seam-and-a-refusal-about-us-is-never-a-bad-address"></a>
 
