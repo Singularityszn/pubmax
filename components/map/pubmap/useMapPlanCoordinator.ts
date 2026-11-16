@@ -23,6 +23,10 @@ type InitialPlanState = {
 
 type PlanRequest = Pick<InitialPlanState, "mode" | "builtIds" | "routeMapped">;
 
+function canonicalMapStops(ids: string[]): string[] {
+  return [...new Set(ids.map(canonicalBundledVenueId))];
+}
+
 /** The ordered walk a map seed asks to draw, or "" when it asks for none. */
 function requestedWalk({ mode, builtIds, routeMapped }: PlanRequest): string {
   return mode === "build" && routeMapped && builtIds.length >= 2 ? builtIds.join(",") : "";
@@ -35,14 +39,14 @@ export type WalkRequest = { count: number; selectedVenueId: string };
 export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   const [{ mode, builtIds, routeMapped }, setPlan] = useState<PlanRequest>(() => ({
     mode: initial.mode,
-    builtIds: initial.builtIds,
+    builtIds: canonicalMapStops(initial.builtIds),
     routeMapped: initial.routeMapped,
   }));
   const setMode = useCallback((value: SetStateAction<CrawlMode>) => {
     setPlan((current) => ({ ...current, mode: typeof value === "function" ? value(current.mode) : value }));
   }, []);
   const setBuiltIds = useCallback((value: SetStateAction<string[]>) => {
-    setPlan((current) => ({ ...current, builtIds: typeof value === "function" ? value(current.builtIds) : value }));
+    setPlan((current) => ({ ...current, builtIds: canonicalMapStops(typeof value === "function" ? value(current.builtIds) : value) }));
   }, []);
   const setRouteMapped = useCallback((value: SetStateAction<boolean>) => {
     setPlan((current) => ({ ...current, routeMapped: typeof value === "function" ? value(current.routeMapped) : value }));

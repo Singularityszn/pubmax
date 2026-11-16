@@ -169,6 +169,18 @@ it("opens a walking route when its history entry has undefined state", async () 
   expect(host.querySelector("output")?.textContent).toBe("build mapped pub-a,pub-b");
 });
 
+it("normalises legacy stops when a walking route is restored", async () => {
+  const search = "mode=build&pubs=venue-aihlwx,venue-7qifhm,pub-b";
+  window.history.replaceState(undefined, "", `/map?${search}`);
+  await render(createElement(WalkingRoute, { arrival: search, search }));
+  expect(host.querySelector("output")?.textContent).toBe("build mapped venue-7qifhm,pub-b");
+});
+
+it("normalises legacy stops in a walking route adopted by an open map", async () => {
+  await arrive("mode=build&pubs=venue-aihlwx,venue-7qifhm,pub-b");
+  expect(host.querySelector("output")?.textContent).toBe("build mapped venue-7qifhm,pub-b");
+});
+
 // The router lands a search's entry before it hands the search to the map.
 function arrive(search: string, arrival = "") {
   window.history.pushState(null, "", search ? `/map?${search}` : "/map");
