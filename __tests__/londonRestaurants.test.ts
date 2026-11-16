@@ -10,6 +10,7 @@ import {
   LONDON_RESTAURANT_MIN_ZOOM,
   LONDON_RESTAURANT_PACK_PATH,
   londonRestaurantLayerShown,
+  londonRestaurantLayerMode,
   londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsToGeoJSON,
@@ -80,6 +81,15 @@ describe("parseLondonRestaurantPack", () => {
     ]);
   });
 
+  it("keeps only the cuisine and hours explicitly tagged by OSM", () => {
+    const rows = parseLondonRestaurantPack(pack([
+      [...RULES_ROW, "british", "Mo-Sa 12:00-22:00"],
+      [...FURNIVAL_ROW, "", ""],
+    ], { version: 3, observedAt: "2026-11-16T00:00:00Z" }));
+    expect(rows?.[0]).toMatchObject({ cuisine: "british", openingHours: "Mo-Sa 12:00-22:00", observedAt: "2026-11-16T00:00:00Z" });
+    expect(rows?.[1]).toMatchObject({ cuisine: "", openingHours: "" });
+  });
+
   it("refuses a row that names no borough, as a pack cut before boroughs would", () => {
     expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW.slice(0, 6)]))).toBeNull();
     expect(parseLondonRestaurantPack(pack([[...FURNIVAL_ROW.slice(0, 6), null]]))).toBeNull();
@@ -111,6 +121,19 @@ describe("loadLondonRestaurants", () => {
     expect(loaded.map((venue) => venue.name)).toEqual(["Rules", "26 Furnival Street"]);
   });
 
+  it("loads bounded chunks and refuses incomplete or off-site manifests", async () => {
+    const prefix = "/data/london_restaurants/packs/0123456789abcdef/";
+    const manifest = { version: 3, kind: "restaurant", urlPrefix: prefix, count: 2,
+      shards: [{ id: "0", count: 1 }, { id: "1", count: 1 }] };
+    const read = async (input: RequestInfo | URL) => Response.json(input === LONDON_RESTAURANT_PACK_PATH
+      ? manifest : pack(input === `${prefix}0.json` ? [RULES_ROW] : [FURNIVAL_ROW]));
+    expect((await loadLondonRestaurants(read)).map((row) => row.name)).toEqual(["Rules", "26 Furnival Street"]);
+    await expect(loadLondonRestaurants(async (input) => Response.json(input === LONDON_RESTAURANT_PACK_PATH
+      ? { ...manifest, count: 3 } : pack([RULES_ROW])))).rejects.toThrow(/count|malformed/);
+    await expect(loadLondonRestaurants(async () => Response.json({ ...manifest, urlPrefix: "https://example.org/" })))
+      .rejects.toThrow(/malformed/);
+  });
+
   it("rejects a failed or malformed read rather than drawing no restaurants", async () => {
     const missing = vi.fn(async () => new Response("", { status: 404 }));
     await expect(loadLondonRestaurants(missing as unknown as typeof fetch)).rejects.toThrow(
@@ -123,7 +146,16 @@ describe("loadLondonRestaurants", () => {
   });
 });
 
+it("limits an explicit selection to one restaurant under a drink lane even when opted in", () => {
+  expect(londonRestaurantLayerMode({ isLondon: true, restaurantKindVisible: true,
+    experienceLens: "all", lensOwnsMap: true, selectedVenueId: "venue-osm-n101" })).toBe("selection");
+});
+
 describe("londonRestaurantsWithoutCuratedTwin", () => {
+  it("keeps an explicitly selected OSM twin so its shared link can locate it", () => {
+    const row = restaurant({ id: "venue-osm-n101", name: "The Anchor", lat: 51.5076, lng: -0.0948 });
+    expect(londonRestaurantsWithoutCuratedTwin([row], [curated("The Anchor", 51.5076, -0.0948)], row.id)).toEqual([row]);
+  });
   const curated = (name: string, latitude: number, longitude: number) => ({
     name,
     latitude,
@@ -185,6 +217,11 @@ describe("londonRestaurantLayerShown", () => {
     lensOwnsMap: false,
   };
 
+  it("opens an explicit restaurant link while the type starts off", () => {
+    expect(londonRestaurantLayerShown({ isLondon: true, restaurantKindVisible: false,
+      experienceLens: "all", lensOwnsMap: true, selectedVenueId: "venue-osm-n101" })).toBe(true);
+  });
+
   it("shows on the London pint map with restaurants on in the filter", () => {
     expect(londonRestaurantLayerShown(base)).toBe(true);
   });
@@ -234,6 +271,12 @@ describe("londonRestaurantsPassingMapFilters", () => {
       ...overrides,
       filters: { ...initialFilters, ...filters },
     }).map((place) => place.id);
+
+  it("draws only the linked restaurant while the optional layer is off", () => {
+    expect(londonRestaurantsPassingMapFilters(both, {
+      ...base, restaurantKindVisible: false, selectedVenueId: rules.id,
+    })).toEqual([rules]);
+  });
 
   it("lets every restaurant through while no filter narrows the map", () => {
     expect(pass({})).toEqual([dishoom.id, rules.id]);

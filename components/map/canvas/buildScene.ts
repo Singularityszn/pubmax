@@ -1204,7 +1204,7 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
- * London restaurants that serve alcohol (lib/londonRestaurants.ts). The source
+ * OSM amenity=restaurant places (lib/londonRestaurants.ts). The source
  * is empty unless their layer is shown, which needs London, restaurants on in
  * the kind filter and no drink lane or view other than food owning the map.
  *

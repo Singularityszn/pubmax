@@ -31,14 +31,6 @@ function RestaurantLayer({ wanted }: { wanted: boolean }) {
   );
 }
 
-async function settle() {
-  for (let index = 0; index < 20; index += 1) {
-    await act(async () => {
-      await new Promise((done) => setTimeout(done, 0));
-    });
-  }
-}
-
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   document.body.append(container);
@@ -64,18 +56,14 @@ it("reads nothing until the layer is wanted, then reads the pack once", async ()
   const fetchMock = stubPack(() => "ok");
 
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: false })));
-  await settle();
   expect(fetchMock).not.toHaveBeenCalled();
   expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("idle");
 
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
-  await settle();
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: false })));
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
-  await settle();
 
-  expect(fetchMock).toHaveBeenCalledTimes(1);
-  expect(fetchMock).toHaveBeenCalledWith(LONDON_RESTAURANT_PACK_PATH);
+  expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(1);
   const layer = container.querySelector("[data-status]");
   expect(layer?.getAttribute("data-status")).toBe("ready");
   expect(Number(layer?.getAttribute("data-count"))).toBeGreaterThan(1000);
@@ -86,29 +74,27 @@ it("asks again after a failed read the next time the layer is wanted", async () 
   const fetchMock = stubPack(() => state);
 
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
-  await settle();
   expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("failed");
 
   state = "ok";
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: false })));
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
-  await settle();
 
-  expect(fetchMock).toHaveBeenCalledTimes(2);
+  expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(2);
   expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("ready");
 });
 
-it("opens a sheet that names the restaurant, says it serves alcohol and credits OpenStreetMap", async () => {
+it("credits OSM without adding prices or an alcohol claim", async () => {
   stubPack(() => "ok");
 
   await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
-  await settle();
 
   const sheet = container.querySelector("[data-london-restaurant='venue-osm-n25496840']");
   expect(sheet?.querySelector("h2")?.textContent).toBe("26 Furnival Street");
   expect(sheet?.textContent).toContain("Restaurant");
   expect(sheet?.textContent).toContain("26, Furnival Street, London, EC4A 1JS");
-  expect(sheet?.textContent).toContain("A restaurant that serves alcohol. We have no prices for it.");
+  expect(sheet?.textContent).not.toContain("serves alcohol");
+  expect(sheet?.querySelector("a[href=\"https://www.openstreetmap.org/node/25496840\"]")).not.toBeNull();
   expect(sheet?.textContent).not.toContain("logged");
   expect(sheet?.textContent).not.toMatch(/£\d/);
   const credit = sheet?.querySelector("a[href='https://www.openstreetmap.org/copyright']");

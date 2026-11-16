@@ -35,6 +35,13 @@ describe("the venue-type filter counts what the panel offers", () => {
     expect(offeredVenueKinds("food")).toEqual(["pub", "bar", "club", "food", "restaurant"]);
   });
 
+  it("does not mark the optional London restaurant layer as an active refinement", () => {
+    const initial = defaultVenueKindVisibility("london");
+    expect(hiddenVenueKindCount(initial, "all", "london")).toBe(0);
+    expect(hiddenVenueKindCount({ ...initial, pub: false }, "all", "london")).toBe(1);
+    expect(defaultVenueKindVisibility("manchester").restaurant).toBe(true);
+  });
+
   it("counts the offered kinds that are switched off", () => {
     const all = defaultVenueKindVisibility();
     expect(hiddenVenueKindCount(all, "all")).toBe(0);

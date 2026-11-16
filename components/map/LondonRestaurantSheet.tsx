@@ -3,16 +3,13 @@
 import { ForkKnife, MapPin } from "lucide-react";
 
 import DataCreditsLink from "@/components/legal/DataCreditsLink";
-import type { LondonVenue } from "@/lib/londonVenueShards";
+import type { LondonRestaurant } from "@/lib/londonRestaurants";
 
 import "./londonRestaurantSheet.css";
 
-// The sheet behind a London restaurant pin (lib/londonRestaurants.ts). The map
-// knows four things about it: its name, address, position and that it serves
-// alcohol. It holds no price, no menu and no hours, so the sheet says what it
-// knows, says where that came from and invents nothing else.
-
-export default function LondonRestaurantSheet({ restaurant }: { restaurant: LondonVenue }) {
+export default function LondonRestaurantSheet({ restaurant }: { restaurant: LondonRestaurant }) {
+  const osmRef = /^venue-osm-([nwr])(\d+)$/.exec(restaurant.id);
+  const osmType = osmRef ? ({ n: "node", w: "way", r: "relation" }[osmRef[1]!] ?? "node") : null;
   return (
     <div className="londonRestaurant" data-london-restaurant={restaurant.id}>
       <div className="londonRestaurantHead">
@@ -29,19 +26,22 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
         ) : null}
       </div>
 
-      <p className="londonRestaurantLead">
-        A restaurant that serves alcohol. We have no prices for it.
-      </p>
-
-      {/* ODbL requires attribution wherever these places are shown, and it is
-          the honest provenance line for the one claim the sheet makes. */}
+      {restaurant.cuisine ? <p className="londonRestaurantLead">Cuisine: {restaurant.cuisine.replaceAll("_", " ").replaceAll(";", ", ")}</p> : null}
+      {restaurant.openingHours ? (
+        <p className="londonRestaurantLead">Opening hours (OpenStreetMap): {restaurant.openingHours}</p>
+      ) : null}
+      {osmRef ? (
+        <p className="londonRestaurantLead">
+          <a className="londonRestaurantMapLink" href={`https://www.openstreetmap.org/${osmType}/${osmRef[2]}`} target="_blank" rel="noreferrer">View on OpenStreetMap</a>
+        </p>
+      ) : null}
       <p className="londonRestaurantSource">
         Place from{" "}
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
-        , ODbL. It is on the map because OpenStreetMap or the restaurant&rsquo;s own
-        website says it serves alcohol. <DataCreditsLink />
+        , ODbL.
+        {restaurant.observedAt ? ` Snapshot: ${restaurant.observedAt.slice(0, 10)}.` : ""} <DataCreditsLink />
       </p>
     </div>
   );

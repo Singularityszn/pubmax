@@ -5,6 +5,7 @@
 
 .londonRestaurant {
   padding: 18px 18px 24px;
+  overflow-wrap: anywhere;
 }
 
 .londonRestaurantHead {
@@ -86,4 +87,41 @@
    (components/map/LondonFoodPlaceSheet.tsx), which shares this sheet's frame. */
 .londonFoodPlaceLog {
   margin-top: 18px;
+}
+
+[data-london-restaurant] a {
+  display: inline-block;
+  max-width: 100%;
+  transition: transform var(--duration-press) var(--ease-out-strong);
+}
+
+[data-london-restaurant] .londonRestaurantMapLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+[data-london-restaurant] a:active {
+  transform: scale(0.97);
+}
+
+[data-london-restaurant] a:focus-visible {
+  transform: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  [data-london-restaurant] a {
+    transition: opacity var(--duration-press) var(--ease-out-strong);
+  }
+
+  [data-london-restaurant] a:active {
+    transform: none;
+    opacity: 0.7;
+  }
+
+  [data-london-restaurant] a:focus-visible {
+    opacity: 1;
+    transition: none;
+  }
 }

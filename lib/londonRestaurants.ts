@@ -1,13 +1,11 @@
 // The London restaurants the map draws: every `restaurant` row of the London
-// venue layer, read from the one-file pack
+// venue layer, read from bounded lazy chunks
 // (`scripts/build_london_restaurant_pack.mjs`,
-// `public/data/london_restaurants/restaurants.json`).
+// `public/data/london_restaurants/manifest.json`).
 //
-// A row is on that layer only when it serves alcohol: OpenStreetMap tags it
-// with a bar or alcohol, or the restaurant's own website says so
-// (`data/london_restaurant_drinks/`). Its name, address and position are
-// OpenStreetMap's. Its borough is the borough polygon its point falls in, found
-// by the lookup that places curated pins.
+// Membership comes only from OSM amenity=restaurant, including restaurants
+// with no alcohol tag. Cuisine and opening hours are optional OSM tags.
+// The layer starts off and reads its restaurant-only chunks on demand.
 //
 // PURE and browser-safe, apart from `loadLondonRestaurants`, which fetches.
 // Four rules ride with it:
@@ -40,8 +38,8 @@ import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import type { Filters, Venue } from "@/lib/venues";
 import { parseZoneParam } from "@/lib/zones";
 
-export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
-const LONDON_RESTAURANT_PACK_VERSION = 2;
+export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/manifest.json";
+const LONDON_RESTAURANT_PACK_VERSION = 3;
 
 /**
  * The zoom the layer draws from, and the zoom the map first asks for the pack
@@ -80,14 +78,10 @@ export type LondonRestaurant = LondonVenue & {
    * (`scripts/lib/boroughFromPoint.mjs`), or "" outside every borough.
    */
   borough: string;
+  cuisine?: string;
+  openingHours?: string;
+  observedAt?: string;
 };
-
-/** A pack row: the shard row `[osmRef, name, address, lat, lng, kind]`, then the borough. */
-type PackRow = [unknown, unknown, unknown, unknown, unknown, unknown, string];
-
-function isPackRow(value: unknown): value is PackRow {
-  return Array.isArray(value) && value.length === 7 && typeof value[6] === "string";
-}
 
 /** Where the map's read of the pack stands. */
 export type LondonRestaurantStatus = "idle" | "loading" | "ready" | "failed";
@@ -102,19 +96,25 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
   const pack = value as Record<string, unknown>;
   const rows = pack.venues;
   if (
-    pack.version !== LONDON_RESTAURANT_PACK_VERSION ||
+    (pack.version !== LONDON_RESTAURANT_PACK_VERSION && pack.version !== 2) ||
     pack.kind !== "restaurant" ||
     !Array.isArray(rows) ||
     pack.count !== rows.length ||
-    !rows.every(isPackRow)
+    !rows.every((row) => Array.isArray(row) && row.length === (pack.version === 3 ? 9 : 7)
+      && typeof row[6] === "string"
+      && (pack.version === 2 || (typeof row[7] === "string" && typeof row[8] === "string")))
   ) {
     return null;
   }
   const restaurants: LondonRestaurant[] = [];
   for (const row of rows) {
     const [venue] = parseLondonVenueShard({ venues: [row.slice(0, 6)] });
-    if (!venue || venue.kind !== "restaurant") return null;
-    restaurants.push({ ...venue, borough: row[6] });
+    if (!venue || venue.kind !== "restaurant" || !/^[nwr]\d+$/.test(row[0])) return null;
+    restaurants.push({
+      ...venue, borough: row[6],
+      ...(pack.version === 3 ? { cuisine: row[7], openingHours: row[8],
+        observedAt: typeof pack.observedAt === "string" ? pack.observedAt : undefined } : {}),
+    });
   }
   return restaurants;
 }
@@ -127,8 +127,36 @@ export async function loadLondonRestaurants(
   if (!response.ok) {
     throw new Error(`${LONDON_RESTAURANT_PACK_PATH} answered ${response.status}`);
   }
-  const restaurants = parseLondonRestaurantPack(await response.json());
-  if (!restaurants) throw new Error("London restaurant pack is malformed");
+  const body: unknown = await response.json();
+  if (typeof body !== "object" || body === null) throw new Error("London restaurant manifest is malformed");
+  const manifest = body as Record<string, unknown>;
+  if (Array.isArray(manifest.venues)) {
+    const restaurants = parseLondonRestaurantPack(body);
+    if (!restaurants) throw new Error("London restaurant pack is malformed");
+    return restaurants;
+  }
+  if (manifest.version !== 3 || manifest.kind !== "restaurant"
+    || typeof manifest.urlPrefix !== "string"
+    || !/^\/data\/london_restaurants\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
+    || !Array.isArray(manifest.shards) || !manifest.shards.length) {
+    throw new Error("London restaurant manifest is malformed");
+  }
+  const restaurants: LondonRestaurant[] = [];
+  const chunks = await Promise.all(manifest.shards.map(async (entry) => {
+    if (typeof entry?.id !== "string" || !/^\d+$/.test(entry.id)
+      || !Number.isInteger(entry.count) || entry.count < 1) {
+      throw new Error("London restaurant chunk entry is malformed");
+    }
+    const chunk = await fetchImpl(`${manifest.urlPrefix}${entry.id}.json`);
+    if (!chunk.ok) throw new Error(`London restaurant chunk answered ${chunk.status}`);
+    const places = parseLondonRestaurantPack(await chunk.json());
+    if (!places || places.length !== entry.count) throw new Error("London restaurant chunk is malformed");
+    return places;
+  }));
+  restaurants.push(...chunks.flat());
+  if (restaurants.length !== manifest.count || new Set(restaurants.map((row) => row.id)).size !== restaurants.length) {
+    throw new Error("London restaurant manifest count is malformed");
+  }
   return restaurants;
 }
 
@@ -178,6 +206,7 @@ function twinCell(lat: number, lng: number): [number, number] {
 export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
   restaurants: readonly T[],
   curated: readonly PlacedName[],
+  selectedVenueId = "",
 ): T[] {
   if (curated.length === 0) return [...restaurants];
   const cells = new Map<string, { venue: PlacedName; tokens: string[] }[]>();
@@ -189,6 +218,7 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
     cells.set(key, bucket);
   }
   return restaurants.filter((restaurant) => {
+    if (restaurant.id === selectedVenueId) return true;
     const [latCell, lngCell] = twinCell(restaurant.lat, restaurant.lng);
     let tokens: string[] | null = null;
     for (let dLat = -1; dLat <= 1; dLat += 1) {
@@ -217,15 +247,21 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
  * map otherwise, and this layer has no price for one to read, except the food
  * view, which is the question a restaurant answers.
  */
-export function londonRestaurantLayerShown(input: {
+export function londonRestaurantLayerMode(input: {
   isLondon: boolean;
   restaurantKindVisible: boolean;
   experienceLens: MapExperienceLens;
   /** A drink lane or a view is painting the map from its own prices. */
   lensOwnsMap: boolean;
-}): boolean {
-  if (!input.isLondon || !input.restaurantKindVisible) return false;
-  return input.experienceLens === "food" || !input.lensOwnsMap;
+  selectedVenueId?: string;
+}): "off" | "selection" | "layer" {
+  if (!input.isLondon) return "off";
+  if (input.restaurantKindVisible && (input.experienceLens === "food" || !input.lensOwnsMap)) return "layer";
+  return isLondonVenueId(input.selectedVenueId ?? "") ? "selection" : "off";
+}
+
+export function londonRestaurantLayerShown(input: Parameters<typeof londonRestaurantLayerMode>[0]): boolean {
+  return londonRestaurantLayerMode(input) !== "off";
 }
 
 /**
@@ -319,9 +355,11 @@ export function londonRestaurantsPassingMapFilters(
     savedOnly: boolean;
     nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
     selectedVenueId: string;
+    restaurantKindVisible?: boolean;
     curated: readonly AreaPin[];
   },
 ): readonly LondonRestaurant[] {
+  if (input.restaurantKindVisible === false) return restaurants.filter((row) => row.id === input.selectedVenueId);
   const query = input.filters.query.trim().toLowerCase();
   const nearMe = input.nearMe;
   const nothingPasses = input.savedOnly || filtersAskBeyondARestaurantRow(input.filters);

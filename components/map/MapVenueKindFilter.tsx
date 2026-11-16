@@ -21,6 +21,7 @@ import { SlidersHorizontal } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
+import type { CityId } from "@/lib/cities";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import ZonePicker from "@/components/map/ZonePicker";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
@@ -46,6 +47,7 @@ const TonightArcChips = dynamic(
 
 export default function MapVenueKindFilter({
   visibility,
+  cityId,
   featureFilters,
   featureFilterCount = 0,
   experienceLens = "all",
@@ -58,6 +60,7 @@ export default function MapVenueKindFilter({
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  cityId?: CityId;
   featureFilters?: ReactNode;
   featureFilterCount?: number;
   experienceLens?: MapExperienceLens;
@@ -79,7 +82,7 @@ export default function MapVenueKindFilter({
   const panelId = useId();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement | null>(null);
-  const hidden = hiddenVenueKindCount(visibility, experienceLens);
+  const hidden = hiddenVenueKindCount(visibility, experienceLens, cityId);
   const zoneParsed = zone === null ? null : parseZoneParam(zone);
   const refinements = featureFilterCount + mapFilterRefinementCount({
     hiddenKinds: hidden,

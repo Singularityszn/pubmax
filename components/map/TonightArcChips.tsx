@@ -15,7 +15,7 @@ import "./tonightArcChips.css";
 // One reachable control for each kind the map offers. Legacy Club visibility
 // follows Bars until the reader makes an explicit Club choice.
 const CHIPS: ReadonlyArray<{
-  kind: CuratedVenueKind;
+  kind: CuratedVenueKind | "osmRestaurants";
   label: string;
   Icon: LucideIcon;
 }> = [
@@ -48,7 +48,10 @@ export default function TonightArcChips({
   onChange: (next: VenueKindVisibility) => void;
 }) {
   const offeredKinds = offeredVenueKinds(experienceLens);
-  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind));
+  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind as CuratedVenueKind));
+  if (visibility.osmRestaurants !== undefined) {
+    chips.push({ kind: "osmRestaurants", label: "OSM restaurants", Icon: ForkKnife });
+  }
   return (
     <div
       className={
@@ -78,7 +81,9 @@ export default function TonightArcChips({
               type="button"
               className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
-              onClick={() => onChange(toggleVenueKind(visibility, chip.kind))}
+              onClick={() => onChange(chip.kind === "osmRestaurants"
+                ? { ...visibility, osmRestaurants: !visibility.osmRestaurants }
+                : toggleVenueKind(visibility, chip.kind))}
             >
               {/* The tick, not a colour, marks selection (aria-pressed already
                   names it for readers, so the glyph stays decorative). */}

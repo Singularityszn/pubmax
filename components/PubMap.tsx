@@ -457,7 +457,7 @@ import {
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
 import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
 import {
-  londonRestaurantLayerShown,
+  londonRestaurantLayerMode,
   londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsWithoutCuratedTwin,
@@ -1746,7 +1746,7 @@ export default function PubMap({
     () => restoredMobileSession?.poiHidden ?? defaultPoiHiddenForViewport(),
   );
   const [venueKindVisibility, setVenueKindVisibility] = useState(
-    defaultVenueKindVisibility,
+    () => defaultVenueKindVisibility(cityId),
   );
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus(cityId);
@@ -3091,20 +3091,17 @@ export default function PubMap({
     drinkLensPrices,
     experienceLensPrices,
   );
-  // The London restaurants (lib/londonRestaurants.ts): drawn while restaurants
-  // are on in the kind filter and no drink lane or view other than food owns
-  // the map, read once the pins have painted and the camera reaches the zoom
-  // they draw from, and resolved for a selected `venue-osm-` id so a reloaded
-  // ?sel= link still opens the restaurant's sheet.
-  const londonRestaurantsShown = londonRestaurantLayerShown({
+  // An explicit OSM link also opens its sheet while the layer starts off.
+  const londonRestaurantsShown = londonRestaurantLayerMode({
+    selectedVenueId: coffeePilot.byId.has(selectedVenueId) ? undefined : selectedVenueId,
     isLondon,
-    restaurantKindVisible: venueKindVisibility.restaurant,
+    restaurantKindVisible: venueKindVisibility.osmRestaurants ?? false,
     experienceLens,
     lensOwnsMap: activeLensPrices !== null,
   });
   const londonRestaurantRead = useLondonRestaurants(
     londonRestaurantPackWanted({
-      shown: londonRestaurantsShown,
+      shown: londonRestaurantsShown !== "off",
       held: secondaryStreamsHeld,
       zoom: mapViewport.zoom,
       selectedVenueId,
@@ -3121,7 +3118,7 @@ export default function PubMap({
       byId: coffeePilot.byId,
     },
     restaurants: {
-      shown: londonRestaurantsShown,
+      shown: londonRestaurantsShown !== "off",
       status: londonRestaurantRead.status,
       byId: londonRestaurantRead.byId,
     },
@@ -3141,16 +3138,17 @@ export default function PubMap({
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const filteredLondonRestaurants = useMemo(
     () =>
-      londonRestaurantsShown
+      londonRestaurantsShown !== "off"
         ? londonRestaurantsWithoutCuratedTwin(
             londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
               filters: effectiveMapFilters,
               savedOnly,
               nearMe: nearbyMapResultForView,
               selectedVenueId,
+              restaurantKindVisible: londonRestaurantsShown === "layer",
               curated: venues,
             }),
-            canvasVenues,
+            canvasVenues, selectedVenueId,
           )
         : NO_LONDON_RESTAURANTS,
     [
@@ -3162,6 +3160,7 @@ export default function PubMap({
       savedOnly,
       selectedVenueId,
       venues,
+      venueKindVisibility.osmRestaurants,
     ],
   );
   const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
@@ -6047,7 +6046,7 @@ export default function PubMap({
     setExperienceLensHeldDrink(null);
     changeFavoritePint(null);
     setPersonaLensId(null);
-    setVenueKindVisibility(defaultVenueKindVisibility);
+    setVenueKindVisibility(defaultVenueKindVisibility(cityId));
     setSavedOnly(false);
     setFilters((current) => resetMapRefinements(current, seedCrawlState("").filters));
   }
@@ -6057,7 +6056,7 @@ export default function PubMap({
       <MobilePriceChoices
         {...mobilePriceChoicesProps}
         onClearFilters={clearMobileFilters}
-        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
+        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens, cityId) > 0}
         drinkControl={<div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
