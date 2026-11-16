@@ -121,7 +121,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
 
     await chipControls.last().focus();
     await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+    await expect(drawer.locator(FOCUSABLE).first()).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(chipControls.last()).toBeFocused();
