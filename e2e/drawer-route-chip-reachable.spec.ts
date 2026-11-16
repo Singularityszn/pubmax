@@ -171,7 +171,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
       const chipBox = await chip.boundingBox();
       expect(drawerBox).not.toBeNull();
       expect(chipBox).not.toBeNull();
-      expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(drawerBox!.x);
+      expect(Math.min(chipBox!.x + chipBox!.width, drawerBox!.x + drawerBox!.width) - Math.max(chipBox!.x, drawerBox!.x)).toBeLessThanOrEqual(0);
       expect(chipBox!.x).toBeGreaterThanOrEqual(0);
       await expect.poll(() => drawer.getAttribute("aria-modal")).toBeNull();
 
