@@ -296,7 +296,7 @@ Cosmetic progression earned through planning, discovery, verified contribution, 
 _Avoid_: Drinking streak, consumption score, recommendation tier
 
 **Points**:
-What a Pubmaxxer earns from their own records: a pub backed by their Pint Drop or a nearby check-in, a price they logged, a price a bill or a Second Drinker checked, a logged drink review, a London postcode letter area where every listed district is finished, a London postcode district with proven visits to every pub we list, a pub they added or fixed once a person accepted it, and a finished Challenge. A proven pub earns 5 points once per account. A plain Been earns no points. Points set a Level. A logged drink review earns points, never days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
+What a Pubmaxxer earns from their own records: a pub backed by their Pint Drop, a price they logged, a price a bill or a Second Drinker checked, a logged drink review, a London postcode letter area where every listed district is finished, a London postcode district with proven visits to every pub we list, a pub they added or fixed once a person accepted it, and a finished Challenge. A proven pub earns 5 points once per account. A plain Been or nearby check-in earns no points. Points set a Level. A logged drink review earns points, never days running. `lib/points.ts` owns the values and `lib/points.server.ts` reads the records.
 _Avoid_: XP, mastery points, a streak
 
 **League**:
@@ -304,5 +304,5 @@ A private group of Pubmaxxers ranked by Points. A league holds no score of its o
 _Avoid_: club, team, squad
 
 **Challenge**:
-A set of targets built from listed London pubs. A Pubmaxxer finishes a target when any of its pubs has their Pint Drop or a nearby check-in. See [profile challenges](README.md#features) for usage. `lib/challenges.ts` owns the sets and the monthly rotation.
+A set of targets built from listed London pubs. A Pubmaxxer finishes a target when any of its pubs has their Pint Drop. See [profile challenges](README.md#features) for usage. `lib/challenges.ts` owns the sets and the monthly rotation.
 _Avoid_: quest, mission, a streak

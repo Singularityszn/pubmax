@@ -423,8 +423,8 @@ export default function PrivacyPage() {
             route to check that you are near the pub. We discard the precise
             coordinates after the check. We keep your account ID, pub and
             first check-in time as visit proof until you delete your account.
-            Your data download includes the pub and time. The proof counts
-            towards points, districts and challenges.
+            Your data download includes the pub and time. Nearby check-ins
+            don&rsquo;t count towards points, districts or challenges.
           </li>
           <li>
             <strong>What&rsquo;s on:</strong>{" "}sharing location on the map or
