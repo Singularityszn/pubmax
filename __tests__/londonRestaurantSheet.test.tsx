@@ -170,3 +170,46 @@ it("keeps a second shared-link selection while its different read settles", asyn
   expect(container.querySelector("button")?.getAttribute("data-selected")).toBe("venue-osm-n1784593689");
   expect(container.querySelector("button")?.textContent).toBe("Tayyabs");
 });
+
+it("opens a selected place after a failed full-layer read without rejecting it", async () => {
+  let response: "ok" | "down" = "down";
+  stubPack(() => response);
+  const reject = vi.fn();
+  function FailedFullRead() {
+    const [selected, setSelected] = useState("");
+    const read = useLondonRestaurants(true, selected || undefined);
+    const pick = londonVenueSelection({ selectedVenueId: selected,
+      coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
+      restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });
+    useReleaseLondonVenueSelection(pick.release, selected, reject, setSelected);
+    return createElement("button", { "data-selected": selected, "data-status": read.status, onClick: () => setSelected("venue-osm-n1784593689") }, pick.restaurant?.name ?? "");
+  }
+  await act(async () => root.render(createElement(FailedFullRead)));
+  expect(container.querySelector("button")?.getAttribute("data-status")).toBe("failed");
+  response = "ok";
+  await act(async () => container.querySelector("button")?.click());
+  expect(reject).not.toHaveBeenCalled();
+  expect(container.querySelector("button")?.textContent).toBe("Tayyabs");
+});
+
+it("allows the same shared place to be retried after a failed read released it", async () => {
+  let response: "ok" | "down" = "down";
+  stubPack(() => response);
+  const reject = vi.fn();
+  function RetrySharedRead() {
+    const [selected, setSelected] = useState("venue-osm-n1784593689");
+    const read = useLondonRestaurants(Boolean(selected), selected || undefined);
+    const pick = londonVenueSelection({ selectedVenueId: selected,
+      coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
+      restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });
+    useReleaseLondonVenueSelection(pick.release, selected, reject, setSelected);
+    return createElement("button", { "data-selected": selected, onClick: () => setSelected("venue-osm-n1784593689") }, pick.restaurant?.name ?? "");
+  }
+  await act(async () => root.render(createElement(RetrySharedRead)));
+  expect(reject).toHaveBeenCalledTimes(1);
+  expect(container.querySelector("button")?.getAttribute("data-selected")).toBe("");
+  response = "ok";
+  await act(async () => container.querySelector("button")?.click());
+  expect(reject).toHaveBeenCalledTimes(1);
+  expect(container.querySelector("button")?.textContent).toBe("Tayyabs");
+});

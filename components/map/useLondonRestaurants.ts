@@ -31,31 +31,44 @@ export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string):
 
   useEffect(() => {
     const scope = selectedVenueId ?? "all";
-    if (!wanted || requested.current === "all" || requested.current === scope) return;
+    if (!wanted) {
+      queueMicrotask(() => setStatus(current => current === "failed" ? "idle" : current));
+      return;
+    }
+    if (requested.current === "all" || requested.current === scope) return;
     requested.current = scope;
     const request = ++latestRequest.current;
+    let settled = false;
     queueMicrotask(() => setStatus("loading"));
     loadLondonRestaurants(fetch, selectedVenueId).then(
       (loaded) => {
+        settled = true;
         if (request !== latestRequest.current) return;
         setRestaurants(loaded);
         setSettledScope(scope);
         setStatus("ready");
       },
       () => {
+        settled = true;
         if (request !== latestRequest.current) return;
         requested.current = null;
         setSettledScope(scope);
         setStatus("failed");
       },
     );
+    return () => {
+      if (!settled && request === latestRequest.current) {
+        latestRequest.current += 1;
+        requested.current = null;
+      }
+    };
   }, [wanted, selectedVenueId]);
 
   const byId = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant] as const)),
     [restaurants],
   );
-  const changingScope = settledScope !== null && settledScope !== "all" && settledScope !== (selectedVenueId ?? "all");
+  const changingScope = settledScope !== null && !(settledScope === "all" && status === "ready") && settledScope !== (selectedVenueId ?? "all");
   return { status: changingScope ? "loading" : status, restaurants, byId };
 }
 
