@@ -299,7 +299,7 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
   await expect(socialPage.locator('.socialLondonLane[aria-busy="true"]')).toBeVisible();
   await expect(handle).toBeFocused();
   settleLane();
-  await expect(socialPage.locator(".socialEmptySignIn")).toBeVisible();
+  await expect(socialPage.locator(".socialLondonLane")).toHaveCount(0);
   await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
   await expect(handle).toBeFocused();
   await expect.poll(async () => {

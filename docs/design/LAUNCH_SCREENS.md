@@ -19,23 +19,19 @@ Rules the table obeys:
   then prints its line alone rather than repeating the same link. On the
   Social posts tab a stranger reads the London lane (captain decision 7,
   1 November 2026), and every action on it (post, cheer, comment) needs an
-  account. The head keeps "Sign in" while posts load, fail or exist.
-  The captain approved a confirmed-empty exception on 3 November 2026. That
-  branch paints "Plan a night" in the head. On this browser's first visit,
-  the body offers "Log what you paid" with a link to `/map?log=1`.
-  After posts or a confirmed-empty response, the browser remembers the visit
-  when storage is available. Later empty visits replace the log link with
-  the empty-lane headline. Both visits show named crawls and dated menu prices
-  before a quiet body sign-in offer. Blocked storage keeps the first-visit
-  line. An empty response must have no continuation cursor.
-  The parent preserves a focused header sign-in link
-  until focus leaves. Account changes reset this state. The price section
-  keeps a public browse link when rows are missing or unavailable. The
-  [identity rule](../rules/lib-identity-accounts-and-sessions.md#a-stranger-reads-the-london-lane-and-nothing-in-it-describes-the-reader)
+  account. The head keeps "Sign in" for signed-out visitors, including when
+  the lane is empty or paused. With the Friends launch enabled, the Posts
+  body leads with an Open Table card linking to `/crawls`, then the latest
+  dated pint prices. These public sections also appear for resolved accounts
+  and remain available while Social is frozen. A confirmed-empty feed is
+  hidden when it has no continuation cursor. Loading, errors and pagination
+  remain visible. First and returning visits use the same display.
+  The price section keeps a public browse link when rows are missing or
+  unavailable. The [identity rule](../rules/lib-identity-accounts-and-sessions.md#a-stranger-reads-the-london-lane-and-nothing-in-it-describes-the-reader)
   owns the public data contract. Each lane card prints
   one quiet "Sign in to cheer or comment" link where its cheer row sits, never
-  a filled control. While the lane is paused (`PUBMAX_SOCIAL_FREEZE=social`)
-  the body is the sign-in boundary again. The rule
+  a filled control. While the lane is paused (`PUBMAX_SOCIAL_FREEZE=social`),
+  its slot shows the sign-in boundary below the public sections. The rule
   stands unchanged wherever the body answers with something a stranger can use:
   `/social?tab=discover` paints "Open the map", and so does the
   invite-only rollback. Fences: `__tests__/launchRoutes.b.test.tsx` and
@@ -47,7 +43,7 @@ Rules the table obeys:
 - British English, no em dashes, no exclamation marks.
 - A route that is a list (Out, Social, Messages) keeps its primary in the
   head. Its empty state uses `EmptyState` with at most one quiet way onward,
-  except the approved Social London alternatives described above.
+  except the Social public sections described above.
 - A FORM SCREEN PAINTS NO HEAD PRIMARY (captain, 7 September 2026). Its one
   painted control is the form's own submit, beside the field it submits,
   carrying `data-primary-action` itself, so `Screen`'s `primary` is omitted.
