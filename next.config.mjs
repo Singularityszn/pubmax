@@ -23,7 +23,8 @@ const ledgerAliasRedirects = [...flattenVenueAliasChains(
     JSON.parse(readFileSync(path.join(projectRoot, file), "utf8")).aliases,
   )),
 )].map(([from, to]) => ({
-  source: `/ledger/${encodeURIComponent(from)}`,
+  // Exact parameter patterns avoid adding redundant typedRoutes literals.
+  source: `/ledger/:legacyId(${encodeURIComponent(from).replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
   destination: `/ledger/${encodeURIComponent(to)}`,
   permanent: true,
 }));
