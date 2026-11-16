@@ -1,6 +1,7 @@
 "use client";
 
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { useTypedSearchCamera } from "@/components/map/pubmap/useTypedSearchCamera";
 
 import { useMapPinVenues } from "@/components/map/pubmap/useMapPinVenues";
 
@@ -68,7 +69,6 @@ import { PINT_COMPASS_DOOR_NAME, PINT_COMPASS_HREF, PINT_COMPASS_LABEL } from "@
 import MapPriceLogDoor from "@/components/map/MapPriceLogDoor";
 import {
   isMapSearchField,
-  typedSearchCameraMove,
   TYPED_SEARCH_MIN_QUERY,
 } from "@/lib/mapSearchCamera";
 import {
@@ -3590,6 +3590,7 @@ export default function PubMap({
     (
       id: string,
       initialTab: VenueTabRequest = "overview",
+      requestToken = nextCameraRequestToken(),
     ) => {
       if (!id) return;
       claimMapCamera();
@@ -3631,7 +3632,7 @@ export default function PubMap({
       claimMapSurface({ type: "open-venue" });
       setVenueInitialTab(initialTab);
       if (initialTab === "getting-home") setGettingHomeRequestId((current) => current + 1);
-      setSelectedVenueRequestToken(nextCameraRequestToken());
+      setSelectedVenueRequestToken(requestToken);
       setSelectedVenueId(id);
       closeComposer();
       const reducedMotion = venueRevealPrefersReducedMotion();
@@ -4317,56 +4318,17 @@ export default function PubMap({
   }, [selectVenue]);
 
   const trimmedMapQuery = filters.query.trim();
-  const didMountSearchFlyRef = useRef(false);
-  // The phone search overlay covers the map with its own suggestion panel, so a
-  // camera move made while it is open is work nobody can see. It is also
-  // premature: "cam" matches Camden, Camberwell and Cambridge, and framing all
-  // of them zooms out to the whole city behind a panel the reader is still
-  // typing into. Hold the camera until the overlay closes. Picking a suggestion
-  // flies through its own path and does not need this one.
-  const searchOverlayOpen = mapOverlay === "search";
-  useEffect(() => {
-    if (ukPlaceArrival) return;
-    // Leave first paint to arrival framing; only react to user-driven typing.
-    if (!didMountSearchFlyRef.current) {
-      didMountSearchFlyRef.current = true;
-      return;
-    }
-    // The camera stays still while the reader is typing. Once focus leaves the
-    // field this effect runs again and the same move happens, deferred rather
-    // than dropped.
-    if (mapSearchFieldFocused) return;
-    // The phone overlay covers the map with its own suggestion panel, so a move
-    // made under it is work nobody can see. Focus does not answer this on its
-    // own: the overlay stays up after the field is blurred, which is exactly
-    // when the deferred move would fire behind it.
-    if (searchOverlayOpen) return;
-    if (trimmedMapQuery.length < TYPED_SEARCH_MIN_QUERY) return;
-    const handle = window.setTimeout(() => {
-      const move = typedSearchCameraMove({
-        query: trimmedMapQuery,
-        matchCount: filteredVenuesRef.current.length,
-        // Re-read at fire time: focus can return during the debounce.
-        searchFieldFocused: isMapSearchField(document.activeElement),
-        // An explicit pick (an area, a pub) already pointed the camera at an
-        // answer for this query. Do not let the timer fire late and replace it.
-        cameraOwnedByPick: searchQueryCameraOwnedRef.current === trimmedMapQuery,
-      });
-      // Search takes the camera beyond the reader's location. Release its
-      // Near me membership so the matching venues can paint and frame there.
-      if (move !== "none") setNearbyMapResult(null);
-      if (move === "select-one") {
-        // Fly to the one match and open its sheet (reuses the pin path).
-        const [match] = filteredVenuesRef.current;
-        if (!match) return;
-        selectVenue(match.id);
-      } else if (move === "fit-many") {
-        // Frame the whole matched set so none stay hidden off-screen.
-        setSearchRecoveryToken(nextCameraRequestToken());
-      }
-    }, 320);
-    return () => window.clearTimeout(handle);
-  }, [mapSearchFieldFocused, searchOverlayOpen, trimmedMapQuery, selectVenue, ukPlaceArrival]);
+  useTypedSearchCamera({
+    disabled: Boolean(ukPlaceArrival),
+    query: trimmedMapQuery,
+    searchFieldFocused: mapSearchFieldFocused,
+    searchOverlayOpen: mapOverlay === "search",
+    venuesRef: filteredVenuesRef,
+    ownedQueryRef: searchQueryCameraOwnedRef,
+    selectVenue,
+    setSearchRecoveryToken,
+    setNearbyMapResult,
+  });
 
   // A restored query frames its matches without reopening a closed sheet.
   // Explicit sel owns sheet restoration, while typed search keeps its own

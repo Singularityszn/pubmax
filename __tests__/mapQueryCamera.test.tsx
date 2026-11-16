@@ -59,6 +59,7 @@ afterEach(() => {
   fitBounds.mockReset();
   easeTo.mockReset();
   vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
 });
 
 function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null },
@@ -66,7 +67,8 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" }) {
+  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" },
+  search = { current: "" }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
     const presentation = useMapPlanPresentation({
       mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
@@ -116,7 +118,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
     const plan = useMapPlanCoordinator({
       mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
       planningOpen: false, nightArea: null,
-    });
+    }, search.current);
     if (planRef) planRef.current = plan;
     return canvasMounted.current ? createElement(Canvas, { plan }) : null;
   }
@@ -446,6 +448,29 @@ describe("query camera with contextual price pins", () => {
         });
       });
     });
+  });
+
+  it("frames a newly adopted walking link after an earlier route and area request", async () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const opening = { resolved: false, area: null as MapCameraFocus | null };
+    const search = { current: "" };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined,
+      false, planRef, opening, undefined, undefined, undefined, undefined, search);
+    act(() => planRef.current!.mapRoute());
+    flush();
+    opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+    rerender();
+    flush();
+    fitBounds.mockClear();
+    easeTo.mockClear();
+    search.current = "mode=build&pubs=soho-west,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    flush();
+    expect(easeTo).not.toHaveBeenCalled();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
   });
 
   it.each(["route", "search", "venue", "city", "nearby"] as const)(

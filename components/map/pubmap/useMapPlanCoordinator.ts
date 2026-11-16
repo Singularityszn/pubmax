@@ -88,7 +88,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
         || readMapSurfaceHistory(window.history.state)) return;
       setMode("build");
       setBuiltIds(request.builtIds);
-      setRouteMapped(true);
+      mapRoute();
       setWalkRequest((current) => ({
         count: current.count + 1,
         selectedVenueId: request.selectedVenueId,
