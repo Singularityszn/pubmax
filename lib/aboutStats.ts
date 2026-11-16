@@ -9,8 +9,8 @@ import "server-only";
 //
 // Split into a PURE `computeAboutStats(rows, opts)` (unit-tested against tiny
 // fixtures) and an async `loadAboutStats()` loader that wires in the real
-// datasets. Reuses groupVenuePrices so "pubs tracked" is counted the exact same
-// way the map/discovery surfaces count a venue.
+// datasets. The average and its pub count use lib/pricedPubCount.ts.
+// The loader takes its minimum from lib/cheapestHunt.server.ts.
 
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
@@ -30,7 +30,10 @@ export type AboutStats = {
   pubsTracked: number;
   /** Individual observed pint-price readings across all venues. */
   pintPricesObserved: number;
-  /** Cheapest observed pint (GBP), or null when no priced row exists. */
+  /**
+   * Row minimum (GBP) from computeAboutStats. loadAboutStats replaces it with
+   * the London hunt minimum, or null when the hunt returns no eligible pints.
+   */
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
   dearestPint: number | null;
@@ -57,8 +60,7 @@ type ComputeOpts = {
   citiesCovered: number;
 };
 
-// Pure: derive every headline number from raw price rows + two counts. No I/O,
-// so it is directly testable and deterministic.
+// Pure row statistics. The loader supplies the hunt's headline minimum.
 export function computeAboutStats(
   rows: VenuePrice[],
   opts: ComputeOpts,
@@ -75,9 +77,6 @@ export function computeAboutStats(
       row.price_gbp > 0,
   );
 
-  // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
-  // number on /about matches what a user would count on the map — but only
-  // venues carrying at least one accepted price observation qualify.
   const pubs = listedPriceCohort(groupVenuePrices(safeRows));
   const pubsTracked = pubs.length;
 

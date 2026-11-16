@@ -38,11 +38,9 @@ import "./about.css";
 // earlier words (docs/VOICE.md, before/after row 11) with the dash taken out.
 // Its one figure, the round of four, is arithmetic on the average listed pint
 // loadAboutStats already returns; nothing in it is typed in. It names no
-// cheapest pint: the homepage's cheapest is the hunt's answer
-// (lib/cheapestHunt.ts), whose readers are fenced to the landing
-// (__tests__/cheapestHunt.test.ts), and a second rule here would print a
-// third answer to the same question. Its
-// Pub Pal lines say only what the Pal code does: a memory exists only once the
+// cheapest pint. The traction section takes that minimum from loadAboutStats,
+// which uses the hunt's shared London reader (lib/cheapestHunt.server.ts).
+// Its Pub Pal lines say only what the Pal code does: a memory exists only once the
 // person confirms its card (lib/palMemoryProposal.server.ts), a food need is a
 // kind of its own (food_preference, lib/palMemoryKinds.mjs), and a new fact
 // can offer to update an old one (lib/palMemoryRelation.ts).

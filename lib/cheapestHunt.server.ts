@@ -3,9 +3,9 @@ import "server-only";
 // The reads behind lib/cheapestHunt.ts, wired once.
 //
 // The landing and Tonight documents are prerendered (app/page.tsx and
-// app/tonight/page.tsx, both force-static), so this runs at build and on their
-// regenerations, never per visitor, and both pages share one read. Every read
-// here is an existing memoised reader: the London priced index, the UK price
+// app/tonight/page.tsx, both force-static). Their reads run at build and on
+// regeneration. About and Pint Index share the same memoised read on request.
+// Every read here is an existing memoised reader: the London priced index, the UK price
 // bundle and the national pub catalogue, which places a base pub inside a city
 // on the map by its own point. Nothing is counted again. Hold the promise, not
 // the value, so concurrent first renders share one read, and drop it on

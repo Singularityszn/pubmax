@@ -9,8 +9,8 @@ import { isPublicRankablePub } from "@/lib/venueKindFilters";
 // Three rules shape it:
 //   • No wall. No account, no location permission, no modal. A tap on an area
 //     is the whole interaction, and it works on a first visit with no state.
-//   • Land somewhere real. The tap opens the map ON the cheapest pint the
-//     dataset holds in that area, selected, with its price and provenance in
+//   • Land somewhere real. The tap opens the map ON the cheapest eligible pint
+//     in that area, selected, with its price and provenance in
 //     the sheet. A `?q=` browse leaves the phone looking at all of London, and
 //     an area with almost nothing priced in it is not worth a tap either
 //     (MIN_ARRIVAL_PRICED_PUBS).
@@ -43,10 +43,8 @@ export type ArrivalArea = {
 };
 
 /**
- * The areas worth offering, busiest priced first. Only boroughs the dataset
- * actually prices are eligible; a borough with pubs but no prices would open a
- * map with nothing to read. Ties on price break on venue id so the pub a chip
- * opens is stable between renders.
+ * Only exact venue-price pairs from the supplied hunt pints qualify.
+ * Ties on price break on venue id so the pub a chip opens is stable between renders.
  */
 export function arrivalAreas(venues: readonly Venue[], pints: readonly { venueId: string; priceGbp: number }[], limit = ARRIVAL_AREA_LIMIT): ArrivalArea[] {
   const eligible = new Set(pints.map((pint) => `${pint.venueId}:${pint.priceGbp}`));
@@ -73,7 +71,7 @@ export function arrivalAreas(venues: readonly Venue[], pints: readonly { venueId
 }
 
 /**
- * Where a chip goes: the map, opened on that area's cheapest recorded pint
+ * Where a chip goes: the map, opened on that area's cheapest eligible pint
  * with its sheet up, plus the arrival marker the map reads to record that the
  * tap landed. `sel` is deliberate rather than the `?q=` area browse the
  * borough pages use: a selection owns the camera and frames a real street, and
