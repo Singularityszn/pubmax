@@ -194,8 +194,9 @@ A runner image does not carry the tools a job needs. Each job that needs
 them installs them:
 
 - **Node 22** via `actions/setup-node`, which matches `engines.node` in
-  `package.json`. Jobs that run `npm ci` set `cache: npm`. See
-  [Self-hosted Mac runners](#self-hosted-mac-runners) for Mac cache setup.
+  `package.json`. Jobs that use npm caches restore them through
+  `.github/actions/pubmax-job-local-caches`. See
+  [Self-hosted Mac runners](#self-hosted-mac-runners) for cache setup.
 - **PostgreSQL 16 and PostgREST 14** in `rls-session.yml`. The harness starts
   its own cluster with `initdb` (`scripts/rls/postgresHost.mjs` already looks
   in `/usr/lib/postgresql/16/bin`), so the job installs the `postgresql-16`
@@ -257,18 +258,18 @@ Today the pool has one host place on studio-1. Two tart virtual machine
 places will join it. A place runs one job at a time, as its own macOS user,
 with no `sudo`. So a Mac job:
 
-- **Keeps its caches in the job.** The first step after Checkout is
-  `.github/actions/pubmax-job-local-caches`. It points `npm_config_cache` and
-  `PLAYWRIGHT_BROWSERS_PATH` at `RUNNER_TEMP`, which the runner empties at the
-  start and end of every job. The default `~/.npm` and
-  `~/Library/Caches/ms-playwright` would carry one job's downloads into the
-  next. `actions/setup-node` still restores and saves the npm cache through
-  GitHub's cache. After `npm ci`, `.github/actions/pubmax-playwright-browsers`
-  restores the browser folder with a key containing the runner OS,
-  architecture and installed Playwright version. It refuses an unset browser
-  path or one outside `RUNNER_TEMP`. On a cache hit, `Install Chromium` skips
-  the download. On a miss, it downloads Chromium and the cache action saves
-  the folder when the job succeeds.
+- **Keeps its caches in the job.** The action
+  `.github/actions/pubmax-job-local-caches` clears `.ci-job-cache` in the
+  job workspace and points npm and Playwright there. Each runner place has
+  its own workspace, so concurrent jobs do not share these files. The cache
+  action uses the same workspace-relative path on each place. Its key includes
+  the runner OS, architecture and lockfile hash. The Playwright key also
+  includes the installed Playwright version. Jobs restore caches on every
+  event, but only successful runs on the `main` ref save a cache on a miss.
+  A new lockfile or cache path starts with a cold cache. The nightly browser
+  run on `main` warms the Mac caches. The small Tavily cursor is
+  state rather than a dependency cache. Its scheduled and manual runs keep
+  saving it to prevent repeated paid searches.
 - **Installs Node with `actions/setup-node`** before any step that runs
   `node`. The place has no Node of its own. `Performance budget` records its
   start time with the shell for that reason.
