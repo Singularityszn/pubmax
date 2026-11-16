@@ -349,11 +349,18 @@
 }
 
 .profilePage .profileHeader:not(.profileHeaderWithCover):not(.profileHeaderLoading) .profileCover {
+  height: auto;
+  min-height: clamp(132px, 13vw, 164px);
   background: var(--ink-deep);
 }
+.profilePage :focus-visible {
+  --shared-press-scale: 1;
+}
+
 .profilePage .profileCoverDefault {
-  height: 100%;
+  min-height: inherit;
   display: flex;
+  flex-wrap: wrap;
   align-items: flex-start;
   justify-content: space-between;
   gap: 20px;
@@ -365,9 +372,12 @@
   letter-spacing: .12em;
 }
 .profilePage .profileCoverMotto {
+  max-width: 100%;
+  margin-inline-start: auto;
   font: 700 clamp(1.4rem, 3vw, 2.25rem)/1.02 var(--font-display);
   letter-spacing: -.035em;
   text-align: right;
+  overflow-wrap: anywhere;
 }
 
 /* Holding a photograph, the band's rendered aspect ratio IS the cropper's

@@ -1218,7 +1218,7 @@ export default function MessageThread({
     }
     if (threadName) {
       return (
-        <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
+        <Link data-pressable href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
           <MessageAvatar
             handle={otherHandle}
             avatarUrl={card?.avatarUrl}
@@ -1249,7 +1249,7 @@ export default function MessageThread({
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
       <div className="threadHeader">
-        <Link href="/messages" className="threadBackLink" aria-label="Back to inbox">
+        <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
@@ -1317,34 +1317,36 @@ export default function MessageThread({
                 {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
-                  {m.unsent ? (
+                  <div className="messageBubbleGroup">
+                    {m.unsent ? (
+                      <div
+                        className="messageUnsent"
+                        onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                      >
+                        {MESSAGE_UNSENT_LINE}
+                      </div>
+                    ) : (
                     <div
-                      className="messageUnsent"
+                      className={[
+                        mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
+                        (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
+                      ].filter(Boolean).join(" ")}
                       onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                     >
-                      {MESSAGE_UNSENT_LINE}
+                      {renderAttachment(m, sendingRow)}
+                      {pendingPhoto ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
+                        <img className="messagePhotoSending" src={pendingPhoto} alt="" />
+                      ) : null}
+                      {m.body ? <MessageBody body={m.body} /> : null}
                     </div>
-                  ) : (
-                  <div
-                    className={[
-                      mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
-                      (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
-                    ].filter(Boolean).join(" ")}
-                    onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
-                  >
-                    {renderAttachment(m, sendingRow)}
-                    {pendingPhoto ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
-                      <img className="messagePhotoSending" src={pendingPhoto} alt="" />
-                    ) : null}
-                    {m.body ? <MessageBody body={m.body} /> : null}
-                  </div>
-                  )}
-                  <div className="messageMeta">
-                    <time className="messageClock" dateTime={m.createdAt}>
-                      {item.clock}
-                    </time>
-                    {renderMessageAction(m, mine, sendingRow)}
+                    )}
+                    <div className="messageMeta">
+                      <time className="messageClock" dateTime={m.createdAt}>
+                        {item.clock}
+                      </time>
+                      {renderMessageAction(m, mine, sendingRow)}
+                    </div>
                   </div>
                   {sendingRow ? (
                     <span className="messageReadState">Sending</span>

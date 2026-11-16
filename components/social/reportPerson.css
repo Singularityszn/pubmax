@@ -11,8 +11,45 @@
 .reportPerson summary {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-2);
   min-height: 44px;
   cursor: pointer;
+  user-select: none;
+  list-style: none;
+}
+
+.reportPerson summary::-webkit-details-marker {
+  display: none;
+}
+
+.reportPerson :focus-visible {
+  --shared-press-scale: 1;
+}
+
+.reportPerson summary:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+.reportPerson summary svg {
+  flex-shrink: 0;
+  width: max(1rem, 1em);
+  height: max(1rem, 1em);
+}
+
+.reportPerson summary:active {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.reportPerson[open] summary svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reportPerson summary:not(:focus-visible) svg {
+    transition: transform var(--duration-press) var(--ease-out-strong);
+  }
 }
 
 .reportPerson__body {

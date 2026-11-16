@@ -472,6 +472,7 @@ export default function MessagesInboxClient({
                     href={`/messages/${encodeURIComponent(c.id)}`}
                     className="conversationLink"
                     aria-current={active ? "page" : undefined}
+                    data-pressable
                   >
                     {c.kind === "group" ? (
                       <span className="messageAvatar messageAvatarGroup" style={{ "--message-avatar-size": "56px" } as React.CSSProperties} aria-hidden="true">

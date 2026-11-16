@@ -23,6 +23,12 @@
   background: var(--messages-surface, var(--paper));
 }
 
+.messagesPage :focus-visible,
+.messageAttachSheetPortal :focus-visible,
+.messageConfirmOverlay :focus-visible {
+  --shared-press-scale: 1;
+}
+
 html[data-theme="dark"] .messagesPage {
   --messages-surface: var(--paper);
   --messages-soft-surface: var(--panel-raised);
@@ -293,7 +299,12 @@ html[data-theme="dark"] .messagesPage {
   border-radius: 0;
   text-decoration: none;
   color: inherit;
-  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.conversationLink:active,
+.threadBackLink:active,
+a.threadWith:active {
+  background: var(--messages-soft-surface);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -433,7 +444,7 @@ html[data-theme="dark"] .messagesPage {
 
 @media (hover: hover) and (pointer: fine) {
   .threadBackLink:hover {
-    background: var(--panel);
+    background: var(--messages-soft-surface);
   }
 }
 
@@ -451,7 +462,7 @@ html[data-theme="dark"] .messagesPage {
 
 @media (hover: hover) and (pointer: fine) {
   a.threadWith:hover {
-    background: var(--panel);
+    background: var(--messages-soft-surface);
   }
 }
 
@@ -561,6 +572,18 @@ html[data-theme="dark"] .messagesPage {
   align-items: flex-end;
 }
 
+.messageBubbleGroup {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.messageRowMine .messageBubbleGroup {
+  align-items: flex-end;
+}
+
 .messageBubble {
   max-width: 100%;
   padding: 0.55rem 0.85rem;
@@ -637,7 +660,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 /* The time and the Report control live under the bubble and stay folded
-   until the bubble is tapped, hovered with a pointer that can hover, or
+   until the bubble is tapped, hovered with a fine pointer, or
    reached with the keyboard. A thread is not a column of Report links. */
 .messageMeta {
   display: flex;
@@ -649,10 +672,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0 0.3rem;
   font-size: var(--text-2xs);
   color: var(--muted);
-  transition:
-    max-height var(--duration-base) var(--ease-out),
-    opacity var(--duration-base) var(--ease-out),
-    margin-top var(--duration-base) var(--ease-out);
 }
 
 .messageRow[data-revealed] .messageMeta,
@@ -662,18 +681,54 @@ html[data-theme="dark"] .messageBubblePhoto {
   margin-top: 0.2rem;
 }
 
-@media (hover: hover) {
-  .messageLine:hover .messageMeta {
-    max-height: max(2.75rem, 44px);
-    opacity: 1;
-    margin-top: 0.2rem;
-  }
-}
-
 /* An own message's meta is usually empty, so it sits under the right edge of
    the bubble rather than under a left edge nothing else shares. */
 .messageRowMine .messageMeta {
   justify-content: flex-end;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messageLine {
+    /* Cap the action allowance so enlarged text keeps a readable bubble. */
+    --message-actions-space: clamp(96px, 6rem, 112px);
+    max-width: min(75%, calc(100% - var(--message-actions-space)));
+  }
+
+  .messageBubbleGroup {
+    position: relative;
+    width: fit-content;
+  }
+
+  .messageMeta {
+    position: absolute;
+    inset-block-end: 0;
+    inset-inline-start: 100%;
+    width: var(--message-actions-space);
+    flex-wrap: wrap;
+    row-gap: 0;
+    min-height: 44px;
+    max-height: none;
+    margin-top: 0;
+    padding: 0 0 0 var(--space-2);
+    overflow: visible;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .messageRowMine .messageMeta {
+    inset-inline-start: auto;
+    inset-inline-end: 100%;
+    padding: 0 var(--space-2) 0 0;
+  }
+
+  .messageRow[data-revealed] .messageMeta,
+  .messageLine:focus-within .messageMeta,
+  .messageLine:hover .messageMeta {
+    max-height: none;
+    margin-top: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .messageClock {
@@ -1171,23 +1226,12 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: var(--messages-accent, var(--brass));
   color: var(--color-on-accent);
   cursor: pointer;
-  transition:
-    background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .composerSend:hover:not(:disabled) {
     background: color-mix(in srgb, var(--ink) 6%, var(--ink-deep));
   }
-}
-
-/* Press feedback owned here, so the shared press layer in app/globals.css
-   stands down through its documented seam (--shared-press-scale). */
-.composerSend:active:not(:disabled) {
-  transform: scale(0.94);
-  --shared-press-scale: 1;
 }
 
 .composerSend:disabled {

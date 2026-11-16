@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown } from "lucide-react";
 import { useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -72,7 +73,10 @@ export default function ReportPerson({
 
   return (
     <details className="reportPerson">
-      <summary>{only ? `Report ${displayHandle(only)}` : "Report someone"}</summary>
+      <summary className="pressable">
+        {only ? `Report ${displayHandle(only)}` : "Report someone"}
+        <ChevronDown size={16} aria-hidden="true" />
+      </summary>
       <div className="reportPerson__body">
         {target ? (
           <>

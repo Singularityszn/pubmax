@@ -219,17 +219,20 @@ describe("message photo dimensions", () => {
 
 });
 describe("rendered conversation and composer", () => {
-  it("keeps own and incoming bubbles and metadata in their row's width wrapper", async () => {
+  it("anchors metadata to each bubble inside the row's width wrapper", async () => {
     await thread();
     const rows = host.querySelectorAll(".messageRow");
     expect(rows).toHaveLength(2);
     for (const row of rows) {
       const line = row.querySelector(".messageLine");
       expect(line?.parentElement).toBe(row);
-      expect(line?.querySelector(".messageBubble")?.parentElement).toBe(line);
-      expect(line?.querySelector(".messageMeta")?.parentElement).toBe(line);
+      const group = line?.querySelector(".messageBubbleGroup");
+      expect(group?.parentElement).toBe(line);
+      expect(group?.querySelector(".messageBubble")?.parentElement).toBe(group);
+      expect(group?.querySelector(".messageMeta")?.parentElement).toBe(group);
       expect(line?.textContent).toContain("Yo!!");
     }
+    expect(host.querySelector(".messageReadState")?.parentElement?.className).toBe("messageLine");
   });
 
   it("renders keyboard help for prose and grows to the measured scroll height", async () => {
