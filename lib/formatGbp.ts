@@ -5,3 +5,8 @@
 export function formatGbp(value: number): string {
   return `£${value.toFixed(2)}`;
 }
+
+/** Whole pence as pounds and pence, e.g. 3100 → "£31.00". */
+export function formatPence(pence: number): string {
+  return formatGbp(pence / 100);
+}

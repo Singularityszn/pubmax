@@ -3,10 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   calculateCrawlCost,
   CRAWL_LIMITS,
-  formatPence,
   parsePriceToPence,
   parseWholeNumber,
 } from "@/lib/crawlCostCalculator";
+import { formatPence } from "@/lib/formatGbp";
 
 // Tactic 41 in docs/growth/BACKLINK_PLAYBOOK.md: a free tool earns links only
 // while its answers hold, so it is tested on normal and on unusual inputs.

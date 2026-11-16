@@ -10,6 +10,7 @@ vi.mock("server-only", () => ({}));
 
 import CrawlReceipt from "@/components/wild/CrawlReceipt";
 import PintLine from "@/components/wild/PintLine";
+import { formatPence } from "@/lib/formatGbp";
 import { buildNamedRoute } from "@/lib/namedRoutes";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import {
@@ -17,7 +18,6 @@ import {
   crawlPriceListing,
   crawlRound,
   formatKm,
-  formatPence,
   listedDaysText,
   missingStopsText,
   sourcesText,

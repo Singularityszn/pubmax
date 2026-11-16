@@ -61,11 +61,6 @@ export function toPence(gbp: number): number {
   return Math.round(gbp * 100);
 }
 
-/** 3100 → "£31.00". */
-export function formatPence(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`;
-}
-
 export function clampPeople(people: number): number {
   if (!Number.isFinite(people)) return RECEIPT_MIN_PEOPLE;
   return Math.min(RECEIPT_MAX_PEOPLE, Math.max(RECEIPT_MIN_PEOPLE, Math.round(people)));

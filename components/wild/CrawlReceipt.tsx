@@ -18,6 +18,7 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { BRAND_NAME } from "@/lib/brandNaming";
+import { formatPence } from "@/lib/formatGbp";
 import { priceBandClass } from "@/lib/priceBand";
 import { prefersReducedMotion } from "@/lib/wildMode";
 import {
@@ -27,7 +28,6 @@ import {
   crawlPriceListing,
   crawlRound,
   formatKm,
-  formatPence,
   listedDaysText,
   missingStopsText,
   sourcesText,

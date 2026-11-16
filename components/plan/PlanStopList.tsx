@@ -9,11 +9,11 @@ import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
 import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import { categoryLabel } from "@/lib/drinks";
+import { formatPence } from "@/lib/formatGbp";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
 import { matchingPlanPintPriceEvidence } from "@/lib/planPintPrice";
 import { priceBand, priceBandAreaForVenue, priceBandClass } from "@/lib/priceBand";
 import {
-  formatPenceFixed,
   priceKindLabel,
   walkLabel,
   walkMinutesBetween,
@@ -35,11 +35,11 @@ function stampFor(
   estimate: StopZoneEstimate,
 ): { text: string; bandClass: string } | null {
   const drink = stop.selectedDrinkPriceEvidence;
-  if (drink) return { text: formatPenceFixed(drink.pence), bandClass: "" };
+  if (drink) return { text: formatPence(drink.pence), bandClass: "" };
   const pence = stop.estimatedPintPricePence;
   if (typeof pence !== "number" || pence <= 0) return estimate?.stamp ?? null;
   const band = pintServingKnown ? priceBand(pence / 100, priceBandAreaForVenue(stop.venueId)) : null;
-  return { text: formatPenceFixed(pence), bandClass: priceBandClass(band) };
+  return { text: formatPence(pence), bandClass: priceBandClass(band) };
 }
 
 /**

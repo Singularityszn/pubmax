@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   formatPence,
-  formatPenceFixed,
   legKey,
   measuredLegMinutes,
   routeHeading,
@@ -69,7 +68,6 @@ describe("the Plan result summary line", () => {
   it("prints whole pounds without pence in the summary and pence on every stamp", () => {
     expect(formatPence(800)).toBe("£8");
     expect(formatPence(1740)).toBe("£17.40");
-    expect(formatPenceFixed(800)).toBe("£8.00");
   });
 });
 

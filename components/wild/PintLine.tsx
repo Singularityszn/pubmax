@@ -17,6 +17,7 @@
 import { useCallback, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { formatPence } from "@/lib/formatGbp";
 import { priceBandClass } from "@/lib/priceBand";
 import { prefersReducedMotion } from "@/lib/wildMode";
 import {
@@ -30,7 +31,6 @@ import {
 import {
   crawlPriceListing,
   crawlRound,
-  formatPence,
   listedDaysText,
   missingStopsText,
   sourcesText,

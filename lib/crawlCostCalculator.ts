@@ -10,6 +10,8 @@
 // types; the page may offer a sourced figure as a starting point, and that
 // figure carries its own source and day beside it.
 
+import { formatPence } from "@/lib/formatGbp";
+
 export const CRAWL_LIMITS = {
   people: { min: 1, max: 40 },
   stops: { min: 1, max: 20 },
@@ -119,8 +121,4 @@ export function parsePriceToPence(raw: string): number {
 export function parseWholeNumber(raw: string): number {
   const trimmed = raw.trim();
   return /^\d{1,3}$/.test(trimmed) ? Number(trimmed) : Number.NaN;
-}
-
-export function formatPence(pence: number): string {
-  return `£${(pence / 100).toFixed(2)}`;
 }
