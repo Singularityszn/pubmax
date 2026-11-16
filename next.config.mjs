@@ -15,8 +15,18 @@ import { cdnDocumentContentSecurityPolicy } from "./lib/contentSecurityPolicy.mj
 import { MAPLIBRE_VERSION } from "./lib/maplibreVendor.mjs";
 import { staticAssetHeaderSources } from "./lib/staticAssetPrefixes.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
+import { VENUE_ALIAS_FILES, flattenVenueAliasChains } from "./lib/venueAliasesFile.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const ledgerAliasRedirects = [...flattenVenueAliasChains(
+  VENUE_ALIAS_FILES.flatMap((file) => Object.entries(
+    JSON.parse(readFileSync(path.join(projectRoot, file), "utf8")).aliases,
+  )),
+)].map(([from, to]) => ({
+  source: `/ledger/${encodeURIComponent(from)}`,
+  destination: `/ledger/${encodeURIComponent(to)}`,
+  permanent: true,
+}));
 const palMascotAssetPattern =
   "(?:" + Object.values(PAL_MASCOT_SLUGS).join("|") + ")-" +
   "(?:" + PAL_MASCOT_TALK + "-)?" +
@@ -322,6 +332,9 @@ const nextConfig = {
     // Social owns posts and public pub discovery. Retired route families go
     // straight to their canonical Social surface with no redirect chain.
     return [
+      // Cold ISR redirects can emit Location twice. Resolve bundled aliases
+      // before rendering so service-worker navigation receives one destination.
+      ...ledgerAliasRedirects,
       { source: "/index", destination: "/", permanent: true },
       { source: "/map/uk", destination: "/map?uk=1", permanent: true },
       { source: "/map/uk/1", destination: "/map?uk=1", permanent: true },
