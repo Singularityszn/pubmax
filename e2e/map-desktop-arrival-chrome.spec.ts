@@ -126,8 +126,7 @@ test.describe("the desktop map's arrival chrome", () => {
   });
 });
 
-// At 1440 an open venue drawer cut the right half of the ask and its "Use my
-// location" button. The ask now centres on the lane the drawer leaves.
+// The whole arrival ask stays within the map lane beside the pub column.
 test.describe("the desktop arrival ask beside an open venue drawer", () => {
   test.beforeEach(async ({ page }) => {
     await page.addInitScript(() => {
@@ -135,7 +134,7 @@ test.describe("the desktop arrival ask beside an open venue drawer", () => {
     });
   });
 
-  test("stays whole on the map lane left of the drawer", async ({ page }) => {
+  test("stays whole in the map lane beside the pub column", async ({ page }) => {
     await page.goto("/map");
     const card = page.locator(".mapArrivalCard");
     await expect(card).toBeVisible({ timeout: ARRIVAL_TIMEOUT_MS });
@@ -149,7 +148,10 @@ test.describe("the desktop arrival ask beside an open venue drawer", () => {
         async () => {
           const drawerBox = (await desktopVenueDrawer(page).boundingBox())!;
           const cardBox = (await card.boundingBox())!;
-          return cardBox.x >= 0 && cardBox.x + cardBox.width <= drawerBox.x + 1;
+          const mapBox = (await page.locator(".mapStage").boundingBox())!;
+          return cardBox.x >= mapBox.x - 1 &&
+            cardBox.x >= drawerBox.x + drawerBox.width - 1 &&
+            cardBox.x + cardBox.width <= mapBox.x + mapBox.width + 1;
         },
         { timeout: 10_000 },
       )
