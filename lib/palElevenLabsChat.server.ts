@@ -10,6 +10,7 @@ import {
   palMemoryPreamble,
   type PalRecalledMemory,
 } from "@/lib/palConfirmedMemories.server";
+import { PAL_RECORDS_UNREAD, palNoRecordLookup, palNoRecordReply, palProposalReply } from "@/lib/palRecordReply";
 import { palSessionSummaryTurn, windowPalSessionTurns } from "@/lib/palSessionSummary";
 import { asksForSomewhereNew, palTastePreamble, type PalTaste } from "@/lib/palTaste";
 import { palOnlyNewScope, readPalTaste } from "@/lib/palTaste.server";
@@ -23,6 +24,7 @@ import {
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
 import {
+  appendPubPalToolTurn,
   readOwnedPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
@@ -147,17 +149,10 @@ export type PalElevenLabsChatInput = {
   /** Browser-sent user turns. They may only add a get-home fence, never reach the model or the store. */
   fenceTurns?: PubPalFenceTurn[];
   ownerId: string;
-  /**
-   * Called as the agent writes its reply: `delta` carries more text, `reset` says
-   * what was sent so far was a checking line before a tool and should be cleared.
-   * The outcome still carries the whole answer, so a caller may ignore this.
-   */
-  onProgress?: (event: PalElevenLabsChatProgress) => void;
+  onTool?: (tool: string) => void;
   /** Ends the turn and closes the agent socket, for a caller that has gone away. */
   signal?: AbortSignal;
 };
-
-type PalElevenLabsChatProgress = { type: "delta"; text: string } | { type: "reset" };
 
 export type PalElevenLabsChatOutcome =
   | {
@@ -316,11 +311,7 @@ export async function preparePalChatProviderTurn(
   let result: Awaited<ReturnType<typeof runAsk>>;
   try {
     // "Somewhere new" on the record path leaves out the owner's own visits, as the tool does.
-    result = await beforePalChatDeadline(deadline, async () => {
-      const scope = asksForSomewhereNew(recordQuery) ? await palOnlyNewScope(input.ownerId) : null;
-      const answer = await runAsk({ query: recordQuery, cityId, skipModel: true, excludeVenueIds: scope?.exclude });
-      return scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer;
-    });
+    result = await beforePalChatDeadline(deadline, () => palRecordAsk(recordQuery, cityId, input.ownerId));
   } catch (error) {
     const code = error instanceof PalChatDeadlineExceeded ? "TIMEOUT" : "UNAVAILABLE";
     recordFailure(code, "tool_result");
@@ -366,32 +357,53 @@ export async function preparePalChatProviderTurn(
   };
 }
 
-/**
- * The finished answer: the model's own reply when it wrote one, else the
- * stored tool hints or cards, else a plain nothing-sourced line.
- */
-export function palChatAnswer(
-  modelMessage: string,
+async function palRecordAsk(query: string, cityId: ReturnType<typeof resolveAskCityId>, ownerId: string) {
+  const scope = asksForSomewhereNew(query) ? await palOnlyNewScope(ownerId) : null;
+  const answer = await runAsk({ query, cityId, skipModel: true, excludeVenueIds: scope?.exclude });
+  return scope?.hint ? { ...answer, answer: `${scope.hint} ${answer.answer}` } : answer;
+}
+
+export async function palChatLookupAnswer(
   turn: PubPalToolTurn | null,
   conversationId: string,
+  context: { ownerId: string; deadline: number; memories?: PalRecalledMemory[] | null; onTool?: (tool: string) => void },
+): Promise<Extract<PalElevenLabsChatOutcome, { ok: true }>> {
+  const empty = turn && !turn.cards.length && !turn.hints.length && !turn.proposals.length && !turn.toolsUsed.length;
+  const lookup = empty ? palNoRecordLookup(turn.query, turn.turns) : null;
+  if (!turn || !lookup) return palChatAnswer(turn, conversationId, context.memories);
+  context.onTool?.(lookup.tool);
+  try {
+    const result = await beforePalChatDeadline(context.deadline, () => palRecordAsk(lookup.query, turn.cityId, context.ownerId));
+    const recorded = { cards: result.cards, proposals: result.proposals, hints: [result.answer], toolsUsed: result.toolsUsed };
+    await beforePalChatDeadline(context.deadline, async () => appendPubPalToolTurn(conversationId, recorded)).catch(() => {});
+    return { ok: true, message: result.answer, cards: result.cards, proposals: result.proposals, conversationId, toolsUsed: result.toolsUsed };
+  } catch {
+    return palChatAnswer(turn, conversationId, context.memories);
+  }
+}
+
+/**
+ * The finished answer for every typed provider. Model prose never reaches the
+ * person: the message is the stored tool hints and cards, a memory card line,
+ * or a record-authored question about what the ask leaves out.
+ */
+function palChatAnswer(
+  turn: PubPalToolTurn | null,
+  conversationId: string,
+  memories?: PalRecalledMemory[] | null,
 ): Extract<PalElevenLabsChatOutcome, { ok: true }> {
   const cards = turn?.cards ?? [];
+  const toolsUsed = turn?.toolsUsed ?? [];
   const proposals = turn?.proposals ?? [];
-  const message =
-    modelMessage ||
-    (turn?.hints.length
-      ? composeAnswer(turn.hints, cards, [])
-      : cards.length > 0
-        ? composeAnswer([], cards, [])
-        : "Nothing sourced for that. Try a nearby area or a broader ask.");
-  return {
-    ok: true,
-    message,
-    cards,
-    proposals,
-    conversationId,
-    toolsUsed: turn?.toolsUsed ?? [],
-  };
+  const recorded = cards.length > 0 || (turn?.hints.length ?? 0) > 0;
+  const message = !turn
+    ? PAL_RECORDS_UNREAD
+    : recorded
+    ? composeAnswer(turn.hints, cards, toolsUsed)
+    : palProposalReply(proposals) ?? (toolsUsed.length > 0
+      ? composeAnswer([], [], toolsUsed)
+      : palNoRecordReply(turn.query, turn.turns, memories));
+  return { ok: true, message, cards, proposals, conversationId, toolsUsed };
 }
 
 export async function runPalElevenLabsChatTurn(
@@ -477,16 +489,8 @@ export async function runPalElevenLabsChatTurn(
     // earlier replies. An end_call request or successful response preserves
     // an eligible farewell.
     const replyIsAnswer = () => replyToolEvents === toolEvents && pendingToolCalls.size === 0;
-    const answer = (agentMessage: string, turn: PubPalToolTurn | null): PalElevenLabsChatOutcome =>
-      palChatAnswer(agentMessage, turn, conversationId);
-    // Text sent to the caller since the last reset. An invalidating tool event
-    // or a newer reply tells the caller to clear it.
-    let streamedText = false;
-    const resetStream = () => {
-      if (!streamedText) return;
-      streamedText = false;
-      input.onProgress?.({ type: "reset" });
-    };
+    let confirmedMemories: PalRecalledMemory[] | null | undefined;
+    const answer = (turn: PubPalToolTurn | null): PalElevenLabsChatOutcome => palChatAnswer(turn, conversationId, confirmedMemories);
     let settleTimer: ReturnType<typeof setTimeout> | null = null;
     const clearSettle = () => {
       if (settleTimer) clearTimeout(settleTimer);
@@ -507,7 +511,7 @@ export async function runPalElevenLabsChatTurn(
         finish({ ok: false, code: "TIMEOUT" }, "deadline");
         return;
       }
-      finish(answer(latestReply, null));
+      finish(answer(null));
     }, Math.max(0, deadline - Date.now()));
 
     const finish = (outcome: PalElevenLabsChatOutcome, failureStage: PalChatFailureStage = "turn") => {
@@ -526,14 +530,17 @@ export async function runPalElevenLabsChatTurn(
     };
 
     const finishWithLatestReply = () => {
-      const agentMessage = latestReply;
       const generation = replyGeneration;
       const events = toolEvents;
       void (async () => {
         try {
           const turn = conversationId ? await waitForPubPalToolTurn(conversationId, events > 0, deadline) : null;
           if (generation !== replyGeneration || events !== toolEvents) return;
-          finish(answer(agentMessage, turn));
+          const outcome = await palChatLookupAnswer(turn, conversationId, {
+            ownerId: input.ownerId, deadline, memories: confirmedMemories, onTool: input.onTool,
+          });
+          if (generation !== replyGeneration || events !== toolEvents) return;
+          finish(outcome);
         } catch (error) {
           // The main deadline timer preserves an eligible reply and closes the socket.
           if (error instanceof PalChatDeadlineExceeded) return;
@@ -594,6 +601,7 @@ export async function runPalElevenLabsChatTurn(
             tasteRead,
           ]);
           if (settled || Date.now() >= deadline) return;
+          confirmedMemories = memories;
           userMessageSent = true;
           ws.send(
             JSON.stringify({ type: "user_message", text: palUserMessageText(query, prior, memories, taste) }),
@@ -608,15 +616,8 @@ export async function runPalElevenLabsChatTurn(
     const receiveResponsePart = (payload: AgentResponseEvent): void => {
       if (!userMessageSent) return;
       const part = payload.text_response_part;
-      if (part?.type === "start") {
-        resetStream();
-      } else if (part?.type === "delta" && part.text) {
-        progress.streamDelta();
-        streamedText = true;
-        input.onProgress?.({ type: "delta", text: part.text });
-      } else {
-        progress.streamPart(payload);
-      }
+      if (part?.type === "delta" && part.text) progress.streamDelta();
+      else if (part?.type !== "start") progress.streamPart(payload);
     };
 
     const receiveReply = (payload: AgentResponseEvent): void => {
@@ -682,10 +683,10 @@ export async function runPalElevenLabsChatTurn(
       if (payload.type === "agent_tool_request") {
         if (!userMessageSent) return;
         clearSettle();
-        resetStream();
         toolEvents += 1;
         progress.toolRequest(payload);
         pendingToolCalls.add(payload.agent_tool_request?.tool_call_id ?? "");
+        if (payload.agent_tool_request?.tool_name) input.onTool?.(payload.agent_tool_request.tool_name);
         return;
       }
 
@@ -693,7 +694,6 @@ export async function runPalElevenLabsChatTurn(
         if (!userMessageSent) return;
         if (!completeToolCall(payload.agent_tool_response?.tool_call_id)) return;
         clearSettle();
-        resetStream();
         toolEvents += 1;
         progress.toolResponse(payload);
         return;

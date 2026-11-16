@@ -31,6 +31,7 @@ import {
   palMemoryPreamble,
 } from "@/lib/palConfirmedMemories.server";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { palChatLookupAnswer } from "@/lib/palElevenLabsChat.server";
 import {
   __resetPubPalStore,
   confirmPalMemoryResult,
@@ -41,6 +42,7 @@ import {
   __resetPubPalToolTurnStore,
   appendOwnedPubPalUserTurn,
   bindPubPalToolTurn,
+  readPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
 
 const OWNER = "11111111-1111-4111-8111-111111111111";
@@ -108,7 +110,28 @@ describe("confirmed Pub Pal memories in the agent loop", () => {
     const typed = palMemoryPreamble(await readConfirmedPalMemories(OWNER, "What did I spend last time?")).join(" ");
     expect(typed).toContain(outcome);
     expect(typed).toMatch(/reported spend/i);
+    const answer = await palChatLookupAnswer(await readPubPalToolTurn("conv_spendfirst01"), "conv_spendfirst01", {
+      ownerId: OWNER,
+      deadline: Date.now() + 10_000,
+      memories: await readConfirmedPalMemories(OWNER, "What did I spend last time?"),
+    });
+    expect(answer.message).toContain(outcome);
+    const unavailable = await palChatLookupAnswer(await readPubPalToolTurn("conv_spendfirst01"), "conv_spendfirst01", {
+      ownerId: OWNER,
+      deadline: Date.now() + 10_000,
+      memories: null,
+    });
+    expect(unavailable.message).toMatch(/could not be read/i);
+    expect(unavailable.message).not.toContain("£26.80");
     await bindPubPalToolTurn("conv_spendother01", STRANGER, "london");
+    await appendOwnedPubPalUserTurn("conv_spendother01", STRANGER, { role: "user", content: "What did I spend last time?" }, "london");
+    const empty = await palChatLookupAnswer(await readPubPalToolTurn("conv_spendother01"), "conv_spendother01", {
+      ownerId: STRANGER,
+      deadline: Date.now() + 10_000,
+      memories: await readConfirmedPalMemories(STRANGER, "What did I spend last time?"),
+    });
+    expect(empty.message).toMatch(/don't have a confirmed past-night report/i);
+    expect(empty.message).not.toContain("£26.80");
     expect(JSON.stringify(await (await recall("conv_spendother01")).json())).not.toContain("26.80");
   });
 

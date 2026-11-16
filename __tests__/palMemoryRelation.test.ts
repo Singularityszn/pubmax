@@ -92,6 +92,7 @@ import {
 } from "@/lib/pubPalStore";
 import {
   __resetPubPalToolTurnStore,
+  appendOwnedPubPalUserTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
@@ -260,6 +261,7 @@ describe("propose, then the person confirms: no case leaves two memories about o
   };
 
   async function propose(fact: { kind: string; value: string }): Promise<{ hint: string; cards: AskProposal[] }> {
+    expect(await appendOwnedPubPalUserTurn(CONVERSATION, OWNER, { role: "user", content: `Remember ${fact.value} for me` }, "london")).toBe(true);
     const response = await TOOL(
       new Request("http://localhost/api/pub-pal/tools/propose_memory", {
         method: "POST",
@@ -301,6 +303,18 @@ describe("propose, then the person confirms: no case leaves two memories about o
     if (card?.kind !== "remember_memory" || !card.supersedesMemoryId) throw new Error("expected a replacement card");
     return card;
   }
+
+  it("updates a confirmed venue from a complete first-person correction", async () => {
+    const seeded = await confirmPalMemoryResult(OWNER, { kind: "venue_preference", value: "Local is The Crown" });
+    if (!seeded.ok) throw new Error("seed failed");
+    judge.expect = { value: "Local is The Crown", relation: "update" };
+    const card = await proposeCard({ kind: "correction", value: "My local is The Lamb, not The Crown" });
+    expect(card.memoryKind).toBe("venue_preference");
+    expect(await confirmCard(card)).toEqual({ ok: true });
+    expect((await confirmed()).map(({ kind, value }) => ({ kind, value }))).toEqual([
+      { kind: "venue_preference", value: "My local is The Lamb, not The Crown" },
+    ]);
+  });
 
   it.each(cases)("$id", async (testCase) => {
     const realIds = new Map<string, string>();

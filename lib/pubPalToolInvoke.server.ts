@@ -14,12 +14,15 @@ import {
   resolvePubPalFenceIntent,
   type PubPalFenceTurn,
 } from "@/lib/pubPalLlmFence";
-import { isIndependentAskTool, refineVenueBudgetFollowUp, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
+import { extractArea, isIndependentAskTool, refineVenueBudgetFollowUp, resolveAskJourney, routeAskDeterministically, unsupportedPriceComparison } from "@/lib/ask/router";
 import {
   appendPubPalToolTurn,
+  pubPalTurnSaid,
   readPubPalToolTurn,
   readPubPalToolTurnBinding,
+  type PubPalToolTurn,
 } from "@/lib/pubPalToolTurnStore";
+import { palCrawlClarification } from "@/lib/palRecordReply";
 import { palOnlyNewScope, type PalOnlyNewScope } from "@/lib/palTaste.server";
 
 /**
@@ -75,6 +78,45 @@ export function enrichPubPalToolArgs(
     if (isEmptyArg(merged[key])) merged[key] = value;
   }
   return merged;
+}
+
+const SHOWN_PLACE_ARGS = ["area", "borough", "place", "to", "from", "venueName", "name"] as const;
+
+function clarificationForTool(toolName: string, query: string, turns: readonly PubPalFenceTurn[], args: AskToolArgs) {
+  if (toolName === "propose_plan") {
+    const answerHint = palCrawlClarification(query, turns);
+    return answerHint ? { ok: true, answerHint } : null;
+  }
+  if (toolName === "journey" && !resolveAskJourney(query)?.from && !args.from) {
+    return { ok: false, answerHint: "Where are you travelling from?" };
+  }
+  return null;
+}
+
+function placeArgsThePersonSaid(args: AskToolArgs, turn: PubPalToolTurn | null, query: string): AskToolArgs {
+  const kept: AskToolArgs = { ...args };
+  const said = (value: string) => pubPalTurnSaid(turn ?? { query, turns: [] }, value);
+  const selected = /\b(?:this|that|the selected|the first|the second)\s+(?:pub|venue|one)\b/i.test(query);
+  const selectedIndex = /\bfirst\b/i.test(query) ? 0 : /\bsecond\b/i.test(query) ? 1 : null;
+  const selectedCard = selectedIndex !== null ? turn?.cards[selectedIndex] : turn?.cards.length === 1 ? turn.cards[0] : undefined;
+  const referenced = selected && selectedCard?.venueId === args.venueId;
+  if (typeof kept.venueId === "string" && !said(kept.venueId) && !referenced) delete kept.venueId;
+  if (kept.lat != null || kept.lng != null) {
+    const lines = [query, ...(turn?.turns.filter((line) => line.role === "user").map((line) => line.content) ?? [])];
+    const pair = `${kept.lat},${kept.lng}`;
+    if (kept.lat == null || kept.lng == null || !lines.some((line) => line.replace(/\s+/g, "").includes(pair))) {
+      delete kept.lat;
+      delete kept.lng;
+    }
+  }
+  for (const key of SHOWN_PLACE_ARGS) {
+    const value = kept[key];
+    if (typeof value !== "string" || isEmptyArg(value) || said(value) || (referenced && turn?.cards.some((card) => card.venueId === args.venueId && card.title === value))) continue;
+    delete kept[key];
+    const area = key === "area" || key === "borough" ? extractArea(query) : null;
+    if (area) kept[key] = area;
+  }
+  return kept;
 }
 
 type PubPalToolWebhookBody = {
@@ -133,9 +175,9 @@ export async function invokePubPalAskTool(input: {
     : null;
   const query = resolvePubPalToolQuery({ turnQuery: turn?.query, args: input.args, turns: turn?.turns });
   const cityId = resolveAskCityId(
-    typeof input.args.cityId === "string" ? input.args.cityId : turn?.cityId,
+    turn ? turn.cityId : input.args.cityId,
   );
-  const args = enrichPubPalToolArgs(input.toolName, input.args, query);
+  const args = placeArgsThePersonSaid(enrichPubPalToolArgs(input.toolName, placeArgsThePersonSaid(input.args, turn, query), query), turn, query);
 
   const threadTurns = turn?.turns ?? [];
   const unsupported = unsupportedPriceComparison(query);
@@ -148,7 +190,8 @@ export async function invokePubPalAskTool(input: {
   const startTool = async () => (!isIndependentAskTool(input.toolName)
     ? answerLateFoodQuestion({ cityId, query, skipModel: true }, threadTurns) : null)
     ?? runAskTool(input.toolName, args, { cityId, query, skipModel: true, excludeVenueIds: (await scope)?.exclude });
-  const toolRun = priceRefusal ? null : startTool();
+  const clarification = clarificationForTool(input.toolName, query, threadTurns, args);
+  const toolRun = priceRefusal || clarification ? null : startTool();
   // Awaited below on the unfenced path; this only keeps a fenced turn's
   // discarded run from surfacing as an unhandled rejection.
   toolRun?.catch(() => {});
@@ -192,6 +235,13 @@ export async function invokePubPalAskTool(input: {
         proposals: [],
       },
     };
+  }
+
+  if (clarification) {
+    if (input.conversationId) await appendPubPalToolTurn(input.conversationId, {
+      hints: [clarification.answerHint], ...(clarification.ok ? {} : { toolsUsed: [input.toolName] }),
+    });
+    return { result: { ...clarification, tool: input.toolName, cards: [], proposals: [] } };
   }
 
   const toolResult = await (toolRun ?? startTool());

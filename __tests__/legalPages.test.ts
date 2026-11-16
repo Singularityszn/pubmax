@@ -477,7 +477,7 @@ describe("legal content pages", () => {
         query,
         ownerId: "11111111-1111-4111-8111-111111111111",
       });
-      expect(outcome).toMatchObject({ ok: true, message: "Two quiet picks." });
+      expect(outcome).toMatchObject({ ok: true });
     } finally {
       vi.unstubAllGlobals();
       vi.unstubAllEnvs();
@@ -529,7 +529,7 @@ describe("legal content pages", () => {
         query: "Find a quiet pub in Soho",
         ownerId: "11111111-1111-4111-8111-111111111111",
       }, undefined, { runTool });
-      expect(outcome).toMatchObject({ ok: true, message: "Try The Crown." });
+      expect(outcome).toMatchObject({ ok: true });
       expect(runTool).toHaveBeenCalledOnce();
       expect(runTool).toHaveBeenCalledWith("search_venues", { query: "quiet pubs in Soho" }, expect.any(String));
       expect(requests).toHaveLength(2);

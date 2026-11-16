@@ -2,13 +2,16 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { drinkCategoriesInText } from "@/lib/drinkCategoryFromText";
 import type { AskProposal } from "@/lib/ask/types";
-import { isPubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
+import { isPubPalMemoryKind, type PubPalMemoryKind } from "@/lib/palMemoryKinds.mjs";
 import { classifyPalMemoryRelation } from "@/lib/palMemoryRelation.server";
 import type { PubPalMemory } from "@/lib/pubPal";
 import { getPubPalResult, listPalMemoriesResult } from "@/lib/pubPalStore";
 import {
   appendPubPalToolTurn,
+  pubPalTurnSaid,
+  readPubPalToolTurn,
   readPubPalToolTurnBinding,
   type PubPalToolTurnBinding,
 } from "@/lib/pubPalToolTurnStore";
@@ -18,6 +21,40 @@ import { cleanText } from "@/lib/textClean";
 export const PAL_PROPOSE_MEMORY_TOOL = "propose_memory";
 
 const PAL_PROPOSAL_VALUE_LIMIT = 200;
+
+const TOPIC: Record<Exclude<PubPalMemoryKind, "drink_preference" | "correction">, RegExp> = {
+  venue_preference: /\b(?:pubs?|bars?|venues?|places?|rooms?|garden|snug|spoons|local|quiet|food|eat\w*|meat|vegetarian|vegan)\b/i,
+  atmosphere_preference: /\b(?:quiet|loud|lively|music|sports?|football|quiz|crowd|vibe|rooms?)\b/i,
+  accessibility_preference: /\b(?:step[- ]free|wheelchair|access\w*|stairs|guide dog|toilets?|lift)\b/i,
+  transport_preference: /\b(?:home|train|tube|bus|taxi|cab|bike|cycl\w*|walk\w*|driv\w*|travel)\b/i,
+  food_preference: /\b(?:food|eat\w*|dinner|lunch|meal|menu|vegetarian|vegan|meat|gluten|coeliac|dairy|allerg\w*|nuts?|pie|chips|pizza|curry)\b/i,
+  night_outcome: /\b(?:night|visit|visited|birthday|anniversary|spent|went|was)\b/i,
+};
+
+function supportsMemory(kind: PubPalMemoryKind, value: string, lines: string[]): boolean {
+  if (kind === "drink_preference" ? drinkCategoriesInText(value).size === 0 && !/\b(?:pints?|drinks?|budget)\b/i.test(value) : kind !== "correction" && !TOPIC[kind].test(value)) return false;
+  if (kind === "correction" && !/\b(?:not|never|no longer|don['’]t|instead|rather|actually|correction|wrong)\b/i.test(value)) return false;
+  const normalise = (text: string) => text.trim().replace(/\s+/g, " ").replace(/[.!]+$/, "").toLocaleLowerCase("en-GB");
+  const wanted = normalise(value);
+  return lines.some((line) => {
+    const source = normalise(line);
+    const requested = source.match(/^remember\s+(.+?)\s+for me$/);
+    if (!source.includes("?") && requested?.[1] === wanted) return true;
+    const index = source.indexOf(wanted);
+    if (index < 0 || /[.!?;]/.test(source.slice(0, index)) || /[^\s.!?;]/.test(source.slice(index + wanted.length))) return false;
+    return [line, ...line.split(/(?<=[.!?;])/)].some((sentence) => {
+      if (sentence.includes("?")) return false;
+      const text = normalise(sentence);
+      if (/^forget\b/.test(text) && text === wanted) return true;
+      const match = text.match(/(?:^|,\s*)(i\s+(?:like|love|prefer|enjoy|drink|want|need|do not like|don['’]t like|don['’]t drink|only drink|have|use|take|went|visited|spent|was|am|had|no longer need|can['’]t stand)\s+.+|i['’]ve\s+gone off\s+.+|my\s+local\s+is\s+.+|remember\s+.+\s+for me)$/);
+      const statement = match?.[1];
+      if (!statement || /\b(?:my friend|my mate|my partner|he|she|they)\b/.test(text)) return false;
+      if (wanted === statement) return true;
+      const simple = statement.match(/^(?:i\s+(?:like|love|prefer|enjoy|drink)\s+|remember\s+)(.+?)(?:\s+for me)?$/);
+      return kind !== "correction" && kind !== "night_outcome" && simple?.[1] === wanted;
+    });
+  });
+}
 
 export type PalProposeMemoryToolResult = {
   result: {
@@ -81,6 +118,16 @@ export async function proposePalMemoryForConversation(
   if (!isPubPalMemoryKind(memoryKind) || !value) {
     return refuse("Give one memory kind and a short value in the person's words. Nothing was saved.");
   }
+  if (memoryKind === "drink_preference" && drinkCategoriesInText(value).size === 0) {
+    return refuse("Give a drink preference in the person's words. Nothing was saved.");
+  }
+  const turn = await readPubPalToolTurn(conversationId).catch(() => null);
+  if (!pubPalTurnSaid(turn, value)) {
+    return refuse("Use only words the person said in this chat for the memory. Nothing was saved.");
+  }
+
+  const lines = [turn?.query ?? "", ...(turn?.turns.filter((line) => line.role === "user").map((line) => line.content) ?? [])];
+  if (!supportsMemory(memoryKind, value, lines)) return refuse("Include the person's full preference and its qualifiers. Nothing was saved.");
 
   let confirmed: PubPalMemory[] = [];
   try {

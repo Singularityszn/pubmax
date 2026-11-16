@@ -29,6 +29,7 @@ import {
 } from "@/lib/pubPalStore";
 import {
   __resetPubPalToolTurnStore,
+  appendOwnedPubPalUserTurn,
   bindPubPalToolTurn,
   readPubPalToolTurn,
   registerPubPalToolTurn,
@@ -44,7 +45,10 @@ async function pal(ownerId: string, memories: boolean) {
 }
 
 async function typedChat(ownerId: string) {
-  await registerPubPalToolTurn(CONVERSATION, { query: "a quiet pub tonight", cityId: "london", ownerId });
+  await registerPubPalToolTurn(CONVERSATION, {
+    query: "a quiet pub tonight, I drink cask ale, no lager", cityId: "london", ownerId,
+    turns: [{ role: "user", content: "I like quiet rooms" }],
+  });
 }
 
 function propose(body: Record<string, unknown>, authorization = "Bearer test-llm-secret") {
@@ -109,6 +113,79 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
     ]);
   });
 
+  it("refuses a positive fragment that reverses a negative preference", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I don't like cask ale", cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "cask ale" })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(await storedProposals()).toEqual([]);
+  });
+
+  it("keeps a condition stated after the preference in the same user turn", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I like stout. Only on Fridays", cityId: "london", ownerId: OWNER });
+    const shortened = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "stout" })).json();
+    expect(shortened.result).toMatchObject({ ok: false, proposals: [] });
+    const complete = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "I like stout. Only on Fridays" })).json();
+    expect(complete.result).toMatchObject({ ok: true, proposals: [{ value: "I like stout. Only on Fridays" }] });
+  });
+
+  it("rejects an unsupported memory kind for the person's words", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I like quiet rooms", cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "quiet rooms" })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+  });
+
+  it.each([
+    ["another person's preference", "My friend likes stout", "drink_preference", "stout"],
+    ["a question", "Which pubs serve cask ale?", "drink_preference", "cask ale"],
+    ["a food mismatch", "I like quiet rooms", "food_preference", "quiet rooms"],
+    ["an accessibility mismatch", "I like quiet rooms", "accessibility_preference", "quiet rooms"],
+    ["a missing condition", "I only drink stout on Fridays", "drink_preference", "stout"],
+  ])("refuses %s", async (_label, query, kind, value) => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query, cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind, value })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(await storedProposals()).toEqual([]);
+  });
+
+  it("keeps a complete negative first-person preference", async () => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: "I do not like cask ale", cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "I do not like cask ale" })).json();
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value: "I do not like cask ale" }] });
+    expect(await listPalMemoriesResult(OWNER)).toEqual({ ok: true, value: [] });
+  });
+
+  it.each([
+    ["venue_preference", "I like quiet rooms"],
+    ["atmosphere_preference", "I like quiet music"],
+    ["accessibility_preference", "I need step-free access"],
+    ["transport_preference", "I take the bus home"],
+    ["drink_preference", "I like stout"],
+    ["food_preference", "I like vegan food"],
+    ["night_outcome", "I had a good night at The Lamb"],
+    ["correction", "My local is The Lamb, not The Crown"],
+  ])("accepts an explicit statement for %s", async (kind, value) => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query: value, cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind, value })).json();
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value }] });
+  });
+
+  it.each([
+    ["I like stout on Fridays", "stout"],
+    ["I like stout and my friend likes lager", "stout"],
+    ["I like stout, but not on Fridays", "stout"],
+  ])("keeps the full meaning of %s", async (query, value) => {
+    await pal(OWNER, true);
+    await registerPubPalToolTurn(CONVERSATION, { query, cityId: "london", ownerId: OWNER });
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value })).json();
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+  });
+
   it("proposes nothing when the owner has memory proposals off", async () => {
     await pal(OWNER, false);
     await typedChat(OWNER);
@@ -141,6 +218,7 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
   it("offers a visible voice confirm card and recalls only after the owner confirms", async () => {
     await pal(OWNER, true);
     await bindPubPalToolTurn(CONVERSATION, OWNER, "london");
+    expect(await appendOwnedPubPalUserTurn(CONVERSATION, OWNER, { role: "user", content: "Remember cask ale for me" }, "london")).toBe(true);
 
     const body = await (
       await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value: "Cask ale" })
@@ -174,6 +252,29 @@ describe("propose_memory: the Pal proposes, only the person saves", () => {
       expect(body.result).toMatchObject({ ok: false, proposals: [] });
     }
     expect(await storedProposals()).toEqual([]);
+  });
+
+  it.each([
+    ["a venue fact", "The Crown has a beer garden"],
+    ["a paraphrase that adds a claim", "Loves the cask ale at The Crown"],
+    ["a word run that crosses no said line", "quiet rooms cask ale"],
+  ])("makes no card from %s the person never said", async (_label, value) => {
+    await pal(OWNER, true);
+    await typedChat(OWNER);
+
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "drink_preference", value })).json();
+
+    expect(body.result).toMatchObject({ ok: false, proposals: [] });
+    expect(await storedProposals()).toEqual([]);
+  });
+
+  it("makes a card from words the person said in an earlier line of the chat", async () => {
+    await pal(OWNER, true);
+    await typedChat(OWNER);
+
+    const body = await (await propose({ conversation_id: CONVERSATION, kind: "venue_preference", value: "Quiet rooms." })).json();
+
+    expect(body.result).toMatchObject({ ok: true, proposals: [{ kind: "remember_memory", value: "Quiet rooms." }] });
   });
 
   it("refuses the propose webhook without the shared secret", async () => {

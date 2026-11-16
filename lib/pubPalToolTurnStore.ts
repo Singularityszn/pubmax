@@ -38,6 +38,17 @@ export type PubPalToolTurn = {
   toolsUsed: string[];
 };
 
+function spokenWords(text: string): string {
+  return ` ${text.toLocaleLowerCase("en-GB").normalize("NFKC").replace(/['’]/g, "").replace(/[^\p{L}\p{N}£]+/gu, " ").trim()} `;
+}
+
+export function pubPalTurnSaid(turn: Pick<PubPalToolTurn, "query" | "turns"> | null, value: string): boolean {
+  const words = spokenWords(value);
+  if (!turn || !words.trim()) return false;
+  return [turn.query, ...turn.turns.filter((line) => line.role === "user").map((line) => line.content)]
+    .some((line) => spokenWords(line).includes(words));
+}
+
 /** Where the conversation is happening. Only a typed chat can show a confirm card. */
 type PubPalToolTurnSurface = "voice" | "text";
 

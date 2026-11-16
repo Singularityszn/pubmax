@@ -8,6 +8,7 @@ import { venueRequirementsInText } from "@/lib/concierge/requirements";
 
 export { askRequestClauses } from "@/lib/ask/requestPolicy";
 export {
+  extractArea,
   isIndependentAskTool,
   isVenueDiscoveryAsk,
   isVenueHoursQuestion,

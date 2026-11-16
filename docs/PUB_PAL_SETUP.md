@@ -295,11 +295,23 @@ Voice uses the same opening builder in its first-message override.
    cannot be talked over and the words were dropped before. The recogniser gets
    a short list of London pub words (`asr.keywords`). Until the captain re-runs
    `npm run pubpal:agent`, `--check` reports these fields as drift.
-   Typed chat can also stream. A caller that sends `Accept: application/x-ndjson`
-   to `/api/pub-pal/chat` gets the answer text as the agent writes it
-   (`agent_chat_response_part`, which text-only mode always sends), then one
-   `final` line carrying the same body the JSON path returns, cards and
-   proposals included. Sign-in, the rate limit and the spend ceiling answer
+   Typed chat answers from its records, never from model prose. On Claude and
+   ElevenLabs alike, the model chooses tools, and `palChatAnswer` in
+   `lib/palElevenLabsChat.server.ts` writes the message from the stored hints
+   and cards. A turn with only a memory card points to the card. A turn that
+   ran no tool gets a reply from `lib/palRecordReply.ts`: a crawl asks for the
+   area or start time it lacks, a memory question lists confirmed memories, and
+   a greeting or thanks gets its usual line. A detailed venue or crawl ask the
+   model left unchecked is looked up with the keyless `runAsk` records path, and
+   only that lookup can say nothing is sourced. Tool inputs use the stored city.
+   Shown places must match the person's words or an available record reference.
+   Provider prose never reaches the typed reply. Memory proposals check the
+   stated subject, topic, negation and conditions before offering a confirm card.
+   These checks are bounded and can refuse valid wording. They do not prove
+   every natural-language meaning or model tool choice. A caller that sends
+   `Accept: application/x-ndjson` to `/api/pub-pal/chat` gets a fixed progress
+   line as each tool starts, then one `final` line carrying the same body the
+   JSON path returns, cards and proposals included. Sign-in, the rate limit and the spend ceiling answer
    before the stream opens. Any other caller still gets one JSON body.
    One more webhook, `recall_memories`, is Pal-only.
    [ADR 0016](adr/0016-pub-pal-confirmed-memory-recall.md#decision) owns
