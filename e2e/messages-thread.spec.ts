@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 // The thread a person actually types into, measured on a production build.
@@ -63,15 +65,15 @@ function fixture(): Row[] {
 }
 
 /** Sign the page in as account A and answer the messages API in the browser. */
-async function installThread(page: Page, rows: Row[]): Promise<void> {
+async function installThread(page: Page, rows: Row[], account: "A" | "B" = "A"): Promise<void> {
   const stub = await installAuthDoubles(page);
-  await seedSignedIn(page, "A");
-  await stub.signedInAs("A");
-  await page.addInitScript(() => {
+  await seedSignedIn(page, account);
+  await stub.signedInAs(account);
+  await page.addInitScript((handle) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.localStorage.setItem("pubmax_handle", "karan");
-  });
+    window.localStorage.setItem("pubmax_handle", handle);
+  }, ACCOUNTS[account].handle);
   await page.route("**/api/messages?**", (route) =>
     route.fulfill({
       status: 200,
@@ -616,3 +618,146 @@ test.describe("the message thread on a desktop", () => {
     await expectMessageInView(page, "Bring cash, card machine is dodgy");
   });
 });
+
+for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
+  test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    const rows = fixture();
+    await installThread(page, rows);
+    await storeThemeChoice(page, "light");
+    const sharp = (await import("sharp")).default;
+    const original = await sharp({ create: { width: 1800, height: 900, channels: 3, background: "#d0a050" } }).withMetadata({ orientation: photoCount === 1 ? 6 : 1 }).jpeg().toBuffer();
+    const fixedPhoto = await sharp(original).rotate().jpeg().toBuffer();
+    const files = new Map<string, Buffer>();
+    let release!: () => void;
+    let rejectNext = true;
+    const requests: Array<{ key: string; body: string; photo: Buffer }> = [];
+    let holdMedia = true;
+    const releaseMedia: Array<() => void> = [];
+    await page.route("**/api/messages/c1**", async route => {
+      const url = new URL(route.request().url());
+      if (url.pathname.includes("/media/")) {
+        if (holdMedia) await new Promise<void>(resolve => { releaseMedia.push(resolve); });
+        await route.fulfill({ contentType: "image/jpeg", body: files.get(url.pathname)! });
+        return;
+      }
+      if (route.request().method() !== "POST") {
+        await route.fulfill({ json: { messages: rows } }); return;
+      }
+      // WebKit omits multipart File bytes from its interception protocol.
+      // It checks geometry and scale against fixed server-shaped responses.
+      let post = { body: requests.length < 2 ? "The full photo" : "", clientMessageId: "webkit-fixture" };
+      let bytes = fixedPhoto;
+      if (browserName === "chromium") {
+        const data = await new Request(url, { method: "POST", headers: { "content-type": route.request().headers()["content-type"]! }, body: new Uint8Array(route.request().postDataBuffer()!) }).formData();
+        post = JSON.parse(String(data.get("post")));
+        bytes = Buffer.from(await (data.get("photo") as File).arrayBuffer());
+      }
+      requests.push({ key: post.clientMessageId, body: post.body, photo: bytes });
+      await new Promise<void>(resolve => { release = resolve; });
+      if (rejectNext) { rejectNext = false; await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } }); return; }
+      const id = `m${rows.length + 1}`;
+      const path = `/api/messages/c1/media/${id}`;
+      files.set(path, bytes);
+      const metadata = await sharp(bytes).metadata();
+      const message = { id, conversationId: "c1", senderHandle: ME, body: post.body, createdAt: new Date().toISOString(), read: false, flagged: false,
+        attachment: { kind: "photo", url: path, width: metadata.width!, height: metadata.height! } };
+      rows.push(message);
+      await route.fulfill({ json: { message } });
+    });
+    const shot = async (step: string) => {
+      const path = testInfo.outputPath(`${width}-${step}.png`);
+      await page.screenshot({ path });
+      await testInfo.attach(step, { path, contentType: "image/png" });
+    };
+    const scaleIsOne = async () => expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+    const readable = async (selector: string, count: number) => {
+      await expect(page.locator(selector)).toHaveCount(count);
+      await expect(async () => expect(await page.locator(selector).evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)).toPass();
+    };
+    await page.goto("/messages/c1");
+    await expect(page.locator(".composerInput")).toBeVisible();
+    expect(parseFloat(await page.locator(".composerInput").evaluate(element => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+    await page.locator(".composerInput").focus(); await scaleIsOne();
+    await shot("before-attach"); await scaleIsOne();
+    await page.locator("#message-photo-file").setInputFiles(Array.from({ length: photoCount }, (_, index) => ({ name: `photo-${index}.jpg`, mimeType: "image/jpeg", buffer: original })));
+    await readable(".composerPendingThumb", photoCount);
+    await expect(page.getByRole("dialog", { name: "Crop photo" })).toHaveCount(0);
+    await shot("attached"); await scaleIsOne();
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("The full photo");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByRole("progressbar", { name: "Sending photo" })).toBeVisible();
+    await readable(".messagePhotoSending", photoCount);
+    await shot("sending"); await scaleIsOne();
+    await expect(async () => expect(requests).toHaveLength(1)).toPass(); release();
+    await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
+    await readable(".composerPendingThumb", photoCount);
+    await shot("failed-retry"); await scaleIsOne();
+    await page.getByRole("button", { name: "Retry send" }).click();
+    await expect(async () => expect(requests).toHaveLength(2)).toPass();
+    if (browserName === "chromium") expect(requests[1]!.key).toBe(requests[0]!.key);
+    release();
+    if (photoCount > 1) { await expect(async () => expect(requests).toHaveLength(3)).toPass(); release(); }
+    await expect(page.locator(".messagePhotoPending")).toHaveCount(photoCount);
+    const reserved = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
+      const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };
+    }));
+    await shot("loading-photos"); await scaleIsOne();
+    holdMedia = false; releaseMedia.forEach(resolve => resolve());
+    await readable(".messagePhotoButton .messagePhoto", photoCount);
+    const loaded = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
+      const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };
+    }));
+    expect(loaded).toEqual(reserved);
+    if (browserName === "chromium") {
+      expect(requests.map(request => request.body)).toEqual(photoCount > 1 ? ["The full photo", "The full photo", ""] : ["The full photo", "The full photo"]);
+      const uploaded = await sharp(requests[1]!.photo).metadata();
+      expect(uploaded.width! / uploaded.height!).toBe(photoCount === 1 ? 0.5 : 2);
+      expect(uploaded.orientation).toBeUndefined();
+    }
+    await expect(page.locator("[data-sending]")).toHaveCount(0);
+    await shot("sent-light"); await scaleIsOne();
+    await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible();
+    await shot("sent-dark");
+    await page.locator(".messagePhotoButton").first().click();
+    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+    expect(await page.locator(".messagePhotoViewer").boundingBox()).toEqual({ x: 0, y: 0, width, height: 900 });
+    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
+    await expect(page.locator(".messagePhotoViewerStage")).toHaveAttribute("data-scale", "1.5");
+    if (browserName === "chromium") {
+      const bounds = await page.locator(".messagePhotoViewerStage").boundingBox();
+      const x = bounds!.x + bounds!.width / 2;
+      const y = bounds!.y + bounds!.height / 2;
+      const cdp = await page.context().newCDPSession(page);
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ id: 1, x: x - 30, y }, { id: 2, x: x + 30, y }] });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ id: 1, x: x - 60, y }, { id: 2, x: x + 60, y }] });
+      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+      await expect(async () => expect(Number(await page.locator(".messagePhotoViewerStage").getAttribute("data-scale"))).toBeGreaterThan(1.5)).toPass();
+      await cdp.detach();
+    }
+    await shot("viewer-zoom"); await scaleIsOne();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toHaveCount(0);
+    await scaleIsOne();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const dock = await page.locator(".composerDock").boundingBox();
+    expect(dock!.y).toBeGreaterThanOrEqual(0);
+    expect(dock!.y + dock!.height).toBeLessThanOrEqual(900);
+    await shot("large-text-reduced-motion");
+
+    const recipientContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width, height: 900 }, serviceWorkers: "block" });
+    const recipient = await recipientContext.newPage();
+    await installThread(recipient, rows, "B");
+    await recipient.route("**/api/messages/c1/media/**", route => route.fulfill({ contentType: "image/jpeg", body: files.get(new URL(route.request().url()).pathname)! }));
+    await recipient.goto("/messages/c1");
+    await expect(recipient.locator(".messagePhotoButton")).toHaveCount(photoCount);
+    await expect(async () => expect(await recipient.locator(".messagePhoto").evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)).toPass();
+    const received = testInfo.outputPath(`${width}-recipient.png`);
+    await recipient.screenshot({ path: received }); await testInfo.attach("recipient", { path: received, contentType: "image/png" });
+    await recipientContext.close();
+  });
+}

@@ -21,7 +21,9 @@
 // own aspect, so the space reserved before the bytes land is the space the
 // photograph takes when they do.
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+
+import MessagePhotoViewer from "@/components/messages/MessagePhotoViewer";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
@@ -51,10 +53,11 @@ export default function MessagePhoto({
   const [failed, setFailed] = useState(false);
   const [open, setOpen] = useState(false);
   const [dialogError, setDialogError] = useState("");
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
     let active = true;
+    queueMicrotask(() => { if (active) { setFailed(false); setObjectUrl(null); } });
     let created: string | null = null;
     const controller = new AbortController();
     const address = handle ? `${url}?handle=${encodeURIComponent(handle)}` : url;
@@ -82,36 +85,10 @@ export default function MessagePhoto({
       controller.abort();
       if (created) URL.revokeObjectURL(created);
     };
-  }, [url, handle]);
-
-  // `showModal` rather than the `open` attribute: only a modal dialog gets the
-  // backdrop, the focus trap and Escape for free.
-  useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    try {
-      if (open && !dialog.open) dialog.showModal();
-      if (!open && dialog.open) dialog.close();
-    } catch {
-      queueMicrotask(() => {
-        setOpen(false);
-        setDialogError("Could not open photo. Try again.");
-      });
-    }
-  }, [open]);
+  }, [url, handle, attempt]);
 
   const close = useCallback(() => setOpen(false), []);
-
-  const onDialogClick = useCallback(
-    (event: React.MouseEvent<HTMLDialogElement>) => {
-      if (event.target === event.currentTarget) close();
-    },
-    [close],
-  );
-
-  if (failed) {
-    return <p className="messagePhotoFailed">{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
-  }
+  const viewerError = useCallback(() => { setOpen(false); setDialogError("Could not open photo. Try again."); }, []);
 
   // The tile's own aspect, handed to the stylesheet once. The figure's width,
   // the reserved box and the loaded photograph all read this one number, so
@@ -119,6 +96,14 @@ export default function MessagePhoto({
   const tile = {
     [MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height),
   } as React.CSSProperties;
+
+  if (failed) {
+    return <figure className="messagePhotoFigure" style={tile}>
+      <div className="messagePhotoPending messagePhotoFailed"><span>{MESSAGE_PHOTO_UNREADABLE_LINE}</span>
+        <button type="button" onClick={() => setAttempt(value => value + 1)}>Retry photo</button>
+      </div>
+    </figure>;
+  }
 
   if (!objectUrl) {
     // The box is reserved at the photo's own aspect, so the thread does not
@@ -150,21 +135,11 @@ export default function MessagePhoto({
           height={height}
           alt={alt}
           decoding="async"
+          onError={() => setFailed(true)}
         />
       </button>
       {dialogError ? <p role="status">{dialogError}</p> : null}
-      <dialog
-        ref={dialogRef}
-        className="messagePhotoViewer"
-        onClose={close}
-        onClick={onDialogClick}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- same object URL, full frame */}
-        <img className="messagePhotoViewerImage" src={objectUrl} alt={alt} />
-        <button type="button" className="messagePhotoViewerClose" onClick={close}>
-          Close
-        </button>
-      </dialog>
+      {open ? <MessagePhotoViewer url={objectUrl} alt={alt} width={width} height={height} onClose={close} onError={viewerError} /> : null}
     </figure>
   );
 }

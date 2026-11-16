@@ -5,6 +5,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
 import "./messages.css";
+import "@/components/messages/messagePhotos.css";
 
 // Server shell for /messages so the route carries real metadata (the client
 // component can't export it). Direct messages are private to the signed-in

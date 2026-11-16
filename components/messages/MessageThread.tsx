@@ -10,13 +10,11 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type ChangeEvent,
 } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
-import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import MessageAttachmentPicker, {
   type MessageAttachKind,
   type MessageAttachmentPickerHandle,
@@ -35,10 +33,8 @@ import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import MessageVenuePicker, {
-  type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -47,8 +43,6 @@ import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
   MESSAGE_ATTACH_VENUE_LABEL,
-  MESSAGE_PHOTO_CROP_TARGET,
-  MESSAGE_PHOTO_FAILED_LINE,
 } from "@/lib/messageAttachments";
 import {
   GROUP_EMPTY_THREAD_LINE,
@@ -72,12 +66,7 @@ import {
   MESSAGE_UNSENT_LINE,
 } from "@/lib/messageRemovals";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
-import {
-  messageSendPayload,
-  retainedMessageSendKey,
-  type MessageSendAttempt,
-} from "@/lib/messageSendAttempt";
-import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
+import type { MessagePollView } from "@/lib/messagePoll";
 import {
   linkifyMessageBody,
   MAX_MESSAGE_BODY,
@@ -105,10 +94,12 @@ import {
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
-import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+
+import { useMessageComposer } from "@/components/messages/useMessageComposer";
+import { messagePhotos, pendingMessageLabel } from "@/lib/messageComposer";
 
 import "@/app/messages/messages.css";
+import "@/components/messages/messagePhotos.css";
 
 // The message thread (PRD E4): bubbles (mine right / coral, theirs left /
 // panel), a composer with the 1000-char cap, and a light abuse "Report"
@@ -226,14 +217,6 @@ function sameThreadReadKey(
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
 }
 
-/** What is riding on the NEXT message. At most one, by design. */
-type PendingAttachment =
-  | { kind: "photo"; file: File; previewUrl: string }
-  | { kind: "venue"; venue: PickedVenue }
-  | { kind: "contact"; handle: string }
-  | { kind: "event"; planId: string }
-  | { kind: "poll"; poll: MessagePollWrite };
-
 /** Which picker is open. One at a time, because one attachment rides at a time. */
 type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
 
@@ -242,22 +225,6 @@ type PendingRemoval =
   | { kind: "unsend"; messageId: string }
   | { kind: "delete" }
   | { kind: "leave" };
-
-/** What the composer's pending row says about what is ready to send. */
-function pendingLabel(pending: PendingAttachment): string {
-  switch (pending.kind) {
-    case "photo":
-      return "Photo ready to send";
-    case "venue":
-      return pending.venue.name;
-    case "contact":
-      return `@${pending.handle}`;
-    case "event":
-      return "Plan ready to send";
-    case "poll":
-      return pending.poll.question;
-  }
-}
 
 /**
  * The inbox row for one conversation, for naming an EMPTY thread's head.
@@ -295,48 +262,6 @@ async function nameFromInboxRow(
   }
 }
 
-function fileKey(file: File): string {
-  return `${file.name}:${file.size}:${file.lastModified}`;
-}
-
-/** An own message the server has not answered for yet. */
-type OutboxMessage = MessageDTO & { pendingPhotoUrl?: string };
-
-let outboxSeq = 0;
-
-/**
- * The id ONE send attempt is known by, end to end. A uuid because the column
- * migration 0149 adds is a uuid; `crypto.randomUUID` is absent on an insecure
- * origin and in some older browsers, so the fallback keeps the shape rather
- * than sending something the write path would refuse.
- */
-function newClientMessageId(): string {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  if (uuid) return uuid;
-  const hex = (length: number): string =>
-    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-  return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
-}
-
-function outboxMessage(
-  conversationId: string,
-  handle: string,
-  body: string,
-  pending: PendingAttachment | null,
-): OutboxMessage {
-  outboxSeq += 1;
-  return {
-    id: `outbox-${outboxSeq}`,
-    conversationId,
-    senderHandle: handle,
-    body,
-    createdAt: new Date().toISOString(),
-    read: false,
-    flagged: false,
-    ...(pending?.kind === "photo" ? { pendingPhotoUrl: pending.previewUrl } : {}),
-  };
-}
-
 /** The thread route marks what was waiting as read in the same read it answers. */
 function announceIfWaitingRead(messages: readonly MessageDTO[], viewer: string): void {
   if (unreadForViewer(messages, viewer) > 0) announceMessagesRead();
@@ -353,15 +278,9 @@ export default function MessageThread({
   const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
-  const [outbox, setOutbox] = useState<OutboxMessage[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
   const { fromRefusal, adultGateDialog } = useMessageAdultGate();
-  const [pending, setPending] = useState<PendingAttachment | null>(null);
-  const [cropping, setCropping] = useState<File | null>(null);
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
   // The other person's own face and name. A group is not a person, so it asks
@@ -406,7 +325,6 @@ export default function MessageThread({
     readFloorRef.current = requestGenerationRef.current + 1;
     loadedForRef.current = null;
     setViewRevision(null);
-    setOutbox([]);
     setRevealedId(null);
     setConfirming(null);
     setRemoving(false);
@@ -422,10 +340,6 @@ export default function MessageThread({
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  /** Claimed before the first await in `send`; see the note there. */
-  const sendInFlightRef = useRef(false);
-  const unsentKeyRef = useRef<MessageSendAttempt | null>(null);
-  const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -450,18 +364,6 @@ export default function MessageThread({
       active = false;
     };
   }, [authHandle]);
-
-  // The crop step declares itself modal, so it has to BE one: the rest of the
-  // page goes inert, Tab cycles inside the card, Escape leaves, and focus lands
-  // in the card rather than staying on the file input behind it. Without this a
-  // keyboard reader tabbed straight out into the thread and composer beneath.
-  const cropOpen = cropping !== null;
-  useFocusTrap(cropOpen, cropCardRef);
-  useDismissOnEscape(cropOpen, () => setCropping(null));
-  useEffect(() => {
-    if (!cropOpen) return;
-    cropCardRef.current?.focus({ preventScroll: true });
-  }, [cropOpen]);
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
@@ -604,6 +506,15 @@ export default function MessageThread({
     [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
   );
 
+  const onStored = useCallback((stored: MessageDTO) => {
+    setMessages(rows => rows.some(row => row.id === stored.id) ? rows : [...rows, stored]);
+  }, []);
+  const onSignedOut = useCallback(() => setState("signedout"), []);
+  const {
+    draft, setDraft, pending, setPending, outbox, sending, preparing, error,
+    selectPhotos, clearPending, send, setError,
+  } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
+
   // ONE OWNER OF THE POLL. subscribeToMessages owns every timer: the fallback
   // cadence when the socket is not live, a slow safety poll when it is, and no
   // poll at all while the tab is hidden. A second interval here used to poll
@@ -683,162 +594,15 @@ export default function MessageThread({
     field.style.height = `${field.scrollHeight}px`;
   }, [draft]);
 
-  // A preview object URL belongs to the pending photo, so it is released when
-  // that photo is replaced, sent or taken off.
-  useEffect(() => {
-    if (pending?.kind !== "photo") return;
-    const url = pending.previewUrl;
-    return () => URL.revokeObjectURL(url);
-  }, [pending]);
-
   const over = draft.length > MAX_MESSAGE_BODY;
-  // A photo is a message. Something to send is text, an attachment, or both.
   const hasSomething = draft.trim().length > 0 || pending !== null;
-  const canSend = hasSomething && !over && !sending;
-
-  const clearPending = useCallback(() => {
-    setPending(null);
-    setCropping(null);
-    setPicking(null);
-  }, []);
-
-  /** One picker at a time, because one attachment rides at a time. */
+  const canSend = hasSomething && !over && !sending && !preparing;
   const openPicker = useCallback((next: Exclude<OpenPicker, null>) => {
-    setCropping(null);
-    setPicking((current) => (current === next ? null : next));
+    setPicking(current => current === next ? null : next);
   }, []);
-
-  const handlePhotoFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    event.target.value = "";
-    setError("");
-    setCropping(file);
-  }, []);
-
   const handleAttachKindSelected = useCallback((kind: MessageAttachKind) => {
     trackEvent("message_attach_selected", { kind });
   }, []);
-
-  const send = useCallback(async () => {
-    // LATCHED ON A REF, CLAIMED BEFORE THE FIRST AWAIT - the plan-route rule.
-    // `sending` is React state, committed a microtask after the event, so two
-    // taps in one task both read it false and both posted.
-    if (sendInFlightRef.current) return;
-    const h = normalizeHandle(authHandle ?? "") || readHandle();
-    const bodyText = draft.trim();
-    if (!user || !h || over) return;
-    if (!bodyText && !pending) return;
-    const signal = readProviderAccountSignal();
-    sendInFlightRef.current = true;
-    const sentPending = pending;
-    const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    const { post, payload } = messageSendPayload({
-      conversationId,
-      senderId: user.id,
-      handle: h,
-      body: bodyText,
-      attachment: sentPending,
-    });
-    setSending(true);
-    setError("");
-    // The bubble lands and the field clears NOW; the server's answer replaces
-    // the bubble or takes it back.
-    setOutbox((rows) => [...rows, optimistic]);
-    setDraft("");
-    setPending(null);
-    setCropping(null);
-    setPicking(null);
-    // A REFUSED SEND KEEPS WHAT THE DRINKER WROTE. The field was cleared at the
-    // tap, so somebody who started the next line while the first was in flight
-    // used to lose the first one outright: the bubble went, the text was
-    // dropped for being "not empty", and all that was left was an error with
-    // nothing to try again with. The failed line goes back at the TOP of
-    // whatever is in the field, and a newly picked attachment is never
-    // overwritten by the one that failed.
-    const takeBack = () => {
-      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
-      if (bodyText) {
-        setDraft((current) => (current.trim() ? `${bodyText}\n${current}` : bodyText));
-      }
-      if (sentPending) setPending((current) => current ?? sentPending);
-    };
-    try {
-      const photo = sentPending?.kind === "photo" ? new Uint8Array(await sentPending.file.arrayBuffer()) : null;
-      const clientMessageId =
-        retainedMessageSendKey(unsentKeyRef.current, payload, photo) ?? newClientMessageId();
-      unsentKeyRef.current = { key: clientMessageId, payload, photo };
-      const address = `/api/messages/${encodeURIComponent(conversationId)}`;
-      const keyedPost = { ...post, clientMessageId };
-
-      let res: Response;
-      if (sentPending?.kind === "photo") {
-        // The photo lane is multipart: one JSON part and one file, exactly the
-        // shape the pub wall already sends.
-        const form = new FormData();
-        form.append("post", JSON.stringify(keyedPost));
-        form.append("photo", sentPending.file);
-        res = await authedActionFetch(address, { method: "POST", body: form, signal }, { requiresIdentity: true });
-      } else {
-        res = await authedActionFetch(address, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(keyedPost),
-          signal,
-        }, { requiresIdentity: true });
-      }
-
-      if (res.status === 401) {
-        discardBody(res);
-        takeBack();
-        setState("signedout");
-        return;
-      }
-      if (res.status === 429) {
-        discardBody(res);
-        takeBack();
-        setError("Too many messages, slow down.");
-        return;
-      }
-      if (!res.ok) {
-        // The server's own sentence when it has one: a refused photo and a
-        // conversation that is gone are different things to be told.
-        const body: unknown = await res.json().catch(() => null);
-        takeBack();
-        // The age gate is answered on the spot; the words are back in the
-        // field, so one more tap on Send sends them.
-        if (fromRefusal(body)) return;
-        setError(
-          offlineOrMessage(errorMessageFrom(
-                body,
-                sentPending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.")
-              ),
-        );
-        return;
-      }
-      // A SEND IS ONE REQUEST. The POST's own answer is the stored row, so the
-      // outbox bubble is replaced by it in place; nothing is refetched to show
-      // your own message. A body with no row falls back to the gated refetch.
-      const body = (await res.json().catch(() => null)) as { message?: MessageDTO } | null;
-      const stored = body?.message;
-      if (stored && typeof stored.id === "string") {
-        setMessages((rows) => (rows.some((row) => row.id === stored.id) ? rows : [...rows, stored]));
-      } else {
-        await refresh();
-      }
-      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
-      if (unsentKeyRef.current?.key === clientMessageId) unsentKeyRef.current = null;
-    } catch {
-      takeBack();
-      setError(
-        offlineOrMessage(sentPending
-            ? MESSAGE_PHOTO_FAILED_LINE
-            : "Could not send that message. Try again.")
-      );
-    } finally {
-      sendInFlightRef.current = false;
-      setSending(false);
-    }
-  }, [conversationId, draft, over, pending, refresh, user, authHandle, fromRefusal]);
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
@@ -976,7 +740,7 @@ export default function MessageThread({
         );
       }
     },
-    [conversationId, refresh, user, authHandle],
+    [conversationId, refresh, user, authHandle, setError],
   );
 
   const timeline = useMemo<TimelineItem[]>(() => {
@@ -985,7 +749,7 @@ export default function MessageThread({
   }, [messages, outbox, handle]);
   const outboxIds = useMemo(() => new Set(outbox.map((row) => row.id)), [outbox]);
   const outboxPhotoUrls = useMemo(
-    () => new Map(outbox.map((row) => [row.id, row.pendingPhotoUrl])),
+    () => new Map(outbox.map((row) => [row.id, row.pendingPhoto])),
     [outbox],
   );
 
@@ -1233,183 +997,27 @@ export default function MessageThread({
     );
   }
 
-  return (
-    <div className="messageThread">
-      {/* The shell is `display: contents`: it carries the keyboard facts as
-          data for the stylesheet, and draws no box of its own. */}
-      <div
-        className="messageThreadShell"
-        data-keyboard-open={keyboardOpen ? "" : undefined}
-        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
-      >
-      <div className="threadHeader">
-        <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
-          <ChevronLeft size={24} aria-hidden="true" />
-        </Link>
-        {renderThreadWith()}
-        <MessageThreadMenu
-          isGroup={isGroup}
-          onDeleteChat={() => ask({ kind: "delete" })}
-          onLeaveGroup={() => ask({ kind: "leave" })}
-        />
-      </div>
-
-      {state === "loading" ? (
-        <p className="conversationPreview">With you in a sec.</p>
-      ) : (
-        <ul className="threadMessages" ref={listRef}>
-          {timeline.length === 0 ? (
-            <li className="threadEmpty" aria-live="polite">
-              {otherHandle ? (
-                <MessageAvatar
-                  handle={otherHandle}
-                  avatarUrl={card?.avatarUrl}
-                  label={card?.displayName}
-                  size={72}
-                />
-              ) : null}
-              <p className="threadEmptyTitle">
-                {threadName ?? "Nothing here yet."}
-              </p>
-              <p className="threadEmptyLine">
-                {isGroup
-                  ? GROUP_EMPTY_THREAD_LINE
-                  : "Say hello. This one stays between the two of you."}
-              </p>
-              <div className="threadStarters" role="group" aria-label="Start the conversation">
-                <button type="button" disabled={sending} onClick={() => openPicker("venue")}>
-                  <MapPin size={16} aria-hidden="true" /> Share a pub
-                </button>
-                <button type="button" disabled={sending} onClick={() => openPicker("event")}>
-                  <CalendarDays size={16} aria-hidden="true" /> Share a plan
-                </button>
-              </div>
-            </li>
-          ) : null}
-          {timeline.map((item) => {
-            if (item.kind === "day") {
-              return (
-                <li key={`day-${item.key}`} className="threadDay" aria-label={item.label}>
-                  <span>{item.label}</span>
-                </li>
-              );
-            }
-            const m = item.message;
-            const mine = item.mine;
-            const sendingRow = outboxIds.has(m.id);
-            const revealed = revealedId === m.id;
-            const pendingPhoto = outboxPhotoUrls.get(m.id);
-            return (
-              <li
-                key={m.id}
-                className={mine ? "messageRow messageRowMine" : "messageRow"}
-                data-first={item.first ? "" : undefined}
-                data-last={item.last ? "" : undefined}
-                data-revealed={revealed ? "" : undefined}
-                data-sending={sendingRow ? "" : undefined}
-              >
-                <div className="messageLine">
-                  {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
-                  <div className="messageBubbleGroup">
-                    {m.unsent ? (
-                      <div
-                        className="messageUnsent"
-                        onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
-                      >
-                        {MESSAGE_UNSENT_LINE}
-                      </div>
-                    ) : (
-                    <div
-                      className={[
-                        mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
-                        (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
-                      ].filter(Boolean).join(" ")}
-                      onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
-                    >
-                      {renderAttachment(m, sendingRow)}
-                      {pendingPhoto ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
-                        <img className="messagePhotoSending" src={pendingPhoto} alt="" />
-                      ) : null}
-                      {m.body ? <MessageBody body={m.body} /> : null}
-                    </div>
-                    )}
-                    <div className="messageMeta">
-                      <time className="messageClock" dateTime={m.createdAt}>
-                        {item.clock}
-                      </time>
-                      {renderMessageAction(m, mine, sendingRow)}
-                    </div>
-                  </div>
-                  {sendingRow ? (
-                    <span className="messageReadState">Sending</span>
-                  ) : item.readState ? (
-                    <span className="messageReadState">
-                      {MESSAGE_READ_STATE_LABEL[item.readState]}
-                    </span>
-                  ) : null}
-                </div>
-              </li>
-            );
-          })}
-          <li className="threadListEnd" aria-hidden="true">
-            <div ref={listEndRef} />
-          </li>
-        </ul>
-      )}
-
-      <MessageAttachmentPicker
-        ref={attachmentPickerRef}
-        open={mobileAttachOpen}
-        disabled={sending}
-        onOpenChange={setMobileAttachOpen}
-        onFileChange={handlePhotoFileChange}
-        onKindSelected={handleAttachKindSelected}
-        onAttachmentKind={(kind) => {
-          trackEvent("message_attach_selected", { kind });
-          openPicker(kind);
-        }}
-      />
-
-      {cropping ? (
-        <div className="messageCropOverlay">
-          <div
-            ref={cropCardRef}
-            className="messageCropCard"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Crop photo"
-            tabIndex={-1}
-          >
-            <ProfileImageCropper
-              key={fileKey(cropping)}
-              target={MESSAGE_PHOTO_CROP_TARGET}
-              file={cropping}
-              busy={sending}
-              onCancel={() => setCropping(null)}
-              onCropped={(file) => {
-                setCropping(null);
-                setPending({ kind: "photo", file, previewUrl: URL.createObjectURL(file) });
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
-
+  function renderComposer(): React.JSX.Element {
+    return (
       <div className="composerDock">
-        {error ? <p className="threadError" role="alert">{error}</p> : null}
+        {error ? <div className="threadError" role="alert">{error}
+          {pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => void send()}>Retry send</button> : null}
+        </div> : null}
+        {preparing ? <p className="composerPreparing" role="status">Preparing photos…</p> : null}
 
         {renderPicker()}
 
         {pending ? (
           <div className="composerPending">
             {pending.kind === "photo" ? (
-              // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
-              <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
+              <span className="composerPhotoPreviews">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
+                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
+              </span>
             ) : (
               <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
             )}
-            <span className="composerPendingLabel">{pendingLabel(pending)}</span>
+            <span className="composerPendingLabel">{pendingMessageLabel(pending)}</span>
             <button type="button" className="composerPendingRemove" onClick={clearPending}>
               Remove
             </button>
@@ -1428,7 +1036,7 @@ export default function MessageThread({
                 className="composerMobileAttach"
                 aria-label="Add an attachment"
                 aria-expanded={mobileAttachOpen}
-                disabled={sending}
+                disabled={sending || preparing}
                 onClick={() => {
                   setPicking(null);
                   setMobileAttachOpen(true);
@@ -1442,7 +1050,7 @@ export default function MessageThread({
                 className="composerAttach composerMoreDesktop"
                 aria-label="More to attach"
                 aria-expanded={mobileAttachOpen}
-                disabled={sending}
+                disabled={sending || preparing}
                 onClick={() => {
                   setPicking(null);
                   setMobileAttachOpen(true);
@@ -1456,7 +1064,7 @@ export default function MessageThread({
               className="composerAttach composerPhotoDesktop"
               aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
               aria-pressed={pending?.kind === "photo"}
-              disabled={sending}
+              disabled={sending || preparing}
               onClick={() => {
                 setPicking(null);
                 attachmentPickerRef.current?.select("photos");
@@ -1469,7 +1077,7 @@ export default function MessageThread({
               className="composerAttach composerVenueDesktop"
               aria-label={MESSAGE_ATTACH_VENUE_LABEL}
               aria-pressed={pending?.kind === "venue"}
-              disabled={sending}
+              disabled={sending || preparing}
               onClick={() => openPicker("venue")}
             >
               <MapPin size={20} aria-hidden="true" />
@@ -1522,6 +1130,152 @@ export default function MessageThread({
           </button>
         </div>
       </div>
+    );
+  }
+
+  return (
+    <div className="messageThread">
+      {/* The shell is `display: contents`: it carries the keyboard facts as
+          data for the stylesheet, and draws no box of its own. */}
+      <div
+        className="messageThreadShell"
+        data-keyboard-open={keyboardOpen ? "" : undefined}
+        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
+      >
+      <div className="threadHeader">
+        <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
+          <ChevronLeft size={24} aria-hidden="true" />
+        </Link>
+        {renderThreadWith()}
+        <MessageThreadMenu
+          isGroup={isGroup}
+          onDeleteChat={() => ask({ kind: "delete" })}
+          onLeaveGroup={() => ask({ kind: "leave" })}
+        />
+      </div>
+
+      {state === "loading" ? (
+        <p className="conversationPreview">With you in a sec.</p>
+      ) : (
+        <ul className="threadMessages" ref={listRef}>
+          {timeline.length === 0 ? (
+            <li className="threadEmpty" aria-live="polite">
+              {otherHandle ? (
+                <MessageAvatar
+                  handle={otherHandle}
+                  avatarUrl={card?.avatarUrl}
+                  label={card?.displayName}
+                  size={72}
+                />
+              ) : null}
+              <p className="threadEmptyTitle">
+                {threadName ?? "Nothing here yet."}
+              </p>
+              <p className="threadEmptyLine">
+                {isGroup
+                  ? GROUP_EMPTY_THREAD_LINE
+                  : "Say hello. This one stays between the two of you."}
+              </p>
+              <div className="threadStarters" role="group" aria-label="Start the conversation">
+                <button type="button" disabled={sending || preparing} onClick={() => openPicker("venue")}>
+                  <MapPin size={16} aria-hidden="true" /> Share a pub
+                </button>
+                <button type="button" disabled={sending || preparing} onClick={() => openPicker("event")}>
+                  <CalendarDays size={16} aria-hidden="true" /> Share a plan
+                </button>
+              </div>
+            </li>
+          ) : null}
+          {timeline.map((item) => {
+            if (item.kind === "day") {
+              return (
+                <li key={`day-${item.key}`} className="threadDay" aria-label={item.label}>
+                  <span>{item.label}</span>
+                </li>
+              );
+            }
+            const m = item.message;
+            const mine = item.mine;
+            const sendingRow = outboxIds.has(m.id);
+            const revealed = revealedId === m.id;
+            const pendingPhoto = outboxPhotoUrls.get(m.id);
+            return (
+              <li
+                key={m.id}
+                className={mine ? "messageRow messageRowMine" : "messageRow"}
+                data-first={item.first ? "" : undefined}
+                data-last={item.last ? "" : undefined}
+                data-revealed={revealed ? "" : undefined}
+                data-sending={sendingRow ? "" : undefined}
+              >
+                <div className="messageLine">
+                  {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
+                  <div className="messageBubbleGroup">
+                  {m.unsent ? (
+                    <div
+                      className="messageUnsent"
+                      onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                    >
+                      {MESSAGE_UNSENT_LINE}
+                    </div>
+                  ) : (
+                  <div
+                    className={[
+                      mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
+                      (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                  >
+                    {renderAttachment(m, sendingRow)}
+                    {pendingPhoto ? (
+                      <figure className="messagePhotoFigure" style={{ "--message-photo-aspect": pendingPhoto.width / pendingPhoto.height } as React.CSSProperties}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- local preview while the upload is pending */}
+                        <img className="messagePhoto messagePhotoSending" src={pendingPhoto.previewUrl} width={pendingPhoto.width} height={pendingPhoto.height} alt="Photo being sent" />
+                      </figure>
+                    ) : null}
+                    {m.body ? <MessageBody body={m.body} /> : null}
+                  </div>
+                  )}
+                  <div className="messageMeta">
+                    <time className="messageClock" dateTime={m.createdAt}>
+                      {item.clock}
+                    </time>
+                    {renderMessageAction(m, mine, sendingRow)}
+                  </div>
+                  </div>
+                  {sendingRow ? (
+                    <span className="messageReadState" role="status">
+                      {outbox.find(row => row.id === m.id)?.queued ? "Waiting to send" : pendingPhoto ? <><progress aria-label="Sending photo" /> Sending photo</> : "Sending"}
+                    </span>
+                  ) : item.readState ? (
+                    <span className="messageReadState">
+                      {MESSAGE_READ_STATE_LABEL[item.readState]}
+                    </span>
+                  ) : null}
+                </div>
+              </li>
+            );
+          })}
+          <li className="threadListEnd" aria-hidden="true">
+            <div ref={listEndRef} />
+          </li>
+        </ul>
+      )}
+
+      <MessageAttachmentPicker
+        ref={attachmentPickerRef}
+        open={mobileAttachOpen}
+        disabled={sending || preparing}
+        onOpenChange={setMobileAttachOpen}
+        onFileChange={event => { setPicking(null); void selectPhotos(event); }}
+        onKindSelected={handleAttachKindSelected}
+        onAttachmentKind={(kind) => {
+          trackEvent("message_attach_selected", { kind });
+          openPicker(kind);
+        }}
+      />
+
+      {renderComposer()}
       </div>
       {adultGateDialog}
       {renderConfirm()}

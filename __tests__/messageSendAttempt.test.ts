@@ -1,10 +1,34 @@
 import { describe, expect, it } from "vitest";
+import { transitionComposerActivity, type ComposerActivity } from "@/lib/messageComposer";
+import { clampPhotoView } from "@/lib/messagePhotoViewer";
 
 import {
   messageSendPayload,
   retainedMessageSendKey,
   type MessageSendAttempt,
 } from "@/lib/messageSendAttempt";
+
+describe("photo preparation and sending scope", () => {
+  it("keeps a failed send visible when its operation finishes and ignores the old reader", () => {
+    let state: ComposerActivity = { phase: "ready", scope: "account-a:thread" };
+    state = transitionComposerActivity(state, { type: "prepare", scope: state.scope });
+    expect(transitionComposerActivity(state, { type: "send", scope: state.scope })).toBe(state);
+    state = transitionComposerActivity(state, { type: "finish", scope: state.scope });
+    state = transitionComposerActivity(state, { type: "send", scope: state.scope });
+    state = transitionComposerActivity(state, { type: "fail", scope: state.scope, message: "Interrupted" });
+    expect(transitionComposerActivity(state, { type: "finish", scope: state.scope })).toBe(state);
+    const next = transitionComposerActivity(state, { type: "reset", scope: "account-b:thread" });
+    expect(transitionComposerActivity(next, { type: "fail", scope: state.scope, message: "Old reader" })).toBe(next);
+    expect(next.phase).toBe("ready");
+  });
+
+  it("keeps zoom and pan inside the fitted photo without changing the page", () => {
+    const frame = { width: 390, height: 700 };
+    const photo = { width: 1200, height: 600 };
+    expect(clampPhotoView({ scale: 0.5, x: 50, y: 50 }, frame, photo)).toEqual({ scale: 1, x: 0, y: 0 });
+    expect(clampPhotoView({ scale: 6, x: 1000, y: -1000 }, frame, photo)).toEqual({ scale: 4, x: 585, y: -40 });
+  });
+});
 
 const draft: Parameters<typeof messageSendPayload>[0] = {
   conversationId: "conversation-a",

@@ -36,7 +36,7 @@ export type MomentPhotoFitDeps = {
 };
 
 export type MomentPhotoFitOutcome =
-  | { outcome: "fitted"; file: File; attempt: MomentFitAttempt; attempts: number }
+  | { outcome: "fitted"; file: File; width: number; height: number; attempt: MomentFitAttempt; attempts: number }
   | { outcome: "unreadable" }
   | { outcome: "too-large" };
 
@@ -123,7 +123,7 @@ export async function fitMomentPhoto(
           type: MOMENT_FIT_OUTPUT_TYPE,
           lastModified: file.lastModified,
         });
-        return { outcome: "fitted", file: fitted, attempt, attempts: index + 1 };
+        return { outcome: "fitted", file: fitted, ...box, attempt, attempts: index + 1 };
       }
     }
     return { outcome: "too-large" };

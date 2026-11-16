@@ -13,7 +13,7 @@ const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
 const selection = vi.hoisted(() => ({ value: "first", label: "First label" }));
-const photoSelection = vi.hoisted(() => ({ file: null as File | null }));
+const photoSelection = vi.hoisted(() => ({ file: null as File | null, files: null as File[] | null }));
 type ThreadRow = {
   id: string;
   conversationId: string;
@@ -59,9 +59,8 @@ vi.mock("@/lib/messagesRealtime", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
-vi.mock("@/components/profile/ProfileImageCropper", () => ({
-  default: ({ onCropped }: { onCropped: (file: File) => void }) =>
-    createElement("button", { "data-crop": true, onClick: () => onCropped(photoSelection.file!) }, "Crop"),
+vi.mock("@/lib/preparePhotoUpload", () => ({
+  preparePhotoUpload: async (file: File) => ({ file, width: 1200, height: 800 }),
 }));
 vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
   default: ({ onAttachmentKind, onFileChange }: {
@@ -71,7 +70,7 @@ vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
     createElement("div", {},
       createElement("button", {
         "data-photo": true,
-        onClick: () => onFileChange({ target: { files: [photoSelection.file!], value: "" } }),
+        onClick: () => onFileChange({ target: { files: photoSelection.files ?? [photoSelection.file!], value: "" } }),
       }, "Photo"),
       ...["venue", "contact", "event", "poll"].map((kind) =>
       createElement("button", { key: kind, "data-attach": kind, onClick: () => onAttachmentKind(kind) }, kind))),
@@ -198,6 +197,7 @@ beforeEach(() => {
   selection.value = "first";
   selection.label = "First label";
   photoSelection.file = null;
+  photoSelection.files = null;
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
@@ -229,6 +229,39 @@ afterEach(async () => {
 });
 
 describe("message thread request budget", () => {
+  it("retries only the unsent photos after part of a batch succeeds", async () => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    let nextUrl = 0;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return `blob:photo-${nextUrl++}`; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.files = [1, 2, 3].map(value => {
+      const file = new File([new Uint8Array([value])], `photo-${value}.jpg`, { type: "image/jpeg" });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([value]).buffer });
+      return file;
+    });
+    await mount();
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    await typeAndSend("batch caption");
+    expect(container.querySelectorAll(".messagePhotoSending")).toHaveLength(3);
+    await act(async () => { fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken", body: "batch caption" } })); });
+    expect(posts()).toHaveLength(2);
+    await act(async () => { fetchLog.pendingPosts[1]!(Response.json({ error: "interrupted" }, { status: 503 })); });
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(2);
+    expect(composerValue()).toBe("");
+    expect(revoke).toHaveBeenCalledWith("blob:photo-0");
+    expect(revoke).not.toHaveBeenCalledWith("blob:photo-1");
+    expect(revoke).not.toHaveBeenCalledWith("blob:photo-2");
+    const failedKey = JSON.parse(posts()[1]!.body).clientMessageId;
+    await typeAndSend("");
+    expect(posts()).toHaveLength(3);
+    expect(JSON.parse(posts()[2]!.body)).toMatchObject({ clientMessageId: failedKey, body: "" });
+    expect(container.querySelectorAll(".messagePhotoSending")).toHaveLength(2);
+  });
+
   it("keeps the selected photo readable while sending and after a refused upload", async () => {
     fetchLog.holdPosts = true;
     const revoke = vi.fn();
@@ -240,7 +273,6 @@ describe("message thread request budget", () => {
     Object.defineProperty(photoSelection.file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
     await mount();
     await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
-    await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
     await typeAndSend("photo caption");
     expect(container.querySelector(".messagePhotoSending")?.getAttribute("src")).toBe("blob:photo");
     expect(revoke).not.toHaveBeenCalled();
@@ -332,7 +364,6 @@ describe("the send is latched and carries an idempotency key", () => {
     Object.defineProperty(photoSelection.file, "arrayBuffer", { value: readPhoto });
     await mount();
     await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
-    await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
     await typeAndSend("caption");
     expect(readPhoto).toHaveBeenCalledOnce();
     expect(messageWrites()).toHaveLength(0);
@@ -375,9 +406,6 @@ describe("the send is latched and carries an idempotency key", () => {
       photoSelection.file = file;
       await act(async () => {
         container.querySelector<HTMLButtonElement>("[data-photo]")!.click();
-      });
-      await act(async () => {
-        container.querySelector<HTMLButtonElement>("[data-crop]")!.click();
       });
       await typeAndSend("same caption");
       await act(async () => {

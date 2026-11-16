@@ -608,16 +608,14 @@ test.describe("message attach preview and lightbox at phone 390", () => {
     await expect(page.locator(".messagesMain")).toBeVisible();
   });
 
-  test("the crop card and lightbox stay inside the viewport, not full-screen", async ({
+  test("the crop card stays bounded and the photo viewer fills the viewport", async ({
     page,
   }) => {
     const measured = await measurePhoneOverlays(page);
-    // THE DEFECT: crop and viewer took the whole phone, hiding nav and composer.
     expect(measured.cropCard.width).toBeLessThanOrEqual(measured.viewport.width);
     expect(measured.cropCard.height).toBeLessThan(measured.viewport.height * 0.85);
-    expect(measured.viewer.width).toBeLessThan(measured.viewport.width - 16);
-    expect(measured.viewer.height).toBeLessThan(measured.viewport.height * 0.8);
-    expect(measured.viewer.width).toBeLessThanOrEqual(390 * 0.88 + 2);
+    expect(measured.viewer.width).toBeCloseTo(measured.viewport.width, 0);
+    expect(measured.viewer.height).toBeCloseTo(measured.viewport.height, 0);
   });
 
   test("the crop card's own Use photo and Cancel own their taps", async ({ page }) => {
