@@ -3,13 +3,14 @@ import type { AskProposal } from "@/lib/ask/types";
 import { conciergeConstraintsInText, defaultKnownAreas } from "@/lib/concierge/intentPolicy";
 
 type PalTurnLine = { role: string; content: string };
-type PalConfirmedMemoryLine = { label: string; value: string };
+type PalConfirmedMemoryLine = { kind?: string; label: string; value: string };
 
 export const PAL_ASK_FOR_CONSTRAINT = "Tell me an area, a mood or a budget and I'll find you a pub.";
 export const PAL_RECORDS_UNREAD = "I couldn't check the records for that just now. Try again.";
 
 const START_TIME_RE = /\b(?:tonight|today|tomorrow|this (?:evening|afternoon|weekend)|weekend|after work|(?:mon|tues|wednes|thurs|fri|satur|sun)day|\d{1,2}(?:[:.]\d{2})?\s?[ap]m|\d{1,2}:\d{2}|noon|midday)\b/i;
 const MEMORY_ASK_RE = /\b(?:what do you (?:remember|know) about me|what have i told you|my (?:saved )?(?:memories|preferences))\b/i;
+const PAST_NIGHT_ASK_RE = /\b(?:what|where|when|how much)\b[^?]*\b(?:i|my)\b[^?]*\b(?:last time|last night|last visit|last went|previous night|spent)\b/i;
 
 const TOOL_PROGRESS: Readonly<Record<string, string>> = {
   search_venues: "Checking the listed pubs.",
@@ -81,6 +82,13 @@ function palNoRecordAnswer(
         ? `You confirmed: ${memories.map((memory) => `${memory.label}: ${memory.value}`).join("; ")}.`
         : "You have not confirmed anything for me to remember yet.",
     };
+  }
+  if (PAST_NIGHT_ASK_RE.test(query)) {
+    if (!memories) return { reply: "Your saved memories could not be read just now." };
+    const reports = memories.filter((memory) => memory.kind === "night_outcome");
+    return { reply: reports.length
+      ? `You confirmed these past-night reports: ${reports.map((report) => report.value).join("; ")}`
+      : "I don't have a confirmed past-night report for you." };
   }
   const asks = turns.filter((turn) => turn.role === "user").map((turn) => turn.content);
   const routed = refineRoutedAskQuery(query, asks.at(-1), asks);

@@ -327,6 +327,20 @@ describe("runPalClaudeChatTurn", () => {
     expect(outcome.ok && outcome.message).not.toContain("IPA");
   });
 
+  it("answers a past-spend question from the owner's confirmed report", async () => {
+    expect((await createPubPalResult(OWNER, { ...DEFAULT_PAL_DRAFT, adultConfirmed: true, name: "Morrow" })).ok).toBe(true);
+    const report = "On 19 October 2026 I spent £26.80 at Golden Lion.";
+    expect((await confirmPalMemoryResult(OWNER, { kind: "night_outcome", value: report })).ok).toBe(true);
+    const query = "What did I spend last time?";
+    storeMocks.readPubPalToolTurn.mockResolvedValue({ ...storedTurn, query, cards: [], proposals: [], hints: [], toolsUsed: [] });
+    const { client } = fakeClient([{ content: [text("You spent £99.")], stop_reason: "end_turn" }]);
+
+    const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
+
+    expect(outcome.ok && outcome.message).toContain(report);
+    expect(outcome.ok && outcome.message).not.toContain("£99");
+  });
+
   it("reports each tool it starts, by name only, before the answer", async () => {
     const { client } = fakeClient([
       { content: [text("Checking The Golden Lion."), toolUse("tu_1", "search_venues", { query: "quiet pub in Soho" })], stop_reason: "tool_use" },
