@@ -20,7 +20,7 @@ let root: Root;
 let host: HTMLDivElement;
 let resolveLookup: (result: VenueDetailLookupResult) => void;
 
-function Probe({ requestedIds = builtIds, initialVenues = [] }: { requestedIds?: string[]; initialVenues?: Venue[] } = {}) {
+function Probe({ requestedIds = builtIds, initialVenues = [] }: { requestedIds?: string[]; initialVenues?: Venue[] }) {
   const [details, setDetails] = useState(() => new Map(initialVenues.map((venue) => [venue.id, venue])));
   const venueById = useMemo(() => new Map([...pubs.map((venue) => [venue.id, venue] as const), ...details]), [details]);
   const settledBuiltStopIds = useBuiltRouteHydration({ venueDataReady: true, builtIds: requestedIds, venueById, setDetailById: setDetails });
