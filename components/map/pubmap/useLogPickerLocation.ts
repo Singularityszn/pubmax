@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { LogNearbyOrigin } from "@/lib/mapLogIntent";
+import { markMapLocationExposure } from "@/lib/mapLocationExposure";
 
 export function useLogPickerLocation(active: boolean, userLocation: LogNearbyOrigin | null) {
   const [request, setRequest] = useState<{
@@ -25,6 +26,7 @@ export function useLogPickerLocation(active: boolean, userLocation: LogNearbyOri
     const locate = () => {
       if (cancelled) return;
       if (!navigator.geolocation) { settle(); return; }
+      markMapLocationExposure();
       navigator.geolocation.getCurrentPosition((position) => {
         if (cancelled) return;
         setRequest((current) => current.lifetime === lifetime && current.locating

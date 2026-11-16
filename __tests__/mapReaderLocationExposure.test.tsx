@@ -4,8 +4,9 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
+import { useLogPickerLocation } from "@/components/map/pubmap/useLogPickerLocation";
 import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
-import { markMapLocationExposure } from "@/lib/mapLocationExposure";
+import { mapLocationWasExposed, markMapLocationExposure } from "@/lib/mapLocationExposure";
 
 let root: Root;
 let host: HTMLDivElement;
@@ -61,6 +62,47 @@ it("consumes pre-React exposure even when the later permission query denies loca
   function Probe() { useMapReaderPosition(expose); return null; }
   await act(async () => root.render(createElement(Probe)));
   expect(navigator.geolocation.watchPosition).not.toHaveBeenCalled();
+  owner.beginPublicPlace(camera.center, camera.zoom);
+  owner.settle(camera);
+  expect(owner.capture(camera)).toBeNull();
+});
+
+it.each(["absent", "rejected", "granted"] as const)("disables camera storage before automatic picker location with permission API %s", async (permission) => {
+  const owner = createMapCameraOwnership();
+  owner.beginPublicPlace(camera.center, camera.zoom);
+  owner.settle(camera);
+  const pendingSave = owner.capture(camera);
+  expect(pendingSave).not.toBeNull();
+  let locationSuccess: PositionCallback;
+  let cameraAtRequest: ReturnType<typeof owner.capture> | undefined;
+  vi.stubGlobal("navigator", {
+    ...(permission === "absent" ? {} : {
+      permissions: { query: permission === "rejected"
+        ? vi.fn().mockRejectedValue(new Error("Permissions API unavailable"))
+        : vi.fn().mockResolvedValue({ state: "granted", addEventListener: vi.fn(), removeEventListener: vi.fn() }) },
+    }),
+    geolocation: {
+      getCurrentPosition: (callback: PositionCallback) => {
+        cameraAtRequest = owner.capture(camera);
+        locationSuccess = callback;
+      },
+      watchPosition: vi.fn(() => 1),
+      clearWatch: vi.fn(),
+    },
+  });
+  const expose = () => owner.exposeLocation();
+  function Picker() {
+    useMapReaderPosition(expose);
+    const { location } = useLogPickerLocation(true, null);
+    return createElement("div", null, location ? `${location.lat},${location.lng}` : "waiting");
+  }
+  await act(async () => root.render(createElement(Picker)));
+  expect(cameraAtRequest).toBeNull();
+  expect(pendingSave!.isCurrent()).toBe(false);
+  expect(mapLocationWasExposed()).toBe(true);
+  expect(host.textContent).toBe("waiting");
+  await act(async () => locationSuccess!({ coords: { latitude: 51.5255, longitude: -0.0878 } } as GeolocationPosition));
+  expect(host.textContent).toBe("51.5255,-0.0878");
   owner.beginPublicPlace(camera.center, camera.zoom);
   owner.settle(camera);
   expect(owner.capture(camera)).toBeNull();
