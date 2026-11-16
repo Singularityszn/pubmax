@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
   TABLE_REQUEST_DELIVERIES,
   transitionTableRequestDelivery,
+  type TableRequestDelivery,
   type TableRequestDeliveryEvent,
   type TableRequestDeliveryState,
 } from "@/lib/tableRequests";
@@ -163,22 +164,37 @@ describe.skipIf(skipReason !== null)("0219 table requests", () => {
   it("0241 holds SQL transitions to the delivery machine, including terminal refusals", () => {
     const now = Date.parse("2026-11-16T12:00:00.000Z");
     const events: TableRequestDeliveryEvent[] = ["begin_send", "confirm_not_sent", "confirm_sent"];
+    const expectedTransitions = {
+      resolving: { begin_send: "pending", confirm_not_sent: "not_sent", confirm_sent: null },
+      pending: { begin_send: null, confirm_not_sent: null, confirm_sent: "emailed" },
+      emailed: { begin_send: null, confirm_not_sent: null, confirm_sent: null },
+      not_sent: { begin_send: null, confirm_not_sent: null, confirm_sent: null },
+    } satisfies Record<TableRequestDelivery, Record<TableRequestDeliveryEvent, TableRequestDelivery | null>>;
     for (const delivery of TABLE_REQUEST_DELIVERIES) {
       for (const event of events) {
         const deliveredAt = delivery === "emailed" ? new Date(now).toISOString() : null;
         const state: TableRequestDeliveryState = delivery === "emailed"
           ? { delivery, deliveredAt: deliveredAt!, revision: 0 }
           : { delivery, deliveredAt: null, revision: 0 };
-        const expected = transitionTableRequestDelivery(state, event, 0, now);
+        const expectedDelivery = expectedTransitions[delivery][event];
+        const expected = {
+          delivery: expectedDelivery ?? delivery,
+          deliveredAt: expectedDelivery === "emailed" ? new Date(now).toISOString() : deliveredAt,
+          revision: expectedDelivery === null ? 0 : 1,
+        };
+        const transitioned = transitionTableRequestDelivery(state, event, 0, now);
+        expect(transitioned, `${delivery} ${event}`).toEqual(expected);
         const id = db().sql(asServiceRole(insert(ALICE_USER, { delivery, delivered: deliveredAt !== null }) + " returning id"));
         const target = { begin_send: "pending", confirm_not_sent: "not_sent", confirm_sent: "emailed" }[event];
         const stamp = event === "confirm_sent" ? `'${new Date(now).toISOString()}'` : "null";
         const result = db().sql(asServiceRole(`select count(*) from public.transition_table_request(
           '${id}', '${ALICE_USER}', '${delivery}', 0, '${target}', ${stamp})`));
-        expect(result, `${delivery} ${event}`).toBe(expected === state ? "0" : "1");
+        expect(result, `${delivery} ${event}`).toBe(expectedDelivery === null ? "0" : "1");
+        expect(result, `${delivery} ${event} parity`).toBe(transitioned === state ? "0" : "1");
         const stored = JSON.parse(db().sql(`select json_build_object('delivery', delivery, 'revision', revision,
           'stamped', delivered_at is not null) from public.table_requests where id = '${id}'`));
         expect(stored).toEqual({ delivery: expected.delivery, revision: expected.revision, stamped: expected.deliveredAt !== null });
+        expect(stored).toEqual({ delivery: transitioned.delivery, revision: transitioned.revision, stamped: transitioned.deliveredAt !== null });
       }
     }
   });
