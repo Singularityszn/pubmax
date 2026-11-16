@@ -6,7 +6,7 @@
   left: max(16px, env(safe-area-inset-left));
   right: max(16px, env(safe-area-inset-right));
   /* Sit on the shared FAB row so the panel clears the mobile tab bar. */
-  bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px));
+  bottom: var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px));
   z-index: var(--z-map-onboard-chip);
   display: grid;
   gap: 10px;
@@ -145,8 +145,8 @@
 @media (min-width: 641px) {
   .logIntentFallback {
     max-height: calc(
-      100dvh - var(--map-overlay-top, 100px) - var(--map-chrome-gap, 12px) -
-        var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px))
+      100dvh - var(--map-overlay-top) - var(--map-chrome-gap) -
+        var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance) + 18px))
     );
     overflow-y: auto;
     overscroll-behavior: contain;
