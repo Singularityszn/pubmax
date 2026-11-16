@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { openOverviewFold } from "./helpers/overviewFolds";
 import { runnerShotDir } from "./helpers/runnerShotDir";
 
 /**
@@ -113,6 +114,7 @@ test("log a visit from the pub sheet, see it on the profile, and a repeat is ref
 
   await page.goto(`/map?sel=${VENUE_ID}`, { waitUntil: "domcontentloaded" });
   const sheet = await openVenueSurface(page);
+  await openOverviewFold(sheet, "record");
 
   const open = sheet.getByTestId("diary-log-open");
   const card = sheet.getByTestId("diary-log-card");

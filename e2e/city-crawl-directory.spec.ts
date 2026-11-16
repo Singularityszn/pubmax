@@ -34,7 +34,9 @@ test("city crawl Edit stops works while the Place story intro is visible", async
   // A city directory route must keep its editor accessible without dismissing its story.
   await page.getByRole("button", { name: "Edit stops", exact: true }).click({ timeout: 5000 });
   await expectSoleDesktopDrawer(page, "planner");
-  await expect(page.locator(".mapDrawer.left .routeList li > button strong")).toHaveText([
+  const stopNames = page.locator(".mapDrawer.left .routeList li > button strong");
+  await expect(stopNames).toHaveCount(5);
+  await expect(stopNames).toContainText([
     "Castle Hotel",
     "Gullivers",
     "Port Street Beer House",

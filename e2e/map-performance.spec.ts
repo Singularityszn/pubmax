@@ -73,12 +73,14 @@ test("a filtered beer map link reaches a usable mobile map", async ({ page }) =>
   ).toBeVisible();
   await chrome.getByRole("button", { name: "Filters: drinks active" }).click();
   const filters = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
-  const beer = filters
-    .getByRole("group", { name: "Filter by drink shape" })
-    .getByRole("button", { name: "Beer (selected)" });
+  await filters.getByRole("button", { name: "Pints", exact: true }).click();
+  const drinkSheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+  const beer = drinkSheet
+    .getByRole("group", { name: "Drink prices shown on the map" })
+    .getByRole("button", { name: "Pints", exact: true });
   await expect(beer).toHaveAttribute("aria-pressed", "true");
-  await filters.getByRole("button", { name: "Close Prices and places" }).click();
-  await expect(filters).toHaveCount(0);
+  await drinkSheet.getByRole("button", { name: "Close and return to the map", exact: true }).click();
+  await expect(drinkSheet).toHaveCount(0);
 
   await page.waitForTimeout(1_500);
   expect(requested(requests, "/api/citymcp/journey")).toBe(false);
