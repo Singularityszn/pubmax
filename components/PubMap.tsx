@@ -2934,7 +2934,7 @@ export default function PubMap({
   // a non-London city never sees stale gazetteer rows in its search.
   const localities = cityId === "london" ? londonLocalities : NO_LOCALITIES;
 
-  const venues = usePublicPriceVenues(baseVenues, dropsByVenueId, priceUpdates, cityId);
+  const venues = usePublicPriceVenues(baseVenues, dropsByVenueId, priceUpdates, cityId, communityPrices.byVenueId);
   const pubVenues = useMemo(() => venues.filter(isPubVenue), [venues]);
   const drinkCoverage = useMemo(() => ({
     loadedPubIds: pubVenues.map((venue) => venue.id),

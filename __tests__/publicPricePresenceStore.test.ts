@@ -34,14 +34,35 @@ import { supabaseCommunityPriceStore } from "@/lib/communityPriceStore";
 import { __resetMemoryProfileWithdrawals, __setMemoryProfileWithdrawn } from "@/lib/accountPublicAccess.server";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { __resetPintDrops, addPintDrop } from "@/lib/pintDrops";
+import { demoPintDrops } from "@/lib/pintDropSeeds";
 
 function drop(id: string, visibility = "public") {
   return { id, venue_id: "current", handle: "drinker", status: "visible", visibility, drink: "Lager", price_gbp: 5,
     created_at: "2026-01-01T00:00:00Z", provenance: "contributor", passed_down_note: "", era: "" };
 }
-afterEach(() => { db.rows = []; db.cap = 500; db.failAfter = ""; db.omitCount = false; __resetPintDrops(); __resetMemoryProfiles(); __resetMemoryProfileWithdrawals(); });
+afterEach(() => { db.rows = []; db.cap = 500; db.failAfter = ""; db.omitCount = false; __resetPintDrops(); __resetMemoryProfiles(); __resetMemoryProfileWithdrawals(); vi.unstubAllEnvs(); });
 
 describe("public priced venues across every page", () => {
+  it.each([
+    ["memory", memoryPintDropStore],
+    ["Supabase", supabasePintDropStore],
+  ] as const)("excludes demo seeds from the %s presence read", async (_name, store) => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+    expect(await store.publicPricedVenueIds(demoPintDrops.map((row) => row.venueId))).toEqual(new Set());
+  });
+  it.each([
+    ["memory", memoryPintDropStore],
+    ["Supabase", supabasePintDropStore],
+  ] as const)("excludes stored demos but keeps real prices in the %s presence read", async (_name, store) => {
+    vi.stubEnv("NEXT_PUBLIC_DEMO_CONTENT", "on");
+    db.cap = 1;
+    db.rows = [{ ...drop("1"), provenance: "demo" }, { ...drop("2"), venue_id: "real" }];
+    addPintDrop({ id: "1", venueId: "current", handle: "drinker", drink: "Lager", priceGbp: 5,
+      passedDownNote: "", era: "", provenance: "demo", status: "visible", createdAt: "2026-01-01T00:00:00Z" });
+    addPintDrop({ id: "2", venueId: "real", handle: "drinker", drink: "Lager", priceGbp: 5,
+      passedDownNote: "", era: "", provenance: "contributor", status: "visible", createdAt: "2026-01-01T00:00:00Z" });
+    expect(await store.publicPricedVenueIds(["current", "real"])).toEqual(new Set(["real"]));
+  });
   it("finds an older priced drop beyond 500 private rows without exposing those rows", async () => {
     db.rows = Array.from({ length: 500 }, (_, n) => drop(String(n).padStart(4, "0"), n % 2 ? "friends" : "legacy"));
     db.rows.push(drop("0500", "anonymous"));

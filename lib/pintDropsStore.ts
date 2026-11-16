@@ -950,8 +950,8 @@ function createMemoryPairedDrop(
 export const memoryPintDropStore: PintDropStore = {
   async publicPricedVenueIds(storedIds) {
     const wanted = new Set(storedIds);
-    const rows = listAllStoredPintDrops().concat(storedIds.flatMap((id) => demoDropsFor(id)))
-      .filter((drop) => wanted.has(drop.venueId) && isPubliclyReadableDrop(drop) && drop.priceGbp !== null);
+    const rows = listAllStoredPintDrops()
+      .filter((drop) => wanted.has(drop.venueId) && drop.provenance !== "demo" && isPubliclyReadableDrop(drop) && drop.priceGbp !== null);
     return new Set((await dropWithdrawnFromViewer(rows)).map((drop) => drop.venueId));
   },
 
@@ -1519,7 +1519,7 @@ export const supabasePintDropStore: PintDropStore = {
       if (error) throw new Error(error.message);
       if (!Array.isArray(data) || count === null || count < data.length) throw new Error("Incomplete public price read.");
       const rows = data.map(fromRow);
-      for (const drop of await dropWithdrawnFromViewer(rows.filter(isPubliclyReadableDrop))) {
+      for (const drop of await dropWithdrawnFromViewer(rows.filter((drop) => drop.provenance !== "demo" && isPubliclyReadableDrop(drop)))) {
         if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp) || !storedIds.includes(drop.venueId)) {
           throw new Error("Invalid public price row.");
         }
@@ -1530,9 +1530,6 @@ export const supabasePintDropStore: PintDropStore = {
       if (typeof nextId !== "string" || (afterId && nextId <= afterId)) throw new Error("Public price pagination did not advance.");
       afterId = nextId;
     }
-    const seeds = storedIds.flatMap((id) => demoDropsFor(id))
-      .filter((drop) => isPubliclyReadableDrop(drop) && drop.priceGbp !== null);
-    for (const drop of await dropWithdrawnFromViewer(seeds)) priced.add(drop.venueId);
     return priced;
   },
 
