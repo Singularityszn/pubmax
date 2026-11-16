@@ -477,10 +477,6 @@ export async function GET(request: Request): Promise<Response> {
     const pal = await getPubPalResult(userId);
     if (!pal.ok || !pal.value) return jsonNoStore({ remainingMinutes: null });
     const month = currentMonth();
-    if (!isSupabaseConfigured()) {
-      const meter = usage.get(userId);
-      return jsonNoStore({ remainingMinutes: meter?.month === month ? remainingVoiceMinutes(meter) : PAL_VOICE_MONTHLY_MINUTES });
-    }
     try {
       const used = await readUsedMinutes(requireSupabaseAdmin(), userId, usageMonthDate(month), true);
       return jsonNoStore({ remainingMinutes: used === null ? null : Math.max(0, PAL_VOICE_MONTHLY_MINUTES - used) });
