@@ -117,6 +117,16 @@ export function useMessageComposer(options: Options) {
     }, readProviderAccountSignal());
   }, [owner, pending, draft]);
 
+  const abandon = useCallback(() => {
+    scope.current += 1;
+    pick.current += 1;
+    inFlight.current = false;
+    unsentKey.current = null;
+    setDraft(""); setPending(null); setOutbox([]);
+    dispatch({ type: "reset", scope: owner });
+    discardMessagePhotoRecovery(owner);
+  }, [owner]);
+
   const cancelPreparation = useCallback(() => {
     if (inFlight.current) return;
     pick.current += 1; dispatch({ type: "finish", scope: owner });
@@ -237,5 +247,5 @@ export function useMessageComposer(options: Options) {
     }
   }, [conversationId, authHandle, draft, pending, preparing, user, refresh, onStored, onSignedOut, fromRefusal, owner, setError]);
 
-  return { draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, send };
+  return { draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, abandon, send };
 }

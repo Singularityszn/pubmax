@@ -39,6 +39,7 @@ const fetchLog = vi.hoisted(() => ({
   inboxRows: [] as Array<Record<string, unknown>>,
   inboxFails: false,
   inboxThrows: false,
+  threadMissing: false,
   /** The membership the thread read carries, when it carries one. */
   threadConversation: null as Record<string, unknown> | null,
 }));
@@ -118,6 +119,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
           }
           return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
         }
+        if (fetchLog.threadMissing) return Promise.resolve(Response.json({ error: "Not found" }, { status: 404 }));
         return Promise.resolve(
           Response.json({
             messages: fetchLog.threadRows,
@@ -211,6 +213,7 @@ beforeEach(() => {
   ];
   fetchLog.inboxFails = false;
   fetchLog.inboxThrows = false;
+  fetchLog.threadMissing = false;
   fetchLog.threadConversation = null;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.setItem("pubmax_handle", "ken");
@@ -834,5 +837,44 @@ describe("council pending recovery ownership", () => {
     expect(container.querySelector(".composerPhotoRetry")).toBeNull();
     expect(container.querySelector(".composerPendingThumb")).toBeNull();
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+});
+
+
+describe("terminal conversation photo cleanup", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:photo"; } static revokeObjectURL() {} });
+    const file = new File([new Uint8Array([1])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1]).buffer });
+    photoSelection.file = file;
+  });
+  it.each(["pending", "sending", "failed", "leave", "notfound"] as const)("discards unreachable photos after %s", async mode => {
+    if (mode === "leave") fetchLog.threadConversation = { id: "c1", kind: "group", title: "Our group", members: ["ken", "sam", "maisie"] };
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    if (mode === "sending" || mode === "failed") {
+      await typeAndSend("caption");
+      if (mode === "failed") await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+    }
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).not.toBeNull();
+    if (mode === "notfound") {
+      fetchLog.threadMissing = true;
+      await act(async () => window.dispatchEvent(new Event("focus")));
+    } else {
+      await act(async () => container.querySelector<HTMLButtonElement>(".threadMenuToggle")!.click());
+      const items = container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+      await act(async () => items[mode === "leave" ? 1 : 0]!.click());
+      await act(async () => document.querySelector<HTMLButtonElement>(".messageConfirmActions button:last-child")!.click());
+      await act(async () => fetchLog.pendingPosts.at(-1)!(Response.json({ ok: true })));
+    }
+    expect(container.querySelector(".composerInput")).toBeNull();
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+    if (mode === "sending") {
+      await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Not found" }, { status: 404 })));
+      expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+      expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+    }
   });
 });

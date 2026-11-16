@@ -514,8 +514,12 @@ export default function MessageThread({
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
     draft, setDraft, pending, setPending, outbox, sending, preparing, error,
-    selectPhotos, clearPending, cancelPreparation, send, retrySend,
+    selectPhotos, clearPending, cancelPreparation, abandon, send, retrySend,
   } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
+
+  useLayoutEffect(() => {
+    if (state === "deleted" || state === "left" || state === "notfound") abandon();
+  }, [state, abandon]);
 
   // ONE OWNER OF THE POLL. subscribeToMessages owns every timer: the fallback
   // cadence when the socket is not live, a slow safety poll when it is, and no
