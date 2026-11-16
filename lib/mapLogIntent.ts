@@ -131,7 +131,7 @@ function priceLabelFor(
 /**
  * Wave K0 — Drop nearby picker.
  * With an origin, sort by haversine nearest-first (venues missing coords sink).
- * Without origin, preserve list order (filtered map order).
+ * Without origin, preserve the input order.
  * `maxKm` drops pubs the reader cannot be standing in; it needs an origin, so
  * an unmeasured list is never silently emptied.
  */
