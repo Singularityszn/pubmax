@@ -291,6 +291,7 @@ type PubMapCanvasProps = {
   nationalBrowse?: boolean;
   route: Venue[];
   routeRequestToken?: number;
+  routePending?: boolean;
   /**
    * Pals walk together: the crew Pals of the plan whose route this is
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
@@ -791,6 +792,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venueDataReady,
     route,
     routeRequestToken,
+    routePending,
     crewPals,
     palNextStop,
     selectedVenueId,
@@ -4721,7 +4723,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
   useRouteCameraFraming({
     mapReady, routeKey: route.map((venue) => venue.id).join(">"),
-    selectedVenueId, requestToken: routeRequestToken, fitRoute,
+    selectedVenueId, requestToken: routeRequestToken, routePending, fitRoute,
   });
 
   useEffect(() => {

@@ -70,11 +70,11 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
   readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" },
-  search = { current: "" }) {
+  search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: route, activePlanRoute: [] }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
     const presentation = useMapPlanPresentation({
       mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
-      suggestedRoute: [], activePlanRoute: [], venueById: new Map(route.map((venue) => [venue.id, venue])),
+      suggestedRoute: [], activePlanRoute: planData.activePlanRoute, venueById: new Map(planData.venues.map((venue) => [venue.id, venue])),
     });
     const currentRoute = planRef ? presentation.routeForMap : route;
     camera = useMapCamera({
@@ -112,7 +112,8 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
     });
     useRouteCameraFraming({
       mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
-      selectedVenueId: selectedVenue.current, requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
+      selectedVenueId: selectedVenue.current, requestToken: plan.routeRequestToken,
+      routePending: presentation.routePending, fitRoute: camera.fitRoute,
     });
     return null;
   }
@@ -529,6 +530,92 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).toHaveBeenCalledOnce();
     expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
       .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
+
+  it.each([false, true])("retains a walking-link request during hydration with an active Plan: %s", async (activePlan) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const search = { current: "" };
+    const planData = { venues: [...surrounding], activePlanRoute: activePlan ? surrounding : [] };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, undefined, search, planData);
+    flush();
+    fitBounds.mockClear();
+    planData.venues = [];
+    search.current = "mode=build&pubs=soho-west,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    camera.fitPalPicks(1, picks);
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+    planData.venues = [soho[0]!];
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    planData.venues = soho;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
+
+  describe.each(["area", "search", "nearby"] as const)("hydration competing with %s", (action) => {
+    it.each([false, true])("preserves action order, route request newest: %s", (routeNewest) => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      const planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: [], activePlanRoute: [] };
+      const opening = { resolved: false, area: null as MapCameraFocus | null };
+      const nearbyRequest = { current: 0 };
+      const searchRecovery = { current: 0 };
+      const rerender = mount({ current: soho }, soho, undefined, undefined, nearbyRequest,
+        action === "nearby", planRef, opening, undefined, undefined, searchRecovery, undefined, undefined, planData);
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      const otherRequest = () => {
+        if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+        else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+        else nearbyRequest.current = nextCameraRequestToken();
+        rerender();
+      };
+      if (routeNewest) { otherRequest(); act(() => planRef.current!.mapRoute()); }
+      else { act(() => planRef.current!.mapRoute()); otherRequest(); }
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      planData.venues = soho;
+      rerender();
+      flush();
+      expect(easeTo).not.toHaveBeenCalled();
+      expect(fitBounds).toHaveBeenCalledTimes(routeNewest ? 1 : 0);
+      if (routeNewest) expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    });
+  });
+
+  it.each(["clear", "hide", "one stop"] as const)("releases a route awaiting hydration after %s", (change) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: [], activePlanRoute: [] };
+    const rerender = mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, { current: soho[0]!.id }, undefined, planData);
+    act(() => planRef.current!.mapRoute());
+    camera.fitPalPicks(1, picks);
+    flush();
+    act(() => {
+      if (change === "hide") planRef.current!.hideRoute();
+      else {
+        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        planRef.current!.mapRoute();
+      }
+    });
+    camera.fitQueryVenues();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    planData.venues = soho;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
   });
 
   it.each(["route", "search", "venue", "city", "nearby"] as const)(

@@ -85,7 +85,7 @@ export function installMapGestureGuard(
 ) {
   const gestures = new Set<string>();
   const pointers = new Set<number>();
-  const touches = new Set<number>();
+  const touches = new Map<number, EventTarget>();
   const publish = () => {
     const active = gestures.size + pointers.size + touches.size > 0;
     if (active === state.current.active) return;
@@ -101,18 +101,38 @@ export function installMapGestureGuard(
     publish();
   };
   const touchStart = (event: TouchEvent) => {
-    for (const touch of Array.from(event.changedTouches)) touches.add(touch.identifier);
+    for (const touch of Array.from(event.changedTouches)) {
+      const target = touch.target ?? event.target;
+      if (!target) continue;
+      touches.set(touch.identifier, target);
+      target.addEventListener("touchend", touchEnd, { passive: true, capture: true });
+      target.addEventListener("touchcancel", touchEnd, { passive: true, capture: true });
+    }
     onInteraction();
     publish();
   };
-  const touchEnd = (event: TouchEvent) => {
+  const touchEnd = (event: TouchEvent | Event) => {
+    if (!("changedTouches" in event)) return;
+    const targets = new Set(touches.values());
     for (const touch of Array.from(event.changedTouches)) touches.delete(touch.identifier);
+    for (const target of targets) {
+      if (Array.from(touches.values()).includes(target)) continue;
+      target.removeEventListener("touchend", touchEnd, true);
+      target.removeEventListener("touchcancel", touchEnd, true);
+    }
     publish();
+  };
+  const clearTouches = () => {
+    for (const target of new Set(touches.values())) {
+      target.removeEventListener("touchend", touchEnd, true);
+      target.removeEventListener("touchcancel", touchEnd, true);
+    }
+    touches.clear();
   };
   const blur = () => {
     gestures.clear();
     pointers.clear();
-    touches.clear();
+    clearTouches();
     publish();
   };
   container.addEventListener("pointerdown", pointerDown, { passive: true, capture: true });
@@ -139,6 +159,7 @@ export function installMapGestureGuard(
       publish();
     },
     dispose: () => {
+      clearTouches();
       container.removeEventListener("pointerdown", pointerDown, true);
       container.removeEventListener("touchstart", touchStart, true);
       window.removeEventListener("pointerup", pointerUp);

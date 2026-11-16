@@ -173,6 +173,8 @@ export function useMapPlanPresentation({
     [builtIds, venueById],
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
+  const routePending = routeMapped && mode === "build" && builtIds.length >= 2
+    && builtIds.some((id) => !venueById.has(id));
   const routeMappedActive = routeMapped && route.length >= 2;
   const routeForMap = useMemo(
     () => (routeMappedActive ? route : activePlanRoute),
@@ -180,5 +182,5 @@ export function useMapPlanPresentation({
   );
   const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
 
-  return { route, routeMappedActive, routeForMap, routeForMapLegs };
+  return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs };
 }

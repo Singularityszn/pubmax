@@ -41,7 +41,7 @@ function SearchCamera({ focused, matchCount }: { focused: boolean; matchCount: n
   useEffect(() => { routeRef.current = presentation.routeForMap; });
   const [searchToken, setSearchToken] = useState(0);
   const [selection, setSelection] = useState({ id: "", token: 0 });
-  const [, setNearbyMapResult] = useState<null>(null);
+  const [nearbyMapResult, setNearbyMapResult] = useState<string | null>("nearby");
   const selectVenue = (id: string, _tab: "overview", token: number) => {
     setSelection({ id, token });
   };
@@ -78,7 +78,9 @@ function SearchCamera({ focused, matchCount }: { focused: boolean; matchCount: n
     venuesRef: queryVenuesRef, ownedQueryRef: useRef(null), selectVenue,
     setSearchRecoveryToken: setSearchToken, setNearbyMapResult,
   });
-  return null;
+  return createElement("output", {
+    "data-selected": selection.id, "data-nearby": nearbyMapResult, "data-search-token": searchToken,
+  });
 }
 
 beforeEach(() => {
@@ -118,6 +120,9 @@ it.each([1, 2])("keeps a newer route ahead of a delayed search with %s matches",
   act(() => vi.runOnlyPendingTimers());
   flushCamera();
   expect(easeTo).not.toHaveBeenCalled();
+  expect(host.querySelector("output")?.getAttribute("data-selected")).toBe("");
+  expect(host.querySelector("output")?.getAttribute("data-nearby")).toBe("nearby");
+  expect(host.querySelector("output")?.getAttribute("data-search-token")).toBe("0");
   expect(fitBounds).toHaveBeenCalledOnce();
   expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
     .toEqual([[-0.2, 51.5], [-0.1, 51.6]]);
@@ -132,11 +137,14 @@ it.each([1, 2])("lets a later search replace an older route with %s matches", (m
   act(() => vi.runOnlyPendingTimers());
   flushCamera();
   if (matchCount === 1) {
+    expect(host.querySelector("output")?.getAttribute("data-selected")).toBe("search-a");
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.3, 51.7] }));
     expect(fitBounds).not.toHaveBeenCalled();
   } else {
+    expect(Number(host.querySelector("output")?.getAttribute("data-search-token"))).toBeGreaterThan(0);
     expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
       .toEqual([[-0.3, 51.7], [-0.25, 51.75]]);
     expect(easeTo).not.toHaveBeenCalled();
   }
+  expect(host.querySelector("output")?.hasAttribute("data-nearby")).toBe(false);
 });

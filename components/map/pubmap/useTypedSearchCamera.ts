@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useRef, type RefObject } from "react";
 
-import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { isLatestCameraRequest, nextCameraRequestToken } from "@/lib/cameraIntent";
 import { isMapSearchField, TYPED_SEARCH_MIN_QUERY, typedSearchCameraMove } from "@/lib/mapSearchCamera";
 import type { Venue } from "@/lib/venues";
 
@@ -19,6 +19,7 @@ export function useTypedSearchCamera({
   setNearbyMapResult: (value: null) => void;
 }) {
   const moveSearch = useEffectEvent((requestQuery: string, requestToken: number) => {
+    if (!isLatestCameraRequest(requestToken)) return;
     const move = typedSearchCameraMove({
       query: requestQuery,
       matchCount: venuesRef.current.length,

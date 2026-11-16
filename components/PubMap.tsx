@@ -3429,7 +3429,7 @@ export default function PubMap({
   // Pals walk together: the crew's opted-in Pals walk only the plan's own
   // route, never a crawl the reader is building beside it.
   const crewPals = useCrewPals();
-  const { route, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+  const { route, routePending, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
     mode,
     builtIds,
     routeMapped,
@@ -6735,6 +6735,7 @@ export default function PubMap({
         // line remains visible even if the mobile planner closes.
         route={routeForMap}
         routeRequestToken={routeRequestToken}
+        routePending={routePending}
         crewPals={routeIsActivePlan ? crewPals : undefined}
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}

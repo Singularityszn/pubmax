@@ -279,7 +279,10 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     });
     await frame();
     expect(boundary.cameraMoves).toHaveLength(moves);
-    await act(async () => { window.dispatchEvent(event(contact === "pointer" ? "pointerup" : "touchend")); });
+    expect(pick.isConnected).toBe(false);
+    await act(async () => {
+      (contact === "touch" ? pick : window).dispatchEvent(event(contact === "pointer" ? "pointerup" : "touchend"));
+    });
     clock += 2_000;
     await act(async () => { applyPalMapCommand({ kind: "showPicks", picks }); });
     await frame();

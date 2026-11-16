@@ -4,6 +4,10 @@ export function nextCameraRequestToken(): number {
   return ++requestSequence;
 }
 
+export function isLatestCameraRequest(token: number): boolean {
+  return token === requestSequence;
+}
+
 export type CameraIntentOwner = "pal" | "user" | "automatic";
 
 export type CameraIntentKind =

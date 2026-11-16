@@ -85,6 +85,46 @@ describe("the reactive set is closed", () => {
 
 
 describe("map contact ownership", () => {
+  describe.each([1, 2])("touches on %s detached targets", (targetCount) => {
+    it.each(["touchend", "touchcancel"])("releases detached targets on %s without releasing other touches", (release) => {
+      const container = document.createElement("div");
+      const markers = Array.from({ length: targetCount }, () => document.createElement("button"));
+      container.append(...markers);
+      const state = { current: idleGestureCameraState() };
+      const guard = installMapGestureGuard(container, state, () => {});
+      const touch = (type: string, id: number) => Object.assign(new Event(type, { bubbles: true }),
+        { changedTouches: [{ identifier: id }] });
+      for (const id of [0, 1]) markers[id % targetCount]!.dispatchEvent(touch("touchstart", id));
+      markers.forEach((marker) => marker.remove());
+      markers[0]!.dispatchEvent(touch(release, 0));
+      expect(state.current.active).toBe(true);
+      markers[1 % targetCount]!.dispatchEvent(touch(release, 1));
+      expect(state.current.active).toBe(false);
+      expect(cameraIntentBlocked("route-recovery", state.current, performance.now())).toBe(false);
+      expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+      guard.dispose();
+    });
+  });
+
+  it.each(["blur", "dispose"])("removes detached target listeners on %s", (cleanup) => {
+    const container = document.createElement("div");
+    const marker = document.createElement("button");
+    container.append(marker);
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(container, state, () => {});
+    const touch = (type: string) => Object.assign(new Event(type, { bubbles: true }),
+      { changedTouches: [{ identifier: 1 }] });
+    marker.dispatchEvent(touch("touchstart"));
+    marker.remove();
+    if (cleanup === "blur") window.dispatchEvent(new Event("blur"));
+    else guard.dispose();
+    const untouched = { active: true, endedAt: null };
+    state.current = untouched;
+    marker.dispatchEvent(touch("touchend"));
+    expect(state.current).toBe(untouched);
+    guard.dispose();
+  });
+
   it.each(["pointer", "touch"])("captures %s contact on a marker that stops propagation", (contact) => {
     const container = document.createElement("div");
     const marker = document.createElement("button");
