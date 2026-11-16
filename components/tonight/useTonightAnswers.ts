@@ -71,7 +71,7 @@ export function useTonightAnswers(input: {
     !origin && tonightNear?.patchLabel ? { label: tonightNear.patchLabel, near: tonightNear.near } : null;
   const nearby = useTonightNearbyVenues(origin ?? patch?.near ?? null);
   const cheapest = tonightCheapestAnswer({ origin, patch, nearby: nearby.rows, cityRows: cheapPints ?? [] });
-  const detail = useTonightPintEvidence(cheapest && cheapest.basis !== "city" ? cheapest.venueId : null, nearby.priceDatasetDigest);
+  const detail = useTonightPintEvidence(cheapest && cheapest.basis !== "city" ? cheapest.venueId : null, nearby.priceDatasetDigest, cheapest && cheapest.basis !== "city" ? cheapest.priceGbp : null);
   const cheapestWithEvidence = cheapest && cheapest.basis !== "city"
     ? detail ? { ...cheapest, ...detail, evidenceUnavailable: false } : cheapest
     : cheapest;
