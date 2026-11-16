@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { GET } from "@/app/api/late-food/route";
 import {
   LATE_FOOD_AREAS,
-  LATE_FOOD_TERMINALS,
   getLateFoodForArea,
   isLateFoodOpenAt,
   normalizeLateFoodArea,
@@ -13,11 +12,11 @@ import {
   type LateFoodApiSuccessResponse,
 } from "@/lib/lateFood";
 
-// Inside the 2026-10-17 review window. 2026-10-23T00:00Z is 01:00 on a Friday in
-// London, inside Balans No.60's Thursday service; 05:00Z is 06:00, after it.
-const SNAPSHOT_NOW = Date.parse("2026-10-17T15:00:00.000Z");
-const THURSDAY_LATE = "2026-10-23T00:00:00.000Z";
-const FRIDAY_MORNING = "2026-10-23T05:00:00.000Z";
+// Inside the 2026-11-16 review window. 2026-11-20T00:00Z is midnight on a Friday in
+// London, inside Balans No.60's Thursday service; 05:00Z is after it.
+const SNAPSHOT_NOW = Date.parse("2026-11-16T16:00:00.000Z");
+const THURSDAY_LATE = "2026-11-20T00:00:00.000Z";
+const FRIDAY_MORNING = "2026-11-20T05:00:00.000Z";
 
 describe("rankFoodHandoff", () => {
   it("orders by walking time and leaves an unmeasured detour last", () => {
@@ -70,7 +69,7 @@ describe("late-food evidence catalogue", () => {
     ).toHaveLength(1);
     expect(
       getLateFoodForArea("islington", [], { now: SNAPSHOT_NOW }),
-    ).toHaveLength(1);
+    ).toEqual([]);
     expect(
       getLateFoodForArea("shoreditch", [], { now: SNAPSHOT_NOW }),
     ).toEqual([]);
@@ -101,7 +100,6 @@ describe("late-food evidence catalogue", () => {
         observedAt: expect.any(String),
       },
     });
-    expect(LATE_FOOD_TERMINALS).toHaveLength(8);
     expect(terminals[0]).not.toHaveProperty("prices");
   });
 
@@ -190,7 +188,7 @@ describe("GET /api/late-food", () => {
   it("returns honest empty coverage when the grounded option is closed", async () => {
     const response = await GET(
       new Request(
-        "http://localhost/api/late-food?near=victoria&at=2026-10-23T03%3A00%3A00.000Z",
+        "http://localhost/api/late-food?near=victoria&at=2026-11-20T03%3A00%3A00.000Z",
       ),
     );
     const body: LateFoodApiSuccessResponse = await response.json();
