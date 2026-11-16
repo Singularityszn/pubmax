@@ -203,9 +203,8 @@ async function settleIssuedGrants(
 }
 
 /**
- * The month's charge once this grant's prepay is in, so the browser can say
- * how many minutes are left when the call ends. Null when it cannot be read:
- * the call still starts, and the browser shows no figure.
+ * Only the allowance read treats a missing usage row as zero. Grant responses
+ * keep unknown usage unknown, even after prepayment.
  */
 async function readUsedMinutes(
   admin: ReturnType<typeof requireSupabaseAdmin>,
