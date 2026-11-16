@@ -89,6 +89,23 @@ describe("Tonight's server listing composition", () => {
     vi.restoreAllMocks();
   });
 
+  it("places the pub's own facts after the lede and before last orders", () => {
+    const html = renderToStaticMarkup(createElement(TonightClient, {
+      initialListings: { whatsOn, out, renderedAt: NOW },
+      operatorFacts: [{ id: "fact", venueId: "venue-quiz", venueName: "The Fixture Arms", kind: "event", title: "Quiz", body: "Tonight", field: null, when: null, onDate: "2026-10-16", publishedAt: OBSERVED }],
+    }));
+    const host = document.createElement("div");
+    host.innerHTML = html;
+    const lede = host.querySelector('[data-testid="tonight-lede"]');
+    const block = host.querySelector('[data-testid="tonight-from-the-pubs"]');
+    const door = host.querySelector(".lastOrdersDoor");
+    expect(block).not.toBeNull();
+    expect(lede?.contains(block)).toBe(false);
+    expect(lede!.compareDocumentPosition(block!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(block!.compareDocumentPosition(door!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(host.querySelectorAll('[data-testid="tonight-from-the-pubs"]')).toHaveLength(1);
+  });
+
   it("server-renders an eligible pub quiz and excludes a non-pub before the limit", async () => {
     const answer = await loadTodayWhatsOnAnswer(NOW, { pubOnly: true, limit: 1 });
 
