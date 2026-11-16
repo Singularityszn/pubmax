@@ -12,7 +12,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   A live account departure clears this tab's session artifacts and chosen way, including provider sign-out. Every departure also clears the remembered Plan host name and the Pint Drop sign-in handoff. Provider sign-out clears stored Plan drafts, route drafts and intake answers, including accessibility needs. It retains the saved Pal, quest stamps, pending Pint Drops, mirrored Night Profile and owner stamp.
 
-  Session cleanup removes every venue's unfinished Pint Drop draft, the confirmed Plan proposal and price mission dismissals. This includes a different account signing in after an expired-session reload, while the previous owner's stamp remains. A same-account token refresh preserves these artifacts.
+  Session cleanup removes every venue's unfinished Pint Drop draft, the confirmed Plan proposal, price mission dismissals and the measured night step count, and stops the native step listener. This includes a different account signing in after an expired-session reload, while the previous owner's stamp remains. A same-account token refresh preserves these artifacts.
 
   Cleanup resets the mounted Pint Drop composer and stops dictation. Old draft effects and speech callbacks cannot restore the previous account's note. Mounted price mission consumers discard previous dismissals and pending results. Signed-in consumers request a fresh answer. Regression coverage: `__tests__/pintDropAccountCleanup.test.tsx`, `__tests__/venueOverviewBlockedStorage.test.tsx` and `e2e/account-private-drafts.spec.ts`.
 

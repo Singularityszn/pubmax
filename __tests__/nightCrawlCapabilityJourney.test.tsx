@@ -11,6 +11,12 @@ import { NIGHT_CRAWL_ROUTE_CHANGED_NOTE } from "@/lib/nightCrawl";
 import { clearPlanCapability, PLAN_HTTP_ONLY_SESSION, writePlanCapability } from "@/lib/planSessionCapability";
 import { __resetPlanMutationOutboxForTests, listPlanMutationOutbox } from "@/lib/planMutationOutbox";
 import type { PlanState } from "@/lib/plan";
+import type { OutingStepsBridge } from "@/lib/nativeOutingSteps";
+import { OUTING_STEPS_STORAGE_KEY, type OutingStepsState } from "@/lib/outingSteps";
+import { writeOutingSteps } from "@/lib/outingStepsSession";
+
+const native = vi.hoisted(() => ({ bridge: null as OutingStepsBridge | null }));
+vi.mock("@/lib/nativeOutingSteps", () => ({ loadOutingStepsBridge: async () => native.bridge }));
 
 const planId = "11111111-1111-4111-8111-111111111111";
 const plan: PlanState = {
@@ -34,6 +40,7 @@ beforeEach(() => {
   root = createRoot(host);
   actionStatus = 200;
   actionCalls = 0;
+  native.bridge = null;
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     if (String(input).endsWith("/actions")) {
       actionCalls += 1;
@@ -89,6 +96,31 @@ async function tap(label: string) {
 }
 
 describe("Night mode action permissions and recovery", () => {
+  it.each(["counting", "stopped"] as const)("keeps a %s step count reachable after the Plan window closes", async (phase) => {
+    const startedAt = Date.now() - 9 * 60 * 60 * 1000;
+    const past = { ...plan, plan: { ...plan.plan, startTime: new Date(startedAt).toISOString() } };
+    markActivePlan(planId, past.plan.startTime);
+    const stored: OutingStepsState = {
+      phase, planId, owner: null, session: "11111111-1111-4111-8111-111111111111", startedAt, steps: 42, gap: false,
+      ...(phase === "counting" ? { counter: null } : { endedAt: startedAt + 60_000 }),
+    } as OutingStepsState;
+    writeOutingSteps(stored);
+    native.bridge = {
+      status: async () => ({ available: true, permission: "granted" }),
+      requestPermission: async () => ({ available: true, permission: "granted" }),
+      sample: async () => ({ platform: "ios", steps: 42 }),
+      stop: async () => {},
+    };
+    await act(async () => root.render(createElement(NightCrawlMode, { planId, initialState: past })));
+    await settle(() => expect(host.querySelector(".outingSteps__count")?.textContent).toBe("42 steps"));
+    expect(host.querySelector(".nightCrawl")).toBeNull();
+    if (phase === "counting") await act(async () => action("Stop counting")!.click());
+    await settle(() => expect(action("Clear")).toBeDefined());
+    await act(async () => action("Clear")!.click());
+    expect(localStorage.getItem(OUTING_STEPS_STORAGE_KEY)).toBeNull();
+    expect(host.querySelector(".outingSteps")).toBeNull();
+  });
+
   it.each([false, true])("reads the route after bootstrap and removes it after revocation (collapsed: %s)", async (collapsed) => {
     const preview = { visibility: "preview", stopCount: 2 };
     const initialState = { ...plan, stops: [], crew: [], actions: [] };

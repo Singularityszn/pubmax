@@ -53,6 +53,8 @@
 	<string>PUBMAXXING uses your location while the app is open to find nearby pubs, calculate walk times and, only when you turn it on for a night, show your crew where you are.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>PUBMAXXING uses your microphone only while you talk to Pub Pal or dictate a note or a plan.</string>
+	<key>NSMotionUsageDescription</key>
+	<string>PUBMAXXING counts your steps only when you start counting for a night out. The count stays on this phone.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>PUBMAXXING opens your photo library so you can choose a photo you have already taken.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

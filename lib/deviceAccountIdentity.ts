@@ -25,6 +25,7 @@ import {
 } from "@/lib/nightProfileDeviceProvenance";
 import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { forgetOutingSteps } from "@/lib/outingStepsSession";
 import { PLAN_ONBOARDING_ALTERNATIVE_KEY } from "@/lib/planDraftStorage";
 
 /** Which account the device-cached identity artifacts below belong to. */
@@ -142,6 +143,7 @@ export function clearDeviceAccountArtifacts(
   session: SweepableStorage | null = null,
 ): void {
   for (const key of DEVICE_IDENTITY_LOCAL_KEYS) removeKey(local, key);
+  forgetOutingSteps();
   clearDeviceAccountSessionArtifacts(session);
   // A Night Profile mirrored off an account is that account's answer wearing a
   // device label. One typed on this device belongs to the device and stays.

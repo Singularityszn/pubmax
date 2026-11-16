@@ -340,6 +340,19 @@ describe("Capacitor wrapped-build contract", () => {
     ).toBe(true);
   });
 
+  it("declares opt-in step counting on both native platforms, without making it a requirement", () => {
+    expect(plistRoot("ios/App/App/Info.plist").NSMotionUsageDescription).toEqual(expect.any(String));
+
+    const manifest = xmlDocument("android/app/src/main/AndroidManifest.xml");
+    const declared = (tag: string) => [...manifest.documentElement.getElementsByTagName(tag)];
+    expect(declared("uses-permission").map((node) => node.getAttribute("android:name")))
+      .toContain("android.permission.ACTIVITY_RECOGNITION");
+    const counter = declared("uses-feature").find(
+      (node) => node.getAttribute("android:name") === "android.hardware.sensor.stepcounter",
+    );
+    expect(counter?.getAttribute("android:required")).toBe("false");
+  });
+
   it("declares foreground location access for native nearby and walk-time flows", () => {
     const info = rootFile("ios/App/App/Info.plist");
     expect(info).toContain("NSLocationWhenInUseUsageDescription");

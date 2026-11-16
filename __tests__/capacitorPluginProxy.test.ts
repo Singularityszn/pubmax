@@ -7,6 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { closeSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
 import { recordKeptAction, resetStoreReviewPrompt } from "@/lib/nativeReviewPrompt";
 import { shareViaNativeSheet } from "@/lib/nativeShare";
+import { loadOutingStepsBridge } from "@/lib/nativeOutingSteps";
 import { releaseNativeSplashOnFirstPaint } from "@/lib/nativeSplash";
 
 // A CAPACITOR PLUGIN IS A PROXY THAT ANSWERS "then" WITH A NATIVE CALL.
@@ -48,6 +49,12 @@ vi.mock("@capacitor-community/in-app-review", () => ({
 const hide = vi.fn(async () => {});
 vi.mock("@capacitor/splash-screen", () => ({
   SplashScreen: capacitorProxy("SplashScreen", { hide }),
+}));
+const stepStatus = vi.fn(async () => ({ available: true, permission: "granted" }));
+const stepSample = vi.fn(async () => ({ platform: "ios", steps: 42 }));
+vi.mock("@capacitor/core", () => ({
+  Capacitor: { isPluginAvailable: (name: string) => name === "OutingSteps" },
+  registerPlugin: (name: string) => capacitorProxy(name, { status: stepStatus, sample: stepSample }),
 }));
 
 const memoryStorage = new Map<string, string>();
@@ -101,6 +108,14 @@ describe("every default plugin loader survives the real plugin's shape", () => {
   it("hides the launch splash on first paint", async () => {
     releaseNativeSplashOnFirstPaint({ isNative: () => true, afterPaint: (paint) => paint() });
     await vi.waitFor(() => expect(hide).toHaveBeenCalledOnce());
+  });
+
+  it("reads measured steps through the local step plugin", async () => {
+    const bridge = await loadOutingStepsBridge(native);
+    await expect(bridge?.status()).resolves.toEqual({ available: true, permission: "granted" });
+    const window = { since: 1, until: 2, session: "11111111-1111-4111-8111-111111111111" };
+    await expect(bridge?.sample(window)).resolves.toEqual({ platform: "ios", steps: 42 });
+    expect(stepSample).toHaveBeenCalledWith(window);
   });
 });
 

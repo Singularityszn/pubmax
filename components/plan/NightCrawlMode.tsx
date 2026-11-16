@@ -23,6 +23,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
+import OutingSteps from "@/components/plan/OutingSteps";
 import PlanTableBeacon from "@/components/plan/PlanTableBeacon";
 import { planNightRefreshKey, planVisitedRevealPositions } from "@/lib/planPresentation";
 import { crewPresence, type CrewMemberDTO, type CrewPresenceChip } from "@/lib/crew";
@@ -450,7 +451,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     setBusy(null);
   };
 
-  if (!activeNow) return null;
+  if (!activeNow) return <OutingSteps planId={planId} savedOnly />;
 
   if (!showSurface) {
     return (
@@ -589,6 +590,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
             Skip it under the pinned Get me home on a short phone. */}
         <PlanTableBeacon planId={planId} memberToken={memberToken} ownerKey={ownerKey} refreshKey={planNightRefreshKey(plan)} />
         <PlanLiveLocation seat={{ planId, via: "plan", memberToken: memberToken ?? undefined }} ownerKey={ownerKey} />
+        <OutingSteps planId={planId} />
         <details className="nightCrawl__extras">
           <summary>Clues and mystery stops</summary>
           <PlanMysteryControls />
