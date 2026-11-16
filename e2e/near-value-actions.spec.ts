@@ -4,6 +4,7 @@ import { NEAR_PRICE_TRUST_CAPTION } from "@/lib/nearPriceTrust";
 import { uiUxChromiumProjectUse } from "@/scripts/lib/uiUxBattleTestBrowser.mjs";
 import { desktopVenueDrawer, expectSoleDesktopDrawer } from "@/e2e/helpers/mapSurfaceDrawers";
 import { expectMobileMapShellReady, mobileMapShellControl } from "@/e2e/helpers/mobileMapShell";
+import { openVenueSecondaryActions } from "@/e2e/helpers/venueActions";
 
 // The painted-map shots below need a real WebGL context, so this file launches
 // with the same SwiftShader arguments chromium-gl uses, the way
@@ -219,6 +220,7 @@ async function expectKeptHandoff(page: Page, layout: Layout, name: string): Prom
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   const surface = await expectSelectedVenue(page, layout, name);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
+  if (layout.phone) await openVenueSecondaryActions(surface);
   const acceptStop1 = surface.getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(acceptStop1).toHaveText("Make it Stop 1");
