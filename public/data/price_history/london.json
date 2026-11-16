@@ -724,18 +724,6 @@
    }
   },
   {
-   "venueId": "venue-aihlwx",
-   "venueName": "The Horniman at Hays",
-   "priceGbp": 3.95,
-   "observedOn": "2014-01-16",
-   "quote": "£3.95 for a pint of alright Doom Bar.",
-   "source": {
-    "label": "beerintheevening.com",
-    "url": "https://www.beerintheevening.com/pubs/comments.shtml/1097/",
-    "licence": "User review published on beerintheevening.com; quoted with attribution for a dated price claim."
-   }
-  },
-  {
    "venueId": "venue-16s3et4",
    "venueName": "The Jolly Gardeners",
    "priceGbp": 4.5,

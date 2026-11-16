@@ -287,7 +287,7 @@ export function getVenueCuration(prices: VenuePrice[]): VenueCuration {
   const haystack = [
     first.pub_name,
     first.address,
-    first.description,
+    ...prices.map((price) => price.description),
     ...prices.map((price) => price.comment),
   ]
     .join(" ")

@@ -361,8 +361,8 @@ describe("price archaeology: identity", () => {
     // pub, where both records can legitimately show the same history.
     const DUPLICATE_INDEX_RECORDS: Array<{ reason: string; venueIds: string[] }> = [
       {
-        reason: "Horniman at Hays: three index records for the one Hay's Galleria pub.",
-        venueIds: ["venue-2txloa", "venue-7qifhm", "venue-aihlwx"],
+        reason: "Horniman at Hays: two retained index records for the one Hay's Galleria pub.",
+        venueIds: ["venue-2txloa", "venue-7qifhm"],
       },
       {
         reason: "Eastbrook, Dagenham: two index records, 'Eastbrook' and 'The Eastbrook'.",

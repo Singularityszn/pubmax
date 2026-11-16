@@ -82,6 +82,21 @@ describe("getVenueCuration", () => {
     expect(getVenueCuration([makeRow({ address: "Dry Inland Road" })]).nearWater).toBeFalsy();
   });
 
+  it("keeps description hints when a venue has other price rows", () => {
+    const plain = makeRow({ price_gbp: 6 });
+    const described = makeRow({
+      price_gbp: 7,
+      description: "A Victorian pub beside the Thames.",
+    });
+    for (const prices of [[plain, described], [described, plain]]) {
+      expect(getVenueCuration(prices)).toMatchObject({
+        nearWater: true,
+        heritageEra: "Historic (unverified)",
+        provenance: "anecdote",
+      });
+    }
+  });
+
   it("address-qualifies Eating Europe's Islington Albion without labelling other Albions", () => {
     const barnsbury = getVenueCuration([
       makeRow({ pub_name: "The Albion", address: "Barnsbury, N1 1HW" }),

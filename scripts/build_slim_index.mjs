@@ -539,7 +539,7 @@ function buildDrinkHints(prices) {
     [
       ...prices.map((price) => price.pint_name),
       ...prices.map((price) => price.comment),
-      prices[0]?.description,
+      ...prices.map((price) => price.description),
     ].join(" "),
   );
 
@@ -593,7 +593,7 @@ function buildCuisineHints(venueId, prices) {
   const hay = normaliseDrinkHaystack(
     [
       prices[0]?.pub_name,
-      prices[0]?.description,
+      ...prices.map((price) => price.description),
       ...prices.map((price) => price.comment),
       ...prices.map((price) => price.pint_name),
     ].join(" "),
@@ -661,7 +661,7 @@ function buildCurationHints(prices) {
   const haystack = [
     first.pub_name,
     first.address,
-    first.description,
+    ...prices.map((price) => price.description),
     ...prices.map((price) => price.comment),
   ]
     .join(" ")
