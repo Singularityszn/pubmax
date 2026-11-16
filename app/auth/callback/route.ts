@@ -34,6 +34,7 @@ import {
   safeAuthNext,
 } from "@/lib/authRedirect";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 /**
  * The Location we are about to send. Re-parse it and keep it only when its
@@ -59,10 +60,6 @@ function locationOnRequestOrigin(dest: URL, requestOrigin: string): URL {
 function opensOnAnotherDevice(request: Request): boolean {
   const agent = request.headers.get("user-agent");
   return agent !== null && agent.trim() !== "" && !/\b(?:iPhone|iPad|iPod)\b/.test(agent);
-}
-
-function escapeHtml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 // Plain HTML with no script or style, so the page needs nothing from the CSP.

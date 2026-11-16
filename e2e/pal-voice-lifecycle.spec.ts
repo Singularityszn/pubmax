@@ -759,7 +759,6 @@ test("a late SDK input request stays refused after parallel output setup fails",
   await page.getByRole("button", { name: "Cancel voice startup" }).click();
   await stopped(page);
   await page.evaluate(() => (window as Window & { failOutput?: () => void }).failOutput?.());
-  await expect.poll(app.closed).toBe(1);
   await page.evaluate(() => {
     const state = window as Window & { allowInput?: () => void; lateInputResult?: string };
     const media = navigator.mediaDevices;
@@ -771,6 +770,7 @@ test("a late SDK input request stays refused after parallel output setup fails",
     state.allowInput?.();
   });
   await expect.poll(() => page.evaluate(() => (window as Window & { lateInputResult?: string }).lateInputResult)).toBe("AbortError");
+  await expect.poll(app.closed).toBe(1);
   await stopped(page);
   expect(await page.evaluate(() => window.lifecycleProbe.microphoneCalls)).toBe(2);
   await page.screenshot({ path: `${evidence}/parallel-setup-failure.png`, fullPage: true });

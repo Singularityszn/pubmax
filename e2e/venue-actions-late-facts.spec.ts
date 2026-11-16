@@ -39,6 +39,7 @@ for (const width of [1440, 390]) {
         await expect(surface.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
         await surface.getByRole("tab", { name: "Overview", exact: true }).click();
       }
+      await surface.getByText("Your record", { exact: true }).click();
       const picker = surface.getByRole("region", { name: "Save this venue to a list" });
       await surface.getByRole("button", { name: `Save ${VENUE_NAME} to a list`, exact: true }).click();
       await expect(picker).toBeVisible();

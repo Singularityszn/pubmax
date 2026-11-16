@@ -284,6 +284,7 @@ test("the Filters feature count reads the Near me results, not the city", async 
     if (!(await filtersSheet.isVisible())) await filters.click();
     await expect(filtersSheet).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
+  await filtersSheet.locator(".mobileFilterDisclosure > summary").click();
   await filtersSheet.getByRole("button", { name: "Dogs welcome", exact: true }).click();
   const cityCount = await settledCount();
   await page.keyboard.press("Escape");

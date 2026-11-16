@@ -19,6 +19,7 @@ import type { NewNotification } from "@/lib/notifications";
 import { notificationsStore } from "@/lib/notificationsStore";
 import type { SocialCrewPublicPreviewSource, SocialCrewReadDTO } from "@/lib/socialCrew";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 type CrewJoinNoticeKind = "crew_join_request" | "crew_join_accepted";
 
@@ -59,15 +60,6 @@ async function accountAddressForHandle(handle: string): Promise<string | null> {
   const { data, error: authError } = await admin.auth.admin.getUserById(userId);
   if (authError) return null;
   return data.user?.email?.trim() || null;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
 }
 
 /** The email for one notice: plain text plus the same lines as inline-styled HTML. */

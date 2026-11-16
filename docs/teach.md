@@ -194,11 +194,11 @@ transit, and Tonight overlays for idle time or the next frame. `setMapReady(true
 still follows scene construction; the parent loading chrome waits for the
 tile-paint gate.
 
-**Cold `/map` warm path.** `app/map/page.tsx` loads
-`public/map-first-paint-init.js` before the client shell. On ordinary network
-profiles it starts the manifest and core shard requests, and
-`lib/mapEarlyWarm.ts` lets the venue loaders reuse those promises. The London
-shell also warms the MapLibre chunk before its effect mounts.
+**Cold `/map` warm path.** [`app/map/page.tsx`](../app/map/page.tsx) owns the
+London route's script loading strategy. [`public/map-first-paint-init.js`](../public/map-first-paint-init.js)
+owns the warming conditions and requests. [`lib/mapEarlyWarm.ts`](../lib/mapEarlyWarm.ts)
+lets the venue loaders reuse those promises. The London shell also warms the
+MapLibre chunk before its effect mounts.
 
 **Two pub layers, separate contracts.** The curated `pubs` source owns the
 price-aware map data. The [base delivery contract](../public/data/uk_base/README.md)

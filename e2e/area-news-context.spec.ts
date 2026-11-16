@@ -43,7 +43,7 @@ for (const theme of ["light", "dark"] as const) {
     const choose = page.locator(".citySwitcherTrigger").filter({ visible: true });
     await choose.click();
     await page.getByRole("button", { name: "This area", exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Soho");
+    await page.getByRole("searchbox", { name: "Search areas", exact: true }).fill("Soho");
     await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: /^Piccadilly & Soho/ }).click();
     const read = () => page.evaluate(() => {
       const probe = (window as Window & { __pubmaxMapCamera?: CameraProbe }).__pubmaxMapCamera;
@@ -56,7 +56,7 @@ for (const theme of ["light", "dark"] as const) {
     const readsBeforeFlight = statusReads;
     await choose.click();
     await page.getByRole("button", { name: "This area", exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Kingston");
+    await page.getByRole("searchbox", { name: "Search areas", exact: true }).fill("Kingston");
     await page.evaluate(() => {
       const state = window as Window & {
         __pubmaxMapCamera?: CameraProbe;
@@ -156,7 +156,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect(page.getByRole("button", { name: "This area", exact: true })).toBeVisible({ timeout: 1000 });
     }).toPass({ timeout: 30_000 });
     await page.getByRole("button", { name: "This area", exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Richmond");
+    await page.getByRole("searchbox", { name: "Search areas", exact: true }).fill("Richmond");
     await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: "Richmond", exact: true }).click();
     await expect(choose).toHaveAttribute("aria-label", /Map area: Richmond/i);
     await expect(copy).toHaveText("Richmond local closure", { timeout: 30_000 });

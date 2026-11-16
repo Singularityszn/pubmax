@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectMapToolbarReady } from "./helpers/mapToolbar";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
@@ -19,6 +19,8 @@ const scenarios = [
 
 for (const { width, theme, recordedRoad } of scenarios) {
   test(`a short walking route fills useful map space at ${width}px in ${theme}${recordedRoad ? " with recorded roads" : ""}`, async ({ page, request }, testInfo) => {
+    await installAuthDoubles(page);
+    await seedSignedIn(page, "A");
     const height = width === 320 ? 568 : width === 390 ? 844 : width === 1280 ? 720 : 900;
     await page.setViewportSize({ width, height });
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -54,10 +56,11 @@ for (const { width, theme, recordedRoad } of scenarios) {
       const { venue } = await response.json();
       return [venue.longitude, venue.latitude] as [number, number];
     }));
-    await page.addInitScript(({ appearance, personality, voice, theme }) => {
+    await page.addInitScript(({ appearance, personality, voice, theme, ownerId }) => {
       const now = "2026-10-26T12:00:00.000Z";
+      localStorage.setItem("pubmax_account_owner", ownerId);
       localStorage.setItem("pubmax_pub_pal_v1", JSON.stringify({
-        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: "owner-e2e", name: "Ripley",
+        id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId, name: "Ripley",
         adultAttestedAt: now, appearance, personality, voice, muted: false, hidden: false,
         proposalPreferences: {}, masteryPoints: 0, createdAt: now, updatedAt: now,
       }));
@@ -68,7 +71,7 @@ for (const { width, theme, recordedRoad } of scenarios) {
       sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
-    }, { ...DEFAULT_PAL_DRAFT, theme });
+    }, { ...DEFAULT_PAL_DRAFT, theme, ownerId: ACCOUNTS.A.id });
     await page.goto(`/map?mode=build&pubs=${STOP_IDS.join(",")}`);
     await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
     await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "3", { timeout: 60_000 });

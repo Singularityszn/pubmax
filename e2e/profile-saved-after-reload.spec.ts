@@ -103,10 +103,13 @@ test.describe("profile saved venues after a full reload", () => {
     // that the signed-in identity has written it.
     await page.reload();
 
-    const sheet = page.getByRole("dialog", { name: "Pub detail" });
+    const sheet = page.getByRole("dialog").filter({
+      has: page.getByRole("heading", { name: COMMUNITY_SHEET_FIXTURE_VENUE_NAME }),
+    });
     await expect(sheet.getByRole("heading", { name: COMMUNITY_SHEET_FIXTURE_VENUE_NAME })).toBeVisible({
       timeout: 30_000,
     });
+    await sheet.getByText("Your record", { exact: true }).click();
     await sheet.getByRole("button", { name: `Save ${COMMUNITY_SHEET_FIXTURE_VENUE_NAME} to a list` }).click();
     const [saved] = await Promise.all([
       page.waitForResponse(

@@ -3,47 +3,14 @@
 # npm run gate:e2e-skips refuses a test line with no issue above it.
 # Delete a block in the pull request that fixes its tests, then close the issue.
 
-# https://github.com/Singularityszn/pubmax/issues/2656 the reader's own Pal map marker is missing
-[chromium] › night-ways-there.spec.ts › a routed crawl is a thick solid line with its walking minutes on a bubble on each leg, and the Pal sets off saying the first one
-[chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves it perched beside the open pub
-[chromium] › night-ways-there.spec.ts › after the Pal led the way, a plan that ends leaves no Pal on the map
-[chromium] › night-ways-there.spec.ts › Night Mode lists the ways to the next stop, and a tap draws the chosen one on the map with the Pal leading
-[chromium] › pal-crew-walk.spec.ts › the crew's opted-in Pals walk the plan's route beside the reader's own
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 320px in dark
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in dark
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 768px in dark
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1280px in dark
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1440px in dark
-[chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in light with recorded roads
-
-# https://github.com/Singularityszn/pubmax/issues/2658 the Save to a list button takes no click
-[chromium] › profile-saved-after-reload.spec.ts › profile saved venues after a full reload › the owner sees a saved venue on a full load of their profile
-[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 1440px
-[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 390px
-
-# https://github.com/Singularityszn/pubmax/issues/2701 accessible-filters.spec.ts
-[chromium] › accessible-filters.spec.ts › a Step-free route surfaces unknown accessibility evidence instead of claiming a match
-
 # https://github.com/Singularityszn/pubmax/issues/2701 account-password.spec.ts
 [chromium] › account-password.spec.ts › an account with no password is offered one, with the rules up front
 [chromium] › account-password.spec.ts › an account with a password keeps change collapsed until opened
 [chromium] › account-password.spec.ts › a wrong current password and a reused password each name their fault
 
-# https://github.com/Singularityszn/pubmax/issues/2701 anchored-plan-client.spec.ts
-[chromium] › anchored-plan-client.spec.ts › existing Plan work wins without consuming a newer accepted Venue
-
-# https://github.com/Singularityszn/pubmax/issues/2701 city-crawl-directory.spec.ts
-[chromium] › city-crawl-directory.spec.ts › city crawl Edit stops works while the Place story intro is visible
-
-# https://github.com/Singularityszn/pubmax/issues/2701 diary-log-a-visit.spec.ts
-[chromium] › diary-log-a-visit.spec.ts › log a visit from the pub sheet, see it on the profile, and a repeat is refused
-
 # https://github.com/Singularityszn/pubmax/issues/2701 discover-route-intent.spec.ts
 [chromium] › discover-route-intent.spec.ts › Discover loads its data before reader intent opens plan
 [chromium] › discover-route-intent.spec.ts › Discover loads its data before reader intent opens map
-
-# https://github.com/Singularityszn/pubmax/issues/2701 drink-context-history.spec.ts
-[chromium] › drink-context-history.spec.ts › canonical city pathname wins over obsolete city query during a drink edit
 
 # https://github.com/Singularityszn/pubmax/issues/2701 homepage-navigation-clearance.spec.ts
 [chromium] › homepage-navigation-clearance.spec.ts › homepage styles do not lower Create onto Tonight after client navigation
@@ -128,15 +95,6 @@
 # https://github.com/Singularityszn/pubmax/issues/2701 pal-pint-needle.spec.ts
 [chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, light
 [chromium] › pal-pint-needle.spec.ts › a pub's Overview shows where its pint sits, dark
-
-# https://github.com/Singularityszn/pubmax/issues/2701 pal-voice-lifecycle.spec.ts
-[chromium] › pal-voice-lifecycle.spec.ts › 390px: background ends a connected call, preserves transcript and Carry on starts a fresh call
-[chromium] › pal-voice-lifecycle.spec.ts › 768px: background ends a connected call, preserves transcript and Carry on starts a fresh call
-[chromium] › pal-voice-lifecycle.spec.ts › 1440px: background ends a connected call, preserves transcript and Carry on starts a fresh call
-[chromium] › pal-voice-lifecycle.spec.ts › a deferred first microphone request keeps starting through foreground inactive
-[chromium] › pal-voice-lifecycle.spec.ts › background while the first microphone request is pending cancels without a provider grant
-[chromium] › pal-voice-lifecycle.spec.ts › background during SDK startup closes late connection after the documented SDK limit
-[chromium] › pal-voice-lifecycle.spec.ts › a real browser tab hide ends the call and returning offers Carry on without restarting
 
 # https://github.com/Singularityszn/pubmax/issues/2701 plan-account-boundary.spec.ts
 [chromium] › plan-account-boundary.spec.ts › sign-in during request-key hashing cancels the stale key and permits Lock retry
