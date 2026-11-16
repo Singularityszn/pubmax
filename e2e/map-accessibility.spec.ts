@@ -518,6 +518,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.keyboard.press("Enter");
     await expect(filters).toHaveAttribute("aria-expanded", "false");
 
+    await closeButton.focus();
     await page.keyboard.press("Escape");
     await expect(drawer).toBeHidden();
     await expect(chosenVenue).toBeFocused({ timeout: 15_000 });
