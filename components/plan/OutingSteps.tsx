@@ -23,14 +23,14 @@ function stepCount(steps: number, gap: boolean): string {
 }
 
 /** Opt-in steps measured by this phone for one night. Native shell only. */
-export default function OutingSteps({ planId }: { planId: string }) {
+export default function OutingSteps({ planId, savedOnly = false }: { planId: string; savedOnly?: boolean }) {
   const { user, loading, accountRevision } = useAuth();
   if (loading) return null;
   const owner = user?.id ?? null;
-  return <OwnedOutingSteps key={`${owner ?? "guest"}:${accountRevision ?? 0}`} planId={planId} owner={owner} />;
+  return <OwnedOutingSteps key={`${owner ?? "guest"}:${accountRevision ?? 0}`} planId={planId} owner={owner} savedOnly={savedOnly} />;
 }
 
-function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | null }) {
+function OwnedOutingSteps({ planId, owner, savedOnly }: { planId: string; owner: string | null; savedOnly: boolean }) {
   const [bridge, setBridge] = useState<OutingStepsBridge | null>(null);
   const [status, setStatus] = useState<OutingStepsStatus | null>(null);
   const [state, setState] = useState<OutingStepsState>(() => readOutingSteps(owner));
@@ -38,7 +38,13 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
   const [problem, setProblem] = useState("");
   const [ownerSignal] = useState(readProviderAccountSignal);
   const stateRef = useRef(state);
+  const mounted = useRef(false);
   const counting = state.phase === "counting" ? state.startedAt : null;
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   useEffect(() => {
     let live = true;
@@ -54,7 +60,7 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
   const apply = useCallback((event: OutingStepsEvent) => {
     const previous = stateRef.current;
     const next = transitionOutingSteps(previous, event);
-    if (next === previous || ownerSignal.aborted) return;
+    if (next === previous || ownerSignal.aborted || !mounted.current) return;
     stateRef.current = next;
     writeOutingSteps(next);
     setState(next);
@@ -65,6 +71,7 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
   const read = useCallback(async (finishing = false) => {
     if (!bridge) return;
     const outcome = await readOutingStepsEvent(bridge, stateRef.current, { signal: ownerSignal, now: Date.now, finishing });
+    if (!mounted.current) return;
     if (outcome.kind === "event") apply(outcome.event);
     if (outcome.kind === "refused") setStatus(outcome.status);
     if (outcome.kind === "stale") return;
@@ -88,6 +95,10 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     setBusy("asking");
     setProblem("");
     const outcome = await beginOutingSteps(bridge, { planId, owner, signal: ownerSignal, now: Date.now });
+    if (!mounted.current) {
+      if (outcome.kind === "started") void bridge.stop({ session: outcome.event.session });
+      return;
+    }
     if (outcome.kind === "started") apply(outcome.event);
     if (outcome.kind === "refused") setStatus(outcome.status);
     if (outcome.kind === "failed") setProblem("We couldn't start counting. Try again.");
@@ -99,12 +110,14 @@ function OwnedOutingSteps({ planId, owner }: { planId: string; owner: string | n
     if (current.phase !== "counting") return;
     setBusy("stopping");
     await read(true);
+    if (!mounted.current) return;
     apply({ type: "stop", session: current.session, at: Date.now() });
     setBusy(null);
   }
 
   if (!bridge || !status) return null;
   const mine = state.phase !== "off" && state.planId === planId;
+  if (savedOnly && !mine) return null;
   if (!status.available && !mine && state.phase !== "counting") return null;
 
   const denied = status.permission === "denied";

@@ -451,7 +451,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     setBusy(null);
   };
 
-  if (!activeNow) return null;
+  if (!activeNow) return <OutingSteps planId={planId} savedOnly />;
 
   if (!showSurface) {
     return (

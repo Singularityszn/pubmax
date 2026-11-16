@@ -53,7 +53,7 @@ function readAndroid(state: Counting, counter: AndroidCounter, sample: Extract<O
   if (sample.counter === null) return { ...state, gap };
   const bootCount = knownBoot(sample.bootCount) ? sample.bootCount : counter.bootCount;
   if (counter.baseline === null || counter.last === null) {
-    return { ...state, gap, counter: { ...counter, bootCount, baseline: sample.counter, last: sample.counter } };
+    return { ...state, gap: true, counter: { ...counter, bootCount, baseline: sample.counter, last: sample.counter } };
   }
   const rebooted = knownBoot(sample.bootCount) && knownBoot(counter.bootCount) && sample.bootCount !== counter.bootCount;
   if (sample.counter >= counter.last && !rebooted) {
@@ -87,7 +87,7 @@ export function transitionOutingSteps(state: OutingStepsState, event: OutingStep
       const counter = event.sample.platform === "android"
         ? { bootCount: event.sample.bootCount, baseline: isCount(event.sample.counter) ? event.sample.counter : null, carried: 0, last: isCount(event.sample.counter) ? event.sample.counter : null }
         : null;
-      return { phase: "counting", planId: event.planId, owner: event.owner, session: event.session, startedAt: event.at, steps: 0, gap: false, counter };
+      return { phase: "counting", planId: event.planId, owner: event.owner, session: event.session, startedAt: event.at, steps: 0, gap: counter !== null && counter.baseline === null, counter };
     }
     case "sample":
       return state.phase === "counting" && state.session === event.session ? readSample(state, event.at, event.sample) : state;
