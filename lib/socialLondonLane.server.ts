@@ -1,7 +1,7 @@
 import "server-only";
 
 import { readSocialFreeze } from "@/lib/opsFreeze";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
 /**
  * WHETHER A STRANGER MAY READ THE LONDON LANE RIGHT NOW. One answer for the
@@ -18,5 +18,5 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 export function socialLondonLaneOpen(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
-  return readTrustedHandoffFlag("socialFriendsLaunch", env) && !readSocialFreeze(env).frozen;
+  return isSocialFriendsLaunchEnabled(env[SOCIAL_FRIENDS_LAUNCH_ENV]) && !readSocialFreeze(env).frozen;
 }

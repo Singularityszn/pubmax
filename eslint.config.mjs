@@ -83,6 +83,46 @@ const eslintConfig = [
       "no-extra-semi": "error",
     },
   },
+  {
+    files: [
+      "app/**/*.{js,jsx,mjs,cjs,ts,tsx}",
+      "components/**/*.{js,jsx,mjs,cjs,ts,tsx}",
+      "lib/**/*.{js,jsx,mjs,cjs,ts,tsx}",
+      "scripts/**/*.{js,jsx,mjs,cjs,ts,tsx}",
+      "next.config.mjs",
+      "playwright.config.ts",
+      "proxy.ts",
+    ],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: "Identifier[name='PUBMAX_MAP_ROUTE_TRANSFER']",
+          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+        },
+        {
+          selector: "Literal[value='PUBMAX_MAP_ROUTE_TRANSFER']",
+          message: "PUBMAX_MAP_ROUTE_TRANSFER is a retired rollout flag.",
+        },
+        {
+          selector: "Identifier[name='PUBMAX_TONIGHT_GROUPING']",
+          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+        },
+        {
+          selector: "Literal[value='PUBMAX_TONIGHT_GROUPING']",
+          message: "PUBMAX_TONIGHT_GROUPING is a retired rollout flag.",
+        },
+        {
+          selector: "Identifier[name='PUBMAX_PAL_HANDOFF']",
+          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+        },
+        {
+          selector: "Literal[value='PUBMAX_PAL_HANDOFF']",
+          message: "PUBMAX_PAL_HANDOFF is a retired rollout flag.",
+        },
+      ],
+    },
+  },
   // The client router cache is only safe while no page reads the request's
   // credential and nothing calls router.refresh(). See lib/routerCacheFence.mjs.
   ...ROUTER_CACHE_FENCE_CONFIG,

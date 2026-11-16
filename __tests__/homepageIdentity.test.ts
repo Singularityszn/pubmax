@@ -36,9 +36,7 @@ vi.mock("@/lib/landingPubCard.server", () => ({
 vi.mock("@/lib/landingAnswers.server", () => ({
   loadLandingAnswers: async () => null,
 }));
-vi.mock("@/lib/trustedHandoffFlags.server", () => ({
-  readTrustedHandoffFlag: () => false,
-}));
+vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
 
 import RootLayout from "@/app/layout";
 import Home from "@/app/page";

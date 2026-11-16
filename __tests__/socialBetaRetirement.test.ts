@@ -21,7 +21,6 @@ const RETIREMENT_SCAN_PATHS = [
   "docs",
   "supabase",
   "app/api/identity/adult-assertion/route.ts",
-  "lib/trustedHandoffFlags.server.ts",
   ".env.example",
   "capacitor.config.ts",
   "eslint.config.mjs",
