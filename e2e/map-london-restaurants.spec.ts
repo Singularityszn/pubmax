@@ -46,7 +46,7 @@ async function enableRestaurants(page: Page): Promise<void> {
   await (await mobileMapShellControl(page, "filters")).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
   await openMobileFilterRefinements(sheet);
-  await sheet.getByRole("button", { name: "OSM restaurants", exact: true }).click();
+  await sheet.getByRole("button", { name: "All restaurants", exact: true }).click();
   await sheet.getByRole("button", { name: "Close Prices and places", exact: true }).click();
 }
 

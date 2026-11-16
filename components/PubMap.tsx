@@ -3107,6 +3107,7 @@ export default function PubMap({
       selectedVenueId,
       selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
     }),
+    londonRestaurantsShown === "selection" ? selectedVenueId : undefined,
   );
   // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
   // go only when neither can open it.
@@ -3160,7 +3161,6 @@ export default function PubMap({
       savedOnly,
       selectedVenueId,
       venues,
-      venueKindVisibility.osmRestaurants,
     ],
   );
   const drawnLondonRestaurants = useStableRestaurantList(filteredLondonRestaurants);
@@ -6056,13 +6056,13 @@ export default function PubMap({
       <MobilePriceChoices
         {...mobilePriceChoicesProps}
         onClearFilters={clearMobileFilters}
-        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens, cityId) > 0}
+        refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
         drinkControl={<div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
-        <TonightArcChips visibility={venueKindVisibility} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
+        <TonightArcChips visibility={isLondon ? venueKindVisibility : { ...venueKindVisibility, osmRestaurants: undefined }} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
           <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />

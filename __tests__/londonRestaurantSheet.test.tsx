@@ -21,8 +21,8 @@ const ROOT = resolve(__dirname, "..");
 const container = document.createElement("div");
 const root = createRoot(container);
 
-function RestaurantLayer({ wanted }: { wanted: boolean }) {
-  const read = useLondonRestaurants(wanted);
+function RestaurantLayer({ wanted, selected }: { wanted: boolean; selected?: string }) {
+  const read = useLondonRestaurants(wanted, selected);
   const furnival = read.byId.get("venue-osm-n25496840");
   return createElement(
     "div",
@@ -118,4 +118,33 @@ it("hands the canvas a new list only when the restaurants on it change", async (
   expect(drawn[1]).toBe(drawn[0]);
   expect(drawn[2]).not.toBe(drawn[0]);
   expect(drawn[2]).toEqual([furnival]);
+});
+
+it("upgrades a one-place shared-link read to the full optional layer", async () => {
+  const fetchMock = stubPack(() => "ok");
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, selected: "venue-osm-n25496840" })));
+  expect(container.querySelector("[data-count]")?.getAttribute("data-count")).toBe("1");
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/packs/"))).toHaveLength(1);
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
+  expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBeGreaterThan(1000);
+});
+
+it("keeps a completed full layer when an older selected-place response arrives late", async () => {
+  let release: (() => void) | undefined;
+  let firstChunk = true;
+  vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+    const body = readFileSync(join(ROOT, "public", String(input).replace(/^\//, "")), "utf8");
+    if (String(input).includes("/packs/") && firstChunk) {
+      firstChunk = false;
+      await new Promise<void>(resolve => { release = resolve; });
+    }
+    return new Response(body, { status: 200 });
+  });
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, selected: "venue-osm-n25496840" })));
+  expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("loading");
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true })));
+  const fullCount = Number(container.querySelector("[data-count]")?.getAttribute("data-count"));
+  expect(fullCount).toBeGreaterThan(1000);
+  await act(async () => { release?.(); });
+  expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBe(fullCount);
 });

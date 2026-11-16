@@ -44,7 +44,7 @@ the existing polygon lookup. No row carries a price or an alcohol claim. The man
 and chunks use version 3. `observedAt` is the extract timestamp. `layer` identifies
 the parent venue generation. Each response stays below 192 KiB, and the whole generated
 layer stays below the existing venue layer ceiling of 5 MiB. The current 8,971-row
-snapshot produces six chunks, totalling 1,153,408 bytes before compression. The initial
+snapshot produces six chunks, totalling 1,153,689 bytes before compression. The initial
 map requests none of them. Opt-in loads the chunks concurrently after the manifest.
 
 The sheet shows only tagged facts, the snapshot date and the original OSM element link.

@@ -488,7 +488,6 @@ export default function MapToolbar({
             because a phone reads the same toggles in its Filters sheet. */}
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
-            cityId={cityId}
             featureFilterCount={activeVenueFeatureCount(filters)}
             featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />}
             visibility={venueKindVisibility}

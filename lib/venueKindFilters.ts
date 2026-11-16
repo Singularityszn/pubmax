@@ -190,11 +190,9 @@ export function offeredVenueKinds(
 export function hiddenVenueKindCount(
   visibility: VenueKindVisibility,
   experienceLens: string,
-  cityId?: CityId,
 ): number {
-  const defaults = defaultVenueKindVisibility(cityId);
   return offeredVenueKinds(experienceLens).filter((kind) =>
-    defaults[kind] && (kind === "club" ? !(visibility.club ?? visibility.bar) : !visibility[kind]),
+    kind === "club" ? !(visibility.club ?? visibility.bar) : !visibility[kind],
   ).length;
 }
 

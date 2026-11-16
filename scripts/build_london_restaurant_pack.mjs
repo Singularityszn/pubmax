@@ -77,7 +77,7 @@ export function restaurantPackBody(manifest, rows, facts = new Map()) {
     attribution: "© OpenStreetMap contributors",
     observedAt: manifest.restaurantSnapshot?.fetchedAt ?? null,
     count: rows.length,
-    venues: rows.map((row) => {
+    venues: [...rows].sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0).map((row) => {
       const tags = facts.get(row[0]);
       return [...row, boroughForPoint(row[3], row[4]), tags?.cuisine ?? "", tags?.openingHours ?? ""];
     }),
@@ -119,7 +119,7 @@ export async function writeLondonRestaurantPack() {
       const json = JSON.stringify({ ...header, count: chunk.length, venues: chunk });
       if (Buffer.byteLength(json) > BUDGET_BYTES) throw new Error("Restaurant chunk exceeds its response budget.");
       await writeFile(path.join(stagedDir, `${id}.json`), json);
-      shards.push({ id, count: chunk.length });
+      shards.push({ id, count: chunk.length, firstId: chunk[0][0], lastId: chunk.at(-1)[0] });
       chunk = [];
       bytes = overhead;
     }

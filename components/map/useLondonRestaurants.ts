@@ -22,26 +22,31 @@ const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
  * `londonRestaurantPackWanted`). A failed read is asked for again the next
  * time `wanted` turns true, rather than on every render.
  */
-export function useLondonRestaurants(wanted: boolean): LondonRestaurantsState {
+export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string): LondonRestaurantsState {
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
   const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
-  const requested = useRef(false);
+  const requested = useRef<string | null>(null);
+  const latestRequest = useRef(0);
 
   useEffect(() => {
-    if (!wanted || requested.current) return;
-    requested.current = true;
+    const scope = selectedVenueId ?? "all";
+    if (!wanted || requested.current === "all" || requested.current === scope) return;
+    requested.current = scope;
+    const request = ++latestRequest.current;
     queueMicrotask(() => setStatus("loading"));
-    loadLondonRestaurants().then(
+    loadLondonRestaurants(fetch, selectedVenueId).then(
       (loaded) => {
+        if (request !== latestRequest.current) return;
         setRestaurants(loaded);
         setStatus("ready");
       },
       () => {
-        requested.current = false;
+        if (request !== latestRequest.current) return;
+        requested.current = null;
         setStatus("failed");
       },
     );
-  }, [wanted]);
+  }, [wanted, selectedVenueId]);
 
   const byId = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant] as const)),

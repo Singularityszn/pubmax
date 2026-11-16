@@ -15,10 +15,9 @@
 //    price property for the pin colour to find.
 // 2. A CURATED VENUE OWNS ITS OWN PLACE. The curated index already pins some
 //    of these restaurants (Rules, Quo Vadis, The Wolseley). The OSM row beside
-//    one is dropped rather than drawn as a second fork a few metres away.
-// 3. THE KIND FILTER AND THE VIEW DECIDE, as they do for a curated restaurant.
-//    Restaurants hidden in the filter, or a view that is not about restaurants,
-//    take this layer off the map.
+//    one is dropped, unless explicitly selected for a shared link.
+// 3. THE OPTIONAL LAYER AND VIEW DECIDE. The All restaurants switch is separate
+//    from curated restaurant pins. A drink view draws only an explicit selection.
 // 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name, an address or
 //    a borough, as it does a curated pin's. A search for an area the pack does
 //    not name (Soho, Shoreditch) keeps the restaurants within 400 m of a
@@ -96,13 +95,13 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
   const pack = value as Record<string, unknown>;
   const rows = pack.venues;
   if (
-    (pack.version !== LONDON_RESTAURANT_PACK_VERSION && pack.version !== 2) ||
+    pack.version !== LONDON_RESTAURANT_PACK_VERSION ||
     pack.kind !== "restaurant" ||
     !Array.isArray(rows) ||
     pack.count !== rows.length ||
-    !rows.every((row) => Array.isArray(row) && row.length === (pack.version === 3 ? 9 : 7)
+    !rows.every((row) => Array.isArray(row) && row.length === 9
       && typeof row[6] === "string"
-      && (pack.version === 2 || (typeof row[7] === "string" && typeof row[8] === "string")))
+      && typeof row[7] === "string" && typeof row[8] === "string")
   ) {
     return null;
   }
@@ -112,8 +111,9 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
     if (!venue || venue.kind !== "restaurant" || !/^[nwr]\d+$/.test(row[0])) return null;
     restaurants.push({
       ...venue, borough: row[6],
-      ...(pack.version === 3 ? { cuisine: row[7], openingHours: row[8],
-        observedAt: typeof pack.observedAt === "string" ? pack.observedAt : undefined } : {}),
+      ...(row[7] ? { cuisine: row[7] } : {}),
+      ...(row[8] ? { openingHours: row[8] } : {}),
+      ...(typeof pack.observedAt === "string" ? { observedAt: pack.observedAt } : {}),
     });
   }
   return restaurants;
@@ -122,6 +122,7 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
 /** Read the pack. Rejects when it cannot be read or does not decode. */
 export async function loadLondonRestaurants(
   fetchImpl: typeof fetch = fetch,
+  selectedVenueId?: string,
 ): Promise<LondonRestaurant[]> {
   const response = await fetchImpl(LONDON_RESTAURANT_PACK_PATH);
   if (!response.ok) {
@@ -130,19 +131,26 @@ export async function loadLondonRestaurants(
   const body: unknown = await response.json();
   if (typeof body !== "object" || body === null) throw new Error("London restaurant manifest is malformed");
   const manifest = body as Record<string, unknown>;
-  if (Array.isArray(manifest.venues)) {
-    const restaurants = parseLondonRestaurantPack(body);
-    if (!restaurants) throw new Error("London restaurant pack is malformed");
-    return restaurants;
-  }
   if (manifest.version !== 3 || manifest.kind !== "restaurant"
     || typeof manifest.urlPrefix !== "string"
     || !/^\/data\/london_restaurants\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
     || !Array.isArray(manifest.shards) || !manifest.shards.length) {
     throw new Error("London restaurant manifest is malformed");
   }
+  for (const [index, entry] of manifest.shards.entries()) {
+    if (typeof entry?.firstId !== "string" || !/^[nwr][1-9]\d*$/.test(entry.firstId)
+      || typeof entry.lastId !== "string" || !/^[nwr][1-9]\d*$/.test(entry.lastId)
+      || entry.firstId > entry.lastId || (index > 0 && manifest.shards[index - 1].lastId >= entry.firstId)) {
+      throw new Error("London restaurant chunk range is malformed");
+    }
+  }
+  const selectedRef = selectedVenueId?.replace(/^venue-osm-/, "");
+  const entries = manifest.shards.filter(entry => !selectedRef || (
+    typeof entry.firstId === "string" && typeof entry.lastId === "string"
+    && selectedRef >= entry.firstId && selectedRef <= entry.lastId
+  ));
   const restaurants: LondonRestaurant[] = [];
-  const chunks = await Promise.all(manifest.shards.map(async (entry) => {
+  const chunks = await Promise.all(entries.map(async (entry) => {
     if (typeof entry?.id !== "string" || !/^\d+$/.test(entry.id)
       || !Number.isInteger(entry.count) || entry.count < 1) {
       throw new Error("London restaurant chunk entry is malformed");
@@ -150,14 +158,16 @@ export async function loadLondonRestaurants(
     const chunk = await fetchImpl(`${manifest.urlPrefix}${entry.id}.json`);
     if (!chunk.ok) throw new Error(`London restaurant chunk answered ${chunk.status}`);
     const places = parseLondonRestaurantPack(await chunk.json());
-    if (!places || places.length !== entry.count) throw new Error("London restaurant chunk is malformed");
+    if (!places || places.length !== entry.count
+      || places[0]?.id !== `venue-osm-${entry.firstId}`
+      || places.at(-1)?.id !== `venue-osm-${entry.lastId}`) throw new Error("London restaurant chunk is malformed");
     return places;
   }));
   restaurants.push(...chunks.flat());
-  if (restaurants.length !== manifest.count || new Set(restaurants.map((row) => row.id)).size !== restaurants.length) {
+  if ((!selectedRef && restaurants.length !== manifest.count) || new Set(restaurants.map((row) => row.id)).size !== restaurants.length) {
     throw new Error("London restaurant manifest count is malformed");
   }
-  return restaurants;
+  return selectedRef ? restaurants.filter(row => row.id === selectedVenueId) : restaurants;
 }
 
 /**
@@ -243,7 +253,7 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
 
 /**
  * Whether the map shows this layer. London only, because the pack is London's.
- * Restaurants must be on in the kind filter. A drink lane or a view owns the
+ * The optional layer must be enabled. A drink lane or a view owns the
  * map otherwise, and this layer has no price for one to read, except the food
  * view, which is the question a restaurant answers.
  */
@@ -260,9 +270,6 @@ export function londonRestaurantLayerMode(input: {
   return isLondonVenueId(input.selectedVenueId ?? "") ? "selection" : "off";
 }
 
-export function londonRestaurantLayerShown(input: Parameters<typeof londonRestaurantLayerMode>[0]): boolean {
-  return londonRestaurantLayerMode(input) !== "off";
-}
 
 /**
  * Whether a map filter asks a question a restaurant row cannot answer. A row

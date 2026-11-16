@@ -89,7 +89,7 @@ function dayLabel(value: string): string | null {
  * the pub on that day, so it reads "checked". Without one, the day is when we
  * read OpenStreetMap, so it reads "read" rather than claiming a check.
  */
-function creditDay(checkDate: string | undefined, readOn: string): string {
+export function creditDay(checkDate: string | undefined, readOn: string): string {
   const checked = checkDate ? dayLabel(checkDate) : null;
   if (checked) return `checked ${checked}`;
   return `read ${dayLabel(readOn) ?? readOn}`;
