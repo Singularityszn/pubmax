@@ -6,10 +6,11 @@ import type { Map, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
-import { useMapPlanCoordinator } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
-import type { MapCameraFocus } from "@/lib/mapCameraFocus";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -65,12 +66,16 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }) {
+  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
-    const currentRoute = planRef
-      ? plan.routeMapped ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : []
-      : route;
+    const presentation = useMapPlanPresentation({
+      mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
+      suggestedRoute: [], activePlanRoute: [], venueById: new Map(route.map((venue) => [venue.id, venue])),
+    });
+    const currentRoute = planRef ? presentation.routeForMap : route;
     camera = useMapCamera({
+      latestRequestToken: Math.max(planRef ? plan.routeRequestToken : 0, nearbyRequest.current,
+        searchRecovery.current, opening.area?.token ?? 0),
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
         getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
@@ -103,7 +108,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
     });
     useRouteCameraFraming({
       mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
-      selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
+      selectedVenueId: selectedVenue.current, requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
     });
     return null;
   }
@@ -163,7 +168,7 @@ describe("query camera with contextual price pins", () => {
     "lets an explicit %s action replace pending Pal framing", (action) => {
       mount({ current: soho }, soho);
       camera.fitPalPicks(1, picks);
-      if (action === "search") camera.fitQueryVenues("search-recovery", 1);
+      if (action === "search") camera.fitQueryVenues("search-recovery", nextCameraRequestToken());
       else if (action === "city") camera.fitCityBounds();
       else camera.cinematic({ center: [-0.13, 51.51] }, action, "user");
       flush();
@@ -229,7 +234,7 @@ describe("query camera with contextual price pins", () => {
       .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
     expect(easeTo).not.toHaveBeenCalled();
 
-    opening.area = { source: "area", token: 1, center: [-0.1, 51.5], zoom: 15 };
+    opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
     rerender();
     flush();
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.1, 51.5] }));
@@ -284,7 +289,7 @@ describe("query camera with contextual price pins", () => {
 
   it("preserves a Near me request made before the canvas mounts", () => {
     const readiness = { current: false };
-    const rerender = mount({ current: soho }, [], undefined, undefined, { current: 1 }, true,
+    const rerender = mount({ current: soho }, [], undefined, undefined, { current: nextCameraRequestToken() }, true,
       undefined, undefined, readiness);
     camera.fitPalPicks(1, picks);
     flush();
@@ -310,9 +315,9 @@ describe("query camera with contextual price pins", () => {
           if (change === "hide") planRef.current!.setRouteMapped(false);
           else planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
         });
-        if (action === "nearby") nearbyRequest.current = 1;
-        else if (action === "area") opening.area = { source: "area", token: 1, center: [-0.1, 51.5], zoom: 15 };
-        else searchRecovery.current = 1;
+        if (action === "nearby") nearbyRequest.current = nextCameraRequestToken();
+        else if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+        else searchRecovery.current = nextCameraRequestToken();
         canvasMounted.current = true;
         readiness.current = true;
         rerender();
@@ -333,11 +338,121 @@ describe("query camera with contextual price pins", () => {
     });
   });
 
+  describe.each([false, true])("request ordering with mounted canvas: %s", (mounted) => {
+    describe.each(["route", "nearby"] as const)("retained %s request", (retained) => {
+      describe.each(["area", "search", "nearby"] as const)("competing with %s", (action) => {
+        it.each([false, true])("honours action order, retained request newest: %s", (retainedNewest) => {
+          const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+          const readiness = { current: false };
+          const canvasMounted = { current: mounted };
+          const nearbyRequest = { current: 0 };
+          const searchRecovery = { current: 0 };
+          const opening = { resolved: false, area: null as MapCameraFocus | null };
+          const rerender = mount({ current: soho }, retained === "route" ? surrounding : [], undefined,
+            undefined, nearbyRequest, retained === "nearby" || action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+          const requestRetained = () => {
+            if (retained === "route") act(() => planRef.current!.mapRoute());
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          const requestOther = () => {
+            if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+            else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          if (retainedNewest) { requestOther(); requestRetained(); }
+          else { requestRetained(); requestOther(); }
+          canvasMounted.current = true;
+          readiness.current = true;
+          rerender();
+          flush();
+          expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(1);
+          if (retainedNewest && retained === "route") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+          } else if (!retainedNewest && action === "search") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          } else {
+            expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+              center: retainedNewest || action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+            }));
+          }
+        });
+      });
+    });
+    it("does not restore an older consumed route after readiness returns", () => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      const readiness = { current: true };
+      const opening = { resolved: false, area: null as MapCameraFocus | null };
+      const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined,
+        false, planRef, opening, readiness);
+      act(() => planRef.current!.mapRoute());
+      flush();
+      opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+      rerender();
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      readiness.current = false;
+      rerender();
+      readiness.current = true;
+      rerender();
+      flush();
+      expect(fitBounds).not.toHaveBeenCalled();
+      expect(easeTo).not.toHaveBeenCalled();
+    });
+    describe.each(["one stop", "clear", "hide"] as const)("route %s", (change) => {
+      describe.each(["area", "search", "nearby"] as const)("competing with %s", (action) => {
+        it.each([false, true])("honours action order, release newest: %s", (releaseNewest) => {
+          const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+          const readiness = { current: false };
+          const canvasMounted = { current: mounted };
+          const nearbyRequest = { current: 0 };
+          const searchRecovery = { current: 0 };
+          const opening = { resolved: false, area: null as MapCameraFocus | null };
+          const rerender = mount({ current: soho }, surrounding, undefined, undefined, nearbyRequest,
+            action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+          const release = () => act(() => {
+            if (change === "hide") planRef.current!.hideRoute();
+            else {
+              planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+              planRef.current!.mapRoute();
+            }
+          });
+          const requestOther = () => {
+            if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+            else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          if (releaseNewest) { requestOther(); release(); }
+          else { release(); requestOther(); }
+          canvasMounted.current = true;
+          readiness.current = true;
+          rerender();
+          flush();
+          expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(releaseNewest ? 0 : 1);
+          if (!releaseNewest && action === "search") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          } else if (!releaseNewest) {
+            expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+              center: action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+            }));
+          }
+          fitBounds.mockClear();
+          camera.fitQueryVenues();
+          flush();
+          expect(fitBounds).toHaveBeenCalledOnce();
+        });
+      });
+    });
+  });
+
   it.each(["route", "search", "venue", "city", "nearby"] as const)(
     "keeps a queued user %s ahead of a later Pal answer and automatic restoration", (action) => {
       mount({ current: soho }, soho);
       if (action === "route") camera.fitRoute("user");
-      else if (action === "search") camera.fitQueryVenues("search-recovery", 1);
+      else if (action === "search") camera.fitQueryVenues("search-recovery", nextCameraRequestToken());
       else if (action === "city") camera.fitCityBounds();
       else if (action === "nearby") camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
       else camera.cinematic({ center: [-0.13, 51.51] }, "venue", "user");
@@ -384,16 +499,18 @@ describe("query camera with contextual price pins", () => {
     expect(easeTo).toHaveBeenCalledOnce();
   });
 
-  it("releases Pal ownership when a user removes the second-to-last stop", () => {
+  it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s with the inspector open", (change) => {
     const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
-    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef);
-    flush();
-    fitBounds.mockClear();
+    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, { current: soho[0]!.id });
     camera.fitPalPicks(1, picks);
     flush();
     act(() => {
-      planRef.current!.setBuiltIds([soho[0]!.id]);
-      planRef.current!.mapRoute();
+      if (change === "hide") planRef.current!.hideRoute();
+      else {
+        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        planRef.current!.mapRoute();
+      }
     });
     flush();
     camera.fitQueryVenues();
@@ -469,7 +586,7 @@ describe("query camera with contextual price pins", () => {
     flush();
     expect(fitBounds).toHaveBeenCalledOnce();
     expect(easeTo).not.toHaveBeenCalled();
-    requestToken.current = 1;
+    requestToken.current = nextCameraRequestToken();
     rerender();
     flush();
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));

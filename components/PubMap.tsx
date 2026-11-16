@@ -1,5 +1,7 @@
 "use client";
 
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
+
 import { useMapPinVenues } from "@/components/map/pubmap/useMapPinVenues";
 
 import { warmMapEngine } from "@/lib/mapEngineWarm";
@@ -1782,7 +1784,7 @@ export default function PubMap({
     builtIds,
     setBuiltIds,
     routeMapped,
-    setRouteMapped, mapRoute, routeRequestToken,
+    setRouteMapped, mapRoute, hideRoute, routeRequestToken,
     planningOpen,
     setPlanningOpen,
     plannedNightArea,
@@ -4356,7 +4358,7 @@ export default function PubMap({
         selectVenue(match.id);
       } else if (move === "fit-many") {
         // Frame the whole matched set so none stay hidden off-screen.
-        setSearchRecoveryToken((token) => token + 1);
+        setSearchRecoveryToken(nextCameraRequestToken());
       }
     }, 320);
     return () => window.clearTimeout(handle);
@@ -4546,11 +4548,11 @@ export default function PubMap({
 
   const clearBuilt = useCallback(() => {
     setBuiltIds([]);
-    setRouteMapped(false);
+    hideRoute();
     setActiveCrawl(null);
     // Explicit Clear also drops a copy that older builds left behind.
     if (typeof window !== "undefined") window.localStorage.removeItem(BUILT_STORAGE_KEY);
-  }, [setActiveCrawl, setBuiltIds, setRouteMapped]);
+  }, [setActiveCrawl, setBuiltIds, hideRoute]);
 
   // Trust fix (§4.3): a pin tap INSPECTS ONLY, in both modes. It never mutates
   // the crawl — otherwise browsing pubs in build mode silently adds/removes
@@ -4710,6 +4712,7 @@ export default function PubMap({
       }
       invalidatePrivateCamera();
       setNearbyLoading(true);
+      const requestToken = mode === "resume" ? 0 : nextCameraRequestToken();
       navigator.geolocation.getCurrentPosition(
         (position) => {
           const location = {
@@ -4717,7 +4720,7 @@ export default function PubMap({
             lng: position.coords.longitude,
           };
           setUserLocation(location);
-          if (mode !== "resume") setNearbyRequestToken((token) => token + 1);
+          if (mode !== "resume") setNearbyRequestToken(requestToken);
           latchMapReaderLocationWatch();
           invalidatePrivateCamera();
           setPendingNearMeRequest({ kind: "map", location, mode });
@@ -4752,10 +4755,6 @@ export default function PubMap({
     dismissOnboarding();
     if (isMobileViewport()) exitPlanning();
   }, [route.length, exitPlanning, dismissOnboarding, mapRoute]);
-
-  const hideMappedRoute = useCallback(() => {
-    setRouteMapped(false);
-  }, [setRouteMapped]);
 
   const checkLastTrainAtRouteEnd = useCallback(() => {
     const finalStop = route[route.length - 1];
@@ -4842,7 +4841,7 @@ export default function PubMap({
       // viewport they arrived on - the reachable yank this closes. MapLibre
       // 6.10.0 readies the map early enough to widen that window.
       claimMapCamera();
-      setAreaFocus((prev) => nextAreaCameraFocus(prev, camera));
+      setAreaFocus(nextAreaCameraFocus(camera));
     },
     [cameraOwnership, claimMapCamera],
   );
@@ -5820,7 +5819,7 @@ export default function PubMap({
         stopsFirst={builtCrawlLeads}
         originDistanceKm={distanceFromUserKm}
         onMapRoute={mapCurrentRoute}
-        onHideRoute={hideMappedRoute}
+        onHideRoute={hideRoute}
         onCheckLastTrain={checkLastTrainAtRouteEnd}
         onSelectVenue={selectVenue}
         onToggleStop={toggleBuiltStop}
@@ -6166,7 +6165,7 @@ export default function PubMap({
               </Link>
             </Button>
           </div>
-          {routeMappedActive ? <Button variant="secondary" onClick={hideMappedRoute}>Hide active route</Button> : null}
+          {routeMappedActive ? <Button variant="secondary" onClick={hideRoute}>Hide active route</Button> : null}
           <div className="mobileLayersTheme">
             <div><strong>Map appearance</strong><small>Switching theme keeps this view and the open sheet.</small></div>
             <ThemeToggle />
@@ -6697,7 +6696,7 @@ export default function PubMap({
             moveMapCameraTo({ center: [match.longitude, match.latitude], zoom: 14.5 });
           } else {
             setNearbyMapResult(null);
-            setSearchRecoveryToken((token) => token + 1);
+            setSearchRecoveryToken(nextCameraRequestToken());
           }
         }}
         onClear={clearMapQuery}
@@ -6990,7 +6989,7 @@ export default function PubMap({
           totalMinutes={routeForMapLegs.totalMinutes}
           onEdit={openPlanning}
           onCheckLastTrain={checkLastTrainAtRouteEnd}
-          onHide={hideMappedRoute}
+          onHide={hideRoute}
         />
       ) : null}
       {/* G3: Place story deep-link chip when `?band=` resolves. Distinct

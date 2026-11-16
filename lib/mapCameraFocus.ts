@@ -1,4 +1,4 @@
-import type { CameraIntentKind } from "@/lib/cameraIntent";
+import { nextCameraRequestToken, type CameraIntentKind } from "@/lib/cameraIntent";
 
 // One deliberate camera move, and how the canvas tells it from the last one.
 //
@@ -13,10 +13,6 @@ import type { CameraIntentKind } from "@/lib/cameraIntent";
 // whose opening location had already flown at token 1 picked an area, that
 // pick arrived as token 1 as well, and the canvas read it as the move it had
 // already made. Nothing moved, and nothing said so.
-//
-// A token is an IDENTITY, not a sequence, so it carries the owner that issued
-// it. Two owners can then never mint the same one, and neither has to know the
-// other exists.
 
 /** Who asked for the camera. A closed set: every owner names itself. */
 type MapCameraFocusSource = "opening-location" | "area";
@@ -25,7 +21,6 @@ export type MapCameraFocus = {
   center: [number, number];
   zoom: number;
   source: MapCameraFocusSource;
-  /** Per-source counter. Only ever compared through `mapCameraFocusKey`. */
   token: number;
 };
 
@@ -95,13 +90,12 @@ export function cameraIntentForFocusSource(
  * place the last pick named: the reader may have panned away since.
  */
 export function nextAreaCameraFocus(
-  prev: MapCameraFocus | null,
   camera: { center: [number, number]; zoom: number },
 ): MapCameraFocus {
   return {
     center: camera.center,
     zoom: camera.zoom,
     source: "area",
-    token: (prev?.token ?? 0) + 1,
+    token: nextCameraRequestToken(),
   };
 }

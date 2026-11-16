@@ -1,3 +1,9 @@
+let requestSequence = 0;
+
+export function nextCameraRequestToken(): number {
+  return ++requestSequence;
+}
+
 export type CameraIntentOwner = "pal" | "user" | "automatic";
 
 export type CameraIntentKind =

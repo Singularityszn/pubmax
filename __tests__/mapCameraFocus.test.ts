@@ -70,12 +70,12 @@ describe("two camera owners can never mint the same identity", () => {
 
   it("flies again when the reader picks the same area after panning away", () => {
     const soho = { center: LONDON, zoom: 14 };
-    const first = nextAreaCameraFocus(null, soho);
+    const first = nextAreaCameraFocus(soho);
     expect(mapCameraFocusMoves(first, null)).toBe(true);
     // The canvas flies to Soho, then the reader pans away by gesture. A pan
     // mints no focus, so the canvas still holds the first pick's key.
     const appliedKey = mapCameraFocusKey(first);
-    const second = nextAreaCameraFocus(first, soho);
+    const second = nextAreaCameraFocus(soho);
     expect(mapCameraFocusKey(second)).not.toBe(appliedKey);
     expect(mapCameraFocusMoves(second, appliedKey)).toBe(true);
   });
@@ -187,20 +187,20 @@ describe("mounted camera focus ownership", () => {
     expect(cinematic).not.toHaveBeenCalled();
     render({ resolved: true });
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic"],
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic", 0],
     ]);
-    const area = nextAreaCameraFocus(null, { center: CUMBRIA, zoom: 14 });
+    const area = nextAreaCameraFocus({ center: CUMBRIA, zoom: 14 });
     act(() => camera.claimMapCamera());
     render({ resolved: true, area });
     render({ resolved: true, area: { ...area } });
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic"],
-      [{ center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user"],
+      [{ center: LONDON, zoom: 12, duration: 900 }, "opening-location", "automatic", 0],
+      [{ center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user", area.token],
     ]);
-    render({ resolved: true, area: nextAreaCameraFocus(area, { center: CUMBRIA, zoom: 14 }) });
+    render({ resolved: true, area: nextAreaCameraFocus({ center: CUMBRIA, zoom: 14 }) });
     expect(cinematic).toHaveBeenCalledTimes(3);
     expect(cinematic).toHaveBeenLastCalledWith(
-      { center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user",
+      { center: CUMBRIA, zoom: 14, duration: 900 }, "area", "user", expect.any(Number),
     );
   });
 
@@ -222,12 +222,12 @@ describe("mounted camera focus ownership", () => {
   it("keeps a chosen area after a late location answer", () => {
     render({ resolved: false });
     act(() => camera.claimMapCamera());
-    const area = nextAreaCameraFocus(null, { center: LONDON, zoom: 14 });
+    const area = nextAreaCameraFocus({ center: LONDON, zoom: 14 });
     render({ resolved: false, area });
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 }, area });
     expect(camera.openingLocationFocus).toBeNull();
     expect(cinematic.mock.calls).toEqual([
-      [{ center: LONDON, zoom: 14, duration: 900 }, "area", "user"],
+      [{ center: LONDON, zoom: 14, duration: 900 }, "area", "user", area.token],
     ]);
   });
 
@@ -237,7 +237,7 @@ describe("mounted camera focus ownership", () => {
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
     expect(host.textContent).toBe("false");
     expect(cinematic.mock.calls).toEqual([
-      [{ center: CUMBRIA, zoom: 16, duration: 900 }, "opening-location", "automatic"],
+      [{ center: CUMBRIA, zoom: 16, duration: 900 }, "opening-location", "automatic", 0],
     ]);
     render({ resolved: true, viewport: { center: CUMBRIA, zoom: 16 } });
     expect(cinematic).toHaveBeenCalledOnce();

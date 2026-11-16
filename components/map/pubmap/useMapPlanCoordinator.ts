@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
@@ -48,7 +49,11 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   const [routeRequestToken, setRouteRequestToken] = useState(0);
   const mapRoute = useCallback(() => {
     setRouteMapped(true);
-    setRouteRequestToken((token) => token + 1);
+    setRouteRequestToken(nextCameraRequestToken());
+  }, [setRouteMapped]);
+  const hideRoute = useCallback(() => {
+    setRouteMapped(false);
+    setRouteRequestToken(nextCameraRequestToken());
   }, [setRouteMapped]);
   const [planningOpen, setPlanningOpen] = useState(initial.planningOpen);
   const [plannedNightArea, setPlannedNightArea] = useState<NightAreaSlug | null>(initial.nightArea);
@@ -116,6 +121,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     routeMapped,
     setRouteMapped,
     mapRoute,
+    hideRoute,
     routeRequestToken,
     planningOpen,
     setPlanningOpen,

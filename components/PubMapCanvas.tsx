@@ -1476,6 +1476,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
+    latestRequestToken: Math.max(routeRequestToken ?? 0, nearbyRequestToken, searchRecoveryToken ?? 0,
+      focusPoint?.source === "area" ? focusPoint.token : 0),
     mapRef,
     reducedRef,
     cityViewRef,
