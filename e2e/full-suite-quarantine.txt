@@ -16,11 +16,6 @@
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 1440px in dark
 [chromium-gl] › map-short-walk-framing.spec.ts › a short walking route fills useful map space at 390px in light with recorded roads
 
-# https://github.com/Singularityszn/pubmax/issues/2658 the Save to a list button takes no click
-[chromium] › profile-saved-after-reload.spec.ts › profile saved venues after a full reload › the owner sees a saved venue on a full load of their profile
-[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 1440px
-[chromium] › venue-actions-late-facts.spec.ts › a late area comparison keeps Create & save under the pointer at 390px
-
 # https://github.com/Singularityszn/pubmax/issues/2701 accessible-filters.spec.ts
 [chromium] › accessible-filters.spec.ts › a Step-free route surfaces unknown accessibility evidence instead of claiming a match
 
