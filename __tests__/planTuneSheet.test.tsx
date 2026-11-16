@@ -53,7 +53,7 @@ async function openSheet(onClose = vi.fn()) {
 const sheet = () => document.querySelector<HTMLElement>(".planTune__sheet");
 const title = () => document.querySelector<HTMLElement>(".planTune__header h2")!;
 const grab = () => document.querySelector<HTMLButtonElement>(".planTune__grab")!;
-const offset = () => Number(/translate3d\(0, (-?[\d.]+)px/.exec(sheet()!.style.transform)?.[1] ?? 0);
+const offset = () => Number(/translate3d\(0(?:px)?, (-?[\d.]+)px/.exec(sheet()!.style.transform)?.[1] ?? 0);
 
 describe("PlanTuneSheet", () => {
   it("drops a drag that was in hand when the sheet closed", async () => {

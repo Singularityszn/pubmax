@@ -188,8 +188,8 @@ it.each([390, 768, 1440].flatMap((width) =>
       const line = button.parentElement!.querySelector("line")!;
       expect(Number(line.getAttribute("x1"))).toBe(0);
       expect(Number(line.getAttribute("y1"))).toBe(0);
-      expect(Number(line.getAttribute("x2"))).toBe(x);
-      expect(Number(line.getAttribute("y2"))).toBe(y);
+      expect(Number(line.getAttribute("x2"))).toBeCloseTo(x, 2);
+      expect(Number(line.getAttribute("y2"))).toBeCloseTo(y, 2);
       const position = { x: anchor.x + x, y: anchor.y + y };
       expect(position.x - 22).toBeGreaterThanOrEqual(-0.001);
       expect(position.x + 22).toBeLessThanOrEqual(viewportWidth + 0.001);

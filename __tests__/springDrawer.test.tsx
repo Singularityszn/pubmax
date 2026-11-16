@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 function offsetY(drawer: HTMLElement): number {
-  return Number(drawer.style.transform.match(/translate3d\(0, ([-\d.e]+)px, 0\)/)?.[1] ?? 0);
+  return Number(drawer.style.transform.match(/translate3d\(0(?:px)?, ([-\d.e]+)px, 0(?:px)?\)/)?.[1] ?? 0);
 }
 
 function tabletLayout(): void {
@@ -73,7 +73,7 @@ function tabletLayout(): void {
   vi.stubGlobal("DOMMatrixReadOnly", class {
     m42: number;
     constructor(transform: string) {
-      this.m42 = Number(transform.match(/translate3d\(0, ([-\d.e]+)px, 0\)/)?.[1] ?? 0);
+      this.m42 = Number(transform.match(/translate3d\(0(?:px)?, ([-\d.e]+)px, 0(?:px)?\)/)?.[1] ?? 0);
     }
   });
 }

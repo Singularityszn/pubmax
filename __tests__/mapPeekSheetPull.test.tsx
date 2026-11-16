@@ -78,7 +78,7 @@ describe("a pull that opens the list", () => {
       card.dispatchEvent(pointerEvent("pointermove", 460));
       card.dispatchEvent(pointerEvent("pointermove", 420));
     });
-    expect(card.style.transform).toBe("translate3d(0, -80px, 0)");
+    expect(card.style.transform).toBe("translate3d(0px, -80px, 0px)");
     expect(card.dataset.dragging).toBe("true");
 
     act(() => {
@@ -157,7 +157,7 @@ describe("a pull whose answer changes", () => {
               start.dispatchEvent(pointerEvent("pointerdown", 500));
               routePointer("pointermove", 500 - initialMove);
             });
-            expect(card.style.transform).toBe(initialMove === 20 ? "translate3d(0, -20px, 0)" : "");
+            expect(card.style.transform).toBe(initialMove === 20 ? "translate3d(0px, -20px, 0px)" : "");
             render(fromAnswer ? { status: quiet } : ANSWER);
             act(() => {
               routePointer("pointermove", 420);
