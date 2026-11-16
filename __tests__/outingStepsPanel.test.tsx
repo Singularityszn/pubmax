@@ -44,7 +44,7 @@ beforeEach(() => {
   native.bridge = {
     status: async () => ({ available: true, permission: "granted" }),
     requestPermission: async () => ({ available: true, permission: "granted" }),
-    sample: vi.fn(async () => ({ platform: "ios", steps: 20 })),
+    sample: vi.fn<OutingStepsBridge["sample"]>(async () => ({ platform: "ios", steps: 20 })),
     stop: vi.fn(async () => {}),
   };
 });
