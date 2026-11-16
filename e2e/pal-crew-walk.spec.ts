@@ -3,6 +3,9 @@ import { mkdir } from "node:fs/promises";
 
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+
+test.use({ serviceWorkers: "block" });
 
 // Pals walk together (components/map/pubmap/useCrewPals.ts): on a plan that is
 // on tonight, the opted-in Pals of the other crew members walk the plan's own
@@ -17,6 +20,7 @@ const STOPS = ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn"];
 test("the crew's opted-in Pals walk the plan's route beside the reader's own", async ({ page }) => {
   test.setTimeout(150_000);
   await page.setViewportSize({ width: 390, height: 844 });
+  await installDeterministicMapBasemap(page);
   await installAuthDoubles(page);
   await seedSignedIn(page, "A");
   await page.route(`**/api/plans/${PLAN_ID}`, (route) => route.fulfill({
