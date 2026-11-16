@@ -20,8 +20,9 @@
 // carry set, and the carry (lib/beenHereCarry.ts) moves that set to the
 // signed-in account in ONE request, so twelve taps in thirty seconds never
 // meet the per-minute save limit one tap at a time would. A tap made signed
-// out belongs to the device and moves to the first account that signs in on
-// it; a tap made signed in names its account and moves only to that account.
+// out belongs to the device and moves to the first account that signs in and
+// opens its own profile on it; a signed-in tap moves only to that account when
+// that account opens its profile.
 
 import { safeLocalStorage } from "@/lib/safeStorage";
 
@@ -65,7 +66,7 @@ export const BEEN_HERE_COPY = {
   title: "Tap the pubs you've been to",
   lead: "Tap the ones you know and they start your Been here list. No dates, just the pubs.",
   /** Signed out: the taps stay on this device until an account can hold them. */
-  deviceLine: "Kept on this device. Sign in and they move to your account.",
+  deviceLine: "Signed-out taps stay on this device until an account signs in and opens its profile here.",
   /** Signed in: the list is a saved list, and saved lists show on a profile. */
   accountLine: "It shows on your profile with your other saved lists.",
   chipsLabel: "Pubs to tap",

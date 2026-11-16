@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { MapOverlay } from "@/lib/mobileShell";
 import {
   mapSurfaceOverlay,
+  mobileShellIsReady,
   mapSurfaceStateOf,
   transition,
   type MapSurface,
@@ -128,4 +129,17 @@ describe("transition", () => {
       }
     }
   });
+});
+
+
+it("keeps active phone surfaces reachable while the map is loading", () => {
+  const picker = mapSurfaceStateOf({ ...owners, logIntentFallbackVisible: true });
+  const search = transition(picker, { type: "overlay", overlay: "search", phone: true }).state;
+  const venue = transition(picker, { type: "open-venue" }).state;
+  const restoredPicker = mapSurfaceStateOf({ ...owners, mapOverlay: "moment" });
+  for (const state of [picker, search, venue, restoredPicker]) {
+    expect(mobileShellIsReady(true, mapSurfaceOverlay(state))).toBe(true);
+  }
+  expect(mobileShellIsReady(true, "none")).toBe(false);
+  expect(mobileShellIsReady(false, "none")).toBe(true);
 });

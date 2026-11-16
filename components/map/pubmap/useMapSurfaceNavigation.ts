@@ -30,7 +30,8 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
-import type { MapOverlay } from "@/lib/mobileShell";
+import type { MapOverlay, MapViewportSnapshot } from "@/lib/mobileShell";
+import type { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
 export type MapSurfaceId = MapOverlay | "venue-list";
@@ -45,6 +46,7 @@ export type MapSurfaceState = {
   landmarkId: string;
   /** A "Choose a pub" picker opened for a `contribute=price` request. */
   pricePicker?: boolean;
+  returnCamera?: { center: [number, number]; zoom: number } | null;
 };
 
 export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
@@ -55,6 +57,47 @@ export const EMPTY_MAP_SURFACE_STATE: MapSurfaceState = {
   layersTab: "",
   landmarkId: "",
 };
+
+type MapSurfaceAreaTarget =
+  | { kind: "area"; area: { slug: string } }
+  | { kind: "place"; name: string };
+
+export function useMapSurfaceState({
+  venueTab,
+  venueId,
+  areaTarget,
+  layersTab,
+  landmarkId,
+  pricePicker,
+  cameraOwnership,
+  viewport,
+}: {
+  venueTab: string;
+  venueId: string;
+  areaTarget: MapSurfaceAreaTarget | null;
+  layersTab: string;
+  landmarkId: string;
+  pricePicker: boolean;
+  cameraOwnership: Pick<ReturnType<typeof createMapCameraOwnership>, "capture">;
+  viewport: MapViewportSnapshot;
+}): MapSurfaceState {
+  return useMemo(() => ({
+    venueTab,
+    venueId,
+    areaTargetKey: areaTarget
+      ? areaTarget.kind === "area"
+        ? `area:${areaTarget.area.slug}`
+        : `place:${areaTarget.name}`
+      : "",
+    areaTarget,
+    layersTab,
+    landmarkId,
+    returnCamera: cameraOwnership.capture(viewport)
+      ? { center: viewport.center, zoom: viewport.zoom }
+      : null,
+    ...(pricePicker ? { pricePicker: true } : {}),
+  }), [areaTarget, cameraOwnership, landmarkId, layersTab, pricePicker, venueId, venueTab, viewport]);
+}
 
 function sameState(a: MapSurfaceState | undefined, b: MapSurfaceState): boolean {
   return Boolean(
@@ -126,6 +169,7 @@ export function useMapSurfaceNavigation({
   surfaceState,
   selectionHint,
   onRestore,
+  onReturnToMap,
   onHome,
   onSurfaceClose,
   landedEntry = 0,
@@ -136,6 +180,7 @@ export function useMapSurfaceNavigation({
   surfaceState: MapSurfaceState;
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
+  onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
@@ -145,10 +190,12 @@ export function useMapSurfaceNavigation({
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
   );
   const stackRef = useRef(stack);
+  const rootStateRef = useRef<MapSurfaceState | undefined>(undefined);
   const initialisedRef = useRef(false);
   const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
+  const onReturnToMapRef = useRef(onReturnToMap);
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
@@ -164,17 +211,19 @@ export function useMapSurfaceNavigation({
 
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
+    onReturnToMapRef.current = onReturnToMap;
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
       if (typeof window === "undefined") return;
+      if (stackRef.current.length === 0) rootStateRef.current = entry.state;
       const transition = mapSurfaceOpenTransition(stackRef.current, entry);
-      publishStack(transition.stack);
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
+      publishStack(transition.stack);
       const state = stampMapSurfaceHistory(
         window.history.state,
         transition.stack,
@@ -358,11 +407,30 @@ export function useMapSurfaceNavigation({
       ) {
         onSurfaceCloseRef.current();
       }
+      const journeyRoot = next[0] ?? previous[0];
+      if (journeyRoot) rootStateRef.current = journeyRoot.state;
       publishStack(next);
       onRestoreRef.current(currentSurface(next));
+      if (next.length === 0 && rootStateRef.current?.returnCamera) {
+        onReturnToMapRef.current?.(rootStateRef.current.returnCamera);
+      }
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
+  }, [publishStack]);
+
+  const complete = useCallback((id: MapSurfaceId) => {
+    if (typeof window === "undefined") return;
+    const held = stackRef.current;
+    if (currentSurface(held)?.id !== id) return;
+    const next = id === "choose-area" ? ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState> : held.slice(0, -1);
+    publishStack(next);
+    window.history.replaceState(
+      stampMapSurfaceHistory(window.history.state, next, selectedVenueId(next),
+        readEntriesAboveRoot(window.history.state) ?? held.length),
+      "",
+      urlForStack(next, selectionHintRef.current),
+    );
   }, [publishStack]);
 
   const back = useCallback(() => {
@@ -465,6 +533,7 @@ export function useMapSurfaceNavigation({
   return useMemo(
     () => ({
       backLabel: backActionLabel(stack),
+      complete,
       back,
       home,
       leave,
@@ -473,6 +542,6 @@ export function useMapSurfaceNavigation({
       resolveSelection,
       holdsSurface: (id: MapSurfaceId) => stack.some((entry) => entry.id === id),
     }),
-    [back, home, leave, open, rejectSelection, resolveSelection, stack],
+    [back, complete, home, leave, open, rejectSelection, resolveSelection, stack],
   );
 }

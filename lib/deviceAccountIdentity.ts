@@ -23,6 +23,7 @@ import {
   NIGHT_PROFILE_DEVICE_KEY,
   readDeviceNightProfileProvenance,
 } from "@/lib/nightProfileDeviceProvenance";
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 
 /** Which account the device-cached identity artifacts below belong to. */
@@ -39,6 +40,7 @@ export const DEVICE_IDENTITY_CHANGED_EVENT = "pubmax:device-identity-changed";
 export const DEVICE_IDENTITY_LOCAL_KEYS = [
   // The handle every composer, actor and profile route signs with.
   "pubmax_handle",
+  "pubmax:last-logged-drink:v1",
   // Pre-Wave-I comment-only handle; still migrated into the key above on read.
   "pubmax:comment:handle",
   // A self-asserted Round handle, which the diary attributes spend to.
@@ -204,6 +206,7 @@ export function releaseDeviceAccountOwner(
   local: WritableStorage | null,
   session: SweepableStorage | null = null,
 ): void {
+  removeKey(local, PINT_DROP_SIGN_IN_HANDOFF_KEY);
   clearDeviceAccountArtifacts(local, session);
   removeKey(local, DEVICE_ACCOUNT_OWNER_KEY);
 }

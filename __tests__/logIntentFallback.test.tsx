@@ -90,7 +90,7 @@ describe("picker location lifetime", () => {
     document.body.append(host);
     const root = createRoot(host);
     const callbacks: PositionCallback[] = [];
-    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition: (callback: PositionCallback) => callbacks.push(callback) } });
+    vi.stubGlobal("navigator", { permissions: { query: vi.fn().mockResolvedValue({ state: "prompt" }) }, geolocation: { getCurrentPosition: (callback: PositionCallback) => callbacks.push(callback) } });
     let pickerLocation: LogNearbyOrigin | null = null;
     const onDismiss = vi.fn();
     const storageWrite = vi.spyOn(Storage.prototype, "setItem");
@@ -164,4 +164,108 @@ describe("picker location lifetime", () => {
       host.remove();
     }
   });
+});
+
+it("uses a previously granted location when the picker opens", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  const locate = vi.fn((success: PositionCallback) => success({ coords: { latitude: 51.5255, longitude: -0.0878 } } as GeolocationPosition));
+  vi.stubGlobal("navigator", {
+    permissions: { query: vi.fn().mockResolvedValue({ state: "granted" }) },
+    geolocation: { getCurrentPosition: locate },
+  });
+  function Picker() {
+    const { location } = useLogPickerLocation(true, null);
+    return createElement("div", null, location ? `${location.lat},${location.lng}` : "waiting");
+  }
+  try {
+    await act(async () => root.render(createElement(Picker)));
+    expect(locate).toHaveBeenCalledOnce();
+    expect(host.textContent).toBe("51.5255,-0.0878");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+
+it("does not offer map-centre pubs while a granted location is resolving", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  vi.stubGlobal("navigator", { permissions: { query: vi.fn().mockResolvedValue({ state: "granted" }) }, geolocation: { getCurrentPosition: vi.fn() } });
+  function Picker() {
+    const picker = useLogPickerLocation(true, null);
+    return createElement(LogIntentFallback, {
+      candidates: [{ id: "centre", name: "Map centre pub", typeLabel: "Pub", priceLabel: "Price TBD", anchor: null }],
+      origin: "map", locating: picker.locating, filteredPubVenueCount: 1,
+      onPickVenue: vi.fn(), onPrefetchVenue: vi.fn(), onFocusSearch: vi.fn(), onResetFilters: vi.fn(), onLocation: picker.setLocation,
+    });
+  }
+  try {
+    await act(async () => root.render(createElement(Picker)));
+    expect(host.textContent).not.toContain("Map centre pub");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+  }
+});
+
+it("shows the picker while pubs load without claiming filters hid them", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(LogIntentFallback, {
+      candidates: [], origin: "map", loading: true, filteredPubVenueCount: 0,
+      onPickVenue: vi.fn(), onPrefetchVenue: vi.fn(), onFocusSearch: vi.fn(),
+      onResetFilters: vi.fn(), onLocation: vi.fn(),
+    })));
+    expect(host.textContent).toContain("Finding nearby pubs");
+    expect(host.textContent).not.toContain("Show all pubs");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
+
+
+it.each(["success", "error"] as const)("ignores an old manual fix while the reopened picker settles with %s", async (outcome) => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const callbacks: Array<{ success: PositionCallback; error?: PositionErrorCallback | null }> = [];
+  vi.stubGlobal("navigator", {
+    permissions: { query: vi.fn().mockResolvedValue({ state: "granted" }) },
+    geolocation: { getCurrentPosition: (success: PositionCallback, error?: PositionErrorCallback | null) => callbacks.push({ success, error }) },
+  });
+  let picker: ReturnType<typeof useLogPickerLocation>;
+  function Picker({ active }: { active: boolean }) {
+    picker = useLogPickerLocation(active, null);
+    return null;
+  }
+  try {
+    await act(async () => root.render(createElement(Picker, { active: true })));
+    const oldManualCallback = picker!.setLocation;
+    await act(async () => root.render(createElement(Picker, { active: false })));
+    await act(async () => root.render(createElement(Picker, { active: true })));
+    await act(async () => oldManualCallback({ lat: 51.4, lng: -0.1 }));
+    expect(picker!.location).toBeNull();
+    expect(picker!.locating).toBe(true);
+    await act(async () => {
+      if (outcome === "success") callbacks[1]!.success({ coords: { latitude: 51.5255, longitude: -0.0878 } } as GeolocationPosition);
+      else callbacks[1]!.error!({ code: 1 } as GeolocationPositionError);
+    });
+    expect(picker!.locating).toBe(false);
+    expect(picker!.location).toEqual(outcome === "success" ? { lat: 51.5255, lng: -0.0878 } : null);
+  } finally {
+    await act(async () => root.unmount());
+    vi.unstubAllGlobals();
+  }
 });

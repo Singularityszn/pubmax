@@ -61,14 +61,9 @@ export const runtime = "nodejs";
 //      to every stranger, so the greeting names no one. Viewer-specific reads
 //      stay in client components, including the Tube refresh.
 export const dynamic = "force-static";
-// The brief reads the current London day: the greeting's slot, the weather
-// snapshot's staleness, tonight's listing window and the pub-of-the-day
-// rotation all take `now`. Before 2026-09-05 that was the reason the page was
-// rendered per request. It is now an ISR window instead: five minutes bounds
-// how far a held copy can lag any of those readings (the weather read-through
-// itself tolerates ninety), and the CDN regenerates in the background so no
-// reader waits for the compose. Do not lengthen this to an hour: a greeting
-// that says "morning" at ten past noon is the cost.
+// ISR requests a refresh after five minutes. The CDN can serve a stale copy
+// during regeneration, and failed regeneration can retain it longer. The client
+// re-evaluates weather age and quietness at the same London clock as its greeting.
 export const revalidate = 300;
 
 // Two derivations over the bundled price dataset that are the SAME for every

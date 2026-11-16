@@ -2,6 +2,8 @@ import { expect, test, type Page } from "@playwright/test";
 import { expectMapLoadingFrameReleased, expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+test.use({ serviceWorkers: "block" });
+
 const VIEWPORTS = [
   { width: 320, height: 568 },
   { width: 390, height: 844 },
@@ -96,6 +98,7 @@ for (const viewport of VIEWPORTS) {
   }) => {
     await page.setViewportSize(viewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.localStorage.setItem("pubmax_onboarding_dismissed", "1");

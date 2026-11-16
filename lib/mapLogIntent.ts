@@ -95,6 +95,16 @@ export function resolveLogNearbyOrigin(input: {
   return null;
 }
 
+export function logNearbyDataReady(
+  origin: LogNearbyOriginResolution,
+  city: string,
+  coverage: { city: string; lat: number; lng: number; radiusKm: number } | null,
+): boolean {
+  if (origin?.source !== "user") return true;
+  return coverage !== null && coverage.city === city && coverage.lat === origin.origin.lat &&
+    coverage.lng === origin.origin.lng && coverage.radiusKm >= LOG_NEARBY_MAX_KM;
+}
+
 function priceLabelFor(
   venue: LogNearbyVenue,
   anchor: CompactVenueAnchor | null,
@@ -121,7 +131,7 @@ function priceLabelFor(
 /**
  * Wave K0 — Drop nearby picker.
  * With an origin, sort by haversine nearest-first (venues missing coords sink).
- * Without origin, preserve list order (filtered map order).
+ * Without origin, preserve the input order.
  * `maxKm` drops pubs the reader cannot be standing in; it needs an origin, so
  * an unmeasured list is never silently emptied.
  */

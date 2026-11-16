@@ -77,3 +77,7 @@
     border: 1px solid var(--color-border);
   }
 }
+
+.surfaceNavBack--desktop-list {
+  display: none;
+}

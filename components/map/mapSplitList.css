@@ -12,10 +12,8 @@
    app/globals.css so the document's opening prices (mapOpeningPreview.css) can
    stand on the same map before this stylesheet has loaded.
 
-   The drawers keep their edges. The planner and a landmark story open from the
-   column's right edge rather than over it, and the venue drawer narrows so a
-   strip of map stays between it and the list: 248px at 1024, the same lane the
-   planner leaves there. Nothing overlaps the list. */
+   The planner and landmark story open beside the list. A venue replaces the
+   list in the same column while the mounted list retains its own state. */
 
 .mapSplitList {
   display: none;
@@ -29,6 +27,38 @@
       640px
     );
     --desktop-venue-drawer-half-width: calc(var(--desktop-venue-drawer-width) / 2);
+  }
+
+  .appShell:has(> .mapSplitList).detail-open {
+    --desktop-venue-drawer-width: 0px;
+    --desktop-venue-drawer-half-width: 0px;
+  }
+
+  .appShell.detail-open > .mapSplitList {
+    visibility: hidden;
+  }
+
+  .appShell:has(> .mapSplitList).detail-open > .mapDrawer.right.open {
+    left: 0;
+    right: auto;
+    width: var(--desktop-split-list-width);
+    z-index: calc(var(--z-map-panel) + 2);
+  }
+
+  .appShell:has(> .mapSplitList).detail-open > .mapDrawer.right.open .mapDrawerHead > .surfaceNavBack--desktop-list {
+    display: inline-flex;
+  }
+
+  .appShell:has(> .mapSplitList).detail-open .venueActionCard {
+    container: desktop-venue-card / inline-size;
+  }
+
+  .appShell:has(> .mapSplitList).detail-open .venueInspector .venueTabs {
+    gap: calc(var(--space-1) / 2);
+  }
+
+  .appShell:has(> .mapSplitList).detail-open .venueInspector .venueTab {
+    padding-inline: var(--space-2);
   }
 
   .appShell:has(> .mapSplitList) > .mapStage {
@@ -382,4 +412,14 @@ body:has(.analyticsConsentPrompt) .mapSplitListScroll {
 
 .mapSplitListHalo[hidden] {
   display: none;
+}
+
+@container desktop-venue-card (max-width: 25em) {
+  .appShell.detail-open .venueActionCard .mobileVenuePeekSummary {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .appShell.detail-open .venueActionCard .mobileVenuePeekSummary > button {
+    grid-column: 1 / -1;
+  }
 }

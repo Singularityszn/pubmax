@@ -29,7 +29,7 @@ import { log } from "@/lib/log";
 import { LONDON_BOROUGH_NAMES } from "@/lib/londonBoroughNames.mjs";
 import type { PintDropConfirmation } from "@/lib/pintDropConfirmationRecord";
 import type { PintDropConfirmationOutcome } from "@/lib/pintDropSecondDrinker";
-import { resolveMessageHandle } from "@/lib/messageAuth";
+import { requireLinkedActor, resolveMessageHandle } from "@/lib/messageAuth";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
 import type { PintDrop } from "@/lib/pintDropShared";
@@ -643,6 +643,18 @@ export async function POST(request: Request): Promise<Response> {
 
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
+
+  if (params.get("ownLatestDrink") === "1") {
+    const unavailable = productionStorageUnavailable();
+    if (unavailable) return unavailable;
+    const actor = await requireLinkedActor(request, null);
+    if (!actor.ok) return publicApiErrorFromStatus(actor.error, actor.status);
+    try {
+      return jsonNoStore({ latestDrink: await pintDropsStore().latestOwnDrink(actor.handle) });
+    } catch {
+      return storageUnavailable();
+    }
+  }
 
   // Moderator read: ?status=reported|hidden|pending → the review queue, WITH
   // metadata. `reported` contains visible rows with an unreviewed report.
