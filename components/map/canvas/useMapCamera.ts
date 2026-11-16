@@ -41,7 +41,7 @@ export function useRouteCameraFraming({
   requestToken?: number;
   fitRoute: ReturnType<typeof useMapCamera>["fitRoute"];
 }) {
-  const consumedRequest = useRef(requestToken);
+  const consumedRequest = useRef(0);
   useEffect(() => {
     if (!mapReady) return;
     const userOwned = consumedRequest.current !== requestToken;
@@ -63,7 +63,7 @@ export function useNearbyCameraFraming({
   requestToken: number;
 }) {
   const didFitRef = useRef("");
-  const consumedRequest = useRef(requestToken);
+  const consumedRequest = useRef(0);
   const key = `${userLocation?.lat.toFixed(5)},${userLocation?.lng.toFixed(5)}:${requestToken}`;
   useEffect(() => {
     if (!mapReady || !userLocation || routeLength >= 2 || nearbyMapVenues.length === 0) return;
@@ -310,6 +310,8 @@ export function useMapCamera(refs: CameraRefs) {
     gestureCameraRef,
   } = refs;
   const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
+  const pendingOwnerRef = useRef<CameraIntentOwner | null>(null);
+  const userRequestRef = useRef(0);
   const palFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
@@ -322,11 +324,23 @@ export function useMapCamera(refs: CameraRefs) {
     },
   }), []);
 
+  const claimCamera = useCallback((owner: CameraIntentOwner) => {
+    if (owner !== "user" && pendingOwnerRef.current === "user") return false;
+    if (owner === "user") {
+      userRequestRef.current += 1;
+      palFrameRef.current = null;
+      coordinator.dispose();
+      pendingOwnerRef.current = null;
+    }
+    return true;
+  }, [coordinator]);
+
   // Every camera intent passes through this single lane. A newer intent
   // coalesces a still-pending move and interrupts any active MapLibre
   // animation before it begins, so route, nearby, cluster, and venue moves
   // cannot fight each other on screen.
   const scheduleCamera = useCallback((owner: CameraIntentOwner, kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void) => {
+    if (!claimCamera(owner)) return;
     const allowed = () => {
       const gesture = gestureCameraRef.current;
       const frame = palFrameRef.current;
@@ -346,14 +360,15 @@ export function useMapCamera(refs: CameraRefs) {
     // The automatic opening turn preserves the route's camera ownership.
     if (kind !== "route" && kind !== "route-recovery" && kind !== "arrival") routeFrameRef.current = null;
     const run = () => {
+      pendingOwnerRef.current = null;
       const map = mapRef.current;
       if (!map) return;
       if (!allowed()) return;
       map.stop();
       move(map);
     };
-    coordinator.schedule(kind, key, run);
-  }, [coordinator, gestureCameraRef, mapRef]);
+    if (coordinator.schedule(kind, key, run)) pendingOwnerRef.current = owner;
+  }, [claimCamera, coordinator, gestureCameraRef, mapRef]);
 
   useEffect(() => () => coordinator.dispose(), [coordinator]);
 
@@ -399,6 +414,7 @@ export function useMapCamera(refs: CameraRefs) {
 
   const routeRecoverySequence = useRef(0);
   const fitRoute = useCallback((owner: CameraIntentOwner = "automatic") => {
+    if (!claimCamera(owner)) return;
     const current = routeRef.current;
     if (current.length < 2) return;
     const routeBounds = () => {
@@ -436,7 +452,7 @@ export function useMapCamera(refs: CameraRefs) {
         bearing: map.getBearing(),
       });
     });
-  }, [gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
+  }, [claimCamera, gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
   const fitOwnedRoute = useCallback(() => {
     const frame = routeFrameRef.current;
@@ -468,6 +484,7 @@ export function useMapCamera(refs: CameraRefs) {
   // camera). Skip if the user already tapped a pin — don't fight selectedVenue
   // fly-to. Padding mirrors fitRoute; maxZoom ~13 keeps outer boroughs readable.
   const fitQueryVenues = useCallback((kind: "query" | "search-recovery" = "query", requestId = 0) => {
+    if (!claimCamera(kind === "search-recovery" ? "user" : "automatic")) return;
     const current = (queryVenuesRef ?? venuesRef).current;
     if (current.length === 0) return;
     const bounds = new maplibregl.LngLatBounds();
@@ -482,7 +499,7 @@ export function useMapCamera(refs: CameraRefs) {
       // Same flattening trap as fitRoute: keep the current rotation.
       bearing: map.getBearing(),
     }));
-  }, [queryVenuesRef, reducedRef, scheduleCamera, venuesRef]);
+  }, [claimCamera, queryVenuesRef, reducedRef, scheduleCamera, venuesRef]);
 
   // A voice answer's picks (lib/palMapCommands.ts). The person asked for these
   // pubs in this call, so the map frames them, but the answer lands seconds
@@ -490,6 +507,7 @@ export function useMapCamera(refs: CameraRefs) {
   // map keeps it (lib/mapGestureGuard.ts). A move the person asked for by name
   // or number (`asked`) is `pal-ask`: only a finger on the glass holds it.
   const fitPalPicks = useCallback((sequence: number, points: readonly { lng: number; lat: number }[], asked = false) => {
+    if (!claimCamera("pal")) return;
     palFrameRef.current = null;
     const kind = asked ? "pal-ask" : "pal";
     if (!points.length || cameraIntentBlocked(kind, gestureCameraRef.current, performance.now())) return;
@@ -504,7 +522,7 @@ export function useMapCamera(refs: CameraRefs) {
       duration: reducedRef.current ? 0 : 800,
       bearing: map.getBearing(),
     }));
-  }, [gestureCameraRef, reducedRef, scheduleCamera]);
+  }, [claimCamera, gestureCameraRef, reducedRef, scheduleCamera]);
 
   // Near me puts the READER on the map, not a cloud of pubs. A fitBounds over
   // nearby venues centres the cloud, which drops the reader wherever the
@@ -512,6 +530,7 @@ export function useMapCamera(refs: CameraRefs) {
   // keeps the centre on the reader and lets only zoom and screen offset move.
   const fitNearby = useCallback(
     (location: { lat: number; lng: number }, nearbyVenues: Venue[], owner: CameraIntentOwner = "automatic") => {
+      if (!claimCamera(owner)) return;
       const map = mapRef.current;
       if (!map) return;
       const isPhone = window.matchMedia("(max-width: 640px)").matches;
@@ -523,8 +542,11 @@ export function useMapCamera(refs: CameraRefs) {
       // One move, aimed at the band the reader actually ends up with. See
       // whenBottomSheetSettles for why this waits rather than aiming twice.
       sheetWaitsRef.current += 1;
+      const requestVersion = userRequestRef.current;
+      if (owner === "user") pendingOwnerRef.current = owner;
       whenBottomSheetSettles(container.top, (coverTop) => {
         sheetWaitsRef.current -= 1;
+        if (owner === "user" && requestVersion !== userRequestRef.current) return;
         const band = mapVisibleBand({
           height: viewport.height,
           topInset: isPhone
@@ -550,7 +572,7 @@ export function useMapCamera(refs: CameraRefs) {
         }));
       });
     },
-    [mapRef, reducedRef, scheduleCamera],
+    [claimCamera, mapRef, reducedRef, scheduleCamera],
   );
 
   return {

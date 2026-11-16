@@ -1,9 +1,12 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 import {
   GESTURE_CAMERA_HOLD_MS,
   REACTIVE_CAMERA_INTENTS,
   cameraIntentBlocked,
   idleGestureCameraState,
+  installMapGestureGuard,
   isReactiveCameraIntent,
 } from "@/lib/mapGestureGuard";
 
@@ -77,5 +80,42 @@ describe("the reactive set is closed", () => {
 
   it("holds long enough to cover a read, short enough to feel like nothing", () => {
     expect(GESTURE_CAMERA_HOLD_MS).toBe(2_000);
+  });
+});
+
+
+describe("map contact ownership", () => {
+  it.each(["pointerup", "pointercancel"])("holds stationary pointers until the last %s, including off-canvas release", (release) => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const pointer = (type: string, id: number) => Object.assign(new Event(type), { pointerId: id });
+    canvas.dispatchEvent(pointer("pointerdown", 1));
+    canvas.dispatchEvent(pointer("pointerdown", 2));
+    guard.settle();
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(pointer(release, 1));
+    expect(cameraIntentBlocked("route", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(pointer(release, 2));
+    expect(state.current.active).toBe(false);
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    expect(cameraIntentBlocked("route-recovery", state.current, performance.now())).toBe(false);
+    guard.dispose();
+    canvas.dispatchEvent(pointer("pointerdown", 3));
+    expect(state.current).toEqual(idleGestureCameraState());
+  });
+
+  it("keeps contact ownership when a moving gesture ends and releases cancelled touches", () => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const touch = (type: string) => Object.assign(new Event(type), { changedTouches: [{ identifier: 1 }] });
+    canvas.dispatchEvent(touch("touchstart"));
+    guard.begin("rotate")({ originalEvent: true });
+    guard.end("rotate")();
+    expect(state.current.active).toBe(true);
+    window.dispatchEvent(touch("touchcancel"));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
   });
 });

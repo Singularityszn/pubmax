@@ -503,6 +503,22 @@ for (const width of [390, 1440]) {
     // its framing stands down (lib/mapGestureGuard.ts).
     const canvas = page.locator(".mapCanvasWrap canvas").first();
     const box = (await canvas.boundingBox())!;
+    const contact = await page.context().newCDPSession(page);
+    await contact.send("Emulation.setTouchEmulationEnabled", { enabled: true });
+    const stationary = await camera();
+    await contact.send("Input.dispatchTouchEvent", {
+      type: "touchStart", touchPoints: [{ id: 1, x: box.x + box.width / 2, y: box.y + box.height / 3 }],
+    });
+    deliver(answer.cards.slice(0, 2));
+    await expect.poll(async () => (await picks())?.picks.length).toBe(2);
+    await expect.poll(async () => { const reading = await camera(); return !reading.moving && !reading.settling; }).toBe(true);
+    const whileStationary = await camera();
+    expect(whileStationary.zoom).toBeCloseTo(stationary.zoom, 5);
+    expect(whileStationary.center[0]).toBeCloseTo(stationary.center[0], 5);
+    expect(whileStationary.center[1]).toBeCloseTo(stationary.center[1], 5);
+    await contact.send("Input.dispatchTouchEvent", { type: "touchCancel", touchPoints: [] });
+    await contact.detach();
+
     await page.mouse.move(box.x + box.width / 2, box.y + box.height / 3);
     await page.mouse.down();
     await page.mouse.move(box.x + box.width / 2 + 40, box.y + box.height / 3 + 30, { steps: 5 });

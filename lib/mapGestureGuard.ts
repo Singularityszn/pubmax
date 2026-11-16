@@ -76,3 +76,69 @@ export function cameraIntentBlocked(
   if (state.endedAt === null) return false;
   return now - state.endedAt < holdMs;
 }
+
+
+export function installMapGestureGuard(
+  canvas: HTMLElement,
+  state: { current: GestureCameraState },
+  onInteraction: () => void,
+) {
+  const gestures = new Set<string>();
+  const pointers = new Set<number>();
+  const touches = new Set<number>();
+  const publish = () => {
+    const active = gestures.size + pointers.size + touches.size > 0;
+    if (active === state.current.active) return;
+    state.current = { active, endedAt: active ? null : performance.now() };
+  };
+  const pointerDown = (event: PointerEvent) => {
+    pointers.add(event.pointerId);
+    onInteraction();
+    publish();
+  };
+  const pointerUp = (event: PointerEvent) => {
+    pointers.delete(event.pointerId);
+    publish();
+  };
+  const touchStart = (event: TouchEvent) => {
+    for (const touch of Array.from(event.changedTouches)) touches.add(touch.identifier);
+    onInteraction();
+    publish();
+  };
+  const touchEnd = (event: TouchEvent) => {
+    for (const touch of Array.from(event.changedTouches)) touches.delete(touch.identifier);
+    publish();
+  };
+  canvas.addEventListener("pointerdown", pointerDown, { passive: true });
+  canvas.addEventListener("touchstart", touchStart, { passive: true });
+  window.addEventListener("pointerup", pointerUp, { passive: true });
+  window.addEventListener("pointercancel", pointerUp, { passive: true });
+  window.addEventListener("touchend", touchEnd, { passive: true });
+  window.addEventListener("touchcancel", touchEnd, { passive: true });
+
+  return {
+    begin: (name: string) => (event: { originalEvent?: unknown }) => {
+      if (!event.originalEvent) return;
+      gestures.add(name);
+      onInteraction();
+      publish();
+    },
+    end: (name: string) => () => {
+      gestures.delete(name);
+      publish();
+    },
+    settle: () => {
+      gestures.clear();
+      publish();
+    },
+    dispose: () => {
+      canvas.removeEventListener("pointerdown", pointerDown);
+      canvas.removeEventListener("touchstart", touchStart);
+      window.removeEventListener("pointerup", pointerUp);
+      window.removeEventListener("pointercancel", pointerUp);
+      window.removeEventListener("touchend", touchEnd);
+      window.removeEventListener("touchcancel", touchEnd);
+      state.current = idleGestureCameraState();
+    },
+  };
+}
