@@ -5,6 +5,8 @@ import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
+test.use({ serviceWorkers: "block" });
+
 // Pals walk together (components/map/pubmap/useCrewPals.ts): on a plan that is
 // on tonight, the opted-in Pals of the other crew members walk the plan's own
 // route beside the reader's Pal. The plan read and the crew read are answered

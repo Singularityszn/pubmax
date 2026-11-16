@@ -7,6 +7,8 @@ import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDouble
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { storeThemeChoice } from "./helpers/themeClock";
 
+test.use({ serviceWorkers: "block" });
+
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
 // ways from this stop to the next, each with its time, TfL's fare and the
 // fastest and the cheapest marked, and a tap draws that way on the map. The
