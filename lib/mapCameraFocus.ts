@@ -1,18 +1,7 @@
 import { nextCameraRequestToken, type CameraIntentKind } from "@/lib/cameraIntent";
 
-// One deliberate camera move, and how the canvas tells it from the last one.
-//
-// DEFECT (captain, live, 2026-09-01): the map header read "Piccadilly & Soho"
-// while the viewport sat over rural Cumbria. Picking an area updated the chip
-// and left the camera where it was.
-//
-// Two owners feed the canvas ONE focus prop - the opening-location answer and
-// every deliberate move (the choose-area pick, the Area sheet's "go somewhere
-// else", a map-search area or place select) - and each kept its OWN counter
-// starting at 1, while the canvas held ONE "last applied" number. So a reader
-// whose opening location had already flown at token 1 picked an area, that
-// pick arrived as token 1 as well, and the canvas read it as the move it had
-// already made. Nothing moved, and nothing said so.
+// Opening-location tokens do not use the user request sequence. Keep the
+// source in the focus key so an opening result cannot consume an area pick.
 
 /** Who asked for the camera. A closed set: every owner names itself. */
 type MapCameraFocusSource = "opening-location" | "area";

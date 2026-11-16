@@ -23,10 +23,10 @@ import type { CameraIntentKind } from "@/lib/cameraIntent";
 // changed underneath, which nobody asked for and which is the class that
 // actually arrives unprompted mid-read.
 //
-// While a gesture is genuinely in flight, nothing moves the camera at all. A
-// tap cannot occur inside a drag, so no reader-requested move is lost to it.
+// Stationary contact also holds the map. MapLibre can end its movement before
+// the last pointer or touch is released.
 
-/** How long after a gesture ends the reader still owns the camera. */
+/** How long reactive moves wait after the last gesture or contact ends. */
 export const GESTURE_CAMERA_HOLD_MS = 2_000;
 
 /**
@@ -45,9 +45,9 @@ export const REACTIVE_CAMERA_INTENTS: readonly CameraIntentKind[] = [
 ];
 
 export type GestureCameraState = {
-  /** A gesture is on the glass right now. */
+  /** A gesture or a pointer or touch contact is active. */
   active: boolean;
-  /** When the last gesture ended, or null when the reader has moved nothing. */
+  /** When the last gesture or contact ended, or null before an interaction. */
   endedAt: number | null;
 };
 

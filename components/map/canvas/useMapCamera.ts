@@ -348,10 +348,8 @@ export function useMapCamera(refs: CameraRefs) {
     return true;
   }, [coordinator]);
 
-  // Every camera intent passes through this single lane. A newer intent
-  // coalesces a still-pending move and interrupts any active MapLibre
-  // animation before it begins, so route, nearby, cluster, and venue moves
-  // cannot fight each other on screen.
+  // Check ownership before the shared coordinator, which otherwise lets any
+  // later callback replace a pending move regardless of the original action.
   const scheduleCamera = useCallback((owner: CameraIntentOwner, kind: CameraIntentKind, key: string, move: (map: maplibregl.Map) => void, requestToken = 0) => {
     if (!claimCamera(owner, requestToken)) return;
     const requestVersion = userRequestRef.current;
