@@ -979,18 +979,18 @@ function SocialPageAccountState({
             </section>
           ) : (
             <>
+            {activeTag ? (
+              <p className="socialTagChip">
+                <span>Tag: #{activeTag}</span>
+                <Link prefetch={false} href="/social?feed=discover" aria-label={`Clear the #${activeTag} filter`}>Clear</Link>
+              </p>
+            ) : null}
             {!(feedStatus === "ready" && posts.length === 0 && !nextCursor) ? <section
               className="socialFeed"
               aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
             >
               {feedHeading}
-              {activeTag ? (
-                <p className="socialTagChip">
-                  <span>Tag: #{activeTag}</span>
-                  <Link prefetch={false} href="/social?feed=discover" aria-label={`Clear the #${activeTag} filter`}>Clear</Link>
-                </p>
-              ) : null}
               <p
                 className="srOnly"
                 role="status"
