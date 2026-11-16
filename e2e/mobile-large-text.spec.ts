@@ -446,8 +446,10 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
     expect(box!.width).toBeGreaterThanOrEqual(48);
     expect(box!.height).toBeGreaterThanOrEqual(48);
     await page.touchscreen.tap(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await expect(page.locator(".mobileMapSavedOnly label")).toBeVisible({ timeout: 1_000 });
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
+  const refinements = page.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   const saved = page.locator(".mobileMapSavedOnly label");
   const box = await saved.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(48);
