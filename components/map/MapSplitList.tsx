@@ -191,7 +191,7 @@ function emptyListState(loaded: boolean, ukBaseStatus: UkBaseStreamStatus | unde
 
 const GROUP_TITLES = {
   venue: "Listed pubs and venues",
-  base: "Other pubs and bars · no listed price",
+  base: "Other pubs and bars · prices not checked",
   restaurant: "Restaurants · no listed price",
 } as const;
 

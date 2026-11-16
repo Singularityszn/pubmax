@@ -1,3 +1,5 @@
+import { pintCapQualification, type PintCapQualification } from "@/lib/pintCapMatches";
+import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import { formatGbp } from "@/lib/formatGbp";
 import { buildLogNearbyCandidates, type LogNearbyCandidate } from "@/lib/mapLogIntent";
 import { haversineKm } from "@/lib/haversine";
@@ -41,7 +43,7 @@ export type MapVenueListModel = {
    * Rows to render. Default order is nearest-first to the viewport centre when
    * known; "cheapest" ranks priced pubs ascending and leaves unpriced pubs last.
    */
-  rows: LogNearbyCandidate[];
+  rows: (LogNearbyCandidate & { capQualification?: PintCapQualification })[];
   /** Total venues currently on the map (pre-cap). */
   total: number;
   /** Rows actually shown (post-cap). */
@@ -62,8 +64,8 @@ export type MapVenueListModel = {
  * states: a bar reads as a bar. Neither kind carries a price.
  */
 type UkBasePubListLabel =
-  | "Other pub · no listed price"
-  | "Other bar · no listed price";
+  | "Other pub · price not checked"
+  | "Other bar · price not checked";
 
 type UkBasePubListRow = {
   id: string;
@@ -164,8 +166,10 @@ function mapVenueListPintPriceLabel(
   venue: Venue,
   venueSignals: MapVenueListVenueSignals | null,
   zoneIndex: ZonePintIndex | null,
+  maxPrice: number,
 ): string {
   const price = mapVenueListPintPrice(venue, venueSignals);
+  if (price === null && hasPintPriceCap(maxPrice)) return "No comparable pint price";
   if (price !== null) return formatGbp(price);
   if (!isPubVenueKind(venue.kind)) return "Price TBD";
   // A pub with no recorded price reads its zone estimate, "est." and all.
@@ -219,6 +223,7 @@ export function buildMapVenueListModel(
   sortMode: MapVenueListSortMode = "nearest",
   venueSignals: MapVenueListVenueSignals | null = null,
   zoneIndex: ZonePintIndex | null = null,
+  maxPrice: number = NO_PINT_PRICE_CAP,
 ): MapVenueListModel {
   const total = venues.length;
   const origin =
@@ -227,7 +232,7 @@ export function buildMapVenueListModel(
     Number.isFinite(viewportCenter[1])
       ? { lng: viewportCenter[0], lat: viewportCenter[1] }
       : null;
-  const baseRows = buildLogNearbyCandidates(venues, limit, origin);
+  const baseRows = buildLogNearbyCandidates(venues, venues.length, origin);
   const venueById = new Map(venues.map((item) => [item.id, item]));
   const drinkNoun = lensCategoryLabel.toLowerCase();
   // A row is read on its own, so its unknown wording carries the finding too -
@@ -242,7 +247,7 @@ export function buildMapVenueListModel(
           const pint = hasPintPriceSemantics(item) ? mapVenueListPintPrice(item, venueSignals) : null;
           return {
             ...row,
-            priceLabel: mapVenueListPintPriceLabel(item, venueSignals, zoneIndex),
+            priceLabel: mapVenueListPintPriceLabel(item, venueSignals, zoneIndex, maxPrice),
             priceBand: priceBand(pint, priceBandAreaForVenue(item.id)),
           };
         })
@@ -268,11 +273,16 @@ export function buildMapVenueListModel(
           venueSignals,
         )
       : labelledRows;
+  const limitedRows = rows.slice(0, Math.max(0, Math.floor(limit)));
+  const qualifiedRows = hasPintPriceCap(maxPrice) ? limitedRows.map((row) => {
+    const item = venueById.get(row.id)!;
+    return { ...row, capQualification: pintCapQualification(item, maxPrice, venueSignals?.get(row.id)) };
+  }) : limitedRows;
   return {
-    rows,
+    rows: qualifiedRows,
     total,
-    shown: rows.length,
-    truncated: total > rows.length,
+    shown: qualifiedRows.length,
+    truncated: total > qualifiedRows.length,
     coverageNote:
       lensPrices === null ? null : drinkLensCoverageNote(drinkNoun, lensStatus),
   };
@@ -374,8 +384,8 @@ export function buildUkBasePubListModel(
     name: pub.name,
     priceLabel:
       pub.kind === "bar"
-        ? "Other bar · no listed price"
-        : "Other pub · no listed price",
+        ? "Other bar · price not checked"
+        : "Other pub · price not checked",
     ...(origin
       ? { distanceKm: haversineKm([origin.lng, origin.lat], [pub.lng, pub.lat]) }
       : {}),

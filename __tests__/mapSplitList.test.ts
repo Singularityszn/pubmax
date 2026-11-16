@@ -296,8 +296,8 @@ describe("the list's order", () => {
       input({
         venues: [cheap],
         basePubs: [
-          { id: "b-far", name: "Base far", priceLabel: "Other pub · no listed price", pub: pub("b-far", -0.2) },
-          { id: "b-near", name: "Base near", priceLabel: "Other pub · no listed price", pub: pub("b-near", -0.131) },
+          { id: "b-far", name: "Base far", priceLabel: "Other pub · price not checked", pub: pub("b-far", -0.2) },
+          { id: "b-near", name: "Base near", priceLabel: "Other pub · price not checked", pub: pub("b-near", -0.131) },
         ],
         restaurants: [
           { id: "r1", name: "Kitchen", priceLabel: "Restaurant · no listed price", lng: -0.13, lat: 51.513 },
@@ -305,7 +305,7 @@ describe("the list's order", () => {
       }),
     );
     expect(groups.basePubs.map((row) => row.id)).toEqual(["b-near", "b-far"]);
-    expect(groups.basePubs[0]).toMatchObject({ group: "base", price: null, unpricedLabel: "Other pub · no listed price" });
+    expect(groups.basePubs[0]).toMatchObject({ group: "base", price: null, unpricedLabel: "Other pub · price not checked" });
     expect(groups.restaurants[0]).toMatchObject({ group: "restaurant", lng: -0.13 });
     expect(groups.total).toBe(4);
   });
