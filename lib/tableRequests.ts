@@ -39,8 +39,40 @@ export const TABLE_REQUEST_CONTACT_KINDS = ["email", "phone"] as const;
 export type TableRequestContactKind = (typeof TABLE_REQUEST_CONTACT_KINDS)[number];
 
 /** Where a stored request got to. Only `emailed` is ever listed to an operator. */
-export const TABLE_REQUEST_DELIVERIES = ["pending", "emailed"] as const;
+export const TABLE_REQUEST_DELIVERIES = ["resolving", "pending", "emailed", "not_sent"] as const;
 export type TableRequestDelivery = (typeof TABLE_REQUEST_DELIVERIES)[number];
+
+export type TableRequestDeliveryState = { revision: number } & (
+  | { delivery: "resolving"; deliveredAt: null }
+  | { delivery: "pending"; deliveredAt: null }
+  | { delivery: "not_sent"; deliveredAt: null }
+  | { delivery: "emailed"; deliveredAt: string }
+);
+export type TableRequestDeliveryEvent = "begin_send" | "confirm_not_sent" | "confirm_sent";
+
+export function transitionTableRequestDelivery(
+  state: TableRequestDeliveryState,
+  event: TableRequestDeliveryEvent,
+  expectedRevision: number,
+  now: number,
+): TableRequestDeliveryState {
+  if (state.revision !== expectedRevision) return state;
+  switch (event) {
+    case "begin_send":
+      return state.delivery === "resolving"
+        ? { delivery: "pending", deliveredAt: null, revision: state.revision + 1 } : state;
+    case "confirm_not_sent":
+      return state.delivery === "resolving"
+        ? { delivery: "not_sent", deliveredAt: null, revision: state.revision + 1 } : state;
+    case "confirm_sent":
+      return state.delivery === "pending"
+        ? { delivery: "emailed", deliveredAt: new Date(now).toISOString(), revision: state.revision + 1 } : state;
+    default: {
+      const unreachable: never = event;
+      return unreachable;
+    }
+  }
+}
 
 /** The validated request, with the account bound from the session, never the body. */
 export type TableRequestFields = {
@@ -59,10 +91,8 @@ export type TableRequestFields = {
 
 export type TableRequest = TableRequestFields & {
   id: string;
-  delivery: TableRequestDelivery;
   createdAt: string;
-  deliveredAt: string | null;
-};
+} & TableRequestDeliveryState;
 
 /**
  * What the operator panel shows for one request. The requester's own name and

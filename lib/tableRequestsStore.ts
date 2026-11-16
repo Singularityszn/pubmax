@@ -1,12 +1,12 @@
 // Table requests store - dual backend (process-memory + Supabase
-// public.table_requests, migration 0219).
+// public.table_requests, migrations 0219 and 0241).
 //
 // This store keeps the "Ask the pub for a table" requests PUBMAXX delivered to
 // a pub's verified operator, so the operator panel can list them. The one
 // writer is app/api/table-requests/route.ts, through
-// lib/tableRequestDelivery.server.ts. A request is stored `pending` BEFORE the
-// email goes and marked `emailed` once the email was sent. Only `emailed`
-// rows are ever listed.
+// lib/tableRequestDelivery.server.ts. Keyed requests start `resolving`, then
+// atomically become `pending` before sending or terminal `not_sent`. Only
+// `emailed` rows are listed to operators.
 //
 // A row holds the requester's name and the contact they chose for the pub to
 // reply to, so browser roles hold no grant at all (0219), and the operator
@@ -25,6 +25,8 @@ import { randomUUID } from "crypto";
 import {
   TABLE_REQUEST_CONTACT_KINDS,
   TABLE_REQUEST_DELIVERIES,
+  transitionTableRequestDelivery,
+  type TableRequestDeliveryEvent,
   type TableRequest,
   type TableRequestContactKind,
   type TableRequestDelivery,
@@ -40,7 +42,7 @@ import {
 import { storedVenueIds } from "@/lib/venueAliases";
 
 const TABLE = "table_requests";
-const MIGRATION_HINT = "apply migration 0219";
+const MIGRATION_HINT = "apply migration 0241";
 const STORE_TAG = "table-requests";
 
 /** Bounded reads: the operator panel lists at most this many requests. */
@@ -52,11 +54,12 @@ type TableRequestsRead = { status: "ready" | "degraded"; requests: TableRequest[
 
 export type TableRequestsStore = {
   findForRequester(id: string, requesterUserId: string): Promise<TableRequest | null>;
-  /** Keep a request as `pending` before its email goes. THROWS on a hard failure. */
   /** Store a request. Given an `id` that is already stored, it changes nothing and returns it. */
-  create(fields: TableRequestFields, now?: number, id?: string): Promise<TableRequest>;
+  create(fields: TableRequestFields, now?: number, id?: string, initial?: "pending" | "resolving"): Promise<TableRequest>;
+  /** Compare the state and revision. Null means the claim was refused. */
+  transition(request: TableRequest, event: TableRequestDeliveryEvent, now?: number): Promise<TableRequest | null>;
   /** Stamp a request `emailed`. False when no pending row has that id. THROWS on a hard failure. */
-  markEmailed(id: string, now?: number): Promise<boolean>;
+  markEmailed(id: string, now?: number, revision?: number): Promise<boolean>;
   /** Remove a request whose email was not sent. False when there was none. THROWS on a hard failure. */
   discard(id: string): Promise<boolean>;
   /** Emailed requests for one pub under any of its ids, newest first. Fail-soft (degraded, []). */
@@ -78,13 +81,14 @@ export const memoryTableRequestsStore: TableRequestsStore = {
     return request?.requesterUserId === requesterUserId ? { ...request } : null;
   },
 
-  async create(fields, now = Date.now(), id = randomUUID()) {
+  async create(fields, now = Date.now(), id = randomUUID(), initial = "pending") {
     const held = byId.get(id);
     if (held) return { ...held };
     const request: TableRequest = {
       ...fields,
       id,
-      delivery: "pending",
+      delivery: initial,
+      revision: 0,
       createdAt: new Date(now).toISOString(),
       deliveredAt: null,
     };
@@ -92,12 +96,19 @@ export const memoryTableRequestsStore: TableRequestsStore = {
     return { ...request };
   },
 
-  async markEmailed(id, now = Date.now()) {
-    const hit = byId.get(id);
-    if (!hit || hit.delivery !== "pending") return false;
-    hit.delivery = "emailed";
-    hit.deliveredAt = new Date(now).toISOString();
-    return true;
+  async transition(request, event, now = Date.now()) {
+    const held = byId.get(request.id);
+    if (!held || held.requesterUserId !== request.requesterUserId || held.delivery !== request.delivery) return null;
+    const next = transitionTableRequestDelivery(held, event, request.revision, now);
+    if (next === held) return null;
+    const updated = { ...held, ...next };
+    byId.set(request.id, updated);
+    return { ...updated };
+  },
+
+  async markEmailed(id, now = Date.now(), revision = 0) {
+    const held = byId.get(id);
+    return held ? (await memoryTableRequestsStore.transition({ ...held, revision }, "confirm_sent", now)) !== null : false;
   },
 
   async discard(id) {
@@ -158,10 +169,14 @@ function fromRow(row: Record<string, unknown>): TableRequest | null {
   const contactValue = readText(row.contact_value);
   const delivery = readDelivery(row.delivery);
   const createdAt = readText(row.created_at);
+  const revision = row.revision ?? 0;
+  const deliveredAt = readText(row.delivered_at);
   const partySize = typeof row.party_size === "number" ? row.party_size : Number(row.party_size);
   if (
     !id || !venueId || !requesterUserId || !name || !date || !time ||
-    !contactKind || !contactValue || !delivery || !createdAt || !Number.isInteger(partySize)
+    !contactKind || !contactValue || !delivery || !createdAt || !Number.isInteger(partySize) ||
+    !Number.isSafeInteger(revision) || (revision as number) < 0 ||
+    ((delivery === "emailed") !== (deliveredAt !== null))
   ) {
     return null;
   }
@@ -177,9 +192,9 @@ function fromRow(row: Record<string, unknown>): TableRequest | null {
     note: readText(row.note),
     contactKind,
     contactValue,
-    delivery,
     createdAt,
-    deliveredAt: readText(row.delivered_at),
+    revision: revision as number,
+    ...(delivery === "emailed" ? { delivery, deliveredAt: deliveredAt! } : { delivery, deliveredAt: null }),
   };
 }
 
@@ -196,6 +211,7 @@ function toRow(request: TableRequest) {
     contact_kind: request.contactKind,
     contact_value: request.contactValue,
     delivery: request.delivery,
+    revision: request.revision,
     created_at: request.createdAt,
     delivered_at: request.deliveredAt,
   };
@@ -222,21 +238,22 @@ export const supabaseTableRequestsStore: TableRequestsStore = {
     });
   },
 
-  async create(fields, now = Date.now(), id = randomUUID()) {
+  async create(fields, now = Date.now(), id = randomUUID(), initial = "pending") {
     return guard({
       context: "create",
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: STORE_TAG,
           migrationHint: MIGRATION_HINT,
-          fallback: () => memoryTableRequestsStore.create(fields, now, id),
+          fallback: () => memoryTableRequestsStore.create(fields, now, id, initial),
         }),
       // No onError: a hard write failure THROWS.
       run: async () => {
         const request: TableRequest = {
           ...fields,
           id,
-          delivery: "pending",
+          delivery: initial,
+          revision: 0,
           createdAt: new Date(now).toISOString(),
           deliveredAt: null,
         };
@@ -251,21 +268,48 @@ export const supabaseTableRequestsStore: TableRequestsStore = {
     });
   },
 
-  async markEmailed(id, now = Date.now()) {
+  async transition(request, event, now = Date.now()) {
+    const next = transitionTableRequestDelivery(request, event, request.revision, now);
+    if (next === request) return null;
     return guard({
-      context: "mark-emailed",
-      onSchemaMiss: () => memoryTableRequestsStore.markEmailed(id, now),
+      context: "transition",
+      onSchemaMiss: () => onMissingDurableWrite({
+        storeTag: STORE_TAG,
+        migrationHint: MIGRATION_HINT,
+        fallback: () => memoryTableRequestsStore.transition(request, event, now),
+      }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .update({ delivery: "emailed", delivered_at: new Date(now).toISOString() })
-          .eq("id", id)
-          .eq("delivery", "pending")
-          .select("id");
+        const { data, error } = await admin().rpc("transition_table_request", {
+          p_id: request.id,
+          p_requester: request.requesterUserId,
+          p_from: request.delivery,
+          p_revision: request.revision,
+          p_to: next.delivery,
+          p_delivered_at: next.deliveredAt,
+        });
         if (error) throw new Error(error.message);
-        return (Array.isArray(data) ? data : []).length > 0;
+        if (!data?.length) return null;
+        const updated = fromRow(data[0] as Record<string, unknown>);
+        if (!updated) throw new Error("table request transition could not be read");
+        return updated;
       },
     });
+  },
+
+  async markEmailed(id, now = Date.now(), revision = 0) {
+    const { data, error } = await admin().from(TABLE).select("*").eq("id", id).maybeSingle();
+    if (error) {
+      return guard({
+        context: "mark-emailed",
+        onSchemaMiss: () => onMissingDurableWrite({
+          storeTag: STORE_TAG, migrationHint: MIGRATION_HINT,
+          fallback: () => memoryTableRequestsStore.markEmailed(id, now, revision),
+        }),
+        run: async () => { throw new Error(error.message); },
+      });
+    }
+    const request = data ? fromRow(data as Record<string, unknown>) : null;
+    return request ? (await supabaseTableRequestsStore.transition({ ...request, revision }, "confirm_sent", now)) !== null : false;
   },
 
   async discard(id) {

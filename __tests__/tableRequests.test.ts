@@ -219,6 +219,7 @@ describe("the operator's view of a request", () => {
   it("carries the name and the chosen contact, never the account id", () => {
     const stored: TableRequest = {
       id: "r1",
+      revision: 0,
       venueId: "venue-crown",
       requesterUserId: USER,
       name: "Sam",

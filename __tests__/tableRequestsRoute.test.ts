@@ -462,7 +462,7 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
-  it.each(["reclaim", "revoked", "address_removed"])("never offers manual contact while a same-key attempt can still send after %s", async (change) => {
+  it.each(["reclaim", "revoked", "address_removed", "provider_removed"])("never offers manual contact while a same-key attempt can still send after %s", async (change) => {
     await verifyOperator(OPERATOR, "venue-crown");
     const lookupStarted = Promise.withResolvers<void>();
     const addressResult = Promise.withResolvers<string>();
@@ -482,6 +482,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       });
       if (change === "revoked") await memoryVenueOperatorStore.setState(claim.id, "revoked");
       if (change === "address_removed") state.addresses.delete(OPERATOR);
+      if (change === "provider_removed") state.noProvider = true;
       const retry = await POST(post(payload));
       const retryBody = await retry.json();
       addressResult.resolve(OPERATOR_ADDRESS);
@@ -505,7 +506,66 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
-  it.each(["operators", "address"])("keeps a failed %s lookup retryable before the original attempt exists", async (lookup) => {
+  it.each(["operator", "address", "provider"])("keeps a concurrent negative retry uncertain after sending starts and its %s disappears", async (change) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const sendStarted = Promise.withResolvers<void>();
+    const sendResult = Promise.withResolvers<Awaited<ReturnType<EmailProvider["send"]>>>();
+    state.send = () => {
+      sendStarted.resolve();
+      return sendResult.promise;
+    };
+    const payload = request({ requestKey: "test-key-send-wins-2749" });
+    const original = POST(post(payload));
+    try {
+      await sendStarted.promise;
+      if (change === "operator") __resetVenueOperators();
+      if (change === "address") state.addresses.clear();
+      if (change === "provider") state.noProvider = true;
+      const retry = await POST(post(payload));
+      expect(retry.status).toBe(503);
+      expect(await retry.json()).toMatchObject({ retryable: true });
+      sendResult.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      expect((await original).status).toBe(201);
+      expect((await POST(post(payload))).status).toBe(201);
+      expect(state.sent).toHaveLength(1);
+    } finally {
+      sendResult.resolve([{ to: OPERATOR_ADDRESS, status: "sent" }]);
+      await original;
+    }
+  });
+
+  it.each(["operator", "address", "provider"])("never sends a terminal negative key after its %s recovers", async (change) => {
+    if (change !== "operator") await verifyOperator(OPERATOR, "venue-crown");
+    if (change === "address") state.addresses.clear();
+    if (change === "provider") state.noProvider = true;
+    const payload = request({ requestKey: "test-key-negative-replay-2749" });
+    const negative = await POST(post(payload));
+    expect(await negative.json()).toEqual({ outcome: "not_sent" });
+    await verifyOperator(OPERATOR, "venue-crown");
+    state.addresses.set(OPERATOR, OPERATOR_ADDRESS);
+    state.noProvider = false;
+    const retry = await POST(post(payload));
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toEqual({ outcome: "not_sent" });
+    expect(state.sent).toHaveLength(0);
+    expect((await memoryTableRequestsStore.listEmailedForVenue("venue-crown")).requests).toEqual([]);
+  });
+
+  it.each([false, true])("keeps a failed durable claim retryable with provider absent=%s", async (noProvider) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    state.noProvider = noProvider;
+    const transition = vi.spyOn(memoryTableRequestsStore, "transition").mockRejectedValue(new Error("claim unavailable"));
+    try {
+      const response = await POST(post(request({ requestKey: "test-key-claim-failure-2749" })));
+      expect(response.status).toBe(503);
+      expect(await response.json()).toMatchObject({ retryable: true });
+      expect(state.sent).toHaveLength(0);
+    } finally {
+      transition.mockRestore();
+    }
+  });
+
+  it.each(["operators", "address"])("keeps a failed %s lookup retryable while the original attempt resolves", async (lookup) => {
     await verifyOperator(OPERATOR, "venue-crown");
     const lookupStarted = Promise.withResolvers<void>();
     const originalLookup = Promise.withResolvers<void>();
@@ -531,7 +591,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       const retry = await POST(post(payload));
       expect(retry.status).toBe(503);
       expect(await retry.json()).toMatchObject({ retryable: true });
-      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toMatchObject([{ delivery: "resolving" }]);
       expect(state.sent).toHaveLength(0);
       originalLookup.resolve();
       expect((await original).status).toBe(201);
@@ -558,13 +618,13 @@ describe("POST /api/table-requests: the two ways out", () => {
       expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({ retryable: true });
       expect(state.sent).toHaveLength(0);
-      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+      expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toMatchObject([{ delivery: "resolving" }]);
     } finally {
       address.mockRestore();
     }
   });
 
-  it("offers manual contact without creating an attempt when the email provider is absent", async () => {
+  it("remembers confirmed non-delivery when the email provider is absent", async () => {
     await verifyOperator(OPERATOR, "venue-crown");
     state.noProvider = true;
     const payload = request({ requestKey: "test-key-jjjjjjjjjjjjjjjj" });
@@ -574,7 +634,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       expect(await response.json()).toEqual({ outcome: "not_sent" });
     }
     expect(state.sent).toHaveLength(0);
-    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toEqual([]);
+    expect((await memoryTableRequestsStore.listForRequester(ALICE)).requests).toMatchObject([{ delivery: "not_sent" }]);
   });
 
   it("does not offer manual contact when an uncertain attempt loses its email provider", async () => {

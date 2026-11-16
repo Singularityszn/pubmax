@@ -98,7 +98,18 @@ vi.mock("@/lib/supabase", () => {
   return {
     isSupabaseConfigured: () => true,
     requiresSupabaseStore: () => false,
-    requireSupabaseAdmin: () => ({ from: () => makeQuery() }),
+    requireSupabaseAdmin: () => ({
+      from: () => makeQuery(),
+      rpc: async (_name: string, args: Record<string, unknown>) => {
+        if (db.schemaMiss) return { data: null, error: { message: TABLE_MISSING } };
+        if (db.failWrites) return { data: null, error: { message: "update boom" } };
+        const row = db.rows.find((r) => r.id === args.p_id && r.requester_user_id === args.p_requester
+          && r.delivery === args.p_from && r.revision === args.p_revision);
+        if (!row) return { data: [], error: null };
+        Object.assign(row, { delivery: args.p_to, revision: Number(row.revision) + 1, delivered_at: args.p_delivered_at });
+        return { data: [{ ...row }], error: null };
+      },
+    }),
   };
 });
 
@@ -197,6 +208,29 @@ describe.each([
     expect((await store.listForRequester("a1111111-1111-4111-8111-111111111111", 1)).requests).toHaveLength(1);
   });
 
+  it("lets only one concurrent claim decide between sending and terminal non-delivery", async () => {
+    const request = await store.create(fields(), NOW, undefined, "resolving");
+    const results = await Promise.all([
+      store.transition(request, "begin_send", NOW),
+      store.transition(request, "confirm_not_sent", NOW),
+    ]);
+    expect(results.filter(Boolean)).toHaveLength(1);
+    const held = await store.findForRequester(request.id, request.requesterUserId);
+    expect(held).toMatchObject({ revision: 1 });
+    expect(await store.transition(request, "confirm_not_sent", NOW)).toBeNull();
+    expect(await store.transition({ ...request, requesterUserId: "another-account" }, "begin_send", NOW)).toBeNull();
+  });
+
+  it("never reopens a terminal negative key or lists it to an operator", async () => {
+    const request = await store.create(fields(), NOW, undefined, "resolving");
+    const negative = await store.transition(request, "confirm_not_sent", NOW);
+    expect(negative?.delivery).toBe("not_sent");
+    expect(await store.create(fields(), NOW + 1000, request.id, "resolving")).toEqual(negative);
+    expect(await store.transition(negative!, "begin_send", NOW)).toBeNull();
+    expect(await store.markEmailed(request.id, NOW, negative!.revision)).toBe(false);
+    expect((await store.listEmailedForVenue(request.venueId)).requests).toEqual([]);
+  });
+
   it("lists a pub under every id it was stored under, newest first, and no other pub", async () => {
     const older = await store.create(fields({ venueId: "venue-old" }), NOW);
     const newer = await store.create(fields({ venueId: "venue-new" }), NOW + 60_000);
@@ -276,8 +310,8 @@ describe("the Supabase table requests store on a bad day", () => {
   it("refuses a write in production while the table is missing", async () => {
     db.schemaMiss = true;
     db.production = true;
-    await expect(supabaseTableRequestsStore.create(fields(), NOW)).rejects.toThrow(/apply migration 0219/);
+    await expect(supabaseTableRequestsStore.create(fields(), NOW)).rejects.toThrow(/apply migration 0241/);
     await expect(supabaseTableRequestsStore.findForRequester("missing", fields().requesterUserId))
-      .rejects.toThrow(/apply migration 0219/);
+      .rejects.toThrow(/apply migration 0241/);
   });
 });
