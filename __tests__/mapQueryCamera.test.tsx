@@ -65,13 +65,8 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }) {
-  function Camera() {
-    const plan = useMapPlanCoordinator({
-      mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
-      planningOpen: false, nightArea: null,
-    });
-    if (planRef) planRef.current = plan;
+  readiness = { current: true }, canvasMounted = { current: true }) {
+  function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
     const currentRoute = planRef ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : route;
     camera = useMapCamera({
       mapRef: { current: {
@@ -93,7 +88,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
     });
     useNearbyCameraFraming({
-      mapReady: true, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
+      mapReady: readiness.current, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
       routeLength: route.length, nearbyMapVenues: soho, fitNearby: camera.fitNearby,
       framingOwedRef: { current: false }, requestToken: nearbyRequest.current,
     });
@@ -106,6 +101,14 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
     });
     useMapFocusPoint(readiness.current, opening.area ?? location.openingLocationFocus, useRef(null), camera.cinematic);
     return null;
+  }
+  function Camera() {
+    const plan = useMapPlanCoordinator({
+      mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
+      planningOpen: false, nightArea: null,
+    });
+    if (planRef) planRef.current = plan;
+    return canvasMounted.current ? createElement(Canvas, { plan }) : null;
   }
   act(() => root.render(createElement(Camera)));
   return () => act(() => root.render(createElement(Camera)));
@@ -253,6 +256,84 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).toHaveBeenCalledTimes(2);
     expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
       .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+  });
+
+  it("preserves a route request made before the canvas mounts", () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const readiness = { current: false };
+    const canvasMounted = { current: false };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false,
+      planRef, undefined, readiness, canvasMounted);
+    act(() => planRef.current!.mapRoute());
+    canvasMounted.current = true;
+    rerender();
+    camera.fitPalPicks(1, picks);
+    flush();
+    readiness.current = true;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+  });
+
+  it("preserves a Near me request made before the canvas mounts", () => {
+    const readiness = { current: false };
+    const rerender = mount({ current: soho }, [], undefined, undefined, { current: 1 }, true,
+      undefined, undefined, readiness);
+    camera.fitPalPicks(1, picks);
+    flush();
+    readiness.current = true;
+    rerender();
+    flush();
+    expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));
+  });
+
+  it.each(["route", "search", "venue", "city", "nearby"] as const)(
+    "keeps a queued user %s ahead of a later Pal answer and automatic restoration", (action) => {
+      mount({ current: soho }, soho);
+      if (action === "route") camera.fitRoute("user");
+      else if (action === "search") camera.fitQueryVenues("search-recovery", 1);
+      else if (action === "city") camera.fitCityBounds();
+      else if (action === "nearby") camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+      else camera.cinematic({ center: [-0.13, 51.51] }, "venue", "user");
+      camera.fitPalPicks(1, picks);
+      camera.fitPalPicks(2, picks.slice(0, 1), true);
+      restore();
+      flush();
+      expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(1);
+      if (action === "route" || action === "search") {
+        expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+          .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+      } else if (action === "city") {
+        expect(fitBounds.mock.calls[0]![0]).toEqual([[-0.3, 51.4], [0.1, 51.7]]);
+      } else {
+        expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));
+      }
+      camera.fitPalPicks(3, picks);
+      flush();
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+    },
+  );
+
+  it("releases Pal ownership when a user removes the second-to-last stop", () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef);
+    flush();
+    fitBounds.mockClear();
+    camera.fitPalPicks(1, picks);
+    flush();
+    act(() => {
+      planRef.current!.setBuiltIds([soho[0]!.id]);
+      planRef.current!.mapRoute();
+    });
+    flush();
+    camera.fitQueryVenues();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
   });
 
   it("blocks mounted restoration updates while Pal owns the camera", () => {
