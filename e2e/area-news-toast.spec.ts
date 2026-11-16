@@ -53,7 +53,7 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("button", { name: "This area", exact: true })).toBeVisible({ timeout: 1_000 });
       }).toPass({ timeout: 30_000 });
       await page.getByRole("button", { name: "This area", exact: true }).click();
-      const areaSearch = page.getByRole("searchbox", { name: "Search areas and postcodes" });
+      const areaSearch = page.getByRole("searchbox", { name: "Search areas", exact: true });
       await expect(areaSearch).toBeVisible();
       await areaSearch.fill("Kingston");
       await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", {
@@ -203,7 +203,7 @@ for (const theme of ["light", "dark"] as const) {
     await page.keyboard.press("Escape");
     await choose.click();
     await page.getByRole("button", { name: "This area", exact: true }).click();
-    await page.getByRole("searchbox", { name: "Search areas and postcodes" }).fill("Soho");
+    await page.getByRole("searchbox", { name: "Search areas", exact: true }).fill("Soho");
     await page.locator(".chooseAreaSheet").filter({ visible: true }).getByRole("button", { name: /^Piccadilly & Soho/ }).click();
     await expect(choose).toHaveAttribute("aria-label", /Map area: Piccadilly & Soho/i);
     await expect(page.locator(".cityStatusBannerCopy")).toHaveCount(0);

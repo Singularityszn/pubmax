@@ -12,7 +12,7 @@ const RINGS = [9.25, 7.5, 5.75, 4] as const;
 export default function LandingZoneChip({ station }: { station: LandingCardStation }) {
   const chip = anchorZoneChip(station);
   return (
-    <span className="lpZoneChip" aria-label={chip.label} data-testid="landing-zone-chip">
+    <span className="lpZoneChip" role="img" aria-label={chip.label} data-testid="landing-zone-chip">
       <svg className="lpZoneMark" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true" focusable="false">
         {RINGS.map((r, i) => (
           <circle key={r} className="lpZoneRing" style={{ ["--ring" as string]: i }} cx="10" cy="10" r={r} />

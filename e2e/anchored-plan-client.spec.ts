@@ -95,7 +95,6 @@ for (const width of [390, 768, 1440]) {
 test("existing Plan work wins without consuming a newer accepted Venue", async ({ page }) => {
   const existing = { id: "venue-xjf3n0", name: "Arnos Arms" };
   const accepted = { id: "venue-122cuu1", name: "The Queen’s Head" };
-  const planId = "22222222-2222-4222-8222-222222222222";
   await page.addInitScript(([intentKey, existingVenue, acceptedVenue]) => {
     const now = Date.now();
     const startTime = new Intl.DateTimeFormat("sv-SE", {
@@ -130,29 +129,14 @@ test("existing Plan work wins without consuming a newer accepted Venue", async (
       expiresAt: new Date(now + 2 * 60 * 60 * 1000).toISOString(),
     }));
   }, [INTENT_KEY, existing, accepted] as const);
-  await page.route("**/api/plans", async (route) => {
-    if (route.request().method() !== "POST") return route.continue();
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        plan: { plan: { id: planId } },
-        created: true,
-        grounded: false,
-      }),
-    });
-  });
-
   await page.goto("/plan");
   await expect(page.locator(".planStop__name").first()).toHaveText(existing.name);
   const kept = page.getByRole("region", { name: "Plan changes we kept safe" });
   await expect(kept).toBeVisible();
   await expect(kept).toContainText(existing.name);
   await expect(page.locator(".planStop__name").first()).not.toHaveText(accepted.name);
-  await page.getByLabel("Your name").fill("Karan");
-  await page.getByRole("button", { name: "Lock it in" }).click();
-
-  await expect(page).toHaveURL(new RegExp(`/plan/${planId}`));
+  await expect(page.getByText("The route needs refreshing before it can be locked.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Lock it in", exact: true })).toBeDisabled();
   expect(await page.evaluate((key) => sessionStorage.getItem(key), INTENT_KEY)).not.toBeNull();
 });
 

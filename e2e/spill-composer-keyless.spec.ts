@@ -66,7 +66,7 @@ test("keyless mobile submit posts a Pint Drop and inserts the story into the Pin
   // The fast path first: handle, price, drink are all in the compact door.
   await form.getByLabel("Handle").fill(`@${handle}`);
   await form.getByRole("group", { name: /quick-add price/i }).getByRole("button").first().click();
-  await form.getByLabel("Drink").fill("Codex test pint");
+  await form.getByRole("textbox", { name: "Drink", exact: true }).fill("Codex test pint");
 
   // The story is optional, behind the disclosure.
   await form.getByRole("button", { name: "Add a photo or story" }).click();
