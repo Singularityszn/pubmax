@@ -1011,7 +1011,7 @@ export default function MessageThread({
     const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
     return (
       <div className="composerDock">
-        <MessagePhotoRecoveryNotice />
+        <MessagePhotoRecoveryNotice activeConversationId={conversationId} />
         {visibleError ? <div className="threadError" role="alert">{visibleError}
           {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
         </div> : null}

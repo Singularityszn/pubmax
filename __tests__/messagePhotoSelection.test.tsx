@@ -21,6 +21,7 @@ vi.mock("@/lib/authedFetch", async importOriginal => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import { discardMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 
 let container: HTMLDivElement;
 let root: Root;
@@ -39,6 +40,8 @@ async function choosePhoto() {
 }
 
 beforeEach(() => {
+  discardMessagePhotoRecovery("alice-id:1:c1");
+  discardMessagePhotoRecovery("sam-id:2:c1");
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   state.auth = { user: { id: "alice-id" }, handle: "alice", accountRevision: 1 };
   state.prepare.mockReset().mockImplementation(async file => ({ file, width: 1200, height: 600 }));

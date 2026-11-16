@@ -144,7 +144,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 import { publishAuthActionState } from "@/lib/authedFetch";
-import { discardMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
+import { discardMessagePhotoRecovery, readMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 let container: HTMLDivElement;
@@ -782,7 +782,57 @@ describe("council photo send regressions", () => {
     await mount();
     expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
     expect(composerValue()).toBe("our photos");
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    await act(async () => root.unmount()); container.remove();
+    await mount();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    expect(composerValue()).toBe("our photos");
     await typeAndSend("our photos");
     expect(JSON.parse(posts()[1]!.body).clientMessageId).toBe(key);
+  });
+});
+
+
+describe("council pending recovery ownership", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:photo"; } static revokeObjectURL() {} });
+    const file = new File([new Uint8Array([1])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1]).buffer });
+    photoSelection.file = file;
+  });
+  async function failPhoto() {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await typeAndSend("caption");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+  }
+  it("releases recovery and the reload warning after a confirmed send", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await typeAndSend("caption");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken" } })));
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+  it("keeps a refused photo, its caption and its warning across navigation", async () => {
+    await failPhoto();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    await act(async () => root.unmount()); container.remove();
+    await mount();
+    expect(container.querySelector(".composerPendingThumb")).not.toBeNull();
+    expect(composerValue()).toBe("caption");
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+  });
+  it.each(["replace", "remove"] as const)("clears the old photo error on %s", async action => {
+    await failPhoto();
+    if (action === "replace") {
+      await act(async () => container.querySelector<HTMLButtonElement>('[data-attach="venue"]')!.click());
+      await act(async () => container.querySelector<HTMLButtonElement>("[data-pick]")!.click());
+    } else await act(async () => container.querySelector<HTMLButtonElement>(".composerPendingRemove")!.click());
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+    expect(container.querySelector(".composerPendingThumb")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
   });
 });

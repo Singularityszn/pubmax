@@ -698,8 +698,19 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
       release();
       await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
       await expect(page).toHaveURL(/\/messages\/c1$/);
+      await readable(".composerPendingThumb", photoCount);
+      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
+      await shot("paused-after-second-leave");
+      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
     } else release();
     await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
+    if (photoCount === 1 && width === 390) {
+      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
+      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
+      await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
+    }
     await readable(".composerPendingThumb", photoCount);
     await shot("failed-retry"); await scaleIsOne();
     await page.getByRole("button", { name: "Retry send" }).click();

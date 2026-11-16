@@ -13,10 +13,8 @@ import { normalizeHandle } from "@/lib/profiles";
 import { preparePhotoUpload } from "@/lib/preparePhotoUpload";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import { MESSAGE_PHOTO_BATCH_LIMIT } from "@/lib/messagePhotoBudget";
-import { discardMessagePhotoRecovery, rememberMessagePhotos, takeMessagePhotoRecovery, warnDuringMessagePhotoSend } from "@/lib/messagePhotoRecovery";
+import { discardMessagePhotoRecovery, rememberMessagePhotos, readMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 import { discardBody } from "@/lib/responseBody";
-
-type ActivePhotoBatch = { owner: string; photos: MessagePhotoDraft[]; index: number; body: string; signal: AbortSignal; stopWarning: () => void };
 
 type Options = {
   conversationId: string;
@@ -49,10 +47,6 @@ function postMessage(address: string, post: object, attachment: PendingMessageAt
   }, { requiresIdentity: true });
 }
 
-function photoBatch(owner: string, photos: MessagePhotoDraft[], body: string, signal: AbortSignal): ActivePhotoBatch | null {
-  return photos.length ? { owner, photos, body, signal, index: 0, stopWarning: warnDuringMessagePhotoSend() } : null;
-}
-
 export function useMessageComposer(options: Options) {
   const { conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal } = options;
   const [draft, setDraft] = useState("");
@@ -70,7 +64,6 @@ export function useMessageComposer(options: Options) {
   const scope = useRef(0);
   const pick = useRef(0);
   const ownedUrls = useRef(new Set<string>());
-  const activeBatch = useRef<ActivePhotoBatch | null>(null);
   const [renderedOwner, setRenderedOwner] = useState(owner);
   if (renderedOwner !== owner) {
     setRenderedOwner(owner);
@@ -84,14 +77,6 @@ export function useMessageComposer(options: Options) {
     inFlight.current = false;
     unsentKey.current = null;
     return () => {
-      const batch = activeBatch.current;
-      if (batch?.owner === owner) {
-        rememberMessagePhotos(owner, {
-          photos: batch.photos.slice(batch.index).map(({ file, width, height }) => ({ file, width, height })),
-          body: batch.index === 0 ? batch.body : "", attempt: unsentKey.current,
-        }, batch.signal);
-        batch.stopWarning();
-      }
       scope.current += 1;
       pick.current += 1;
       for (const url of urls) URL.revokeObjectURL(url);
@@ -112,7 +97,7 @@ export function useMessageComposer(options: Options) {
     const revision = scope.current;
     queueMicrotask(() => {
       if (revision !== scope.current) return;
-      const recovery = takeMessagePhotoRecovery(owner);
+      const recovery = readMessagePhotoRecovery(owner);
       if (!recovery) return;
       const photos = recovery.photos.map(photo => ({ ...photo, previewUrl: URL.createObjectURL(photo.file) }));
       for (const photo of photos) ownedUrls.current.add(photo.previewUrl);
@@ -121,9 +106,16 @@ export function useMessageComposer(options: Options) {
       unsentKey.current = recovery.attempt;
       setDraft(recovery.body);
       setPending({ kind: "photo", ...first, remaining: photos.slice(1) });
-      setError("Photo send paused. Your remaining photos are ready to retry.");
+      setError("Your unsent photos are ready to send.");
     });
   }, [owner, setError]);
+
+  useLayoutEffect(() => {
+    const photos = messagePhotos(pending);
+    if (photos.length) rememberMessagePhotos(owner, {
+      photos: photos.map(({ file, width, height }) => ({ file, width, height })), body: draft, attempt: unsentKey.current,
+    }, readProviderAccountSignal());
+  }, [owner, pending, draft]);
 
   const cancelPreparation = useCallback(() => {
     if (inFlight.current) return;
@@ -131,12 +123,13 @@ export function useMessageComposer(options: Options) {
   }, [owner]);
   const clearPending = useCallback(() => {
     if (inFlight.current) return;
-    pick.current += 1; dispatch({ type: "finish", scope: owner }); setPending(null);
+    pick.current += 1; dispatch({ type: "reset", scope: owner }); setPending(null);
     discardMessagePhotoRecovery(owner);
   }, [owner]);
   const chooseAttachment = useCallback((attachment: PendingMessageAttachment) => {
     if (inFlight.current) return;
-    pick.current += 1; dispatch({ type: "finish", scope: owner }); setPending(attachment);
+    pick.current += 1; dispatch({ type: "reset", scope: owner }); setPending(attachment);
+    discardMessagePhotoRecovery(owner);
   }, [owner]);
 
   const selectPhotos = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
@@ -187,9 +180,9 @@ export function useMessageComposer(options: Options) {
       body: index === 0 ? bodyText : "", createdAt: new Date().toISOString(), read: false, flagged: false,
       ...(attachment?.kind === "photo" ? { pendingPhoto: attachment } : {}), queued: index > 0,
     }));
-    const batch = photoBatch(owner, photos, bodyText, signal);
-    activeBatch.current = batch;
-    discardMessagePhotoRecovery(owner);
+    if (photos.length) rememberMessagePhotos(owner, {
+      photos: photos.map(({ file, width, height }) => ({ file, width, height })), body: bodyText, attempt: unsentKey.current,
+    }, signal);
     dispatch({ type: "send", scope: owner }); setError(""); setOutbox(rows); setDraft(""); setPending(null);
     let index = 0;
     const takeBack = () => {
@@ -203,7 +196,6 @@ export function useMessageComposer(options: Options) {
     };
     try {
       for (; index < jobs.length; index += 1) {
-        if (batch) batch.index = index;
         if (!current()) return;
         const attachment = jobs[index] ?? null;
         const row = rows[index]!;
@@ -213,6 +205,9 @@ export function useMessageComposer(options: Options) {
         if (!current()) return;
         const clientMessageId = retainedMessageSendKey(unsentKey.current, payload, bytes) ?? newMessageClientId();
         unsentKey.current = { key: clientMessageId, payload, photo: bytes };
+        if (photos.length) rememberMessagePhotos(owner, {
+          photos: photos.slice(index).map(({ file, width, height }) => ({ file, width, height })), body: row.body, attempt: unsentKey.current,
+        }, signal);
         const keyedPost = { ...post, clientMessageId };
         const response = await postMessage(`/api/messages/${encodeURIComponent(conversationId)}`, keyedPost, attachment, signal);
         if (!current()) { discardBody(response); return; }
@@ -230,13 +225,14 @@ export function useMessageComposer(options: Options) {
         if (!current()) return;
         setOutbox(value => value.filter(item => item.id !== row.id));
         unsentKey.current = null;
+        if (photos.length) rememberMessagePhotos(owner, {
+          photos: photos.slice(index + 1).map(({ file, width, height }) => ({ file, width, height })), body: "", attempt: null,
+        }, signal);
       }
     } catch {
       takeBack();
       if (current()) setError(offlineOrMessage(pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again."));
     } finally {
-      batch?.stopWarning();
-      if (activeBatch.current === batch) activeBatch.current = null;
       if (revision === scope.current) { inFlight.current = false; dispatch({ type: "finish", scope: owner }); }
     }
   }, [conversationId, authHandle, draft, pending, preparing, user, refresh, onStored, onSignedOut, fromRefusal, owner, setError]);
