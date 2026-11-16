@@ -176,6 +176,7 @@ import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe"
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  latestMapCameraRequestToken,
   palCameraDefaults,
   useMapCamera,
   useNearbyCameraFraming,
@@ -1480,8 +1481,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
-    latestRequestToken: Math.max(routeRequestToken ?? 0, nearbyRequestToken, searchRecoveryToken ?? 0, selectedVenueId ? selectedVenueRequestToken : 0,
-      focusPoint?.source === "area" ? focusPoint.token : 0),
+    latestRequestToken: latestMapCameraRequestToken({
+      routeRequestToken,
+      nearbyRequestToken,
+      searchRecoveryToken,
+      selectedVenueId,
+      selectedVenueRequestToken,
+      focusPoint,
+    }),
     mapRef,
     reducedRef,
     cityViewRef,

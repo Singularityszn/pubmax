@@ -6,9 +6,34 @@ import { LONG_JUMP_CURVE, easeOutCubic } from "./easing";
 import { createCameraIntentCoordinator, nextCameraRequestToken, type CameraIntentKind, type CameraIntentOwner } from "@/lib/cameraIntent";
 import { mapArrivalBearingPlan } from "@/lib/mapArrivalBearing";
 import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
+import type { MapCameraFocus } from "@/lib/mapCameraFocus";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
+
+export function latestMapCameraRequestToken({
+  routeRequestToken,
+  nearbyRequestToken,
+  searchRecoveryToken,
+  selectedVenueId,
+  selectedVenueRequestToken,
+  focusPoint,
+}: {
+  routeRequestToken?: number;
+  nearbyRequestToken: number;
+  searchRecoveryToken?: number;
+  selectedVenueId: string;
+  selectedVenueRequestToken: number;
+  focusPoint?: MapCameraFocus | null;
+}) {
+  return Math.max(
+    routeRequestToken ?? 0,
+    nearbyRequestToken,
+    searchRecoveryToken ?? 0,
+    selectedVenueId ? selectedVenueRequestToken : 0,
+    focusPoint?.source === "area" ? focusPoint.token : 0,
+  );
+}
 
 export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestToken?: number }) {
   return { nearbyRequestToken };

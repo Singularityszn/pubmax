@@ -1445,6 +1445,7 @@ export default function PubMap({
   const [loadedCityId, setLoadedCityId] = useState<CityId | null>(
     restoredSession.loadedCityId,
   );
+  const venueDataReady = loaded && loadedCityId === cityId;
   // Bumped by the canvas's pin Retry when the readiness ceiling named the pub
   // list. The index load is the owner's, so the way to try again is to re-run
   // the effect that owns it.
@@ -2945,7 +2946,7 @@ export default function PubMap({
   // Field time-to-pins for this visit (map_load_timing, consent-gated).
   useMapLoadTiming(venues.length);
   const settledBuiltStopIds = useBuiltRouteHydration({
-    venueDataReady: loaded && loadedCityId === cityId,
+    venueDataReady,
     builtIds,
     venueById,
     setDetailById,
@@ -6381,7 +6382,7 @@ export default function PubMap({
         loaded={
           // /map?uk=1 reads no curated index, so there is nothing to wait for.
           ukNationalBrowse ||
-          (loaded && loadedCityId === cityId && visibleVenueState?.cityId === cityId)
+          (venueDataReady && visibleVenueState?.cityId === cityId)
         }
         viewLanding={viewShardsLanding}
         detailOpen={detailOpen}
@@ -6597,7 +6598,7 @@ export default function PubMap({
       <PubMapCanvas
         venues={canvasVenues}
         filteredVenueCount={canvasVenues.length}
-        venueDataReady={loaded && loadedCityId === cityId}
+        venueDataReady={venueDataReady}
         nationalBrowse={ukNationalBrowse}
         // Clean first view stays route-free. Once the user maps a crawl, the
         // line remains visible even if the mobile planner closes.
