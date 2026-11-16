@@ -88,6 +88,8 @@ The affected paths apply these checks.
 - The Plan pub picker uses `isPublicRankablePub`, which also checks [venue kind](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n).
 - **Host this on a date** first omits story stops whose supplied names match, through `planStopsFromStory`.
 - Plan creation and route replacement resolve each venue ID through [`planStopResolver`](../lib/planRoute.ts) before checking its canonical name.
+  Listed venue aliases use the current venue for lookups but retain the submitted stop ID.
+  This preserves historical actions and signed anchor bindings.
   A public-looking caller label cannot bypass this check.
   Creation returns `400 PLAN_VENUES_INVALID` with "Choose listed venues." for a refused stop.
   Route replacement returns `400 PLAN_ROUTE_INVALID` for a refused stop.
@@ -433,7 +435,8 @@ type PatchPlanRequest = {
 
 Rules:
 - `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`.
-  `canonicalPlanRoute` requires distinct IDs and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  `canonicalPlanRoute` requires distinct canonical venue identities and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  A route cannot contain both an alias and its current venue ID.
   Each ID must resolve under the [public venue eligibility rules](#14-public-venue-eligibility), which return canonical names.
   Replacing the route increments `routeRevision`.
 - Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
