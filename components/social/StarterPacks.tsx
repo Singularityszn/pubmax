@@ -28,8 +28,10 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { discardBody } from "@/lib/responseBody";
+import { foundingSlotsRemainingLine } from "@/lib/foundingMembers";
 import {
   STARTER_PACK_FOLLOW_LABEL,
+  STARTER_PACK_FOUNDING_FOLLOW_LABEL,
   STARTER_PACK_FOLLOW_WORKING_LABEL,
   STARTER_PACK_PREVIEW_FACES,
   STARTER_PACKS_TITLE,
@@ -48,6 +50,7 @@ import "./starterPacks.css";
 type PackView = StarterPack & {
   members: StarterPackMember[];
   memberCount: number;
+  foundingMemberTotal?: number;
 };
 
 type PackState = {
@@ -260,7 +263,9 @@ export default function StarterPacks({
               </ul>
 
               <p className="starterPacks__count">
-                {starterPackMemberCountLabel(pack.memberCount)}
+                {pack.kind === "founding" && typeof pack.foundingMemberTotal === "number"
+                  ? foundingSlotsRemainingLine(pack.foundingMemberTotal)
+                  : starterPackMemberCountLabel(pack.memberCount)}
               </p>
 
               {readOnly ? null : (
@@ -276,7 +281,9 @@ export default function StarterPacks({
                     ? STARTER_PACK_FOLLOW_WORKING_LABEL
                     : state.status === "done"
                       ? "Followed"
-                      : STARTER_PACK_FOLLOW_LABEL}
+                      : pack.kind === "founding"
+                        ? STARTER_PACK_FOUNDING_FOLLOW_LABEL
+                        : STARTER_PACK_FOLLOW_LABEL}
                 </button>
               )}
 
