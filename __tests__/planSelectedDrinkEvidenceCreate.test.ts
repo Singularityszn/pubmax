@@ -16,6 +16,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
     { id: "venue-a", name: "Venue A" },
     { id: "venue-b", name: "Venue B" },
     { id: "venue-c", name: "Venue C" },
+    { id: "venue-7qifhm", name: "The Horniman at Hays" },
   ],
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
@@ -32,7 +33,7 @@ import { defined } from "@/__tests__/helpers/defined";
 
 let sequence = 0;
 
-async function create(category: "wine" | "cocktail" | "beer", submitted: unknown) {
+async function create(category: "wine" | "cocktail" | "beer", submitted: unknown, venueId = "venue-a") {
   const response = await POST(new Request("http://localhost/api/plans", {
     method: "POST",
     headers: { "idempotency-key": `selected-drink-${++sequence}`, "content-type": "application/json" },
@@ -40,7 +41,7 @@ async function create(category: "wine" | "cocktail" | "beer", submitted: unknown
       creatorName: "Host",
       startTime: "2026-09-30T19:00:00.000Z",
       context: { ...inferNightContext(category).context, nightArea: "piccadilly-soho", drinkCategory: category },
-      stops: [{ venueId: "venue-a", venueName: "Forged name", selectedDrinkPriceEvidence: submitted }],
+      stops: [{ venueId, venueName: "Forged name", selectedDrinkPriceEvidence: submitted }],
     }),
   }));
   const body = await response.json();
@@ -53,6 +54,31 @@ async function create(category: "wine" | "cocktail" | "beer", submitted: unknown
 describe("Plan create selected drink evidence", () => {
   beforeEach(() => { __resetMemoryPlans(); categoryIndexMock.mockReset(); });
   afterEach(() => { __resetMemoryPlans(); });
+
+  it.each([
+    ["venue-aihlwx", "venue-7qifhm"],
+    ["venue-7qifhm", "venue-aihlwx"],
+  ])("preserves %s price evidence from %s on draft recovery and reorder", async (stopId, priceId) => {
+    const submittedAt = Date.now();
+    const evidence = { category: "wine", pence: 750, serving: null, source: "community", reportedAt: new Date(submittedAt).toISOString() };
+    categoryIndexMock.mockResolvedValue({
+      prices: [{ venueId: priceId, drinkCategory: "wine", priceGbp: 7.5, submittedAt, source: "community", corroborations: 2 }],
+      degraded: false, truncated: false,
+    });
+    const { body, reloaded } = await create("wine", evidence, stopId);
+    expect(reloaded.stops[0]).toMatchObject({ venueId: stopId, selectedDrinkPriceEvidence: evidence });
+    const response = await PATCH(new Request(`http://localhost/api/plans/${body.plan.plan.id}`, {
+      method: "PATCH",
+      headers: { authorization: `Bearer ${body.memberToken}`, "content-type": "application/json" },
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [
+        { venueId: "venue-b" }, { venueId: stopId, selectedDrinkPriceEvidence: evidence }, { venueId: "venue-c" },
+      ] }),
+    }), { params: Promise.resolve({ id: body.plan.plan.id }) });
+    expect(response.status).toBe(200);
+    expect((await memoryPlanStore.get(body.plan.plan.id))?.stops[1]).toMatchObject({
+      venueId: stopId, position: 1, selectedDrinkPriceEvidence: evidence,
+    });
+  });
 
   it.each(["wine", "cocktail"] as const)("saves trusted %s evidence on route replacement and reload", async (category) => {
     const { body } = await create(category, null);

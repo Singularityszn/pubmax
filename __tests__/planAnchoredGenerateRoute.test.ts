@@ -41,6 +41,8 @@ import { POST } from "@/app/api/plans/generate/route";
 import { verifyAnchoredPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
+import { proposalPreservesNight } from "@/lib/slidingDoors";
+import type { PlanState } from "@/lib/plan";
 
 function claphamVenue(id: string, index: number, options: Partial<ConciergeVenue> = {}): ConciergeVenue {
   return {
@@ -121,6 +123,36 @@ describe("POST /api/plans/generate — anchored", () => {
   });
   afterEach(() => {
     delete process.env.PLAN_IDEMPOTENCY_SECRET;
+  });
+
+  it.each([1, 3])("preserves a historical anchor and its exact proof with %i available pubs", async (count) => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("venue-7qifhm"));
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("venue-7qifhm", 0),
+      ...Array.from({ length: count - 1 }, (_, index) => claphamVenue(`companion-${index}`, index + 1)),
+    ]);
+    const response = await generate({ intake: intake(), anchor: {
+      ...ANCHOR, venueId: "venue-aihlwx",
+      ...(count === 3 ? { venueIds: ["venue-aihlwx", "companion-0", "companion-1"] } : {}),
+    } });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.outcome).toBe(count === 1 ? "anchor-only" : "route");
+    expect(body.stops).toHaveLength(count);
+    expect(body.stops[0].venueId).toBe("venue-aihlwx");
+    expect(body.anchorVenueId).toBe("venue-aihlwx");
+    const ids = body.stops.map((stop: { venueId: string }) => stop.venueId);
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ids, body.operationKey))
+      .toMatchObject({ ok: true, anchorVenueId: "venue-aihlwx" });
+    expect(verifyAnchoredPlanGroundingProofV2(body.groundingProof, ["venue-7qifhm", ...ids.slice(1)], body.operationKey).ok).toBe(false);
+    const historical: PlanState = {
+      plan: { id: "historical", title: "Night", startTime: "2026-11-16T18:00:00.000Z", createdAt: "2026-11-15T18:00:00.000Z", anchorVenueId: "venue-aihlwx" },
+      stops: [{ venueId: "venue-aihlwx", venueName: "Horniman", position: 0 }],
+      actions: [{ id: "arrived", type: "arrived", stopPosition: 0, venueId: "venue-aihlwx", ending: null, createdAt: "2026-11-16T19:00:00.000Z" }],
+      crew: [],
+    };
+    expect(proposalPreservesNight(historical, body.stops)).toBe(true);
+    expect(historical.stops[0]?.venueId).toBe("venue-aihlwx");
   });
 
   it("keeps generic generation unanchored when no accepted Venue is supplied", async () => {

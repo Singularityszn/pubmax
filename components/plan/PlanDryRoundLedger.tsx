@@ -1,4 +1,5 @@
 import { formatGbp } from "@/lib/formatGbp";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import type { DryRoundStopPrices } from "@/lib/dryRound";
 import { nearDrinkMeasureLabel } from "@/lib/nearCheapestAnything";
 import { nearPriceTrustLabel } from "@/lib/nearPriceTrust";
@@ -34,7 +35,7 @@ export default function PlanDryRoundLedger({
       <p className="planDryRound__lede">Each stop&apos;s listed alcohol-free price, with its pint price beside it.</p>
       <ol className="planDryRound__rows">
         {stops.map((stop, index) => {
-          const entry = prices.get(stop.venueId);
+          const entry = prices.get(stop.venueId) ?? prices.get(canonicalBundledVenueId(stop.venueId));
           return (
             <li key={`${index}-${stop.venueId}`} className="planDryRound__row">
               <span className="planDryRound__stop">{index + 1}. {stop.venueName}</span>

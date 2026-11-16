@@ -18,6 +18,7 @@ import PlanSummary from "@/components/plan/PlanSummary";
 import Screen from "@/components/ui/screen";
 import PlanVibe from "@/components/plan/PlanVibe";
 import type { PlanState } from "@/lib/plan";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { buildPlanPrivacyPreview, type PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planStore } from "@/lib/planStore";
@@ -150,7 +151,7 @@ async function planLeadPhoto(state: PlanState): Promise<PlacePhotoData | null> {
   const venues = await loadGroupedVenues();
   const byId = new Map(venues.map((venue) => [venue.id, venue]));
   const points = state.stops.flatMap((stop) => {
-    const venue = byId.get(stop.venueId);
+    const venue = byId.get(canonicalBundledVenueId(stop.venueId));
     return venue ? [{ lat: venue.latitude, lng: venue.longitude }] : [];
   });
   if (points.length !== state.stops.length) return null;

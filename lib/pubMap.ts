@@ -1,4 +1,5 @@
 import { MAP_SELECTION_NOTICE_PARAM, UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/mapSelectionNotice";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 // Pure helpers extracted from components/PubMap.tsx (F1 decomposition).
 //
 // Server-safe: NO "use client", no window/DOM reads, no React. These live off
@@ -173,7 +174,7 @@ export function builtStopsNeedingHydration({
     .slice(0, WALK_ROUTE_MAX_STOPS)
     .filter((id) => {
       if (!id || askedIds.has(id)) return false;
-      const venue = venueById.get(id);
+      const venue = venueById.get(canonicalBundledVenueId(id));
       return !venue || (typeof venue.cheapestPrice === "number"
         && Number.isFinite(venue.cheapestPrice) && venue.cheapestPrice > 0 && !venue.cheapestPint
         && venue.cheapestPrice !== venue.latestContributorPrice);

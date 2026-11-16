@@ -7,6 +7,13 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import { canonicalEndingSelection } from "@/lib/planEndingSelection.server";
 import type { EndingSelection, PlanState } from "@/lib/plan";
+import { loadConciergeVenues } from "@/lib/concierge/venues.server";
+import { defined } from "@/__tests__/helpers/defined";
+
+vi.mock("@/lib/concierge/venues.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/concierge/venues.server")>();
+  return { ...actual, loadConciergeVenues: vi.fn(actual.loadConciergeVenues) };
+});
 
 const plan: PlanState = {
   plan: { id: "11111111-1111-4111-8111-111111111111", title: "Soho", startTime: "2026-07-16T20:00:00.000Z", createdAt: "2026-07-16T18:00:00.000Z" },
@@ -20,6 +27,45 @@ const plan: PlanState = {
 };
 
 describe("canonical ending selections", () => {
+  it("resolves a historical terminal pub for food without changing the Plan", async () => {
+    const venues = await loadConciergeVenues("london");
+    const terminal = defined(venues.find((venue) => venue.id === "venue-s2ppfm"));
+    vi.mocked(loadConciergeVenues).mockResolvedValueOnce([{ ...terminal, id: "venue-7qifhm" }]);
+    const historical = { ...plan, stops: [{ venueId: "venue-aihlwx", venueName: "Horniman", position: 0 }] };
+    const selected = await canonicalEndingSelection(historical, {
+      kind: "food",
+      optionId: "late-food-evidence-piccadilly-soho-balans-no-60",
+      externalPlaceId: "late-food-evidence-piccadilly-soho-balans-no-60",
+      evidenceSnapshot: { label: "Client label", confidence: "unknown" },
+    }, "venue-aihlwx", Date.parse("2026-10-17T23:00:00.000Z"));
+    expect(selected).toMatchObject({ kind: "food", evidenceSnapshot: { label: "Balans No.60" } });
+    expect(historical.stops[0]?.venueId).toBe("venue-aihlwx");
+  });
+
+  it("resolves historical extension IDs and excludes both identities already in the route", async () => {
+    const venues = await loadConciergeVenues("london");
+    const terminal = defined(venues.find((venue) => venue.id === "venue-s2ppfm"));
+    const fixture = [terminal, { ...terminal, id: "venue-7qifhm", name: "Horniman" }];
+    const selection: EndingSelection = {
+      kind: "keep_going", optionId: "venue-aihlwx", venueId: "venue-aihlwx",
+      evidenceSnapshot: { label: "Client label", confidence: "unknown" },
+    };
+    vi.mocked(loadConciergeVenues).mockResolvedValueOnce(fixture);
+    expect(await canonicalEndingSelection(plan, selection, "venue-s2ppfm"))
+      .toMatchObject({ kind: "keep_going", venueId: "venue-7qifhm", optionId: "venue-7qifhm" });
+    for (const storedId of ["venue-aihlwx", "venue-7qifhm"]) {
+      vi.mocked(loadConciergeVenues).mockResolvedValueOnce(fixture);
+      const historical = { ...plan, stops: [...plan.stops, { venueId: storedId, venueName: "Horniman", position: 3 }] };
+      expect(await canonicalEndingSelection(historical, selection, "venue-s2ppfm")).toBeNull();
+    }
+    vi.mocked(loadConciergeVenues).mockResolvedValueOnce(fixture);
+    const historical = { ...plan, stops: [{ venueId: "venue-aihlwx", venueName: "Horniman", position: 0 }] };
+    expect(await canonicalEndingSelection(historical, {
+      kind: "keep_going", optionId: "venue-s2ppfm", venueId: "venue-s2ppfm",
+      evidenceSnapshot: { label: "Client label", confidence: "unknown" },
+    }, "venue-aihlwx")).toMatchObject({ kind: "keep_going", venueId: "venue-s2ppfm" });
+  });
+
   it("replaces a client food snapshot with current operator evidence", async () => {
     const raw: EndingSelection = {
       kind: "food",

@@ -1,5 +1,6 @@
 import "server-only";
 
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { haversineKm } from "@/lib/haversine";
 import { getLateFoodForArea, normalizeLateFoodArea } from "@/lib/lateFood";
@@ -36,7 +37,7 @@ export async function canonicalEndingSelection(
   }
 
   const venues = await loadConciergeVenues("london");
-  const finalStop = terminalVenueId ? venues.find((venue) => venue.id === terminalVenueId) : null;
+  const finalStop = terminalVenueId ? venues.find((venue) => venue.id === canonicalBundledVenueId(terminalVenueId)) : null;
 
   if (selection.kind === "food") {
     const area = normalizeLateFoodArea(plan.context?.nightArea);
@@ -58,9 +59,9 @@ export async function canonicalEndingSelection(
     };
   }
 
-  const extension = venues.find((venue) => venue.id === selection.venueId);
+  const extension = venues.find((venue) => venue.id === canonicalBundledVenueId(selection.venueId));
   if (!finalStop || !extension || selection.optionId !== selection.venueId) return null;
-  if (plan.stops.some((stop) => stop.venueId === extension.id) ||
+  if (plan.stops.some((stop) => canonicalBundledVenueId(stop.venueId) === extension.id) ||
       haversineKm([finalStop.lng, finalStop.lat], [extension.lng, extension.lat]) > 2.5) return null;
   return {
     kind: "keep_going",

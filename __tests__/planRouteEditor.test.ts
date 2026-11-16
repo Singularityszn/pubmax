@@ -70,6 +70,19 @@ describe("orderedRouteStops", () => {
 });
 
 describe("seedRouteDraft", () => {
+  it.each([
+    ["venue-aihlwx", "venue-7qifhm"],
+    ["venue-7qifhm", "venue-aihlwx"],
+  ] as const)("excludes %s and its alias from backups", (storedId, generatedId) => {
+    const saved = [{ venueId: storedId, venueName: "Horniman", position: 0 }];
+    const draft = seedRouteDraft(saved, [{ venueId: generatedId, venueName: "Horniman" }]);
+    expect(draft).toEqual([{ ...saved[0], alternatives: [] }]);
+    const available = seedRouteDraft([{ venueId: "other", venueName: "Other", position: 0 }], [
+      { venueId: storedId, venueName: "Horniman", alternatives: [{ venueId: generatedId, venueName: "Horniman" }] },
+    ]);
+    expect(available[0]?.alternatives).toEqual([{ venueId: storedId, venueName: "Horniman" }]);
+  });
+
   // A deterministic generator answers the pre-edit route again, with Cafe Sol
   // where Lotus Bar was saved. The stored route must win, in its stored order.
   const generated = [
