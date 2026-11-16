@@ -10,7 +10,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 - **The signed-in account is the only identity authority on a device.** `lib/deviceAccountIdentity.ts` owns the artifact set and the owner stamp. `AuthProvider.updateSession` binds these to the account on every auth event before children render again. A different or unstamped account loses the whole set.
 
-  A live account departure clears this tab's session artifacts and chosen way, including provider sign-out. Every departure also clears the remembered Plan host name. Provider sign-out clears stored Plan drafts, route drafts and intake answers, including accessibility needs. It retains the saved Pal, quest stamps, pending Pint Drops, mirrored Night Profile and owner stamp.
+  A live account departure clears this tab's session artifacts and chosen way, including provider sign-out. Every departure also clears the remembered Plan host name and the Pint Drop sign-in handoff. Provider sign-out clears stored Plan drafts, route drafts and intake answers, including accessibility needs. It retains the saved Pal, quest stamps, pending Pint Drops, mirrored Night Profile and owner stamp.
 
   Session cleanup removes every venue's unfinished Pint Drop draft, the confirmed Plan proposal and price mission dismissals. This includes a different account signing in after an expired-session reload, while the previous owner's stamp remains. A same-account token refresh preserves these artifacts.
 
