@@ -211,6 +211,7 @@ async function readUsedMinutes(
   admin: ReturnType<typeof requireSupabaseAdmin>,
   userId: string,
   usageMonth: string,
+  emptyIsZero = false,
 ): Promise<number | null> {
   try {
     const { data, error } = await admin
@@ -220,7 +221,9 @@ async function readUsedMinutes(
       .eq("usage_month", usageMonth)
       .maybeSingle();
     const used = (data as { used_minutes?: unknown } | null)?.used_minutes;
-    return !error && typeof used === "number" ? used : null;
+    if (error) return null;
+    if (data === null && emptyIsZero) return 0;
+    return typeof used === "number" && Number.isFinite(used) && used >= 0 ? used : null;
   } catch {
     return null;
   }
@@ -462,12 +465,29 @@ async function handleIssueToken(userId: string): Promise<Response> {
 }
 
 /**
- * Voice availability, so the browser can explain itself before the tap.
- *
- * Reads no account and allocates nothing, so it needs no session: it answers
- * one boolean about this deployment's own configuration.
+ * The default read reports deployment availability. The optional allowance
+ * read uses the caller's account and allocates no voice grant.
  */
-export async function GET(): Promise<Response> {
+export async function GET(request: Request): Promise<Response> {
+  if (new URL(request.url).searchParams.get("allowance") === "1") {
+    const userId = await callerUserId(request);
+    if (!userId) return publicApiError("Sign in to check your voice allowance.", "UNAUTHENTICATED", 401);
+    const under18 = await palUnder18Refusal(userId);
+    if (under18) return under18;
+    const pal = await getPubPalResult(userId);
+    if (!pal.ok || !pal.value) return jsonNoStore({ remainingMinutes: null });
+    const month = currentMonth();
+    if (!isSupabaseConfigured()) {
+      const meter = usage.get(userId);
+      return jsonNoStore({ remainingMinutes: meter?.month === month ? remainingVoiceMinutes(meter) : PAL_VOICE_MONTHLY_MINUTES });
+    }
+    try {
+      const used = await readUsedMinutes(requireSupabaseAdmin(), userId, usageMonthDate(month), true);
+      return jsonNoStore({ remainingMinutes: used === null ? null : Math.max(0, PAL_VOICE_MONTHLY_MINUTES - used) });
+    } catch {
+      return jsonNoStore({ remainingMinutes: null });
+    }
+  }
   return jsonNoStore({
     available: palVoiceConfigured(),
     maxSessionSeconds: PAL_VOICE_MAX_SESSION_SECONDS,
