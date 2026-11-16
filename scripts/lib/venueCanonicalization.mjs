@@ -250,12 +250,11 @@ const VERIFIED_FAR_MERGE_METERS = 100;
 // the Wetherspoon website for a pub the chain left in 2023, so a merge would
 // label it a Wetherspoon again. Merge once an OSM refresh drops that tag.
 
-// A record whose address names only a street, so a street-level geocode put it
-// hundreds of metres off its pub, and whose name is misspelled past what the
-// name matcher forgives. Neither check can see it is the same pub, so each
-// entry is a verified pair of ids. An id hashes the record's name, address and
-// point, so an edit to either record changes its id and stops the merge rather
-// than stretching it to a record nobody checked.
+// Geocoding errors can place a record too far from its pub for a normal merge.
+// A misspelt name can also prevent a match. Each entry is a verified id pair.
+// An id hashes the record's name, address and point. An edit to either record
+// changes its id and stops the merge, so the exception cannot reach an
+// unchecked record.
 export const VERIFIED_MISPLACED_RECORDS = Object.freeze([
   Object.freeze({
     // Both records name Unit 26, Hay's Galleria. The latter point is at the
@@ -623,8 +622,7 @@ export function canonicalizeDataset(rows, options = {}) {
   // 2c. The verified pairs too far apart for the fuzzy grid to ever compare.
   unionVerifiedFarPairs(units, groupList);
 
-  // 2c. Verified misplaced records: a street-only geocode and a misspelt name
-  //     that no distance or name check can bridge.
+  // See VERIFIED_MISPLACED_RECORDS for the limits on these exceptions.
   unionVerifiedMisplacedRecords(units, groupList);
 
   const clusters = units.filter((u) => u.length > 1);
