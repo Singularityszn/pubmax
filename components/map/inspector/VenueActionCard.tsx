@@ -25,9 +25,9 @@
 
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useEffectEvent, useState, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useEffectEvent, useId, useState, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
-import { Megaphone, Share2, Users } from "lucide-react";
+import { Megaphone, MoreHorizontal, Share2, Users } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
@@ -92,8 +92,11 @@ export default function VenueActionCard({
   const [initialPartySize, setInitialPartySize] = useState<number | undefined>();
   const [gate, setGate] = useState<{ venueId: string; status: ContributionGateStatus } | null>(null);
   const [summonVenueId, setSummonVenueId] = useState<string | null>(null);
+  const [openMoreVenueId, setOpenMoreVenueId] = useState<string | null>(null);
+  const moreActionsId = useId();
   const tableOpen = tableVenueId === venue.id;
   const summonOpen = summonVenueId === venue.id;
+  const moreActionsOpen = openMoreVenueId === venue.id;
   const arrivalTime = pub ? summonTimeFromSearch(arrivalSearch, venue.id) : null;
   const gateStatus = gate?.venueId === venue.id ? gate.status : null;
 
@@ -183,45 +186,63 @@ export default function VenueActionCard({
           {summonArrivalLine(arrivalTime)}
         </p>
       ) : null}
-      <div className="venueSheetStickyBar venueActionCardActions" role="toolbar" aria-label="Venue actions">
-        {planDoor}
-        {pub ? (
-          <button
-            type="button"
-            className="venueSheetStickyGhost"
-            aria-haspopup="dialog"
-            aria-label={`${TABLE_REQUEST_ACTION_LABEL} at ${venue.name}`}
-            onClick={() => askForTable()}
-          >
-            <Users size={16} aria-hidden="true" />
-            {TABLE_REQUEST_ACTION_LABEL}
-          </button>
-        ) : null}
-        {pub ? (
-          <button
-            type="button"
-            className="venueSheetStickyGhost"
-            data-venue-summon=""
-            aria-haspopup="dialog"
-            aria-label={`${SUMMON_ACTION_LABEL} to ${venue.name}`}
-            onClick={() => setSummonVenueId(venue.id)}
-          >
-            <Megaphone size={16} aria-hidden="true" />
-            {SUMMON_ACTION_LABEL}
-          </button>
-        ) : null}
+      <div className="venueSheetStickyBar venueActionCardActions" role="group" aria-label="Venue actions">
         <button
           type="button"
-          className="venueSheetStickyGhost"
-          data-venue-share=""
-          onClick={() => {
-            void shareVenue();
-          }}
-          aria-label={`Share ${venue.name}`}
+          className="venueSheetStickyGhost venueActionMoreToggle"
+          aria-controls={moreActionsId}
+          aria-expanded={moreActionsOpen}
+          aria-label={moreActionsOpen ? `Hide more actions for ${venue.name}` : `More actions for ${venue.name}`}
+          onClick={() => setOpenMoreVenueId(moreActionsOpen ? null : venue.id)}
         >
-          <Share2 size={16} aria-hidden="true" />
-          <span>Share</span>
+          <MoreHorizontal size={16} aria-hidden="true" />
+          <span>More</span>
         </button>
+        <div
+          id={moreActionsId}
+          className={`venueActionSecondaryActions${moreActionsOpen ? " isOpen" : ""}`}
+          role="group"
+          aria-label={`More actions for ${venue.name}`}
+        >
+          {planDoor}
+          {pub ? (
+            <button
+              type="button"
+              className="venueSheetStickyGhost"
+              aria-haspopup="dialog"
+              aria-label={`${TABLE_REQUEST_ACTION_LABEL} at ${venue.name}`}
+              onClick={() => askForTable()}
+            >
+              <Users size={16} aria-hidden="true" />
+              {TABLE_REQUEST_ACTION_LABEL}
+            </button>
+          ) : null}
+          {pub ? (
+            <button
+              type="button"
+              className="venueSheetStickyGhost"
+              data-venue-summon=""
+              aria-haspopup="dialog"
+              aria-label={`${SUMMON_ACTION_LABEL} to ${venue.name}`}
+              onClick={() => setSummonVenueId(venue.id)}
+            >
+              <Megaphone size={16} aria-hidden="true" />
+              {SUMMON_ACTION_LABEL}
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className="venueSheetStickyGhost"
+            data-venue-share=""
+            onClick={() => {
+              void shareVenue();
+            }}
+            aria-label={`Share ${venue.name}`}
+          >
+            <Share2 size={16} aria-hidden="true" />
+            <span>Share</span>
+          </button>
+        </div>
         {currentShareFeedback ? (
           <span
             role={currentShareFeedback.tone === "error" ? "alert" : "status"}

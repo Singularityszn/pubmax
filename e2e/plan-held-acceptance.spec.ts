@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 const INTENT_KEY = "pubmax:planning-intent:v1";
 const ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
@@ -140,9 +141,9 @@ test("Keep on Near then Make it Stop 1 shows one describe box and names the area
   await page.locator(".nmnAccept").first().click();
   await expect(page).toHaveURL(/[?&]accept=1(&|$)/);
 
-  const acceptStop1 = page
-    .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
-    .getByRole("button", { name: /^Make it Stop 1: .+$/ });
+  const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  const actions = await openVenueSecondaryActions(portal);
+  const acceptStop1 = actions.getByRole("button", { name: /^Make it Stop 1: .+$/ });
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await acceptStop1.click();
   await expect(page).toHaveURL(/\/plan$/);
