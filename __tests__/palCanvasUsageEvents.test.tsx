@@ -61,6 +61,7 @@ vi.mock("maplibre-gl", () => ({
     private canvas = document.createElement("canvas");
 
     constructor(private options: { container: HTMLElement }) {
+      this.options.container.append(this.canvas);
       boundary.maps.push(this);
     }
     on(event: string, ...args: unknown[]) {
@@ -80,6 +81,7 @@ vi.mock("maplibre-gl", () => ({
     emit(event: string) { for (const listener of [...this.handlers.get(event) ?? []]) listener(); }
     getContainer() { return this.options.container; }
     getCanvas() { return this.canvas; }
+    getCanvasContainer() { return this.options.container; }
     getCenter() { return { lng: -0.1, lat: 51.5 }; }
     getZoom() { return 13; }
     getPitch() { return 0; }
@@ -102,6 +104,7 @@ vi.mock("maplibre-gl", () => ({
     isZooming() { return false; }
     isRotating() { return false; }
     addControl() {}
+    addLayer() {}
     resize() {}
     triggerRepaint() {}
     setMissingStyleImageResolver() {}
@@ -149,6 +152,7 @@ import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import type { Venue } from "@/lib/venues";
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus } from "@/lib/mapCameraFocus";
+import { applyPalMapCommand, groundPalMapResult, resetPalMap } from "@/lib/palMapCommands";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -244,12 +248,42 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
   });
   afterEach(async () => {
     await act(async () => root.unmount());
+    resetPalMap();
     host.remove();
     showLegRouteOnMap(null);
     window.localStorage.clear();
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  it.each(["pointer", "touch"])("holds Pal framing during stationary %s contact on a numbered pick", async (contact) => {
+    await render();
+    await ready();
+    const picks = route.map((venue, index) => ({
+      number: index + 1, venueId: venue.id, name: venue.name, lng: venue.longitude, lat: venue.latitude,
+    }));
+    await act(async () => {
+      groundPalMapResult(route.map(({ id }) => id));
+      applyPalMapCommand({ kind: "showPicks", picks });
+    });
+    await frame();
+    const pick = host.querySelector<HTMLButtonElement>(".palPick")!;
+    expect(pick).not.toBeNull();
+    const moves = boundary.cameraMoves.length;
+    const event = (type: string) => Object.assign(new Event(type, { bubbles: true }),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] });
+    await act(async () => {
+      pick.dispatchEvent(event(contact === "pointer" ? "pointerdown" : "touchstart"));
+      applyPalMapCommand({ kind: "showPicks", picks });
+    });
+    await frame();
+    expect(boundary.cameraMoves).toHaveLength(moves);
+    await act(async () => { window.dispatchEvent(event(contact === "pointer" ? "pointerup" : "touchend")); });
+    clock += 2_000;
+    await act(async () => { applyPalMapCommand({ kind: "showPicks", picks }); });
+    await frame();
+    expect(boundary.cameraMoves).toHaveLength(moves + 1);
   });
 
   describe.each([false, true])("retained selection with the canvas mounted: %s", (mounted) => {

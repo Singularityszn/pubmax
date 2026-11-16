@@ -1983,7 +1983,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       userCameraInteractionRef.current = true;
       onUserCameraMoveRef.current?.();
     };
-    const gestureGuard = installMapGestureGuard(map.getCanvas(), gestureCameraRef, () => {
+    const gestureGuard = installMapGestureGuard(map.getCanvasContainer(), gestureCameraRef, () => {
       emitUserCameraMove({ originalEvent: true });
     });
     for (const name of ["drag", "zoom", "rotate", "pitch"] as const) {

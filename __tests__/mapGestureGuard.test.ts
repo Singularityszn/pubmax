@@ -85,6 +85,26 @@ describe("the reactive set is closed", () => {
 
 
 describe("map contact ownership", () => {
+  it.each(["pointer", "touch"])("captures %s contact on a marker that stops propagation", (contact) => {
+    const container = document.createElement("div");
+    const marker = document.createElement("button");
+    container.append(document.createElement("canvas"), marker);
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(container, state, () => {});
+    const type = contact === "pointer" ? "pointerdown" : "touchstart";
+    marker.addEventListener(type, (event) => event.stopPropagation());
+    marker.dispatchEvent(Object.assign(new Event(type, { bubbles: true }),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(Object.assign(new Event(contact === "pointer" ? "pointercancel" : "touchcancel"),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
+    marker.dispatchEvent(Object.assign(new Event(type, { bubbles: true }),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(state.current).toEqual(idleGestureCameraState());
+  });
+
   it("releases every contact on blur and removes blur recovery on disposal", () => {
     const canvas = document.createElement("canvas");
     const state = { current: idleGestureCameraState() };

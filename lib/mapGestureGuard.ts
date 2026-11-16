@@ -79,7 +79,7 @@ export function cameraIntentBlocked(
 
 
 export function installMapGestureGuard(
-  canvas: HTMLElement,
+  container: HTMLElement,
   state: { current: GestureCameraState },
   onInteraction: () => void,
 ) {
@@ -115,8 +115,8 @@ export function installMapGestureGuard(
     touches.clear();
     publish();
   };
-  canvas.addEventListener("pointerdown", pointerDown, { passive: true });
-  canvas.addEventListener("touchstart", touchStart, { passive: true });
+  container.addEventListener("pointerdown", pointerDown, { passive: true, capture: true });
+  container.addEventListener("touchstart", touchStart, { passive: true, capture: true });
   window.addEventListener("pointerup", pointerUp, { passive: true });
   window.addEventListener("pointercancel", pointerUp, { passive: true });
   window.addEventListener("touchend", touchEnd, { passive: true });
@@ -139,8 +139,8 @@ export function installMapGestureGuard(
       publish();
     },
     dispose: () => {
-      canvas.removeEventListener("pointerdown", pointerDown);
-      canvas.removeEventListener("touchstart", touchStart);
+      container.removeEventListener("pointerdown", pointerDown, true);
+      container.removeEventListener("touchstart", touchStart, true);
       window.removeEventListener("pointerup", pointerUp);
       window.removeEventListener("pointercancel", pointerUp);
       window.removeEventListener("touchend", touchEnd);

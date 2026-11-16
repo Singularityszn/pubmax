@@ -9,6 +9,8 @@ import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCamera
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
+import { wireClickRouting } from "@/components/map/canvas/interactions";
+import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
 import type { Venue } from "@/lib/venues";
@@ -147,6 +149,62 @@ describe("query camera with contextual price pins", () => {
     camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho);
     camera.cinematic({ bearing: 4 }, "arrival", "automatic");
   };
+
+  describe.each([
+    ["clusters", "zoom"],
+    ["clusters-casing", "zoom"],
+    ["cluster-count-badge", "zoom"],
+    ["uk-base-overview", "zoom"],
+    ["uk-base-overview-count", "leaves"],
+  ] as const)("delayed %s %s response", (layer, wait) => {
+    it.each([false, true])("preserves action order when the cluster click is newest: %s", async (clusterNewest) => {
+      mount({ current: soho }, soho);
+      let click: ((event: { point: { x: number; y: number } }) => void) | undefined;
+      let resolveZoom!: (zoom: number) => void;
+      let resolveLeaves!: (leaves: GeoJSON.Feature<GeoJSON.Point>[]) => void;
+      const zoomResponse = new Promise<number>((resolve) => { resolveZoom = resolve; });
+      const leavesResponse = new Promise<GeoJSON.Feature<GeoJSON.Point>[]>((resolve) => { resolveLeaves = resolve; });
+      const getClusterLeaves = vi.fn(() => leavesResponse);
+      wireClickRouting({
+        on: (_event: string, handler: typeof click) => { click = handler; },
+        getLayer: () => ({}),
+        getSource: () => ({ getClusterExpansionZoom: () => zoomResponse, getClusterLeaves }),
+        queryRenderedFeatures: () => [{
+          layer: { id: layer }, properties: { cluster_id: 7 },
+          geometry: { type: "Point", coordinates: [-0.2, 51.6] },
+        }],
+      } as unknown as Map, {
+        selectLandmark: vi.fn(), setHoveredVenue: vi.fn(), setActivePoi: vi.fn(),
+        onVenueClickRef: { current: vi.fn() }, onUkBasePubClickRef: { current: vi.fn() },
+        onRouteStopClickRef: { current: vi.fn() }, onTonightOpportunityClickRef: { current: vi.fn() },
+        cityLandmarksRef: { current: [] }, tonightOpportunitiesRef: { current: [] }, cinematic: camera.cinematic,
+      });
+      if (clusterNewest) camera.fitRoute("user");
+      click!({ point: { x: 10, y: 10 } });
+      if (wait === "leaves") {
+        await act(async () => { resolveZoom(PIN_MIN_ZOOM); });
+        expect(getClusterLeaves).toHaveBeenCalledOnce();
+      }
+      if (!clusterNewest) camera.fitRoute("user");
+      await act(async () => {
+        resolveZoom(PIN_MIN_ZOOM - 1);
+        resolveLeaves([{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-0.21, 51.61] } }]);
+      });
+      flush();
+      if (clusterNewest) {
+        expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+          center: wait === "leaves" ? [-0.21, 51.61] : [-0.2, 51.6],
+          zoom: wait === "leaves" ? PIN_MIN_ZOOM : PIN_MIN_ZOOM - 1,
+        }));
+        expect(fitBounds).not.toHaveBeenCalled();
+      } else {
+        expect(fitBounds).toHaveBeenCalledOnce();
+        expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+          .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+        expect(easeTo).not.toHaveBeenCalled();
+      }
+    });
+  });
 
   it("keeps pending and settled Pal picks ahead of automatic restorations and late Plan reads", () => {
     mount({ current: soho }, soho);
