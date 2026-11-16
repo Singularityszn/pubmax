@@ -128,3 +128,7 @@ export function mapSurfaceSearch(search: string, surfaceId: string): string {
 export function mobileShellIsReady(mapLoading: boolean, overlay: MapOverlay): boolean {
   return !mapLoading || overlay !== "none";
 }
+
+export function logPickerIsActive(phone: boolean, momentOpen: boolean, fallbackVisible: boolean): boolean {
+  return phone ? momentOpen : fallbackVisible;
+}

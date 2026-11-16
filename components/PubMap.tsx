@@ -103,7 +103,7 @@ import {
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
-import { mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
+import { logPickerIsActive, mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -3821,7 +3821,8 @@ export default function PubMap({
     mapSurfaceRef.current = mapSurface;
   });
   const coordinatedMobileOverlay = mapSurfaceOverlay(mapSurface);
-  const logPickerActive = mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible;
+  const logMomentOpen = coordinatedMobileOverlay === "moment";
+  const logPickerActive = logPickerIsActive(mobileViewport, logMomentOpen, logIntentFallbackVisible);
   const { location: logPickerLocation, locating: logPickerLocating, setLocation: setLogPickerLocation } = useLogPickerLocation(
     logPickerActive,
     userLocation,
@@ -5309,14 +5310,13 @@ export default function PubMap({
     landmarkName: activeLandmark?.name ?? null,
     sheetTitles: MAP_SHEET_TITLES,
   });
-  const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
   const mapSurfaceState = useMapSurfaceState({
     venueTab: venueInitialTab,
     venueId: selectedVenueId,
     areaTarget: searchAreaTarget,
     layersTab: mobileLayersTab,
     landmarkId: activeLandmarkId,
-    pricePicker: pricePickerOpen,
+    pricePicker: logMomentOpen && hasCategoryPriceIntent,
     cameraOwnership,
     viewport: mapViewport,
   });
