@@ -316,9 +316,6 @@ export function useMapCamera(refs: CameraRefs) {
   const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const pendingOwnerRef = useRef<CameraIntentOwner | null>(null);
   const userRequestRef = useRef(0);
-  useEffect(() => {
-    userRequestRef.current = Math.max(userRequestRef.current, refs.latestRequestToken ?? 0);
-  }, [refs.latestRequestToken]);
   const palFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
     requestFrame: (callback) => requestAnimationFrame(callback),
@@ -330,6 +327,14 @@ export function useMapCamera(refs: CameraRefs) {
       }));
     },
   }), []);
+
+  useEffect(() => {
+    const requestToken = refs.latestRequestToken ?? 0;
+    if (requestToken <= userRequestRef.current) return;
+    userRequestRef.current = requestToken;
+    coordinator.dispose();
+    pendingOwnerRef.current = null;
+  }, [coordinator, refs.latestRequestToken]);
 
   const claimCamera = useCallback((owner: CameraIntentOwner, requestToken = 0) => {
     if (requestToken && requestToken < userRequestRef.current) return false;

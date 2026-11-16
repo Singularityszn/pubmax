@@ -60,6 +60,7 @@ afterEach(() => {
   pendingFrame = undefined;
   fitBounds.mockReset();
   easeTo.mockReset();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   window.history.replaceState(null, "", "/");
 });
@@ -69,7 +70,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" },
+  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue: { current: string; requestToken?: number } = { current: "" },
   search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[]; settledBuiltStopIds?: ReadonlySet<string> } = { venues: route, activePlanRoute: [] }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
     const presentation = useMapPlanPresentation({
@@ -80,7 +81,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
     const currentRoute = planRef ? presentation.routeForMap : route;
     camera = useMapCamera({
       latestRequestToken: Math.max(planRef ? plan.routeRequestToken : 0, nearbyRequest.current,
-        searchRecovery.current, opening.area?.token ?? 0),
+        searchRecovery.current, opening.area?.token ?? 0, selectedVenue.current ? selectedVenue.requestToken ?? 0 : 0),
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
         getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
@@ -713,6 +714,73 @@ describe("query camera with contextual price pins", () => {
     flush();
     expect(camera.cameraLanePending()).toBe(false);
     expect(easeTo).toHaveBeenCalledOnce();
+  });
+
+  describe.each(["sheet", "frame"] as const)("superseded Nearby %s wait", (wait) => {
+    it.each(["pal", "automatic"] as const)("allows %s framing after a cold venue selection closes", (owner) => {
+      const now = vi.spyOn(performance, "now").mockReturnValue(0);
+      const selectedVenue = { current: "", requestToken: 0 };
+      const rerender = mount({ current: soho }, [], undefined, undefined, undefined, false, undefined,
+        undefined, undefined, undefined, undefined, selectedVenue);
+      if (wait === "sheet") {
+        const sheet = document.createElement("div");
+        sheet.className = "mobileSharedSheet open";
+        vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+        host.append(sheet);
+      }
+      camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+      const staleFrame = pendingFrame;
+      expect(staleFrame).toBeTypeOf("function");
+      selectedVenue.current = "unloaded-venue";
+      selectedVenue.requestToken = nextCameraRequestToken();
+      rerender();
+      selectedVenue.current = "";
+      rerender();
+      now.mockReturnValue(1000);
+      pendingFrame = staleFrame;
+      flush();
+      expect(easeTo).not.toHaveBeenCalled();
+      expect(camera.cameraLanePending()).toBe(false);
+      if (owner === "pal") camera.fitPalPicks(1, picks);
+      else camera.fitQueryVenues();
+      flush();
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray()).toEqual(owner === "pal"
+        ? [[-0.22, 51.56], [-0.21, 51.57]]
+        : [[-0.139, 51.514], [-0.129, 51.516]]);
+    });
+  });
+
+  it("keeps a newer Nearby claim when a superseded sheet wait completes", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const selectedVenue = { current: "", requestToken: 0 };
+    const rerender = mount({ current: soho }, [], undefined, undefined, undefined, false, undefined,
+      undefined, undefined, undefined, undefined, selectedVenue);
+    const sheet = document.createElement("div");
+    sheet.className = "mobileSharedSheet open";
+    vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+    host.append(sheet);
+    camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+    const staleFrame = pendingFrame;
+    selectedVenue.current = "unloaded-venue";
+    selectedVenue.requestToken = nextCameraRequestToken();
+    rerender();
+    selectedVenue.current = "";
+    rerender();
+    camera.fitNearby({ lat: 51.52, lng: -0.12 }, soho, "user");
+    const currentFrame = pendingFrame;
+    now.mockReturnValue(1000);
+    pendingFrame = staleFrame;
+    flush();
+    camera.fitPalPicks(1, picks);
+    camera.fitQueryVenues();
+    expect(fitBounds).not.toHaveBeenCalled();
+    pendingFrame = currentFrame;
+    flush();
+    flush();
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.12, 51.52] }));
+    expect(camera.cameraLanePending()).toBe(false);
   });
 
   it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s with the inspector open", (change) => {
