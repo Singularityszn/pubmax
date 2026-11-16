@@ -18,6 +18,11 @@ const requests = vi.hoisted(() => ({
   authedActionFetch: vi.fn(),
 }));
 
+const account = vi.hoisted(() => ({ owner: null as string | null, revision: 0 }));
+vi.mock("@/components/auth/authContext", () => ({
+  useAuth: () => ({ getCurrentUserId: () => account.owner, accountRevision: account.revision }),
+}));
+
 const analytics = vi.hoisted(() => ({
   trackEvent: vi.fn(),
 }));
@@ -186,6 +191,8 @@ function unmount(): void {
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  account.owner = null;
+  account.revision = 0;
   voice.status = "disconnected";
   voice.isListening = false;
   voice.isSpeaking = false;
@@ -234,6 +241,42 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
+  it("shows the signed-in allowance before Start without waiting to enable the button", async () => {
+    account.owner = "owner-a";
+    const read = deferred<Response>();
+    requests.authedActionFetch.mockReturnValueOnce(read.promise);
+    await mountAvailable();
+    expect(container.textContent).not.toContain("minutes left this month");
+    expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+    await act(async () => { read.resolve(Response.json({ remainingMinutes: 12 })); });
+    await settle();
+    expect(container.textContent).toContain("12 voice minutes left this month.");
+  });
+
+  it("discards an earlier account's delayed allowance after an account switch", async () => {
+    account.owner = "owner-a";
+    const oldRead = deferred<Response>();
+    requests.authedActionFetch.mockReturnValueOnce(oldRead.promise).mockResolvedValueOnce(Response.json({ remainingMinutes: 4 }));
+    await mountAvailable();
+    account.owner = "owner-b";
+    account.revision += 1;
+    await act(async () => { root?.render(createElement(PubPalVoice)); });
+    await settle();
+    expect(container.textContent).toContain("4 voice minutes left this month.");
+    await act(async () => { oldRead.resolve(Response.json({ remainingMinutes: 27 })); });
+    await settle();
+    expect(container.textContent).toContain("4 voice minutes left this month.");
+    expect(container.textContent).not.toContain("27 voice minutes");
+  });
+
+  it("keeps Start available when the allowance read fails", async () => {
+    account.owner = "owner-a";
+    requests.authedActionFetch.mockRejectedValueOnce(new Error("unavailable"));
+    await mountAvailable();
+    expect(container.textContent).not.toContain("minutes left this month");
+    expect(container.querySelector<HTMLButtonElement>("button")?.disabled).toBe(false);
+  });
+
   it.each(["species", "agent-default"])("discloses a missing picked voice on the %s fallback without changing provider overrides", async (voiceSource) => {
     getUserMedia.mockResolvedValueOnce({ getTracks: () => [{ stop: vi.fn() }] });
     requests.authedActionFetch.mockResolvedValueOnce(Response.json({

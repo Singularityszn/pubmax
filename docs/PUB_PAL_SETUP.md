@@ -574,9 +574,19 @@ These checks do not establish physical-device acceptance.
 
 ### Voice grants
 
-`GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
-configuration and reads no account, which is the whole reason the Pal can
-explain itself before the tap. Issuing a voice token follows the
+Without `allowance=1`, `GET /api/pub-pal/voice-token` reports deployment
+availability and reads no account.
+
+`GET /api/pub-pal/voice-token?allowance=1` requires a signed-in caller and follows
+the [account age requirements](../README.md#pub-pal-age-requirements).
+It reads only that owner's usage for the current UTC month.
+The response contains `remainingMinutes`, with a floor of zero.
+A missing usage row means the full allowance remains.
+An unavailable usage read, missing Pal, or failed Pal lookup returns `remainingMinutes: null`.
+The read allocates no grant, changes no usage, and makes no provider request.
+The [Pub Pal feature guide](../README.md#features) describes the allowance display and **Start** behaviour.
+
+Issuing a voice token follows the
 [account age requirements](../README.md#pub-pal-age-requirements) before quota or provider allocation.
 An accepted request prepays a three-minute grant (`lib/palVoiceMetering.ts`).
 `prepay_pub_pal_voice_grant` checks the monthly allowance and charges the grant

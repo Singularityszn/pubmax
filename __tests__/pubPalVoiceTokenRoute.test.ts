@@ -18,6 +18,7 @@ const voiceState = vi.hoisted(() => ({
   events: [] as string[],
   memories: [] as import("@/lib/pubPal").PubPalMemory[],
   usedMinutes: null as number | null,
+  missingUsage: false,
   usageReads: [] as Record<string, unknown>[],
   memoriesFail: false,
   palLookupFails: false,
@@ -97,6 +98,7 @@ vi.mock("@/lib/supabase", () => ({
         eq: (column: string, value: unknown) => { filters[column] = value; return query; },
         maybeSingle: async () => {
           voiceState.usageReads.push(filters);
+          if (voiceState.missingUsage) return { data: null, error: null };
           return voiceState.usedMinutes === null
             ? { data: null, error: { message: "usage unavailable" } }
             : { data: { used_minutes: voiceState.usedMinutes }, error: null };
@@ -126,7 +128,7 @@ vi.mock("@/lib/pubPalToolTurnStore", () => ({
   bindPubPalToolTurn: voiceBind,
 }));
 
-import { POST } from "@/app/api/pub-pal/voice-token/route";
+import { GET, POST } from "@/app/api/pub-pal/voice-token/route";
 import { buildPalTaste } from "@/lib/palTaste";
 import { PAL_RECALL_MEMORY_LIMIT, readConfirmedPalMemories } from "@/lib/palConfirmedMemories.server";
 
@@ -174,6 +176,7 @@ describe("Pub Pal voice token route", () => {
     tasteRead.mockResolvedValue(null);
     voiceState.memories = [];
     voiceState.usedMinutes = null;
+    voiceState.missingUsage = false;
     voiceState.usageReads = [];
     voiceState.memoriesFail = false;
     voiceState.pal.proposalPreferences = { memories: false, routes: true };
@@ -200,6 +203,37 @@ describe("Pub Pal voice token route", () => {
     vi.restoreAllMocks();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+  });
+
+  it("reads only the signed-in owner's current allowance without allocating a call", async () => {
+    voiceState.usedMinutes = 7;
+    const provider = vi.fn();
+    vi.stubGlobal("fetch", provider);
+    const response = await GET(new Request("http://localhost/api/pub-pal/voice-token?allowance=1"));
+    expect(await response.json()).toMatchObject({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES - 7 });
+    expect(voiceState.usageReads).toEqual([{ table: "pub_pal_voice_usage", owner_id: voiceState.userId, usage_month: `${new Date().toISOString().slice(0, 7)}-01` }]);
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(provider).not.toHaveBeenCalled();
+  });
+
+  it("returns the full allowance when the owner has no usage row", async () => {
+    voiceState.missingUsage = true;
+    const response = await GET(new Request("http://localhost/api/pub-pal/voice-token?allowance=1"));
+    expect(await response.json()).toEqual({ remainingMinutes: PAL_VOICE_MONTHLY_MINUTES });
+  });
+
+  it("does not invent an allowance when the usage read fails", async () => {
+    const response = await GET(new Request("http://localhost/api/pub-pal/voice-token?allowance=1"));
+    expect(await response.json()).toEqual({ remainingMinutes: null });
+  });
+
+  it("does not read usage for signed-out or under-18 callers", async () => {
+    voiceState.userId = "";
+    expect((await GET(new Request("http://localhost/api/pub-pal/voice-token?allowance=1"))).status).toBe(401);
+    voiceState.userId = "11111111-1111-4111-8111-111111111111";
+    voiceState.dateOfBirth = new Date().toISOString().slice(0, 10);
+    expect((await GET(new Request("http://localhost/api/pub-pal/voice-token?allowance=1"))).ok).toBe(false);
+    expect(voiceState.usageReads).toEqual([]);
   });
 
   it("returns 503 when ElevenLabs is not configured", async () => {

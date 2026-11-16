@@ -33,6 +33,7 @@ import PalVoiceMeter, { type PalVoiceMeterMode } from "@/components/pubpal/PalVo
 import PalVoiceFace from "@/components/pubpal/PalVoiceFace";
 import PalVoiceTranscript from "@/components/pubpal/PalVoiceTranscript";
 import PalVoiceCountdown from "@/components/pubpal/PalVoiceCountdown";
+import PalVoiceAllowance from "@/components/pubpal/PalVoiceAllowance";
 import { playPalVoiceSound } from "@/components/pubpal/palVoiceSounds";
 import { usePageLeft } from "@/components/pubpal/usePageLeft";
 import { usePalFocusedCard, usePalPickSpeech } from "@/components/pubpal/usePalPickSpeech";
@@ -196,7 +197,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   genome?: PalGenome;
   onMemoryChange?: () => void;
 }) {
-  const { getCurrentUserId } = useAuth();
+  const { getCurrentUserId, accountRevision } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const search = useSearchParams()?.toString() ?? "";
@@ -831,6 +832,7 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
   // The SDK clears its live status before teardown delivers onDisconnect.
   usePalVoiceEngaged([voiceConnecting, sessionActive, ended !== null, error !== null]);
   usePalVoiceStartRequest(start, getCurrentUserId());
+  const ownerId = getCurrentUserId();
   const endedHint = palVoiceEndedHint(ended, !live && !voiceConnecting);
 
   if (!panel) {
@@ -939,6 +941,9 @@ function VoiceControls({ panel, onStateChange, resetPendingSession, text, setTex
       </div>
       {voiceConnecting && <p className="palVoiceHint">Connecting voice…</p>}
       {endedHint && <p className="palVoiceHint">{endedHint}</p>}
+      {!endedHint && !live && !voiceConnecting && ownerId && (
+        <PalVoiceAllowance key={`${ownerId}:${accountRevision}`} />
+      )}
       {usingFallbackVoice && (voiceConnecting || status === "connected") && (
         <p className="palVoiceHint" role="status">Your chosen voice isn&apos;t available. Using your Pal&apos;s default voice.</p>
       )}
