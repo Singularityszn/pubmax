@@ -1,4 +1,8 @@
-import { generateKeyPairSync, verify as cryptoVerify, type KeyObject } from "node:crypto";
+import { createECDH, generateKeyPairSync, randomBytes, verify as cryptoVerify, type KeyObject } from "node:crypto";
+import { EventEmitter } from "node:events";
+import type { ClientRequest, IncomingMessage, RequestOptions } from "node:http";
+import https from "node:https";
+import { generateVAPIDKeys } from "web-push";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 // The provider seam (lib/pushProvider.ts): env-based selection mirrors
@@ -353,6 +357,42 @@ describe("Web Push / VAPID provider", () => {
       }),
       config,
     );
+  });
+
+  it("sends an encrypted notification through the real web push library", async () => {
+    const receiver = createECDH("prime256v1");
+    receiver.generateKeys();
+    const token = encodeWebPushSubscription({
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/provider",
+      expirationTime: null,
+      keys: { p256dh: receiver.getPublicKey().toString("base64url"), auth: randomBytes(16).toString("base64url") },
+    })!;
+    const vapid = { subject: "mailto:test@pubmaxxing.com", ...generateVAPIDKeys() };
+    let options: RequestOptions | undefined;
+    let encrypted: Buffer | undefined;
+    const request = vi.spyOn(https, "request").mockImplementation(((requestOptions: RequestOptions, callback: (response: IncomingMessage) => void) => {
+      options = requestOptions;
+      const outgoing = new EventEmitter() as ClientRequest;
+      outgoing.write = ((body: Buffer) => { encrypted = body; return true; }) as ClientRequest["write"];
+      outgoing.end = (() => {
+        const response = new EventEmitter() as IncomingMessage;
+        response.statusCode = 201;
+        response.headers = {};
+        callback(response);
+        queueMicrotask(() => response.emit("end"));
+        return outgoing;
+      }) as ClientRequest["end"];
+      return outgoing;
+    }) as typeof https.request);
+    try {
+      const provider = createWebPushProvider({ config: () => vapid });
+      expect(await provider.send([token], { title: "T", body: "B" })).toEqual([{ token, status: "sent" }]);
+      expect(options).toMatchObject({ hostname: "updates.push.services.mozilla.com", method: "POST" });
+      expect(options?.headers).toMatchObject({ "Content-Encoding": "aes128gcm", TTL: 21600 });
+      expect(encrypted?.length).toBeGreaterThan(0);
+    } finally {
+      request.mockRestore();
+    }
   });
 
   it("marks 404/410 endpoints invalid and keeps 5xx retryable", async () => {

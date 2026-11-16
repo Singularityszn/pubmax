@@ -15,7 +15,7 @@ import "server-only";
 
 import { createPrivateKey, sign as cryptoSign } from "node:crypto";
 import { connect as http2Connect, constants as http2Constants } from "node:http2";
-import webpush from "web-push";
+import { sendNotification } from "web-push";
 
 import type { DeliveryStatus } from "@/lib/deliveryStatus";
 import {
@@ -449,7 +449,7 @@ function resolveVapidConfig(): VapidConfig {
 }
 
 const realWebPushSend: WebPushSend = async (subscription, payload, config) => {
-  const response = await webpush.sendNotification(subscription, payload, {
+  const response = await sendNotification(subscription, payload, {
     TTL: 6 * 60 * 60,
     urgency: "normal",
     vapidDetails: config,
