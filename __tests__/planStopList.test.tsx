@@ -5,8 +5,16 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { DraftStop } from "@/components/plan/PlanComposer";
-import PlanStopList, { type PlanStopListProps } from "@/components/plan/PlanStopList";
+import PlanStopListView, { type PlanStopListProps as ViewProps } from "@/components/plan/PlanStopList";
+import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import { moveItem } from "@/lib/planStopReorder";
+
+type PlanStopListProps = Omit<ViewProps, "publicPriceAbsent">;
+
+function PlanStopList(props: PlanStopListProps) {
+  const { priceStops, publicPriceAbsent } = usePlanPriceAbsence(props.stops, props.venues, props.zoneIndex ?? null, props.refreshKey);
+  return createElement(PlanStopListView, { ...props, stops: priceStops, publicPriceAbsent });
+}
 
 let host: HTMLDivElement | null = null;
 let root: Root | null = null;

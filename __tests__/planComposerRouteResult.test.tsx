@@ -152,6 +152,47 @@ async function mountComposer(): Promise<void> {
   }
 }
 
+describe("restored Plan price estimates", () => {
+  it.each([
+    ["unknown", "unknown"],
+    ["present", "present"],
+    ["absent", "unknown"],
+    ["unknown", "absent"],
+    ["absent", "present"],
+    ["present", "absent"],
+    ["absent", "absent"],
+  ])("checks both venues before showing a total for %s and %s", async (first, second) => {
+    const restoredStops = GENERATED.stops.map((stop) => ({
+      ...stop, priceKind: "estimated", estimatedPintPricePence: 600,
+    }));
+    localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({ stops: restoredStops, nightContext: null }));
+    let resolvePresence!: (response: Response) => void;
+    const presenceResponse = new Promise<Response>((resolve) => { resolvePresence = resolve; });
+    fetchMock.mockImplementation(async (input) => {
+      if (String(input).includes("scope=public-price-presence")) return presenceResponse;
+      return Response.json([]);
+    });
+
+    await mountComposer();
+    const summary = () => document.querySelector('[data-testid="plan-route-summary"]')?.textContent;
+    expect(summary()).toContain("2 stops");
+    expect(summary()).not.toContain("Estimated");
+    expect(summary()).not.toContain("£12");
+    expect(document.querySelector(".planStops")?.textContent).not.toContain("£6.00");
+
+    await act(async () => {
+      resolvePresence(Response.json({ presence: { "venue-a": first, "venue-b": second } }));
+    });
+    if (first === "absent" && second === "absent") {
+      expect(summary()).toContain("Estimated £12 each for drinks");
+      expect(document.querySelector(".planStops")?.textContent).toContain("£6.00");
+    } else {
+      expect(summary()).not.toContain("Estimated");
+      expect(summary()).not.toContain("£12");
+    }
+  });
+});
+
 describe("onboarding after a kept pub", () => {
   beforeEach(() => {
     writePlanningIntent({
