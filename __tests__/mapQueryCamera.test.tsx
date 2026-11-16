@@ -11,7 +11,7 @@ import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
-import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
 import type { Venue } from "@/lib/venues";
 
@@ -70,10 +70,11 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
   readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue = { current: "" },
-  search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: route, activePlanRoute: [] }) {
+  search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[]; settledBuiltStopIds?: ReadonlySet<string> } = { venues: route, activePlanRoute: [] }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
     const presentation = useMapPlanPresentation({
       mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
+      settledBuiltStopIds: planData.settledBuiltStopIds,
       suggestedRoute: [], activePlanRoute: planData.activePlanRoute, venueById: new Map(planData.venues.map((venue) => [venue.id, venue])),
     });
     const currentRoute = planRef ? presentation.routeForMap : route;
@@ -559,6 +560,51 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).toHaveBeenCalledTimes(2);
     expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
       .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
+
+  it.each([false, true])("preserves an asynchronous route request token, request is current: %s", (current) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const rerender = mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef);
+    flush();
+    fitBounds.mockClear();
+    act(() => planRef.current!.hideRoute());
+    flush();
+    fitBounds.mockClear();
+    const requestToken = nextCameraRequestToken();
+    if (!current) nextCameraRequestToken();
+    const latestToken = currentCameraRequestToken();
+    act(() => planRef.current!.mapRoute(requestToken));
+    rerender();
+    flush();
+    expect(currentCameraRequestToken()).toBe(latestToken);
+    expect(planRef.current!.routeMapped).toBe(current);
+    expect(fitBounds).toHaveBeenCalledTimes(current ? 1 : 0);
+    if (current) expect(planRef.current!.routeRequestToken).toBe(requestToken);
+  });
+
+  it.each([false, true])("frames resolved shared stops after an unsuccessful lookup, active Plan: %s", async (activePlan) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const search = { current: "" };
+    const planData = { venues: [...surrounding], activePlanRoute: activePlan ? surrounding : [], settledBuiltStopIds: new Set<string>() };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, undefined, search, planData);
+    flush();
+    fitBounds.mockClear();
+    planData.venues = soho;
+    search.current = "mode=build&pubs=soho-west,removed-stop,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    flush();
+    expect(fitBounds).not.toHaveBeenCalled();
+    planData.settledBuiltStopIds = new Set(["removed-stop"]);
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    act(() => planRef.current!.mapRoute());
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
   });
 
   describe.each(["area", "search", "nearby"] as const)("hydration competing with %s", (action) => {

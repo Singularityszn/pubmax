@@ -1,6 +1,8 @@
 "use client";
 
-import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { isLatestCameraRequest, nextCameraRequestToken } from "@/lib/cameraIntent";
+import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHydration";
+import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/pubmap/useNearMeRequests";
 import { useTypedSearchCamera } from "@/components/map/pubmap/useTypedSearchCamera";
 
 import { useMapPinVenues } from "@/components/map/pubmap/useMapPinVenues";
@@ -93,11 +95,6 @@ import {
   nearMeMapVenues,
   withinNearMeRing,
 } from "@/lib/nearMeMapFrame";
-import {
-  NEAR_ME_LOCATION_OPTIONS,
-  nearMeLocationFailure,
-  nearMeLocationMessage,
-} from "@/lib/nearMeLocation";
 import {
   buildMapVenueListModel,
   closedMapVenueListModel,
@@ -605,7 +602,6 @@ import {
   rememberMapChosenAreaSelection,
   resolveMapChosenAreaRestore,
   subscribeMapChosenArea,
-  writeMapChosenArea,
 } from "@/lib/mapChosenArea";
 import {
   nextAreaCameraFocus,
@@ -672,8 +668,6 @@ import {
   generatedMapDrinkLane,
   buildMapSeed,
   cityStatusAreaFor,
-  builtStopsAskedAfter,
-  builtStopsNeedingHydration,
   detailStatusFor,
   mapSelectionNotice,
   mapSelectionNoticeCopy,
@@ -1018,18 +1012,6 @@ type UserLocation = {
   lat: number;
   lng: number;
 };
-
-type PendingNearMeRequest =
-  | {
-      kind: "map";
-      location: UserLocation;
-      mode: "tap" | "arrival" | "resume";
-    }
-  | {
-      kind: "crawl";
-      location: UserLocation;
-      stopCount: number;
-    };
 
 const LOCATION_FIRST_ZOOM = 15;
 function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
@@ -2962,43 +2944,12 @@ export default function PubMap({
   const venueById = useMemo(() => new Map(venues.map((v) => [v.id, v])), [venues]);
   // Field time-to-pins for this visit (map_load_timing, consent-gated).
   useMapLoadTiming(venues.length);
-  // A shared planner link can name stops outside the opening viewport. The slim
-  // shard loader quite correctly reads only the map the reader is looking at,
-  // but the planner still owes the URL's ordered stops immediately. Warm those
-  // missing records through the same detail seam a selected venue uses, then
-  // merge them into `venueById` so RoutePanel can render the real route instead
-  // of an empty planner while the map ring remains lazy.
-  // A stop id is asked for once per mounted map, whatever the answer, and the
-  // plan itself is left exactly as the link wrote it: this lane warms stop
-  // detail and never edits, dedupes or reorders the reader's stops.
-  const builtRouteHydrationAskedRef = useRef(new Set<string>());
-  useEffect(() => {
-    const requestedIds = builtStopsNeedingHydration({
-      venueDataReady: loaded && loadedCityId === cityId,
-      builtIds,
-      venueById,
-      askedIds: builtRouteHydrationAskedRef.current,
-    });
-    if (requestedIds.length === 0) return;
-    requestedIds.forEach((id) => builtRouteHydrationAskedRef.current.add(id));
-    void Promise.all(
-      requestedIds.map(async (id) => ({ id, result: await warmVenueDetail(id) })),
-    ).then((results) => {
-      builtRouteHydrationAskedRef.current = builtStopsAskedAfter(
-        builtRouteHydrationAskedRef.current,
-        results.map(({ id, result }) => ({ id, status: result.status })),
-      );
-      const hydrated = results
-        .map(({ result }) => (result.status === "found" ? result.venue : null))
-        .filter((venue): venue is Venue => venue !== null);
-      if (hydrated.length === 0) return;
-      setDetailById((current) => {
-        const next = new Map(current);
-        for (const venue of hydrated) next.set(venue.id, venue);
-        return next;
-      });
-    });
-  }, [builtIds, cityId, loaded, loadedCityId, venueById]);
+  const settledBuiltStopIds = useBuiltRouteHydration({
+    venueDataReady: loaded && loadedCityId === cityId,
+    builtIds,
+    venueById,
+    setDetailById,
+  });
   // Zone pint index (nearest-station fare zone medians) for the zone picker and
   // the venue sheet's area compare. The published index covers every priced pub,
   // so the strip's numbers do not shift as the user filters, pans or waits for
@@ -3436,6 +3387,7 @@ export default function PubMap({
     suggestedRoute,
     activePlanRoute,
     venueById,
+    settledBuiltStopIds,
   });
   // Tonight's plan is the route on the map, not a crawl the reader is building,
   // and the Pal waits at its next stop.
@@ -3821,27 +3773,29 @@ export default function PubMap({
   );
 
   const showLoadedRoute = useCallback(
-    (firstStopId: string) => {
+    (firstStopId: string, requestToken?: number) => {
       openPlanning();
       if (isMobileViewport()) {
         setVenueInitialTab("pints");
         return;
       }
-      selectVenue(firstStopId);
+      selectVenue(firstStopId, "overview", requestToken);
     },
     [openPlanning, selectVenue],
   );
 
   useEffect(() => {
     const request = pendingNearMeRequest;
+    if (request && !isLatestCameraRequest(request.requestToken)) return;
     const location = request?.location ?? logPickerLocation ?? userLocation ?? venueJourneyLocation;
     if (!location) return;
     const loader = slimLoaderRef.current;
     const finish = () => {
       if (
         !request ||
+        !isLatestCameraRequest(request.requestToken) ||
         slimLoaderRef.current !== loader ||
-        pendingNearMeRequest !== request
+        slimLoaderGenerationRef.current !== loaderGeneration
       ) return;
       if (request.kind === "map") {
         const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
@@ -3872,9 +3826,9 @@ export default function PubMap({
       }
       setMode("build");
       setBuiltIds(ids);
-      mapRoute();
+      mapRoute(request.requestToken);
       setActiveCrawl(null);
-      showLoadedRoute(first);
+      showLoadedRoute(first, request.requestToken);
     };
     if (!loader) {
       return;
@@ -3897,8 +3851,9 @@ export default function PubMap({
       if (
         cancelled ||
         !request ||
+        !isLatestCameraRequest(request.requestToken) ||
         slimLoaderRef.current !== loader ||
-        pendingNearMeRequest !== request
+        slimLoaderGenerationRef.current !== loaderGeneration
       ) return;
       setNearbyError("Nearby venues are unavailable right now.");
       setNearbyLoading(false);
@@ -3908,6 +3863,7 @@ export default function PubMap({
       .then((result) => {
         if (
           cancelled ||
+          (request && !isLatestCameraRequest(request.requestToken)) ||
           slimLoaderRef.current !== loader ||
           slimLoaderGenerationRef.current !== loaderGeneration
         ) return;
@@ -4611,102 +4567,17 @@ export default function PubMap({
     setLocationRequestStatus("idle");
   }, []);
 
-  const startNearbyCrawl = useCallback(() => {
-    setNearbyError(null);
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError(nearMeLocationMessage("unsupported"));
-      return;
-    }
-    invalidatePrivateCamera();
-    setNearbyLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
-        setUserLocation(location);
-        latchMapReaderLocationWatch();
-        invalidatePrivateCamera();
-        setPendingNearMeRequest({
-          kind: "crawl",
-          location,
-          stopCount: filters.stopCount,
-        });
-      },
-      (error) => {
-        setNearbyLoading(false);
-        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
-      },
-      NEAR_ME_LOCATION_OPTIONS,
-    );
-  }, [
-    filters.stopCount,
+  const { startNearbyCrawl, runNearMe } = useNearMeRequests({
+    cityId,
+    stopCount: filters.stopCount,
     invalidatePrivateCamera,
+    setNearbyError,
     setNearbyLoading,
-    setPendingNearMeRequest,
     setUserLocation,
-  ]);
-
-  // Three ways in, one flow, and they differ ONLY in what a refusal owes.
-  //
-  // `tap` is the ordinary Near me seams - the phone chip, the desktop toolbar
-  // row, the Area sheet's own button. A refusal is one alert beside the control
-  // that was pressed, and nothing opens: none of those controls promised a
-  // picker, and forcing a modal over the map is not what they were pressed for.
-  //
-  // `arrival` is the first-visit card's Use my location, whose whole offer is
-  // "location, OR pick an area", so a refusal really does hand over the picker.
-  // The sheet then CARRIES the sentence, so the alert must not also hold it or
-  // the same words render twice, one of them over the other.
-  //
-  // `resume` is a remembered Near me on arrival: the reader asked for this mode
-  // LAST time, not for a notice now, so a refusal is silent and leaves the
-  // default city view with the picker still one tap away. Nothing about where
-  // they stood was ever stored, so this is a live fix or it is nothing.
-  const runNearMe = useCallback(
-    (mode: "tap" | "arrival" | "resume") => {
-      setNearbyError(null);
-      const refuse = (message: string) => {
-        if (mode === "resume") return;
-        if (mode === "arrival") {
-          openChooseAreaRef.current(message, true);
-          return;
-        }
-        setNearbyError(message);
-      };
-      if (typeof navigator === "undefined" || !navigator.geolocation) {
-        refuse(nearMeLocationMessage("unsupported"));
-        return;
-      }
-      invalidatePrivateCamera();
-      setNearbyLoading(true);
-      const requestToken = mode === "resume" ? 0 : nextCameraRequestToken();
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          setUserLocation(location);
-          if (mode !== "resume") setNearbyRequestToken(requestToken);
-          latchMapReaderLocationWatch();
-          invalidatePrivateCamera();
-          setPendingNearMeRequest({ kind: "map", location, mode });
-          // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
-          writeMapChosenArea({
-            cityId,
-            label: "Near me",
-            slug: "near-me",
-            kind: "near-me",
-          });
-        },
-        (error) => {
-          setNearbyLoading(false);
-          refuse(nearMeLocationMessage(nearMeLocationFailure(error)));
-        },
-        NEAR_ME_LOCATION_OPTIONS,
-      );
-    },
-    [cityId, invalidatePrivateCamera, setPendingNearMeRequest],
-  );
+    setNearbyRequestToken,
+    setPendingNearMeRequest,
+    openChooseAreaRef,
+  });
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
   const useLocationFromArrivalCard = useCallback(

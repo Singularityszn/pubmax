@@ -4,6 +4,10 @@ export function nextCameraRequestToken(): number {
   return ++requestSequence;
 }
 
+export function currentCameraRequestToken(): number {
+  return requestSequence;
+}
+
 export function isLatestCameraRequest(token: number): boolean {
   return token === requestSequence;
 }

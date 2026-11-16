@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type SetStateAction } from "react";
 
-import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { isLatestCameraRequest, nextCameraRequestToken } from "@/lib/cameraIntent";
 import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
@@ -47,9 +47,10 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setPlan((current) => ({ ...current, routeMapped: typeof value === "function" ? value(current.routeMapped) : value }));
   }, []);
   const [routeRequestToken, setRouteRequestToken] = useState(0);
-  const mapRoute = useCallback(() => {
+  const mapRoute = useCallback((requestToken = nextCameraRequestToken()) => {
+    if (!isLatestCameraRequest(requestToken)) return;
     setRouteMapped(true);
-    setRouteRequestToken(nextCameraRequestToken());
+    setRouteRequestToken(requestToken);
   }, [setRouteMapped]);
   const hideRoute = useCallback(() => {
     setRouteMapped(false);
@@ -155,6 +156,7 @@ export function useMapPlanPresentation({
   suggestedRoute,
   activePlanRoute,
   venueById,
+  settledBuiltStopIds,
 }: {
   mode: CrawlMode;
   builtIds: string[];
@@ -162,6 +164,7 @@ export function useMapPlanPresentation({
   suggestedRoute: Venue[];
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
+  settledBuiltStopIds?: ReadonlySet<string>;
 }) {
   // Crawl routes price stops as pints, so a bar/food id that sneaks into
   // builtIds (old URL, stale localStorage) must never resolve into the route.
@@ -174,7 +177,7 @@ export function useMapPlanPresentation({
   );
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
   const routePending = routeMapped && mode === "build" && builtIds.length >= 2
-    && builtIds.some((id) => !venueById.has(id));
+    && builtIds.some((id) => !venueById.has(id) && !settledBuiltStopIds?.has(id));
   const routeMappedActive = routeMapped && route.length >= 2;
   const routeForMap = useMemo(
     () => (routeMappedActive ? route : activePlanRoute),
