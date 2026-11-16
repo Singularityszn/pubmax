@@ -521,7 +521,7 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
-import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
+import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
   MAP_CANVAS_READINESS_CEILING_MS,
@@ -609,12 +609,7 @@ import {
   openingCameraSettled,
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
-import {
-  dismissMapFirstVisitArrivalOnMapUse,
-  shouldShowMapArrivalLocationCard,
-  shouldShowMapFirstVisitArrival,
-  subscribeMapFirstVisitArrival,
-} from "@/lib/mapFirstVisitArrival";
+import { dismissMapFirstVisitArrivalOnMapUse } from "@/lib/mapFirstVisitArrival";
 import {
   areaElsewhereOptions,
   areaSheetOpenDelay,
@@ -1530,16 +1525,6 @@ export default function PubMap({
   // A recovery toast on the canvas owns the surface: the map keeps search plus
   // ONE toast, so the arrival card stands down while a failure is on screen.
   const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
-  const mapArrivalCardEligible = useSyncExternalStore(
-    subscribeMapFirstVisitArrival,
-    () =>
-      shouldShowMapFirstVisitArrival({
-        pinsRevealed,
-        search: arrivalSearch,
-        recoveryToastActive: mapSoftRetryActive,
-      }),
-    () => false,
-  );
   const mapChosenArea = useSyncExternalStore(
     subscribeMapChosenArea,
     readMapChosenArea,
@@ -1893,16 +1878,12 @@ export default function PubMap({
   const [nearbyLoading, setNearbyLoading] = useState(false);
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
-  const [geolocationPermission, setGeolocationPermission] = useState<PermissionState | null>(null);
-  const readerPosition = useMapReaderPosition(
-    invalidatePrivateCamera,
-    setGeolocationPermission,
-  );
-  const showMapArrivalCard = shouldShowMapArrivalLocationCard({
-    eligible: mapArrivalCardEligible,
+  const { readerPosition, visible: showMapArrivalCard } = useMapArrivalCard({
     mobile: mobileViewport,
-    permission: geolocationPermission,
-    hasPosition: readerPosition !== null,
+    onLocationExposure: invalidatePrivateCamera,
+    pinsRevealed,
+    recoveryToastActive: mapSoftRetryActive,
+    search: arrivalSearch,
   });
   // Purpose-limited copy used only after the viewer explicitly asks for travel
   // times. A location granted for "Pubs near me" must not silently become a
