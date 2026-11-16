@@ -59,6 +59,8 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   // Turning it off gives every pin back. The night theme is the whole
   // page's, not the filter's, so the map stays dark.
   await choice.click();
+  const refinements = sheet.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   await expect(choice).toHaveAttribute("aria-pressed", "false");
   await expect(filtersButton).not.toHaveAttribute("aria-label", /last orders/);
   await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
