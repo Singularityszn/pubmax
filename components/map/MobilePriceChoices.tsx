@@ -1,8 +1,14 @@
 "use client";
 
+import type { ReactNode } from "react";
 import MapKey from "@/components/map/MapKey";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
+import { Button } from "@/components/ui/button";
+
+import "./mobileFilterDisclosure.css";
 
 /**
  * The caps this sheet can set: the one shared set (lib/pintPriceCaps.ts), so
@@ -15,16 +21,30 @@ export default function MobilePriceChoices({
   maxPrice,
   legend,
   drinkLabel,
+  matches,
+  lead,
+  children,
   onMaxPriceChange,
+  drinkControl,
+  onClearFilters,
+  refinementsActive = false,
 }: {
   maxPrice: number;
   legend: MapPriceLegendModel;
-  drinkLabel?: string;
+  drinkLabel?: string | null;
+  matches?: PintCapMatches | null;
+  /** An event action within the additional filters, or above the standalone price controls. */
+  lead?: ReactNode;
+  children?: ReactNode;
   onMaxPriceChange: (price: number) => void;
+  drinkControl?: ReactNode;
+  onClearFilters?: () => void;
+  refinementsActive?: boolean;
 }) {
+  const refinements = <>{lead}{children}<MapKey legend={legend} /></>;
   return (
-    <>
-      <MapKey legend={legend} />
+    <div className="mobileMapFilters">
+      {onClearFilters ? <Button type="button" variant="ghost" className="mobileFilterReset" onClick={onClearFilters}>Clear filters</Button> : lead}
       {drinkLabel || !legend.priceCapFilter ? null : (
         <fieldset className="mobilePriceChoices">
           <legend>Maximum pint price</legend>
@@ -49,8 +69,16 @@ export default function MobilePriceChoices({
               );
             })}
           </div>
+          <PintCapMatchSummary matches={matches} />
         </fieldset>
       )}
-    </>
+      {drinkControl}
+      {onClearFilters ? (
+        <details className="mobileFilterDisclosure" open={refinementsActive || undefined}>
+          <summary>More filters{refinementsActive ? " · active" : ""}</summary>
+          <div className="mobileFilterRefinements">{refinements}</div>
+        </details>
+      ) : <>{children}<MapKey legend={legend} /></>}
+    </div>
   );
 }

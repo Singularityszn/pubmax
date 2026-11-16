@@ -16,6 +16,11 @@ export type SheetStepProgressProps = {
   label?: string;
   /** Visual accent token scope. */
   variant?: "plan" | "map";
+  /**
+   * On a phone the rail is bars only, with no numbered markers. For a sheet
+   * that already states the step in words and has number choices of its own.
+   */
+  compact?: boolean;
   className?: string;
 };
 
@@ -28,9 +33,10 @@ export default function SheetStepProgress({
   steps,
   label = "Progress",
   variant = "plan",
+  compact = false,
   className,
 }: SheetStepProgressProps) {
-  const classes = ["sheetStepProgress", `sheetStepProgress--${variant}`, className]
+  const classes = ["sheetStepProgress", `sheetStepProgress--${variant}`, compact ? "sheetStepProgress--compact" : null, className]
     .filter(Boolean)
     .join(" ");
 

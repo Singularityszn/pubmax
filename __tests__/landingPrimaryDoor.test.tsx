@@ -46,7 +46,7 @@ async function render(element: ReturnType<typeof createElement>) {
   });
 }
 
-function primaryHref(): string | null {
+function nearHref(): string | null {
   const link = [...container.querySelectorAll("a")].find(
     (anchor) => anchor.textContent === "Cheapest pints near me",
   );
@@ -74,29 +74,51 @@ afterEach(async () => {
   window.history.replaceState(null, "", "/");
 });
 
-describe("the landing hero's primary", () => {
+describe("the landing hero's public price door", () => {
+  it("opens each cheapest-listed pub on the map without starting a Pint Drop", async () => {
+    await render(createElement(LandingHero, {
+      card: {
+        id: "venue-anchor", name: "The Anchor", area: "City of London", primaryBorough: "City of London",
+        station: { name: "Blackfriars", zone: 1 }, priceGbp: 5, pintName: "a pint of Pravha",
+        drinkHref: null, publisher: null, observedOn: null, standing: "none",
+        then: { priceGbp: 3, observedOn: "2013-07-14", source: { label: "Archive", url: "https://example.com" } },
+        movementLine: null, mapHref: "/map?sel=venue-anchor",
+      },
+      archive: {},
+      rail: [
+        { id: "venue-masque-haunt", name: "The Masque Haunt", area: "Islington", primaryBorough: "Islington", priceGbp: 2.99, hasThen: false },
+        { id: "venue-next", name: "The Next Pub", area: "City of London", primaryBorough: "City of London", priceGbp: 3.49, hasThen: false },
+      ],
+    }));
+
+    expect([...container.querySelectorAll(".lpRailLink")].map((link) => link.getAttribute("href"))).toEqual([
+      "/map?sel=venue-masque-haunt",
+      "/map?sel=venue-next",
+    ]);
+  });
+
   it("answers a first-time visitor in one tap, with no first-run gate in front", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 
   it("keeps /near for a returning visitor with the seen mark", async () => {
     markTourSeen();
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 
   it("does not move when the seen mark is recorded", async () => {
     await render(createElement(LandingHero, { card: null, archive: {}, rail: [] }));
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
 
     await act(async () => {
       markTourSeen();
     });
 
-    expect(primaryHref()).toBe("/near?locate=1");
+    expect(nearHref()).toBe("/near?locate=1");
   });
 });
 

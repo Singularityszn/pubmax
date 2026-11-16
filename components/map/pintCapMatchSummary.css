@@ -1,0 +1,4 @@
+.pintCapMatchSummary { display: grid; gap: var(--space-1); margin-top: var(--space-2); }
+.pintCapMatchSummary p { margin: 0; color: var(--ink-soft); font-size: var(--text-xs); line-height: 1.5; }
+.pintCapMatchSummary .pintCapMatchSummaryPriced { color: var(--ink); font-weight: 700; }
+.pintCapMatchSummaryFigure { font-family: var(--font-data); }

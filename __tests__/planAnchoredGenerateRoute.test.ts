@@ -1,18 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { NightSignalClaim } from "@/lib/nightSignalClaims";
 
 vi.mock("server-only", () => ({}));
 
-const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, categoryIndexMock } = vi.hoisted(() => ({
+const { isLimitedMock, loadConciergeVenuesMock, resolvePlanningAnchorMock, categoryIndexMock, signalSnapshot } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
   loadConciergeVenuesMock: vi.fn(),
   resolvePlanningAnchorMock: vi.fn(),
   categoryIndexMock: vi.fn(),
+  signalSnapshot: { version: 1, generatedAt: "2026-01-01T00:00:00.000Z", claims: [] as NightSignalClaim[] },
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/public/data/weather/latest.json", () => ({
   default: { version: 1, generatedAt: "2026-01-01T00:00:00.000Z", observations: [] },
 }));
+vi.mock("@/public/data/night_signals/latest.json", () => ({ default: signalSnapshot }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
   return { ...actual, isLimited: isLimitedMock };
@@ -89,6 +92,20 @@ function generate(body: Record<string, unknown>): Promise<Response> {
   }));
 }
 
+function reviewedAvoidSignal(venueId: string): void {
+  const now = Date.now();
+  const observedAt = new Date(now - 60_000).toISOString();
+  signalSnapshot.generatedAt = observedAt;
+  signalSnapshot.claims = [{
+    id: "pub-safety", kind: "access", entity: { type: "venue", id: venueId },
+    claim: "A reviewed safety issue excludes this pub.",
+    sourceUrl: "https://pub.example/safety", publisher: "Pub operations", publishedAt: observedAt,
+    observedAt, expiresAt: new Date(now + 86_400_000).toISOString(), confidence: 1,
+    reviewState: "approved", verification: "manual_review", routeEffect: "avoid",
+    corroboratingSources: [], reviewedAt: observedAt, reviewAuthority: "operations",
+  }];
+}
+
 const ANCHOR = { venueId: "anchor-venue", source: "near", acceptedArea: { kind: "night-patch", id: "clapham" }, startsAt: null };
 
 describe("POST /api/plans/generate — anchored", () => {
@@ -99,6 +116,7 @@ describe("POST /api/plans/generate — anchored", () => {
     resolvePlanningAnchorMock.mockReset();
     categoryIndexMock.mockReset();
     categoryIndexMock.mockResolvedValue({ prices: [], degraded: false, truncated: false });
+    signalSnapshot.claims = [];
     process.env.PLAN_IDEMPOTENCY_SECRET = "a".repeat(48);
   });
   afterEach(() => {
@@ -227,6 +245,50 @@ describe("POST /api/plans/generate — anchored", () => {
       grounded: false, outcome: "anchor-conflict", anchored: true, routeReady: false,
       stops: [], reason: "ANCHOR_AREA_CONFLICT",
     });
+  });
+
+  it.each([
+    ["safety", false], ["exclusions", false], ["safety", true], ["exclusions", true],
+  ] as const)("names the %s rule when preparation removes the anchor (imported: %s)", async (requirement, imported) => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    if (requirement === "safety") reviewedAvoidSignal("anchor-venue");
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("anchor-venue", 0, { promoted: requirement === "exclusions" }),
+      claphamVenue("companion-1", 1), claphamVenue("companion-2", 2),
+    ]);
+    const response = await generate({ intake: intake(), anchor: imported
+      ? { ...ANCHOR, venueIds: ["anchor-venue", "companion-1", "companion-2"] }
+      : ANCHOR });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      grounded: false, outcome: "anchor-conflict", routeReady: false, stops: [],
+      reason: "ANCHOR_ROUTE_CONFLICT",
+    });
+    expect(body.groundingProof).toBeUndefined();
+    expect(body.message).toMatch(requirement === "safety" ? /safety/i : /excluded/i);
+  });
+
+  it("keeps excluded companions out of stops, swaps and ending suggestions", async () => {
+    resolvePlanningAnchorMock.mockResolvedValue(resolved("anchor-venue"));
+    reviewedAvoidSignal("unsafe-pub");
+    loadConciergeVenuesMock.mockResolvedValueOnce([
+      claphamVenue("anchor-venue", 0),
+      claphamVenue("companion-1", 1), claphamVenue("companion-2", 2),
+      claphamVenue("promoted-pub", 3, { promoted: true }), claphamVenue("unsafe-pub", 4),
+      claphamVenue("companion-3", 5), claphamVenue("companion-4", 6),
+    ]);
+    const response = await generate({ query: "Four of us after work in Clapham, cheap and lively", anchor: ANCHOR });
+    const body = await response.json();
+    expect(response.status).toBe(200);
+    expect(body.outcome).toBe("route");
+    const offeredIds = [
+      ...body.stops.flatMap((stop: { venueId: string; alternatives: { venueId: string }[] }) =>
+        [stop.venueId, ...stop.alternatives.map(({ venueId }) => venueId)]),
+      ...body.endingRecommendations.flatMap((ending: { options: { id: string }[] }) => ending.options.map(({ id }) => id)),
+    ];
+    expect(offeredIds).not.toContain("promoted-pub");
+    expect(offeredIds).not.toContain("unsafe-pub");
   });
 
   it("returns a route conflict when the anchor is absent from the area candidates", async () => {

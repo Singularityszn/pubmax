@@ -155,3 +155,40 @@ describe("pint receipts on venue pages", () => {
     }
   });
 });
+
+describe("where to meet on the invite", () => {
+  const props = { params: Promise.resolve({ token: "pint-receipt" }) };
+
+  it("names the first stop, its address and a way there before the guest answers", async () => {
+    const read = await lookupVenueDetail("venue-16pnwmm");
+    if (read.status !== "found") throw new Error("The Prospect record is unavailable");
+    plan.stops = [
+      { venueId: "bar-american-bar-savoy", venueName: "American Bar at The Savoy", position: 1 },
+      { venueId: "venue-16pnwmm", venueName: "Prospect of Whitby", position: 0 },
+    ];
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await InvitePage(props));
+    const meet = root.querySelector(".invite__meet");
+    expect(meet?.textContent).toContain("Prospect of Whitby");
+    expect(read.venue.address).not.toBe("");
+    expect(meet?.textContent).toContain(read.venue.address);
+    const directions = meet?.querySelector<HTMLAnchorElement>("a");
+    const href = new URL(directions!.href);
+    expect(href.origin + href.pathname).toBe("https://www.google.com/maps/dir/");
+    const [lat, lng] = href.searchParams.get("destination")!.split(",").map(Number);
+    expect(Math.abs(lat! - read.venue.latitude)).toBeLessThan(0.001);
+    expect(Math.abs(lng! - read.venue.longitude)).toBeLessThan(0.001);
+    // The link sends the guest's position nowhere.
+    expect(href.searchParams.has("origin")).toBe(false);
+  });
+
+  it("prints no address and no directions for a first stop it cannot place", async () => {
+    plan.stops = [{ venueId: "venue-not-in-the-index", venueName: "The Unplaced Arms", position: 0 }];
+    const root = document.createElement("div");
+    root.innerHTML = renderToStaticMarkup(await InvitePage(props));
+    const meet = root.querySelector(".invite__meet");
+    expect(meet?.textContent).toContain("The Unplaced Arms");
+    expect(meet?.querySelector("a")).toBeNull();
+    expect(meet?.querySelector(".invite__meetAddress")).toBeNull();
+  });
+});

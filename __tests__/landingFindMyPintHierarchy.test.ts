@@ -64,10 +64,10 @@ function hero(rendered: string): string {
 }
 
 describe("landing hierarchy: the price receipt door", () => {
-  it("uses the near-me answer as the only primary action, the receipt door as the first quiet one", () => {
+  it("leads with Pal and keeps the receipt door first in the quiet row", () => {
     const h = hero(render());
     expect(h).toMatch(
-      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/,
     );
     expect(h.match(/data-primary-action/g)).toHaveLength(1);
     // A general contribution starts with a pub choice, without a price seed.
@@ -77,7 +77,7 @@ describe("landing hierarchy: the price receipt door", () => {
     // No card behind the document: the same primary, and the plain receipt door.
     const bare = hero(render(false));
     expect(bare).toMatch(
-      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/,
+      /data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"[^>]*>Sign in for Pub Pal<\/a>/,
     );
     expect(bare.match(/data-primary-action/g)).toHaveLength(1);
     expect(bare).toMatch(/class="screenSecondary"><a[^>]*href="\/map\?log=1"[^>]*>Log what you paid<\/a>/);
@@ -86,7 +86,7 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(h).not.toContain("lpButton");
   });
 
-  it("asks for location only from the one primary, never the footer", () => {
+  it("asks for location only from the public near-me door, never the footer", () => {
     for (const rendered of [render(false), render()]) {
       const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
       expect(footerNav, "footer nav present").toBeTruthy();
@@ -113,7 +113,7 @@ describe("landing hierarchy: the price receipt door", () => {
     );
     expect(quietDoors).toEqual([
       ["/map?log=1", "Log what you paid"],
-      ["/plan", "Plan a crawl"],
+      ["/near?locate=1", "Cheapest pints near me"],
     ]);
     // The STATIC half of the row is the table
     // in lib/landingHero.ts, which is what e2e/mobile-button-system.spec.ts
@@ -124,14 +124,14 @@ describe("landing hierarchy: the price receipt door", () => {
     expect(textLinks).toEqual(["Browse pubs across the UK", "Open the map"]);
   });
 
-  it("puts Plan a crawl under the hunt, beside the near-you primary", () => {
+  it("keeps Plan in navigation and the near-me answer beside the receipt door", () => {
     // Captain decision 2 (1 Nov 2026): under the cheapest pint we can find,
     // the front door offers the cheapest near you and a crawl. Tonight keeps
     // its tap in the five-tab dock (decision 13) and the footer.
     const rendered = render();
     const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/<a[^>]*href="\/plan"[^>]*>Plan a crawl<\/a>/);
-    expect(hero).toMatch(/<a[^>]*class="lpPlanDoor"[^>]*>Plan a crawl<\/a>/);
+    expect(rendered).toMatch(/href="\/plan"/);
+    expect(hero).toMatch(/<a[^>]*class="lpNearDoor"[^>]*>Cheapest pints near me<\/a>/);
     expect(hero).not.toMatch(/href="\/tonight"/);
     const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(footerNav).toMatch(/href="\/tonight"/);

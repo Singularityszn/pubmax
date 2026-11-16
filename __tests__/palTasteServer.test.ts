@@ -64,6 +64,16 @@ describe("readPalTaste", () => {
     expect(await readPalTaste("owner-nobody", 1_000)).toBeNull();
   });
 
+  it("recalls the usual the owner saved on a diary visit, with its pub and day, after a fresh read", async () => {
+    const created = await diaryStore().create({ ownerUserId: "owner-usual", venueId: "venue-crown", venueName: "The Crown", visitedOn: "2026-10-02", rating: null, review: "", usualDrink: "Guinness", visibility: "private" });
+    expect(created.status).toBe("created");
+    expect(await readPalTaste("owner-usual", 1_000)).toMatchObject({
+      usuals: [{ drink: "Guinness", venue: "The Crown", on: "2026-10-02" }],
+      drinks: [],
+      lastVisit: { name: "The Crown", on: "2026-10-02", usualDrink: "Guinness" },
+    });
+  });
+
   it("reads where the owner has been only while the taste read is on, and says when it is off", async () => {
     await logVisit("owner-new", "2026-10-02", 4);
     expect(await readPalVisitedVenues("owner-new")).toEqual({ kind: "read", venueIds: new Set(["venue-crown"]) });

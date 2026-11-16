@@ -153,8 +153,8 @@ const route = [
   { id: "venue-b", name: "The Crown", longitude: -0.09, latitude: 51.5, amenities: {} },
 ] as Venue[];
 const way = (id: string): LegOption => ({
-  id, kind: "walk", minutes: 6, farePence: 0, estimate: false, fastest: false, cheapest: true,
-  parts: [{ mode: "walking", line: null, minutes: 6, path: [[-0.1, 51.5], [-0.09, 51.5]] }],
+  id, kind: "walk", minutes: 6, farePence: 0, estimate: false, fastest: false, cheapest: true, fareLevel: null, walkMetres: null,
+  parts: [{ mode: "walking", line: null, minutes: 6, metres: null, path: [[-0.1, 51.5], [-0.09, 51.5]] }],
 });
 const props: ComponentProps<typeof PubMapCanvas> = {
   venues: [], route, venueDataReady: true, selectedVenueId: "",

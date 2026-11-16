@@ -4,6 +4,8 @@
 // key: the cap is a reader control, and a reader control does not float over
 // the pins (see lib/mapSurfaceChrome.ts).
 
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
 import type { Filters } from "@/lib/venues";
 
@@ -15,10 +17,12 @@ export default function MapPriceFilterChips({
   filters,
   onFiltersChange,
   onPicked,
+  matches,
 }: {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   onPicked: () => void;
+  matches?: PintCapMatches | null;
 }) {
   return (
     <div className="mapLayersPriceBlock">
@@ -50,6 +54,7 @@ export default function MapPriceFilterChips({
           );
         })}
       </div>
+      <PintCapMatchSummary matches={matches} />
     </div>
   );
 }

@@ -17,12 +17,14 @@ import {
   Trash2,
 } from "lucide-react";
 import { useMemo } from "react";
+import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import type { PintCapMatches } from "@/lib/pintCapMatches";
 
 import {
-  nearestPintPriceCap,
   nearestPintPriceCapIndex,
   PINT_PRICE_CAPS_ASCENDING,
+  pintPriceCapLabel,
 } from "@/lib/pintPriceCaps";
 import { pubSources, writerProfile } from "@/lib/curation";
 import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
@@ -97,6 +99,7 @@ type ControlRailProps = {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
   filteredVenues: Venue[];
+  pintCapMatches: PintCapMatches | null;
   builtCount: number;
   onClearBuilt: () => void;
   onLoadCrawl: (crawl: CuratedCrawl) => void;
@@ -121,6 +124,7 @@ export default function ControlRail({
   filters,
   onFiltersChange,
   filteredVenues,
+  pintCapMatches,
   builtCount,
   onClearBuilt,
   onLoadCrawl,
@@ -136,7 +140,7 @@ export default function ControlRail({
   const searchPlaceholder = citySearchPlaceholder(cityId, cityDisplayName);
   const showWriterCard = cityId === "london";
   const maxPintCapIndex = nearestPintPriceCapIndex(filters.maxPrice);
-  const maxPintCap = nearestPintPriceCap(filters.maxPrice);
+  const maxPintCapLabel = pintPriceCapLabel(filters.maxPrice);
   const cheapCount = filteredVenues.filter(
     (venue) => {
       const price = comparableVenuePint(venue);
@@ -298,10 +302,11 @@ export default function ControlRail({
       <section className="panelSection">
         <div className="rangeLine">
           <span>Max pint</span>
-          {/* The slider walks the one shared cap set (lib/pintPriceCaps.ts),
-              so it can only land on a cap the chips and the phone sheet also
-              offer. Its top end is the OFF value, so it reads "Any". */}
-          <strong>{maxPintCap.label}</strong>
+          {/* The slider walks the shared cap set in lib/pintPriceCaps.ts, so it
+              can only choose a cap the chips and the phone sheet also offer.
+              Its top stop chooses Any. The caption prints the applied budget,
+              which can sit outside the preset set. */}
+          <strong>{maxPintCapLabel}</strong>
         </div>
         <input
           type="range"
@@ -310,12 +315,13 @@ export default function ControlRail({
           step={1}
           value={maxPintCapIndex}
           aria-label="Maximum pint price"
-          aria-valuetext={maxPintCap.label}
+          aria-valuetext={maxPintCapLabel}
           onChange={(event) => {
             const next = PINT_PRICE_CAPS_ASCENDING[Number(event.target.value)];
             if (next) onFiltersChange({ ...filters, maxPrice: next.maxPrice });
           }}
         />
+        <PintCapMatchSummary matches={pintCapMatches} />
         {mode === "suggest" ? (
           <>
             <div className="rangeLine">

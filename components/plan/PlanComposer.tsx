@@ -19,6 +19,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import PlanIntake from "@/components/plan/PlanIntake";
+import PlanDraftConflicts from "@/components/plan/PlanDraftConflicts";
 import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
@@ -1794,24 +1795,35 @@ export function isMatchingAnchorOnlyPlan(input: {
 }
 
 /**
- * The crawl an ask drafted for THIS ask, spent once (lib/palPlanHandoff.ts).
- * The one-shot read of the session draft holds it in `held`; the session copy
- * is the fallback for a draft that read has not reached yet.
+ * The ONE owner of when Plan spends or keeps the crawl an ask drafted
+ * (lib/palPlanHandoff.ts). `held` is the draft the mount read; the session
+ * copy is the fallback for a draft that read has not reached yet. Every
+ * generation spends what is held, so a changed question discards the draft
+ * for good. `giveBack` is the only way it returns: a generation that fails
+ * while this composer still owns the planning request holds it again, so
+ * "Make a plan" retries the same ask with the same pubs.
  */
-function takePalDraft(held: { current: PalPlanDraft | null }, query: string): PalPlanDraft | null {
+function takePalDraft(
+  held: { current: PalPlanDraft | null },
+  query: string,
+): { draft: PalPlanDraft | null; giveBack: (owner: ComposerRequestOwner | null) => void } {
   let draft = held.current && palDraftAnswers(held.current, query) ? held.current : null;
   if (!draft && !held.current) {
     try {
       const store = safeSessionStorage();
       draft = palPlanDraftFor(store?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null, query);
-      // The draft is one-shot: the generation that reads it spends it.
       if (draft) store?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
     } catch {
       draft = null;
     }
   }
-  if (draft) held.current = null;
-  return draft;
+  held.current = null;
+  return {
+    draft,
+    giveBack: (owner) => {
+      if (draft && ownsAcceptance(owner)) held.current = draft;
+    },
+  };
 }
 
 /**
@@ -2108,11 +2120,13 @@ function conciergeStatusText(
 export function AcceptedContextPanel({
   handoff,
   acceptedVenueName = null,
+  venues = [],
   onRelease,
   releaseDisabled = false,
 }: {
   handoff: ComposerHydration;
   acceptedVenueName?: string | null;
+  venues?: readonly Pick<PlanVenueOption, "id" | "name">[];
   onRelease?: () => void;
   releaseDisabled?: boolean;
 }) {
@@ -2152,13 +2166,7 @@ export function AcceptedContextPanel({
           ) : null}
         </section>
       )}
-      {handoff.conflicts.length > 0 && (
-        <ul className="planComposer__conflicts" aria-label="Plan changes we kept safe">
-          {handoff.conflicts.map((conflict, index) => (
-            <li key={`${conflict.code}-${index}`}>{conflict.message}</li>
-          ))}
-        </ul>
-      )}
+      <PlanDraftConflicts conflicts={handoff.conflicts} areaLabel={acceptedPlanAreaLabel} venues={venues} />
     </>
   );
 }
@@ -2460,8 +2468,8 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
-  // The crawl an ask drafted, read from the same one-shot session draft, kept
-  // until the generation that answers that same ask spends it
+  // The crawl an ask drafted, read from the same session draft. takePalDraft
+  // owns when a generation spends it and when a failed one gives it back
   // (lib/palPlanHandoff.ts): Plan keeps those pubs instead of choosing its own.
   const palDraftRef = useRef<PalPlanDraft | null>(null);
   // An ask the address carries is applied ONCE. This effect re-runs whenever
@@ -2528,7 +2536,7 @@ function PlanComposerForm({
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
     try {
-      // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
+      // The session copy is read once and REMOVED whichever prefill wins: a
       // URL that carries its own describe used to leave the draft behind for
       // the next /plan visit to open on somebody's earlier ask.
       let raw: string | null = null;
@@ -3471,9 +3479,9 @@ function PlanComposerForm({
     if (!request) return;
     const sentGeographyChoice = geographyChoice.current;
     const { query, intake, submittedContext } = request;
-    // A crawl the Pal (or Ask the map) drafted for THIS ask is kept: spent
-    // here, once, by the generation that answers it.
-    const palDraft = takePalDraft(palDraftRef, query);
+    // A crawl the Pal (or Ask the map) drafted for THIS ask is kept. This
+    // generation spends it, and only a failure below gives it back.
+    const { draft: palDraft, giveBack: givePalDraftBack } = takePalDraft(palDraftRef, query);
     // A start that passed while the page stayed open is not sent. The field
     // takes the current default, and that is the start the request carries.
     let submittedStart = startTime;
@@ -3593,6 +3601,7 @@ function PlanComposerForm({
       }
     } catch (caught) {
       if (signal.aborted) return;
+      givePalDraftBack(requestOwner.current);
       const message = caught instanceof Error ? caught.message : "PUBMAXX could not sort this one.";
       // planGenerationFailureStatus is the ONE owner of this sentence, so the
       // error notice cannot tell a reader with no route on screen that "the
@@ -4212,6 +4221,7 @@ function PlanComposerForm({
         <AcceptedContextPanel
           handoff={handoff}
           acceptedVenueName={acceptedVenueName}
+          venues={venues}
           onRelease={releaseAcceptance}
           releaseDisabled={submitting}
         />

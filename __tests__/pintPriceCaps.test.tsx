@@ -47,11 +47,15 @@ describe("the shared pint price caps", () => {
     expect(nearestPintPriceCapIndex(initialFilters.maxPrice)).toBe(PINT_PRICE_CAPS_ASCENDING.length - 1);
   });
 
-  it("reads every figure at or over the OFF value as Any", () => {
+  it("selects Any only when no cap applies, so an actual £11 or £12 cap is never Any", () => {
     expect(pintPriceCapIsActive(NO_PINT_PRICE_CAP, NO_PINT_PRICE_CAP)).toBe(true);
-    expect(pintPriceCapIsActive(12, NO_PINT_PRICE_CAP)).toBe(true);
+    expect(pintPriceCapIsActive(Number.POSITIVE_INFINITY, NO_PINT_PRICE_CAP)).toBe(true);
+    expect(pintPriceCapIsActive(11, NO_PINT_PRICE_CAP)).toBe(false);
+    expect(pintPriceCapIsActive(12, NO_PINT_PRICE_CAP)).toBe(false);
     expect(pintPriceCapIsActive(7, NO_PINT_PRICE_CAP)).toBe(false);
     expect(pintPriceCapIsActive(6, 6)).toBe(true);
+    expect(pintPriceCapIsActive(Number.NaN, NO_PINT_PRICE_CAP)).toBe(true);
+    expect(pintPriceCapIsActive(Number.NaN, 6)).toBe(false);
   });
 
   it("offers the same caps on the desktop chips and the phone row", () => {
@@ -124,9 +128,14 @@ describe("the rail's max pint slider", () => {
     expect(slider!.min).toBe("0");
     expect(slider!.max).toBe(String(PINT_PRICE_CAPS_ASCENDING.length - 1));
     expect(slider!.step).toBe("1");
-    // An old figure (£6.25) shows as the cap it snaps to.
+    // An applied figure off the preset set (£6.25) keeps its slider stop but prints the budget it applies.
     expect(slider!.value).toBe("2");
-    expect(slider!.getAttribute("aria-valuetext")).toBe("≤ £6");
+    expect(slider!.getAttribute("aria-valuetext")).toBe("≤ £6.25");
+    expect(host.querySelector(".rangeLine strong")?.textContent).toBe("≤ £6.25");
+    act(() => root.render(createElement(ControlRail, { ...(props as object), filters: { ...initialFilters, maxPrice: 11 } } as never)));
+    expect(slider!.value).toBe(String(PINT_PRICE_CAPS_ASCENDING.length - 1));
+    expect(slider!.getAttribute("aria-valuetext")).toBe("≤ £11");
+    act(() => root.render(createElement(ControlRail, props)));
 
     const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
     for (const index of [0, 1, 3, 4]) {

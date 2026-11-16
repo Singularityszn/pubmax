@@ -45,6 +45,10 @@ The slim builder uses the runtime bundle parser to exclude quarantined rows from
 
 Map pins withhold estimates while that pub's community-price or Pint Drop read is pending. `zoneEstimatePinStandings` checks only reads already started. A missing status entry means never asked and does not block a pin estimate.
 
+A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. Each cap control separates recorded-price matches from pubs with no recorded comparable pint. Counts use the map's loaded, filtered pubs after drink-lens and venue-kind choices, not just the current viewport. A modelled figure never establishes a match.
+
+Pins withhold estimates while a cap is on. Map lists, phone peeks and venue sheets retain their labelled estimates. `lib/pintPriceCapValue.ts` owns whether a cap is active, and `lib/pintCapMatches.ts` owns the counts. `__tests__/filterMapVenues.test.ts` and `__tests__/venuePriceLane.test.ts` cover these rules.
+
 Cancelling a Pint Drop read marks it unavailable only while it still owns the request. Cancellation retains observed rows and releases the pending hold. An unavailable read does not establish price absence. `__tests__/venuePriceLane.test.ts` and `__tests__/usePintDropsReads.test.tsx` cover these rules.
 
 Pal's `venue_prices` tool also reads the venue's public Pint Drops before estimating. A recorded price in these reads, a public priced drop in the returned rows, or an unavailable read prevents a zone estimate. The estimate remains outside card prices and price evidence. `__tests__/palFailClosedPrices.test.ts` covers these constraints. List, split-list, Ledger and Plan retain their existing absence checks. Complete public-price absence across those readers remains tracked in [issue #2706](https://github.com/Singularityszn/pubmax/issues/2706).

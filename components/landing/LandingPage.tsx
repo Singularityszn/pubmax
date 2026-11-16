@@ -205,7 +205,11 @@ export default function LandingPage({
             front door and every app page name the product the same way, Social
             by its launch state. Moment is not a front door and is not in that
             list. */}
-        <nav className="lpPrimaryNav" aria-label="Landing navigation">
+        <nav
+          className="lpPrimaryNav"
+          aria-label="Landing navigation"
+          onFocus={(event) => event.target.scrollIntoView({ block: "nearest", inline: "nearest" })}
+        >
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
               <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>

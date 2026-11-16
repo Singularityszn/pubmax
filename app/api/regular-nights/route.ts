@@ -135,14 +135,18 @@ export async function GET(request: Request): Promise<Response> {
   // Anonymous is the common read and stays a plain read: the session is only
   // asked when the request carries a bearer, and a bad one is anonymous.
   const viewer = bearerToken(request) ? await callerUserId(request) : null;
-  const read = await regularNightReportsStore().listLive(
-    { ...(weekday === null ? {} : { weekday }), ...(rawVenue ? { venueId: rawVenue } : {}) },
-    now,
-  );
-  return jsonNoStore(
-    { status: read.status, reports: await publicRegularNightReports(read.reports, now, viewer) },
-    { status: 200 },
-  );
+  try {
+    const read = await regularNightReportsStore().listLive(
+      { ...(weekday === null ? {} : { weekday }), ...(rawVenue ? { venueId: rawVenue } : {}) },
+      now,
+    );
+    return jsonNoStore(
+      { status: read.status, reports: await publicRegularNightReports(read.reports, now, viewer) },
+      { status: 200 },
+    );
+  } catch {
+    return storeUnavailable();
+  }
 }
 
 export async function POST(request: Request): Promise<Response> {

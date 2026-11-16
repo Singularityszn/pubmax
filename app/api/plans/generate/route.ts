@@ -130,6 +130,7 @@ export async function POST(request: Request): Promise<Response> {
 		dietaryMenu,
 		dryRoundListed,
 		candidates,
+		excludedCandidates,
 		anchor: anchorRequest,
 	} = preparation.prepared;
 	type Candidate = (typeof candidates)[number];
@@ -144,7 +145,7 @@ export async function POST(request: Request): Promise<Response> {
 	// without one retain the generic, unanchored selection path.
 	if (anchorRequest) {
 		const anchored = await runAnchoredGeneration({
-			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage, dryRoundListed,
+			cityId, anchor: anchorRequest, candidates, excludedCandidates, context, intake, requestNow, operationKey, area, coverage, dryRoundListed,
 		});
 		if ("done" in anchored) return anchored.done;
 		chosen = anchored.route.chosen;

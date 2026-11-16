@@ -298,6 +298,17 @@ describe("PATCH /api/regular-nights (still on)", () => {
 });
 
 describe("GET /api/regular-nights", () => {
+  it("answers unavailable instead of crashing when production cannot use a durable store", async () => {
+    const guard = vi.spyOn(await import("@/lib/supabase"), "requiresSupabaseStore").mockReturnValue(true);
+    try {
+      const res = await GET(read("?weekday=2"));
+      expect(res.status).toBe(503);
+      expect(await res.json()).toMatchObject({ code: "STORE_UNAVAILABLE", retryable: true });
+    } finally {
+      guard.mockRestore();
+    }
+  });
+
   it("returns live rows with the handle, and never a hidden one, an expired one, an account id or a photo key", async () => {
     const live = await seed();
     const hidden = await seed();

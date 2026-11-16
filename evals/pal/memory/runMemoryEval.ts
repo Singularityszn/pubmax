@@ -51,7 +51,7 @@ const LINE_PATTERNS: Record<PalMemoryLine, RegExp> = {
   regulars: /keep going back to:/,
   loved: /rated highest:/,
   notKeen: /rated low/,
-  drinks: /usually drink:/,
+  drinks: /logged a price for:/,
   price: /usually pay about/,
   vibes: /tag (?:my|their) pints with:/,
   wishlist: /Saved but not tried yet:/,

@@ -73,9 +73,19 @@ export default function ThemeAttribute(): null {
     reconcile();
     window.addEventListener("pageshow", reconcile);
     document.addEventListener("visibilitychange", onVisible);
+    const ruler = document.createElement("div");
+    ruler.setAttribute("aria-hidden", "true");
+    ruler.style.cssText = "position:fixed;top:0;left:0;width:1rem;height:0;visibility:hidden;pointer-events:none";
+    const rootFont = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(reconcile);
+    if (rootFont) {
+      document.body.append(ruler);
+      rootFont.observe(ruler);
+    }
     return () => {
       window.removeEventListener("pageshow", reconcile);
       document.removeEventListener("visibilitychange", onVisible);
+      rootFont?.disconnect();
+      ruler.remove();
     };
   }, []);
 

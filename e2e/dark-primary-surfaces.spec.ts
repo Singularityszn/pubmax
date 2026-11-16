@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { mobileMapShellControl, openMobileFilterRefinements } from "./helpers/mobileMapShell";
 
 const VIEWPORTS = [
   { width: 390, height: 844 },
@@ -275,6 +275,7 @@ for (const viewport of VIEWPORTS) {
       '.mobileSheetPortal[data-sheet-kind="filters"]',
     );
     await expect(filtersSheet).toBeVisible({ timeout: 45_000 });
+    await openMobileFilterRefinements(filtersSheet);
     // The sheet SHELL paints before its content: the venue types arrive a chunk
     // later. Measuring on the shell alone read zero colour pairs and failed on
     // "expected 0 to be greater than 0", which names the timing badly.

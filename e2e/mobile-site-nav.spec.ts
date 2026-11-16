@@ -1,4 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 async function expectTappable(locator: Locator, label: string): Promise<void> {
   await expect(locator, `${label} should be visible`).toBeVisible();
@@ -48,8 +50,26 @@ test.describe("site navigation touch targets", () => {
     await expectNoHorizontalOverflow(page, "tablet site nav");
   });
 
+  test("keeps every landing route reachable by keyboard with large text", async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await installAuthDoubles(page);
+    await storeThemeChoice(page, "light");
+    await page.addInitScript(() => document.addEventListener("DOMContentLoaded", () => {
+      document.documentElement.style.fontSize = "32px";
+    }));
+    await seedSignedIn(page, "A");
+    await page.goto("/");
+    await expect(page.getByRole("button", { name: /Account options for/ })).toBeInViewport({ ratio: 1 });
+    const links = page.getByRole("navigation", { name: "Landing navigation" }).getByRole("link");
+    await links.first().focus();
+    const count = await links.count();
+    for (let index = 1; index < count; index += 1) await page.keyboard.press("Tab");
+    await expect(links.last()).toBeFocused();
+    await expect(links.last()).toBeInViewport({ ratio: 1 });
+  });
+
   test("keeps the command-palette affordance large enough when it is visible", async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 768 });
+    await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto("/pubs");
 
     const nav = page.getByRole("navigation", { name: "Site navigation" });

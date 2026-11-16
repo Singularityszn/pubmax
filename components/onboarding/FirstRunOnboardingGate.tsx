@@ -8,7 +8,7 @@ import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
 import { SHELL_START_PATH } from "@/lib/entryDecision";
 import { webOnboardingStartRequested } from "@/lib/firstRunRoute";
 import { hasSeenTour } from "@/lib/firstRunTour";
-import { LANDING_PRIMARY_HREF } from "@/lib/landingHero";
+import { LANDING_NEAR_HREF } from "@/lib/landingHero";
 import { consumeNativeFirstRunHandoff, readNativeFirstRunStep } from "@/lib/nativeFirstRun";
 import { isNativeApp } from "@/lib/nativePlatform";
 
@@ -52,10 +52,10 @@ export default function FirstRunOnboardingGate({
         allowed: isNative
           ? consumeNativeFirstRunHandoff(isNative) || readNativeFirstRunStep() !== null
           : webStart && !hasSeenTour(),
-        fallback: isNative ? SHELL_START_PATH : webStart ? LANDING_PRIMARY_HREF : "/",
+        fallback: isNative ? SHELL_START_PATH : webStart ? LANDING_NEAR_HREF : "/",
         // The landing hero is the one web door in, so a web Skip goes where
         // that tap was going before the journey stepped in front of it.
-        skipHref: isNative ? SHELL_START_PATH : LANDING_PRIMARY_HREF,
+        skipHref: isNative ? SHELL_START_PATH : LANDING_NEAR_HREF,
       };
     }
 

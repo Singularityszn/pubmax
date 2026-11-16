@@ -7,6 +7,8 @@ import Kicker from "@/components/ui/kicker";
 import SheetStepProgress, { type SheetStep } from "@/components/ui/sheetStepProgress";
 import { CHOOSE_AREA_OPENING_HEADING, MAP_SHEET_TITLES } from "@/lib/mobileShell";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { isMapPostcodeQuery } from "@/lib/mapSearchRecovery";
+import { holdMapAreaPickerPrompts } from "@/lib/mapFirstVisitArrivalGate";
 
 import type { CityId } from "@/lib/cities";
 import type { Locality } from "@/lib/localities";
@@ -60,6 +62,7 @@ export default function ChooseAreaSheet({
   showOpeningProgress = false,
   onPick,
 }: ChooseAreaSheetProps) {
+  useEffect(() => holdMapAreaPickerPrompts(), []);
   const [query, setQuery] = useState("");
   const neighbourhoods = useMemo(
     () => londonNeighbourhoodRows(venues, cityId, completeCountSlugs),
@@ -77,16 +80,24 @@ export default function ChooseAreaSheet({
         <SheetStepProgress steps={OPENING_STEPS} label="Opening progress" variant="map" />
       ) : null}
       <div className="chooseAreaSearch">
-        <label htmlFor="choose-area-search">Search areas and postcodes</label>
+        <label htmlFor="choose-area-search">Search areas</label>
         <input
           id="choose-area-search"
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Camden, N1, Willesden…"
+          placeholder="Camden, Soho, Willesden…"
           autoComplete="off"
         />
       </div>
+      {query.trim() && filtered.length === 0 ? (
+        <div className="chooseAreaNote" role="status">
+          <p>{isMapPostcodeQuery(query)
+            ? "Postcode lookup is not available here. Search for a nearby named area, or choose an area below."
+            : "No matching area in this list. Try a nearby area or choose from all areas."}</p>
+          <button type="button" className="chooseAreaRow" onClick={() => setQuery("")}>Show all areas</button>
+        </div>
+      ) : null}
       {locationNote ? <p className="chooseAreaNote">{locationNote}</p> : null}
       <section aria-labelledby="choose-area-london">
         <h3 id="choose-area-london" className="chooseAreaSectionTitle">

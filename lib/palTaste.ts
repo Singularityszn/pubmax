@@ -11,7 +11,9 @@
 // the agent knows it has to ask instead of guess.
 //
 // Duty of care: nothing here counts consumption. A visit is one pub on one
-// London day, however many drinks the person logged there.
+// London day, however many drinks the person logged there. A logged price is
+// what a drink cost, and a diary usual is a drink they said they order at one
+// pub. Neither says what they drank, and no line here says it does.
 //
 // Pure leaf: no I/O, no Date.now(). The server reader is lib/palTaste.server.ts.
 
@@ -25,6 +27,8 @@ export type PalTasteDiaryInput = {
   /** London calendar day (YYYY-MM-DD). */
   visitedOn: string;
   rating: number | null;
+  /** "Your usual here": a preference at this pub, as typed, never a drink they had. */
+  usualDrink?: string;
 };
 
 export type PalTasteDropInput = {
@@ -56,11 +60,20 @@ export type PalTaste = {
   /** Distinct pub-days across the diary and drops. */
   visits: number;
   distinctPubs: number;
-  lastVisit: { name: string; on: string; recordedPints?: Array<{ drink: string; priceGbp: number }> } | null;
+  lastVisit: {
+    name: string;
+    on: string;
+    /** The usual typed on that visit's diary entry. */
+    usualDrink?: string;
+    recordedPints?: Array<{ drink: string; priceGbp: number }>;
+  } | null;
   patches: string[];
   regulars: string[];
   loved: string[];
   notKeen: string[];
+  /** The newest usual per pub, with the pub and the diary day it was noted on. */
+  usuals: Array<{ drink: string; venue: string; on: string }>;
+  /** Drinks they logged a price for. Not what they drank. */
   drinks: string[];
   usualPintGbp: number | null;
   vibes: string[];
@@ -138,6 +151,12 @@ function visitSignals(input: PalTasteInput, visitDays: Array<{ venueId: string; 
   const visits = [...pubs.values()].reduce((sum, entry) => sum + entry.count, 0);
   const lastVisit: PalTaste["lastVisit"] = last ? { name: pubs.get(last.venueId)?.label ?? "", on: last.day } : null;
   if (last && lastVisit) {
+    const usualDrink = cleanText(
+      input.diary.find((entry) => entry.venueId === last.venueId && entry.visitedOn === last.day && entry.usualDrink?.trim())
+        ?.usualDrink ?? "",
+      DRINK_CAP,
+    );
+    if (usualDrink) lastVisit.usualDrink = usualDrink;
     const recorded = new Map<string, { drink: string; priceGbp: number }>();
     for (const drop of input.drops) {
       if (drop.venueId !== last.venueId || drop.day !== last.day) continue;
@@ -149,6 +168,20 @@ function visitSignals(input: PalTasteInput, visitDays: Array<{ venueId: string; 
     if (recorded.size) lastVisit.recordedPints = [...recorded.values()].slice(0, MAX_LIST);
   }
   return { pubs, patches, weekdays, visits, lastVisit };
+}
+
+/** The newest usual the person typed for each pub, newest pub first. */
+function usualsOf(input: PalTasteInput, nameOf: NameOf): PalTaste["usuals"] {
+  const newest = new Map<string, PalTaste["usuals"][number]>();
+  for (const entry of input.diary) {
+    const drink = cleanText(entry.usualDrink ?? "", DRINK_CAP);
+    if (!drink || !DAY_PATTERN.test(entry.visitedOn)) continue;
+    const prior = newest.get(entry.venueId);
+    if (prior && prior.on >= entry.visitedOn) continue;
+    const venue = nameOf(entry.venueId, entry.venueName);
+    if (venue) newest.set(entry.venueId, { drink, venue, on: entry.visitedOn });
+  }
+  return [...newest.values()].sort((a, b) => b.on.localeCompare(a.on)).slice(0, MAX_LIST);
 }
 
 /** A pub's rating is the newest one the person gave it. */
@@ -253,6 +286,7 @@ export function buildPalTaste(input: PalTasteInput): PalTaste | null {
     patches: topCounted(patches),
     regulars: topCounted(pubs, 2),
     ...ratingSignals(input, nameOf),
+    usuals: usualsOf(input, nameOf),
     ...dropSignals(input.drops),
     style: styleOf(visits, pubs.size),
     favouriteNight: favouriteNightOf(weekdays, visits),
@@ -306,7 +340,11 @@ export function palTastePreamble(taste: PalTaste | null, voice: keyof typeof VOI
   if (taste.regulars.length > 0) lines.push(`- Pubs ${w.i} keep going back to: ${listed(taste.regulars)}.`);
   if (taste.loved.length > 0) lines.push(`- Pubs ${w.i} rated highest: ${listed(taste.loved)}.`);
   if (taste.notKeen.length > 0) lines.push(`- Pubs ${w.i} rated low, so do not push them: ${listed(taste.notKeen)}.`);
-  if (taste.drinks.length > 0) lines.push(`- What ${w.i} usually drink: ${listed(taste.drinks)}.`);
+  if (taste.usuals.length > 0) {
+    const usuals = taste.usuals.map((usual) => `${usual.drink} at ${usual.venue} (noted ${shortDay(usual.on)})`);
+    lines.push(`- Drinks ${w.i} noted as ${w.my} usual at a pub: ${listed(usuals)}. These are preferences ${w.i} typed, not a record of what ${w.i} drank.`);
+  }
+  if (taste.drinks.length > 0) lines.push(`- Drinks ${w.i} logged a price for: ${listed(taste.drinks)}. A logged price is not proof of what ${w.i} drank.`);
   if (taste.usualPintGbp !== null) {
     lines.push(
       `- ${w.I} usually pay about ${formatPalTastePrice(taste.usualPintGbp)} a pint. That is ${w.my} habit, not a price at any pub.`,
