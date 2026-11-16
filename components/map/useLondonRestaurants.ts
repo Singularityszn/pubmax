@@ -25,6 +25,7 @@ const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
 export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string): LondonRestaurantsState {
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
   const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
+  const [settledScope, setSettledScope] = useState<string | null>(null);
   const requested = useRef<string | null>(null);
   const latestRequest = useRef(0);
 
@@ -38,11 +39,13 @@ export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string):
       (loaded) => {
         if (request !== latestRequest.current) return;
         setRestaurants(loaded);
+        setSettledScope(scope);
         setStatus("ready");
       },
       () => {
         if (request !== latestRequest.current) return;
         requested.current = null;
+        setSettledScope(scope);
         setStatus("failed");
       },
     );
@@ -52,7 +55,8 @@ export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string):
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant] as const)),
     [restaurants],
   );
-  return { status, restaurants, byId };
+  const changingScope = settledScope !== null && settledScope !== "all" && settledScope !== (selectedVenueId ?? "all");
+  return { status: changingScope ? "loading" : status, restaurants, byId };
 }
 
 /**

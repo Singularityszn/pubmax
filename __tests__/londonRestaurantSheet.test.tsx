@@ -8,12 +8,14 @@
 import { readFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import LondonRestaurantSheet from "@/components/map/LondonRestaurantSheet";
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
+import { useReleaseLondonVenueSelection } from "@/components/map/useCoffeePilotCafes";
+import { londonVenueSelection } from "@/lib/pubMap";
 import { LONDON_RESTAURANT_PACK_PATH } from "@/lib/londonRestaurants";
 
 const ROOT = resolve(__dirname, "..");
@@ -147,4 +149,24 @@ it("keeps a completed full layer when an older selected-place response arrives l
   expect(fullCount).toBeGreaterThan(1000);
   await act(async () => { release?.(); });
   expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBe(fullCount);
+});
+
+it("keeps a second shared-link selection while its different read settles", async () => {
+  stubPack(() => "ok");
+  const reject = vi.fn();
+  function SharedLink() {
+    const [selected, setSelected] = useState("venue-osm-n25496840");
+    const read = useLondonRestaurants(Boolean(selected), selected || undefined);
+    const pick = londonVenueSelection({ selectedVenueId: selected,
+      coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
+      restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });
+    useReleaseLondonVenueSelection(pick.release, selected, reject, setSelected);
+    return createElement("button", { "data-selected": selected, onClick: () => setSelected("venue-osm-n1784593689") }, pick.restaurant?.name ?? "");
+  }
+  await act(async () => root.render(createElement(SharedLink)));
+  expect(container.querySelector("button")?.textContent).toBe("26 Furnival Street");
+  await act(async () => container.querySelector("button")?.click());
+  expect(reject).not.toHaveBeenCalled();
+  expect(container.querySelector("button")?.getAttribute("data-selected")).toBe("venue-osm-n1784593689");
+  expect(container.querySelector("button")?.textContent).toBe("Tayyabs");
 });
