@@ -1,19 +1,30 @@
 name: PubMax job-local caches
-description: >-
-  Point the npm cache and the Playwright browser folder at this job's own
-  RUNNER_TEMP. A self-hosted runner keeps its HOME between jobs, so the
-  default ~/.npm and ~/Library/Caches/ms-playwright would carry one job's
-  downloads into the next. The runner empties RUNNER_TEMP at the start and
-  end of every job. Run it after Checkout and before Setup Node, because
-  setup-node reads the npm cache path when it restores the npm cache.
+description: Restore npm into a clean, job-local workspace cache.
+outputs:
+  npm-hit:
+    description: Whether the npm cache matched the exact key.
+    value: ${{ steps.npm-restore.outputs.cache-hit || steps.npm-main.outputs.cache-hit }}
 runs:
   using: composite
   steps:
     - shell: bash
-      # Two fixed names, each set to a path under the runner's own
-      # RUNNER_TEMP, so GITHUB_ENV never receives text from the event.
       run: | # zizmor: ignore[github-env]
         set -euo pipefail
-        echo "npm_config_cache=${RUNNER_TEMP}/npm-cache" >> "$GITHUB_ENV"
-        echo "PLAYWRIGHT_BROWSERS_PATH=${RUNNER_TEMP}/ms-playwright" >> "$GITHUB_ENV"
-        echo "npm cache and Playwright browsers live under ${RUNNER_TEMP}"
+        rm -rf -- "$GITHUB_WORKSPACE/.ci-job-cache"
+        mkdir -p "$GITHUB_WORKSPACE/.ci-job-cache"
+        echo "npm_config_cache=$GITHUB_WORKSPACE/.ci-job-cache/npm" >> "$GITHUB_ENV"
+        echo "PLAYWRIGHT_BROWSERS_PATH=$GITHUB_WORKSPACE/.ci-job-cache/ms-playwright" >> "$GITHUB_ENV"
+    - name: Restore npm cache
+      id: npm-restore
+      if: github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .ci-job-cache/npm
+        key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+    - name: Restore and save npm cache on main
+      id: npm-main
+      if: github.ref == 'refs/heads/main'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .ci-job-cache/npm
+        key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}

@@ -1,11 +1,9 @@
 name: PubMax Playwright browsers
-description: >-
-  Restore Playwright's browsers into this job's PLAYWRIGHT_BROWSERS_PATH from
-  the Actions cache, so the Install Chromium step after it finds them and
-  skips the download. The key is the installed Playwright version, which
-  fixes the browser builds. On a miss, actions/cache saves the folder when the
-  job ends green. Run it after pubmax-job-local-caches, which keeps the folder
-  inside RUNNER_TEMP, and after npm ci.
+description: Restore the job-local Playwright browser cache.
+outputs:
+  cache-hit:
+    description: Whether the browser cache matched the exact key.
+    value: ${{ steps.browser-restore.outputs.cache-hit || steps.browser-main.outputs.cache-hit }}
 runs:
   using: composite
   steps:
@@ -13,12 +11,22 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        case "${PLAYWRIGHT_BROWSERS_PATH:-}" in
-          "$RUNNER_TEMP"/*) ;;
-          *) echo "::error::PLAYWRIGHT_BROWSERS_PATH is not inside RUNNER_TEMP. Run pubmax-job-local-caches first."; exit 1 ;;
-        esac
-        echo "version=$(node -p 'require("playwright-core/package.json").version')" >> "$GITHUB_OUTPUT"
-    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        if [[ "${PLAYWRIGHT_BROWSERS_PATH:-}" != "$GITHUB_WORKSPACE/.ci-job-cache/ms-playwright" ]]; then
+          echo "::error::Run pubmax-job-local-caches first."
+          exit 1
+        fi
+        echo "version=$(node -p 'require("./package-lock.json").packages["node_modules/playwright-core"].version')" >> "$GITHUB_OUTPUT"
+    - name: Restore Playwright browsers
+      id: browser-restore
+      if: github.ref != 'refs/heads/main'
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
       with:
-        path: ${{ env.PLAYWRIGHT_BROWSERS_PATH }}
-        key: playwright-browsers-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}
+        path: .ci-job-cache/ms-playwright
+        key: playwright-browsers-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}-${{ hashFiles('package-lock.json') }}
+    - name: Restore and save Playwright browsers on main
+      id: browser-main
+      if: github.ref == 'refs/heads/main'
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: .ci-job-cache/ms-playwright
+        key: playwright-browsers-${{ runner.os }}-${{ runner.arch }}-${{ steps.version.outputs.version }}-${{ hashFiles('package-lock.json') }}

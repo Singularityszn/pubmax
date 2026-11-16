@@ -71,12 +71,14 @@ jobs:
           persist-credentials: false
           fetch-depth: 0
 
+      - name: Restore job-local caches
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
 
       - name: Check changed-file scope
         env:
@@ -130,13 +132,16 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
+      - name: Restore job-local caches
+        if: steps.scope.outputs.scope != 'docs'
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         if: steps.scope.outputs.scope != 'docs'
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         if: steps.scope.outputs.scope != 'docs'
@@ -202,13 +207,16 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
+      - name: Restore job-local caches
+        if: steps.scope.outputs.scope != 'docs'
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         if: steps.scope.outputs.scope != 'docs'
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         if: steps.scope.outputs.scope != 'docs'
@@ -268,13 +276,16 @@ jobs:
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
 
+      - name: Restore job-local caches
+        if: steps.scope.outputs.scope == 'code'
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
 
       - name: Install dependencies
         if: steps.scope.outputs.scope == 'code'
@@ -379,10 +390,7 @@ jobs:
       - name: Setup Node
         if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
         timeout-minutes: 5
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
+        uses: ./.github/actions/pubmax-setup-node
 
       - name: Install dependencies
         if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
@@ -494,13 +502,16 @@ jobs:
           fi
           echo "scope=$scope" >> "$GITHUB_OUTPUT"
           echo "Change scope: $scope"
+      - name: Restore job-local caches
+        if: steps.scope.outputs.scope == 'code'
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         if: steps.scope.outputs.scope == 'code'
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
       - name: Install dependencies
         if: steps.scope.outputs.scope == 'code'
         run: |
@@ -536,12 +547,14 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Restore job-local caches
+        uses: ./.github/actions/pubmax-job-local-caches
+
       - name: Setup Node
         timeout-minutes: 5
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-          cache: npm
       - name: Install dependencies
         run: |
           npm ci
