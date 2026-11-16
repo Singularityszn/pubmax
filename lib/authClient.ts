@@ -26,7 +26,7 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 // The module import and canonical client construction are memoized so concurrent
 // callers share the canonical client. `cached` mirrors the resolved
 // client synchronously for the best-effort sync accessor below.
-let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
+let modulePromise: Promise<Pick<typeof import("@supabase/supabase-js"), "createClient">> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
 // Resolves with the first client any caller builds. Work that only a signed-in
@@ -35,6 +35,10 @@ let announceClient: (client: SupabaseClient) => void = () => {};
 const clientBuilt = new Promise<SupabaseClient>((resolve) => {
   announceClient = resolve;
 });
+
+export function preloadSupabaseBrowserFactory(createClient: typeof import("@supabase/supabase-js")["createClient"]): void {
+  if (typeof window !== "undefined") modulePromise ??= Promise.resolve({ createClient });
+}
 
 type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
 let nativeInstallation: NativeInstallation | null = null;
