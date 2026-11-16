@@ -112,6 +112,19 @@ public class OutingStepsDeadlineTest {
     }
 
     @Test
+    public void anExpiredReadFromAnotherSessionPreservesTheCurrentListenerDeadline() {
+        wall = START + 13 * HOUR;
+        assertEquals(OutingStepsDeadline.Verdict.OK, deadline.admit(wall, wall, B));
+        elapsed += HOUR;
+        wall += HOUR;
+        assertEquals(OutingStepsDeadline.Verdict.EXPIRED, deadline.admit(START, START + 12 * HOUR, A));
+        assertTrue(deadline.owns(B));
+        assertEquals(11 * HOUR, deadline.remainingMs());
+        elapsed += 11 * HOUR;
+        assertTrue(deadline.expired());
+    }
+
+    @Test
     public void refusesAMalformedWindow() {
         assertEquals(OutingStepsDeadline.Verdict.INVALID, deadline.admit(START, START - 1, A));
         assertEquals(OutingStepsDeadline.Verdict.INVALID, deadline.admit(START - 13 * HOUR, START, A));
