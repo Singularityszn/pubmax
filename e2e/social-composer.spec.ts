@@ -557,8 +557,8 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
     id: "77777777-7777-4777-8777-777777777777", subject: "drop", dropId: "drop-1",
     taggerHandle: "dan", venueId: null, venueName: null, state: "proposed",
   };
-  let proposedReads = 0;
-  let approvedReads = 0;
+  let proposedRead: "unavailable" | "network-failure" | "ready" = "unavailable";
+  let approvedRead: "ready" | "network-failure" | "empty" = "ready";
   await page.route("**/api/social/tags**", async (route) => {
     if (route.request().method() === "POST") {
       return route.fulfill({ contentType: "application/json", body: JSON.stringify({ ok: true }) });
@@ -572,14 +572,12 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
     }
     const lane = new URL(route.request().url()).searchParams.get("lane");
     if (lane === "proposed") {
-      proposedReads += 1;
-      if (proposedReads === 1) return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
-      if (proposedReads === 2) return route.abort("connectionrefused");
+      if (proposedRead === "unavailable") return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: "Unavailable" }) });
+      if (proposedRead === "network-failure") return route.abort("connectionrefused");
       return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: [proposed], nextCursor: null }) });
     }
-    approvedReads += 1;
-    if (approvedReads === 2) return route.abort("connectionrefused");
-    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: approvedReads === 1 ? [approved] : [], nextCursor: null }) });
+    if (approvedRead === "network-failure") return route.abort("connectionrefused");
+    return route.fulfill({ contentType: "application/json", body: JSON.stringify({ proposals: approvedRead === "ready" ? [approved] : [], nextCursor: null }) });
   });
 
   await page.goto("/social");
@@ -593,15 +591,28 @@ test("photo tag lanes expose read failures, retry, and preserve approved withdra
   await expect(pintDropLane.getByRole("button", { name: "Approve", exact: true })).toBeVisible();
   const proposedRetry = proposedLane.getByRole("button", { name: "Retry tags to review", exact: true });
   expect((await proposedRetry.boundingBox())?.height).toBeGreaterThanOrEqual(44);
+  const failedPhotoRead = (lane: "proposed" | "approved") => page.waitForEvent("requestfailed", (request) => {
+    const url = new URL(request.url());
+    return request.method() === "GET" && url.pathname === "/api/social/tags"
+      && !isPintDropTagRead(request.url()) && url.searchParams.get("lane") === lane;
+  });
+  proposedRead = "network-failure";
+  const proposedFailure = failedPhotoRead("proposed");
   await proposedRetry.click();
+  await proposedFailure;
   await expect(proposedLane.getByRole("alert")).toBeVisible();
+  proposedRead = "ready";
   await proposedRetry.click();
   await expect(proposedLane.getByText("@bob")).toBeVisible();
 
   const approvedTag = approvedLane.getByText("@cee").locator("..");
+  approvedRead = "network-failure";
+  const approvedFailure = failedPhotoRead("approved");
   await approvedTag.getByRole("button", { name: "Withdraw", exact: true }).click();
+  await approvedFailure;
   await expect(approvedLane.getByRole("alert")).toHaveText("Approved tags are unavailable right now.");
   await expect(approvedTag.getByRole("button", { name: "Withdraw", exact: true })).toBeVisible();
+  approvedRead = "empty";
   await approvedLane.getByRole("button", { name: "Retry approved tags", exact: true }).click();
   await expect(approvedLane).toHaveCount(0);
   await expect(pintDropLane.getByText("@dan")).toBeVisible();

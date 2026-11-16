@@ -52,6 +52,27 @@ async function settle() {
 }
 
 describe("Map search index retry", () => {
+  it.each(["SE1 9AA", "N1", "SE1"])("recovers an unsupported postcode as an area search, never a pub submission: %s", async (query) => {
+    loadMapSearchIndex.mockResolvedValue(COMPLETE_INDEX);
+    const onQueryChange = vi.fn();
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(createElement(MapSearchSuggest, {
+        id: "postcode-search", mode: "overlay", cityId: "london", query, onQueryChange,
+        ukBasePubs: [{ id: "venue-uk-n1", name: "Yield N1", kind: "pub", address: "N1 2NA", lat: 51.5, lng: -0.1, curatedVenueId: "" }],
+        venues: [], localities: [], userLocation: null, mapCenter: [-0.1276, 51.5072],
+        placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
+      }));
+    });
+    await settle();
+    expect(container.querySelector('[data-testid="map-search-add-pub"]')).toBeNull();
+    const recovery = container.querySelector<HTMLButtonElement>(".mapSearchSuggestEmpty button");
+    expect(recovery).not.toBeNull();
+    act(() => recovery!.click());
+    expect(onQueryChange).toHaveBeenCalledWith("");
+  });
   it("asks again on the next focus after an index missing a city pack", async () => {
     loadMapSearchIndex
       .mockResolvedValueOnce(PARTIAL_INDEX)

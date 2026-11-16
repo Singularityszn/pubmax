@@ -50,7 +50,7 @@ import {
   rememberedPatchId,
 } from "@/lib/nightPatches";
 import { PLAN_INTAKE_STORAGE_KEY, parsePlanIntakeDraft } from "@/lib/planIntake";
-import type { WeatherBrief } from "@/lib/todayBrief";
+import { weatherBriefAt, type WeatherBrief } from "@/lib/todayBrief";
 import type { PubOfTheDayCard } from "@/lib/pubOfTheDay";
 import {
   applyTodayPersonalization,
@@ -69,7 +69,7 @@ import type {
   TodayWorkSpotsIndex,
 } from "./todayDaytime";
 import { todayPatchModule } from "./todayPatch";
-import type { QuietPintModule } from "@/lib/quietPint";
+import { quietPintAt, type QuietPintModule } from "@/lib/quietPint";
 import type { PatchDisruption } from "@/lib/tflDisruption";
 import "./today.css";
 
@@ -101,7 +101,7 @@ type Props = {
 function WeatherCard({ weather }: { weather: WeatherBrief | null }) {
   if (!weather) return null;
   const title =
-    weather.verdictLine || (weather.stale ? "Last weather reading on file." : "The weather tonight.");
+    weather.verdictLine || (weather.stale ? "Last weather reading on file." : "The weather today.");
   return (
     <section className="todayCard" aria-labelledby="today-weather-title" data-testid="today-weather">
       <h2 className="todayCardTitle" id="today-weather-title">
@@ -244,12 +244,15 @@ export default function TodayClient({
   // An ISR document can be older than the reader's time band.
   const clientMinute = useSyncExternalStore(subscribeTodayClock, readTodayMinute, serverTodayMinute);
   const shownNow = clientMinute === null ? new Date(nowIso) : new Date(clientMinute);
+  const shownWeather = weatherBriefAt(brief.weather, shownNow);
+  const shownQuietPint = quietPintAt(quietPint, shownNow);
+  const oldSnapshot = shownNow.getTime() - Date.parse(nowIso) > 300_000;
   const shownDateLabel = clientMinute === null ? dateLabel : formatConditionDate(shownNow);
   const shownGreeting = clientMinute === null && brief.weather === weather && !deviceHandle
     ? greeting
     : buildDayGreeting({
         now: shownNow,
-        weather: brief.weather,
+        weather: shownWeather,
         dateLabel: shownDateLabel,
         name: deviceHandle,
       });
@@ -343,16 +346,24 @@ export default function TodayClient({
         }
       >
       <PreparedBriefStamp preparedAt={nowIso} />
+      {oldSnapshot ? (
+        <p className="todayStale" role="status" data-testid="today-freshness-notice">
+          This page was prepared earlier. Some details may be out of date.
+        </p>
+      ) : null}
       <div className="todayStack">
         <div className="todayBriefColumn">
-          <WeatherCard weather={brief.weather} />
+          <WeatherCard weather={shownWeather} />
+          {brief.weather && !shownWeather ? (
+            <p className="todayStale" role="status">No current weather reading. The prepared weather is too old to use.</p>
+          ) : null}
           <TodayTubeCard slot={shownGreeting.slot} initialDisruption={initialDisruption} />
           <TodayWorkSpots module={workSpotsModule} />
           <TodayCoffee module={coffee} />
           <TodayLunch module={lunchModule} />
         </div>
         <div className="todayExploreColumn">
-          <TodayQuietPintCard module={quietPint} />
+          <TodayQuietPintCard module={shownQuietPint} />
           <TodayPintsCard index={pintsIndex} />
           <TodayGetThereStrip />
         </div>

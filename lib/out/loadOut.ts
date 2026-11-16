@@ -6,7 +6,7 @@ import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { log } from "@/lib/log";
-import { fillEventArea } from "@/lib/out/eventArea";
+import { eventIsInCity, fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
@@ -398,18 +398,17 @@ export async function buildOutResponse(
     rowOverlapsWindow(row, window, query.day),
   );
 
-  // Match AFTER the window filter, so a past row never spends a lookup, and
-  // BEFORE the cap, so what the cap keeps is what the page can show. A read of
-  // the slim index that could not run is reported as its own finding: the rows
-  // are still real listings, so the lane stays ready, and the surface words
-  // "we could not check" apart from "not listed yet".
+  // Match after the window filter and before the cap. An unlocated pub needs
+  // the city index before we can admit its listing.
   let venueMatch: OutVenueMatchStatus = "ready";
   let matchedAtRequest = 0;
   let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   let matchedRows = inWindow;
+  let verifiedVenueIds: ReadonlySet<string> = new Set();
   try {
     const index = await loadVenueMatchIndex(city as CityId);
     if (index) {
+      verifiedVenueIds = index.venueIds;
       const attached = attachOutVenues(inWindow, index, (row) => liveRowKeys.has(dedupeKey(row)));
       matchedRows = attached.rows;
       matchedAtRequest = attached.matchedAtRequest;
@@ -426,6 +425,19 @@ export async function buildOutResponse(
     });
   }
 
+  if (venueMatch === "unavailable" && matchedRows.some((row) =>
+    row.lat === undefined && row.lng === undefined &&
+    canonicalOutVenueId(row.venueId) !== null &&
+    !eventIsInCity(row, city, verifiedVenueIds),
+  )) {
+    status = "degraded";
+    const locationReason = `Some listings are hidden because we could not verify their location in ${cityDisplayName(city)}. Try again.`;
+    reason = reason ? `${reason} ${locationReason}` : locationReason;
+  }
+
+  const matchedRowCount = matchedRows.length;
+  matchedRows = matchedRows.filter((row) => eventIsInCity(row, city, verifiedVenueIds));
+  unmatched = matchedRows.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
   const matchedCount = matchedRows.length - unmatched;
   const merged = matchedRows
@@ -451,6 +463,7 @@ export async function buildOutResponse(
     providers: reports.map((report) => `${report.name}:${report.status}:${report.rows}`),
     folded: folded.length,
     inWindow: inWindow.length,
+    geographyExcluded: matchedRowCount - matchedRows.length,
     served: merged.length,
     matchedAtRequest,
     matched: matchedCount,
