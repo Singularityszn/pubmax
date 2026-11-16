@@ -324,8 +324,9 @@ test.describe("with location allowed", () => {
     await page.getByRole("button", { name: "Keep this pub" }).click();
     await expect(page).toHaveURL(/\/map\?.*sel=/);
     const selected = new URL(page.url()).searchParams.get("sel");
-    const accepted = await page.evaluate(() => JSON.parse(localStorage.getItem("pubmax:planning-intent:v1") ?? "null"));
+    const accepted = await page.evaluate(() => JSON.parse(sessionStorage.getItem("pubmax:planning-intent:v1") ?? "null"));
     expect(accepted).toMatchObject({ acceptedVenueId: selected, cityId: "london" });
+    expect(await page.evaluate(() => localStorage.getItem("pubmax:planning-intent:v1"))).toBeNull();
     expect(await page.evaluate(() => localStorage.getItem("pubmax:first-run-companion:v1"))).toBeNull();
     expect(generations).toHaveLength(0);
   });
