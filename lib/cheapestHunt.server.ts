@@ -82,7 +82,11 @@ export async function loadCheapestHunt(): Promise<CheapestHunt> {
  * in London" names the pub the front door's London row names. A failed read
  * answers no rows, never a guess. It never carries London's dearest.
  */
-export async function loadLondonHuntPints(): Promise<HuntPint[]> {
+export async function loadLondonHuntPintsOrNull(): Promise<HuntPint[] | null> {
   const read = await loadHuntRead();
-  return read ? huntCityPints(read.pints, "london") : [];
+  return read ? huntCityPints(read.pints, "london") : null;
+}
+
+export async function loadLondonHuntPints(): Promise<HuntPint[]> {
+  return (await loadLondonHuntPintsOrNull()) ?? [];
 }

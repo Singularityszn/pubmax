@@ -15,7 +15,7 @@ import "server-only";
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { averagePriceGbp } from "@/lib/pintSavings";
-import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
+import { loadLondonHuntPintsOrNull } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -118,7 +118,10 @@ let cachedStats: Promise<AboutStats> | null = null;
 // remembered, so the next request reads again. A page that prints these
 // figures says they are unavailable instead.
 export function loadAboutStats(): Promise<AboutStats> {
-  cachedStats ??= readAboutStats().catch((error) => {
+  cachedStats ??= readAboutStats().then(({ stats, huntAvailable }) => {
+    if (!huntAvailable) cachedStats = null;
+    return stats;
+  }).catch((error) => {
     cachedStats = null;
     throw error;
   });
@@ -136,15 +139,18 @@ export function resetAboutStatsForTests(): void {
   }
 }
 
-async function readAboutStats(): Promise<AboutStats> {
-  const [historic, rows, hunt] = await Promise.all([loadHistoricPubs(), loadPriceRows(), loadLondonHuntPints()]);
+async function readAboutStats(): Promise<{ stats: AboutStats; huntAvailable: boolean }> {
+  const [historic, rows, hunt] = await Promise.all([loadHistoricPubs(), loadPriceRows(), loadLondonHuntPintsOrNull()]);
 
   return {
-    ...computeAboutStats(rows, {
-      historicPubsCited: historic.length,
-      citiesCovered: listEnabledCities().length,
-    }),
-    cheapestPint: hunt[0]?.priceGbp ?? null,
+    stats: {
+      ...computeAboutStats(rows, {
+        historicPubsCited: historic.length,
+        citiesCovered: listEnabledCities().length,
+      }),
+      cheapestPint: hunt?.[0]?.priceGbp ?? null,
+    },
+    huntAvailable: hunt !== null,
   };
 }
 
