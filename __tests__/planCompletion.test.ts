@@ -33,7 +33,7 @@ async function createPlan() {
     method: "POST",
     headers: { "idempotency-key": "plan-completion-create" },
     body: JSON.stringify({
-      startTime: "2026-10-16T18:00:00.000Z",
+      startTime: "2026-11-20T18:00:00.000Z",
       creatorName: "Terra",
       stops: [
         { venueId: "venue-7tarkc" },
@@ -66,7 +66,7 @@ async function createPlan() {
 
 beforeEach(() => {
   __resetMemoryPlans();
-  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-10-17T23:00:00.000Z"));
+  vi.spyOn(Date, "now").mockReturnValue(Date.parse("2026-11-21T23:00:00.000Z"));
 });
 afterEach(() => {
   vi.restoreAllMocks();
