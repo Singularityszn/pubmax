@@ -11,7 +11,12 @@ import { messageSendPayload, retainedMessageSendKey, type MessageSendAttempt } f
 import { MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
 import { preparePhotoUpload } from "@/lib/preparePhotoUpload";
+import { safeLocalStorage } from "@/lib/safeStorage";
+import { MESSAGE_PHOTO_BATCH_LIMIT } from "@/lib/messagePhotoBudget";
+import { discardMessagePhotoRecovery, rememberMessagePhotos, takeMessagePhotoRecovery, warnDuringMessagePhotoSend } from "@/lib/messagePhotoRecovery";
 import { discardBody } from "@/lib/responseBody";
+
+type ActivePhotoBatch = { owner: string; photos: MessagePhotoDraft[]; index: number; body: string; signal: AbortSignal; stopWarning: () => void };
 
 type Options = {
   conversationId: string;
@@ -28,8 +33,24 @@ function sendBody(post: object, attachment: PendingMessageAttachment | null): Bo
   if (attachment?.kind !== "photo") return JSON.stringify(post);
   const form = new FormData();
   form.append("post", JSON.stringify(post));
-  form.append("photo", attachment.file);
+  form.append("photo", attachment.file, "message-photo.jpg");
   return form;
+}
+
+async function photoBytes(attachment: PendingMessageAttachment | null): Promise<Uint8Array | null> {
+  return attachment?.kind === "photo" ? new Uint8Array(await attachment.file.arrayBuffer()) : null;
+}
+
+function postMessage(address: string, post: object, attachment: PendingMessageAttachment | null, signal: AbortSignal) {
+  const body = sendBody(post, attachment);
+  return authedActionFetch(address, {
+    method: "POST", body, signal,
+    ...(typeof body === "string" ? { headers: { "content-type": "application/json" } } : {}),
+  }, { requiresIdentity: true });
+}
+
+function photoBatch(owner: string, photos: MessagePhotoDraft[], body: string, signal: AbortSignal): ActivePhotoBatch | null {
+  return photos.length ? { owner, photos, body, signal, index: 0, stopWarning: warnDuringMessagePhotoSend() } : null;
 }
 
 export function useMessageComposer(options: Options) {
@@ -37,17 +58,19 @@ export function useMessageComposer(options: Options) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<PendingMessageAttachment | null>(null);
   const [outbox, setOutbox] = useState<OutboxMessage[]>([]);
-  const owner = `${conversationId}:${accountRevision}`;
+  const owner = `${user?.id ?? ""}:${accountRevision}:${conversationId}`;
   const [activity, dispatch] = useReducer(transitionComposerActivity, { phase: "ready", scope: owner } as ComposerActivity);
   const sending = activity.phase === "sending";
   const preparing = activity.phase === "preparing";
   const error = activity.phase === "failed" ? activity.message : "";
-  const setError = useCallback((message: string) => dispatch(message ? { type: "fail", scope: owner, message } : { type: "clear-error", scope: owner }), [owner]);
+  const retrySend = activity.phase === "failed" && activity.operation === "send";
+  const setError = useCallback((message: string, operation: "prepare" | "send" = "send") => dispatch(message ? { type: "fail", scope: owner, message, operation } : { type: "clear-error", scope: owner }), [owner]);
   const inFlight = useRef(false);
   const unsentKey = useRef<MessageSendAttempt | null>(null);
   const scope = useRef(0);
   const pick = useRef(0);
   const ownedUrls = useRef(new Set<string>());
+  const activeBatch = useRef<ActivePhotoBatch | null>(null);
   const [renderedOwner, setRenderedOwner] = useState(owner);
   if (renderedOwner !== owner) {
     setRenderedOwner(owner);
@@ -61,12 +84,20 @@ export function useMessageComposer(options: Options) {
     inFlight.current = false;
     unsentKey.current = null;
     return () => {
+      const batch = activeBatch.current;
+      if (batch?.owner === owner) {
+        rememberMessagePhotos(owner, {
+          photos: batch.photos.slice(batch.index).map(({ file, width, height }) => ({ file, width, height })),
+          body: batch.index === 0 ? batch.body : "", attempt: unsentKey.current,
+        }, batch.signal);
+        batch.stopWarning();
+      }
       scope.current += 1;
       pick.current += 1;
       for (const url of urls) URL.revokeObjectURL(url);
       urls.clear();
     };
-  }, [conversationId, accountRevision]);
+  }, [owner]);
 
   useEffect(() => {
     const live = new Set([...messagePhotos(pending).map(photo => photo.previewUrl), ...outbox.flatMap(row => row.pendingPhoto ? [row.pendingPhoto.previewUrl] : [])]);
@@ -77,13 +108,46 @@ export function useMessageComposer(options: Options) {
     }
   }, [pending, outbox]);
 
-  const clearPending = useCallback(() => { pick.current += 1; dispatch({ type: "finish", scope: owner }); setPending(null); }, [owner]);
+  useEffect(() => {
+    const revision = scope.current;
+    queueMicrotask(() => {
+      if (revision !== scope.current) return;
+      const recovery = takeMessagePhotoRecovery(owner);
+      if (!recovery) return;
+      const photos = recovery.photos.map(photo => ({ ...photo, previewUrl: URL.createObjectURL(photo.file) }));
+      for (const photo of photos) ownedUrls.current.add(photo.previewUrl);
+      const first = photos[0];
+      if (!first) return;
+      unsentKey.current = recovery.attempt;
+      setDraft(recovery.body);
+      setPending({ kind: "photo", ...first, remaining: photos.slice(1) });
+      setError("Photo send paused. Your remaining photos are ready to retry.");
+    });
+  }, [owner, setError]);
+
+  const cancelPreparation = useCallback(() => {
+    if (inFlight.current) return;
+    pick.current += 1; dispatch({ type: "finish", scope: owner });
+  }, [owner]);
+  const clearPending = useCallback(() => {
+    if (inFlight.current) return;
+    pick.current += 1; dispatch({ type: "finish", scope: owner }); setPending(null);
+    discardMessagePhotoRecovery(owner);
+  }, [owner]);
+  const chooseAttachment = useCallback((attachment: PendingMessageAttachment) => {
+    if (inFlight.current) return;
+    pick.current += 1; dispatch({ type: "finish", scope: owner }); setPending(attachment);
+  }, [owner]);
 
   const selectPhotos = useCallback(async (event: ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files ?? []);
     event.target.value = "";
     if (!files.length || inFlight.current) return;
     const selection = ++pick.current;
+    if (files.length > MESSAGE_PHOTO_BATCH_LIMIT) {
+      setError(`Choose up to ${MESSAGE_PHOTO_BATCH_LIMIT} photos at a time.`, "prepare");
+      return;
+    }
     const revision = scope.current;
     const signal = readProviderAccountSignal();
     const photos: MessagePhotoDraft[] = [];
@@ -100,7 +164,7 @@ export function useMessageComposer(options: Options) {
         setPending({ kind: "photo", ...first, remaining: photos.slice(1) });
       }
     } catch (cause) {
-      if (revision === scope.current && selection === pick.current && !signal.aborted) setError(cause instanceof Error ? cause.message : "Could not prepare that photo. Try another one.");
+      if (revision === scope.current && selection === pick.current && !signal.aborted) setError(cause instanceof Error ? cause.message : "Could not prepare that photo. Try another one.", "prepare");
     } finally {
       const committed = photos.length === files.length && revision === scope.current && selection === pick.current && !signal.aborted;
       if (!committed) for (const photo of photos) URL.revokeObjectURL(photo.previewUrl);
@@ -109,7 +173,7 @@ export function useMessageComposer(options: Options) {
   }, [owner, setError]);
 
   const send = useCallback(async () => {
-    const handle = normalizeHandle(authHandle ?? "");
+    const handle = normalizeHandle(authHandle ?? "") || normalizeHandle(safeLocalStorage()?.getItem("pubmax_handle") ?? "");
     const bodyText = draft.trim();
     if (inFlight.current || preparing || !user || !handle || draft.length > MAX_MESSAGE_BODY || (!bodyText && !pending)) return;
     inFlight.current = true;
@@ -123,6 +187,9 @@ export function useMessageComposer(options: Options) {
       body: index === 0 ? bodyText : "", createdAt: new Date().toISOString(), read: false, flagged: false,
       ...(attachment?.kind === "photo" ? { pendingPhoto: attachment } : {}), queued: index > 0,
     }));
+    const batch = photoBatch(owner, photos, bodyText, signal);
+    activeBatch.current = batch;
+    discardMessagePhotoRecovery(owner);
     dispatch({ type: "send", scope: owner }); setError(""); setOutbox(rows); setDraft(""); setPending(null);
     let index = 0;
     const takeBack = () => {
@@ -136,24 +203,20 @@ export function useMessageComposer(options: Options) {
     };
     try {
       for (; index < jobs.length; index += 1) {
+        if (batch) batch.index = index;
         if (!current()) return;
         const attachment = jobs[index] ?? null;
         const row = rows[index]!;
         setOutbox(value => value.map(item => item.id === row.id ? { ...item, queued: false } : item));
         const { post, payload } = messageSendPayload({ conversationId, senderId: user.id, handle, body: row.body, attachment });
-        const bytes = attachment?.kind === "photo" ? new Uint8Array(await attachment.file.arrayBuffer()) : null;
+        const bytes = await photoBytes(attachment);
         if (!current()) return;
         const clientMessageId = retainedMessageSendKey(unsentKey.current, payload, bytes) ?? newMessageClientId();
         unsentKey.current = { key: clientMessageId, payload, photo: bytes };
         const keyedPost = { ...post, clientMessageId };
-        const body = sendBody(keyedPost, attachment);
-        const response = await authedActionFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
-          method: "POST", body, signal,
-          ...(typeof body === "string" ? { headers: { "content-type": "application/json" } } : {}),
-        }, { requiresIdentity: true });
+        const response = await postMessage(`/api/messages/${encodeURIComponent(conversationId)}`, keyedPost, attachment, signal);
         if (!current()) { discardBody(response); return; }
         if (response.status === 401) { discardBody(response); takeBack(); onSignedOut(); return; }
-        if (response.status === 429) { discardBody(response); takeBack(); setError("Too many messages, slow down."); return; }
         const result: unknown = await response.json().catch(() => null);
         if (!current()) return;
         if (!response.ok) {
@@ -172,9 +235,11 @@ export function useMessageComposer(options: Options) {
       takeBack();
       if (current()) setError(offlineOrMessage(pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again."));
     } finally {
+      batch?.stopWarning();
+      if (activeBatch.current === batch) activeBatch.current = null;
       if (revision === scope.current) { inFlight.current = false; dispatch({ type: "finish", scope: owner }); }
     }
   }, [conversationId, authHandle, draft, pending, preparing, user, refresh, onStored, onSignedOut, fromRefusal, owner, setError]);
 
-  return { draft, setDraft, pending, setPending, outbox, sending, preparing, error, setError, selectPhotos, clearPending, send };
+  return { draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, send };
 }

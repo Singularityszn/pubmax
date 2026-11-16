@@ -100,7 +100,7 @@ export default function MessagePhoto({
   if (failed) {
     return <figure className="messagePhotoFigure" style={tile}>
       <div className="messagePhotoPending messagePhotoFailed"><span>{MESSAGE_PHOTO_UNREADABLE_LINE}</span>
-        <button type="button" onClick={() => setAttempt(value => value + 1)}>Retry photo</button>
+        <button type="button" onClick={event => { event.stopPropagation(); setAttempt(value => value + 1); }}>Retry photo</button>
       </div>
     </figure>;
   }
@@ -122,7 +122,8 @@ export default function MessagePhoto({
       <button
         type="button"
         className="messagePhotoButton"
-        onClick={() => {
+        onClick={event => {
+          event.stopPropagation();
           setDialogError("");
           setOpen(true);
         }}

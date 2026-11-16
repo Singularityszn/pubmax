@@ -689,7 +689,16 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     await expect(page.getByRole("progressbar", { name: "Sending photo" })).toBeVisible();
     await readable(".messagePhotoSending", photoCount);
     await shot("sending"); await scaleIsOne();
-    await expect(async () => expect(requests).toHaveLength(1)).toPass(); release();
+    await expect(async () => expect(requests).toHaveLength(1)).toPass();
+    if (photoCount === 2 && width === 390) {
+      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      await expect(page).toHaveURL(/\/messages$/);
+      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
+      await shot("paused-in-inbox");
+      release();
+      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
+      await expect(page).toHaveURL(/\/messages\/c1$/);
+    } else release();
     await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
     await readable(".composerPendingThumb", photoCount);
     await shot("failed-retry"); await scaleIsOne();

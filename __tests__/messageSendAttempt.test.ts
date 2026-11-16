@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { transitionComposerActivity, type ComposerActivity } from "@/lib/messageComposer";
 import { clampPhotoView } from "@/lib/messagePhotoViewer";
+import { rememberMessagePhotos, takeMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 
 import {
   messageSendPayload,
@@ -9,6 +10,16 @@ import {
 } from "@/lib/messageSendAttempt";
 
 describe("photo preparation and sending scope", () => {
+  it("keeps recovery private to its account and removes it when that account ends", () => {
+    const signal = new AbortController();
+    const value = { photos: [{ file: new File(["photo"], "photo.jpg"), width: 1200, height: 800 }], body: "caption", attempt: null };
+    rememberMessagePhotos("alice:1:c1", value, signal.signal);
+    expect(takeMessagePhotoRecovery("bob:2:c1")).toBeNull();
+    expect(takeMessagePhotoRecovery("alice:1:c1")).toBe(value);
+    rememberMessagePhotos("alice:1:c1", value, signal.signal);
+    signal.abort();
+    expect(takeMessagePhotoRecovery("alice:1:c1")).toBeNull();
+  });
   it("keeps a failed send visible when its operation finishes and ignores the old reader", () => {
     let state: ComposerActivity = { phase: "ready", scope: "account-a:thread" };
     state = transitionComposerActivity(state, { type: "prepare", scope: state.scope });

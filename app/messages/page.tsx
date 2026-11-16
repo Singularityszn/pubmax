@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
+import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
 
 import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
@@ -23,6 +24,7 @@ export default function MessagesInboxPage(): React.JSX.Element {
       <main id="main" className="container messagesMain messagesMainInbox">
         <div className="messagesSplit">
           <aside className="messagesInboxPane" aria-label="Inbox">
+            <MessagePhotoRecoveryNotice />
             <MessagesInboxClient />
           </aside>
           {/* The pane is neutral here on purpose: what it says depends on the

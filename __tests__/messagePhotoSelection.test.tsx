@@ -80,6 +80,7 @@ describe("choosing a DM photo preserves its frame and the composer's focus", () 
     state.prepare.mockRejectedValue(new Error("Could not open that photo."));
     await choosePhoto();
     expect(container.querySelector(".threadError")?.textContent).toContain("Could not open that photo.");
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
     expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo");
     expect(revoke).not.toHaveBeenCalled();
   });

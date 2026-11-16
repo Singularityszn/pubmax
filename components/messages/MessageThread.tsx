@@ -27,6 +27,7 @@ import MessageContactPicker from "@/components/messages/MessageContactPicker";
 import MessageEventCard from "@/components/messages/MessageEventCard";
 import MessageEventPicker from "@/components/messages/MessageEventPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
+import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
@@ -280,6 +281,7 @@ export default function MessageThread({
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
+  const [reportFailure, setReportFailure] = useState<{ owner: string; message: string } | null>(null);
   const { fromRefusal, adultGateDialog } = useMessageAdultGate();
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
@@ -512,7 +514,7 @@ export default function MessageThread({
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
     draft, setDraft, pending, setPending, outbox, sending, preparing, error,
-    selectPhotos, clearPending, send, setError,
+    selectPhotos, clearPending, cancelPreparation, send, retrySend,
   } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
 
   // ONE OWNER OF THE POLL. subscribeToMessages owns every timer: the fallback
@@ -603,6 +605,10 @@ export default function MessageThread({
   const handleAttachKindSelected = useCallback((kind: MessageAttachKind) => {
     trackEvent("message_attach_selected", { kind });
   }, []);
+
+  function sendMessage(): void {
+    setPicking(null); setMobileAttachOpen(false); void send();
+  }
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
@@ -714,11 +720,15 @@ export default function MessageThread({
     setConfirming(removal);
   }, []);
 
+  const setReportError = useCallback((message: string) => {
+    if (conversationIdRef.current !== conversationId || accountRevisionRef.current !== accountRevision) return;
+    setReportFailure(message ? { owner: `${conversationId}:${accountRevision}`, message } : null);
+  }, [conversationId, accountRevision]);
   const report = useCallback(
     async (messageId: string) => {
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!user || !h) return;
-      setError("");
+      setReportError("");
       try {
         const res = await authedActionFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
@@ -727,7 +737,7 @@ export default function MessageThread({
         }, { requiresIdentity: true });
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => null);
-          setError(
+          setReportError(
             offlineOrMessage(errorMessageFrom(body, "Could not report that message. Try again."))
           );
           return;
@@ -735,12 +745,12 @@ export default function MessageThread({
         discardBody(res);
         await refresh();
       } catch {
-        setError(
+        setReportError(
           offlineOrMessage("Could not report that message. Try again.")
         );
       }
     },
-    [conversationId, refresh, user, authHandle, setError],
+    [conversationId, refresh, user, authHandle, setReportError],
   );
 
   const timeline = useMemo<TimelineItem[]>(() => {
@@ -998,12 +1008,14 @@ export default function MessageThread({
   }
 
   function renderComposer(): React.JSX.Element {
+    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
     return (
       <div className="composerDock">
-        {error ? <div className="threadError" role="alert">{error}
-          {pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => void send()}>Retry send</button> : null}
+        <MessagePhotoRecoveryNotice />
+        {visibleError ? <div className="threadError" role="alert">{visibleError}
+          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
         </div> : null}
-        {preparing ? <p className="composerPreparing" role="status">Preparing photos…</p> : null}
+        {preparing ? <p className="composerPreparing" role="status">Preparing photos… <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
 
         {renderPicker()}
 
@@ -1107,7 +1119,7 @@ export default function MessageThread({
                 // a modifier to spare sends on it.
                 if (!enterSends) return;
                 e.preventDefault();
-                if (canSend) void send();
+                if (canSend) sendMessage();
               }}
             />
             {showCounter ? (
@@ -1124,7 +1136,7 @@ export default function MessageThread({
             className="composerSend"
             aria-label="Send"
             disabled={!canSend}
-            onClick={() => void send()}
+            onClick={() => sendMessage()}
           >
             <Send size={20} aria-hidden="true" />
           </button>

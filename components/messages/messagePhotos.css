@@ -8,6 +8,8 @@
 
 .composerPhotoPreviews .composerPendingThumb { flex: 0 0 44px; }
 .composerPreparing { margin: 0; padding: 0.5rem; color: var(--muted); }
+.messagePhotoRecoveryNotice { margin: 0; padding: 0.5rem; color: var(--ink); overflow-wrap: anywhere; }
+.messagePhotoRecoveryNotice a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
 .messageThread .composerInput { font-size: max(16px, 1rem); }
 .messagePhotoPending { margin: 0; flex-direction: column; gap: 0.5rem; }
 .messagePhotoViewer {
@@ -23,7 +25,10 @@
   background: #111;
   color: #fff;
   overflow: hidden;
+  touch-action: none;
+  padding-bottom: env(safe-area-inset-bottom);
 }
+.messagePhotoZoomLevel { align-self: center; font-variant-numeric: tabular-nums; }
 .messagePhotoViewer[open] { display: flex; flex-direction: column; }
 .messagePhotoViewer::backdrop { background: #111; }
 .messagePhotoViewerToolbar {
@@ -50,7 +55,6 @@
   overflow: hidden;
   touch-action: none;
   overscroll-behavior: contain;
-  padding-bottom: env(safe-area-inset-bottom);
 }
 .messagePhotoViewerImage {
   display: block;

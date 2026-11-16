@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, type PointerEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { clampPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
 
 type Point = { x: number; y: number };
@@ -15,6 +15,8 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
   const view = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
   const pointers = useRef(new Map<number, Point>());
   const start = useRef({ points: [] as Point[], view: { scale: 1, x: 0, y: 0 } });
+  const [zoomLevel, setZoomLevel] = useState(100);
+  const announceZoom = useCallback(() => setZoomLevel(Math.round(view.current.scale * 100)), []);
 
   const draw = useCallback((next: PhotoView) => {
     const frame = stage.current;
@@ -31,9 +33,16 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
     try { element?.showModal(); document.documentElement.style.overflow = "hidden"; }
     catch { onError(); }
     const resize = () => draw(view.current);
+    const wheel = (event: WheelEvent) => {
+      if (!event.ctrlKey) return;
+      event.preventDefault();
+      draw({ ...view.current, scale: view.current.scale * Math.exp(-event.deltaY * 0.01) });
+      announceZoom();
+    };
     window.addEventListener("resize", resize);
-    return () => { element?.close(); document.documentElement.style.overflow = overflow; window.removeEventListener("resize", resize); };
-  }, [draw, onError]);
+    element?.addEventListener("wheel", wheel, { passive: false });
+    return () => { element?.close(); document.documentElement.style.overflow = overflow; window.removeEventListener("resize", resize); element?.removeEventListener("wheel", wheel); };
+  }, [draw, onError, announceZoom]);
 
   const begin = () => { start.current = { points: [...pointers.current.values()], view: { ...view.current } }; };
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
@@ -62,23 +71,27 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
     pointers.current.delete(event.pointerId);
     begin();
+    announceZoom();
   };
-  const zoom = (amount: number) => draw({ ...view.current, scale: view.current.scale + amount });
+  const zoom = (amount: number) => { draw({ ...view.current, scale: view.current.scale + amount }); announceZoom(); };
+  const reset = () => { draw({ scale: 1, x: 0, y: 0 }); announceZoom(); };
 
-  return <dialog ref={dialog} className="messagePhotoViewer" aria-label="Photo viewer" onClose={() => { if (!dialog.current?.open) onClose(); }} onClick={event => { if (event.target === event.currentTarget) onClose(); }}>
+  return <dialog ref={dialog} className="messagePhotoViewer" aria-label="Photo viewer" onClose={() => { if (!dialog.current?.open) onClose(); }} onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
     <div className="messagePhotoViewerToolbar">
       <button type="button" onClick={() => zoom(-0.5)} aria-label="Zoom out">−</button>
-      <button type="button" onClick={() => draw({ scale: 1, x: 0, y: 0 })}>Reset zoom</button>
+      <button type="button" onClick={reset}>Reset zoom</button>
       <button type="button" onClick={() => zoom(0.5)} aria-label="Zoom in">+</button>
+      <output className="messagePhotoZoomLevel" aria-label="Photo zoom" aria-live="polite">{zoomLevel}%</output>
       <button type="button" className="messagePhotoViewerClose" onClick={onClose}>Close</button>
     </div>
-    <div ref={stage} className="messagePhotoViewerStage" data-scale="1" tabIndex={0} aria-label="Photo. Pinch to zoom, then drag to move."
+    <div ref={stage} className="messagePhotoViewerStage" data-scale="1" tabIndex={0} role="group" aria-label="Photo. Pinch to zoom, then drag to move."
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp} onLostPointerCapture={pointerUp}
       onKeyDown={event => {
+        event.stopPropagation();
         const key = event.key;
         if (key === "+" || key === "=") zoom(0.5);
         else if (key === "-") zoom(-0.5);
-        else if (key === "Home") draw({ scale: 1, x: 0, y: 0 });
+        else if (key === "Home") reset();
         else if (key.startsWith("Arrow")) draw({ ...view.current, x: view.current.x + (key === "ArrowLeft" ? 40 : key === "ArrowRight" ? -40 : 0), y: view.current.y + (key === "ArrowUp" ? 40 : key === "ArrowDown" ? -40 : 0) });
         else return;
         event.preventDefault();

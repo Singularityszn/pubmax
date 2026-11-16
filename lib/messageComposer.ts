@@ -14,10 +14,10 @@ export type OutboxMessage = MessageDTO & { pendingPhoto?: MessagePhotoDraft; que
 
 export type ComposerActivity =
   | { phase: "ready" | "preparing" | "sending"; scope: string }
-  | { phase: "failed"; scope: string; message: string };
+  | { phase: "failed"; scope: string; message: string; operation: "prepare" | "send" };
 type ComposerEvent =
   | { type: "reset" | "prepare" | "send" | "finish" | "clear-error"; scope: string }
-  | { type: "fail"; scope: string; message: string };
+  | { type: "fail"; scope: string; message: string; operation?: "prepare" | "send" };
 
 export function transitionComposerActivity(state: ComposerActivity, event: ComposerEvent): ComposerActivity {
   if (event.type === "reset") return { phase: "ready", scope: event.scope };
@@ -25,7 +25,7 @@ export function transitionComposerActivity(state: ComposerActivity, event: Compo
   switch (event.type) {
     case "prepare": return state.phase === "sending" ? state : { phase: "preparing", scope: event.scope };
     case "send": return state.phase === "preparing" ? state : { phase: "sending", scope: event.scope };
-    case "fail": return { phase: "failed", scope: event.scope, message: event.message };
+    case "fail": return { phase: "failed", scope: event.scope, message: event.message, operation: event.operation ?? "send" };
     case "finish": return state.phase === "preparing" || state.phase === "sending" ? { phase: "ready", scope: event.scope } : state;
     case "clear-error": return state.phase === "failed" ? { phase: "ready", scope: event.scope } : state;
     default: { const unreachable: never = event.type; return unreachable; }

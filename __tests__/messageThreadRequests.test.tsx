@@ -13,7 +13,7 @@ const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
 const selection = vi.hoisted(() => ({ value: "first", label: "First label" }));
-const photoSelection = vi.hoisted(() => ({ file: null as File | null, files: null as File[] | null }));
+const photoSelection = vi.hoisted(() => ({ file: null as File | null, files: null as File[] | null, prepare: vi.fn() }));
 type ThreadRow = {
   id: string;
   conversationId: string;
@@ -60,7 +60,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
 vi.mock("@/lib/preparePhotoUpload", () => ({
-  preparePhotoUpload: async (file: File) => ({ file, width: 1200, height: 800 }),
+  preparePhotoUpload: (file: File) => photoSelection.prepare(file),
 }));
 vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
   default: ({ onAttachmentKind, onFileChange }: {
@@ -144,6 +144,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 import { publishAuthActionState } from "@/lib/authedFetch";
+import { discardMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 let container: HTMLDivElement;
@@ -193,11 +194,13 @@ function composerValue(): string {
 }
 
 beforeEach(() => {
+  discardMessagePhotoRecovery("user-ken:1:c1");
   authState.current = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
   selection.value = "first";
   selection.label = "First label";
   photoSelection.file = null;
   photoSelection.files = null;
+  photoSelection.prepare.mockReset().mockImplementation(async (file: File) => ({ file, width: 1200, height: 800 }));
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
@@ -712,5 +715,74 @@ describe("group conversation sender labels", () => {
     ];
     await mount();
     expect(Array.from(container.querySelectorAll(".messageSender"), (label) => label.textContent)).toEqual(["@sam", "@maisie"]);
+  });
+});
+
+
+describe("council photo send regressions", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL(file: File) { return `blob:${file.name}`; }
+      static revokeObjectURL() {}
+    });
+  });
+  function photo(index = 0): File {
+    const file = new File([new Uint8Array([index])], `photo-${index}.jpg`, { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([index]).buffer });
+    return file;
+  }
+  async function choose(files: File[]) {
+    photoSelection.files = files;
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+  }
+  it("sends with the same stored handle that opened the thread", async () => {
+    authState.current.handle = null;
+    await mount(); await typeAndSend("fallback handle");
+    expect(posts()).toHaveLength(1);
+    expect(JSON.parse(posts()[0]!.body)).toMatchObject({ handle: "ken", body: "fallback handle" });
+  });
+  it("refuses an over-budget batch before decoding any photo", async () => {
+    await mount(); await choose(Array.from({ length: 13 }, (_, index) => photo(index)));
+    expect(photoSelection.prepare).not.toHaveBeenCalled();
+    expect(container.querySelector(".threadError")?.textContent).toContain("12 photos");
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(0);
+  });
+  it("shows the server's photo budget error instead of a text-message error", async () => {
+    await mount(); await choose([photo()]); await typeAndSend("");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Too many photos, slow down." }, { status: 429 })));
+    expect(container.querySelector(".threadError")?.textContent).toContain("Too many photos");
+  });
+  it("keeps replacement preparation active when a message report fails", async () => {
+    await mount(); await choose([photo(0)]);
+    let finish!: (value: { file: File; width: number; height: number }) => void;
+    photoSelection.prepare.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const replacement = photo(1); await choose([replacement]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".messageReportBtn")!.click());
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Report unavailable" }, { status: 503 })));
+    expect(container.querySelector(".composerPreparing")).not.toBeNull();
+    expect(container.querySelector<HTMLButtonElement>(".composerSend")!.disabled).toBe(true);
+    await act(async () => finish({ file: replacement, width: 1200, height: 800 }));
+    expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo-1.jpg");
+  });
+  it("closes the venue picker before sending and retains a failed photo", async () => {
+    await mount(); await choose([photo()]);
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-attach="venue"]')!.click());
+    expect(container.querySelector("[data-pick]")).not.toBeNull();
+    await typeAndSend("");
+    expect(container.querySelector("[data-pick]")).toBeNull();
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+    expect(container.querySelector(".composerPendingThumb")).not.toBeNull();
+  });
+  it("recovers queued photos and the uncertain send key after leaving the thread", async () => {
+    await mount(); await choose([photo(0), photo(1), photo(2)]); await typeAndSend("our photos");
+    const key = JSON.parse(posts()[0]!.body).clientMessageId;
+    await act(async () => root.unmount()); container.remove();
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken" } })));
+    await mount();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    expect(composerValue()).toBe("our photos");
+    await typeAndSend("our photos");
+    expect(JSON.parse(posts()[1]!.body).clientMessageId).toBe(key);
   });
 });
