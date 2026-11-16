@@ -142,6 +142,17 @@
   flex-wrap: wrap;
 }
 
+@media (min-width: 641px) {
+  .logIntentFallback {
+    max-height: calc(
+      100dvh - var(--map-overlay-top, 100px) - var(--map-chrome-gap, 12px) -
+        var(--map-bottom-fab-row, calc(var(--mobile-tab-clearance, 72px) + 18px))
+    );
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
 @media (max-width: 640px) {
   .logIntentFallback {
     /* --map-bottom-fab-row is set on .appShell at this breakpoint. */
