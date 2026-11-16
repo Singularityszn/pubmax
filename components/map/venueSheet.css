@@ -628,6 +628,13 @@
    pinned — the snap-fraction offsets below (which keep the bar visible in the
    translated legacy sheet) never fired either. Aligning the band fixes both. */
 @media (max-width: 768px) {
+  @media (min-width: 641px) {
+    .siteNavMoreMenu.siteNavMoreMenuPortaled,
+    .siteNavBarFloating:has(.authMenu) {
+      z-index: calc(var(--z-modal) + 2);
+    }
+  }
+
   /* On detail-open the sheet covers the foot while the tab bar stays up, so
      --mobile-tab-clearance shrinks to a safe-area breathing buffer (see
      globals.css). Don't hardcode tab height. */
