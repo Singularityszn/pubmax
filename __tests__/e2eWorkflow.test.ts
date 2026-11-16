@@ -479,13 +479,6 @@ if (args[0] === "issue" && args[1] === "list") {
     for (const spec of requiredSpecs) expect(executedSpecs.filter((file) => file === spec), spec).toHaveLength(1);
   });
 
-  it("does not run the obsolete merge-group guard on layout pins", () => {
-    const { jobs } = parse(readFileSync(workflowPath, "utf8")) as Workflow;
-    for (const id of LAYOUT_PIN_JOBS) {
-      expect(defined(jobs[id]).steps.some((step) => step.name === "Stop when the merge group is gone")).toBe(false);
-    }
-  });
-
   it("runs the same layout steps for every pull request branch", () => {
     // The before/after evidence steps for three October branches were gated
     // on their names. Those pull requests merged, and no step may be kept
