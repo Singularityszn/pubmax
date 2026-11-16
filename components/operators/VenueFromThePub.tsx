@@ -10,10 +10,9 @@
 // its kind (event, offer, correction, response) and the day the pub said it,
 // and a dated event or offer says its night too.
 //
-// WHAT IT NEVER DOES. It changes no rank, pin colour, price band or order, and
-// it is not paid, so it never wears the "Sponsored" label
-// (docs/SPONSORSHIP_POLICY.md; __tests__/operatorFactsFence.test.ts). A read
-// that fails renders nothing rather than an empty block.
+// Operator-fact separation follows
+// docs/rules/lib-venues-areas-listings-and-nights.md.
+// A read that fails renders nothing rather than an empty block.
 //
 // The read waits for the sheet's last phase (lib/useStaggeredRead.ts): this row
 // sits in a closed fold, so it must never join the first burst.

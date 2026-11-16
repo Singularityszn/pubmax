@@ -4,6 +4,8 @@ import tsParser from "@typescript-eslint/parser";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 
+import { OPERATOR_FACTS_FENCE_CONFIG } from "./lib/operatorFactsLint.mjs";
+import { PRICE_READ_FENCE_CONFIG, priceReadAllowanceFiles } from "./lib/priceReadLint.mjs";
 import { AGENT_TOOLING_PATHS } from "./lib/agentToolingPaths.mjs";
 import { ROUTER_CACHE_FENCE_CONFIG } from "./lib/routerCacheFence.mjs";
 import { namedFiles, STATUS_WRITER_FENCE_CONFIG } from "./lib/statusWriterFence.mjs";
@@ -13,6 +15,11 @@ if (goneLifecycleFiles.length > 0) {
   throw new Error(
     `lib/statusWriterFence.mjs names ${goneLifecycleFiles.join(", ")}, which no longer exists. Move the owner to the file that writes it.`,
   );
+}
+
+const missingPriceReadFiles = priceReadAllowanceFiles.filter((file) => !existsSync(new URL(file, import.meta.url)));
+if (missingPriceReadFiles.length > 0) {
+  throw new Error(`Remove stale price-read allowances for missing files: ${missingPriceReadFiles.join(", ")}`);
 }
 
 const eslintConfig = [
@@ -128,6 +135,8 @@ const eslintConfig = [
   ...ROUTER_CACHE_FENCE_CONFIG,
   // One writer module per persisted lifecycle. See lib/statusWriterFence.mjs.
   ...STATUS_WRITER_FENCE_CONFIG,
+  ...PRICE_READ_FENCE_CONFIG,
+  ...OPERATOR_FACTS_FENCE_CONFIG,
 ];
 
 export default eslintConfig;

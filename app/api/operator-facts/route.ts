@@ -9,9 +9,8 @@
 // id and the proposal id never reach a browser. A dated event or offer leaves
 // once its night is over (`venueSheetOperatorFacts`).
 //
-// IT CHANGES NOTHING ELSE. The venue sheet prints these in their own block,
-// "From the pub". No rank, pin colour, price band or order reads them
-// (docs/SPONSORSHIP_POLICY.md; __tests__/operatorFactsFence.test.ts).
+// Operator-fact separation follows
+// docs/rules/lib-venues-areas-listings-and-nights.md.
 //
 // A read is not a write, so no rate limit is spent here, and nothing is cached
 // so a withdrawal is gone on the next open. A store that cannot answer says
