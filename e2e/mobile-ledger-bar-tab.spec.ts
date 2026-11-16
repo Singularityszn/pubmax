@@ -114,6 +114,7 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
     "logbook entries or empty state",
   ).toBeVisible();
 
+  await page.locator(".ledgerSecondaryActions summary").click();
   const headActions = page.locator(".ledgerHeadActions");
   await expectTappable(headActions.getByRole("link", { name: "Open on the map" }), "map link");
   await expectTappable(headActions.getByRole("link", { name: "See the bar tab" }), "bar-tab link");
