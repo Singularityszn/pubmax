@@ -59,6 +59,7 @@ function desktopStatusSize(style: CSSStyleDeclaration | null) {
 
 export function useRouteCameraFraming({
   mapReady, routeKey, selectedVenueId, requestToken = 0, routePending = false, fitRoute,
+  closeRequestToken = 0, gestureCameraRef,
 }: {
   mapReady: boolean;
   routeKey: string;
@@ -66,15 +67,32 @@ export function useRouteCameraFraming({
   requestToken?: number;
   routePending?: boolean;
   fitRoute: ReturnType<typeof useMapCamera>["fitRoute"];
+  closeRequestToken?: number;
+  gestureCameraRef?: MutableRefObject<GestureCameraState>;
 }) {
   const consumedRequest = useRef(0);
+  const consumedClose = useRef(0);
+  const selection = useRef({ id: "", movementSerial: 0 });
   useEffect(() => {
+    const movementSerial = gestureCameraRef?.current.movementSerial ?? 0;
+    const previous = selection.current;
+    if (selectedVenueId && selectedVenueId !== previous.id) {
+      selection.current = { id: selectedVenueId, movementSerial };
+    }
     if (!mapReady || routePending) return;
     const userOwned = consumedRequest.current !== requestToken;
     consumedRequest.current = requestToken;
+    const closed = consumedClose.current !== closeRequestToken;
+    consumedClose.current = closeRequestToken;
+    if (!selectedVenueId && previous.id) {
+      selection.current = { id: "", movementSerial };
+      if (userOwned) fitRoute("user", requestToken);
+      else if (closed && routeKey.includes(">") && previous.movementSerial === movementSerial) fitRoute("user", closeRequestToken);
+      return;
+    }
     if (selectedVenueId && !userOwned) return;
     fitRoute(userOwned ? "user" : "automatic", requestToken);
-  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken, routePending]);
+  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken, routePending, closeRequestToken, gestureCameraRef]);
 }
 
 export function useNearbyCameraFraming({

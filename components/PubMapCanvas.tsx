@@ -306,6 +306,7 @@ type PubMapCanvasProps = {
   palNextStop?: { venueId: string; name: string } | null;
   selectedVenueId: string;
   selectedVenueRequestToken: number;
+  closeVenueRequestToken?: number;
   onVenueClick: (id: string) => void;
   /**
    * The reader put a finger or a cursor on the map. Not a camera move: a tap on
@@ -798,6 +799,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     palNextStop,
     selectedVenueId,
     selectedVenueRequestToken,
+    closeVenueRequestToken = 0,
     onVenueClick,
     onReaderTouchedMap,
     onUkBasePubClick,
@@ -1481,14 +1483,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
-    latestRequestToken: latestMapCameraRequestToken({
+    latestRequestToken: Math.max(closeVenueRequestToken, latestMapCameraRequestToken({
       routeRequestToken,
       nearbyRequestToken,
       searchRecoveryToken,
       selectedVenueId,
       selectedVenueRequestToken,
       focusPoint,
-    }),
+    })),
     mapRef,
     reducedRef,
     cityViewRef,
@@ -4731,6 +4733,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   useRouteCameraFraming({
     mapReady, routeKey: route.map((venue) => venue.id).join(">"),
     selectedVenueId, requestToken: routeRequestToken, routePending, fitRoute,
+    closeRequestToken: closeVenueRequestToken, gestureCameraRef,
   });
 
   useEffect(() => {

@@ -1566,6 +1566,7 @@ export default function PubMap({
   const [selectedVenueRequestToken, setSelectedVenueRequestToken] = useState(() =>
     restoredSession.selectedVenueId ? nextCameraRequestToken() : 0,
   );
+  const [closeVenueRequestToken, setCloseVenueRequestToken] = useState(0);
   const [searchPickedVenueId, setSearchPickedVenueId] = useState(() =>
     seed.filters.query ? seed.selectedVenueId : "",
   );
@@ -5183,6 +5184,10 @@ export default function PubMap({
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
   });
+  const closeVenueToMap = () => {
+    if (detailOpen) setCloseVenueRequestToken(nextCameraRequestToken());
+    mapSurfaceTrail.home();
+  };
   const {
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
@@ -6589,6 +6594,7 @@ export default function PubMap({
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
         selectedVenueRequestToken={selectedVenueRequestToken}
+        closeVenueRequestToken={closeVenueRequestToken}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
         onUkBasePubsChange={setRenderedBasePubs}
@@ -6897,11 +6903,11 @@ export default function PubMap({
             }
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
-            onClose={mapSurfaceTrail.home}
+            onClose={closeVenueToMap}
             onDismiss={
               mapSurfaceTrail.backLabel
                 ? mapSurfaceTrail.back
-                : mapSurfaceTrail.home
+                : closeVenueToMap
             }
             closeLabel={
               detailOpen
@@ -7072,7 +7078,7 @@ export default function PubMap({
                   ? homeActionLabel(`the ${mapDisplayName} map`)
                   : selectedVenueLabels.closeLabel
               }
-              onHome={mapSurfaceTrail.home}
+              onHome={closeVenueToMap}
               closeRef={drawerCloseButtonRef}
             />
           </div>

@@ -994,3 +994,42 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).not.toHaveBeenCalled();
   });
 });
+
+describe("closing a route stop", () => {
+  it("does not claim the camera when there is no walk", () => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null as number | null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("restores the walk unless the reader moved it: %s", (moved) => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null as number | null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledWith("user", closeToken);
+  });
+});
