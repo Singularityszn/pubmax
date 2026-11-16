@@ -77,7 +77,9 @@ for (const width of [390, 768, 1440]) {
   for (const consent of [true, false]) {
     test(`map bottom controls stay reachable at ${width}px with consent ${consent ? "present" : "absent"}`, async ({ page }, testInfo) => {
       test.setTimeout(90_000);
+      await installDeterministicMapBasemap(page);
       await prepareMap(page, width, consent);
+      await expect(page.locator(".maplibregl-canvas")).toBeVisible({ timeout: 45_000 });
       const consentTop = consent
         ? (await page.locator(".analyticsConsentPrompt").boundingBox())!.y
         : null;

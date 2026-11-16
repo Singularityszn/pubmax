@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // Typed map search used to destroy its own input. On the phone, after about
 // two characters the debounce fired: one match flew to that pub through
@@ -23,6 +24,7 @@ const KEY_DELAY_MS = 420;
 // The phone chrome only mounts once the map canvas is ready, so this spec needs
 // a real WebGL2 context. SwiftShader gives it one on a GPU-less box.
 test.use({
+  serviceWorkers: "block",
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
 });
 
@@ -36,6 +38,8 @@ async function readCamera(page: Page): Promise<Camera | null> {
 
 test("typing a whole pub name keeps the field and leaves the camera still", async ({ page }) => {
   test.setTimeout(120_000);
+  await installDeterministicMapBasemap(page);
+  await page.clock.install();
   await page.setViewportSize(PHONE);
   await page.addInitScript(
     ({ consentKey, sessionKey }) => {
@@ -51,10 +55,10 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
-  await expect(page.locator(".maplibreMap canvas, .mapCanvasWrap").first()).toBeVisible({
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible({
     timeout: 45_000,
   });
-  await page.locator(".mapLoading").waitFor({ state: "hidden", timeout: 45_000 }).catch(() => {});
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 
   await (await mobileMapShellControl(page, "search")).click();
   const field = page.locator("#mobileMapSearchInput");
@@ -73,7 +77,7 @@ test("typing a whole pub name keeps the field and leaves the camera still", asyn
 
   for (const character of PUB_NAME) {
     await field.press(character === " " ? "Space" : character, { delay: 20 });
-    await page.waitForTimeout(KEY_DELAY_MS);
+    await page.clock.runFor(KEY_DELAY_MS);
     // The field survives every keystroke, caret included.
     await expect(field).toBeVisible();
     await expect(field).toBeFocused();
