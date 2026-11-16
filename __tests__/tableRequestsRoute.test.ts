@@ -462,6 +462,49 @@ describe("POST /api/table-requests: the two ways out", () => {
     }
   });
 
+  it.each(["reclaim", "revoked", "address_removed"])("never offers manual contact while a same-key attempt can still send after %s", async (change) => {
+    await verifyOperator(OPERATOR, "venue-crown");
+    const lookupStarted = Promise.withResolvers<void>();
+    const addressResult = Promise.withResolvers<string>();
+    const address = vi.mocked(operatorAccounts.operatorAccountAddress).mockImplementationOnce(() => {
+      lookupStarted.resolve();
+      return addressResult.promise;
+    });
+    const payload = request({ requestKey: "test-key-reclaim-race-2749" });
+    const original = POST(post(payload));
+    try {
+      await lookupStarted.promise;
+      const claim = await memoryVenueOperatorStore.claim({
+        accountId: OPERATOR,
+        venueId: "venue-crown",
+        evidenceKind: "phone",
+        evidenceNote: "Reclaim the pub.",
+      });
+      if (change === "revoked") await memoryVenueOperatorStore.setState(claim.id, "revoked");
+      if (change === "address_removed") state.addresses.delete(OPERATOR);
+      const retry = await POST(post(payload));
+      const retryBody = await retry.json();
+      addressResult.resolve(OPERATOR_ADDRESS);
+      const originalResponse = await original;
+      if (change === "reclaim") {
+        expect(originalResponse.status).toBe(201);
+        expect(state.sent).toHaveLength(1);
+        expect(claim.verificationState).toBe("verified");
+        expect(retry.status).toBe(201);
+        expect(retryBody).toEqual({ outcome: "sent" });
+      } else {
+        expect(retryBody).toEqual({ outcome: "not_sent" });
+        expect(originalResponse.status, "A terminal negative must prevent the delayed send").toBe(200);
+        expect(await originalResponse.json()).toEqual({ outcome: "not_sent" });
+        expect(state.sent).toHaveLength(0);
+      }
+    } finally {
+      addressResult.resolve(OPERATOR_ADDRESS);
+      await original;
+      address.mockRestore();
+    }
+  });
+
   it.each(["operators", "address"])("keeps a failed %s lookup retryable before the original attempt exists", async (lookup) => {
     await verifyOperator(OPERATOR, "venue-crown");
     const lookupStarted = Promise.withResolvers<void>();
