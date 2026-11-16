@@ -1,4 +1,5 @@
 import { clampStopIndex } from "@/lib/activePlan";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
 
@@ -31,10 +32,11 @@ export function planStopsToRouteVenues(
   const venues: Venue[] = [];
   for (const stop of ordered) {
     if (!stop || typeof stop.venueId !== "string" || stop.venueId === "") continue;
-    if (seen.has(stop.venueId)) continue;
-    const venue = venueById.get(stop.venueId);
+    const venueId = canonicalBundledVenueId(stop.venueId);
+    if (seen.has(venueId)) continue;
+    const venue = venueById.get(venueId);
     if (!venue) continue;
-    seen.add(stop.venueId);
+    seen.add(venueId);
     venues.push(venue);
   }
   return venues.length >= 2 ? venues : [];
@@ -56,5 +58,5 @@ export function planNextStopVenue(
   const ordered = [...stops].sort((a, b) => a.position - b.position);
   const next = ordered[clampStopIndex(stopIndex, ordered.length) + 1];
   if (!next || typeof next.venueId !== "string") return null;
-  return venueById.get(next.venueId) ?? null;
+  return venueById.get(canonicalBundledVenueId(next.venueId)) ?? null;
 }

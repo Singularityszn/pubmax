@@ -1,5 +1,6 @@
 import "server-only";
 
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanPlanUsualDrink } from "@/lib/planUsualDrink";
@@ -199,7 +200,7 @@ function completionFromRow(row: Record<string, unknown>): PlanCompletionDTO {
 
 function cleanReplacementStops(stops: PlanStopDTO[] | undefined): PlanStopDTO[] | null {
   if (!stops || !isPlanStopCount(stops.length)) return null;
-  if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  if (new Set(stops.map((stop) => canonicalBundledVenueId(stop.venueId))).size !== stops.length) return null;
   if (stops.some((stop, position) => !stop.venueId || !stop.venueName || stop.position !== position)) return null;
   return stops.map((stop) => ({ ...stop }));
 }

@@ -23,6 +23,15 @@ describe("planStopsToRouteVenues", () => {
   const b = v("b", -0.14, 51.52);
   const c = v("c", -0.12, 51.5);
 
+  it("resolves a merged stop and deduplicates its current identity", () => {
+    const horniman = v("venue-7qifhm", -0.0833, 51.50632);
+    const stops = [stop("venue-aihlwx", 0), stop("a", 1)];
+    expect(planStopsToRouteVenues(stops, index(a, horniman))).toEqual([horniman, a]);
+    expect(planStopsToRouteVenues([...stops, stop("venue-7qifhm", 2)], index(a, horniman)))
+      .toEqual([horniman, a]);
+    expect(stops[0]?.venueId).toBe("venue-aihlwx");
+  });
+
   it("maps stops to ordered venues for the route paint", () => {
     const stops = [stop("a", 0), stop("b", 1), stop("c", 2)];
     const out = planStopsToRouteVenues(stops, index(a, b, c));
@@ -82,6 +91,12 @@ describe("planNextStopVenue", () => {
   const b = v("b", -0.14, 51.52);
   const c = v("c", -0.12, 51.5);
   const stops = [stop("c", 2), stop("a", 0), stop("b", 1)];
+
+  it("places the next-stop marker at the canonical pub for a historical stop", () => {
+    const horniman = v("venue-7qifhm", -0.0833, 51.50632);
+    expect(planNextStopVenue([stop("a", 0), stop("venue-aihlwx", 1)], 0, index(a, horniman)))
+      .toBe(horniman);
+  });
 
   it("is the stop after the Night Mode cursor, in the plan's stored order", () => {
     expect(planNextStopVenue(stops, 0, index(a, b, c))?.id).toBe("b");

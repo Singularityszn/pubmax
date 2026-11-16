@@ -1,4 +1,5 @@
 import { CITIES, type CityId } from "@/lib/cities";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { cultureWaypointPois } from "@/lib/cultureCrawl.server";
 import { classifyOpenMeetingPoint, OPEN_PLAN_PLACE_PREFIX } from "@/lib/openSocialCrew";
@@ -44,9 +45,9 @@ export async function planStopResolver(
         ? { venueId: `${OPEN_PLAN_PLACE_PREFIX}${poi.id}`, venueName: poi.name }
         : null;
     }
-    const venue = venuesById.get(classified.venueId);
+    const venue = venuesById.get(canonicalBundledVenueId(classified.venueId));
     return venue && !isNonPublicVenueName(venue.name)
-      ? { venueId: venue.id, venueName: venue.name }
+      ? { venueId: classified.venueId, venueName: venue.name }
       : null;
   };
 }
@@ -65,6 +66,6 @@ export async function canonicalPlanRoute(raw: unknown): Promise<PlanStopDTO[] | 
   });
   if (stops.some((stop) => stop === null)) return null;
   const resolved = stops as PlanStopDTO[];
-  const ids = resolved.map((stop) => stop.venueId);
+  const ids = resolved.map((stop) => canonicalBundledVenueId(stop.venueId));
   return new Set(ids).size === ids.length ? resolved : null;
 }

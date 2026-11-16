@@ -54,6 +54,36 @@ async function joinInvited(host: Awaited<ReturnType<typeof createPlan>>, name = 
 }
 
 describe("Plan collaboration HTTP contract", () => {
+  it("accepts a guest proposal containing the historical Horniman reference", async () => {
+    const host = await memoryPlanStore.create({
+      creatorName: "Host", startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      stops: [
+        { venueId: "venue-aihlwx", venueName: "The Horniman at Hays" },
+        { venueId: "venue-xjf3n0", venueName: "Arnos Arms" },
+        { venueId: "venue-3h52h", venueName: "The Elephant Inn" },
+      ],
+    });
+    if (!host.ok) throw new Error("Cannot seed historical Plan");
+    const joined = await joinInvited(host);
+    expect(joined.status).toBe(200);
+    const guest = await joined.json() as { memberToken: string };
+    const response = await CREATE_PROPOSAL(new Request(`${URL}/${host.plan.plan.id}/proposals`, {
+      method: "POST", headers: { authorization: `Bearer ${guest.memberToken}`, "idempotency-key": "historical-horniman-proposal" },
+      body: JSON.stringify({ reason: "Meet at the Horniman", expectedRouteRevision: 1,
+        stops: [{ venueId: "venue-aihlwx" }, route[1], route[2]], resolvedConstraintIds: [] }),
+    }), ctx(host.plan.plan.id));
+    expect(response.status).toBe(201);
+    const body = await response.json() as { proposal: { id: string; stops: unknown[] } };
+    expect(body.proposal.stops[0]).toMatchObject({ venueId: "venue-aihlwx", venueName: "The Horniman at Hays" });
+    const decision = await DECIDE(new Request(`${URL}/${host.plan.plan.id}/proposals/${body.proposal.id}/decision`, {
+      method: "POST", headers: { authorization: `Bearer ${host.memberToken}`, "idempotency-key": "accept-historical-horniman" },
+      body: JSON.stringify({ decision: "accepted" }),
+    }), proposalCtx(host.plan.plan.id, body.proposal.id));
+    expect(decision.status).toBe(200);
+    expect((await memoryPlanStore.get(host.plan.plan.id))?.stops[0])
+      .toMatchObject({ venueId: "venue-aihlwx", venueName: "The Horniman at Hays" });
+  });
+
   it.each(["arrived", "skipped"])("allows an invited collaborator to record %s", async (type) => {
     const host = await createPlan();
     const joined = await joinInvited(host);
