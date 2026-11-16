@@ -3,17 +3,15 @@
 -- Captain applies. Agents ship SQL and a rollback beside it.
 -- Reverse: rollback/20261102090000_0219_table_requests_rollback.sql
 --
--- WHAT A ROW IS. One request from a crew of 6 to 20 that PUBMAXX emailed to a
--- pub's verified operator, kept so the operator panel can list it. It is a
+-- WHAT A ROW IS. One request from a crew to a pub. It is a
 -- MESSAGE, never a booking: no table is held, nothing is confirmed here, and
 -- nothing is ever charged. A fee per seated group is a later decision under
 -- ADR 0011 and this table has no column for it. Nothing reads this table to
 -- change a rank, a pin colour, a price band or an order.
 --
--- ONLY A SENT REQUEST STAYS. The route stores a row `pending` before the email
--- goes and stamps it `emailed` once it was sent. A request whose email was not
--- sent is deleted, so an operator never lists a request the person was told
--- PUBMAXX did not send. The CHECK keeps the stamp and the state together.
+-- Delivery lifecycle and visibility:
+-- docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+-- #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 --
 -- THE VENUE IS AN ID, NOT A FOREIGN KEY. Venues live in the committed packs.
 -- The route resolves the id to a curated pub before it stores one.

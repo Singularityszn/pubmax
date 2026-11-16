@@ -79,7 +79,7 @@ The thread route forwards the key to the `send` method in `lib/messagesStore.ts`
 
 <a id="a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent"></a>
 
-- **A TABLE REQUEST IS A MESSAGE TO A PUB, AND ONLY A SEND COUNTS AS SENT.** Launch plan 1 Nov 2026, section 7 item 3: "Ask the pub for a table" for a crew of 6 to 20. `lib/tableRequests.ts` is the pure leaf (the one validator the form and the route share, every word the request is sent in, the person's prefilled email), `lib/tableRequestDelivery.server.ts` decides who receives it, `lib/tableRequestsStore.ts` keeps it (migration `0219` + rollback) and `app/api/table-requests/route.ts` is the one route.
+- **A TABLE REQUEST IS A MESSAGE TO A PUB, AND ONLY A SEND COUNTS AS SENT.** Launch plan 1 Nov 2026, section 7 item 3: "Ask the pub for a table" for a crew of 6 to 20. `lib/tableRequests.ts` is the pure leaf (the one validator the form and the route share, every word the request is sent in, the person's prefilled email), `lib/tableRequestDelivery.server.ts` decides who receives it, `lib/tableRequestsStore.ts` keeps it and `app/api/table-requests/route.ts` is the one route.
 
 Only a send counts: the request goes to the pub's VERIFIED operator (`venueOperatorsStore().verifiedOperatorAccountIds`) at the address on that operator's own account (`lib/operatorAccountAddress.server.ts`, Supabase Auth on the service role, never a body or a venue record), through the one email seam. The store keeps a `pending` row before sending and stamps it `emailed` when at least one message returns `sent`. Only `emailed` rows appear in the operator panel.
 
@@ -91,17 +91,23 @@ An unreadable body or an unrecognised outcome in a successful response leaves th
 
 The social write gates: `resolveContributionIdentity` (sign-in, handle, the one adult gate), refusals in the house envelope with their `status` for the gate dialog, a burst limit per profile and address, four an hour and ten a day per account failing CLOSED (a request is mail to a real inbox), and twenty an hour per pub.
 
-No contact is echoed: the answer names an outcome and nothing else; the person's contact rides only as the email's Reply-To or body and in the verified operator's own list (`GET ?venueId=`, 403 to anybody else, never the account id), and it is never logged. The requester's own account export carries every request they sent (the `tableRequests` lane in `lib/accountExport.ts`, read by `listForRequester`): their name, crew, day, time, note, the contact they gave and whether the email went, and nothing about the operator.
+No contact is echoed: the answer names an outcome and nothing else; the person's contact rides only as the email's Reply-To or body and in the verified operator's own list (`GET ?venueId=`, 403 to anybody else, never the account id), and it is never logged. The requester's own account export carries every stored attempt (the `tableRequests` lane in `lib/accountExport.ts`, read by `listForRequester`): their name, crew, day, time, note, the contact they gave and whether the email went, and nothing about the operator.
 
 It never charges and changes nothing else: no fee, deposit, card or hold (a fee per seated group is a later decision under ADR 0011, and the table has no column for one), and nothing that ranks, colours, bands or orders a venue may import the lane. Pins: `__tests__/tableRequests.test.ts`, `__tests__/tableRequestsStore.test.ts`, `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestFence.test.ts`, `__tests__/tableRequestsMigrationEffective.test.ts`.
 
 The POST body contains `venueId`, `name`, `partySize`, `date`, `time`, optional `note` and `contact` with `kind` and `value`. It also accepts an optional `requestKey`, validated by `tableRequestKey` in `lib/tableRequests.ts`.
 
-The mounted form keeps one key for its cleaned submitted payload. Retries reuse that key, and a changed submitted payload creates a new key. Closing the form loses the key. The server derives one request ID from the account and key. An `emailed` attempt replays success before provider or recipient lookups. Before returning `not_sent`, the delivery rechecks a keyed attempt and preserves an existing pending attempt as retryable.
+The mounted form keeps one key for its cleaned submitted payload. Retries reuse that key, and a changed submitted payload creates a new key. Closing the form loses the key.
+
+The server derives one request ID from the account and key. Before provider or recipient lookup, it stores a `resolving` row. Migration `0241` adds that state, terminal `not_sent`, and the guarded `transition_table_request` RPC. The RPC checks the requester, current state and revision.
+
+Only one transition from `resolving` can win: `pending` permits sending, while `not_sent` permanently prevents sending under that key. An `emailed` attempt replays success. A `not_sent` attempt replays manual contact even if an operator or provider later returns. A negative lookup cannot change a pending attempt to `not_sent`. It replays a stored terminal result or remains retryable.
+
+The existing contact fields and account-deletion cascade also cover these rows. No operator address or additional contact field is stored.
 
 Each email key combines the request ID with a hash of the normalised recipient address, so recipient order does not change it.
 
-Pending attempts can resend only while their age is valid, non-negative and below 23 hours. Older attempts remain pending and return 503 without another send or manual-contact fallback. This limit keeps retries within the email seam's deduplication window. A failed `emailed` stamp also leaves the row available for retry. Retry regression coverage is in `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestsStore.test.ts` and `__tests__/venueActionCard.test.tsx`.
+Before sending, both resolving and pending attempts must have a valid, non-negative age below 23 hours. Older attempts cannot start or repeat a send. With recipients available, they remain in their current state and return 503 without manual-contact fallback. A resolving attempt can still become `not_sent` if no operator, address or provider is available. This limit keeps sends within the email seam's deduplication window. A failed `emailed` stamp also leaves the row available for retry. Retry regression coverage is in `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestsStore.test.ts` and `__tests__/venueActionCard.test.tsx`.
 
 <a id="email-is-sent-through-one-seam-and-a-refusal-about-us-is-never-a-bad-address"></a>
 

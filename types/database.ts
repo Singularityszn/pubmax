@@ -6615,6 +6615,7 @@ export type Database = {
           delivery: string;
           created_at: string;
           delivered_at: string | null;
+          revision: number;
         };
         Insert: {
           id?: string;
@@ -6630,6 +6631,7 @@ export type Database = {
           delivery?: string;
           created_at?: string;
           delivered_at?: string | null;
+          revision?: number;
         };
         Update: {
           id?: string;
@@ -6645,6 +6647,7 @@ export type Database = {
           delivery?: string;
           created_at?: string;
           delivered_at?: string | null;
+          revision?: number;
         };
         Relationships: [
           {
@@ -9715,6 +9718,23 @@ export type Database = {
           p_updates: Json;
         };
         Returns: string;
+      };
+      transition_table_request: {
+        Args: {
+          p_id: string | null;
+          p_requester: string | null;
+          p_from: string | null;
+          p_revision: number | null;
+          p_to: string | null;
+          p_delivered_at?: string | null;
+        };
+        Returns: Database["public"]["Tables"]["table_requests"]["Row"][];
+        SetofOptions: {
+          from: "*";
+          to: "table_requests";
+          isOneToOne: false;
+          isSetofReturn: true;
+        };
       };
       update_legacy_plan_status_context_atomic: {
         Args: {

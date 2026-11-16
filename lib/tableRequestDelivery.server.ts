@@ -4,11 +4,9 @@ import { createHash } from "crypto";
 
 // "Ask the pub for a table": who gets the request, and whether PUBMAXX sent it.
 //
-// ONE PATH SENDS, AND ONLY A SEND COUNTS. When the pub has a verified operator
-// (lib/venueOperatorsStore.ts) with an email address on their account, the
-// request is stored `pending` for the operator panel, emailed to that operator
-// through the one email seam (lib/emailProvider.ts), and stamped `emailed` once
-// a message was SENT.
+// Delivery lifecycle and retries:
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+// #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 //
 // NO ADDRESS LEAVES. The operator's address is read here and handed to the
 // email seam alone; the answer names an outcome and nothing else. The person's
@@ -19,7 +17,7 @@ import { normalizeEmail } from "@/lib/emailAddress";
 import { noopEmailProvider, selectEmailProvider, type EmailProvider } from "@/lib/emailProvider";
 import { log } from "@/lib/log";
 import { operatorAccountAddress } from "@/lib/operatorAccountAddress.server";
-import { tableRequestOperatorEmail, type TableRequestFields } from "@/lib/tableRequests";
+import { tableRequestOperatorEmail, type TableRequest, type TableRequestFields } from "@/lib/tableRequests";
 import { tableRequestsStore, type TableRequestsStore } from "@/lib/tableRequestsStore";
 import { venueOperatorsStore } from "@/lib/venueOperatorsStore";
 
@@ -72,22 +70,28 @@ async function discardQuietly(store: TableRequestsStore, id: string): Promise<vo
   }
 }
 
+function terminalOutcome(request: TableRequest | null): TableRequestDeliveryOutcome | null {
+  if (request?.delivery === "emailed") return { outcome: "sent" };
+  if (request?.delivery === "not_sent") return { outcome: "not_sent", reason: "email_not_sent" };
+  return null;
+}
+
 async function reconcileNotSent(
   store: TableRequestsStore,
-  requestId: string | undefined,
-  requesterUserId: string,
+  request: TableRequest | undefined,
   reason?: TableRequestNotSentReason,
 ): Promise<TableRequestDeliveryOutcome> {
-  if (requestId) {
-    try {
-      const stored = await store.findForRequester(requestId, requesterUserId);
-      if (stored?.delivery === "emailed") return { outcome: "sent" };
-      if (stored) return { outcome: "retryable" };
-    } catch {
-      return { outcome: "retryable" };
+  if (!request) return reason ? { outcome: "not_sent", reason } : { outcome: "retryable" };
+  try {
+    if (reason && request.delivery === "resolving") {
+      const claimed = await store.transition(request, "confirm_not_sent");
+      if (claimed) return { outcome: "not_sent", reason };
     }
+    const stored = await store.findForRequester(request.id, request.requesterUserId);
+    return terminalOutcome(stored) ?? { outcome: "retryable" };
+  } catch {
+    return { outcome: "retryable" };
   }
-  return reason ? { outcome: "not_sent", reason } : { outcome: "retryable" };
 }
 
 /** One stable UUID per account and retry key. */
@@ -106,12 +110,15 @@ export async function deliverTableRequest(
 ): Promise<TableRequestDeliveryOutcome> {
   const keyedId = requestKey ? tableRequestIdForKey(fields.requesterUserId, requestKey) : undefined;
   let store: TableRequestsStore;
+  let stored: TableRequest | undefined;
   const startedAt = Date.now();
   try {
     store = deps.store();
     if (keyedId) {
-      const stored = await store.findForRequester(keyedId, fields.requesterUserId);
-      if (stored?.delivery === "emailed") return { outcome: "sent" };
+      const existing = await store.findForRequester(keyedId, fields.requesterUserId);
+      stored = existing ?? await store.create(fields, now, keyedId, "resolving");
+      const terminal = terminalOutcome(stored);
+      if (terminal) return terminal;
     }
   } catch (err) {
     log("error", "table_request.store_failed", {
@@ -122,33 +129,38 @@ export async function deliverTableRequest(
 
   const emailProvider = deps.emailProvider();
   if (emailProvider === noopEmailProvider) {
-    return reconcileNotSent(store, keyedId, fields.requesterUserId, "email_not_sent");
+    return reconcileNotSent(store, stored, "email_not_sent");
   }
 
   let recipients: Awaited<ReturnType<typeof operatorAddresses>>;
   try {
     recipients = await operatorAddresses(fields.venueId, deps);
   } catch {
-    return reconcileNotSent(store, keyedId, fields.requesterUserId);
+    return reconcileNotSent(store, stored);
   }
   const { operators, addresses } = recipients;
   if (operators === 0 || addresses.length === 0) {
     return reconcileNotSent(
-      store, keyedId, fields.requesterUserId,
+      store, stored,
       operators === 0 ? "no_operator" : "no_operator_address",
     );
   }
 
   let requestId: string;
   try {
-    // Concurrent keyed attempts must share the row and recipient email keys.
-    const stored = await store.create(fields, now, keyedId);
+    stored ??= await store.create(fields, now);
     requestId = stored.id;
-    if (stored.delivery === "emailed") return { outcome: "sent" };
     const age = now + Math.max(0, Date.now() - startedAt) - Date.parse(stored.createdAt);
     if (!Number.isFinite(age) || age < 0 || age >= MAX_PENDING_RETRY_AGE_MS) {
       return { outcome: "retryable" };
     }
+    if (stored.delivery === "resolving") {
+      stored = await store.transition(stored, "begin_send", now)
+        ?? await store.findForRequester(requestId, fields.requesterUserId) ?? undefined;
+    }
+    const terminal = terminalOutcome(stored ?? null);
+    if (terminal) return terminal;
+    if (stored?.delivery !== "pending") return { outcome: "retryable" };
   } catch (err) {
     log("error", "table_request.store_failed", {
       error: err instanceof Error ? err.message : String(err),
@@ -177,7 +189,7 @@ export async function deliverTableRequest(
   }
 
   try {
-    await store.markEmailed(requestId, now);
+    await store.markEmailed(requestId, now, stored.revision);
   } catch (err) {
     // The email went, so the person is told it went. The log identifies the
     // pending row if its stamp fails.

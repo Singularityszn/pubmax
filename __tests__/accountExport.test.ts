@@ -333,6 +333,7 @@ const ownTableRequest: TableRequest = {
   contactKind: "email",
   contactValue: "owl@example.com",
   delivery: "emailed",
+  revision: 0,
   createdAt: "2026-11-02T18:00:00.000Z",
   deliveredAt: "2026-11-02T18:00:01.000Z",
 };
