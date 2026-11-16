@@ -1,6 +1,6 @@
 "use client";
 
-import { isLatestCameraRequest, nextCameraRequestToken } from "@/lib/cameraIntent";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHydration";
 import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/pubmap/useNearMeRequests";
 import { useTypedSearchCamera } from "@/components/map/pubmap/useTypedSearchCamera";
@@ -3786,14 +3786,14 @@ export default function PubMap({
 
   useEffect(() => {
     const request = pendingNearMeRequest;
-    if (request && !isLatestCameraRequest(request.requestToken)) return;
+    if (request && !request.isCurrent()) return;
     const location = request?.location ?? logPickerLocation ?? userLocation ?? venueJourneyLocation;
     if (!location) return;
     const loader = slimLoaderRef.current;
     const finish = () => {
       if (
         !request ||
-        !isLatestCameraRequest(request.requestToken) ||
+        !request.isCurrent() ||
         slimLoaderRef.current !== loader ||
         slimLoaderGenerationRef.current !== loaderGeneration
       ) return;
@@ -3806,8 +3806,7 @@ export default function PubMap({
           radiusKm: NEAR_ME_MAP_RADIUS_KM,
           strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
         });
-        setNearbyLoading(false);
-        setPendingNearMeRequest(null);
+        request.finish();
         if (request.mode !== "resume") setMapOverlay("near-me");
         return;
       }
@@ -3817,8 +3816,7 @@ export default function PubMap({
         filteredPubVenues,
         request.stopCount,
       );
-      setNearbyLoading(false);
-      setPendingNearMeRequest(null);
+      request.finish();
       const [first] = ids;
       if (first === undefined) {
         setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
@@ -3851,19 +3849,18 @@ export default function PubMap({
       if (
         cancelled ||
         !request ||
-        !isLatestCameraRequest(request.requestToken) ||
+        !request.isCurrent() ||
         slimLoaderRef.current !== loader ||
         slimLoaderGenerationRef.current !== loaderGeneration
       ) return;
       setNearbyError("Nearby venues are unavailable right now.");
-      setNearbyLoading(false);
-      setPendingNearMeRequest(null);
+      request.finish();
     };
     void loader.nearPoint(location.lat, location.lng, radiusKm)
       .then((result) => {
         if (
           cancelled ||
-          (request && !isLatestCameraRequest(request.requestToken)) ||
+          (request && !request.isCurrent()) ||
           slimLoaderRef.current !== loader ||
           slimLoaderGenerationRef.current !== loaderGeneration
         ) return;

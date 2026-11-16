@@ -14,6 +14,7 @@ vi.mock("@/lib/mapReaderPosition", () => ({ latchMapReaderLocationWatch: vi.fn()
 let root: Root;
 let host: HTMLDivElement;
 let actions: ReturnType<typeof useNearMeRequests>;
+let pendingRequest: PendingNearMeRequest | null;
 const callbacks: { success: PositionCallback; error: PositionErrorCallback | null | undefined }[] = [];
 const position: GeolocationPosition = {
   coords: { latitude: 51.51, longitude: -0.13, accuracy: 10, altitude: null, altitudeAccuracy: null, heading: null, speed: null, toJSON: () => ({}) },
@@ -24,6 +25,7 @@ const area = { cityId: "london", label: "Soho", slug: "soho", kind: "night-area"
 
 function Probe() {
   const [request, setRequest] = useState<PendingNearMeRequest | null>(null);
+  pendingRequest = request;
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [token, setToken] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -56,16 +58,58 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it.each(["tap", "arrival", "resume", "crawl"] as const)("ignores stale %s location success and error", (mode) => {
+it.each(["tap", "arrival", "resume", "crawl"] as const)("releases stale %s location success and error without changing the area", (mode) => {
   act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
   nextCameraRequestToken();
   writeMapChosenArea(area);
-  const before = host.textContent;
+  const before = JSON.parse(host.textContent ?? "{}");
   act(() => callbacks[0]!.success(position));
-  expect(host.textContent).toBe(before);
+  expect(JSON.parse(host.textContent ?? "{}")).toEqual({ ...before, loading: false });
   expect(readMapChosenArea()).toEqual(area);
+  act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
+  nextCameraRequestToken();
   act(() => callbacks[0]!.error?.(error));
+  expect(JSON.parse(host.textContent ?? "{}")).toMatchObject({ loading: true });
+  act(() => callbacks[1]!.error?.(error));
+  expect(JSON.parse(host.textContent ?? "{}")).toEqual({ ...before, loading: false });
+  expect(readMapChosenArea()).toEqual(area);
+});
+
+it.each(["tap", "arrival", "resume", "crawl"] as const)("releases a superseded pending %s request", (mode) => {
+  act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
+  act(() => callbacks[0]!.success(position));
+  const request = pendingRequest!;
+  expect(JSON.parse(host.textContent ?? "{}").loading).toBe(true);
+  nextCameraRequestToken();
+  writeMapChosenArea(area);
+  act(() => { expect(request.isCurrent()).toBe(false); });
+  expect(JSON.parse(host.textContent ?? "{}")).toMatchObject({ request: null, loading: false, error: null });
+  expect(readMapChosenArea()).toEqual(area);
+});
+
+it.each(["tap", "resume", "crawl"] as const)("preserves a newer %s request when older callbacks settle", (mode) => {
+  act(() => actions.runNearMe("tap"));
+  act(() => callbacks[0]!.success(position));
+  const previous = pendingRequest!;
+  act(() => mode === "crawl" ? actions.startNearbyCrawl() : actions.runNearMe(mode));
+  const before = host.textContent;
+  act(() => {
+    expect(previous.isCurrent()).toBe(false);
+    previous.finish();
+    callbacks[0]!.error?.(error);
+  });
   expect(host.textContent).toBe(before);
+  expect(JSON.parse(host.textContent ?? "{}")).toMatchObject({ request: null, loading: true });
+  act(() => callbacks[1]!.success(position));
+  const current = pendingRequest!;
+  act(() => {
+    previous.finish();
+    callbacks[0]!.success(position);
+  });
+  expect(pendingRequest).toBe(current);
+  expect(current.isCurrent()).toBe(true);
+  act(() => current.finish());
+  expect(JSON.parse(host.textContent ?? "{}")).toMatchObject({ request: null, loading: false });
 });
 
 it.each(["tap", "arrival", "resume", "crawl"] as const)("publishes current %s location with its originating token", (mode) => {
