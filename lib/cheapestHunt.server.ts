@@ -62,7 +62,7 @@ async function readHunt(): Promise<HuntRead> {
   };
 }
 
-/** One read for both readers below; a failed read is dropped so the next render tries again. */
+/** Share one read; drop a failed read so the next render tries again. */
 function loadHuntRead(): Promise<HuntRead | null> {
   cached ??= readHunt().catch(() => {
     cached = null;
@@ -78,9 +78,9 @@ export async function loadCheapestHunt(): Promise<CheapestHunt> {
 
 /**
  * London's pints that may stand in a "cheapest" line, cheapest first in the
- * hunt's own order (`huntCityPints`). Tonight lists these, so its "Cheapest
- * in London" names the pub the front door's London row names. A failed read
- * answers no rows, never a guess. It never carries London's dearest.
+ * hunt's own order (`huntCityPints`). A failed read returns null, while a
+ * successful read with no eligible pints returns an empty list. This lets
+ * callers retry failures without discarding valid empty results.
  */
 export async function loadLondonHuntPintsOrNull(): Promise<HuntPint[] | null> {
   const read = await loadHuntRead();

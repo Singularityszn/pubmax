@@ -32,7 +32,7 @@ export type AboutStats = {
   pintPricesObserved: number;
   /**
    * Row minimum (GBP) from computeAboutStats. loadAboutStats replaces it with
-   * the London hunt minimum, or null when the hunt returns no eligible pints.
+   * the London hunt minimum, or null when the hunt is unavailable or has no eligible pints.
    */
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
@@ -105,11 +105,7 @@ export function computeAboutStats(
   };
 }
 
-// Every input below is a file bundled with the deployment, so the answer cannot
-// change between two requests to the same instance. The landing page is on the
-// per-request render path (the CSP nonce keeps every route dynamic), and the
-// raw price read alone is a 6.7 MB JSON.parse, so an unmemoized loader charged
-// that parse to EVERY homepage view. Hold the promise, not the value, so
+// Cache successful bundled reads. Hold the promise, not the value, so
 // concurrent first requests share one read instead of racing several.
 let cachedStats: Promise<AboutStats> | null = null;
 
@@ -117,6 +113,7 @@ let cachedStats: Promise<AboutStats> | null = null;
 // rejects rather than counting zero prices, and the rejection is not
 // remembered, so the next request reads again. A page that prints these
 // figures says they are unavailable instead.
+// An unavailable hunt omits only cheapestPint and clears the cache for a retry.
 export function loadAboutStats(): Promise<AboutStats> {
   cachedStats ??= readAboutStats().then(({ stats, huntAvailable }) => {
     if (!huntAvailable) cachedStats = null;
