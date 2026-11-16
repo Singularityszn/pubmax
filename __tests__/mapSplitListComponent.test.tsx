@@ -39,18 +39,18 @@ const EMPTY_RESTAURANTS: Props["restaurantModel"] = { rows: [], total: 0, shown:
 /** A stand-in for the live MapLibre map: a container and a projection. */
 function fakeMap(alreadyIdle = false) {
   const container = document.createElement("div");
-  const handlers = new Map<string, Set<() => void>>();
+  const handlers = new Map<string, Set<(event?: { originalEvent?: Event }) => void>>();
   const map = {
     loaded: () => alreadyIdle,
     isMoving: () => !alreadyIdle,
     getContainer: () => container,
     project: ([lng, lat]: [number, number]) => ({ x: Math.round((lng + 0.14) * 10_000), y: Math.round((51.52 - lat) * 10_000) }),
-    on: (type: string, handler: () => void) => {
+    on: (type: string, handler: (event?: { originalEvent?: Event }) => void) => {
       if (!handlers.has(type)) handlers.set(type, new Set());
       handlers.get(type)!.add(handler);
       return map;
     },
-    off: (type: string, handler: () => void) => {
+    off: (type: string, handler: (event?: { originalEvent?: Event }) => void) => {
       handlers.get(type)?.delete(handler);
       return map;
     },
@@ -60,7 +60,7 @@ function fakeMap(alreadyIdle = false) {
     container,
     halo: () => container.querySelector<HTMLElement>(".mapSplitListHalo"),
     listening: (type: string) => handlers.get(type)?.size ?? 0,
-    emit: (type: string) => handlers.get(type)?.forEach((handler) => handler()),
+    emit: (type: string, event?: { originalEvent?: Event }) => handlers.get(type)?.forEach((handler) => handler(event)),
   };
 }
 
@@ -344,19 +344,31 @@ describe("the list beside the map, at desktop width", () => {
 
   it.each([false, true])("holds the list through pub inspection, then follows a new map interaction with detail open=%s", (stillOpen) => {
     const map = fakeMap();
-    const filters = {};
-    render({ map: map.map, detailOpen: false, filterState: filters });
-    render({ map: map.map, detailOpen: true, filterState: filters });
-    render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
-    act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
-    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
-    render({ map: map.map, detailOpen: stillOpen, filterState: filters, visibleVenues: [LAMB] });
-    expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
-    expect(host.querySelector<HTMLInputElement>(".mapSplitListFollow input")?.checked).toBe(true);
-    act(() => map.container.dispatchEvent(new Event("pointerdown", { bubbles: true })));
-    expect(rowNames()).toEqual(["The Lamb"]);
+    const stage = document.createElement("div");
+    stage.className = "mapStage";
+    const toolbar = document.createElement("button");
+    stage.append(map.container, toolbar);
+    document.body.append(stage);
+    try {
+      const filters = {};
+      render({ map: map.map, detailOpen: false, filterState: filters });
+      render({ map: map.map, detailOpen: true, filterState: filters });
+      render({ map: map.map, detailOpen: true, filterState: filters, visibleVenues: [LAMB] });
+      act(() => vi.advanceTimersByTime(MAP_SPLIT_LIST_DEBOUNCE_MS));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      render({ map: map.map, detailOpen: stillOpen, filterState: filters, visibleVenues: [LAMB] });
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      expect(host.querySelector<HTMLInputElement>(".mapSplitListFollow input")?.checked).toBe(true);
+      act(() => toolbar.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      act(() => map.emit("movestart"));
+      expect(rowNames()).toEqual(["The Anchor", "The Crown"]);
+      act(() => map.emit("movestart", { originalEvent: new Event("pointerdown") }));
+      expect(rowNames()).toEqual(["The Lamb"]);
+    } finally {
+      stage.remove();
+    }
   });
-
   it("resumes following when the restored view has settled and the map becomes idle", () => {
     const map = fakeMap();
     const filters = {};

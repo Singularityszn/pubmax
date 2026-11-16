@@ -37,6 +37,13 @@ for (const [width, following] of [[1024, false], [1440, false], [1440, true]] as
     const boxes = await Promise.all([drawer.boundingBox(), page.locator(".mapStage").boundingBox()]);
     expect(boxes[0]!.x).toBe(0);
     expect(boxes[1]!.x).toBeGreaterThanOrEqual(boxes[0]!.width - 1);
+    if (following) {
+      const filters = page.locator(".mapToolbar .mapVenueKindFilter > button");
+      await filters.click();
+      await expect(page.getByRole("dialog", { name: "Filters", exact: true })).toBeVisible();
+      await filters.click();
+      await expect(page.getByRole("dialog", { name: "Filters", exact: true })).toBeHidden();
+    }
     await drawer.getByRole("button", { name: "Back to pubs in this view" }).click();
     await expect(list).toBeVisible();
     await expect(list).toHaveJSProperty("inert", false);
