@@ -1,12 +1,9 @@
 // Table requests store - dual backend (process-memory + Supabase
 // public.table_requests, migrations 0219 and 0241).
 //
-// This store keeps the "Ask the pub for a table" requests PUBMAXX delivered to
-// a pub's verified operator, so the operator panel can list them. The one
-// writer is app/api/table-requests/route.ts, through
-// lib/tableRequestDelivery.server.ts. Keyed requests start `resolving`, then
-// atomically become `pending` before sending or terminal `not_sent`. Only
-// `emailed` rows are listed to operators.
+// Delivery lifecycle and visibility:
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+// #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 //
 // A row holds the requester's name and the contact they chose for the pub to
 // reply to, so browser roles hold no grant at all (0219), and the operator
@@ -58,7 +55,7 @@ export type TableRequestsStore = {
   create(fields: TableRequestFields, now?: number, id?: string, initial?: "pending" | "resolving"): Promise<TableRequest>;
   /** Compare the state and revision. Null means the claim was refused. */
   transition(request: TableRequest, event: TableRequestDeliveryEvent, now?: number): Promise<TableRequest | null>;
-  /** Stamp a request `emailed`. False when no pending row has that id. THROWS on a hard failure. */
+  /** THROWS on a hard failure. False when the pending state or revision does not match. */
   markEmailed(id: string, now?: number, revision?: number): Promise<boolean>;
   /** Remove a request whose email was not sent. False when there was none. THROWS on a hard failure. */
   discard(id: string): Promise<boolean>;

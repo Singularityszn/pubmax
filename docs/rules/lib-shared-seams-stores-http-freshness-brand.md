@@ -79,7 +79,7 @@ The thread route forwards the key to the `send` method in `lib/messagesStore.ts`
 
 <a id="a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent"></a>
 
-- **A TABLE REQUEST IS A MESSAGE TO A PUB, AND ONLY A SEND COUNTS AS SENT.** Launch plan 1 Nov 2026, section 7 item 3: "Ask the pub for a table" for a crew of 6 to 20. `lib/tableRequests.ts` is the pure leaf (the one validator the form and the route share, every word the request is sent in, the person's prefilled email), `lib/tableRequestDelivery.server.ts` decides who receives it, `lib/tableRequestsStore.ts` keeps it (migration `0219` + rollback) and `app/api/table-requests/route.ts` is the one route.
+- **A TABLE REQUEST IS A MESSAGE TO A PUB, AND ONLY A SEND COUNTS AS SENT.** Launch plan 1 Nov 2026, section 7 item 3: "Ask the pub for a table" for a crew of 6 to 20. `lib/tableRequests.ts` is the pure leaf (the one validator the form and the route share, every word the request is sent in, the person's prefilled email), `lib/tableRequestDelivery.server.ts` decides who receives it, `lib/tableRequestsStore.ts` keeps it and `app/api/table-requests/route.ts` is the one route.
 
 Only a send counts: the request goes to the pub's VERIFIED operator (`venueOperatorsStore().verifiedOperatorAccountIds`) at the address on that operator's own account (`lib/operatorAccountAddress.server.ts`, Supabase Auth on the service role, never a body or a venue record), through the one email seam. The store keeps a `pending` row before sending and stamps it `emailed` when at least one message returns `sent`. Only `emailed` rows appear in the operator panel.
 

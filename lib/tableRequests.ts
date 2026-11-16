@@ -112,10 +112,9 @@ export type OperatorTableRequest = {
 };
 
 /**
- * What the account export carries for a request the account sent: its own
- * name, crew, day, time, note and the contact it gave, and where the request
- * got to. A stored request is `pending` until its email goes and `emailed`
- * once it went. Nothing about the operator it went to.
+ * The account export includes stored attempts, even when no email was sent.
+ * It contains only the requester's details, never the operator's details.
+ * The table request rules linked above own the delivery lifecycle.
  */
 export type TableRequestOwnerFields = {
   id: string;

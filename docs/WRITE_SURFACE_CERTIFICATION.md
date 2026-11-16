@@ -936,8 +936,8 @@ Regression coverage lives in `__tests__/summonRoute.test.ts`.
   today to 120 days ahead, an HH:MM time, a note of at most 300 characters,
   and a contact that parses as an email (`lib/emailAddress.ts`) or a telephone
   number (`parsePhoneNumber`). The venue must be a curated pub in the index.
-  The body is capped at 2 KB. Migration 0219's CHECKs hold the party size, the
-  contact kind, the delivery state and its stamp together.
+  The body is capped at 2 KB. The [table request schema rules](rules/supabase-migrations-and-rls.md)
+  describe the database constraints and access.
 - **Rate limit (boundary):** durable `isLimited` per profile + hashed IP
   (`table-request:${actor}:${ipHash}`) on every request, then four an hour and
   ten a day per account, both failing CLOSED, then twenty an hour per pub. The

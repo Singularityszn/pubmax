@@ -4,11 +4,9 @@ import { createHash } from "crypto";
 
 // "Ask the pub for a table": who gets the request, and whether PUBMAXX sent it.
 //
-// ONE PATH SENDS, AND ONLY A SEND COUNTS. When the pub has a verified operator
-// (lib/venueOperatorsStore.ts) with an email address on their account, the
-// request is stored `pending` for the operator panel, emailed to that operator
-// through the one email seam (lib/emailProvider.ts), and stamped `emailed` once
-// a message was SENT.
+// Delivery lifecycle and retries:
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md
+// #a-table-request-is-a-message-to-a-pub-and-only-a-send-counts-as-sent.
 //
 // NO ADDRESS LEAVES. The operator's address is read here and handed to the
 // email seam alone; the answer names an outcome and nothing else. The person's
