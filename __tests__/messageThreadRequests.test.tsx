@@ -229,6 +229,28 @@ afterEach(async () => {
 });
 
 describe("message thread request budget", () => {
+  it("keeps the selected photo readable while sending and after a refused upload", async () => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return "blob:photo"; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.file = new File([new Uint8Array([1, 2, 3])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(photoSelection.file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
+    await mount();
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
+    await typeAndSend("photo caption");
+    expect(container.querySelector(".messagePhotoSending")?.getAttribute("src")).toBe("blob:photo");
+    expect(revoke).not.toHaveBeenCalled();
+    await act(async () => {
+      fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted." }, { status: 503 }));
+    });
+    expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo");
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
   it("opens a thread on ONE gated read", async () => {
     await mount();
     const gets = fetchLog.calls.filter((c) => c.method === "GET");
