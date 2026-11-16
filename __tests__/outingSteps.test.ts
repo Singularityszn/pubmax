@@ -32,9 +32,13 @@ describe("Android counter sessions", () => {
     expect(sample(started, T0 + 60_000, android(10_420))).toMatchObject({ steps: 420, gap: false });
   });
 
-  it("takes the first reading as the baseline when start had none", () => {
-    const later = sample(startAndroid(null), T0 + 60_000, android(9_000));
-    expect(sample(later, T0 + 120_000, android(9_150))).toMatchObject({ steps: 150, gap: false });
+  it("marks the missing initial interval incomplete while using the first later reading as the baseline", () => {
+    const started = startAndroid(null);
+    expect(started).toMatchObject({ steps: 0, gap: true });
+    const later = sample(started, T0 + 60_000, android(9_000));
+    const counted = sample(later, T0 + 120_000, android(9_150));
+    expect(counted).toMatchObject({ steps: 150, gap: true });
+    expect(transitionOutingSteps(counted, { type: "stop", session: S, at: T0 + 180_000 })).toMatchObject({ phase: "stopped", steps: 150, gap: true });
   });
 
   it("keeps steps from before a reboot and counts the new boot from zero", () => {
