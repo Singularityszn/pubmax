@@ -18,6 +18,7 @@ import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/natio
 import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, PINT_INDEX_NOT_READY_LINE, pintIndexLeagueReady, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { londonMonthOf, pintIndexMeetsAdmissionFloor, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
 import { arrivalAreas } from "@/lib/pintIndexArrival";
+import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
 import { loadPintIndexArchive, loadPublicPintIndexSnapshotOrThrow } from "@/lib/pintIndexSnapshot.server";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { formatPrice } from "@/lib/venues";
@@ -96,11 +97,12 @@ function datasetJsonLd(snapshot: PintIndexSnapshot, boroughCount: number, pubCou
 }
 
 export default async function PintIndexPage() {
-  const [snapshot, zoneIndex, editions, venues] = await Promise.all([
+  const [snapshot, zoneIndex, editions, venues, hunt] = await Promise.all([
     loadPublicPintIndexSnapshotOrThrow(),
     loadZonePintIndex(),
     loadPintIndexArchive(),
     loadGroupedVenues(),
+    loadLondonHuntPints(),
   ]);
   // The ONE priced-pub count (lib/pricedPubCount.ts), the same read /about makes.
   const pricedPubs = await loadPricedPubCount(venues);
@@ -167,7 +169,7 @@ export default async function PintIndexPage() {
         </section>
 
         <PintIndexArrival
-          areas={arrivalAreas(venues)}
+          areas={arrivalAreas(venues, hunt)}
           surface="index"
         />
 

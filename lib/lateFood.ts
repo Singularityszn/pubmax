@@ -302,12 +302,6 @@ function terminalFromRaw(
   };
 }
 
-export const LATE_FOOD_TERMINALS: readonly LateFoodTerminal[] = rawOptions()
-  .map((raw) =>
-    terminalFromRaw(raw, { now: Date.parse(evidenceSnapshot.generatedAt) }),
-  )
-  .filter((terminal): terminal is LateFoodTerminal => terminal !== null);
-
 function isLateFoodArea(value: string): value is LateFoodArea {
   return (LONDON_NIGHT_AREA_SLUGS as readonly string[]).includes(value);
 }

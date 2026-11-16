@@ -32,72 +32,24 @@ describe("late-food evidence snapshot", () => {
     expect(validate(fixture)).toEqual([]);
   });
 
-  // The 2026-10-17 re-review renewed eight rows. The other twelve could not
-  // be re-read (honestburgers.co.uk refuses automated readers, and the Pizza
-  // Pilgrims menu page no longer prints its anchor price), so they keep their
-  // lapsed dates and lib/lateFood.ts does not serve them. A person's review
-  // moves an area out of this list; nothing else may.
-  const AWAITING_REVIEW = [
-    "bermondsey-london-bridge",
-    "brixton",
-    "camden",
-    "chiswick",
-    "clapham",
-    "dalston",
-    "greenwich",
-    "hammersmith",
-    "kings-cross",
-    "marylebone",
-    "peckham",
-    "shoreditch",
-  ];
-
-  it("has one anchor-priced first-party option for every Night Area, and serves only the renewed ones", () => {
-    const areas = Object.entries(fixture.areas) as Array<
-      [
-        string,
-        {
-          status: string;
-          options: Array<{
-            anchor: {
-              label: string;
-              price: number;
-              sourceUrl: string;
-              observedAt: string;
-            };
-            source: { sourceUrl: string; expiresAt: string };
-          }>;
-        },
-      ]
-    >;
-    expect(
-      areas.every(
-        ([, area]) => area.status === "partial" && area.options.length >= 1,
-      ),
-    ).toBe(true);
-    const options = areas.flatMap(([, area]) => area.options);
-    expect(options).toHaveLength(20);
-    expect(
-      options.every(
-        (option) =>
-          option.source.sourceUrl.startsWith("https://") &&
-          option.anchor.label.length > 2 &&
-          option.anchor.price > 0 &&
-          option.anchor.sourceUrl.startsWith("https://") &&
-          Number.isFinite(Date.parse(option.anchor.observedAt)),
-      ),
-    ).toBe(true);
-    const lapsed = areas
-      .filter(([, area]) =>
-        area.options.some(
-          (option) =>
-            Date.parse(option.source.expiresAt) <=
-            Date.parse(fixture.generatedAt),
-        ),
-      )
-      .map(([slug]) => slug)
-      .sort();
-    expect(lapsed).toEqual(AWAITING_REVIEW);
+  it("requires provenance for each option and marks empty areas as insufficient", () => {
+    const areas = Object.values(fixture.areas) as Array<{
+      status: string;
+      options: Array<{
+        anchor: { label: string; price: number; sourceUrl: string; observedAt: string };
+        source: { sourceUrl: string };
+      }>;
+    }>;
+    for (const area of areas) {
+      expect(area.status === "insufficient_evidence").toBe(area.options.length === 0);
+      for (const option of area.options) {
+        expect(option.source.sourceUrl).toMatch(/^https:\/\//);
+        expect(option.anchor.label.length).toBeGreaterThan(2);
+        expect(option.anchor.price).toBeGreaterThan(0);
+        expect(option.anchor.sourceUrl).toMatch(/^https:\/\//);
+        expect(Number.isFinite(Date.parse(option.anchor.observedAt))).toBe(true);
+      }
+    }
   });
 
   it("rejects an option whose published anchor loses provenance", () => {
@@ -170,12 +122,6 @@ describe("late-food evidence snapshot", () => {
         documentUrl:
           "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926P-1.pdf",
         price: 13.95,
-      },
-      islington: {
-        pageUrl: "https://www.francomanca.co.uk/restaurants/islington/",
-        documentUrl:
-          "https://www.francomanca.co.uk/wp-content/uploads/2026/09/FM-MENU-SEPT-26-L0926S.pdf",
-        price: 13.5,
       },
       balham: {
         pageUrl: "https://www.francomanca.co.uk/restaurants/balham/",

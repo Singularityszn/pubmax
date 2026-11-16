@@ -125,6 +125,23 @@ describe("Tonight's public London hunt loader", () => {
     });
   });
 
+  it("retries a failed hunt read for About and retains the recovered price", async () => {
+    reads.bundle.mockResolvedValueOnce({ status: "unavailable" });
+    const { loadAboutStats } = await import("@/lib/aboutStats");
+    expect((await loadAboutStats()).cheapestPint).toBeNull();
+    expect((await loadAboutStats()).cheapestPint).toBe(4);
+    expect((await loadAboutStats()).cheapestPint).toBe(4);
+    expect(reads.bundle).toHaveBeenCalledTimes(2);
+  });
+
+  it("caches a successful hunt with no qualifying pints", async () => {
+    reads.venues.mockResolvedValue([londonVenue("venue-unbacked", 2, false)]);
+    const { loadAboutStats } = await import("@/lib/aboutStats");
+    expect((await loadAboutStats()).cheapestPint).toBeNull();
+    expect((await loadAboutStats()).cheapestPint).toBeNull();
+    expect(reads.bundle).toHaveBeenCalledTimes(1);
+  });
+
   it("makes no London claim when the bundle read fails", async () => {
     reads.bundle.mockRejectedValue(new Error("bundle unavailable"));
     const { loadLondonHuntPints } = await import("@/lib/cheapestHunt.server");

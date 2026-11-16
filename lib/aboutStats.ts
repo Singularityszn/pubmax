@@ -9,12 +9,13 @@ import "server-only";
 //
 // Split into a PURE `computeAboutStats(rows, opts)` (unit-tested against tiny
 // fixtures) and an async `loadAboutStats()` loader that wires in the real
-// datasets. Reuses groupVenuePrices so "pubs tracked" is counted the exact same
-// way the map/discovery surfaces count a venue.
+// datasets. The average and its pub count use lib/pricedPubCount.ts.
+// The loader takes its minimum from lib/cheapestHunt.server.ts.
 
 import { listEnabledCities } from "@/lib/cities";
 import { loadHistoricPubs } from "@/lib/historic";
 import { averagePriceGbp } from "@/lib/pintSavings";
+import { loadLondonHuntPintsOrNull } from "@/lib/cheapestHunt.server";
 import { listedPriceCohort, listedPriceCohortPrices } from "@/lib/pricedPubCount";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -29,7 +30,10 @@ export type AboutStats = {
   pubsTracked: number;
   /** Individual observed pint-price readings across all venues. */
   pintPricesObserved: number;
-  /** Cheapest observed pint (GBP), or null when no priced row exists. */
+  /**
+   * Row minimum (GBP) from computeAboutStats. loadAboutStats replaces it with
+   * the London hunt minimum, or null when the hunt is unavailable or has no eligible pints.
+   */
   cheapestPint: number | null;
   /** Dearest observed pint (GBP), or null when no priced row exists. */
   dearestPint: number | null;
@@ -56,8 +60,7 @@ type ComputeOpts = {
   citiesCovered: number;
 };
 
-// Pure: derive every headline number from raw price rows + two counts. No I/O,
-// so it is directly testable and deterministic.
+// Pure row statistics. The loader supplies the hunt's headline minimum.
 export function computeAboutStats(
   rows: VenuePrice[],
   opts: ComputeOpts,
@@ -74,10 +77,7 @@ export function computeAboutStats(
       row.price_gbp > 0,
   );
 
-  // "Pubs tracked" uses the same grouping the app uses everywhere else, so the
-  // number on /about matches what a user would count on the map — but only
-  // venues carrying at least one accepted price observation qualify.
-  const pubs = listedPriceCohort(groupVenuePrices(pricedRows));
+  const pubs = listedPriceCohort(groupVenuePrices(safeRows));
   const pubsTracked = pubs.length;
 
   const prices = pricedRows.map((row) => row.price_gbp as number);
@@ -105,11 +105,7 @@ export function computeAboutStats(
   };
 }
 
-// Every input below is a file bundled with the deployment, so the answer cannot
-// change between two requests to the same instance. The landing page is on the
-// per-request render path (the CSP nonce keeps every route dynamic), and the
-// raw price read alone is a 6.7 MB JSON.parse, so an unmemoized loader charged
-// that parse to EVERY homepage view. Hold the promise, not the value, so
+// Cache successful bundled reads. Hold the promise, not the value, so
 // concurrent first requests share one read instead of racing several.
 let cachedStats: Promise<AboutStats> | null = null;
 
@@ -117,8 +113,12 @@ let cachedStats: Promise<AboutStats> | null = null;
 // rejects rather than counting zero prices, and the rejection is not
 // remembered, so the next request reads again. A page that prints these
 // figures says they are unavailable instead.
+// An unavailable hunt omits only cheapestPint and clears the cache for a retry.
 export function loadAboutStats(): Promise<AboutStats> {
-  cachedStats ??= readAboutStats().catch((error) => {
+  cachedStats ??= readAboutStats().then(({ stats, huntAvailable }) => {
+    if (!huntAvailable) cachedStats = null;
+    return stats;
+  }).catch((error) => {
     cachedStats = null;
     throw error;
   });
@@ -136,13 +136,19 @@ export function resetAboutStatsForTests(): void {
   }
 }
 
-async function readAboutStats(): Promise<AboutStats> {
-  const [historic, rows] = await Promise.all([loadHistoricPubs(), loadPriceRows()]);
+async function readAboutStats(): Promise<{ stats: AboutStats; huntAvailable: boolean }> {
+  const [historic, rows, hunt] = await Promise.all([loadHistoricPubs(), loadPriceRows(), loadLondonHuntPintsOrNull()]);
 
-  return computeAboutStats(rows, {
-    historicPubsCited: historic.length,
-    citiesCovered: listEnabledCities().length,
-  });
+  return {
+    stats: {
+      ...computeAboutStats(rows, {
+        historicPubsCited: historic.length,
+        citiesCovered: listEnabledCities().length,
+      }),
+      cheapestPint: hunt?.[0]?.priceGbp ?? null,
+    },
+    huntAvailable: hunt !== null,
+  };
 }
 
 async function loadPriceRows(): Promise<VenuePrice[]> {
