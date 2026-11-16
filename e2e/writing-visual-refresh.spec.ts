@@ -177,6 +177,10 @@ for (const width of [320, 390]) {
           expect(label.control.left).toBeGreaterThanOrEqual(0);
           expect(label.control.right).toBeLessThanOrEqual(width);
           expect(label.control.bottom).toBeLessThanOrEqual(844 - 6);
+          if (scale === 2) {
+            expect(label.rects, label.text ?? "").toHaveLength(0);
+            continue;
+          }
           expect(label.rects.length, label.text ?? "").toBeGreaterThan(0);
           for (const rect of label.rects) {
             expect(rect.left, label.text ?? "").toBeGreaterThanOrEqual(label.control.left - 0.5);
