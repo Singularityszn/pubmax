@@ -1,13 +1,8 @@
 import { test, expect, type Page } from "@playwright/test";
 import { attachSpillBill } from "./helpers/priceBill";
 
-// The keyless half of the price-first Spill composer (report D2). The default
-// e2e server is auth-shaped (public Supabase env baked into the build), so a
-// signed-out reader meets the sign-in gate there and the typed-handle submit
-// path never renders. THIS project runs against the keyless build
-// (chromium-keyless, port 3101), where the demo handle lane exists, so the
-// submit round trip is provable end to end: price chip, drink, optional story,
-// one Log it, story lands in the Pints panel.
+// The keyless composer accepts a demo handle for drafting, but a price still
+// requires a verified account. An optimistic story is not a saved Pint Drop.
 
 function watchPageErrors(page: Page): string[] {
   const errors: string[] = [];
@@ -39,7 +34,7 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
   ].join("|"),
 );
 
-test("keyless mobile submit posts a Pint Drop and inserts the story into the Pints panel", async ({
+test("keyless mobile priced submit refuses an unverified handle without saving", async ({
   page,
 }) => {
   const errors = watchPageErrors(page);
@@ -73,10 +68,26 @@ test("keyless mobile submit posts a Pint Drop and inserts the story into the Pin
   await form.getByLabel("Story").fill(story);
 
   await attachSpillBill(form);
+  const submitted = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === "/api/pint-drops" &&
+      response.request().method() === "POST",
+  );
   await form.getByRole("button", { name: "Log it" }).click();
+  const response = await submitted;
+  expect(response.status()).toBe(401);
+  expect(await response.json()).toMatchObject({ code: "UNAUTHENTICATED" });
 
   await expect(form).toHaveCount(0);
-  await expect(pintsPanel).toContainText(story);
+  const attemptedDrop = pintsPanel.getByRole("article").filter({ hasText: story });
+  await expect(attemptedDrop.getByRole("alert")).toContainText("Not saved");
+
+  const persisted = await page.request.get(`/api/pint-drops?venueId=${ARNOS_ARMS_ID}`);
+  expect(persisted.ok()).toBe(true);
+  const { drops } = await persisted.json();
+  expect(drops).toEqual(expect.any(Array));
+  expect(drops).not.toEqual(
+    expect.arrayContaining([expect.objectContaining({ passedDownNote: story })]),
+  );
 
   expect(errors).toEqual([]);
 });
