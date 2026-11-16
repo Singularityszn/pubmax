@@ -25,6 +25,7 @@ import {
 } from "@/lib/nightProfileDeviceProvenance";
 import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
+import { PLAN_ONBOARDING_ALTERNATIVE_KEY } from "@/lib/planDraftStorage";
 
 /** Which account the device-cached identity artifacts below belong to. */
 export const DEVICE_ACCOUNT_OWNER_KEY = "pubmax_account_owner";
@@ -72,6 +73,7 @@ export const DEVICE_IDENTITY_LOCAL_KEYS = [
 export const DEVICE_IDENTITY_SESSION_KEYS = [
   "pubmaxx:plan-draft:v1",
   "pubmax:plan-draft:v2",
+  PLAN_ONBOARDING_ALTERNATIVE_KEY,
   // Private turn orders for this account's Rounds, kept only in this tab.
   "pubmax:wild-round-rota:v1",
   // Who a referral asked the arriving account to follow back.

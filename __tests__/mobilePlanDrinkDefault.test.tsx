@@ -81,6 +81,13 @@ async function generate() {
 }
 
 describe("map drink default in the phone planner", () => {
+  it("keeps an onboarding pint cap separate from the night budget", async () => {
+    writePlannerHandoff({ patch: null, budget: "six" });
+    await render();
+    await generate();
+    expect(requests[0]?.context.budgetLimitPence).toBeUndefined();
+    expect(requests[0]?.query).toContain("maximum £6 per pint");
+  });
   it("keeps the device Wine choice after sign-out and a default-drink response", async () => {
     writeDeviceNightContext({ ...DEFAULT_NIGHT_PROFILE_INPUT.context, drinkCategory: "wine" }, "london");
     mirrorAccountNightProfileToDevice({
@@ -232,15 +239,17 @@ describe("map drink default in the phone planner", () => {
 
 describe("first-run handoff in the phone planner", () => {
   it("opens on the chosen patch's checked area and carries the budget", async () => {
-    // The Clapham patch, and a £5 pint across the default three stops.
+    // The Clapham patch and a £5 pint cap are separate from a night budget.
     writePlannerHandoff({ patch: { lat: 51.462, lng: -0.138 }, budget: "five" });
     await render(wine);
     const area = container.querySelector<HTMLSelectElement>("select")!;
     expect(area.value).toBe("clapham");
     const maxEach = container.querySelector<HTMLInputElement>('input[placeholder="£"]')!;
-    expect(maxEach.value).toBe("15");
+    expect(maxEach.value).toBe("");
     await generate();
-    expect(requests[0]!.context).toMatchObject({ nightArea: "clapham", budgetLimitPence: 1500 });
+    expect(requests[0]!.context).toMatchObject({ nightArea: "clapham" });
+    expect(requests[0]!.context.budgetLimitPence).toBeUndefined();
+    expect(requests[0]!.query).toContain("maximum £5 per pint");
   });
 
 
@@ -260,7 +269,7 @@ describe("first-run handoff in the phone planner", () => {
     expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
   });
 
-  it("keeps the carried budget on one pint per stop when the reader changes Stops", async () => {
+  it("keeps the pint cap separate when the reader changes Stops", async () => {
     writePlannerHandoff({ patch: null, budget: "five" });
     await render(wine);
     const stops = [...container.querySelectorAll<HTMLSelectElement>("select")].find((select) => [...select.options].some((option) => option.value === "5"))!;
@@ -268,7 +277,10 @@ describe("first-run handoff in the phone planner", () => {
       Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(stops, "5");
       stops.dispatchEvent(new Event("change", { bubbles: true }));
     });
-    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("25");
+    expect(container.querySelector<HTMLInputElement>('input[placeholder="£"]')!.value).toBe("");
+    await generate();
+    expect(requests[0]!.query).toContain("maximum £5 per pint");
+    expect(requests[0]!.context.budgetLimitPence).toBeUndefined();
   });
 });
 

@@ -643,6 +643,19 @@
    that, was the card-in-card the template ban names. */
 .planComposer { max-width: 920px; margin: 0 auto; padding: 0 0 clamp(22px, 5vw, 46px); display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
 
+.planComposerRecovery {
+  max-width: var(--content-max);
+  min-width: 0;
+  margin: 0 auto var(--space-5);
+  display: grid;
+  gap: var(--space-3);
+  overflow-wrap: anywhere;
+}
+.planComposerRecovery h1 { margin: 0; font-size: clamp(1.5rem, 2.5vw, 2rem); line-height: 1.15; }
+.planComposerRecovery p { margin: 0; }
+.planComposerRecovery__actions { display: flex; flex-wrap: wrap; gap: var(--space-3); }
+.planComposerRecovery__actions > .uiButton { flex: 0 1 auto; max-width: 100%; min-width: min(100%, 13rem); }
+
 /* The import, free-text form and guide share one centred reading column. */
 .planPage--composer .planComposer:not([data-result="true"]) {
   max-width: var(--content-max);

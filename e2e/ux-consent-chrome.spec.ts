@@ -604,8 +604,8 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     await page.getByRole("button", { name: "Soho" }).click();
 
     // Result.
-    await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 45_000 });
-    await expectPrimaryClearOfCard("That looks right");
+    await expect(page.getByRole("button", { name: "Keep this pub" })).toBeVisible({ timeout: 45_000 });
+    await expectPrimaryClearOfCard("Keep this pub");
   });
 }
 
