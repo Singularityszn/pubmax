@@ -176,6 +176,7 @@ export type Venue = {
   prices: VenuePrice[];
   cheapestPrice: number | null;
   hasRecordedPrice?: boolean;
+  publicPricePresence?: import("@/lib/publicPricePresence").PublicPricePresence;
   cheapestPint: string;
   measure?: string;
   averagePrice: number | null;

@@ -132,14 +132,7 @@ export type VenuePriceReads = {
   drops: ReadonlyMap<string, VenueDropReadStatus>;
 };
 
-/**
- * Only pins without a recorded price in their available lanes and signals
- * receive an estimate standing. This does not establish complete public-price
- * absence. See docs/rules/lib-prices-trust-and-drinks.md#london-zone-estimates.
- * A pub whose own price or drop read is in flight gets no estimate until the
- * read settles, the same hold the sheet and the peek apply. No pin gets one
- * while a pint price cap is on.
- */
+/** Estimates require a complete public-price absence read and no active pint cap. */
 export function zoneEstimatePinStandings(
   venues: readonly Venue[],
   signals: ReadonlyMap<string, { latestContributorPrice: number | null; pintTrust?: unknown }>,

@@ -187,6 +187,7 @@ function ownDropContribution(drop: PintDrop): OwnDropContribution {
 
 /** The one seam the API route talks to. Both implementations below. */
 export type PintDropStore = {
+  publicPricedVenueIds(storedIds: readonly string[]): Promise<Set<string>>;
   /**
    * Persist a validated drop (photos where supported); returns the public DTO.
    * Throws on storage failure, and throws PintDropDailyCapError when the write
@@ -947,6 +948,13 @@ function createMemoryPairedDrop(
 }
 
 export const memoryPintDropStore: PintDropStore = {
+  async publicPricedVenueIds(storedIds) {
+    const wanted = new Set(storedIds);
+    const rows = listAllStoredPintDrops()
+      .filter((drop) => wanted.has(drop.venueId) && drop.provenance !== "demo" && isPubliclyReadableDrop(drop) && drop.priceGbp !== null);
+    return new Set((await dropWithdrawnFromViewer(rows)).map((drop) => drop.venueId));
+  },
+
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const covered = new Set<string>();
     for (const keys of storedIdGroups) {
@@ -1499,6 +1507,32 @@ async function durableAuthorVenueIds(
 }
 
 export const supabasePintDropStore: PintDropStore = {
+  async publicPricedVenueIds(storedIds) {
+    const priced = new Set<string>();
+    let afterId: string | undefined;
+    for (;;) {
+      let query = admin().from(TABLE).select("*", { count: "exact" })
+        .in("venue_id", [...storedIds]).eq("status", "visible")
+        .not("price_gbp", "is", null).order("id", { ascending: true }).limit(MAX_PUBLIC_DROPS);
+      if (afterId) query = query.gt("id", afterId);
+      const { data, error, count } = await query;
+      if (error) throw new Error(error.message);
+      if (!Array.isArray(data) || count === null || count < data.length) throw new Error("Incomplete public price read.");
+      const rows = data.map(fromRow);
+      for (const drop of await dropWithdrawnFromViewer(rows.filter((drop) => drop.provenance !== "demo" && isPubliclyReadableDrop(drop)))) {
+        if (typeof drop.priceGbp !== "number" || !Number.isFinite(drop.priceGbp) || !storedIds.includes(drop.venueId)) {
+          throw new Error("Invalid public price row.");
+        }
+        priced.add(drop.venueId);
+      }
+      if (count === data.length) break;
+      const nextId = data.at(-1)?.id;
+      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) throw new Error("Public price pagination did not advance.");
+      afterId = nextId;
+    }
+    return priced;
+  },
+
   async currentActorCoverage(storedIdGroups, accountId, now) {
     const currentOf = new Map(storedIdGroups.flatMap((keys) => keys.map((key) => [key, keys[0]] as const)));
     const authorityOf = new Map([...currentOf.keys()].map((key) => [key, pintDropAuthorityKey(key, accountId)]));

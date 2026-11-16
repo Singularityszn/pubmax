@@ -90,6 +90,7 @@ afterEach(() => {
 function venue(overrides: Partial<Venue> & { bundlePrices?: VenueBundlePrices } = {}): Venue {
   return {
     id: VENUE_ID,
+    publicPricePresence: "absent",
     name: "The Sir Christopher Hatton",
     address: "4 Leather Lane",
     latitude: 51.52,
@@ -639,6 +640,13 @@ describe("the rendered Overview carries exactly one price door", () => {
     expect(html).toContain("Test menu");
     expect(html).not.toContain(firstDropNudgeCopy(VENUE_ID).line);
     expect(doorCount(html)).toBe(1);
+  });
+
+  it.each([undefined, "unknown", "present"] as const)("withholds an estimate when shared price presence is %s", (publicPricePresence) => {
+    const estimated = venue({ publicPricePresence,
+      bundlePrices: { estimate: { priceGbp: 6.5, computedAt: daysAgo(1), basis: "regional_baseline:camden", sampleSize: 8 } },
+    });
+    expect(renderOverview([], estimated)).not.toContain("£6.50");
   });
 
   it("holds an estimate during either read, then renders it after settlement", () => {

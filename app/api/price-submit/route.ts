@@ -94,6 +94,8 @@ import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
 } from "@/lib/ukBasePubs";
+import { readPublicPricePresence } from "@/lib/publicPricePresence.server";
+import { MAX_PUBLIC_PRICE_VENUES } from "@/lib/publicPricePresence";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { lookupLondonFoodPlace } from "@/lib/londonFoodIndex.server";
 import { isLondonVenueId } from "@/lib/londonVenueShards";
@@ -582,6 +584,18 @@ async function nonPintPriceResponse(input: {
 export async function GET(request: Request): Promise<Response> {
   try {
     const searchParams = new URL(request.url).searchParams;
+    if (searchParams.get("scope") === "public-price-presence") {
+      const venueIds = [...new Set(searchParams.getAll("venueId"))];
+      if (!venueIds.length || venueIds.length > MAX_PUBLIC_PRICE_VENUES || venueIds.some((id) => !/^venue-[a-zA-Z0-9-]+$/.test(id))) {
+        return publicApiError("Pick pubs from the map.", "INVALID_REQUEST", 400);
+      }
+      const actor = deriveCommunityPriceActor(request);
+      const key = `public-price-presence:${actor ?? "anon"}`;
+      if (await isLimited(key, key, 60, 60_000)) {
+        return publicApiError("Too many map reads, slow down.", "RATE_LIMITED", 429, { retryable: true });
+      }
+      return jsonNoStore({ presence: await readPublicPricePresence(venueIds) });
+    }
     if (searchParams.get("scope") === "provisional-base") {
       const venueIds = searchParams.getAll("venueId");
       if (
