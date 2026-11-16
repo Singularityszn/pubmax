@@ -108,6 +108,13 @@ async function dryRoundResponse(
 	return { fields: { dryRound: dryRoundWire(venueIds, listed, pints) }, effects: ["dryRound"] };
 }
 
+function preserveAnchorStopIdentity(
+	stops: { venueId: string }[],
+	anchorContext: { anchorVenueId: string } | null,
+) {
+	if (anchorContext && stops[0]) stops[0].venueId = anchorContext.anchorVenueId;
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
 	const preparation = await preparePlanGeneration(request);
@@ -280,7 +287,7 @@ export async function POST(request: Request): Promise<Response> {
 		context.budgetLimitPence,
 		budgetSummary,
 	);
-	if (anchorContext && stops[0]) stops[0].venueId = anchorContext.anchorVenueId;
+	preserveAnchorStopIdentity(stops, anchorContext);
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
 	const groundingCandidateIds = [
