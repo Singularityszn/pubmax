@@ -67,6 +67,7 @@ for (const sample of CASES) {
     await page.route("**/api/social/rankings", (route) => route.fulfill({ json: { entries: [] } }));
     await page.route("**/api/social/reviews**", (route) => route.fulfill({ json: { entries: [] } }));
 
+    const feedRead = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/social/posts");
     try {
       if ("fromMap" in sample) {
         await installDeterministicMapBasemap(page);
@@ -84,12 +85,14 @@ for (const sample of CASES) {
     } finally {
       releaseAccess();
     }
-    await expect(page.getByRole("heading", { name: "Your lot, lately" })).toBeVisible();
+    await feedRead;
     if (sample.populated) {
+      await expect(page.getByRole("heading", { name: "Your lot, lately" })).toBeVisible();
       await expect(page.getByText(post.body, { exact: true })).toBeVisible();
       await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
     } else {
-      await expect(page.getByText("No posts here yet.", { exact: true })).toBeVisible();
+      await expect(page.locator(".socialFeed")).toHaveCount(0);
+      await expect(page.getByRole("navigation", { name: "Post lanes" })).toBeVisible();
     }
     await expect(page.getByText("No crews yet. Start one and your lot can join the night.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Rank a pub", exact: true })).toBeVisible();
