@@ -275,16 +275,21 @@ async function openAPin(page: Page, centre: TouchPoint): Promise<PaintedPoint> {
       - Math.hypot(right.x - centre.x, right.y - centre.y))[0];
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const painted = await paintedPoints(page);
+    let painted: PaintedPoint[] = [];
+    await expect.poll(async () => {
+      painted = await paintedPoints(page);
+      return painted.length;
+    }).toBeGreaterThan(0);
     const pins = painted.filter((point) => point.kind === "pin");
     if (pins.length > 0) return nearestTo(pins);
     const cluster = nearestTo(painted.filter((point) => point.kind === "cluster"));
     expect(cluster, "the map painted no marks at all").toBeTruthy();
+    const zoomBefore = (await readCamera(page)).zoom;
     await page.mouse.click(cluster.x, cluster.y);
-    await page.waitForTimeout(2_500);
+    await expect.poll(async () => (await readCamera(page)).zoom).toBeGreaterThan(zoomBefore);
     await expect.poll(async () => (await readCamera(page)).moving, { timeout: 20_000 })
       .toBe(false);
-    await page.waitForTimeout(1_500);
+    await expect.poll(async () => (await paintedPoints(page)).length).toBeGreaterThan(0);
   }
   throw new Error("no pub pin painted after opening the clusters");
 }
@@ -379,7 +384,11 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
   // A tilt changes which marks survive symbol collision, so the anchoring
   // claim is made about a pin the map is STILL drawing rather than about one
   // chosen in advance. There has to be one, or the map emptied itself.
-  const pinsAfter = await paintedPoints(page);
+  let pinsAfter: PaintedPoint[] = [];
+  await expect.poll(async () => {
+    pinsAfter = await paintedPoints(page);
+    return pinsBefore.some((pin) => pinsAfter.some((point) => point.id === pin.id));
+  }).toBe(true);
   const before2 = pinsBefore.find((pin) => pinsAfter.some((point) => point.id === pin.id));
   expect(before2, "not one pin survived the tilt").toBeTruthy();
   if (!before2) return;
