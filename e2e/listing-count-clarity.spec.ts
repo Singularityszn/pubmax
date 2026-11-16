@@ -23,6 +23,8 @@ function listing(index: number, pubMatched = false) {
 async function openTonightLens(page: Page, count: number) {
   await (await mobileMapShellControl(page, "filters", 30_000)).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  const disclosure = sheet.locator(".mobileFilterDisclosure");
+  if (await disclosure.getAttribute("open") === null) await disclosure.locator(":scope > summary").click();
   const lens = sheet.getByRole("button", { name: `Pub listings tonight: ${count} via What's-on in London`, exact: true });
   await expect(lens).toBeVisible({ timeout: 30_000 });
   return lens;
