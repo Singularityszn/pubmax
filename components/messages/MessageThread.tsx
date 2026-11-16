@@ -21,6 +21,7 @@ import MessageAttachmentPicker, {
 } from "@/components/messages/MessageAttachmentPicker";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import { ThreadLoading } from "@/components/messages/MessageLoading";
 import MessageContactCard from "@/components/messages/MessageContactCard";
 import MessageConfirmDialog from "@/components/messages/MessageConfirmDialog";
 import MessageContactPicker from "@/components/messages/MessageContactPicker";
@@ -92,6 +93,8 @@ import {
 } from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { forgetSurfaceSnapshot, readSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { messageSnapshotKey, rememberMessageSnapshot, rememberSentMessage, type ThreadSnapshot } from "@/lib/messageReadSnapshots";
 import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
@@ -269,6 +272,7 @@ export default function MessageThread({
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
   const viewerSession = useViewerSession();
+  const snapshotKey = messageSnapshotKey(user?.id, accountRevision, normalizeHandle(authHandle ?? "") || readHandle(), conversationId);
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
@@ -356,6 +360,19 @@ export default function MessageThread({
     };
   }, [authHandle]);
 
+  const restoreSnapshot = useCallback((key: string | null, requestKey: ThreadReadKey) => {
+    if (!key || sameThreadReadKey(loadedForRef.current, requestKey.conversationId, requestKey.accountRevision)) return;
+    const held = readSurfaceSnapshot<ThreadSnapshot>(key);
+    if (!held) return;
+    loadedForRef.current = requestKey;
+    setViewRevision(requestKey);
+    setMessages(held.messages);
+    setIdentity(held.identity);
+    setOtherHandle(held.otherHandle);
+    setState("ready");
+  }, []);
+
+>>>>>>> 6e2d043f1 (fix(social): retain messages and refresh feed windows safely)
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
   // Wave I2: 401 without sign-in -> signedout; Bearer via authedActionFetch.
@@ -384,8 +401,8 @@ export default function MessageThread({
       const land = () => {
         readFloorRef.current = generation;
       };
+      if (!stillCurrent()) return;
       if (!user) {
-        if (!stillCurrent()) return;
         land();
         loadedForRef.current = null;
         setViewRevision(viewerSession.unresolved ? null : requestKey);
@@ -397,13 +414,13 @@ export default function MessageThread({
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!h) {
-        if (!stillCurrent()) return;
         land();
         loadedForRef.current = null;
         setViewRevision(requestKey);
         setState("signedout");
         return;
       }
+      restoreSnapshot(snapshotKey, requestKey);
       try {
         const res = await authedActionFetch(
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
@@ -415,13 +432,15 @@ export default function MessageThread({
         }
         land();
         if (res.status === 401) {
+          if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
           setViewRevision(requestKey);
           setState("signedout");
           return;
         }
-        if (res.status === 404) {
+        if ([403, 404].includes(res.status)) {
+          if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
           setViewRevision(requestKey);
@@ -453,6 +472,7 @@ export default function MessageThread({
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
+        setState("ready");
         // WHO THE THREAD IS WITH comes from the read's membership when it has
         // one; only then may a group title win. An empty direct thread has no
         // message to read a name off, so the inbox row for this id names it.
@@ -461,6 +481,7 @@ export default function MessageThread({
         const identityFromRead = threadIdentityFromWire(body.conversation);
         let nextIdentity: ThreadIdentity | null = identityFromRead;
         let nextOther = otherHandleFromThreadRead(identityFromRead, next, h);
+        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
         if (!identityFromRead && next.length === 0 && !askedInboxForNameRef.current) {
           // ONE read of the inbox per thread, and only for an empty one with
           // no membership: it names the head and nothing else leans on it, so
@@ -480,6 +501,7 @@ export default function MessageThread({
         // flipping a named person back to the neutral word.
         setIdentity((previous) => nextIdentity ?? previous);
         setOtherHandle((previous) => nextOther || previous);
+        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
@@ -494,13 +516,14 @@ export default function MessageThread({
         }
       }
     },
-    [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
+    [accountRevision, conversationId, user, authHandle, viewerSession.unresolved, snapshotKey, restoreSnapshot],
   );
 
   const onStored = useCallback((stored: MessageDTO) => {
     readFloorRef.current = requestGenerationRef.current + 1;
+    rememberSentMessage(snapshotKey, stored);
     setMessages(rows => rows.some(row => row.id === stored.id) ? rows : [...rows, stored]);
-  }, []);
+  }, [snapshotKey]);
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
     sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, preparationProgress, error,
@@ -569,6 +592,7 @@ export default function MessageThread({
     followingNewestRef.current = true;
     setPicking(null); setMobileAttachOpen(false); void send();
   }
+
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
@@ -648,6 +672,9 @@ export default function MessageThread({
       }
       discardBody(res);
       readFloorRef.current = requestGenerationRef.current + 1;
+      if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
+      const inboxKey = messageSnapshotKey(user.id, accountRevision, normalizeHandle(authHandle ?? "") || readHandle());
+      if (inboxKey) forgetSurfaceSnapshot(inboxKey);
       setConfirming(null);
       if (pendingRemoval.kind === "unsend") {
         const unsentId = pendingRemoval.messageId;
@@ -673,7 +700,7 @@ export default function MessageThread({
     } finally {
       if (stillCurrent()) setRemoving(false);
     }
-  }, [confirming, conversationId, user, authHandle, accountRevision]);
+  }, [confirming, conversationId, user, authHandle, accountRevision, snapshotKey]);
 
   const ask = useCallback((removal: PendingRemoval) => {
     setRemovalError("");
@@ -724,7 +751,7 @@ export default function MessageThread({
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <ThreadLoading />;
   }
 
   if (state === "signedout" && viewerSession.signedOut) {
@@ -736,7 +763,7 @@ export default function MessageThread({
     );
   }
   if (state === "signedout") {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <ThreadLoading />;
   }
   if (state === "left") {
     return (
@@ -1141,7 +1168,7 @@ export default function MessageThread({
       </div>
 
       {state === "loading" ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <ThreadLoading />
       ) : (
         <ul className="threadMessages" ref={attachList}>
           {timeline.length === 0 ? (

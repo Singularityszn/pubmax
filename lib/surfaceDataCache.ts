@@ -126,7 +126,7 @@ function removePersistentSnapshot(storage: Storage, key: string): void {
   removeStoredKey(storage, `${SURFACE_CACHE_NAMESPACE}${key}`);
 }
 
-function forgetSurfaceSnapshot(key: string): void {
+export function forgetSurfaceSnapshot(key: string): void {
   store.delete(key);
   const storage = getSessionStorage();
   if (storage) removePersistentSnapshot(storage, key);
@@ -278,12 +278,17 @@ export function writeSurfaceSnapshot<T>(
   key: string,
   value: T,
   now: number = Date.now(),
+  options: { persist?: boolean; preserveAge?: boolean } = {},
 ): void {
   assertCacheable(key);
   if (!inBrowser()) return;
   bindIdentityBoundary();
-  store.set(key, { value, storedAt: now });
-  persistSurfaceSnapshot(key, value, now);
+  const storedAt = options.preserveAge ? store.get(key)?.storedAt ?? now : now;
+  store.set(key, { value, storedAt });
+  if (options.persist === false) {
+    const storage = getSessionStorage();
+    if (storage) removePersistentSnapshot(storage, key);
+  } else persistSurfaceSnapshot(key, value, storedAt);
 }
 
 /** The account boundary, and the test seam. */

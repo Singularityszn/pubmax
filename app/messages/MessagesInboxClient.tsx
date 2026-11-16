@@ -2,6 +2,7 @@
 
 import { MessageCircle, Search, SquarePen, UsersRound } from "lucide-react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -19,8 +20,8 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import { IconButton } from "@/components/ui/icon-button";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
-import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { invalidateMessagesInbox, invalidateMessagesInboxOnFocus, readMessagesInbox } from "@/lib/messagesInboxClient";
+import { InboxLoading } from "@/components/messages/MessageLoading";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import {
   conversationRowHandle,
@@ -32,6 +33,8 @@ import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
+import { forgetSurfaceSnapshot, readSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { messageSnapshotKey, rememberMessageSnapshot } from "@/lib/messageReadSnapshots";
 
 import "./messages.css";
 
@@ -51,8 +54,12 @@ import "./messages.css";
 // subscribes to nothing; the list loads when the reader comes back to it.
 
 const HANDLE_KEY = "pubmax_handle";
+const MessagesNewGroup = dynamic(() => import("@/components/messages/MessagesNewGroup"), {
+  loading: () => <p className="conversationPreview" role="status">Opening new message…</p>,
+});
 type InboxFilter = "all" | "unread" | "groups";
 const INBOX_FILTERS = [{ id: "all", label: "All" }, { id: "unread", label: "Unread" }, { id: "groups", label: "Groups" }] as const;
+type InboxSnapshot = { conversations: ConversationDTO[]; partial: boolean };
 
 function subscribeMobileViewport(onStoreChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
@@ -143,6 +150,7 @@ export default function MessagesInboxClient({
   } | null>(null);
   const liveRef = useRef(false);
   const readsRef = useRef(new Set<AbortController>());
+  const restoredKeyRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
     liveRef.current = !paneHidden;
@@ -203,6 +211,19 @@ export default function MessagesInboxClient({
         setLoadedRevision(requestRevision);
         return;
       }
+      const cacheKey = messageSnapshotKey(activeUserId, requestRevision, h)!;
+      if (restoredKeyRef.current !== cacheKey) {
+        restoredKeyRef.current = cacheKey;
+        const held = readSurfaceSnapshot<InboxSnapshot>(cacheKey);
+        if (held && stillCurrent()) {
+          setConversations(held.conversations);
+          setPartial(held.partial);
+          setNeedsSignIn(false);
+          setHandleNotOwned(false);
+          setFailed(false);
+          setLoadedRevision(requestRevision);
+        }
+      }
       const controller = new AbortController();
       const abort = () => controller.abort();
       signal?.addEventListener("abort", abort, { once: true });
@@ -214,6 +235,7 @@ export default function MessagesInboxClient({
           if (!stillCurrent()) return;
           setHandleNotOwned(read.status === 403);
           if (read.status === 401 || read.status === 403) {
+            forgetSurfaceSnapshot(cacheKey);
             setNeedsSignIn(read.status === 401);
             setConversations([]);
             setFailed(false);
@@ -229,7 +251,10 @@ export default function MessagesInboxClient({
           setNeedsSignIn(false);
           const rows = read.conversations;
           const degraded = read.degraded;
-          setConversations(rows);
+          if (!degraded || rows.length > 0) {
+            setConversations(rows);
+            rememberMessageSnapshot(cacheKey, { conversations: rows, partial: degraded });
+          }
           // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
           // answered, so the honest surface is the same one a failed read gets.
           setFailed(degraded && rows.length === 0);
@@ -311,6 +336,12 @@ export default function MessagesInboxClient({
   useEffect(() => {
     if (!activeConversationId) return;
     return subscribeMessagesRead(() => {
+      const key = messageSnapshotKey(user?.id, accountRevision, normalizeHandle(authHandle ?? "") || readHandle());
+      const held = key ? readSurfaceSnapshot<InboxSnapshot>(key) : undefined;
+      if (held) rememberMessageSnapshot(key, {
+        ...held,
+        conversations: held.conversations.map(row => row.id === activeConversationId ? { ...row, unread: 0 } : row),
+      }, true);
       setConversations((rows) =>
         rows.some((c) => c.id === activeConversationId && (c.unread ?? 0) > 0)
           ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
@@ -318,7 +349,7 @@ export default function MessagesInboxClient({
       );
       void refresh(undefined, true);
     });
-  }, [activeConversationId, refresh]);
+  }, [activeConversationId, refresh, user?.id, accountRevision, authHandle]);
 
   const accountDataReady = loadedRevision === accountRevision;
   // One clock for the whole list per render, so every row's time is measured
@@ -382,7 +413,7 @@ export default function MessagesInboxClient({
               </button>
             ))}
           </div>
-          <MessagesNewGroup
+          {composeRevision === accountRevision ? <MessagesNewGroup
             key={`${accountRevision}:${handle}`}
             handle={handle}
             open={composeRevision === accountRevision}
@@ -397,7 +428,7 @@ export default function MessagesInboxClient({
               void refresh(undefined, true);
               router.push(`/messages/${encodeURIComponent(conversationId)}`);
             }}
-          />
+          /> : null}
         </>
       ) : null}
 
@@ -414,9 +445,9 @@ export default function MessagesInboxClient({
           One thread for each person you go out with, kept to the two of you.
         </EmptyState>
       ) : !accountDataReady ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <InboxLoading />
       ) : viewerSession.unresolved ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <InboxLoading />
       ) : handleNotOwned ? (
         <EmptyState
           title={`@${handle} isn\u2019t linked to your account.`}
@@ -476,6 +507,7 @@ export default function MessagesInboxClient({
                   <Link
                     href={`/messages/${encodeURIComponent(c.id)}`}
                     className="conversationLink"
+                    data-pressable=""
                     aria-current={active ? "page" : undefined}
                     data-pressable
                   >
