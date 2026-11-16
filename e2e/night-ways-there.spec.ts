@@ -4,6 +4,7 @@ import { mkdir } from "node:fs/promises";
 import type { LegOption } from "../lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "../lib/pubPal";
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 // Ways to get there (components/night/NightWaysThere.tsx): in Night Mode, the
@@ -95,6 +96,7 @@ async function seedTonight(page: Page) {
 
 /** The reader's own Pub Pal, stored the way the Pal flow stores it. */
 async function seedPal(page: Page) {
+  await installDeterministicMapBasemap(page);
   await page.addInitScript(({ appearance, personality, voice, ownerId }) => {
     const now = "2026-10-04T12:00:00.000Z";
     window.localStorage.setItem("pubmax_account_owner", ownerId);
