@@ -47,6 +47,7 @@ test("a Step-free route surfaces unknown accessibility evidence instead of claim
   test.setTimeout(90_000);
   const errors = watchPageErrors(page);
   const planner = await openPlanner(page);
+  await planner.getByRole("combobox", { name: "Area", exact: true }).selectOption({ label: "Piccadilly & Soho" });
   const stepFreeChip = planner.getByRole("button", { name: "Step-free", exact: true });
   await stepFreeChip.click();
   await expect(stepFreeChip).toHaveAttribute("aria-pressed", "true");
@@ -55,9 +56,9 @@ test("a Step-free route surfaces unknown accessibility evidence instead of claim
   // planner's honest no-match state. Keep the assertion resilient to the
   // selected area and stop count while forbidding an accessibility claim.
   await expect(
-    planner.getByText(
-      /No \d+-stop route .* meets every must-have need with the information available\./,
-    ),
+    planner.getByRole("alert").filter({
+      hasText: /could not verify a \d+-stop route .*step-free access with the information we have/,
+    }),
   ).toBeVisible({ timeout: 45_000 });
   await expect(planner.locator(".mobilePlannerRouteTotal")).toHaveCount(0);
 

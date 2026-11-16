@@ -105,7 +105,7 @@ test.describe("price-first Spill composer", () => {
     // The compact door: price chips, drink and the submit action (the Log it
     // button, or the sign-in gate in the same slot on an auth-shaped build).
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
-    await expect(form.getByLabel("Drink")).toBeVisible();
+    await expect(form.getByRole("textbox", { name: "Drink", exact: true })).toBeVisible();
     await expect(
       form.locator('button[type="submit"], a.spillSubmitLink').first(),
     ).toBeVisible();

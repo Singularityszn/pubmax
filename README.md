@@ -240,6 +240,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Voice starts only after your action. You can cancel startup or choose **Ask in writing** if voice cannot connect. The status line shows a hint only when your chosen voice is not configured and another voice choice is configured. With no voice choices configured, your Pal uses its own voice without a hint. Configured voice shows transcripts, returned pub cards and their map.
 
+  When you are signed in, the idle voice panel on `/pal` shows your remaining monthly minutes when the check succeeds. The check grants no call and does not delay **Start**. If the check fails, the panel shows no figure and **Start** stays available.
+
   Grounded voice results also show numbered picks on the main map and dim the other pins. Tap a pick to open its pub. The map frames the picks unless you hold or move it. [ADR 0014](docs/adr/0014-night-os-ask-agent.md#decision) defines voice view moves and actions that still need confirmation.
 
   During a voice call, ask to open the map or focus a numbered pick. You can also ask to open its pub page or clear the picks. Ask to move the view to a London area, such as Camden. The call stays live on the map. An unavailable pick or unknown area leaves the view unchanged and sends an explanation to the Pal.

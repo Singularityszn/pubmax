@@ -21,6 +21,7 @@ import { isValidEmail, normalizeEmail } from "@/lib/emailAddress";
 import { londonCalendarDate } from "@/lib/privateIdentity";
 import { cleanText } from "@/lib/textClean";
 import { parsePhoneNumber } from "@/lib/venueTruth";
+import { escapeHtml } from "@/lib/escapeHtml";
 
 /** A crew of six or more: below that, a pub does not need asking. */
 export const TABLE_REQUEST_MIN_PARTY = 6;
@@ -331,15 +332,6 @@ export function tableRequestLines(venueName: string, request: MessageInput): str
 /** The footer of the email PUBMAXX sends to a verified operator. */
 export const TABLE_REQUEST_OPERATOR_FOOTER =
   "This request came through PUBMAXX. We take no booking and no payment. Reply to the person directly to say yes or no.";
-
-function escapeHtml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
 
 /** The email PUBMAXX sends to a verified operator: plain text and inline-styled HTML. */
 export function tableRequestOperatorEmail(

@@ -151,6 +151,43 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+for (const width of [641, 768]) {
+  for (const largeText of [false, true]) {
+    test(`full venue sheet close stays clickable at ${width}px${largeText ? " with large text" : ""}`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto(`/map?sel=${LISTED_ONLY}`);
+      if (largeText) await page.evaluate(() => { document.documentElement.style.fontSize = "125%"; });
+      const drawer = page.locator(DRAWER);
+      await expect(drawer).toHaveClass(/sheet-half/);
+      const head = drawer.locator(".mapDrawerHead");
+      const box = await head.boundingBox();
+      expect(box).not.toBeNull();
+      await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+      await page.mouse.down();
+      await page.mouse.move(box!.x + box!.width / 2, 30, { steps: 12 });
+      await page.mouse.up();
+      await expect(drawer).toHaveClass(/sheet-full/);
+      await expect(drawer).toHaveCSS("will-change", "auto");
+      const handleReceivesPointer = await head.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return hit !== null && node.contains(hit);
+      });
+      expect(handleReceivesPointer).toBe(true);
+      const close = drawer.getByRole("button", { name: "Close pub detail" });
+      await expect(close).toBeVisible();
+      const receivesPointer = await close.evaluate((node) => {
+        const box = node.getBoundingClientRect();
+        const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+        return hit !== null && node.contains(hit);
+      });
+      expect(receivesPointer).toBe(true);
+      await close.click();
+      await expect(drawer).not.toBeVisible();
+    });
+  }
+}
+
 for (const viewport of [
   { width: 768, height: 1024, band: "the 641-768 bottom sheet" },
   { width: 820, height: 1180, band: "the side drawer just above the sheet cut" },

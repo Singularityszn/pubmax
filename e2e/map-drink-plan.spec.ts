@@ -544,7 +544,9 @@ test("generated Cocktail uses the map's Cocktail filter policy", async ({ page }
   await filtersButton.click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   await expect(sheet).toBeVisible();
-  await expect(sheet.getByRole("group", { name: "Filter by drink shape" }).getByRole("button", { name: "Cocktails (selected)", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await sheet.getByRole("button", { name: "Cocktails", exact: true }).click();
+  const drinkSheet = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+  await expect(drinkSheet.getByRole("group", { name: "Drink prices shown on the map" }).getByRole("button", { name: "Cocktails", exact: true })).toHaveAttribute("aria-pressed", "true");
 });
 
 test("Top shelf Beer plan keeps its refinement and unknown money through share and reopen", async ({ page }, testInfo) => {

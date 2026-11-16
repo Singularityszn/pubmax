@@ -5,12 +5,8 @@
 // This module owns the shape, public projection, display words and reading
 // rules. No IO.
 //
-// WHAT A FACT IS. The pub's own dated word, labelled "From the pub", in its own
-// block. It is never a price, never hours on record, never a ranking signal and
-// never paid. Nothing that ranks, colours a pin, bands a price or orders a list
-// may read it (docs/SPONSORSHIP_POLICY.md, the never-changes list; fence:
-// __tests__/operatorFactsFence.test.ts). It is not a placement, so it never
-// wears the "Sponsored" label either.
+// Operator-fact separation follows
+// docs/rules/lib-venues-areas-listings-and-nights.md.
 //
 // WHAT SHOWS. Only a published fact: a proposal that is pending or declined has
 // none, and a decline after an accept withdraws it. A dated event or offer
