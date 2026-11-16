@@ -480,7 +480,7 @@ async function toolVenuePrices(
   const publicPresence = (await readPublicPricePresence([venue.id]))[venue.id] ?? "unknown";
   const pricesUnavailable = publicPresence === "unknown" || communityRead.degraded || bundleRead.status === "unavailable";
   const pintDropPriceAbsent = publicPresence === "absent" && !pricesUnavailable;
-  // A pub with no recorded pint gets its fare zone's estimate, named as one.
+  // Only complete public-price absence permits a fare-zone estimate.
   // It is never price evidence and never the card's price.
   const zoneEstimate = pintDropPriceAbsent
     ? zonePriceEstimate(venue.zone, await loadZonePintIndex())

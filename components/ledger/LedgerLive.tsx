@@ -237,7 +237,7 @@ export function LedgerPriceRecord({ venue, bundle }: {
   };
   const { state, reload } = useLedgerLive();
   const publicPint = state.status === "ready" ? state.log.pintPrice : null;
-  // A cached document cannot know whether a public report exists.
+  // A cached document cannot establish complete public-price absence.
   const readableBundle = state.status === "ready" && state.log.publicPricePresence === "absent" ? bundle : { ...bundle, estimate: null };
   const reportLanes = ledgerReportLanes(publicPint);
   const priceLane = venuePriceLane(
