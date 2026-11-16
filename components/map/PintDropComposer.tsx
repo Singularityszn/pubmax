@@ -36,6 +36,8 @@ import { useIsMobileComposer } from "@/components/map/composer/useIsMobileCompos
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
+import { PINT_DROP_SIGN_IN_RETURN_PARAM, pintDropDraftForPersistence, writePintDropSignInHandoff } from "@/lib/pintDropDraft";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { pintDropDoorHref } from "@/lib/landingHero";
 import {
   readDeviceAccountSessionRevision,
@@ -72,6 +74,7 @@ function AccountPintDropComposer({
   const {
     handle,
     accountHandle,
+    accountId,
     authConfigured,
     signedIn,
     identityReady,
@@ -108,6 +111,7 @@ function AccountPintDropComposer({
     authRequired: authConfigured,
   });
 
+  const [handoffToken] = useState(() => crypto.randomUUID());
   const maxTagsReached = vibeTags.length >= 4;
   const [transientVoiceNote, setTransientVoiceNote] = useState<{ venueId: string; typedBaseline: string } | null>(null);
   const transientVoiceNoteBaseline = transientVoiceNote?.venueId === venueId ? transientVoiceNote.typedBaseline : null;
@@ -127,6 +131,7 @@ function AccountPintDropComposer({
     vibeTags,
     transientVoiceNoteBaseline,
     priceSeed,
+    accountId,
   });
 
   const mobile = useIsMobileComposer();
@@ -310,8 +315,11 @@ function AccountPintDropComposer({
       <div className="composerActions">
         {signedOutGate ? (
           <Link
-            href={`/login?mode=signin&from=${encodeURIComponent(signedOutReturnDoor)}`}
+            href={`/login?mode=signin&from=${encodeURIComponent(`${signedOutReturnDoor}&${PINT_DROP_SIGN_IN_RETURN_PARAM}=${handoffToken}`)}`}
             className="spillSubmitLink"
+            onClick={() => writePintDropSignInHandoff(safeLocalStorage(), venueId, pintDropDraftForPersistence({
+              form: dropForm, visibility, vibeTags, updatedAt: new Date().toISOString(),
+            }, transientVoiceNoteBaseline), handoffToken)}
           >
             Sign in to post
           </Link>

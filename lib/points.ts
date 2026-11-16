@@ -8,8 +8,8 @@
 import type { ChallengeId, ChallengeProgress } from "@/lib/challenges";
 
 const POINTS_EACH = {
-  /** A pub on the Been list: diary, Pint Drop, finished plan or Been here. */
-  been: 10,
+  /** A distinct pub backed by the owner's Pint Drop or a nearby check-in. */
+  been: 5,
   /** A Pint Drop with a price. */
   priceLogged: 5,
   drinkReview: 5,
@@ -179,7 +179,7 @@ export function finishedLetterAreas(
 export const POINTS_COPY = {
   kicker: "Points",
   lines: {
-    been: "Pubs you've been to",
+    been: "Pubs with a proven visit",
     priceLogged: "Prices you logged",
     drinkReview: "Drink reviews you logged",
     priceChecked: "Prices checked",
@@ -192,13 +192,13 @@ export const POINTS_COPY = {
   } satisfies Record<PointsLineKey, string>,
   howTitle: "How points work",
   how: [
-    "10 for each pub on your Been list, however you logged it.",
+    "5 once per pub backed by your Pint Drop or a nearby check-in. A Been on its own earns no points.",
     "5 for each price you log, and 10 more when a bill or a second drinker checks it.",
     "5 for each drink review logged to your account.",
-    "50 for a London postcode district once you've been to every pub we list in it.",
+    "50 for a London postcode district once every pub we list in it has a proven visit.",
     "1,000 for a London postcode letter area once you finish every district we list in it.",
     "20 for a pub you add and 5 for a fix, once a person accepts it.",
-    "500 for each challenge you finish, and 500 more when you finish the challenge of the month inside its month.",
+    "500 for each challenge finished with proven visits, and 500 more for the challenge of the month finished inside its month.",
   ],
   fence: "Points count your records, including logged drink reviews, never days running.",
   degraded: "Some of your records didn't load, so this total may be low. Try again later.",

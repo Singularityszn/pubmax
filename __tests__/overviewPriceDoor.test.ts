@@ -816,7 +816,9 @@ describe("price actions beside the Overview", () => {
       venue: venue({ kind }),
       shareVenue: async () => {}, currentShareFeedback: null,
     }));
-    expect(Array.from(view.querySelectorAll("button"), (button) => button.textContent?.trim())).toEqual(names);
+    const actions = view.querySelector('[role="group"][aria-label="Venue actions"] [role="group"]');
+    expect(actions).not.toBeNull();
+    expect(Array.from(actions?.querySelectorAll("button") ?? [], (button) => button.textContent?.trim())).toEqual(names);
     expect(view.querySelectorAll(".venueSheetStickyPrimary, [data-price-door]")).toHaveLength(0);
   });
 

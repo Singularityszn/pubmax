@@ -35,6 +35,7 @@ import {
 } from "@/lib/slimLoadLifecycle";
 import { displayVenueName, venueSourceNameField } from "@/lib/venueDisplay";
 import { omitClosedCuratedVenues } from "@/lib/verifiedClosedPubs";
+import { isVenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import {
   EXPECTED_MAP_DATA_REVISION,
   MAP_DATA_REVISION,
@@ -116,12 +117,6 @@ function isStringArray(value: unknown): value is string[] {
   );
 }
 
-function isFeatureObservation(value: unknown): boolean {
-  return Array.isArray(value) && value.length === 3 && typeof value[0] === "boolean"
-    && ["OpenStreetMap", "Google Places", "Pub website"].includes(value[1])
-    && typeof value[2] === "string" && Number.isFinite(Date.parse(value[2]));
-}
-
 function isFilterHints(value: unknown): value is VenueFilterHints {
   if (typeof value !== "object" || value === null) return false;
   const row = value as Record<string, unknown>;
@@ -144,7 +139,7 @@ function isFilterHints(value: unknown): value is VenueFilterHints {
   for (const field of ["outdoorSeating", "beerGardenSource", "liveSportsSource", "dogsWelcome"] as const) {
     const value = row[field];
     if (value === undefined) continue;
-    if (!isFeatureObservation(value)) return false;
+    if (!isVenueFeatureObservation(value)) return false;
   }
   if (![amenities.darts, amenities.pool].every((value) => value === undefined || isBoolean(value))) return false;
   if (row.topShelf !== undefined && !isBoolean(row.topShelf)) return false;

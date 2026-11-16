@@ -40,6 +40,7 @@ import {
 import { clientIp, hashActor, hashIp, isSupabaseConfigured } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { resolveVenue } from "@/lib/venueIndex";
+import { checkInBeenHere } from "@/lib/checkInBeenHere.server";
 
 assertServerEnv();
 
@@ -140,6 +141,17 @@ export async function POST(request: Request): Promise<Response> {
 
   if (readString(body.action) === BEEN_HERE_CARRY_ACTION) {
     return carryBeenHere(request, ownership, body.venueIds);
+  }
+
+  if (body.action === "nearbyCheckIn") {
+    if (await savesLimited(request, ownership.handle)) return tooManySaves();
+    try {
+      const result = await checkInBeenHere(ownership.callerUserId ?? "", ownership.handle, body.venueId, body.location);
+      if (!result.ok) return publicApiErrorFromStatus(result.error, result.status);
+      return jsonNoStore({ checkedIn: true }, { status: 200 });
+    } catch {
+      return publicApiError("Couldn't save that check-in. Try again.", "STORE_UNAVAILABLE", 503, { retryable: true });
+    }
   }
 
   const venueId = (readString(body.venueId) ?? "").slice(0, MAX_VENUE_ID);

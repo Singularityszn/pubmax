@@ -16,8 +16,10 @@ import { venueMenuLookupKeys } from "@/lib/venueMenu";
 import { isVerifiedClosedCuratedVenue, isVerifiedClosedPub } from "@/lib/verifiedClosedPubs";
 import type { Venue } from "@/lib/venues";
 import { londonDayKey } from "@/lib/londonHour";
+import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
+import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
 
-/** Public menu facts only. No post, account, crew or viewer fields cross here. */
+/** Public price facts only. No post, account, crew or viewer fields cross here. */
 export type SocialAlternatives = {
   crawls: readonly { name: string; href: Route; stops: number }[];
   prices: readonly {
@@ -37,7 +39,7 @@ type SocialAlternativeVenue = Pick<Venue,
   "id" | "name" | "address" | "latitude" | "longitude" | "kind" | "sourceName" | "prices"
 >;
 
-/** Project public London pint menu observations. Recency is not a cheapest-price claim. */
+/** Project attributed public London pint observations. Recency is not a cheapest-price claim. */
 export function buildSocialAlternatives(
   venues: readonly SocialAlternativeVenue[],
   updates: readonly DrinkPriceUpdate[] | null,
@@ -58,10 +60,20 @@ export function buildSocialAlternatives(
   const prices: SocialAlternatives["prices"][number][] = [];
   const seen = new Set<string>();
   const candidates = [
+    ...venues.flatMap((venue) => venue.prices.flatMap((row) => {
+      const observedAt = legacyPintPriceObservedAt(row, now);
+      const source = namedLegacyPintPriceSource(row);
+      if (!isLivePriceRow(row) || !observedAt || !source || !row.pint_name?.trim()
+        || !isComparablePintServing({ measure: row.measure, cheapestPint: row.pint_name })
+        || typeof row.price_gbp !== "number") return [];
+      return [{
+        venueKey: venue.id, drinkName: row.pint_name, servingSize: "pint", priceGbp: row.price_gbp,
+        observedAt, publisher: source.label, sourceUrl: source.url,
+      }];
+    })),
     ...updates.filter((update) => update.lane === "publisher" && update.source.licence.trim()).map((update) => ({
       ...update, publisher: update.source.label, sourceUrl: update.source.url,
     })),
-    // A third party's price index is not a menu, so the listing-site lane stays out.
     ...authoritativeBundleRows(bundleRows).filter((row) => row.standing === "listed" && row.lane !== "estimate" && row.lane !== "listing-site").map((row) => ({
       venueKey: row.venueId, drinkName: row.drinkLabel ?? "", servingSize: row.servingSize,
       priceGbp: row.priceGbp, observedAt: row.observedAt, publisher: row.publisher ?? "", sourceUrl: row.sourceUrl,

@@ -15,12 +15,42 @@ import {
   type MapSplitListInput,
 } from "@/lib/mapSplitList";
 import { floatingMapListOpen, splitListShown } from "@/lib/mapSplitListFocus";
+import { transitionMapSplitListInspection, type MapSplitListInspection } from "@/lib/mapSplitListInspection";
 import { projectedItemIdsInViewport } from "@/lib/mapVenueList";
 import { peekPriceChip } from "@/lib/pubMap";
 import { desktopSelectCameraOffset, restingRightDrawerLeft } from "@/lib/sheetSnap";
 import { venuePriceLane } from "@/lib/venuePriceLane";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { Venue } from "@/lib/venues";
+
+describe("inspection return lifecycle", () => {
+  const following: MapSplitListInspection<string> = { phase: "following" };
+  const inspecting: MapSplitListInspection<string> = { phase: "inspecting", view: "saved rows", scrollTop: 350 };
+  const returning: MapSplitListInspection<string> = { ...inspecting, phase: "returning" };
+  const settling: MapSplitListInspection<string> = { ...inspecting, phase: "settling" };
+
+  it("holds the chosen rows until both the return map and view settle", () => {
+    const opened = transitionMapSplitListInspection(following, { type: "opened", view: "saved rows", scrollTop: 350 });
+    expect(opened).toEqual(inspecting);
+    expect(transitionMapSplitListInspection(opened, { type: "closed" })).toEqual(returning);
+    expect(transitionMapSplitListInspection(returning, { type: "map_idle" })).toEqual(settling);
+    expect(transitionMapSplitListInspection(settling, { type: "view_settled" })).toEqual(following);
+  });
+
+  it.each([following, inspecting, returning, settling])("releases $phase for an explicit new view", (state) => {
+    expect(transitionMapSplitListInspection(state, { type: "released" })).toEqual(following);
+  });
+
+  it.each([following, inspecting, returning])("refuses a premature view settlement in $phase", (state) => {
+    expect(transitionMapSplitListInspection(state, { type: "view_settled" })).toBe(state);
+  });
+
+  it("ignores idle before the drawer closes and permits a new inspection during return", () => {
+    expect(transitionMapSplitListInspection(inspecting, { type: "map_idle" })).toBe(inspecting);
+    expect(transitionMapSplitListInspection(returning, { type: "opened", view: "other rows", scrollTop: 75 }))
+      .toEqual({ phase: "inspecting", view: "other rows", scrollTop: 75 });
+  });
+});
 
 // The list beside the map (components/map/MapSplitList.tsx) and its pure half.
 // A fixed clock, because every caption here is dated and a listing ages.
@@ -266,8 +296,8 @@ describe("the list's order", () => {
       input({
         venues: [cheap],
         basePubs: [
-          { id: "b-far", name: "Base far", priceLabel: "Other pub · no listed price", pub: pub("b-far", -0.2) },
-          { id: "b-near", name: "Base near", priceLabel: "Other pub · no listed price", pub: pub("b-near", -0.131) },
+          { id: "b-far", name: "Base far", priceLabel: "Other pub · price not checked", pub: pub("b-far", -0.2) },
+          { id: "b-near", name: "Base near", priceLabel: "Other pub · price not checked", pub: pub("b-near", -0.131) },
         ],
         restaurants: [
           { id: "r1", name: "Kitchen", priceLabel: "Restaurant · no listed price", lng: -0.13, lat: 51.513 },
@@ -275,7 +305,7 @@ describe("the list's order", () => {
       }),
     );
     expect(groups.basePubs.map((row) => row.id)).toEqual(["b-near", "b-far"]);
-    expect(groups.basePubs[0]).toMatchObject({ group: "base", price: null, unpricedLabel: "Other pub · no listed price" });
+    expect(groups.basePubs[0]).toMatchObject({ group: "base", price: null, unpricedLabel: "Other pub · price not checked" });
     expect(groups.restaurants[0]).toMatchObject({ group: "restaurant", lng: -0.13 });
     expect(groups.total).toBe(4);
   });

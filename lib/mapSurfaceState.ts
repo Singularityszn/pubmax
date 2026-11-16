@@ -124,3 +124,20 @@ export function mapSurfaceSearch(search: string, surfaceId: string): string {
   }
   return params.toString();
 }
+
+export function mobileShellIsReady(mapLoading: boolean, overlay: MapOverlay): boolean {
+  return !mapLoading || overlay !== "none";
+}
+
+export function logPickerStateOf(
+  phone: boolean,
+  overlay: MapOverlay,
+  fallbackVisible: boolean,
+  categoryPriceIntent: boolean,
+) {
+  const momentOpen = overlay === "moment";
+  return {
+    active: phone ? momentOpen : fallbackVisible,
+    pricePicker: momentOpen && categoryPriceIntent,
+  };
+}

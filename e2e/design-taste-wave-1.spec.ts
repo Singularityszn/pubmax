@@ -159,8 +159,8 @@ test.describe("desktop taste wave 1", () => {
       await setTheme(page, theme);
       await page.setViewportSize({ width: 1440, height: 900 });
 
-      // The head retains Sign in while London posts load. A confirmed empty
-      // response offers a real night before a quiet sign-in offer in the body.
+      // Open Table and prices stay available while public posts load.
+      // The header retains the sign-in door when the lane is empty.
       //
       // Count the PAINTED primaries. /social streams its body behind
       // loading.tsx, and when the auth answer reaches that still-pending
@@ -177,22 +177,16 @@ test.describe("desktop taste wave 1", () => {
       const storiesPrimary = page.locator("[data-primary-action]").filter({ visible: true });
       await expect(storiesPrimary).toHaveCount(1);
       await expect(storiesPrimary.getByRole("link", { name: "Sign in" })).toBeVisible();
-      await expect(page.locator(".socialLondonEmpty")).toHaveCount(0);
+      await expect(page.locator(".socialLondonEmpty")).toBeVisible();
       // The body is the read-only London lane (captain decision 7, 1 Nov 2026).
       await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
       await expect(page.getByRole("status").getByRole("link", { name: "Sign in" })).toHaveCount(0);
       releaseLane();
-      await expect(storiesPrimary.getByRole("link", { name: "Plan a night", exact: true })).toBeVisible();
-      const empty = page.locator(".socialFeedEmpty--london");
-      await expect(empty.getByRole("link", { name: "Victorian Soho", exact: true })).toBeVisible();
-      await expect(empty.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
-      const offer = empty.locator(".socialEmptySignIn").getByRole("link", { name: "Sign in", exact: true });
-      await expect(offer).toBeVisible();
-      expect(await empty.evaluate((node) => {
-        const offer = node.querySelector(".socialEmptySignIn");
-        const alternatives = node.querySelector(".socialLondonEmpty");
-        return Boolean(offer && alternatives && alternatives.compareDocumentPosition(offer) & Node.DOCUMENT_POSITION_FOLLOWING);
-      })).toBe(true);
+      await expect(page.locator(".socialLondonLane")).toHaveCount(0);
+      await expect(storiesPrimary.getByRole("link", { name: "Sign in", exact: true })).toBeVisible();
+      const alternatives = page.locator(".socialLondonEmpty");
+      await expect(alternatives.getByRole("link", { name: "Explore open crawls", exact: true })).toHaveAttribute("href", "/crawls");
+      await expect(alternatives.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
       const boundaryStyle = await storiesPrimary.evaluate(
         (element) => getComputedStyle(element).borderStyle,
       );

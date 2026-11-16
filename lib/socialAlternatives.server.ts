@@ -8,7 +8,7 @@ import { getUkNationalPubCatalog } from "@/lib/ukNationalPubSearch.server";
 import { readCityVenueIndex } from "@/lib/venueIndex";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 
-/** Read bundled public menu data. This never reads a session or Social store. */
+/** Read bundled public price data. This never reads a session or Social store. */
 export async function loadSocialAlternatives(): Promise<SocialAlternatives> {
   const [venues, updates, bundle, london] = await Promise.all([
     getPricedVenues().catch(() => []), readAllDrinkPriceUpdates(), ukPriceBundleRowsByVenue(), readCityVenueIndex(getCity("london")),

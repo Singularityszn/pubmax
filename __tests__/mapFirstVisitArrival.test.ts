@@ -8,6 +8,7 @@ import {
   searchHasPlanHandoffParams,
   searchSuppressesMapFirstVisitArrival,
   setMapFirstVisitArrivalCardVisible,
+  shouldShowMapArrivalLocationCard,
   shouldShowMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrival";
 import {
@@ -36,6 +37,16 @@ afterEach(() => {
 });
 
 describe("mapFirstVisitArrival", () => {
+  it.each([
+    ["mobile granted permission", true, "granted", false, false],
+    ["mobile visible position", true, "prompt", true, false],
+    ["mobile prompt permission", true, "prompt", false, true],
+    ["mobile denied permission", true, "denied", false, true],
+    ["desktop granted permission", false, "granted", false, true],
+  ] as const)("matches location card visibility for %s", (_label, mobile, permission, hasPosition, expected) => {
+    expect(shouldShowMapArrivalLocationCard({ eligible: true, mobile, permission, hasPosition })).toBe(expected);
+  });
+
   it("shows only after pins reveal and only once per device", () => {
     const storage = makeMemoryStorage();
     expect(

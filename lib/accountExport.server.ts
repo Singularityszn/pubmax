@@ -1,3 +1,5 @@
+import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
+import type { NearbyVisit } from "@/lib/nearbyVisit";
 import "server-only";
 import { leagueStore } from "@/lib/leagueStore";
 import type { LeagueExportRecord } from "@/lib/leagues";
@@ -203,6 +205,7 @@ export type AccountExportDeps = {
   ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   leagues(userId: string): Promise<LeagueExportRecord[]>;
+  nearbyVisits(userId: string): Promise<NearbyVisit[]>;
   socialLinks(userId: string): Promise<PublicSocialConnection[]>;
   nightProfile(userId: string): Promise<NightProfile | null>;
   prices(
@@ -333,6 +336,7 @@ function storeDeps(): AccountExportDeps {
     tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     leagues: (userId) => leagueStore().exportFor(userId),
+    nearbyVisits: (userId) => nearbyVisitStore().list(userId),
     async socialLinks(userId) {
       return (await socialConnectionStore().list(userId)).map(publicSocialConnection);
     },
@@ -846,6 +850,8 @@ export async function buildAccountExport(
     items: await deps.socialLinks(userId),
   }));
 
+  const nearbyVisits = await lane<NearbyVisit>(async () => ({ degraded: false, items: await deps.nearbyVisits(userId) }));
+
   const leagues = await lane<LeagueExportRecord>(async () => ({
     degraded: false,
     items: await deps.leagues(userId),
@@ -889,6 +895,7 @@ export async function buildAccountExport(
     tableRequests,
     pubListNightDrafts,
     leagues,
+    nearbyVisits,
     socialLinks,
     nightProfile,
     messages,

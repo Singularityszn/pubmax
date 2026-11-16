@@ -17,8 +17,7 @@ import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
  * expressed exactly one intent and then had to scroll to act on it.
  *
  * What is asserted is the reveal and nothing more: the price step is IN the
- * viewport once the composer is up. The sheet still renders what it rendered,
- * and focus is deliberately not moved, so no keyboard is raised here.
+ * viewport once the composer is up. The price field receives focus for typing.
  */
 test.use({
   launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] },
@@ -98,13 +97,8 @@ test("the log intent lands the reader on the composer's price step", async ({ pa
   // The price field itself is what the reader came to fill in.
   await expect(priceStep.locator("input").first()).toBeInViewport();
 
-  // A reveal and never a re-layout: the sheet opened on its Pints tab, and
-  // focus stayed put, so raising the keyboard is the reader's own next move.
   await expect(page.locator("#venueTab-pints")).toHaveAttribute("aria-selected", "true");
-  expect(
-    await priceStep.evaluate((step) => step.contains(document.activeElement)),
-    "the reveal moves no focus into the price step",
-  ).toBe(false);
+  await expect(priceStep.getByLabel("What did it cost?")).toBeFocused();
 });
 
 const NEW_DRINKER_PRICE = "5.20";

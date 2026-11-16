@@ -1,5 +1,6 @@
+import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
-import { comparableVenuePint } from "@/lib/comparableVenuePint";
+import { comparableVenuePint, pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
 import {
   COMMUNITY_PRICE_CORROBORATION_THRESHOLD,
@@ -62,8 +63,9 @@ import {
 import { parseZoneParam, venueMatchesZone } from "@/lib/zones";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import type { VenueRecordCopy } from "@/lib/venueRecordCopy";
-import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
+import { NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 import type { VenueKind } from "@/lib/venueKinds";
+import { positiveFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 
 export { VENUE_KINDS, isVenueKind, type VenueKind } from "@/lib/venueKinds";
 
@@ -272,9 +274,7 @@ export type Venue = {
   accessibility?: VenueAccessibility;
 };
 
-export type VenueFeatureObservation = readonly [
-  value: boolean, source: "OpenStreetMap" | "Google Places" | "Pub website", observedAt: string,
-];
+export type { VenueFeatureObservation };
 
 export type VenueFilterHints = {
   outdoorSeating?: VenueFeatureObservation;
@@ -1205,6 +1205,7 @@ function hasSlimFlag(venue: Venue, pick: (hints: VenueFilterHints) => boolean): 
 
 function matchesVenueQuery(venue: Venue, query: string): boolean {
   if (!query) return true;
+  if (mapSearchNameTier(venueSearchNames(venue), query) !== null) return true;
   const searchableFields = [
     ...venueSearchNames(venue),
     venue.address,
@@ -1217,29 +1218,20 @@ function matchesVenueQuery(venue: Venue, query: string): boolean {
   return hasSlimFlag(venue, (hints) => hints.searchText.includes(query));
 }
 
-function positiveFeatureSource(
-  observation: VenueFeatureObservation | undefined,
-  sources: readonly VenueFeatureObservation[1][],
-): boolean {
-  if (observation?.[0] !== true || !sources.includes(observation[1])) return false;
-  const observedAt = Date.parse(observation[2]);
-  return Number.isFinite(observedAt) && observedAt <= Date.now();
-}
-
 function matchesRecordedExtras(venue: Venue, filters: Filters): boolean {
   if (filters.requireLiveSports) {
     if (venueAmenityStatus(venue).liveSports === "known-false" || venue.osmFacts?.liveSport === "no") return false;
     const source = venue.filterHints?.liveSportsSource;
     if (source?.[0] === false) return false;
     if (venue.osmFacts?.liveSport !== "yes"
-      && !positiveFeatureSource(source, ["OpenStreetMap"])) return false;
+      && !positiveFeatureObservation(source, "liveSports")) return false;
   }
   if (filters.requireDogFriendly) {
     const policy = venue.siteFacts?.dogs?.policy;
     const source = venue.filterHints?.dogsWelcome;
     if (policy === "not-allowed" || source?.[0] === false) return false;
     if (policy !== "welcome" && venue.osmFacts?.dog !== "yes" && venue.osmFacts?.dog !== "leashed"
-      && !positiveFeatureSource(source, ["OpenStreetMap", "Pub website"])) return false;
+      && !positiveFeatureObservation(source, "dogsWelcome")) return false;
   }
   for (const [required, key] of [[filters.requireDarts, "darts"], [filters.requirePool, "pool"]] as const) {
     if (required && (venueAmenityStatus(venue)[key] === "known-false"
@@ -1255,7 +1247,7 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
     if (venueAmenityStatus(venue).beerGarden === "known-false") return false;
     const gardenSource = venue.filterHints?.beerGardenSource;
     const gardenKnown = venue.amenities.beerGarden
-      || positiveFeatureSource(gardenSource, ["OpenStreetMap"])
+      || positiveFeatureObservation(gardenSource, "beerGarden")
       || (!gardenSource && hasSlimFlag(venue, (hints) => hints.amenities.beerGarden));
     if (!gardenKnown) return false;
   }
@@ -1266,9 +1258,7 @@ function matchesVenueAmenities(venue: Venue, filters: Filters): boolean {
     [filters.requireFood, venue.amenities.food, (hints: VenueFilterHints) => hints.amenities.food],
     [filters.requireCocktails, venue.amenities.cocktails, (hints: VenueFilterHints) => hints.amenities.cocktails],
   ] as const;
-  const outdoorStated = positiveFeatureSource(
-    venue.filterHints?.outdoorSeating, ["OpenStreetMap", "Google Places"],
-  );
+  const outdoorStated = positiveFeatureObservation(venue.filterHints?.outdoorSeating, "outdoorSeating");
   if (filters.requireOutdoorSeating && !outdoorStated) return false;
   return checks.every(([required, detailedValue, pickHint]) => {
     return !required || detailedValue || hasSlimFlag(venue, pickHint);
@@ -1412,6 +1402,8 @@ export function filterVenues(
    * caller never invents closures. Only `false` is dropped when openNow is on.
    */
   openNowState: (venueId: string) => boolean | "unknown" = () => "unknown",
+  pintSignals: PintCapSignals | null = null,
+  allowVenueContributor = true,
 ): Venue[] {
   const query = filters.query.trim().toLowerCase();
   const drinkCategory = filters.drinkCategory?.trim() ?? "";
@@ -1429,13 +1421,7 @@ export function filterVenues(
     // maxPrice is explicitly the maximum pint-price control. Cocktail and food
     // anchors use their own type-relative bands and must not be compared with
     // a pub pint's absolute price cap.
-    const comparablePrice = hasPintPriceCap(filters.maxPrice)
-      ? comparableVenuePint(venue)
-      : null;
-    const matchesPrice =
-      !hasPintPriceSemantics(venue) ||
-      comparablePrice === null ||
-      comparablePrice <= filters.maxPrice;
+    const matchesPrice = pintCapQualification(venue, filters.maxPrice, pintSignals?.get(venue.id), allowVenueContributor) !== "over";
 
     const matchesPintDrops =
       !filters.requirePintDrops ||

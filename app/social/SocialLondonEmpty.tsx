@@ -10,17 +10,14 @@ const UNAVAILABLE: SocialAlternatives = { crawls: [], prices: [], priceRead: "un
 export default function SocialLondonEmpty({ alternatives = UNAVAILABLE }: { alternatives?: SocialAlternatives }) {
   return (
     <div className="socialLondonEmpty">
-      <section aria-labelledby="social-empty-crawls">
-        <h3 id="social-empty-crawls">Choose a crawl</h3>
-        {alternatives.crawls.length ? <ul className="socialAlternativeList">
-          {alternatives.crawls.map((crawl) => <li key={crawl.href}>
-            <Link prefetch={false} href={crawl.href}>{crawl.name}</Link>
-            <span className="socialAlternativeMeta">{crawl.stops} stops, free to follow.</span>
-          </li>)}
-        </ul> : <Link prefetch={false} href="/crawls">Browse crawl routes</Link>}
+      <section className="socialOpenTable" aria-labelledby="social-open-table">
+        <p className="socialOpenTableKicker">Open Table</p>
+        <h2 id="social-open-table">Find a crawl to join</h2>
+        <p>Meet other pub-goers on an open crawl.</p>
+        <Link className="socialOpenTableAction" prefetch={false} href="/crawls">Explore open crawls</Link>
       </section>
       <section aria-labelledby="social-empty-prices">
-        <h3 id="social-empty-prices">Latest pint prices we hold</h3>
+        <h2 id="social-empty-prices">Latest pint prices we hold</h2>
         {alternatives.prices.length ? <ul className="socialAlternativeList">
           {alternatives.prices.map((price) => <li key={price.venueId}>
             <Link prefetch={false} href={price.href}>{price.name}</Link>

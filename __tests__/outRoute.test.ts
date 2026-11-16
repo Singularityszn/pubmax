@@ -91,6 +91,8 @@ function eventRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
   return {
     id: "events-tm-1",
     placeName: "Soho Theatre",
+    lat: 51.5146,
+    lng: -0.1314,
     kind: "event",
     startsAt: "2026-08-16T19:00:00.000Z",
     title: "A Night at the Playhouse",
@@ -368,6 +370,8 @@ describe("buildOutResponse", () => {
     const dateOnly: WhatsOnRow = {
       id: "events-cm-1",
       placeName: "Camberwell",
+      lat: 51.474,
+      lng: -0.093,
       kind: "event",
       startsDate: "2026-08-16",
       timeEvidence: "Date listed, start time not published",

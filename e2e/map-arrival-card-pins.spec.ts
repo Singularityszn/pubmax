@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The B1 reproduction from the 7 Sep live walk (docs/proof/astra-live-walk/
 // report.md), turned into a fence.
@@ -40,6 +41,7 @@ async function paintedPoints(page: Page): Promise<PaintedPoint[]> {
 
 /** A first visit: the dismissal key the default storage state carries is cleared. */
 async function openFirstVisitMap(page: Page): Promise<void> {
+  await installDeterministicMapBasemap(page);
   await page.addInitScript(() => {
     window.localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
   });
@@ -50,7 +52,7 @@ async function openFirstVisitMap(page: Page): Promise<void> {
   });
 }
 
-test.use({ hasTouch: true, viewport: PHONE, isMobile: true });
+test.use({ hasTouch: true, viewport: PHONE, isMobile: true, serviceWorkers: "block" });
 
 test.describe("the first-visit card and the pin field", () => {
   // Each wait above is allowed ARRIVAL_TIMEOUT_MS, but the project's 30 s test

@@ -61,8 +61,6 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expectTapTarget(searchInput.locator(".."), "map search field");
 
   await search.click();
-  // The drink filters live in the Filters sheet, opened from the top bar
-  // (#1631: one bar, and the category row moved into Filters).
   const filtersButton = await mobileMapShellControl(page, "filters");
   await expectTapTarget(filtersButton, "filters button");
   await filtersButton.click();
@@ -70,25 +68,26 @@ test("mobile map controls: top bar, drink filters, and coordinated layers are ta
   await expect(filters).toBeVisible();
   await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
 
-  const drinkGroup = filters.getByRole("group", { name: "Filter by drink shape" });
+  await filters.locator(".mobileFilterDrink button").click();
+  const drinks = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
+  const drinkGroup = drinks.getByRole("group", { name: "Drink prices shown on the map" });
   await expect(drinkGroup).toBeVisible();
 
   const wine = drinkGroup.getByRole("button", { name: "Wine" });
   await expectTapTarget(wine, "Wine drink-shape chip");
   await wine.click();
   await expect(wine).toHaveAttribute("aria-pressed", "true");
-  await expect(drinkGroup.getByRole("button", { name: "Wine (selected)" })).toBeVisible();
+  await expect(drinkGroup.getByRole("button", { name: "Wine", exact: true })).toBeVisible();
 
-  // A second drink replaces the first. The old category select and its brand
-  // picker are gone: the drink shape chips are the one category control, and
-  // the brand slot moved into the drink lane's own panel (#1631).
+  // A second drink replaces the first.
   const gin = drinkGroup.getByRole("button", { name: "Gin" });
   await expectTapTarget(gin, "Gin drink-shape chip");
   await gin.click();
   await expect(gin).toHaveAttribute("aria-pressed", "true");
   await expect(wine).toHaveAttribute("aria-pressed", "false");
   await expect(page).toHaveURL(/[?&]drink=gin(?:&|$)/);
-  await filters.getByRole("button", { name: "Close Prices and places" }).click();
+  await drinks.locator(".surfaceNavHome").click();
+  await expect(drinks).toHaveCount(0);
   await expect(filters).toHaveCount(0);
   await expect(
     page

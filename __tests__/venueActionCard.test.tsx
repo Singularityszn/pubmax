@@ -558,8 +558,9 @@ describe("one coral action", () => {
       const card = cardOf(view);
       expect(card.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
       expect(view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)).toHaveLength(1);
-      // Every other command on the card is a ghost.
-      const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
+      expect(card.querySelector(`.${ACTION_CARD_CORAL_CLASS}`)?.hasAttribute("data-plan-door")).toBe(true);
+      // Secondary actions stay ghosts.
+      const ghosts = [...card.querySelectorAll('[role="group"][aria-label="More actions for The Action Arms"] button')];
       expect(ghosts.map(actionName)).toEqual(["Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
     }
@@ -577,7 +578,7 @@ describe("one coral action", () => {
       const card = cardOf(view);
       const coral = [...view.querySelectorAll(`.${ACTION_CARD_CORAL_CLASS}`)];
       expect(coral.map(actionName)).toEqual(["Log what you paid at The Action Arms"]);
-      const ghosts = [...card.querySelectorAll('[role="toolbar"] button')];
+      const ghosts = [...card.querySelectorAll('[role="group"][aria-label="More actions for The Action Arms"] button')];
       expect(ghosts.map(actionName)).toEqual([plan, "Ask for a table at The Action Arms", "Summon mates to The Action Arms", "Share The Action Arms"]);
       for (const ghost of ghosts) expect(ghost.className).toBe("venueSheetStickyGhost");
       // The coral already asks, so the price cell says and does not ask again.

@@ -64,6 +64,8 @@ import {
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { readHistoryStep, useStepHistory } from "@/lib/useStepHistory";
 import { loadSlimVenuesForCityResult, type SlimVenueLoadResult } from "@/lib/venuesSlim";
+import { readPlanningIntent } from "@/lib/planningIntent";
+import { acceptNearVenue, VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 
 // A phone draws the photo as a short, darkened full-width band, so its slot is
 // held to 400px and a 3x phone picks the 1200px candidate rather than 1920px.
@@ -121,7 +123,7 @@ function primaryActionLabel(
   if (answer.status === "loading") return "Checking prices…";
   if (answer.status === "unavailable") return "Try again";
   if (answer.status === "empty" || !hasBest) return "Pick a patch";
-  return "That looks right";
+  return "Keep this pub";
 }
 
 function primaryActionDisabled(
@@ -161,6 +163,7 @@ export default function FirstRunOnboarding({
   const [budget, setBudget] = useState<BudgetChoiceId | null>(null);
   const [locateState, setLocateState] = useState<LocateState>("idle");
   const [showPatches, setShowPatches] = useState(false);
+  const [keepError, setKeepError] = useState("");
   // A reload or a native relaunch keeps the patch the reader chose, so the
   // planner still opens on it.
   const [origin, setOrigin] = useState<OnboardingOrigin | null>(() => {
@@ -358,7 +361,7 @@ export default function FirstRunOnboarding({
       return;
     }
     writePreferredCity("london");
-    writeFirstRunCompanion(companion);
+    if (step === "companion") writeFirstRunCompanion(companion);
     if (isNativeApp()) markNativeFirstRunRouted();
     markTourSeen();
     trackEvent("tour_complete", { completed: true });
@@ -375,6 +378,31 @@ export default function FirstRunOnboarding({
     };
     writePlannerHandoff(handoff);
     stepHistory.leave(() => openPlanner(handoff));
+  }
+
+  function keepFirstPub() {
+    const pub = result?.best;
+    if (!pub) return;
+    const existing = readPlanningIntent({ cleanupInvalid: false });
+    if (existing && existing.acceptedVenueId !== pub.id) {
+      setKeepError("You already kept a pub. Open the walking plan to choose between your existing plan and this area.");
+      return;
+    }
+    const accepted = acceptNearVenue({
+      venueId: pub.id,
+      area: origin?.kind === "patch" ? { kind: "night-patch", id: origin.id } : null,
+      startsAt: null,
+      observedAt: null,
+      fallbackCityId: "london",
+    });
+    if (!accepted.accepted) {
+      setKeepError(VENUE_ACCEPTANCE_STORAGE_ERROR);
+      return;
+    }
+    if (isNativeApp()) markNativeFirstRunRouted();
+    markTourSeen();
+    releaseTourPromptBudget();
+    stepHistory.leave(() => router.push(accepted.href));
   }
 
   const stepNumber = onboardingStepNumber(step);
@@ -397,7 +425,7 @@ export default function FirstRunOnboarding({
       if (origin) void readAnswer(origin);
       else changeArea();
     } else if (answer.status === "empty" || !result?.best) changeArea();
-    else goTo(nextOnboardingStep("result"));
+    else keepFirstPub();
   }
 
   const primaryLabel = primaryActionLabel(step, locateState, answer, Boolean(result?.best));
@@ -538,6 +566,9 @@ export default function FirstRunOnboarding({
                 budgetLabel={budgetChoice?.ceiling ? budgetChoice.label : null}
                 onChangeBudget={() => setStep("budget")}
                 onChangeArea={changeArea}
+                onChoosePal={() => goTo(nextOnboardingStep("result"))}
+                onExtendWalk={startPlan}
+                keepError={keepError}
               />
             ) : null}
 

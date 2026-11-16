@@ -194,6 +194,7 @@ test.describe("the desktop panels take the same pair", () => {
     }).toPass({ timeout: 30_000 });
     // The planner head used to hold a grab handle and nothing else.
     await expect(planner.locator(".surfaceNavHome")).toHaveCount(1);
+    await expect(planner.locator(".surfaceNavBack")).toHaveCount(0);
 
     // Finding 2.16: the way out may not shout louder than the pub's name, so
     // it carries no border and no fill at rest.

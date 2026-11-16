@@ -67,7 +67,9 @@ import { mirrorAccountNightProfileToDevice, readDeviceNightDrink } from "@/lib/n
 import { releaseDeviceAccountOwner } from "@/lib/deviceAccountIdentity";
 import { createPlanIntakeDraft, PLAN_INTAKE_STORAGE_KEY, readPlanIntakeDraft, readPlanIntakeDraftWithMetadata, resolveFutureLondonStartIso, skipRemainingPlanIntake, writePlanIntakeDraft } from "@/lib/planIntake";
 import { readPlanningIntent, writePlanningIntent } from "@/lib/planningIntent";
+import { readOnboardingAlternative, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
 import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
+import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { parsePlanDraft, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope } from "@/lib/planDraft";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
@@ -149,6 +151,279 @@ async function mountComposer(): Promise<void> {
     await vi.waitFor(() => expect(document.querySelector(".planStops__placeholder")).toBeNull(), { timeout: 4000 });
   }
 }
+
+describe("onboarding after a kept pub", () => {
+  beforeEach(() => {
+    writePlanningIntent({
+      source: "near", cityId: "london", acceptedVenueId: "garden-shed",
+      acceptedArea: { kind: "borough", name: "Merton" }, startsAt: null,
+      displayEvidence: { kind: "directory", observedAt: null },
+    });
+    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Soho%2C+maximum+%C2%A36+per+pint");
+  });
+
+  it("separates a first Pal handoff from the saved pub before consuming its draft", async () => {
+    const query = "Pubs in Camden, maximum £5 per pint";
+    writeAskPlanDraft({
+      query, origin: "pal", stopIds: ["venue-a", "venue-b", "venue-c"],
+      stopNames: ["Pub A", "Pub B", "Pub C"], createdAt: new Date().toISOString(),
+    });
+    const pending = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+    window.history.replaceState({}, "", planPalRouteHandoffHref(query));
+    await mountComposer();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')).not.toBeNull();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBe(pending);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+    expect(call).toBeDefined();
+    expect(JSON.parse(String(call![1]?.body)).anchor).toMatchObject({
+      source: "pal", venueId: "venue-a", venueIds: ["venue-a", "venue-b", "venue-c"],
+    });
+    expect(readPlanningIntent()).toBeNull();
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("asks before combining the saved pub with the new area", async () => {
+    const before = sessionStorage.getItem("pubmax:planning-intent:v1");
+    await mountComposer();
+    expect(document.body.textContent).toContain("Keep your existing plan");
+    expect(document.body.textContent).toContain("Start the new request");
+    expect(sessionStorage.getItem("pubmax:planning-intent:v1")).toBe(before);
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.includes("Start the new request"))!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+    expect(document.querySelector("[aria-label='Accepted plan context']")).toBeNull();
+    expect(readPlanningIntent()).toBeNull();
+    expect(document.body.textContent).toContain("Restore previous plan");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    expect(sessionStorage.getItem("pubmax:planning-intent:v1")).toBe(before);
+    expect(document.querySelector("[aria-label='Accepted plan context']")).not.toBeNull();
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).not.toContain("Soho");
+  });
+
+  it("restores both requests, including a new access need, across switches and reloads", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "Soho, step-free, maximum £6 per pint");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await settle();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    await remountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toBe("Soho, step-free, maximum £6 per pint");
+    expect(readPlanningIntent()).toBeNull();
+  });
+
+  it("submits the new area without carrying the earlier accepted pub", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
+    });
+    await settle();
+    const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+    expect(call).toBeDefined();
+    const body = JSON.parse(String(call![1]?.body));
+    expect(body.query).toContain("Soho");
+    expect(body.query).toContain("maximum £6 per pint");
+    expect(body.anchor).toBeUndefined();
+  });
+
+  it("keeps the existing pub and its area when the person chooses the old plan", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(readPlanningIntent()).toMatchObject({ acceptedVenueId: "garden-shed", acceptedArea: { kind: "borough", name: "Merton" } });
+    expect(document.querySelector<HTMLInputElement>("#plan-concierge-query")?.value).not.toContain("Soho");
+    expect(document.body.textContent).toContain("Start the new request");
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+  });
+
+  it("keeps the old plan when saving the alternative is refused", async () => {
+    const before = sessionStorage.getItem("pubmax:planning-intent:v1");
+    await mountComposer();
+    const store = blockStorageWrites("sessionStorage");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    expect(document.querySelector('[role="alert"]')?.textContent).toContain("could not switch plans");
+    expect(store.getItem("pubmax:planning-intent:v1")).toBe(before);
+  });
+
+  it.each([
+    { side: "new", from: "onboarding" }, { side: "old", from: "onboarding" },
+    { side: "new", from: "pal" }, { side: "old", from: "pal" },
+  ])("asks about a different $from request when the $side side is active", async ({ side, from }) => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    if (side === "old") {
+      await act(async () => {
+        [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+      });
+      await settle();
+    }
+    if (from === "pal") writeAskPlanDraft({
+      query: "Pubs in Camden, maximum £5 per pint", origin: "pal",
+      stopIds: ["venue-a", "venue-b", "venue-c"], stopNames: ["Pub A", "Pub B", "Pub C"], createdAt: new Date().toISOString(),
+    });
+    const pendingPalDraft = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+    window.history.replaceState({}, "", from === "pal"
+      ? planPalRouteHandoffHref("Pubs in Camden, maximum £5 per pint")
+      : "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
+    await remountComposer();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')?.textContent).toContain("Camden");
+    expect(document.body.textContent).toContain("Start the new request");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    expect(fetchMock.mock.calls.filter(([, init]) => init?.method === "POST")).toHaveLength(0);
+    if (from === "pal") expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBe(pendingPalDraft);
+    if (side === "old") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Start the new request")!.click();
+    });
+    await settle();
+    if (from === "pal") {
+      const call = fetchMock.mock.calls.find(([url, init]) => String(url).includes("/api/plans/generate") && init?.method === "POST");
+      expect(call).toBeDefined();
+      const request = JSON.parse(String(call?.[1]?.body)) as { query: string; acceptedVenueId?: string; anchor?: { venueId: string; venueIds?: string[]; source: string } };
+      expect(request.query).toContain("Camden");
+      expect(request.query).toContain("£5 per pint");
+      expect(request.anchor).toMatchObject({ source: "pal", venueId: "venue-a", venueIds: ["venue-a", "venue-b", "venue-c"] });
+      expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+    } else {
+      expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Camden");
+      expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("£5 per pint");
+    }
+    expect(readOnboardingAlternative(sessionStorage, null)?.archived).toHaveLength(1);
+    expect(document.body.textContent).toContain("Restore saved plan 1");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore previous plan")!.click();
+    });
+    await settle();
+    if (side === "old") expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+    else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Restore saved plan 1")!.click();
+    });
+    await settle();
+    if (side === "new") {
+      expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+      const description = document.querySelector<HTMLInputElement>("#plan-describe-first-query, #plan-concierge-query");
+      expect(description).not.toBeNull();
+      expect(description!.value).not.toContain("Camden");
+      await remountComposer();
+      expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+      const reloaded = document.querySelector<HTMLInputElement>("#plan-describe-first-query, #plan-concierge-query");
+      expect(reloaded).not.toBeNull();
+      expect(reloaded!.value).not.toContain("Camden");
+    } else expect(document.querySelector<HTMLInputElement>("#plan-describe-first-query")?.value).toContain("Soho");
+  });
+
+  it("asks again when a different request arrives after keeping the current plan", async () => {
+    await mountComposer();
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Keep your existing plan")!.click();
+    });
+    await settle();
+    window.history.replaceState({}, "", "/plan?from=onboarding&query=Pubs+in+Camden%2C+maximum+%C2%A35+per+pint");
+    await act(async () => { root!.render(createElement(PlanComposer)); });
+    await settle();
+    expect(document.querySelector('[aria-label="Choose a planning request"]')?.textContent).toContain("Camden");
+    expect(readPlanningIntent()?.acceptedVenueId).toBe("garden-shed");
+  });
+
+  it("opens the current plan after a conflicting interrupted switch without changing either saved candidate", async () => {
+    const racing = {
+      get length() { return localStorage.length; },
+      key: (index: number) => localStorage.key(index),
+      getItem: (key: string) => localStorage.getItem(key),
+      setItem: (key: string, value: string) => localStorage.setItem(key, value),
+      removeItem: (key: string) => { localStorage.setItem(key, "other tab change"); throw new Error("conflict"); },
+      clear: () => localStorage.clear(),
+    } satisfies Storage;
+    expect(switchOnboardingPlan(sessionStorage, racing, null)).toBe(false);
+    const before = readOnboardingAlternative(sessionStorage, null);
+    expect(before?.phase).toBe("pending");
+    const shared = localStorage.getItem(PLAN_INTAKE_STORAGE_KEY);
+    await mountComposer();
+    const exit = [...document.querySelectorAll("button")].find((button) => button.textContent === "Open current plan");
+    expect(exit).toBeDefined();
+    await act(async () => { exit!.click(); });
+    await settle();
+    expect(document.querySelector("#plan-composer")).not.toBeNull();
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "deferred", other: before?.other, target: before?.phase === "pending" ? before.target : null });
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(shared);
+    await remountComposer();
+    expect(document.querySelector("#plan-composer")).not.toBeNull();
+    expect(document.querySelector("#plan-composer")?.parentElement?.hasAttribute("inert")).toBe(true);
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "deferred", other: before?.other, target: before?.phase === "pending" ? before.target : null });
+    expect(localStorage.getItem(PLAN_INTAKE_STORAGE_KEY)).toBe(shared);
+    await act(async () => {
+      [...document.querySelectorAll("button")].find((button) => button.textContent === "Review saved plans")!.click();
+    });
+    await settle();
+    expect(readOnboardingAlternative(sessionStorage, null)).toMatchObject({ phase: "pending", other: before?.other, target: before?.phase === "pending" ? before.target : null });
+  });
+});
+
+describe("route failure recovery", () => {
+  it("offers the map without losing the request after a refused route", async () => {
+    fetchMock.mockImplementation(async (input) => String(input).includes("/api/plans/generate")
+      ? Response.json({ error: { message: "We could not verify a 3-stop route in Soho with the information available." } }, { status: 422 })
+      : Response.json([]));
+    await mountComposer();
+    const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(field, "3 pubs in Soho, step-free, under £20 each");
+      field.dispatchEvent(new Event("input", { bubbles: true }));
+      [...document.querySelectorAll("button")].find((button) => button.textContent?.trim() === "Plan it")!.click();
+    });
+    await settle();
+    const map = document.querySelector<HTMLAnchorElement>('a[data-plan-recovery="map"]');
+    expect(map?.getAttribute("href")).toBe("/map");
+    expect(map?.getAttribute("target")).toBe("_blank");
+    expect(document.body.textContent).toContain("could not verify");
+    expect(JSON.stringify(sessionStorage)).toContain("step-free");
+  });
+});
 
 async function remountComposer(): Promise<void> {
   const current = root!;

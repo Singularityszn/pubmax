@@ -210,7 +210,7 @@ describe("onboarding's plan destination", () => {
     const href = onboardingPlanHref({ patch: { lat: 51.5136, lng: -0.1365 }, budget: "five" });
     const url = new URL(href, "https://pubmaxxing.com");
     expect(url.pathname).toBe("/plan");
-    expect(url.searchParams.get("query")).toBe("3 pubs in Soho, under £15 per person, maximum £5 per pint");
+    expect(url.searchParams.get("query")).toBe("Pubs in Soho, maximum £5 per pint");
   });
 
   it("does not invent a patch or a ceiling for an unanswered choice", () => {

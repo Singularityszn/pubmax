@@ -110,10 +110,8 @@ export const FOUNDERS_DISCORD_CTA = "Join the founders' Discord";
 export const FOUNDERS_WELCOME_VISIBLE_MS = 12_000;
 
 /**
- * How many are left, said plainly, for the wall alone. It is a count of a public
- * numbered list, so it reveals nothing the list did not, and it is never shown
- * to somebody who missed it as a reason to hurry: a person who is not a founding
- * member sees no founding surface at all.
+ * Shared count copy for the public wall and Social's Founding hundred card.
+ * The count uses the public list, so it reveals nothing the wall did not.
  */
 export function foundingSlotsRemainingLine(claimed: number): string {
   const taken = Number.isInteger(claimed) && claimed > 0 ? Math.min(claimed, FOUNDING_MEMBER_CAP) : 0;

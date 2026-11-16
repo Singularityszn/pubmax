@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 import {
   COMMUNITY_SHEET_FIXTURE_VENUE_ID,
@@ -44,6 +45,7 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
   await page.goto(`/map?mode=build&pubs=${CRAWL_STOP_ID}&sel=${VENUE_ID}`);
 
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  const actions = await openVenueSecondaryActions(venuePortal);
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const planStop = venuePortal.locator(".venueActionCard [data-plan-door]");
   await expect(planStop).toHaveText("Plan stop", { timeout: 30_000 });
@@ -51,7 +53,7 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
   // One plan door on the whole phone sheet, in build mode too.
   await expect(venuePortal.getByRole("button", { name: PLAN_DOOR_NAME })).toHaveCount(1);
   await expect(
-    venuePortal.getByRole("toolbar", { name: "Venue actions" }).getByRole("button"),
+    actions.getByRole("button"),
   ).toHaveText(["Plan stop", "Ask for a table", "Summon mates", "Share"]);
 
   await expect(async () => {
@@ -74,6 +76,8 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
   // Close the sheet: the pill names ONE picked stop, never the suggested six.
   await venuePortal.locator(".surfaceNavHome").click();
   await expect(venuePortal).toHaveCount(0);
+  await page.getByRole("complementary", { name: "Anonymous analytics choice" })
+    .getByRole("button", { name: "No thanks", exact: true }).click();
   const pill = page.locator(".mobilePlanActivation");
   await expect(pill).toBeVisible({ timeout: MOBILE_MAP_SHELL_READY_MS });
   await expect(pill).toContainText("1 stop picked");
@@ -108,6 +112,7 @@ test("phone 390: with no crawl in progress, the one door is Make it Stop 1 and h
   await preparePage(page);
   await page.goto(`/map?sel=${VENUE_ID}`);
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await openVenueSecondaryActions(venuePortal);
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const makeStop1 = venuePortal
     .locator(".venueActionCard")
@@ -126,6 +131,7 @@ test("phone 390: removing the last stop ends the crawl, and the door reads Make 
   await preparePage(page);
   await page.goto(`/map?mode=build&pubs=${VENUE_ID}&sel=${VENUE_ID}`);
   const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await openVenueSecondaryActions(venuePortal);
   await expect(venuePortal).toBeVisible({ timeout: 30_000 });
   const door = venuePortal.locator(".venueActionCard [data-plan-door]");
   await expect(door).toHaveText("In plan", { timeout: 30_000 });
@@ -146,6 +152,7 @@ for (const width of [320, 390] as const) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto(`/map?mode=build&pubs=${CRAWL_STOP_ID}&sel=${VENUE_ID}`);
     const venuePortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    await openVenueSecondaryActions(venuePortal);
     const door = venuePortal.locator(".venueActionCard [data-plan-door]");
     await expect(door).toHaveText("Plan stop", { timeout: 30_000 });
     await page.evaluate(() => document.fonts.ready);

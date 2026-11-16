@@ -3,7 +3,8 @@
 // the tenth. Letterboxd and Bluesky ship the same shape.
 //
 // This module is the whole policy and it is PURE: what a pack is, which packs
-// exist, which accounts belong in one, and the words a pack surface may use.
+// exist, which accounts belong in one, and pack-specific copy. Shared founder
+// count copy lives in `lib/foundingMembers.ts`.
 // Nothing here reads a store, a request or the clock.
 //
 // THE HONESTY RULE, which every function below serves: a pack contains
@@ -20,9 +21,9 @@
 // that says "north London" is in no pack at all. Under-inclusive is the safe
 // side of that line - the floor simply keeps a thin pack off the screen.
 //
-// The FOUNDING pack is the first hundred claimed handles in number order,
-// which is the same public wall `/founders` already prints. It reads the
-// number and nothing else: no capability may ever branch on it
+// The FOUNDING pack selects from the public wall `/founders` in number order.
+// Its user-facing count and follow behaviour are described in `README.md`.
+// It reads the number and nothing else: no capability may ever branch on it
 // (`lib/foundingMembers.ts`).
 
 import { accountIsPrivate, type AccountVisibility } from "@/lib/accountVisibility";
@@ -122,7 +123,8 @@ export function listStarterPacks(): StarterPack[] {
   const founding: StarterPack = {
     slug: FOUNDING_STARTER_PACK_SLUG,
     title: "Founding hundred",
-    description: "The first hundred accounts here, in number order.",
+    description:
+      "The first hundred accounts here, in number order. Follow up to 12 in one tap.",
     kind: "founding",
   };
   const boroughs = LONDON_BOROUGHS.map((borough): StarterPack => ({
@@ -330,10 +332,14 @@ export type StarterPackFollowResult = {
 /** Copy the surface may print. Visible words live here so two cards cannot drift. */
 export const STARTER_PACKS_TITLE = "Start with your lot";
 export const STARTER_PACK_FOLLOW_LABEL = "Follow all";
+export const STARTER_PACK_FOUNDING_FOLLOW_LABEL = "Follow up to 12";
 export const STARTER_PACK_FOLLOW_WORKING_LABEL = "Following…";
 
 /** The accessible name on a follow-all button, which follows several people at once. */
 export function starterPackFollowAccessibleLabel(pack: StarterPack): string {
+  if (pack.kind === "founding") {
+    return "Follow up to 12 accounts in Founding hundred";
+  }
   return `Follow everyone in ${pack.title}`;
 }
 

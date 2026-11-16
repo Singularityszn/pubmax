@@ -79,6 +79,9 @@ describe("soft plan occasion deep links", () => {
     expect(shouldAutoGeneratePalHandoffPlan(null)).toBe(false);
     expect(shouldAutoGeneratePalHandoffPlan(parsePlanHandoffQueryFromSearch("?occasion=quiet"))).toBe(false);
     expect(shouldAutoGeneratePalHandoffPlan(parsePlanHandoffQueryFromSearch(`?query=${encodeURIComponent("Plan a crawl in Soho for 4")}`))).toBe(true);
+    const onboarding = "?from=onboarding&query=Pubs+in+Soho%2C+maximum+%C2%A36+per+pint";
+    expect(parsePlanDescribeFromSearch(onboarding)).toContain("maximum £6 per pint");
+    expect(shouldAutoGeneratePalHandoffPlan(parsePlanHandoffQueryFromSearch(onboarding))).toBe(false);
   });
 
   it.each([

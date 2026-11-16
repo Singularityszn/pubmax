@@ -48,9 +48,10 @@ it.each([false, true])("keeps search open until venue selection, category intent
   };
 
   await render({});
-  expect(props.setFallbackVisible).not.toHaveBeenCalled();
-  await render({ loaded: true });
   expect(props.setFallbackVisible).toHaveBeenCalledExactlyOnceWith(true);
+  vi.mocked(props.setFallbackVisible).mockClear();
+  await render({ loaded: true });
+  expect(props.setFallbackVisible).not.toHaveBeenCalled();
   vi.mocked(props.setFallbackVisible).mockClear();
 
   await render({ firstFilteredVenueId: "second", firstRouteId: "second" });

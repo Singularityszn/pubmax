@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl, openMobileFilterRefinements } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 test.use({ serviceWorkers: "block" });
@@ -23,8 +23,8 @@ test.beforeEach(async ({ page }) => {
  *
  * The five venue-type chips floated over the map as a permanent band at every
  * width from 641px up, so a tablet met 20 to 24 controls before it had tapped
- * a pin. They live behind ONE Filters control now. Below 641px nothing moved:
- * a phone still reads the same toggles in its Filters sheet.
+ * a pin. They live behind ONE Filters control now. A phone reads the same
+ * toggles under More filters in its Filters sheet.
  */
 
 const DESKTOP = [
@@ -238,7 +238,7 @@ test.describe("390x844", () => {
   test.describe.configure({ timeout: 120_000 });
 
   for (const chunkDelayMs of [0, 3_000]) {
-    test(`leaves the phone exactly as it was: chips in the Filters sheet (${chunkDelayMs}ms download)`, async ({
+    test(`keeps phone venue types behind More filters (${chunkDelayMs}ms download)`, async ({
       page,
     }) => {
       await seedDismissedChrome(page);
@@ -276,16 +276,15 @@ test.describe("390x844", () => {
         if ((await filters.getAttribute("aria-expanded")) === "false") {
           await filters.click();
         }
-        await expect(
-          page
-            .locator('.mobileSheetPortal[data-sheet-kind="filters"]')
-            .getByRole("group", { name: "Venue types" }),
-        ).toBeVisible({ timeout: 2_000 });
+        await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]'))
+          .toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 45_000 });
 
       const sheet = page.locator(
         '.mobileSheetPortal[data-sheet-kind="filters"]',
       );
+      await expect(sheet.getByRole("group", { name: "Venue types" })).toHaveCount(0);
+      await openMobileFilterRefinements(sheet);
       // The phone and desktop share the same five enabled kind controls.
       await expect(sheet.locator(".tonightArcChip")).toHaveCount(5);
       await expect(sheet.locator(".tonightArcChipsSheet")).toBeVisible();
