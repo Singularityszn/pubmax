@@ -78,6 +78,13 @@ describe("the server keeps nothing", () => {
 });
 
 describe("how long an answer stands", () => {
+  it("does not renew an old window when only one row is updated", () => {
+    writeSurfaceSnapshot("/api/messages?viewer=alice", { body: "Original" }, 1_000, { persist: false });
+    writeSurfaceSnapshot("/api/messages?viewer=alice", { body: "Edited" }, 8_000, { persist: false, preserveAge: true });
+    expect(readSurfaceSnapshot("/api/messages?viewer=alice", 10_000, 9_000)).toEqual({ body: "Edited" });
+    expect(readSurfaceSnapshot("/api/messages?viewer=alice", 10_000, 11_001)).toBeUndefined();
+  });
+
   it("returns a young entry and drops one past its age", () => {
     writeSurfaceSnapshot("/api/whats-on?x", { rows: 3 }, 1_000);
     expect(readSurfaceSnapshot("/api/whats-on?x", 10_000, 5_000)).toEqual({ rows: 3 });
@@ -313,6 +320,19 @@ async function importFreshSurfaceDataCache() {
 }
 
 describe("persistent session snapshots", () => {
+  it("keeps a private answer in memory without persisting it", async () => {
+    const sessionStorage = makeSessionStorage();
+    stubBrowserWithSessionStorage(sessionStorage);
+    const key = "/api/messages?viewer=alice";
+
+    writeSurfaceSnapshot(key, { body: "Private message" }, 1_000, { persist: false });
+
+    expect(readSurfaceSnapshot(key, 10_000, 5_000)).toEqual({ body: "Private message" });
+    expect(sessionStorage.length).toBe(0);
+    const reloaded = await importFreshSurfaceDataCache();
+    expect(reloaded.readSurfaceSnapshot(key, 10_000, 5_000)).toBeUndefined();
+  });
+
   it("rehydrates a last-good answer after module state is reset", async () => {
     const sessionStorage = makeSessionStorage();
     stubBrowserWithSessionStorage(sessionStorage);

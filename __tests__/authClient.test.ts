@@ -21,6 +21,21 @@ afterEach(() => {
 });
 
 describe("browser auth client", () => {
+  it("preloads the factory without constructing a client before it is needed", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const client = { auth: { getSession: vi.fn() } };
+    createClient.mockReturnValue(client);
+    const { preloadSupabaseBrowserFactory, ensureSupabaseBrowser } = await loadAuthClient();
+
+    preloadSupabaseBrowserFactory(createClient);
+    expect(createClient).not.toHaveBeenCalled();
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    expect(createClient).toHaveBeenCalledOnce();
+  });
+
   it("does not construct a Supabase client during server rendering", async () => {
     const { getSupabaseBrowser, createNativeAuthClient } = await loadAuthClient();
 

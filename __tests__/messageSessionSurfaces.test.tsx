@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
@@ -171,6 +172,7 @@ async function releaseFetch(
 
 beforeEach(() => {
   invalidateMessagesInbox();
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   signedOut();
   routerState.push.mockClear();

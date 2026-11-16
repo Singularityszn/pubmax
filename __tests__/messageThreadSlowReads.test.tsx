@@ -62,6 +62,7 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -135,6 +136,7 @@ function retryPanel(): HTMLElement | null {
 }
 
 beforeEach(() => {
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   viewer.current = { user: { id: "account-a" }, handle: "alice", accountRevision: 1 };
   transport.reads = [];
@@ -155,6 +157,33 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
+});
+
+it("restores a previously loaded thread while a returning read is pending", async () => {
+  await render();
+  await answer(thread("Meet at seven"));
+  await act(async () => root.unmount());
+  root = createRoot(host);
+
+  await render();
+
+  expect(host.querySelector(".messageBubble")?.textContent).toContain("Meet at seven");
+  await answer(outage());
+  expect(host.querySelector(".messageBubble")?.textContent).toContain("Meet at seven");
+  expect(retryPanel()).toBeNull();
+});
+
+it("does not restore a cached previous thread from a late subscription callback", async () => {
+  await render("conversation-a");
+  await answer(thread("A private note"));
+  const previousSignal = realtime.signal;
+  await render("conversation-b");
+  await answer(thread("B private note", "conversation-b"), "conversation-b");
+
+  await act(async () => previousSignal?.());
+
+  expect(host.querySelector(".messageBubble")?.textContent).toContain("B private note");
+  expect(host.textContent).not.toContain("A private note");
 });
 
 afterEach(async () => {

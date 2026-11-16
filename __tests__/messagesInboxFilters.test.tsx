@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -57,6 +58,7 @@ async function choose(label: string): Promise<void> {
 }
 beforeEach(() => {
   invalidateMessagesInbox();
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   fixture.auth = { user: { id: "alice-account" }, handle: "alice", accountRevision: 1 };
   fixture.request.mockReset().mockImplementation(() => Promise.resolve(Response.json({ conversations: rows })));
