@@ -72,7 +72,8 @@ describe("discovery claims use complete same-row pint evidence", () => {
     expect(listBoroughs(pubs)).toMatchObject([{ pubCount: 2, cheapestGbp: 5 }]);
     expect(cheapestPints(pubs).map((row) => row.venue.id)).toEqual(["pint"]);
     expect(cheapestByArea(pubs).map((row) => row.venue.id)).toEqual(["pint"]);
-    expect(arrivalAreas([...pubs, ...Array.from({ length: 7 }, (_, i) => full(slim(`other-${i}`, { cheapestPrice: 6 })))])[0])
+    const arrivals = [...pubs, ...Array.from({ length: 7 }, (_, i) => full(slim(`other-${i}`, { cheapestPrice: 6 })))];
+    expect(arrivalAreas(arrivals, arrivals.map((pub) => ({ venueId: pub.id, priceGbp: pub.cheapestPrice! })))[0])
       .toMatchObject({ cheapestGbp: 5, cheapestVenueId: "pint", pricedCount: 8 });
     expect(selectMapFallbackPubs(pubs, 2).map((pub) => pub.id)).toEqual(["pint", "rejected"]);
     expect(pintRoulettePool(origin.lat, origin.lng, rows, { priceCapGbp: 5 }).map((row) => row.point.id)).toEqual(["pint"]);

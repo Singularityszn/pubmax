@@ -10,6 +10,8 @@ import { landingPriceReadLine, loadLandingHeroData } from "@/lib/landingPubCard.
 import { loadPricedPubCount } from "@/lib/pricedPubCount.server";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import { listedPriceCohort } from "@/lib/pricedPubCount";
+import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
+import { arrivalAreas } from "@/lib/pintIndexArrival";
 
 // Site review, 18 Oct 2026: "The numbers disagree with each other. Homepage:
 // average listed pint £5.54 across 950 London pubs. About page: average £5.72."
@@ -79,5 +81,19 @@ describe("the homepage dates the prices behind its average", () => {
     expect(stats.pubsTracked).toBe(cohort.length);
     expect(hero.averages?.sampleSize).toBe(cohort.length);
     expect(hero.priceReadLine).toBe(landingPriceReadLine(cohort));
+  });
+});
+
+
+describe("headline cheapest prices", () => {
+  it("uses the hunt's eligible prices for About and every borough arrival", async () => {
+    const [stats, hunt, venues] = await Promise.all([loadAboutStats(), loadLondonHuntPints(), loadGroupedVenues()]);
+    expect(hunt.length).toBeGreaterThan(0);
+    expect(stats.cheapestPint).toBe(hunt[0]?.priceGbp);
+    const areas = arrivalAreas(venues, hunt);
+    expect(areas.length).toBeGreaterThan(0);
+    for (const area of areas) {
+      expect(hunt.some((pint) => pint.venueId === area.cheapestVenueId && pint.priceGbp === area.cheapestGbp)).toBe(true);
+    }
   });
 });

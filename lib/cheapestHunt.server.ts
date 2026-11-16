@@ -3,9 +3,9 @@ import "server-only";
 // The reads behind lib/cheapestHunt.ts, wired once.
 //
 // The landing and Tonight documents are prerendered (app/page.tsx and
-// app/tonight/page.tsx, both force-static), so this runs at build and on their
-// regenerations, never per visitor, and both pages share one read. Every read
-// here is an existing memoised reader: the London priced index, the UK price
+// app/tonight/page.tsx, both force-static). Their reads run at build and on
+// regeneration. About and Pint Index share the same memoised read on request.
+// Every read here is an existing memoised reader: the London priced index, the UK price
 // bundle and the national pub catalogue, which places a base pub inside a city
 // on the map by its own point. Nothing is counted again. Hold the promise, not
 // the value, so concurrent first renders share one read, and drop it on
@@ -62,7 +62,7 @@ async function readHunt(): Promise<HuntRead> {
   };
 }
 
-/** One read for both readers below; a failed read is dropped so the next render tries again. */
+/** Share one read; drop a failed read so the next render tries again. */
 function loadHuntRead(): Promise<HuntRead | null> {
   cached ??= readHunt().catch(() => {
     cached = null;
@@ -78,11 +78,15 @@ export async function loadCheapestHunt(): Promise<CheapestHunt> {
 
 /**
  * London's pints that may stand in a "cheapest" line, cheapest first in the
- * hunt's own order (`huntCityPints`). Tonight lists these, so its "Cheapest
- * in London" names the pub the front door's London row names. A failed read
- * answers no rows, never a guess. It never carries London's dearest.
+ * hunt's own order (`huntCityPints`). A failed read returns null, while a
+ * successful read with no eligible pints returns an empty list. This lets
+ * callers retry failures without discarding valid empty results.
  */
-export async function loadLondonHuntPints(): Promise<HuntPint[]> {
+export async function loadLondonHuntPintsOrNull(): Promise<HuntPint[] | null> {
   const read = await loadHuntRead();
-  return read ? huntCityPints(read.pints, "london") : [];
+  return read ? huntCityPints(read.pints, "london") : null;
+}
+
+export async function loadLondonHuntPints(): Promise<HuntPint[]> {
+  return (await loadLondonHuntPintsOrNull()) ?? [];
 }

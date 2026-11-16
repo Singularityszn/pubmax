@@ -5,7 +5,7 @@ import { boroughCode, LONDON_BOROUGH_NAMES } from "@/lib/pintIndex";
 import {
   ARRIVAL_PARAM_VALUE,
   ARRIVAL_VISIT_MARKER,
-  arrivalAreas,
+  arrivalAreas as eligibleArrivalAreas,
   arrivalMapHref,
   isPintIndexArrival,
   MIN_ARRIVAL_PRICED_PUBS,
@@ -25,6 +25,11 @@ function areaOf(borough: string, priced: number, from = 500): Venue[] {
     venue(`${slugifyBorough(borough)}-${index}`, borough, (from + index) / 100));
 }
 
+function arrivalAreas(venues: readonly Venue[], limit?: number) {
+  const pints = venues.flatMap((pub) => pub.cheapestPrice == null ? [] : [{ venueId: pub.id, priceGbp: pub.cheapestPrice }]);
+  return eligibleArrivalAreas(venues, pints, limit);
+}
+
 describe("Pint Index arrival areas", () => {
   it("offers the busiest priced areas first, and opens each on its cheapest pint", () => {
     const areas = arrivalAreas([
@@ -40,6 +45,12 @@ describe("Pint Index arrival areas", () => {
     expect(camden.cheapestGbp).toBe(3.4);
     expect(camden.cheapestVenueId).toBe("camden-cheap");
     expect(arrivalMapHref(camden)).toBe("/map?sel=camden-cheap&from=pint-index");
+  });
+
+  it("omits an uncorroborated cheaper price", () => {
+    const pubs = [...areaOf("Camden", MIN_ARRIVAL_PRICED_PUBS, 500), venue("unbacked", "Camden", 2.09)];
+    const eligible = pubs.slice(0, -1).map((pub) => ({ venueId: pub.id, priceGbp: pub.cheapestPrice! }));
+    expect(eligibleArrivalAreas(pubs, eligible)[0]).toMatchObject({ cheapestGbp: 5, pricedCount: 8 });
   });
 
   it("never offers an area too thin to be worth the tap", () => {

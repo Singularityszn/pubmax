@@ -72,8 +72,7 @@ export default function PintIndexArrival({ areas, surface }: PintIndexArrivalPro
       <h2 id="pintArrivalHeading" className="pintArrivalTitle">Right, what about your patch?</h2>
       <p className="pintArrivalDek">
         London&rsquo;s figures are one thing. What you pay on your own road is
-        another. Pick an area and the map opens on the cheapest pint we have on
-        record there. No sign-up, and we won&rsquo;t ask where you are.
+        another. Pick an area and the map opens on a listed pint from the area. No sign-up, and we won&rsquo;t ask where you are.
       </p>
       <ul className="rowList pintArrivalAreas" aria-label="Open an area on the map">
         {areas.map((area) => (
@@ -95,7 +94,7 @@ export default function PintIndexArrival({ areas, surface }: PintIndexArrivalPro
                 {area.name}
               </a>
               <span className="rowListMeta">
-                Cheapest of {area.pricedCount} priced pubs
+                Cheapest of {area.pricedCount} eligible priced pubs
               </span>
             </span>
             <span className="rowListTrailing">
@@ -107,7 +106,7 @@ export default function PintIndexArrival({ areas, surface }: PintIndexArrivalPro
         ))}
       </ul>
       <p className="pintArrivalSource">
-        Prices and counts from the London pint-price dataset, {formatPintDatasetAsOf()}.{" "}
+        Prices and counts cover eligible entries in the London pint-price dataset, {formatPintDatasetAsOf()}.{" "}
         <Link href="/borough" className="pintArrivalMore">Somewhere else in mind? Every borough is here</Link>
       </p>
     </section>
