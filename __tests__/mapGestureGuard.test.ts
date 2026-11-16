@@ -1,9 +1,12 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it } from "vitest";
 import {
   GESTURE_CAMERA_HOLD_MS,
   REACTIVE_CAMERA_INTENTS,
   cameraIntentBlocked,
   idleGestureCameraState,
+  installMapGestureGuard,
   isReactiveCameraIntent,
 } from "@/lib/mapGestureGuard";
 
@@ -77,5 +80,124 @@ describe("the reactive set is closed", () => {
 
   it("holds long enough to cover a read, short enough to feel like nothing", () => {
     expect(GESTURE_CAMERA_HOLD_MS).toBe(2_000);
+  });
+});
+
+
+describe("map contact ownership", () => {
+  describe.each([1, 2])("touches on %s detached targets", (targetCount) => {
+    it.each(["touchend", "touchcancel"])("releases detached targets on %s without releasing other touches", (release) => {
+      const container = document.createElement("div");
+      const markers = Array.from({ length: targetCount }, () => document.createElement("button"));
+      container.append(...markers);
+      const state = { current: idleGestureCameraState() };
+      const guard = installMapGestureGuard(container, state, () => {});
+      const touch = (type: string, id: number) => Object.assign(new Event(type, { bubbles: true }),
+        { changedTouches: [{ identifier: id }] });
+      for (const id of [0, 1]) markers[id % targetCount]!.dispatchEvent(touch("touchstart", id));
+      markers.forEach((marker) => marker.remove());
+      markers[0]!.dispatchEvent(touch(release, 0));
+      expect(state.current.active).toBe(true);
+      markers[1 % targetCount]!.dispatchEvent(touch(release, 1));
+      expect(state.current.active).toBe(false);
+      expect(cameraIntentBlocked("route-recovery", state.current, performance.now())).toBe(false);
+      expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+      guard.dispose();
+    });
+  });
+
+  it.each(["blur", "dispose"])("removes detached target listeners on %s", (cleanup) => {
+    const container = document.createElement("div");
+    const marker = document.createElement("button");
+    container.append(marker);
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(container, state, () => {});
+    const touch = (type: string) => Object.assign(new Event(type, { bubbles: true }),
+      { changedTouches: [{ identifier: 1 }] });
+    marker.dispatchEvent(touch("touchstart"));
+    marker.remove();
+    if (cleanup === "blur") window.dispatchEvent(new Event("blur"));
+    else guard.dispose();
+    const untouched = { active: true, endedAt: null };
+    state.current = untouched;
+    marker.dispatchEvent(touch("touchend"));
+    expect(state.current).toBe(untouched);
+    guard.dispose();
+  });
+
+  it.each(["pointer", "touch"])("captures %s contact on a marker that stops propagation", (contact) => {
+    const container = document.createElement("div");
+    const marker = document.createElement("button");
+    container.append(document.createElement("canvas"), marker);
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(container, state, () => {});
+    const type = contact === "pointer" ? "pointerdown" : "touchstart";
+    marker.addEventListener(type, (event) => event.stopPropagation());
+    marker.dispatchEvent(Object.assign(new Event(type, { bubbles: true }),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(Object.assign(new Event(contact === "pointer" ? "pointercancel" : "touchcancel"),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
+    marker.dispatchEvent(Object.assign(new Event(type, { bubbles: true }),
+      contact === "pointer" ? { pointerId: 1 } : { changedTouches: [{ identifier: 1 }] }));
+    expect(state.current).toEqual(idleGestureCameraState());
+  });
+
+  it("releases every contact on blur and removes blur recovery on disposal", () => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const pointer = (type: string, id: number) => Object.assign(new Event(type), { pointerId: id });
+    canvas.dispatchEvent(pointer("pointerdown", 1));
+    canvas.dispatchEvent(Object.assign(new Event("touchstart"), { changedTouches: [{ identifier: 2 }] }));
+    guard.begin("drag")({ originalEvent: true });
+    window.dispatchEvent(new Event("blur"));
+    expect(state.current.active).toBe(false);
+    expect(cameraIntentBlocked("venue", state.current, performance.now())).toBe(false);
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    canvas.dispatchEvent(pointer("pointerdown", 3));
+    expect(state.current.active).toBe(true);
+    window.dispatchEvent(pointer("pointerup", 3));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
+    state.current = { active: true, endedAt: null };
+    window.dispatchEvent(new Event("blur"));
+    expect(state.current.active).toBe(true);
+  });
+
+  it.each(["pointerup", "pointercancel"])("holds stationary pointers until the last %s, including off-canvas release", (release) => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const pointer = (type: string, id: number) => Object.assign(new Event(type), { pointerId: id });
+    canvas.dispatchEvent(pointer("pointerdown", 1));
+    canvas.dispatchEvent(pointer("pointerdown", 2));
+    guard.settle();
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(pointer(release, 1));
+    expect(cameraIntentBlocked("route", state.current, performance.now())).toBe(true);
+    window.dispatchEvent(pointer(release, 2));
+    expect(state.current.active).toBe(false);
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    expect(cameraIntentBlocked("route-recovery", state.current, performance.now())).toBe(false);
+    guard.dispose();
+    canvas.dispatchEvent(pointer("pointerdown", 3));
+    expect(state.current).toEqual(idleGestureCameraState());
+  });
+
+  it("keeps contact ownership when a moving gesture ends and releases cancelled touches", () => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const touch = (type: string) => Object.assign(new Event(type), { changedTouches: [{ identifier: 1 }] });
+    canvas.dispatchEvent(touch("touchstart"));
+    guard.begin("rotate")({ originalEvent: true });
+    guard.end("rotate")();
+    expect(state.current.active).toBe(true);
+    window.dispatchEvent(touch("touchcancel"));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
   });
 });

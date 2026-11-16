@@ -1,15 +1,18 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useRef } from "react";
+import { act, createElement, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { Map, LngLatBounds } from "maplibre-gl";
+import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
-import { useMapPlanCoordinator } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
-import type { MapCameraFocus } from "@/lib/mapCameraFocus";
+import { wireClickRouting } from "@/components/map/canvas/interactions";
+import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
+import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
+import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -57,7 +60,9 @@ afterEach(() => {
   pendingFrame = undefined;
   fitBounds.mockReset();
   easeTo.mockReset();
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  window.history.replaceState(null, "", "/");
 });
 
 function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gesture = { active: false, endedAt: null as number | null },
@@ -65,20 +70,23 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }) {
-  function Camera() {
-    const plan = useMapPlanCoordinator({
-      mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
-      planningOpen: false, nightArea: null,
+  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue: { current: string; requestToken?: number } = { current: "" },
+  search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[]; settledBuiltStopIds?: ReadonlySet<string> } = { venues: route, activePlanRoute: [] }) {
+  function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
+    const presentation = useMapPlanPresentation({
+      mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped,
+      settledBuiltStopIds: planData.settledBuiltStopIds,
+      suggestedRoute: [], activePlanRoute: planData.activePlanRoute, venueById: new Map(planData.venues.map((venue) => [venue.id, venue])),
     });
-    if (planRef) planRef.current = plan;
-    const currentRoute = planRef ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : route;
+    const currentRoute = planRef ? presentation.routeForMap : route;
     camera = useMapCamera({
+      latestRequestToken: Math.max(planRef ? plan.routeRequestToken : 0, nearbyRequest.current,
+        searchRecovery.current, opening.area?.token ?? 0, selectedVenue.current ? selectedVenue.requestToken ?? 0 : 0),
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
         getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
           getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
-      } as unknown as Map },
+      } as unknown as MapLibreMap },
       reducedRef: { current: true },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
       cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
@@ -88,15 +96,6 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       queryVenuesRef,
       gestureCameraRef: { current: gesture },
     });
-    useRouteCameraFraming({
-      mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
-      selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
-    });
-    useNearbyCameraFraming({
-      mapReady: true, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
-      routeLength: route.length, nearbyMapVenues: soho, fitNearby: camera.fitNearby,
-      framingOwedRef: { current: false }, requestToken: nearbyRequest.current,
-    });
     const location = useMapOpeningCamera({
       shouldResolveOpeningLocation: true,
       openingLocationResolved: opening.resolved,
@@ -105,7 +104,28 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       cancelOpeningLocation: () => {},
     });
     useMapFocusPoint(readiness.current, opening.area ?? location.openingLocationFocus, useRef(null), camera.cinematic);
+    useEffect(() => {
+      if (readiness.current && searchRecovery.current) camera.fitQueryVenues("search-recovery", searchRecovery.current);
+    });
+    useNearbyCameraFraming({
+      mapReady: readiness.current, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
+      routeLength: currentRoute.length, nearbyMapVenues: soho, fitNearby: camera.fitNearby,
+      framingOwedRef: { current: false }, requestToken: nearbyRequest.current,
+    });
+    useRouteCameraFraming({
+      mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
+      selectedVenueId: selectedVenue.current, requestToken: plan.routeRequestToken,
+      routePending: presentation.routePending, fitRoute: camera.fitRoute,
+    });
     return null;
+  }
+  function Camera() {
+    const plan = useMapPlanCoordinator({
+      mode: "build", builtIds: route.map((venue) => venue.id), routeMapped: true,
+      planningOpen: false, nightArea: null,
+    }, search.current);
+    if (planRef) planRef.current = plan;
+    return canvasMounted.current ? createElement(Canvas, { plan }) : null;
   }
   act(() => root.render(createElement(Camera)));
   return () => act(() => root.render(createElement(Camera)));
@@ -133,6 +153,62 @@ describe("query camera with contextual price pins", () => {
     camera.cinematic({ bearing: 4 }, "arrival", "automatic");
   };
 
+  describe.each([
+    ["clusters", "zoom"],
+    ["clusters-casing", "zoom"],
+    ["cluster-count-badge", "zoom"],
+    ["uk-base-overview", "zoom"],
+    ["uk-base-overview-count", "leaves"],
+  ] as const)("delayed %s %s response", (layer, wait) => {
+    it.each([false, true])("preserves action order when the cluster click is newest: %s", async (clusterNewest) => {
+      mount({ current: soho }, soho);
+      let click: ((event: { point: { x: number; y: number } }) => void) | undefined;
+      let resolveZoom!: (zoom: number) => void;
+      let resolveLeaves!: (leaves: GeoJSON.Feature<GeoJSON.Point>[]) => void;
+      const zoomResponse = new Promise<number>((resolve) => { resolveZoom = resolve; });
+      const leavesResponse = new Promise<GeoJSON.Feature<GeoJSON.Point>[]>((resolve) => { resolveLeaves = resolve; });
+      const getClusterLeaves = vi.fn(() => leavesResponse);
+      wireClickRouting({
+        on: (_event: string, handler: typeof click) => { click = handler; },
+        getLayer: () => ({}),
+        getSource: () => ({ getClusterExpansionZoom: () => zoomResponse, getClusterLeaves }),
+        queryRenderedFeatures: () => [{
+          layer: { id: layer }, properties: { cluster_id: 7 },
+          geometry: { type: "Point", coordinates: [-0.2, 51.6] },
+        }],
+      } as unknown as MapLibreMap, {
+        selectLandmark: vi.fn(), setHoveredVenue: vi.fn(), setActivePoi: vi.fn(),
+        onVenueClickRef: { current: vi.fn() }, onUkBasePubClickRef: { current: vi.fn() },
+        onRouteStopClickRef: { current: vi.fn() }, onTonightOpportunityClickRef: { current: vi.fn() },
+        cityLandmarksRef: { current: [] }, tonightOpportunitiesRef: { current: [] }, cinematic: camera.cinematic,
+      });
+      if (clusterNewest) camera.fitRoute("user");
+      click!({ point: { x: 10, y: 10 } });
+      if (wait === "leaves") {
+        await act(async () => { resolveZoom(PIN_MIN_ZOOM); });
+        expect(getClusterLeaves).toHaveBeenCalledOnce();
+      }
+      if (!clusterNewest) camera.fitRoute("user");
+      await act(async () => {
+        resolveZoom(PIN_MIN_ZOOM - 1);
+        resolveLeaves([{ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [-0.21, 51.61] } }]);
+      });
+      flush();
+      if (clusterNewest) {
+        expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+          center: wait === "leaves" ? [-0.21, 51.61] : [-0.2, 51.6],
+          zoom: wait === "leaves" ? PIN_MIN_ZOOM : PIN_MIN_ZOOM - 1,
+        }));
+        expect(fitBounds).not.toHaveBeenCalled();
+      } else {
+        expect(fitBounds).toHaveBeenCalledOnce();
+        expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+          .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+        expect(easeTo).not.toHaveBeenCalled();
+      }
+    });
+  });
+
   it("keeps pending and settled Pal picks ahead of automatic restorations and late Plan reads", () => {
     mount({ current: soho }, soho);
     camera.fitPalPicks(1, picks);
@@ -155,7 +231,7 @@ describe("query camera with contextual price pins", () => {
     "lets an explicit %s action replace pending Pal framing", (action) => {
       mount({ current: soho }, soho);
       camera.fitPalPicks(1, picks);
-      if (action === "search") camera.fitQueryVenues("search-recovery", 1);
+      if (action === "search") camera.fitQueryVenues("search-recovery", nextCameraRequestToken());
       else if (action === "city") camera.fitCityBounds();
       else camera.cinematic({ center: [-0.13, 51.51] }, action, "user");
       flush();
@@ -221,7 +297,7 @@ describe("query camera with contextual price pins", () => {
       .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
     expect(easeTo).not.toHaveBeenCalled();
 
-    opening.area = { source: "area", token: 1, center: [-0.1, 51.5], zoom: 15 };
+    opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
     rerender();
     flush();
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.1, 51.5] }));
@@ -253,6 +329,479 @@ describe("query camera with contextual price pins", () => {
     expect(fitBounds).toHaveBeenCalledTimes(2);
     expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
       .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+  });
+
+  it("preserves a route request made before the canvas mounts", () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const readiness = { current: false };
+    const canvasMounted = { current: false };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false,
+      planRef, undefined, readiness, canvasMounted);
+    act(() => planRef.current!.mapRoute());
+    canvasMounted.current = true;
+    rerender();
+    camera.fitPalPicks(1, picks);
+    flush();
+    readiness.current = true;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+  });
+
+  it("preserves a Near me request made before the canvas mounts", () => {
+    const readiness = { current: false };
+    const rerender = mount({ current: soho }, [], undefined, undefined, { current: nextCameraRequestToken() }, true,
+      undefined, undefined, readiness);
+    camera.fitPalPicks(1, picks);
+    flush();
+    readiness.current = true;
+    rerender();
+    flush();
+    expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));
+  });
+
+  describe.each([false, true])("with the canvas initially mounted: %s", (mounted) => {
+    describe.each(["clear", "hide", "one stop"] as const)("after route %s", (change) => {
+      it.each(["nearby", "area", "search"] as const)("preserves the newer %s move on readiness", (action) => {
+        const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+        const readiness = { current: false };
+        const canvasMounted = { current: mounted };
+        const nearbyRequest = { current: 0 };
+        const searchRecovery = { current: 0 };
+        const opening = { resolved: false, area: null as MapCameraFocus | null };
+        const rerender = mount({ current: soho }, surrounding, undefined, undefined, nearbyRequest,
+          action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+        act(() => planRef.current!.mapRoute());
+        act(() => {
+          if (change === "hide") planRef.current!.setRouteMapped(false);
+          else planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        });
+        if (action === "nearby") nearbyRequest.current = nextCameraRequestToken();
+        else if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+        else searchRecovery.current = nextCameraRequestToken();
+        canvasMounted.current = true;
+        readiness.current = true;
+        rerender();
+        flush();
+        if (action === "search") {
+          expect(fitBounds).toHaveBeenCalledOnce();
+          expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+            .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          expect(easeTo).not.toHaveBeenCalled();
+        } else {
+          expect(easeTo).toHaveBeenCalledOnce();
+          expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+          }));
+          expect(fitBounds).not.toHaveBeenCalled();
+        }
+      });
+    });
+  });
+
+  describe.each([false, true])("request ordering with mounted canvas: %s", (mounted) => {
+    describe.each(["route", "nearby"] as const)("retained %s request", (retained) => {
+      describe.each(["area", "search", "nearby"] as const)("competing with %s", (action) => {
+        it.each([false, true])("honours action order, retained request newest: %s", (retainedNewest) => {
+          const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+          const readiness = { current: false };
+          const canvasMounted = { current: mounted };
+          const nearbyRequest = { current: 0 };
+          const searchRecovery = { current: 0 };
+          const opening = { resolved: false, area: null as MapCameraFocus | null };
+          const rerender = mount({ current: soho }, retained === "route" ? surrounding : [], undefined,
+            undefined, nearbyRequest, retained === "nearby" || action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+          const requestRetained = () => {
+            if (retained === "route") act(() => planRef.current!.mapRoute());
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          const requestOther = () => {
+            if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+            else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          if (retainedNewest) { requestOther(); requestRetained(); }
+          else { requestRetained(); requestOther(); }
+          canvasMounted.current = true;
+          readiness.current = true;
+          rerender();
+          flush();
+          expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(1);
+          if (retainedNewest && retained === "route") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-2.244, 51.514], [-0.129, 53.483]]);
+          } else if (!retainedNewest && action === "search") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          } else {
+            expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+              center: retainedNewest || action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+            }));
+          }
+        });
+      });
+    });
+    it("does not restore an older consumed route after readiness returns", () => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      const readiness = { current: true };
+      const opening = { resolved: false, area: null as MapCameraFocus | null };
+      const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined,
+        false, planRef, opening, readiness);
+      act(() => planRef.current!.mapRoute());
+      flush();
+      opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+      rerender();
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      readiness.current = false;
+      rerender();
+      readiness.current = true;
+      rerender();
+      flush();
+      expect(fitBounds).not.toHaveBeenCalled();
+      expect(easeTo).not.toHaveBeenCalled();
+    });
+    describe.each(["one stop", "clear", "hide"] as const)("route %s", (change) => {
+      describe.each(["area", "search", "nearby"] as const)("competing with %s", (action) => {
+        it.each([false, true])("honours action order, release newest: %s", (releaseNewest) => {
+          const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+          const readiness = { current: false };
+          const canvasMounted = { current: mounted };
+          const nearbyRequest = { current: 0 };
+          const searchRecovery = { current: 0 };
+          const opening = { resolved: false, area: null as MapCameraFocus | null };
+          const rerender = mount({ current: soho }, surrounding, undefined, undefined, nearbyRequest,
+            action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+          const release = () => act(() => {
+            if (change === "hide") planRef.current!.hideRoute();
+            else {
+              planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+              planRef.current!.mapRoute();
+            }
+          });
+          const requestOther = () => {
+            if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+            else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+            else nearbyRequest.current = nextCameraRequestToken();
+          };
+          if (releaseNewest) { requestOther(); release(); }
+          else { release(); requestOther(); }
+          canvasMounted.current = true;
+          readiness.current = true;
+          rerender();
+          flush();
+          expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(releaseNewest ? 0 : 1);
+          if (!releaseNewest && action === "search") {
+            expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+              .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          } else if (!releaseNewest) {
+            expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+              center: action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+            }));
+          }
+          fitBounds.mockClear();
+          camera.fitQueryVenues();
+          flush();
+          expect(fitBounds).toHaveBeenCalledOnce();
+        });
+      });
+    });
+  });
+
+  it("frames a newly adopted walking link after an earlier route and area request", async () => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const opening = { resolved: false, area: null as MapCameraFocus | null };
+    const search = { current: "" };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined,
+      false, planRef, opening, undefined, undefined, undefined, undefined, search);
+    act(() => planRef.current!.mapRoute());
+    flush();
+    opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+    rerender();
+    flush();
+    fitBounds.mockClear();
+    easeTo.mockClear();
+    search.current = "mode=build&pubs=soho-west,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    flush();
+    expect(easeTo).not.toHaveBeenCalled();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
+
+  it.each([false, true])("retains a walking-link request during hydration with an active Plan: %s", async (activePlan) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const search = { current: "" };
+    const planData = { venues: [...surrounding], activePlanRoute: activePlan ? surrounding : [] };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, undefined, search, planData);
+    flush();
+    fitBounds.mockClear();
+    planData.venues = [];
+    search.current = "mode=build&pubs=soho-west,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    camera.fitPalPicks(1, picks);
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+    planData.venues = [soho[0]!];
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    planData.venues = soho;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+  });
+
+  it.each([false, true])("preserves an asynchronous route request token, request is current: %s", (current) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const rerender = mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef);
+    flush();
+    fitBounds.mockClear();
+    act(() => planRef.current!.hideRoute());
+    flush();
+    fitBounds.mockClear();
+    const requestToken = nextCameraRequestToken();
+    if (!current) nextCameraRequestToken();
+    const latestToken = currentCameraRequestToken();
+    act(() => planRef.current!.mapRoute(requestToken));
+    rerender();
+    flush();
+    expect(currentCameraRequestToken()).toBe(latestToken);
+    expect(planRef.current!.routeMapped).toBe(current);
+    expect(fitBounds).toHaveBeenCalledTimes(current ? 1 : 0);
+    if (current) expect(planRef.current!.routeRequestToken).toBe(requestToken);
+  });
+
+  it.each([false, true])("frames resolved shared stops after an unsuccessful lookup, active Plan: %s", async (activePlan) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const search = { current: "" };
+    const planData = { venues: [...surrounding], activePlanRoute: activePlan ? surrounding : [], settledBuiltStopIds: new Set<string>() };
+    const rerender = mount({ current: soho }, surrounding, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, undefined, search, planData);
+    flush();
+    fitBounds.mockClear();
+    planData.venues = soho;
+    search.current = "mode=build&pubs=soho-west,removed-stop,soho-east";
+    window.history.pushState(null, "", `/map?${search.current}`);
+    await act(async () => { rerender(); });
+    flush();
+    expect(fitBounds).not.toHaveBeenCalled();
+    planData.settledBuiltStopIds = new Set(["removed-stop"]);
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledOnce();
+    expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    act(() => planRef.current!.mapRoute());
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+  });
+
+  describe.each(["area", "search", "nearby"] as const)("hydration competing with %s", (action) => {
+    it.each([false, true])("preserves action order, route request newest: %s", (routeNewest) => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      const planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: [], activePlanRoute: [] };
+      const opening = { resolved: false, area: null as MapCameraFocus | null };
+      const nearbyRequest = { current: 0 };
+      const searchRecovery = { current: 0 };
+      const rerender = mount({ current: soho }, soho, undefined, undefined, nearbyRequest,
+        action === "nearby", planRef, opening, undefined, undefined, searchRecovery, undefined, undefined, planData);
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      const otherRequest = () => {
+        if (action === "area") opening.area = nextAreaCameraFocus({ center: [-0.1, 51.5], zoom: 15 });
+        else if (action === "search") searchRecovery.current = nextCameraRequestToken();
+        else nearbyRequest.current = nextCameraRequestToken();
+        rerender();
+      };
+      if (routeNewest) { otherRequest(); act(() => planRef.current!.mapRoute()); }
+      else { act(() => planRef.current!.mapRoute()); otherRequest(); }
+      flush();
+      fitBounds.mockClear();
+      easeTo.mockClear();
+      planData.venues = soho;
+      rerender();
+      flush();
+      expect(easeTo).not.toHaveBeenCalled();
+      expect(fitBounds).toHaveBeenCalledTimes(routeNewest ? 1 : 0);
+      if (routeNewest) expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    });
+  });
+
+  it.each(["clear", "hide", "one stop"] as const)("releases a route awaiting hydration after %s", (change) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    const planData: { venues: Venue[]; activePlanRoute: Venue[] } = { venues: [], activePlanRoute: [] };
+    const rerender = mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, { current: soho[0]!.id }, undefined, planData);
+    act(() => planRef.current!.mapRoute());
+    camera.fitPalPicks(1, picks);
+    flush();
+    act(() => {
+      if (change === "hide") planRef.current!.hideRoute();
+      else {
+        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        planRef.current!.mapRoute();
+      }
+    });
+    camera.fitQueryVenues();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    planData.venues = soho;
+    rerender();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+  });
+
+  it.each(["route", "search", "venue", "city", "nearby"] as const)(
+    "keeps a queued user %s ahead of a later Pal answer and automatic restoration", (action) => {
+      mount({ current: soho }, soho);
+      if (action === "route") camera.fitRoute("user");
+      else if (action === "search") camera.fitQueryVenues("search-recovery", nextCameraRequestToken());
+      else if (action === "city") camera.fitCityBounds();
+      else if (action === "nearby") camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+      else camera.cinematic({ center: [-0.13, 51.51] }, "venue", "user");
+      camera.fitPalPicks(1, picks);
+      camera.fitPalPicks(2, picks.slice(0, 1), true);
+      restore();
+      flush();
+      expect(fitBounds.mock.calls.length + easeTo.mock.calls.length).toBe(1);
+      if (action === "route" || action === "search") {
+        expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+          .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+      } else if (action === "city") {
+        expect(fitBounds.mock.calls[0]![0]).toEqual([[-0.3, 51.4], [0.1, 51.7]]);
+      } else {
+        expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));
+      }
+      camera.fitPalPicks(3, picks);
+      flush();
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual([[-0.22, 51.56], [-0.21, 51.57]]);
+    },
+  );
+
+  it.each(["automatic", "user"] as const)("discards a delayed %s Nearby move after a newer venue selection runs", (owner) => {
+    mount({ current: soho });
+    const sheet = document.createElement("div");
+    sheet.className = "mobileSharedSheet open";
+    vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+    host.append(sheet);
+    camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, owner);
+    const sheetFrame = pendingFrame;
+    expect(sheetFrame).toBeTypeOf("function");
+    camera.cinematic({ center: [-0.22, 51.56] }, "venue", "user");
+    flush();
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(easeTo).toHaveBeenLastCalledWith(expect.objectContaining({ center: [-0.22, 51.56] }));
+    pendingFrame = sheetFrame;
+    flush();
+    flush();
+    flush();
+    flush();
+    flush();
+    expect(camera.cameraLanePending()).toBe(false);
+    expect(easeTo).toHaveBeenCalledOnce();
+  });
+
+  describe.each(["sheet", "frame"] as const)("superseded Nearby %s wait", (wait) => {
+    it.each(["pal", "automatic"] as const)("allows %s framing after a cold venue selection closes", (owner) => {
+      const now = vi.spyOn(performance, "now").mockReturnValue(0);
+      const selectedVenue = { current: "", requestToken: 0 };
+      const rerender = mount({ current: soho }, [], undefined, undefined, undefined, false, undefined,
+        undefined, undefined, undefined, undefined, selectedVenue);
+      if (wait === "sheet") {
+        const sheet = document.createElement("div");
+        sheet.className = "mobileSharedSheet open";
+        vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+        host.append(sheet);
+      }
+      camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+      const staleFrame = pendingFrame;
+      expect(staleFrame).toBeTypeOf("function");
+      selectedVenue.current = "unloaded-venue";
+      selectedVenue.requestToken = nextCameraRequestToken();
+      rerender();
+      selectedVenue.current = "";
+      rerender();
+      now.mockReturnValue(1000);
+      pendingFrame = staleFrame;
+      flush();
+      expect(easeTo).not.toHaveBeenCalled();
+      expect(camera.cameraLanePending()).toBe(false);
+      if (owner === "pal") camera.fitPalPicks(1, picks);
+      else camera.fitQueryVenues();
+      flush();
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray()).toEqual(owner === "pal"
+        ? [[-0.22, 51.56], [-0.21, 51.57]]
+        : [[-0.139, 51.514], [-0.129, 51.516]]);
+    });
+  });
+
+  it("keeps a newer Nearby claim when a superseded sheet wait completes", () => {
+    const now = vi.spyOn(performance, "now").mockReturnValue(0);
+    const selectedVenue = { current: "", requestToken: 0 };
+    const rerender = mount({ current: soho }, [], undefined, undefined, undefined, false, undefined,
+      undefined, undefined, undefined, undefined, selectedVenue);
+    const sheet = document.createElement("div");
+    sheet.className = "mobileSharedSheet open";
+    vi.spyOn(sheet, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 400, 1280, 500));
+    host.append(sheet);
+    camera.fitNearby({ lat: 51.51, lng: -0.13 }, soho, "user");
+    const staleFrame = pendingFrame;
+    selectedVenue.current = "unloaded-venue";
+    selectedVenue.requestToken = nextCameraRequestToken();
+    rerender();
+    selectedVenue.current = "";
+    rerender();
+    camera.fitNearby({ lat: 51.52, lng: -0.12 }, soho, "user");
+    const currentFrame = pendingFrame;
+    now.mockReturnValue(1000);
+    pendingFrame = staleFrame;
+    flush();
+    camera.fitPalPicks(1, picks);
+    camera.fitQueryVenues();
+    expect(fitBounds).not.toHaveBeenCalled();
+    pendingFrame = currentFrame;
+    flush();
+    flush();
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.12, 51.52] }));
+    expect(camera.cameraLanePending()).toBe(false);
+  });
+
+  it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s with the inspector open", (change) => {
+    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+      undefined, undefined, undefined, undefined, { current: soho[0]!.id });
+    camera.fitPalPicks(1, picks);
+    flush();
+    act(() => {
+      if (change === "hide") planRef.current!.hideRoute();
+      else {
+        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        planRef.current!.mapRoute();
+      }
+    });
+    flush();
+    camera.fitQueryVenues();
+    flush();
+    expect(fitBounds).toHaveBeenCalledTimes(2);
+    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
   });
 
   it("blocks mounted restoration updates while Pal owns the camera", () => {
@@ -321,7 +870,7 @@ describe("query camera with contextual price pins", () => {
     flush();
     expect(fitBounds).toHaveBeenCalledOnce();
     expect(easeTo).not.toHaveBeenCalled();
-    requestToken.current = 1;
+    requestToken.current = nextCameraRequestToken();
     rerender();
     flush();
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));

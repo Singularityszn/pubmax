@@ -1,6 +1,7 @@
 import type * as maplibregl from "maplibre-gl";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { lngLatOf } from "@/lib/geo";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import type { Landmark } from "@/lib/landmarks";
 import type { PoiCategory } from "@/lib/pois";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
@@ -102,17 +103,19 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       const clusterId = clusterHit.properties?.cluster_id;
       const source = map.getSource("pubs") as maplibregl.GeoJSONSource;
       if (clusterId == null || !source) return;
+      const requestToken = nextCameraRequestToken();
       source.getClusterExpansionZoom(clusterId).then((zoom) => {
         const center = lngLatOf((clusterHit.geometry as GeoJSON.Point).coordinates);
-        if (center) cinematic({ center, zoom, duration: 700 }, "cluster", "user");
+        if (center) cinematic({ center, zoom, duration: 700 }, "cluster", "user", requestToken);
       });
       return;
     }
 
     const overviewHit = UK_BASE_OVERVIEW_TAP_LAYERS.map((layer) => byLayer.get(layer)).find(Boolean);
     if (overviewHit) {
+      const requestToken = nextCameraRequestToken();
       zoomIntoUkBaseOverview(map, overviewHit, PIN_MIN_ZOOM, (center, zoom) =>
-        cinematic({ center, zoom, duration: 700 }, "cluster", "user"),
+        cinematic({ center, zoom, duration: 700 }, "cluster", "user", requestToken),
       );
       return;
     }

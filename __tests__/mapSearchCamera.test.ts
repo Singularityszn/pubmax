@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
@@ -63,19 +61,4 @@ describe("typed search camera", () => {
     expect(isMapSearchField(null)).toBe(false);
   });
 
-  it("is the seam PubMap actually types through", () => {
-    const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
-    expect(source).toContain("typedSearchCameraMove({");
-    expect(source).toContain("searchFieldFocused: isMapSearchField(document.activeElement)");
-    // The effect re-runs when focus leaves, which is what makes the move
-    // deferred rather than dropped.
-    expect(source).toContain("if (mapSearchFieldFocused) return;");
-    // Membership, not the whole bracketed list: the effect carries a second
-    // guard (the phone search overlay), and a closed list would read that
-    // legitimate addition as the focus dependency having gone.
-    const deps = /\}, \[([^\]]*)\]\);/.exec(
-      source.slice(source.indexOf("const searchOverlayOpen")),
-    )?.[1] ?? "";
-    expect(deps.split(",").map((dep) => dep.trim())).toContain("mapSearchFieldFocused");
-  });
 });

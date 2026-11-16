@@ -51,6 +51,7 @@ import {
 } from "@/components/map/canvas/donutClusters";
 import type { DonutCounts } from "@/lib/donutClusterGeometry";
 import { defined } from "@/__tests__/helpers/defined";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
 
 // Pure helpers cover bucket coercion and SVG rebuilds. The fake map covers
 // listener lifecycle and source-snapshot authority, while the map E2E suite
@@ -510,35 +511,39 @@ describe("createDonutClusterSync (M5 donut — listener lifecycle)", () => {
     expect(attributes.get("role")).toBe("button");
     expect(attributes.get("tabindex")).toBe("0");
 
-    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
     const stopPropagation = vi.fn();
     defined(listeners.get("click"))({ stopPropagation });
-    await flush();
+    const laterRequest = nextCameraRequestToken();
+    await getClusterExpansionZoom.mock.results.at(-1)!.value;
     expect(getClusterExpansionZoom).toHaveBeenLastCalledWith(22);
     expect(cinematic).toHaveBeenLastCalledWith(
       { center: NEW, zoom: 15, duration: 700 },
       "cluster",
       "user",
+      expect.any(Number),
     );
+    expect(cinematic.mock.calls.at(-1)![3]).toBeLessThan(laterRequest);
 
     const keydown = defined(listeners.get("keydown"));
     for (const key of ["Enter", " "]) {
       cinematic.mockClear();
       const preventDefault = vi.fn();
       keydown({ key, preventDefault, stopPropagation });
-      await flush();
+      const laterRequest = nextCameraRequestToken();
+      await getClusterExpansionZoom.mock.results.at(-1)!.value;
       expect(preventDefault).toHaveBeenCalledOnce();
       expect(cinematic).toHaveBeenCalledWith(
         { center: NEW, zoom: 15, duration: 700 },
         "cluster",
         "user",
+        expect.any(Number),
       );
+      expect(cinematic.mock.calls.at(-1)![3]).toBeLessThan(laterRequest);
     }
 
     cinematic.mockClear();
     const preventDefault = vi.fn();
     keydown({ key: "a", preventDefault, stopPropagation });
-    await flush();
     expect(preventDefault).not.toHaveBeenCalled();
     expect(cinematic).not.toHaveBeenCalled();
 

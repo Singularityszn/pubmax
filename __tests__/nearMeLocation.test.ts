@@ -72,25 +72,6 @@ describe("near me request options", () => {
     expect(Number.isFinite(NEAR_ME_LOCATION_OPTIONS.timeout)).toBe(true);
     expect(NEAR_ME_LOCATION_OPTIONS.timeout).toBeGreaterThan(0);
   });
-
-  it("is the only options object either near me call passes", () => {
-    const calls = pubMap.match(/navigator\.geolocation\.getCurrentPosition\(/g) ?? [];
-    expect(calls.length, "geolocation calls in PubMap").toBeGreaterThanOrEqual(2);
-    expect(
-      (pubMap.match(/NEAR_ME_LOCATION_OPTIONS,\n\s*\);/g) ?? []).length,
-      "both near me calls share one options object",
-    ).toBe(2);
-    expect(pubMap, "no bespoke near me options remain").not.toContain(
-      "{ enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 }",
-    );
-  });
-
-  it("maps every near me failure through the shared reasons", () => {
-    expect(
-      (pubMap.match(/nearMeLocationMessage\(nearMeLocationFailure\(error\)\)/g) ?? []).length,
-    ).toBe(2);
-    expect(pubMap).toContain('nearMeLocationMessage("unsupported")');
-  });
 });
 
 describe("the phone shows the near me failure", () => {

@@ -1,5 +1,6 @@
 import * as maplibregl from "maplibre-gl";
 import type { GeoJSONFeature } from "maplibre-gl";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import {
   buildDonutMarkerSvg,
   donutOuterRadius,
@@ -134,10 +135,11 @@ export function createDonutClusterSync(
   const handleClusterClick = (clusterId: number, coordinates: [number, number]) => {
     const source = map.getSource("pubs") as maplibregl.GeoJSONSource | undefined;
     if (!source) return;
+    const requestToken = nextCameraRequestToken();
     source
       .getClusterExpansionZoom(clusterId)
       .then((zoom) => {
-        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster", "user");
+        cinematic({ center: coordinates, zoom, duration: 700 }, "cluster", "user", requestToken);
       })
       .catch(() => {
         // A cluster can dissolve between the click and this resolving

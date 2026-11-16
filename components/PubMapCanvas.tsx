@@ -84,6 +84,7 @@ import {
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import {
   idleGestureCameraState,
+  installMapGestureGuard,
   type GestureCameraState,
 } from "@/lib/mapGestureGuard";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
@@ -175,6 +176,7 @@ import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe"
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
   measureBottomSheetTop,
+  latestMapCameraRequestToken,
   palCameraDefaults,
   useMapCamera,
   useNearbyCameraFraming,
@@ -290,6 +292,7 @@ type PubMapCanvasProps = {
   nationalBrowse?: boolean;
   route: Venue[];
   routeRequestToken?: number;
+  routePending?: boolean;
   /**
    * Pals walk together: the crew Pals of the plan whose route this is
    * (lib/crewPals.ts). Empty unless `route` is the active plan's own route.
@@ -302,6 +305,7 @@ type PubMapCanvasProps = {
    */
   palNextStop?: { venueId: string; name: string } | null;
   selectedVenueId: string;
+  selectedVenueRequestToken: number;
   onVenueClick: (id: string) => void;
   /**
    * The reader put a finger or a cursor on the map. Not a camera move: a tap on
@@ -789,9 +793,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venueDataReady,
     route,
     routeRequestToken,
+    routePending,
     crewPals,
     palNextStop,
     selectedVenueId,
+    selectedVenueRequestToken,
     onVenueClick,
     onReaderTouchedMap,
     onUkBasePubClick,
@@ -1475,6 +1481,14 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
+    latestRequestToken: latestMapCameraRequestToken({
+      routeRequestToken,
+      nearbyRequestToken,
+      searchRecoveryToken,
+      selectedVenueId,
+      selectedVenueRequestToken,
+      focusPoint,
+    }),
     mapRef,
     reducedRef,
     cityViewRef,
@@ -1978,24 +1992,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       userCameraInteractionRef.current = true;
       onUserCameraMoveRef.current?.();
     };
-    // One pinch raises drag, zoom, rotate and pitch together, and each ends on
-    // its own. Counting the live ones by name is why a finger still on the
-    // glass after a rotate settles cannot read as "the reader has let go".
-    const liveGestures = new Set<string>();
-    const beginGesture = (name: string) => (event: { originalEvent?: unknown }) => {
-      emitUserCameraMove(event);
-      if (!event.originalEvent) return;
-      liveGestures.add(name);
-      gestureCameraRef.current = { active: true, endedAt: null };
-    };
-    const endGesture = (name: string) => () => {
-      if (!liveGestures.delete(name)) return;
-      if (liveGestures.size > 0) return;
-      gestureCameraRef.current = { active: false, endedAt: performance.now() };
-    };
+    const gestureGuard = installMapGestureGuard(map.getCanvasContainer(), gestureCameraRef, () => {
+      emitUserCameraMove({ originalEvent: true });
+    });
     for (const name of ["drag", "zoom", "rotate", "pitch"] as const) {
-      map.on(`${name}start`, beginGesture(name));
-      map.on(`${name}end`, endGesture(name));
+      map.on(`${name}start`, gestureGuard.begin(name));
+      map.on(`${name}end`, gestureGuard.end(name));
     }
     let ambientMotionCameraKey = "";
     map.on("moveend", () => {
@@ -2025,12 +2027,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       }
       setMapBearing(map.getBearing());
       setMapPitch(map.getPitch());
-      // A start whose end never came would hold the camera for the rest of the
-      // session, so a settled map is the safety net that clears the set.
-      if (liveGestures.size > 0 && !map.isMoving()) {
-        liveGestures.clear();
-        gestureCameraRef.current = { active: false, endedAt: performance.now() };
-      }
+      if (!map.isMoving()) gestureGuard.settle();
       publishCurrentViewport();
     });
     // Pure rotation or tilt can finish without a moveend on touch devices.
@@ -3955,6 +3952,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // teardown here so the effect's single cleanup (below) can run it whether or
     // not construction was deferred by the size gate.
     constructCleanup = () => {
+      gestureGuard.dispose();
       stopFollowingPixelRatio?.();
       cancelAnimationFrame(rafId);
       if (firstFrameTimer) clearTimeout(firstFrameTimer);
@@ -4732,7 +4730,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
 
   useRouteCameraFraming({
     mapReady, routeKey: route.map((venue) => venue.id).join(">"),
-    selectedVenueId, requestToken: routeRequestToken, fitRoute,
+    selectedVenueId, requestToken: routeRequestToken, routePending, fitRoute,
   });
 
   useEffect(() => {
@@ -4840,7 +4838,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         duration: PUB_SELECT_DURATION_MS,
         easing: easeOutCubic,
         ...(offset ? { offset } : {}),
-      }, "venue", "user");
+      }, "venue", "user", selectedVenueRequestToken);
     };
 
     const arrival = deepLinkSelectionCamera({
@@ -4872,6 +4870,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
   }, [
     selectedVenueId,
+    selectedVenueRequestToken,
     selectedPresent,
     restoredBasePubId,
     mapReady,

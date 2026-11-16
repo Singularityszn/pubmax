@@ -23,10 +23,10 @@ import type { CameraIntentKind } from "@/lib/cameraIntent";
 // changed underneath, which nobody asked for and which is the class that
 // actually arrives unprompted mid-read.
 //
-// While a gesture is genuinely in flight, nothing moves the camera at all. A
-// tap cannot occur inside a drag, so no reader-requested move is lost to it.
+// Stationary contact also holds the map. MapLibre can end its movement before
+// the last pointer or touch is released.
 
-/** How long after a gesture ends the reader still owns the camera. */
+/** How long reactive moves wait after the last gesture or contact ends. */
 export const GESTURE_CAMERA_HOLD_MS = 2_000;
 
 /**
@@ -45,9 +45,9 @@ export const REACTIVE_CAMERA_INTENTS: readonly CameraIntentKind[] = [
 ];
 
 export type GestureCameraState = {
-  /** A gesture is on the glass right now. */
+  /** A gesture or a pointer or touch contact is active. */
   active: boolean;
-  /** When the last gesture ended, or null when the reader has moved nothing. */
+  /** When the last gesture or contact ended, or null before an interaction. */
   endedAt: number | null;
 };
 
@@ -75,4 +75,99 @@ export function cameraIntentBlocked(
   if (!isReactiveCameraIntent(kind)) return false;
   if (state.endedAt === null) return false;
   return now - state.endedAt < holdMs;
+}
+
+
+export function installMapGestureGuard(
+  container: HTMLElement,
+  state: { current: GestureCameraState },
+  onInteraction: () => void,
+) {
+  const gestures = new Set<string>();
+  const pointers = new Set<number>();
+  const touches = new Map<number, EventTarget>();
+  const publish = () => {
+    const active = gestures.size + pointers.size + touches.size > 0;
+    if (active === state.current.active) return;
+    state.current = { active, endedAt: active ? null : performance.now() };
+  };
+  const pointerDown = (event: PointerEvent) => {
+    pointers.add(event.pointerId);
+    onInteraction();
+    publish();
+  };
+  const pointerUp = (event: PointerEvent) => {
+    pointers.delete(event.pointerId);
+    publish();
+  };
+  const touchStart = (event: TouchEvent) => {
+    for (const touch of Array.from(event.changedTouches)) {
+      const target = touch.target ?? event.target;
+      if (!target) continue;
+      touches.set(touch.identifier, target);
+      target.addEventListener("touchend", touchEnd, { passive: true, capture: true });
+      target.addEventListener("touchcancel", touchEnd, { passive: true, capture: true });
+    }
+    onInteraction();
+    publish();
+  };
+  const touchEnd = (event: TouchEvent | Event) => {
+    if (!("changedTouches" in event)) return;
+    const targets = new Set(touches.values());
+    for (const touch of Array.from(event.changedTouches)) touches.delete(touch.identifier);
+    for (const target of targets) {
+      if (Array.from(touches.values()).includes(target)) continue;
+      target.removeEventListener("touchend", touchEnd, true);
+      target.removeEventListener("touchcancel", touchEnd, true);
+    }
+    publish();
+  };
+  const clearTouches = () => {
+    for (const target of new Set(touches.values())) {
+      target.removeEventListener("touchend", touchEnd, true);
+      target.removeEventListener("touchcancel", touchEnd, true);
+    }
+    touches.clear();
+  };
+  const blur = () => {
+    gestures.clear();
+    pointers.clear();
+    clearTouches();
+    publish();
+  };
+  container.addEventListener("pointerdown", pointerDown, { passive: true, capture: true });
+  container.addEventListener("touchstart", touchStart, { passive: true, capture: true });
+  window.addEventListener("pointerup", pointerUp, { passive: true });
+  window.addEventListener("pointercancel", pointerUp, { passive: true });
+  window.addEventListener("touchend", touchEnd, { passive: true });
+  window.addEventListener("touchcancel", touchEnd, { passive: true });
+  window.addEventListener("blur", blur);
+
+  return {
+    begin: (name: string) => (event: { originalEvent?: unknown }) => {
+      if (!event.originalEvent) return;
+      gestures.add(name);
+      onInteraction();
+      publish();
+    },
+    end: (name: string) => () => {
+      gestures.delete(name);
+      publish();
+    },
+    settle: () => {
+      gestures.clear();
+      publish();
+    },
+    dispose: () => {
+      clearTouches();
+      container.removeEventListener("pointerdown", pointerDown, true);
+      container.removeEventListener("touchstart", touchStart, true);
+      window.removeEventListener("pointerup", pointerUp);
+      window.removeEventListener("pointercancel", pointerUp);
+      window.removeEventListener("touchend", touchEnd);
+      window.removeEventListener("touchcancel", touchEnd);
+      window.removeEventListener("blur", blur);
+      state.current = idleGestureCameraState();
+    },
+  };
 }
