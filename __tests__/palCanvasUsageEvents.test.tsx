@@ -12,6 +12,8 @@ const boundary = vi.hoisted(() => ({
   events: [] as Array<{ name: string; props: unknown }>,
   reducedMotion: false,
   pubsWrites: null as GeoJSON.FeatureCollection[] | null,
+  cameraMoves: [] as Array<[string, unknown]>,
+  phone: false,
 }));
 
 const auth = vi.hoisted(() => ({ getCurrentUserId: (): string | null => auth.liveId, userId: "owner-a" as string | null, liveId: "owner-a" as string | null, loading: false }));
@@ -103,8 +105,8 @@ vi.mock("maplibre-gl", () => ({
     resize() {}
     triggerRepaint() {}
     setMissingStyleImageResolver() {}
-    fitBounds() {}
-    easeTo() {}
+    fitBounds(_bounds: unknown, options: unknown) { boundary.cameraMoves.push(["bounds", options]); }
+    easeTo(options: unknown) { boundary.cameraMoves.push(["ease", options]); }
     jumpTo() {}
     stop() {}
     remove() { this.removed = true; this.handlers.clear(); }
@@ -145,6 +147,8 @@ import { readLegRouteOnMap, showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import type { LegOption } from "@/lib/legOptions";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import type { Venue } from "@/lib/venues";
+import { nextCameraRequestToken } from "@/lib/cameraIntent";
+import { nextAreaCameraFocus } from "@/lib/mapCameraFocus";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -157,7 +161,7 @@ const way = (id: string): LegOption => ({
   parts: [{ mode: "walking", line: null, minutes: 6, metres: null, path: [[-0.1, 51.5], [-0.09, 51.5]] }],
 });
 const props: ComponentProps<typeof PubMapCanvas> = {
-  venues: [], route, venueDataReady: true, selectedVenueId: "",
+  venues: [], route, venueDataReady: true, selectedVenueId: "", selectedVenueRequestToken: 0,
   onVenueClick: () => {}, onRouteStopClick: () => {},
   palNextStop: { venueId: "venue-b", name: "The Crown" },
   openingCameraSettled: true, londonRestaurants: [],
@@ -202,6 +206,8 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     boundary.events = [];
     boundary.reducedMotion = false;
     boundary.pubsWrites = null;
+    boundary.cameraMoves = [];
+    boundary.phone = false;
     frames = new Map();
     nextFrame = 0;
     clock = 0;
@@ -212,7 +218,8 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     });
     vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
     vi.stubGlobal("matchMedia", (query: string) => ({
-      matches: boundary.reducedMotion && query.includes("prefers-reduced-motion"),
+      matches: (boundary.reducedMotion && query.includes("prefers-reduced-motion"))
+        || (boundary.phone && query.includes("max-width: 640px")),
       addEventListener() {}, removeEventListener() {},
     }));
     vi.stubGlobal("ResizeObserver", class { observe() {} disconnect() {} });
@@ -243,6 +250,56 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  describe.each([false, true])("retained selection with the canvas mounted: %s", (mounted) => {
+    describe.each(["route", "area", "search", "nearby"] as const)("competing with %s", (action) => {
+      it.each([false, true])("keeps user action order, selection newest: %s", async (selectionNewest) => {
+        const selectionToken = selectionNewest ? 0 : nextCameraRequestToken();
+        const otherToken = nextCameraRequestToken();
+        const competing = action === "route" ? { routeRequestToken: otherToken }
+          : action === "area" ? { focusPoint: nextAreaCameraFocus({ center: [-0.2, 51.6], zoom: 15 }) }
+          : action === "search" ? { searchRecoveryToken: otherToken }
+          : { nearbyRequestToken: otherToken, userLocation: { lat: 51.55, lng: -0.15 } };
+        const selectedVenueRequestToken = selectionNewest ? nextCameraRequestToken() : selectionToken;
+        const selection = { venues: route, selectedVenueId: "venue-a", selectedVenueRequestToken };
+        if (mounted) await render(selection);
+        await render({ ...selection, ...competing });
+        await ready();
+        await frame();
+        expect(boundary.cameraMoves).toHaveLength(1);
+        if (selectionNewest) {
+          expect(boundary.cameraMoves[0]).toEqual(["ease", expect.objectContaining({ center: [-0.1, 51.5] })]);
+        } else if (action === "route" || action === "search") {
+          expect(boundary.cameraMoves[0]?.[0]).toBe("bounds");
+        } else {
+          expect(boundary.cameraMoves[0]).toEqual(["ease", expect.objectContaining({
+            center: action === "area" ? [-0.2, 51.6] : [-0.15, 51.55],
+          })]);
+        }
+      });
+    });
+  });
+
+  it.each(["route", "area", "search", "nearby"] as const)("discards a cold selection sheet callback after a newer %s request", async (action) => {
+    boundary.phone = true;
+    const selection = { venues: route, selectedVenueId: "venue-a", selectedVenueRequestToken: nextCameraRequestToken() };
+    await render(selection);
+    await ready();
+    expect(boundary.cameraMoves).toHaveLength(0);
+    const token = nextCameraRequestToken();
+    const competing = action === "route" ? { routeRequestToken: token }
+      : action === "area" ? { focusPoint: nextAreaCameraFocus({ center: [-0.2, 51.6], zoom: 15 }) }
+      : action === "search" ? { searchRecoveryToken: token }
+      : { nearbyRequestToken: token, userLocation: { lat: 51.55, lng: -0.15 } };
+    await render({ ...selection, ...competing });
+    await frame();
+    expect(boundary.cameraMoves).toHaveLength(1);
+    expect(boundary.cameraMoves[0]?.[0]).toBe(action === "route" || action === "search" ? "bounds" : "ease");
+    clock += 1_000;
+    await frame();
+    await frame();
+    expect(boundary.cameraMoves).toHaveLength(1);
   });
 
   // The cold-load contract requires a source write after scene readiness,

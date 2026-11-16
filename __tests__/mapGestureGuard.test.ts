@@ -85,6 +85,28 @@ describe("the reactive set is closed", () => {
 
 
 describe("map contact ownership", () => {
+  it("releases every contact on blur and removes blur recovery on disposal", () => {
+    const canvas = document.createElement("canvas");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(canvas, state, () => {});
+    const pointer = (type: string, id: number) => Object.assign(new Event(type), { pointerId: id });
+    canvas.dispatchEvent(pointer("pointerdown", 1));
+    canvas.dispatchEvent(Object.assign(new Event("touchstart"), { changedTouches: [{ identifier: 2 }] }));
+    guard.begin("drag")({ originalEvent: true });
+    window.dispatchEvent(new Event("blur"));
+    expect(state.current.active).toBe(false);
+    expect(cameraIntentBlocked("venue", state.current, performance.now())).toBe(false);
+    expect(cameraIntentBlocked("pal", state.current, performance.now())).toBe(true);
+    canvas.dispatchEvent(pointer("pointerdown", 3));
+    expect(state.current.active).toBe(true);
+    window.dispatchEvent(pointer("pointerup", 3));
+    expect(state.current.active).toBe(false);
+    guard.dispose();
+    state.current = { active: true, endedAt: null };
+    window.dispatchEvent(new Event("blur"));
+    expect(state.current.active).toBe(true);
+  });
+
   it.each(["pointerup", "pointercancel"])("holds stationary pointers until the last %s, including off-canvas release", (release) => {
     const canvas = document.createElement("canvas");
     const state = { current: idleGestureCameraState() };

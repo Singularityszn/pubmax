@@ -303,6 +303,7 @@ type PubMapCanvasProps = {
    */
   palNextStop?: { venueId: string; name: string } | null;
   selectedVenueId: string;
+  selectedVenueRequestToken: number;
   onVenueClick: (id: string) => void;
   /**
    * The reader put a finger or a cursor on the map. Not a camera move: a tap on
@@ -793,6 +794,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     crewPals,
     palNextStop,
     selectedVenueId,
+    selectedVenueRequestToken,
     onVenueClick,
     onReaderTouchedMap,
     onUkBasePubClick,
@@ -1476,7 +1478,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
-    latestRequestToken: Math.max(routeRequestToken ?? 0, nearbyRequestToken, searchRecoveryToken ?? 0,
+    latestRequestToken: Math.max(routeRequestToken ?? 0, nearbyRequestToken, searchRecoveryToken ?? 0, selectedVenueId ? selectedVenueRequestToken : 0,
       focusPoint?.source === "area" ? focusPoint.token : 0),
     mapRef,
     reducedRef,
@@ -4827,7 +4829,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         duration: PUB_SELECT_DURATION_MS,
         easing: easeOutCubic,
         ...(offset ? { offset } : {}),
-      }, "venue", "user");
+      }, "venue", "user", selectedVenueRequestToken);
     };
 
     const arrival = deepLinkSelectionCamera({
@@ -4859,6 +4861,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     );
   }, [
     selectedVenueId,
+    selectedVenueRequestToken,
     selectedPresent,
     restoredBasePubId,
     mapReady,

@@ -1583,6 +1583,9 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     restoredSession.selectedVenueId,
   );
+  const [selectedVenueRequestToken, setSelectedVenueRequestToken] = useState(() =>
+    restoredSession.selectedVenueId ? nextCameraRequestToken() : 0,
+  );
   const [searchPickedVenueId, setSearchPickedVenueId] = useState(() =>
     seed.filters.query ? seed.selectedVenueId : "",
   );
@@ -3628,6 +3631,7 @@ export default function PubMap({
       claimMapSurface({ type: "open-venue" });
       setVenueInitialTab(initialTab);
       if (initialTab === "getting-home") setGettingHomeRequestId((current) => current + 1);
+      setSelectedVenueRequestToken(nextCameraRequestToken());
       setSelectedVenueId(id);
       closeComposer();
       const reducedMotion = venueRevealPrefersReducedMotion();
@@ -5322,6 +5326,7 @@ export default function PubMap({
       if (entry.id === "venue") {
         // Restore the tab the reader left on, not the overview default.
         setVenueInitialTab((held.venueTab || "overview") as VenueTabRequest);
+        setSelectedVenueRequestToken(nextCameraRequestToken());
         setSelectedVenueId(held.venueId);
         return;
       }
@@ -6771,6 +6776,7 @@ export default function PubMap({
         crewPals={routeIsActivePlan ? crewPals : undefined}
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
+        selectedVenueRequestToken={selectedVenueRequestToken}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
         onUkBasePubsChange={setRenderedBasePubs}

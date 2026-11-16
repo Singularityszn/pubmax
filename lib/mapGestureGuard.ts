@@ -109,12 +109,19 @@ export function installMapGestureGuard(
     for (const touch of Array.from(event.changedTouches)) touches.delete(touch.identifier);
     publish();
   };
+  const blur = () => {
+    gestures.clear();
+    pointers.clear();
+    touches.clear();
+    publish();
+  };
   canvas.addEventListener("pointerdown", pointerDown, { passive: true });
   canvas.addEventListener("touchstart", touchStart, { passive: true });
   window.addEventListener("pointerup", pointerUp, { passive: true });
   window.addEventListener("pointercancel", pointerUp, { passive: true });
   window.addEventListener("touchend", touchEnd, { passive: true });
   window.addEventListener("touchcancel", touchEnd, { passive: true });
+  window.addEventListener("blur", blur);
 
   return {
     begin: (name: string) => (event: { originalEvent?: unknown }) => {
@@ -138,6 +145,7 @@ export function installMapGestureGuard(
       window.removeEventListener("pointercancel", pointerUp);
       window.removeEventListener("touchend", touchEnd);
       window.removeEventListener("touchcancel", touchEnd);
+      window.removeEventListener("blur", blur);
       state.current = idleGestureCameraState();
     },
   };
