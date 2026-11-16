@@ -1,0 +1,9 @@
+name: PubMax setup Node
+description: Restore job-local caches and install Node 22.
+runs:
+  using: composite
+  steps:
+    - uses: ./.github/actions/pubmax-job-local-caches
+    - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+      with:
+        node-version: 22

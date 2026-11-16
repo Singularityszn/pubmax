@@ -31,6 +31,8 @@ jobs:
     # job token or a repository secret. See docs/CI_RUNBOOK.md.
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    env:
+      npm_config_cache: ${{ github.workspace }}/.ci-job-cache/npm
     permissions:
       contents: write # push the review branch
       pull-requests: write # open the review PR
@@ -40,23 +42,36 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Setup Node
-        timeout-minutes: 5
-        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: "22"
-          cache: npm
-
-      - run: |
-          npm ci
-          npm run deps:install-scripts
-
       - name: Restore the London cursor
         uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .tavily/enrichment/london.json
           key: tavily-london-cursor-${{ github.run_id }}
           restore-keys: tavily-london-cursor-
+
+      - name: Restore npm cache
+        if: github.ref != 'refs/heads/main'
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ci-job-cache/npm
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Restore and save npm cache on main
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .ci-job-cache/npm
+          key: npm-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: "22"
+
+      - run: |
+          npm ci
+          npm run deps:install-scripts
 
       - name: Configure git identity
         run: |

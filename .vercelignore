@@ -42,6 +42,7 @@
 /.next
 /.next-*
 /.vercel/
+/.ci-job-cache/
 /coverage/
 /__tests__/
 /e2e/
