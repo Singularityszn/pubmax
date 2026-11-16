@@ -145,7 +145,7 @@ describe("Pal fail-closed price eval", () => {
     if (failure === "factory") {
       vi.spyOn(pintDropStore, "pintDropsStore").mockImplementation(() => { throw new Error("Store unavailable"); });
     } else {
-      vi.spyOn(pintDropStore.memoryPintDropStore, "listVisible").mockRejectedValue(new Error("Read failed"));
+      vi.spyOn(pintDropStore.memoryPintDropStore, "publicPricedVenueIds").mockRejectedValue(new Error("Read failed"));
     }
     const result = await runAskTool("venue_prices", { venueId: "venue-60y3sa" }, {
       cityId: "london", query: "How much is a pint at The Coronet?", now, skipModel: true,

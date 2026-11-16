@@ -7,7 +7,7 @@ import { useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DraftStop } from "@/components/plan/PlanComposer";
 import PlanPintPriceCaption from "@/components/plan/PlanPintPriceCaption";
 import { useStopGestures } from "@/components/plan/useStopGestures";
-import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
+import { stopZoneEstimate, type StopZoneEstimate } from "@/components/plan/usePlanPriceAbsence";
 import { categoryLabel } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
 import { UNRESOLVED_ACCEPTED_STOP_LABEL } from "@/lib/planComposerHandoff";
@@ -22,11 +22,7 @@ import {
 import { selectedDrinkPriceDescription } from "@/lib/planSelectedDrinkPriceEvidence";
 import type { PlanVenueOption } from "@/lib/planVenueOptions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
-import { priceStandingFigure, priceStandingFor } from "@/lib/priceTier";
-import { zonePriceEstimate } from "@/lib/zonePriceEstimate";
-import { zoneLabel, type ZonePintIndex } from "@/lib/zones";
-
-type StopZoneEstimate = { stamp: { text: string; bandClass: string }; label: string } | null;
+import type { ZonePintIndex } from "@/lib/zones";
 
 /** What a card prints on its price stamp, and whether a pint band may colour it. */
 function stampFor(
@@ -40,21 +36,6 @@ function stampFor(
   if (typeof pence !== "number" || pence <= 0) return estimate?.stamp ?? null;
   const band = pintServingKnown ? priceBand(pence / 100, priceBandAreaForVenue(stop.venueId)) : null;
   return { text: formatPence(pence), bandClass: priceBandClass(band) };
-}
-
-/**
- * A stop with no price of its own reads its fare zone's estimate. It never
- * wears a band and never joins a total, because nobody recorded it here.
- */
-function stopZoneEstimate(
-  stop: DraftStop,
-  venue: PlanVenueOption | undefined,
-  zoneIndex: ZonePintIndex | null,
-): StopZoneEstimate {
-  if (stop.selectedDrinkPriceEvidence || typeof stop.estimatedPintPricePence === "number" || venue?.hasRecordedPrice !== false) return null;
-  const estimate = zonePriceEstimate(venue?.zone, zoneIndex);
-  const text = estimate ? priceStandingFigure(priceStandingFor({ estimate })) : null;
-  return estimate && text ? { stamp: { text, bandClass: "" }, label: `${zoneLabel(estimate.zone)} estimate` } : null;
 }
 
 /**
@@ -159,6 +140,7 @@ function StopFinder({
 
 export type PlanStopListProps = {
   stops: readonly DraftStop[];
+  publicPriceAbsent: ReadonlySet<string>;
   areaName: string | null;
   heldVenueId: string | null;
   measured: MeasuredLegMinutes;
@@ -188,6 +170,7 @@ export type PlanStopListProps = {
  */
 export default function PlanStopList({
   stops,
+  publicPriceAbsent,
   areaName,
   heldVenueId,
   measured,
@@ -237,10 +220,6 @@ export default function PlanStopList({
   });
   const options = useMemo(() => finderOptions(venues), [venues]);
   const venueById = useMemo(() => new Map(venues.map((venue) => [venue.id, venue])), [venues]);
-  const estimateVenueIds = useMemo(() => [...new Set(stops
-    .filter((stop) => stopZoneEstimate(stop, venueById.get(stop.venueId), zoneIndex))
-    .map((stop) => stop.venueId))], [stops, venueById, zoneIndex]);
-  const publicPriceAbsent = usePlanPriceAbsence(estimateVenueIds, refreshKey);
   const byValue = useMemo(
     () => new Map(options.map((option) => [option.value.toLocaleLowerCase(), option.venue])),
     [options],

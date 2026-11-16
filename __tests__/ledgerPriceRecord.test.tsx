@@ -39,7 +39,7 @@ function view(listedPint: VenueListedPint | null = null, venueId = "venue-1vle94
 }
 async function render() { await act(async () => root.render(view())); }
 function answer(pintPrice: LedgerPintPrice | null) {
-  return new Response(JSON.stringify({ pintPrice, claims: [], entries: [], familyEntries: [] }));
+  return new Response(JSON.stringify({ pintPrice, publicPricePresence: pintPrice ? "present" : "absent", claims: [], entries: [], familyEntries: [] }));
 }
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -111,6 +111,14 @@ describe("Ledger price record", () => {
     expect(container.textContent).toContain("Estimated pint price");
     expect(container.textContent).toContain("£6.50");
     expect(container.textContent).not.toContain("did not answer");
+  });
+  it.each([undefined, "unknown", "present"])("withholds an estimate when shared price presence is %s", async (publicPricePresence) => {
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ pintPrice: null, publicPricePresence, claims: [], entries: [], familyEntries: [] })));
+    await act(async () => root.render(view(null, "venue-1vle947", { estimate: {
+      priceGbp: 6.5, basis: "regional_baseline", sampleSize: 120, computedAt: "2026-10-01T12:00:00Z",
+    } })));
+    expect(container.textContent).not.toContain("£6.50");
+    expect(container.textContent).not.toContain("No pint price is on record");
   });
   it("explains a modelled pint price when there is no report", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => answer(null)));

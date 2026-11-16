@@ -43,7 +43,11 @@ The [public estimate guide](https://pubmaxxing.com/how-we-estimate) owns the zon
 
 The slim builder uses the runtime bundle parser to exclude quarantined rows from price availability. It carries recorded beer venue IDs beside the full slim payload, outside map shards. `lib/slimPayload.ts` projects this metadata into venue availability, and the published zone index carries it to map readers. Missing bundle coverage remains unknown.
 
-Map pins withhold estimates while that pub's community-price or Pint Drop read is pending. `zoneEstimatePinStandings` checks only reads already started. A missing status entry means never asked and does not block a pin estimate.
+`readPublicPricePresence` in `lib/publicPricePresence.server.ts` answers `present`, `absent` or `unknown` across listed prices, the UK bundle, community prices and public Pint Drops. Its durable store reads use stable ID pagination and exact counts. They include old venue IDs and exclude private, hidden, withdrawn and demo drops. A known public price establishes `present` even when another source fails. Without positive evidence, a failed source or incomplete page leaves the result `unknown`.
+
+Map pins, map lists, phone peeks, venue sheets, Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. A new venue list or refresh clears the previous absence result before the next request.
+
+The map also clears previous absence results when community rows change. A known public community row immediately suppresses the estimate, including a non-beer row. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
 
 A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. Each cap control separates recorded-price matches from pubs with no recorded comparable pint. Counts use the map's loaded, filtered pubs after drink-lens and venue-kind choices, not just the current viewport. A modelled figure never establishes a match.
 
@@ -51,7 +55,7 @@ Pins withhold estimates while a cap is on. Map lists, phone peeks and venue shee
 
 Cancelling a Pint Drop read marks it unavailable only while it still owns the request. Cancellation retains observed rows and releases the pending hold. An unavailable read does not establish price absence. `__tests__/venuePriceLane.test.ts` and `__tests__/usePintDropsReads.test.tsx` cover these rules.
 
-Pal's `venue_prices` tool also reads the venue's public Pint Drops before estimating. A recorded price in these reads, a public priced drop in the returned rows, or an unavailable read prevents a zone estimate. The estimate remains outside card prices and price evidence. `__tests__/palFailClosedPrices.test.ts` covers these constraints. List, split-list, Ledger and Plan retain their existing absence checks. Complete public-price absence across those readers remains tracked in [issue #2706](https://github.com/Singularityszn/pubmax/issues/2706).
+Pal's `venue_prices` tool uses the same public-price presence read. The estimate remains outside card prices and price evidence. `__tests__/publicPricePresence.server.test.ts`, `__tests__/publicPricePresenceStore.test.ts` and the existing consumer tests cover these rules.
 
 <a id="an-estimate-is-supply-never-a-city-flag-and-every-basis-this-tree-holds-is-londo"></a>
 
@@ -161,11 +165,13 @@ Pal's `venue_prices` tool also reads the venue's public Pint Drops before estima
 
 <a id="ledger-price-record"></a>
 
-- **The Ledger waits for the public pint read before showing an estimate.** Its **Price record** uses `venuePriceLane` for price precedence and the selected price for its historical comparison. Published prices and public pint reports remain separate, each with its source and date. A public report retains its drink, pint serving and age warning, and hides the fallback estimate.
+- **The Ledger shows each price with its own evidence.** Its **Price record** uses `venuePriceLane` for price precedence and the selected price for its historical comparison. Published prices and public pint reports remain separate, each with its source and date. A public report retains its drink, pint serving and age warning.
 
   The selected listed row supplies its price, publisher, source URL and observation date together. Publisher disclosure follows the [voice rule](../VOICE.md#the-mission-said-plainly).
 
-  A standalone estimate appears only after a successful read confirms that no public pint report exists. The shared cached server document never displays the estimate. Without another price, an unfinished read shows **Checking the price record**. Without another price, a failed read shows an unavailable message and **Try again**, without an estimate or an absence claim. A successful retry can reveal an estimate when no public report exists. Published prices remain visible during these reads.
+  Estimate eligibility follows the [shared public-price absence rule](#london-zone-estimates). The shared cached server document never displays the estimate. Without another displayed price, an unfinished read shows **Checking the price record**. With no displayed price, a failed read or an `unknown` result shows an unavailable message and **Try again**. Neither state permits an estimate or an absence claim. A `present` result without a displayed price says **A public price is on record**.
+
+  Published prices remain visible during these reads.
 
   A standalone estimate shows `est. £X` and explains that it is modelled, not a quote. It gives its basis, published price sample count, calculation date and a link to the [estimate method](https://pubmaxxing.com/how-we-estimate). The implementation is in `components/ledger/LedgerLive.tsx`. The rendered checks in `__tests__/ledgerPriceRecord.test.tsx` cover the server document, a delayed report, and a failed read followed by a successful empty retry.
 

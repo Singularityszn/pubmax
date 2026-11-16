@@ -25,6 +25,7 @@ import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
 import { Button } from "@/components/ui/button";
 import PourLine from "@/components/plan/PourLine";
 import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
+import { usePlanPriceAbsence } from "@/components/plan/usePlanPriceAbsence";
 import dynamic from "next/dynamic";
 import { SlidersHorizontal } from "lucide-react";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
@@ -2742,6 +2743,8 @@ function PlanComposerForm({
     () => stops.filter((stop) => stop.venueName.trim() && stop.venueId.trim()),
     [stops],
   );
+  const displayZoneIndex = nightContext && !planUsesPintPrices(nightContext) ? null : zoneIndex;
+  const { priceStops, publicPriceAbsent } = usePlanPriceAbsence(stops, venues, displayZoneIndex, routeRevealTick);
   const conciergeIntake = useMemo(
     () => syncPlanIntakeAreaFromQuery(planIntake, conciergeQuery),
     [conciergeQuery, planIntake],
@@ -4108,7 +4111,7 @@ function PlanComposerForm({
 
   const routeArea = routeNight?.nightArea ? getNightArea(routeNight.nightArea) : null;
   const areaName = routeArea ? planAreaName(routeArea.name, routeNight?.areaFocus) : null;
-  const viewStops = completeStops;
+  const viewStops = priceStops.filter((stop) => stop.venueName.trim() && stop.venueId.trim());
   const summaryLine = routeSummaryLine(viewStops, measured, startTime);
   const stripStops = viewStops.map((stop, position) => ({ venueId: stop.venueId, venueName: stop.venueName, position }));
   const stopsBlock = (
@@ -4129,12 +4132,13 @@ function PlanComposerForm({
         </p>
       ) : null}
       <PlanStopList
-        stops={stops}
+        stops={priceStops}
+        publicPriceAbsent={publicPriceAbsent}
         areaName={areaName}
         heldVenueId={heldVenueId}
         measured={measured}
         venues={venues}
-        zoneIndex={nightContext && !planUsesPintPrices(nightContext) ? null : zoneIndex}
+        zoneIndex={displayZoneIndex}
         canAdd={stops.length < MAX_PLAN_STOP_COUNT}
         refreshKey={routeRevealTick}
         removable={stops.length > 1}

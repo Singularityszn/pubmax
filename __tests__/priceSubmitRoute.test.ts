@@ -173,7 +173,7 @@ import {
   __resetMemoryIdentityHandles,
   memoryIdentityHandleStore,
 } from "@/lib/identityHandleStore";
-import { __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
+import { addPintDrop, __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   memoryProfileStore,
@@ -1491,6 +1491,18 @@ describe("POST /api/price-submit UK base pubs", () => {
 });
 
 describe("GET /api/price-submit", () => {
+  it("distinguishes complete absence, an old public price and an unknown venue in the shared read", async () => {
+    const venueId = "venue-60y3sa";
+    const query = `?scope=public-price-presence&venueId=${venueId}&venueId=venue-not-in-index`;
+    const empty = await GET(get(query));
+    expect(await empty.json()).toEqual({ presence: { [venueId]: "absent", "venue-not-in-index": "unknown" } });
+    addPintDrop({ id: "old-public-price", venueId, handle: "drinker", drink: "Lager", priceGbp: 5,
+      passedDownNote: "", era: "", provenance: "contributor", status: "visible", createdAt: "2020-01-01T00:00:00Z" });
+    const priced = await GET(get(query));
+    expect(await priced.json()).toEqual({ presence: { [venueId]: "present", "venue-not-in-index": "unknown" } });
+    expect(priced.headers.get("cache-control")).toContain("no-store");
+  });
+
   it("returns provisional visibility only for requested base ids", async () => {
     const result = await getUkBaseIdIndex();
     expect(result.status).toBe("ready");
