@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildLogNearbyCandidates,
+  logNearbyDataReady,
   clearMapLogIntentSearch,
   formatLogNearbyDistance,
   hasMapLogIntent,
@@ -414,4 +415,12 @@ describe("formatLogNearbyDistance", () => {
     expect(formatLogNearbyDistance(1.25)).toBe("1.3 km");
     expect(formatLogNearbyDistance(Number.NaN)).toBe("");
   });
+});
+
+
+it("waits for coverage around the user before offering nearest pubs", () => {
+  const origin = { source: "user" as const, origin: { lat: 51.46, lng: -0.11 } };
+  expect(logNearbyDataReady(origin, "london", null)).toBe(false);
+  expect(logNearbyDataReady(origin, "london", { city: "london", lat: 51.46, lng: -0.11, radiusKm: 1 })).toBe(false);
+  expect(logNearbyDataReady(origin, "london", { city: "london", lat: 51.46, lng: -0.11, radiusKm: 5 })).toBe(true);
 });

@@ -294,12 +294,12 @@ export type SlimShardLoader = {
   initial(bounds: MapBounds): Promise<SlimVenue[]>;
   initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
-   * Return all rows from location shards intersecting the walk radius, including
-   * cached rows on repeated or overlapping queries. After one retry, status
-   * reports whether every required shard loaded. Partial rows must not establish
-   * a nearby cheapest winner.
+   * Return all rows from location shards intersecting `radiusKm`, including
+   * cached rows on repeated or overlapping queries. The default radius is
+   * WALKABLE_RADIUS_KM. After one retry, status reports whether every required
+   * shard loaded. Partial rows must not establish a nearby cheapest winner.
    */
-  nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
+  nearPoint(lat: number, lng: number, radiusKm?: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
@@ -892,7 +892,7 @@ export function createSlimShardLoader(
 
     initialResult,
 
-    async nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult> {
+    async nearPoint(lat: number, lng: number, radiusKm = WALKABLE_RADIUS_KM): Promise<SlimShardLoadResult> {
       const m = await manifest();
       if (!m) {
         return {
@@ -902,7 +902,7 @@ export function createSlimShardLoader(
       }
       const needed = shardsForBounds(
         m,
-        boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
+        boundsForRadius(lat, lng, radiusKm),
         0,
         true,
       ).filter((s) => s.partition !== "kind");

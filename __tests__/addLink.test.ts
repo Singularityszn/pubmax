@@ -105,10 +105,10 @@ describe("the add link survives account creation", () => {
     ).toBe("/add/karan?auto=1");
   });
 
-  it("routes a sign-up from the Pint Drop composer back to the pub and price", () => {
+  it.each(["", "&pintDropReturn=daea85e1-3307-492c-9c64-294533f770bc"])("routes a sign-up from the Pint Drop composer back to the pub and price: %s", (handoff) => {
     // The composer's "Sign in to post" opens the sign-in door, and a stranger
     // reads "New here" as theirs. Both doors must end on the same composer.
-    const door = "/map?sel=venue-12ino21&log=1&price=5.20";
+    const door = `/map?sel=venue-12ino21&log=1&price=5.20${handoff}`;
     expect(loginDestination("signin", door)).toBe(door);
     const destination = loginDestination("signup", door);
     expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);

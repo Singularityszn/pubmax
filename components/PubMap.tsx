@@ -4,7 +4,7 @@ import { warmMapEngine } from "@/lib/mapEngineWarm";
 import VenueFeatureFilters from "@/components/map/VenueFeatureFilters";
 import { resetMapRefinements } from "@/lib/mapFilterReset";
 import { mapDrinkCoverage } from "@/lib/drinkCoverage";
-import { venueToPricedPoint } from "@/lib/nearMeAnswer";
+import { venueToPricedPoint, WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 
 import { CalendarClock, ChevronRight, Compass, List, MapPinned, Navigation2, ShieldCheck, X } from "lucide-react";
 import { formatGbp } from "@/lib/formatGbp";
@@ -103,7 +103,7 @@ import {
   type MapVenueListSortMode,
 } from "@/lib/mapVenueList";
 import { floatingMapListOpen, focusMapSplitList, splitListShown } from "@/lib/mapSplitListFocus";
-import { mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
+import { logPickerStateOf, mobileShellIsReady, mapSurfaceOverlay, mapSurfaceStateOf, transition as mapSurfaceTransition, type MapSurfaceEvent, type MapSurfaceRetirement, type MapSurfaceState as VisibleMapSurface } from "@/lib/mapSurfaceState";
 import { UK_BOUNDS, type BasemapProvider } from "@/components/map/canvas/tokens";
 import MapFallbackCard from "@/components/map/MapFallbackCard";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
@@ -408,13 +408,7 @@ const MapOnboardingOverlay = dynamic(
     })),
   { ssr: false },
 );
-const LogIntentFallback = dynamic(
-  () =>
-    import("@/components/map/pubmap/LogIntentFallback").then(
-      (m) => m.LogIntentFallback,
-    ),
-  { ssr: false },
-);
+import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
@@ -496,7 +490,7 @@ import {
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
-  buildLogNearbyCandidates,
+  buildLogNearbyCandidates, logNearbyDataReady,
   clearMapLogIntentSearch,
   hasMapLogIntent,
   mapLogIntentPrice,
@@ -1829,6 +1823,8 @@ export default function PubMap({
     generation: number;
     lat: number;
     lng: number;
+    radiusKm: number;
+    city: CityId;
   } | null>(null);
   const {
     mode,
@@ -2468,6 +2464,7 @@ export default function PubMap({
 
   const mergeSlimVenues = useCallback((rows: SlimVenue[]) => {
     if (rows.length === 0) return;
+    liveShardRowsCommittedRef.current = true;
     setSlimPins((prev) => {
       const byId = new Map(prev.map((pin) => [pin.id, pin]));
       let changed = false;
@@ -2621,6 +2618,7 @@ export default function PubMap({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       awaitViewShards();
+      setNearbyLoadedPoint(null);
       setVenueIndexFailed(false);
       setCompleteCountSlugs(null);
       if (!preserveSyncResume) {
@@ -2655,7 +2653,6 @@ export default function PubMap({
             if (!isCurrentLoader()) return;
             const rows = result.rows;
             liveShardLoadStatusRef.current = result.status;
-            if (rows.length > 0) liveShardRowsCommittedRef.current = true;
             setVenueIndexFailed(result.status !== "ready");
             mergeSlimVenues(rows);
             if (rows.length > 0) {
@@ -2877,7 +2874,6 @@ export default function PubMap({
           if (!isCurrentLoader()) return;
           const rows = result.rows;
           liveShardLoadStatusRef.current = result.status;
-          if (rows.length > 0) liveShardRowsCommittedRef.current = true;
           setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {
@@ -3825,8 +3821,14 @@ export default function PubMap({
     mapSurfaceRef.current = mapSurface;
   });
   const coordinatedMobileOverlay = mapSurfaceOverlay(mapSurface);
-  const { location: logPickerLocation, setLocation: setLogPickerLocation } = useLogPickerLocation(
-    mobileViewport ? coordinatedMobileOverlay === "moment" : logIntentFallbackVisible,
+  const { active: logPickerActive, pricePicker: pricePickerOpen } = logPickerStateOf(
+    mobileViewport,
+    coordinatedMobileOverlay,
+    logIntentFallbackVisible,
+    hasCategoryPriceIntent,
+  );
+  const { location: logPickerLocation, locating: logPickerLocating, setLocation: setLogPickerLocation } = useLogPickerLocation(
+    logPickerActive,
     userLocation,
   );
   // A fix granted for the log picker is still the reader's location: it ends
@@ -3836,23 +3838,21 @@ export default function PubMap({
     setLogPickerLocation(location);
   }, [invalidatePrivateCamera, setLogPickerLocation]);
 
-  // D1 — the picker is grounded in a real origin: the reader's fix, else the
-  // centre of the map they are looking at. It never offers a city-wide five.
   const logNearbyOrigin = useMemo(
     () => resolveLogNearbyOrigin({ pickerLocation: logPickerLocation, userLocation, mapCenter: mapViewport.center }),
     [mapViewport.center, userLocation, logPickerLocation],
   );
   const logNearbyCandidates = useMemo(
     () =>
-      buildLogNearbyCandidates(
-        filteredPubVenues,
+      !logNearbyDataReady(logNearbyOrigin, cityId, nearbyLoadedPoint) ? [] : buildLogNearbyCandidates(
+        pubVenues,
         undefined,
         logNearbyOrigin?.origin ?? null,
         LOG_NEARBY_MAX_KM,
         mapDrinkLensCategory,
         drinkLensPrices,
       ),
-    [filteredPubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices],
+    [pubVenues, logNearbyOrigin, mapDrinkLensCategory, drinkLensPrices, nearbyLoadedPoint, cityId],
   );
 
   const showLoadedRoute = useCallback(
@@ -3915,12 +3915,13 @@ export default function PubMap({
       return;
     }
     const loaderGeneration = slimLoaderGenerationRef.current;
+    const radiusKm = logPickerActive ? LOG_NEARBY_MAX_KM : WALKABLE_RADIUS_KM;
     let cancelled = false;
     if (
       nearbyLoadedPoint?.loader === loader &&
       nearbyLoadedPoint.generation === loaderGeneration &&
       nearbyLoadedPoint.lat === location.lat &&
-      nearbyLoadedPoint.lng === location.lng
+      nearbyLoadedPoint.lng === location.lng && nearbyLoadedPoint.radiusKm >= radiusKm
     ) {
       void Promise.resolve().then(() => {
         if (!cancelled) finish();
@@ -3938,7 +3939,7 @@ export default function PubMap({
       setNearbyLoading(false);
       setPendingNearMeRequest(null);
     };
-    void loader.nearPoint(location.lat, location.lng)
+    void loader.nearPoint(location.lat, location.lng, radiusKm)
       .then((result) => {
         if (
           cancelled ||
@@ -3951,7 +3952,7 @@ export default function PubMap({
           failNearbyLoad();
           return;
         }
-        setNearbyLoadedPoint({ loader, generation: loaderGeneration, lat: location.lat, lng: location.lng });
+        setNearbyLoadedPoint({ loader, generation: loaderGeneration, lat: location.lat, lng: location.lng, radiusKm, city: cityId });
       })
       .catch(() => {
         failNearbyLoad();
@@ -3975,6 +3976,7 @@ export default function PubMap({
     mapRoute,
     showLoadedRoute,
     logPickerLocation,
+    logPickerActive,
     userLocation,
     venueJourneyLocation,
     venueIndexAttempt,
@@ -5303,27 +5305,15 @@ export default function PubMap({
     coordinatedMobileOverlay,
     mapListOpen,
   );
-  const mapSurfaceTitle = useMemo(
-    () =>
-      mapSurfaceTitleFor({
-        mapSurfaceId,
-        basePubOpen,
-        basePub: selectedBasePub,
-        selectedVenue,
-        detailLabel: selectedVenueLabels.detailLabel,
-        landmarkName: activeLandmark?.name ?? null,
-        sheetTitles: MAP_SHEET_TITLES,
-      }),
-    [
-      activeLandmark,
-      basePubOpen,
-      mapSurfaceId,
-      selectedBasePub,
-      selectedVenue,
-      selectedVenueLabels.detailLabel,
-    ],
-  );
-  const pricePickerOpen = coordinatedMobileOverlay === "moment" && hasCategoryPriceIntent;
+  const mapSurfaceTitle = mapSurfaceTitleFor({
+    mapSurfaceId,
+    basePubOpen,
+    basePub: selectedBasePub,
+    selectedVenue,
+    detailLabel: selectedVenueLabels.detailLabel,
+    landmarkName: activeLandmark?.name ?? null,
+    sheetTitles: MAP_SHEET_TITLES,
+  });
   const mapSurfaceState = useMapSurfaceState({
     venueTab: venueInitialTab,
     venueId: selectedVenueId,
@@ -6111,7 +6101,7 @@ export default function PubMap({
     !mapCanvasFrameReleased(mapCanvasAvailabilityState) &&
     mapLoadingHeld(mapLoadingStage);
 
-  const mobileShellReady = !mapLoadingActive;
+  const mobileShellReady = mobileShellIsReady(mapLoadingActive, mobileShellState.overlay);
   // Desktop reader controls. Both live inside Layers rather than on the map
   // surface, which keeps its budget at search plus one toast. The phone reaches
   // the same two through the More sheet's Key and Prices tabs.
@@ -6349,8 +6339,6 @@ export default function PubMap({
     );
   }
 
-  /* The phone's whole chrome: top bar, chip row and every sheet it can open.
-     Held back until the loading frame lets go so no chrome paints over it. */
   function renderMobileShellSection() {
     return (
       <>
@@ -6480,6 +6468,8 @@ export default function PubMap({
             candidates={logNearbyCandidates}
             categoryPriceIntent={hasCategoryPriceIntent}
             origin={logNearbyOrigin?.source ?? null}
+            locating={logPickerLocating}
+            loading={!loaded}
             filteredPubVenueCount={filteredPubVenueCount}
             onPickVenue={pickLogNearbyVenue}
             onPrefetchVenue={prefetchVenueDetail}
@@ -7020,6 +7010,8 @@ export default function PubMap({
           candidates={logNearbyCandidates}
           categoryPriceIntent={hasCategoryPriceIntent}
           origin={logNearbyOrigin?.source ?? null}
+          locating={logPickerLocating}
+          loading={!loaded}
           filteredPubVenueCount={filteredPubVenueCount}
           onPickVenue={pickLogNearbyVenue}
           onPrefetchVenue={prefetchVenueDetail}

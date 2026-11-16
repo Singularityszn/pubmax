@@ -206,6 +206,8 @@ import {
 import { accountAdultOnFile } from "@/lib/adultOnFile.server";
 import {
   __resetPintDrops,
+  addPintDrop,
+  type PintDrop,
   dropMatchesCityScope,
   reportPintDrop,
   type PintDropReportIdentity,
@@ -368,6 +370,47 @@ beforeEach(async () => {
 
 afterAll(() => {
   vi.unstubAllEnvs();
+});
+
+describe("GET /api/pint-drops (own latest drink)", () => {
+  it("refuses signed-out reads even when an author is supplied", async () => {
+    const response = await GET(new Request(`${URL_BASE}?ownLatestDrink=1&author=alice`));
+    expect(response.status).toBe(401);
+    expect(await response.json()).not.toHaveProperty("latestDrink");
+  });
+
+  it.each(["legacy", "friends", "anonymous", "public"] as const)(
+    "reads the account's latest named drink across cities and the %s lane",
+    async (visibility) => {
+      reportAuth.userId = "latest-drink-owner";
+      await memoryProfileStore.createOwned("latest_drink_owner", reportAuth.userId);
+      const base: PintDrop = {
+        id: "london-lager", venueId: "venue-1", handle: "latest_drink_owner",
+        drink: "Lager", priceGbp: null, passedDownNote: "Private note", era: "",
+        provenance: "contributor", status: "visible", visibility: "public",
+        createdAt: "2026-11-15T10:00:00.000Z",
+      };
+      addPintDrop(base);
+      addPintDrop({ ...base, id: "ledger-guinness", venueId: "venue-mcr-1", drink: "Guinness", visibility,
+        createdAt: "2026-11-15T11:00:00.000Z" });
+      addPintDrop({ ...base, id: "note-only", drink: "", createdAt: "2026-11-15T12:00:00.000Z" });
+      addPintDrop({ ...base, id: "hidden", drink: "Hidden ale", status: "hidden", createdAt: "2026-11-15T13:00:00.000Z" });
+      addPintDrop({ ...base, id: "another-account", handle: "another_drinker", drink: "Cider",
+        createdAt: "2026-11-15T14:00:00.000Z" });
+      const response = await GET(new Request(`${URL_BASE}?ownLatestDrink=1&author=another_drinker&city=london`));
+      expect(response.status).toBe(200);
+      expect(response.headers.get("Cache-Control")).toBe("no-store");
+      expect(await response.json()).toEqual({ latestDrink: "Guinness" });
+    },
+  );
+
+  it("answers with no drink when the account has no named entries", async () => {
+    reportAuth.userId = "latest-drink-empty";
+    await memoryProfileStore.createOwned("latest_drink_empty", reportAuth.userId);
+    const response = await GET(new Request(`${URL_BASE}?ownLatestDrink=1`));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ latestDrink: null });
+  });
 });
 
 describe("POST /api/pint-drops (create)", () => {

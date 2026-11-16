@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, useState } from "react";
+import { act, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
@@ -9,6 +9,35 @@ import { AuthContext, useAuth } from "@/components/auth/authContext";
 import MobileSharedSheet from "@/components/mobile/MobileSharedSheet";
 import type { MapSheetDetent } from "@/lib/mobileShell";
 import { SHEET_ENTRANCE_MS } from "@/lib/sheetSnap";
+
+it("preserves a price field's focus when it becomes ready before the sheet's opening frame", async () => {
+  const host = document.body.appendChild(document.createElement("div"));
+  const root = createRoot(host);
+  const environment = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+  const previousAct = environment.IS_REACT_ACT_ENVIRONMENT;
+  environment.IS_REACT_ACT_ENVIRONMENT = true;
+  vi.stubGlobal("innerWidth", 390);
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener() {}, removeEventListener() {} }));
+  function PriceField() {
+    const input = useRef<HTMLInputElement>(null);
+    useEffect(() => { input.current?.focus(); }, []);
+    return <input ref={input} aria-label="What did it cost?" />;
+  }
+  try {
+    await act(async () => root.render(
+      <MobileSharedSheet kind="venue" title="Pub detail" onClose={() => {}}>
+        <PriceField />
+      </MobileSharedSheet>,
+    ));
+    await act(async () => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));
+    expect(document.activeElement).toBe(document.querySelector('input[aria-label="What did it cost?"]'));
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+    vi.unstubAllGlobals();
+    environment.IS_REACT_ACT_ENVIRONMENT = previousAct;
+  }
+});
 
 // A second pin pick bumps the reveal-settle sequence. The sheet must settle
 // where the host asked: a base pub asks for peek so the map behind it stays
