@@ -414,9 +414,12 @@ export function useMapCamera(refs: CameraRefs) {
 
   const routeRecoverySequence = useRef(0);
   const fitRoute = useCallback((owner: CameraIntentOwner = "automatic") => {
-    if (!claimCamera(owner)) return;
     const current = routeRef.current;
-    if (current.length < 2) return;
+    if (current.length < 2) {
+      if (owner === "user" && current.length === 1) palFrameRef.current = null;
+      return;
+    }
+    if (!claimCamera(owner)) return;
     const routeBounds = () => {
       const bounds = new maplibregl.LngLatBounds();
       current.forEach((venue) => bounds.extend([venue.longitude, venue.latitude]));

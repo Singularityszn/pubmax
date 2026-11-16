@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useRef } from "react";
+import { act, createElement, useEffect, useRef } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Map, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -65,9 +65,11 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
   opening = { resolved: false, area: null as MapCameraFocus | null },
-  readiness = { current: true }, canvasMounted = { current: true }) {
+  readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
-    const currentRoute = planRef ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : route;
+    const currentRoute = planRef
+      ? plan.routeMapped ? plan.builtIds.flatMap((id) => route.filter((venue) => venue.id === id)) : []
+      : route;
     camera = useMapCamera({
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
@@ -83,15 +85,6 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       queryVenuesRef,
       gestureCameraRef: { current: gesture },
     });
-    useRouteCameraFraming({
-      mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
-      selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
-    });
-    useNearbyCameraFraming({
-      mapReady: readiness.current, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
-      routeLength: route.length, nearbyMapVenues: soho, fitNearby: camera.fitNearby,
-      framingOwedRef: { current: false }, requestToken: nearbyRequest.current,
-    });
     const location = useMapOpeningCamera({
       shouldResolveOpeningLocation: true,
       openingLocationResolved: opening.resolved,
@@ -100,6 +93,18 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       cancelOpeningLocation: () => {},
     });
     useMapFocusPoint(readiness.current, opening.area ?? location.openingLocationFocus, useRef(null), camera.cinematic);
+    useEffect(() => {
+      if (readiness.current && searchRecovery.current) camera.fitQueryVenues("search-recovery", searchRecovery.current);
+    });
+    useNearbyCameraFraming({
+      mapReady: readiness.current, userLocation: nearby ? { lat: 51.51, lng: -0.13 } : null,
+      routeLength: currentRoute.length, nearbyMapVenues: soho, fitNearby: camera.fitNearby,
+      framingOwedRef: { current: false }, requestToken: nearbyRequest.current,
+    });
+    useRouteCameraFraming({
+      mapReady: Boolean(planRef) && readiness.current, routeKey: currentRoute.map((venue) => venue.id).join(">"),
+      selectedVenueId: "", requestToken: plan.routeRequestToken, fitRoute: camera.fitRoute,
+    });
     return null;
   }
   function Camera() {
@@ -287,6 +292,45 @@ describe("query camera with contextual price pins", () => {
     rerender();
     flush();
     expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({ center: [-0.13, 51.51] }));
+  });
+
+  describe.each([false, true])("with the canvas initially mounted: %s", (mounted) => {
+    describe.each(["clear", "hide", "one stop"] as const)("after route %s", (change) => {
+      it.each(["nearby", "area", "search"] as const)("preserves the newer %s move on readiness", (action) => {
+        const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+        const readiness = { current: false };
+        const canvasMounted = { current: mounted };
+        const nearbyRequest = { current: 0 };
+        const searchRecovery = { current: 0 };
+        const opening = { resolved: false, area: null as MapCameraFocus | null };
+        const rerender = mount({ current: soho }, surrounding, undefined, undefined, nearbyRequest,
+          action === "nearby", planRef, opening, readiness, canvasMounted, searchRecovery);
+        act(() => planRef.current!.mapRoute());
+        act(() => {
+          if (change === "hide") planRef.current!.setRouteMapped(false);
+          else planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+        });
+        if (action === "nearby") nearbyRequest.current = 1;
+        else if (action === "area") opening.area = { source: "area", token: 1, center: [-0.1, 51.5], zoom: 15 };
+        else searchRecovery.current = 1;
+        canvasMounted.current = true;
+        readiness.current = true;
+        rerender();
+        flush();
+        if (action === "search") {
+          expect(fitBounds).toHaveBeenCalledOnce();
+          expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+            .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+          expect(easeTo).not.toHaveBeenCalled();
+        } else {
+          expect(easeTo).toHaveBeenCalledOnce();
+          expect(easeTo).toHaveBeenCalledWith(expect.objectContaining({
+            center: action === "nearby" ? [-0.13, 51.51] : [-0.1, 51.5],
+          }));
+          expect(fitBounds).not.toHaveBeenCalled();
+        }
+      });
+    });
   });
 
   it.each(["route", "search", "venue", "city", "nearby"] as const)(
