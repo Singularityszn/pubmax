@@ -1,4 +1,5 @@
 import type { CrewMemberDTO } from "@/lib/crew";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { cleanText } from "@/lib/textClean";
 import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
@@ -228,7 +229,7 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
     };
   });
   if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;
-  if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  if (new Set(stops.map((stop) => canonicalBundledVenueId(stop.venueId))).size !== stops.length) return null;
   const context = input.context === undefined ? null : cleanNightContext(input.context);
   if (input.context !== undefined && !context) return null;
   return {

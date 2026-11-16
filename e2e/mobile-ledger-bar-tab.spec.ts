@@ -3,6 +3,30 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 const MIN_TAP_TARGET = 44;
 
+test("merged ledger link reaches one canonical destination under service-worker control", async ({ page }) => {
+  await page.goto("/pubs/venue-7qifhm");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) {
+      await new Promise<void>((resolve) => {
+        navigator.serviceWorker.addEventListener("controllerchange", () => resolve(), { once: true });
+      });
+    }
+  });
+
+  const redirect = page.waitForResponse((response) =>
+    new URL(response.url()).pathname === "/ledger/venue-aihlwx",
+  );
+  const response = await page.goto("/ledger/venue-aihlwx");
+  const legacyResponse = await redirect;
+
+  expect(legacyResponse.fromServiceWorker()).toBe(true);
+  expect(legacyResponse.status()).toBe(308);
+  expect(await legacyResponse.headerValue("location")).toBe("/ledger/venue-7qifhm");
+  await expect(page).toHaveURL(/\/ledger\/venue-7qifhm$/);
+  expect(response?.status()).toBe(200);
+});
+
 // Mirrors lib/venues.ts venueGroupingKey + stableVenueIdFromKey exactly so the
 // spec can deep-link straight to a stable, real seed venue without depending on
 // a MapLibre canvas pin click in headless Chromium.

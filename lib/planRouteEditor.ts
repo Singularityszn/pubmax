@@ -17,6 +17,7 @@
  */
 
 import type { SelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 
 export type RouteRevision = string | number;
 
@@ -82,7 +83,7 @@ export function seedRouteDraft(
   generated: ReadonlyArray<GeneratedStop>,
 ): EditableStop[] {
   const stored = orderedRouteStops(canonical);
-  const inRoute = new Set(stored.map((stop) => stop.venueId));
+  const inRoute = new Set(stored.map((stop) => canonicalBundledVenueId(stop.venueId)));
   const candidatesAt = (index: number): RouteAlternative[] => {
     const row = generated[index];
     if (!row) return [];
@@ -95,8 +96,9 @@ export function seedRouteDraft(
     const alternatives: RouteAlternative[] = [];
     for (const candidate of [...candidatesAt(index), ...pool]) {
       if (!candidate.venueId || !candidate.venueName) continue;
-      if (inRoute.has(candidate.venueId) || seen.has(candidate.venueId)) continue;
-      seen.add(candidate.venueId);
+      const venueId = canonicalBundledVenueId(candidate.venueId);
+      if (inRoute.has(venueId) || seen.has(venueId)) continue;
+      seen.add(venueId);
       alternatives.push({ ...candidate });
     }
     return { ...stop, alternatives };

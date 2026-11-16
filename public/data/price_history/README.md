@@ -111,10 +111,10 @@ Restate it from the shipped file whenever rows are added or dropped.
   a human read: **641 venues attempted**, of which 602 pub pages were readable.
 - 183 of those 602 pages (30%) named both a price and a pint, giving 134
   candidate figures across 103 venues.
-- **103 observations across 90 venues, 2012 to 2023**, shipped.
-  **51 of those
+- **102 observations across 89 venues, 2012 to 2023**, shipped.
+  **50 of those
   venues also carry a current price**. [Then against now](#then-against-now) explains the display.
-- So of 641 venues attempted, **90 produced usable evidence: a 14% yield.**
+- So of 641 venues attempted, **89 produced usable evidence: a 14% yield.**
 
 Candidates were dropped by hand for hedges ("around £4 a pint"), promotions and
 festival weekends, food, half and bottle prices, hypotheticals, prices quoted for

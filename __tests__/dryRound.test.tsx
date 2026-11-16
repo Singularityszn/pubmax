@@ -176,6 +176,16 @@ function renderLedger(prices: ReadonlyMap<string, DryRoundStopPrices> = PRICES):
 }
 
 describe("the dry round under the stops", () => {
+  it.each(["venue-aihlwx", "venue-7qifhm"])("shows %s prices under a historical stop identity", (priceId) => {
+    const host = document.createElement("div");
+    host.innerHTML = renderToStaticMarkup(createElement(PlanDryRoundLedger, {
+      stops: [{ venueId: "venue-aihlwx", venueName: "Horniman" }],
+      prices: new Map([[priceId, PRICES.get("a")!]]),
+    }));
+    expect(host.querySelector("li")?.textContent).toContain("Alcohol-free £4.90 Lucky Saint");
+    expect(host.querySelector("li")?.textContent).toContain("Pint £6.10");
+  });
+
   it("prints the alcohol-free price beside the pint at every stop, each with its source", () => {
     const rows = [...renderLedger().querySelectorAll("li")].map((row) => row.textContent);
     expect(rows[0]).toBe(

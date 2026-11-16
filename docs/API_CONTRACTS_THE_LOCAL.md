@@ -88,6 +88,8 @@ The affected paths apply these checks.
 - The Plan pub picker uses `isPublicRankablePub`, which also checks [venue kind](rules/lib-venues-areas-listings-and-nights.md#a-venue-kind-is-a-closed-list-with-one-owner-and-a-non-pub-kind-is-present-but-n).
 - **Host this on a date** first omits story stops whose supplied names match, through `planStopsFromStory`.
 - Plan creation and route replacement resolve each venue ID through [`planStopResolver`](../lib/planRoute.ts) before checking its canonical name.
+  Listed venue aliases use the current venue for lookups but retain the submitted stop ID.
+  This preserves historical actions and signed anchor bindings.
   A public-looking caller label cannot bypass this check.
   Creation returns `400 PLAN_VENUES_INVALID` with "Choose listed venues." for a refused stop.
   Route replacement returns `400 PLAN_ROUTE_INVALID` for a refused stop.
@@ -290,6 +292,8 @@ unanchored selection path. The anchored lane answers `200` with an `outcome`:
 | `anchor-only` | The anchor stands, but too few companions ground a route | one Stop, `routeReady: false`, `reason: "ANCHOR_COMPANIONS_INSUFFICIENT"` |
 | `anchor-conflict` | The anchor itself cannot carry a route now | `stops: []`, `grounded: false`, plus `reason` and a reader-visible `message` |
 
+Successful outcomes bind Stop 1 and the signed proof to the submitted `anchor.venueId`, including a listed historical alias.
+
 `anchor-conflict` is a `200` with no Stops, so a caller must branch on
 `outcome` before it treats an empty `stops` array as no match.
 
@@ -433,7 +437,8 @@ type PatchPlanRequest = {
 
 Rules:
 - `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`.
-  `canonicalPlanRoute` requires distinct IDs and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  `canonicalPlanRoute` requires distinct canonical venue identities and a supported count under the [stop-count policy](rules/lib-venues-areas-listings-and-nights.md#a-plan-may-be-one-pub-and-lib-planstopcount-ts-is-the-whole-vocabulary).
+  A route cannot contain both an alias and its current venue ID.
   Each ID must resolve under the [public venue eligibility rules](#14-public-venue-eligibility), which return canonical names.
   Replacing the route increments `routeRevision`.
 - Route replacement uses the first-pub and completed-prefix checks described in [§5.5](#55-night-feature-contracts).
@@ -482,13 +487,14 @@ type PlanActionRequest = {
   type: "arrived" | "skipped" | "swapped";  // "ending" is REJECTED here (goes via /complete)
   stopPosition: number;         // integer 0..7; bound requests must match a current stop
   expectedRouteRevision?: number; // positive integer, required together with venueId
-  venueId?: string;             // canonical venue at stopPosition in that revision
+  venueId?: string;             // stored stop ID at stopPosition in that revision
   idempotencyKey?: string;      // fallback if no Idempotency-Key header
 };
 ```
 
 New Night mode requests include both binding fields, including requests queued offline.
 The stores check the route revision and venue before inserting a bound action.
+Use the stop's stored `venueId`, including a historical alias, for this binding.
 For a Plan that accepts new actions, an authorised stale binding returns a conflict even if the host removed the tapped stop.
 An identical accepted retry returns its original action even after a safe route revision.
 Legacy requests may omit both fields. They remain unstamped and establish neither a table location nor a completed-stop mystery reveal.

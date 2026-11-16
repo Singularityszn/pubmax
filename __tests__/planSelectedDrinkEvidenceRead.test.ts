@@ -67,6 +67,14 @@ describe("saved Plan selected drink evidence reads", () => {
     expect(db.selects[0]).toContain("selected_drink_price_evidence");
   });
 
+  it("keeps historical stop identity and price evidence on a durable Plan read", async () => {
+    db.stopRow = { venue_id: "venue-aihlwx", venue_name: "The Horniman at Hays", position: 0, selected_drink_price_evidence: EVIDENCE };
+    const result = await supabasePlanStore.read(PLAN_ID);
+    expect(result).toMatchObject({ status: "found", state: { stops: [
+      { venueId: "venue-aihlwx", venueName: "The Horniman at Hays", position: 0, selectedDrinkPriceEvidence: EVIDENCE },
+    ] } });
+  });
+
   it("drops malformed evidence instead of publishing it", async () => {
     db.stopRow = { ...db.stopRow, selected_drink_price_evidence: { ...EVIDENCE, serving: "175ml", contributor: "Ada" } };
     const result = await supabasePlanStore.read(PLAN_ID);

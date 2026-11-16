@@ -124,6 +124,32 @@ const coords: VenueCoord[] = [
 ];
 
 describe("deriveNightModeSheetRouteModel", () => {
+  it.each(["venue-aihlwx", "venue-7qifhm"])("resolves historical stops and a %s train tag without changing stop IDs", (trainVenueId) => {
+    const historical = {
+      ...plan,
+      stops: stops.map((stop) => stop.position === 1 ? { ...stop, venueId: "venue-aihlwx" } : stop),
+    };
+    const canonicalCoords = coords.map((venue) => venue.id === "venue-b" ? { ...venue, id: "venue-7qifhm" } : venue);
+    const train = { station: { name: "London Bridge" } };
+    const next = deriveNightModeSheetRouteModel({ plan: historical, report: null, stopIndex: 0, coords: canonicalCoords, lastTrain: null });
+    expect(next.nextStop?.venueId).toBe("venue-aihlwx");
+    expect(next.nextCoord?.id).toBe("venue-7qifhm");
+    expect(next.nextStopWalkMinutes).toBeGreaterThan(0);
+    const current = deriveNightModeSheetRouteModel({
+      plan: historical,
+      report: { ...report, stops: [{ ...middleSignal, venueId: "venue-7qifhm" }] },
+      stopIndex: 1,
+      coords: canonicalCoords,
+      lastTrain: { venueId: trainVenueId, data: train },
+    });
+    expect(current.currentStop?.venueId).toBe("venue-aihlwx");
+    expect(current.currentCoord?.id).toBe("venue-7qifhm");
+    expect(current.currentSignal?.venueId).toBe("venue-7qifhm");
+    expect(current.currentTrain).toEqual(train);
+    expect(current.keepGoingExtensions.map((venue) => venue.id)).toEqual(["venue-extra"]);
+    expect(historical.stops[1]?.venueId).toBe("venue-aihlwx");
+  });
+
   it("derives current route section from canonical plan and feed state", () => {
     const model: NightModeSheetRouteModel = deriveNightModeSheetRouteModel({
       plan,

@@ -677,6 +677,19 @@ describe("venues_slim.json", () => {
     }
   });
 
+  it("keeps Horniman's menu and description hints after its identity merge", () => {
+    const id = "venue-7qifhm";
+    expect(slim.find((row) => row.id === id)?.filterHints?.scraped).toBe(true);
+    for (const filters of [
+      makeFilters({ requireWater: true }),
+      makeFilters({ requireHeritage: true }),
+      makeFilters({ drinkCategory: "gin" }),
+    ]) {
+      expect(matchingIdsFromSlim(filters)).toContain(id);
+      expect(matchingIdsFromFull(filters)).toContain(id);
+    }
+  });
+
   it.each([
     [
       "stout",

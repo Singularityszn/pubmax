@@ -108,6 +108,13 @@ async function dryRoundResponse(
 	return { fields: { dryRound: dryRoundWire(venueIds, listed, pints) }, effects: ["dryRound"] };
 }
 
+function preserveAnchorStopIdentity(
+	stops: { venueId: string }[],
+	anchorContext: { anchorVenueId: string } | null,
+) {
+	if (anchorContext && stops[0]) stops[0].venueId = anchorContext.anchorVenueId;
+}
+
 export async function POST(request: Request): Promise<Response> {
   try {
 	const preparation = await preparePlanGeneration(request);
@@ -280,10 +287,11 @@ export async function POST(request: Request): Promise<Response> {
 		context.budgetLimitPence,
 		budgetSummary,
 	);
+	preserveAnchorStopIdentity(stops, anchorContext);
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
 	const groundingCandidateIds = [
-		...chosen.map(({ venue }) => venue.id),
+		...stops.map((stop) => stop.venueId),
 		...stops.flatMap((stop) => stop.alternatives.map((alternative) => alternative.venueId)),
 	];
 	let groundingProof: string;
@@ -291,7 +299,7 @@ export async function POST(request: Request): Promise<Response> {
 		groundingProof = anchorContext
 			? mintPlanGroundingProofV2({
 				// chosen[0] is the anchor: exact server-selected order, anchor first.
-				routeVenueIds: chosen.map(({ venue }) => venue.id),
+				routeVenueIds: stops.map((stop) => stop.venueId),
 				allowedVenueIds: groundingCandidateIds,
 				anchorVenueId: anchorContext.anchorVenueId,
 				anchorSource: anchorContext.anchorSource,

@@ -13,6 +13,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
           { id: "venue-angel-islington", name: "The Angel" },
           { id: "venue-camden-arms", name: "Camden Arms" },
           { id: "venue-soho-tavern", name: "Soho Tavern" },
+          { id: "venue-7qifhm", name: "The Horniman at Hays" },
         ]
       : [],
   ),
@@ -35,6 +36,18 @@ vi.mock("@/lib/cultureCrawl.server", () => ({
 import { canonicalPlanRoute, planStopResolver } from "@/lib/planRoute";
 
 describe("plan stop ids", () => {
+  it("resolves legacy venue references without rewriting revision-bound identities", async () => {
+    const resolve = await planStopResolver("london");
+    expect(resolve("venue-aihlwx")).toEqual({ venueId: "venue-aihlwx", venueName: "The Horniman at Hays" });
+    expect(resolve({ venueId: "venue-aihlwx", venueName: "Invented name" }))
+      .toEqual({ venueId: "venue-aihlwx", venueName: "The Horniman at Hays" });
+  });
+
+  it("refuses a route containing both identities of a merged venue", async () => {
+    await expect(canonicalPlanRoute(["venue-aihlwx", "venue-7qifhm"])).resolves.toBeNull();
+    await expect(canonicalPlanRoute([{ venueId: "venue-7qifhm" }, { venueId: "venue-aihlwx" }])).resolves.toBeNull();
+  });
+
   it("stores a named public place under its canonical POI name", async () => {
     const resolve = await planStopResolver("london");
     expect(resolve({ venueId: "place:tube-kings-cross-st-pancras" })).toEqual({

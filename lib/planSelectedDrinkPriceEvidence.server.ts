@@ -1,5 +1,6 @@
 import "server-only";
 
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";
 import { trustedDrinkLensPrices } from "@/lib/mapExperienceLens";
 import { cleanNightContext } from "@/lib/nightPlanning";
@@ -29,13 +30,14 @@ export async function resolvePlanSelectedDrinkPriceEvidence(
     if (index.degraded || index.truncated) return targets;
     const rowsByVenue = new Map<string, typeof index.prices>();
     for (const row of index.prices) {
-      const rows = rowsByVenue.get(row.venueId) ?? [];
-      rowsByVenue.set(row.venueId, [...rows, row]);
+      const venueId = canonicalBundledVenueId(row.venueId);
+      const rows = rowsByVenue.get(venueId) ?? [];
+      rowsByVenue.set(venueId, [...rows, row]);
     }
     const trusted = trustedDrinkLensPrices(rowsByVenue, category, now);
     return targets.map((stop, position) => {
       const hint = requested[position];
-      const price = trusted.get(stop.venueId);
+      const price = trusted.get(canonicalBundledVenueId(stop.venueId));
       if (!hint || hint.category !== category || !price || price.source !== "community"
         || typeof price.submittedAt !== "number") return { ...stop };
       const serverEvidence = selectedDrinkPriceEvidenceForPrice(price, context!);

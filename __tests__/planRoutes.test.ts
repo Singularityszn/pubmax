@@ -21,6 +21,7 @@ import { PLAN_HTTP_ONLY_SESSION } from "@/lib/planSessionCapability";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import type { PlanState } from "@/lib/plan";
+import { parsePlanDraft } from "@/lib/planDraft";
 
 const URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -54,6 +55,67 @@ beforeEach(() => {
 });
 
 describe("Plan public HTTP contract", () => {
+  it("reopens, reorders and saves a pre-merge Plan without changing its actioned prefix", async () => {
+    const created = await memoryPlanStore.create({
+      creatorName: "Host",
+      startTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      stops: [
+        { venueId: "venue-aihlwx", venueName: "The Horniman at Hays" },
+        { venueId: "venue-xjf3n0", venueName: "Arnos Arms" },
+        { venueId: "venue-3h52h", venueName: "The Elephant Inn" },
+      ],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) throw new Error("Cannot seed historical Plan");
+    const id = created.plan.plan.id;
+    const arrival = await memoryPlanStore.addAction(id, created.memberToken, {
+      type: "arrived", stopPosition: 0, venueId: "venue-aihlwx",
+      expectedRouteRevision: 1, idempotencyKey: "historical-horniman-arrival",
+    });
+    expect(arrival.ok).toBe(true);
+    const headers = { authorization: `Bearer ${created.memberToken}` };
+    const read = await GET(new Request(`${URL}/${id}`, { headers }), ctx(id));
+    expect(read.status).toBe(200);
+    const state = await read.json() as PlanState;
+    expect(state.stops[0]?.venueId).toBe("venue-aihlwx");
+    const saved = await PATCH(new Request(`${URL}/${id}`, {
+      method: "PATCH", headers,
+      body: JSON.stringify({ expectedRouteRevision: 1, stops: [state.stops[0], state.stops[2], state.stops[1]] }),
+    }), ctx(id));
+    expect(saved.status).toBe(200);
+    const result = await saved.json() as PlanState;
+    expect(result.stops.map((stop) => stop.venueId)).toEqual(["venue-aihlwx", "venue-3h52h", "venue-xjf3n0"]);
+    expect(result.stops[0]?.venueName).toBe("The Horniman at Hays");
+    expect(result.actions).toEqual(state.actions);
+    expect(result.plan.routeRevision).toBe(2);
+  });
+
+  it("creates a Plan from a recovered draft that names the merged Horniman", async () => {
+    const draft = parsePlanDraft(JSON.stringify({
+      title: "Recovered night", creatorName: "Host", startTime: "2026-11-19T19:00:00.000Z",
+      conciergeQuery: "", stops: [{ key: 1, venueId: "venue-aihlwx", venueName: "Old label" }],
+    }));
+    expect(draft).not.toBeNull();
+    const response = await CREATE(new Request(URL, {
+      method: "POST", headers: { "idempotency-key": "recovered-horniman-draft" },
+      body: JSON.stringify(draft),
+    }));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toMatchObject({ plan: { stops: [
+      { venueId: "venue-aihlwx", venueName: "The Horniman at Hays", position: 0 },
+    ] } });
+  });
+
+  it("rejects a draft that visits both identities of the same merged pub", async () => {
+    const response = await CREATE(new Request(URL, {
+      method: "POST", headers: { "idempotency-key": "duplicate-horniman-draft" },
+      body: JSON.stringify({ creatorName: "Host", startTime: "2026-11-19T19:00:00.000Z",
+        stops: [{ venueId: "venue-aihlwx" }, { venueId: "venue-7qifhm" }] }),
+    }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toMatchObject({ code: "PLAN_CREATE_INVALID" });
+  });
+
   it("creates an ordered Plan with a start time", async () => {
     const { response, body } = await createPlan();
     expect(response.status).toBe(201);

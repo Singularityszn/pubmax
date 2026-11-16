@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId, type CityId } from "@/lib/cities";
@@ -127,8 +128,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 	dryRoundListed?: ReadonlyMap<string, unknown> | null;
 }): Promise<{ done: Response } | { route: AnchoredRouteData<T> }> {
 	const { cityId, anchor, context, intake, requestNow, operationKey, area, coverage } = params;
-	const candidates = anchor.venueIds
-		? params.candidates.filter(({ venue }) => anchor.venueIds!.includes(venue.id))
+	const requestedVenueIds = anchor.venueIds?.map(canonicalBundledVenueId);
+	const candidates = requestedVenueIds
+		? params.candidates.filter(({ venue }) => requestedVenueIds.includes(venue.id))
 		: params.candidates;
 	const nightArea = { id: area.slug, ...coverage };
 	const anchorConflict = (reason: string, message: string): { done: Response } => ({
@@ -183,9 +185,9 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		let anchorOnlyProof: string;
 		try {
 			anchorOnlyProof = mintPlanGroundingProofV2({
-				routeVenueIds: [anchorVenueId],
-				allowedVenueIds: [anchorVenueId],
-				anchorVenueId,
+				routeVenueIds: [anchor.venueId],
+				allowedVenueIds: [anchor.venueId],
+				anchorVenueId: anchor.venueId,
 				anchorSource: anchor.source,
 				outcome: "anchor-only",
 				operationKey,
@@ -204,14 +206,14 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 			anchored: true,
 			routeReady: false,
 			reason: "ANCHOR_COMPANIONS_INSUFFICIENT",
-			anchorVenueId,
+			anchorVenueId: anchor.venueId,
 			anchorSource: anchor.source,
 			groundingProof: anchorOnlyProof,
 			operationKey,
 			inferredContext: context,
 			nightArea,
 			stops: [{
-				venueId: stop.venueId,
+				venueId: anchor.venueId,
 				venueName: stop.venueName,
 				position: 0,
 				estimatedPintPricePence: planUsesPintPrices(context) ? stop.price.pence : null,
@@ -239,7 +241,7 @@ export async function runAnchoredGeneration<T extends ScoredPlanCandidate & { se
 		groundedTiming: selection.selection.timing,
 		constraintReport: selection.selection.constraintReport,
 		accessibilityEnforced: selection.accessibilityEnforced,
-		anchorContext: { anchorVenueId, anchorSource: anchor.source },
+		anchorContext: { anchorVenueId: anchor.venueId, anchorSource: anchor.source },
 	} };
 }
 

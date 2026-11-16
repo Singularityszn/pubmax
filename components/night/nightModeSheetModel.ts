@@ -1,4 +1,5 @@
 import { clampStopIndex } from "@/lib/activePlan";
+import { canonicalBundledVenueId } from "@/lib/bundledVenueAliases";
 import { crewPresence, type CrewMemberDTO } from "@/lib/crew";
 import { haversineKm } from "@/lib/haversine";
 import type { PlanGetInReportDTO, PlanGetInStopDTO } from "@/lib/planGetIn";
@@ -48,9 +49,10 @@ export function rankKeepGoingExtensions(
   currentCoord: VenueCoord,
   routeVenueIds: ReadonlySet<string>,
 ): KeepGoingExtension[] {
+  const routeIds = new Set([...routeVenueIds].map(canonicalBundledVenueId));
   return coords
     .filter(
-      (venue) => isPubVenueKind(venue.kind) && !routeVenueIds.has(venue.id),
+      (venue) => isPubVenueKind(venue.kind) && !routeIds.has(canonicalBundledVenueId(venue.id)),
     )
     .map((venue) => ({
       ...venue,
@@ -82,16 +84,16 @@ export function deriveNightModeSheetRouteModel({
   const currentStop = stops[cursor] ?? null;
   const nextStop = stops[cursor + 1] ?? null;
   const signals = new Map(
-    (report?.stops ?? []).map((signal) => [signal.venueId, signal]),
+    (report?.stops ?? []).map((signal) => [canonicalBundledVenueId(signal.venueId), signal]),
   );
   const currentSignal = currentStop
-    ? (signals.get(currentStop.venueId) ?? null)
+    ? (signals.get(canonicalBundledVenueId(currentStop.venueId)) ?? null)
     : null;
   const currentCoord = currentStop
-    ? (coords?.find((venue) => venue.id === currentStop.venueId) ?? null)
+    ? (coords?.find((venue) => canonicalBundledVenueId(venue.id) === canonicalBundledVenueId(currentStop.venueId)) ?? null)
     : null;
   const nextCoord = nextStop
-    ? (coords?.find((venue) => venue.id === nextStop.venueId) ?? null)
+    ? (coords?.find((venue) => canonicalBundledVenueId(venue.id) === canonicalBundledVenueId(nextStop.venueId)) ?? null)
     : null;
   const nextStopWalkMinutes =
     currentCoord && nextCoord
@@ -112,7 +114,7 @@ export function deriveNightModeSheetRouteModel({
         )
       : [];
   const currentTrain =
-    currentCoord && lastTrain?.venueId === currentCoord.id
+    currentCoord && lastTrain && canonicalBundledVenueId(lastTrain.venueId) === canonicalBundledVenueId(currentCoord.id)
       ? lastTrain.data
       : null;
   const arrived = (plan?.crew ?? []).filter((member) => {
