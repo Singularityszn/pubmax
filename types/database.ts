@@ -1189,6 +1189,32 @@ export type Database = {
           },
         ];
       };
+      nearby_visits: {
+        Row: {
+          user_id: string;
+          venue_id: string;
+          checked_at: string;
+        };
+        Insert: {
+          user_id: string;
+          venue_id: string;
+          checked_at?: string;
+        };
+        Update: {
+          user_id?: string;
+          venue_id?: string;
+          checked_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "nearby_visits_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       night_memories: {
         Row: {
           id: string;
