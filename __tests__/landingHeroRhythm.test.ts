@@ -28,14 +28,6 @@ import LandingPage from "@/components/landing/LandingPage";
 import type { HuntPint } from "@/lib/cheapestHunt";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-// The hero's rhythm is the Screen primitive's order and nothing else: the
-// heading (no brand kicker over it: the wordmark already says it), one line
-// under it, the cheapest pint we can find in Britain (the hunt card that took
-// the photograph's place on 1 Nov 2026), the one primary, the quiet row, then
-// the one real pub and the three next-cheapest rows. That order is the DOM
-// order, so it is the phone order, and the desktop grid may only seat the hunt
-// card and the rows beside the copy, never reorder them.
-
 const huntPint: HuntPint = {
   venueId: "venue-hunt",
   pubName: "The Scolt Head",
@@ -105,16 +97,16 @@ describe("landing hero rhythm", () => {
     }),
   );
 
-  it("reads heading, lede, hunt card, primary, quiet row, pub card, rail, in that order", () => {
+  it("reads heading, lede, primary, quiet row, pub card, hunt card, rail, in that order", () => {
     const order = positions(html, [
-      '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
+      '<h1 class="screenTitle" id="hero-title">Make the group chat a real night.</h1>',
       '<p class="screenLede">',
-      'class="lpHuntCard"',
       'data-primary-action=""',
       'class="screenSecondary"',
       // The card carries its photograph class too (lib/landingImagery.ts), so
       // the needle is the stable prefix rather than the whole attribute.
       'class="lpPubCard lpAnswerCard',
+      'class="lpHuntCard"',
       'class="lpRail"',
     ]);
     expect([...order].sort((a, b) => a - b)).toEqual(order);
@@ -125,7 +117,7 @@ describe("landing hero rhythm", () => {
     expect(hero.match(/class="screenLede"/g)).toHaveLength(1);
     // The figures are the ones handed in (lib/pintSavings.ts measures them from
     // the priced read), never typed into the hero.
-    expect(hero).toContain('<p class="screenLede">Find a London pub, compare listed pint prices and plan your night.</p>');
+    expect(hero).toContain('<p class="screenLede">Tell your Pub Pal what you fancy. Pick a London pub and make a Plan your friends can join.</p>');
     expect(hero).not.toContain('class="lpSavingSummary"');
     expect(html).toContain("The average of each pub&#x27;s cheapest listed pint across 950 pubs in our London pub list with a listed price is £5.54.");
     expect(html.indexOf('class="lpSavingSummary"')).toBeGreaterThan(html.indexOf('class="lpRail"'));
@@ -134,7 +126,7 @@ describe("landing hero rhythm", () => {
     expect(hero).not.toContain("Tower Bridge");
     expect(hero).not.toContain("/landing/hero-thames");
     expect(hero).not.toContain("lpLondonFigure");
-    expect(hero).toContain('<div class="screenAnswer"><article class="lpHuntCard"');
+    expect(hero).toContain('<div class="lpHuntAnswer"><article class="lpHuntCard"');
     expect(hero).not.toContain('class="lpMapSnapshot"');
     // No brand kicker over the claim; the wordmark in the bar already says it.
     expect(hero).not.toContain('<p class="kicker">PUBMAXX</p>');
@@ -153,7 +145,7 @@ describe("landing hero rhythm", () => {
   it("keeps the introduction when no savings can be measured", () => {
     const bare = renderToStaticMarkup(createElement(LandingPage, { card }));
     const hero = bare.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toContain("Find a London pub, compare listed pint prices and plan your night.");
+    expect(hero).toContain("Tell your Pub Pal what you fancy. Pick a London pub and make a Plan your friends can join.");
     expect(bare).not.toContain('class="lpSavingSummary"');
   });
 
@@ -168,10 +160,10 @@ describe("landing hero rhythm", () => {
     expect(html).toContain('href="/drink/guinness"');
   });
 
-  it("prints every Zone 1 rail row with its Pint Drop door, price stamp and area", () => {
+  it("prints every Zone 1 rail row with its pub map link, price stamp and area", () => {
     expect(html).toMatch(/<h2 class="lpRailTitle" id="lp-rail-title">Cheapest listed in Zone 1<\/h2>/);
     expect(html.match(/class="lpRailRow"/g)).toHaveLength(3);
-    expect(html).toContain('href="/map?sel=venue-1&amp;log=1&amp;price=2.99"');
+    expect(html).toContain('href="/map?sel=venue-1"');
     expect(html.match(/lpRailMeta">City of London/g)).toHaveLength(3);
   });
 
@@ -182,9 +174,9 @@ describe("landing hero rhythm", () => {
     // No pint may win, so no claim and no stand-in picture: the answer slot
     // is simply absent, and the heading, the primary and the quiet row stand.
     expect(bare).not.toContain("lpHuntCard");
-    expect(bare).not.toContain("screenAnswer");
+    expect(bare).not.toContain("lpHuntAnswer");
     expect(bare).not.toContain("lpLondonFigure");
-    expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
+    expect(bare).toContain('<h1 class="screenTitle" id="hero-title">Make the group chat a real night.</h1>');
     expect(bare).toContain("data-primary-action");
   });
 });

@@ -120,6 +120,13 @@ afterEach(() => {
 });
 
 describe("curated crawl URL hydration hold", () => {
+  it("keeps the sign-in return token while the selected pub syncs", async () => {
+    window.history.replaceState({}, "", "/map?log=1&sel=venue-1&pintDropReturn=original-return");
+    await act(async () => root.render(createElement(Harness, { query: "", pending: false, selectedVenueId: "venue-1" })));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    expect(new URLSearchParams(window.location.search).get("pintDropReturn")).toBe("original-return");
+  });
+
   it("preserves a named area until a new venue query replaces it", async () => {
     window.history.replaceState({}, "", "/map?area=piccadilly-soho");
     await act(async () => root.render(createElement(Harness, { query: "", pending: false })));
@@ -197,6 +204,22 @@ async function traverseHistory(action: () => void) {
 }
 
 describe("crawl identity after Map history traversal", () => {
+  it.each(["venue snapshot", "external entry"])("keeps Plan URL ownership after a refreshed %s", async (refresh) => {
+    window.history.replaceState({}, "", "/map?mode=build&pubs=pub-a&sel=pub-a");
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", selectedVenueId: "pub-a", plan: { mode: "build", builtIds: ["pub-a"] },
+    })));
+    act(() => openHistorySurface({ id: "venue", title: "A pub", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a", venueTab: "prices" } }));
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    await act(async () => root.render(createElement(HistoryHarness, {
+      query: "", selectedVenueId: "pub-a", plan: { mode: "build", builtIds: ["pub-a", "pub-b"] },
+    })));
+    act(() => openHistorySurface({ id: "venue", title: "A pub", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "pub-a", venueTab: "overview" } }));
+    if (refresh === "external entry") window.history.replaceState({}, "", window.location.href);
+    act(() => vi.advanceTimersByTime(CRAWL_URL_DEBOUNCE_MS));
+    expect(seedCrawlState(window.location.search).builtIds).toEqual(refresh === "venue snapshot" ? ["pub-a", "pub-b"] : ["pub-a"]);
+  });
+
   it.each(["back", "home", "forward"] as const)(
     "reloads edited stops after %s before the debounce",
     async (direction) => {

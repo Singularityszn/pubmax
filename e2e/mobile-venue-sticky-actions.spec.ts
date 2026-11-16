@@ -62,10 +62,21 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
   await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = portal.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
+  const more = stickyActions.getByRole("button", { name: "More actions for Arnos Arms" });
+  await expect(more).toHaveAttribute("aria-expanded", "false");
+  await more.click();
+  const moreActions = stickyActions.getByRole("group", { name: "More actions for Arnos Arms" });
+  await expect(more).toHaveAttribute("aria-expanded", "true");
+  await expect(moreActions.getByRole("button")).toHaveText([
+    "Plan stop",
+    "Ask for a table",
+    "Summon mates",
+    "Share",
+  ]);
 
-  await stickyActions.getByRole("button", { name: /share arnos arms/i }).click();
+  await moreActions.getByRole("button", { name: /share arnos arms/i }).click();
   await expect(stickyActions.getByRole("status")).toHaveText(
     "Share failed, but the link was copied.",
   );
@@ -73,8 +84,7 @@ test("mobile venue Share clipboard fallback and the one Plan door stay tappable 
     `/map?sel=${ARNOS_ARMS_ID}`,
   );
 
-  // With no fresh drinker price, the toolbar also carries the plan door.
-  await expect(stickyActions.getByRole("button")).toHaveText(["Plan stop", "Ask for a table", "Summon mates", "Share"]);
+  // With no fresh drinker price, the More section also carries the plan door.
   await portal.getByRole("tab", { name: "Overview", exact: true }).click();
   const planDoor = portal.locator(".venueActionCard").getByRole("button", { name: "Plan stop", exact: true });
   await expect(planDoor).toHaveAttribute("aria-pressed", "false");
@@ -101,7 +111,7 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   await portal.getByRole("tab", { name: "Prices", exact: true }).click();
   await expect(sheet).toHaveClass(/sheet-full/);
 
-  const stickyActions = portal.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = portal.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
   // The tab row is navigation; the strip holds actions only. A second content
@@ -120,10 +130,31 @@ test("mobile sticky actions stay reachable across content tabs and the sheet reo
   const reopenedPortal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
   await expect(reopenedPortal).toBeVisible();
   await expect(reopenedPortal.locator(".mobileSharedSheet")).toHaveClass(/open/);
-  await expect(reopenedPortal.getByRole("toolbar", { name: "Venue actions" })).toBeVisible();
+  await expect(reopenedPortal.getByRole("group", { name: "Venue actions" })).toBeVisible();
   await expect(reopenedPortal.getByRole("tab", { name: "Overview", exact: true })).toHaveAttribute(
     "aria-selected",
     "true",
   );
   await expect(reopenedPortal.locator("#venuePanel-overview")).toBeVisible();
 });
+
+for (const width of [320, 540, 640]) {
+  test(`${width}px: the collapsed More bar does not cover the primary price-log target`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: width === 320 ? 640 : 844 });
+    await page.goto(`/map?sel=${ARNOS_ARMS_ID}`);
+    const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+    const log = portal.getByRole("button", { name: "Log what you paid at Arnos Arms", exact: true });
+    await expect(log).toBeVisible();
+    await expect(portal.getByRole("button", { name: "More actions for Arnos Arms" })).toHaveAttribute("aria-expanded", "false");
+    await page.screenshot({ path: testInfo.outputPath("price-log-targets.png") });
+    expect(await log.evaluate((button) => {
+      const box = button.getBoundingClientRect();
+      const midX = box.left + box.width / 2;
+      const midY = box.top + box.height / 2;
+      return [[box.left + 1, midY], [box.right - 1, midY], [midX, box.top + 1], [midX, box.bottom - 1], [midX, midY]]
+        .map(([x, y]) => document.elementFromPoint(x, y)?.closest("button")?.getAttribute("aria-label") ?? null);
+    })).toEqual(Array(5).fill("Log what you paid at Arnos Arms"));
+    await log.click();
+    await expect(page.locator(".spillPriceStep")).toBeVisible();
+  });
+}

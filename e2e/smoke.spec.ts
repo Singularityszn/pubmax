@@ -36,7 +36,7 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
   await expect(page.locator("#hero-title")).toContainText(
-    "What a pint costs, pub by pub.",
+    "Make the group chat a real night.",
   );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified
@@ -108,6 +108,10 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
 }) => {
   const errors = watchPageErrors(page);
   await dismissMapFirstRunTour(page);
+  await page.route("**/api/social/posts?lane=london**", (route) =>
+    route.fulfill({ json: { posts: [], nextCursor: null } }),
+  );
+  const laneResponse = page.waitForResponse("**/api/social/posts?lane=london**");
   const response = await page.goto("/feed");
   expect(response?.status()).toBe(200);
 
@@ -118,8 +122,12 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   await expect(
     page.getByRole("heading", { name: "Plans, photos and people" }),
   ).toBeVisible();
-  // A stranger reads the London lane (captain decision 7, 1 Nov 2026).
-  await expect(page.getByRole("heading", { name: "Across London", exact: true })).toBeVisible();
+  // The first view offers a crawl before any public posts.
+  await expect(page.getByRole("heading", { name: "Find a crawl to join", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Explore open crawls", exact: true })).toHaveAttribute("href", "/crawls");
+  await expect(page.getByRole("heading", { name: "Latest pint prices we hold", exact: true })).toBeVisible();
+  await laneResponse;
+  await expect(page.locator(".socialLondonLane")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
 
@@ -370,7 +378,7 @@ test("mobile venue sheet reaches Train, holds no price action in the strip, and 
   // Wait for the command bar to finish portaling into the sheet footer. The
   // footer is outside the scroll body, so actions remain reachable at full snap.
   const sheetFooter = sheet.locator(".mobileSharedSheetFooter");
-  const stickyActions = sheetFooter.getByRole("toolbar", { name: "Venue actions" });
+  const stickyActions = sheetFooter.getByRole("group", { name: "Venue actions" });
   await expect(stickyActions).toBeVisible();
 
   // The Overview's getting-home fold is the single Train entry point (the

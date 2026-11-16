@@ -1,4 +1,5 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "@/e2e/helpers/communitySheetFixture";
 
@@ -701,7 +702,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       });
       const priceDoor = portal.locator("[data-price-door]");
       const logDoor = portal.locator(".venueActionCard [data-log-door]");
-      const actions = portal.getByRole("toolbar", { name: "Venue actions" });
+      const actions = await openVenueSecondaryActions(portal);
       const share = actions.getByRole("button", { name: "Share Arnos Arms", exact: true });
       await expect(planDoor).toBeVisible();
       await expect(logDoor).toBeVisible();

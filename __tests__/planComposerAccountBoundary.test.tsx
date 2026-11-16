@@ -57,6 +57,8 @@ import { PLAN_INTAKE_STORAGE_KEY, createPlanIntakeDraft, readPlanIntakeDraft, re
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import { inferNightContext } from "@/lib/nightPlanning";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { readOnboardingAlternative, switchOnboardingPlan } from "@/lib/planOnboardingRecoveryStorage";
+import { PLAN_DRAFT_KEY } from "@/lib/planDraftStorage";
 
 const ACCOUNT_A = { id: "11111111-1111-4111-8111-111111111111" };
 const ACCOUNT_B = { id: "22222222-2222-4222-8222-222222222222" };
@@ -638,6 +640,25 @@ describe("a mounted Plan composer at the live-account boundary (#2539)", () => {
     await vi.waitFor(() => expect(storedRequest()).toBe("Two pubs near Borough"));
     expect(JSON.stringify({ ...sessionStorage })).not.toContain(A_REQUEST);
     expect(JSON.stringify({ ...localStorage })).not.toContain(A_REQUEST);
+  });
+
+  it("removes the prior account's alternative and lets the new account save its own", async () => {
+    authFixture.user = ACCOUNT_A;
+    bindDeviceAccountOwner(ACCOUNT_A.id, localStorage, sessionStorage);
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ title: "A", creatorName: "", startTime: "", conciergeQuery: A_REQUEST, stops: [] }));
+    expect(switchOnboardingPlan(sessionStorage, localStorage, ACCOUNT_A.id, "Soho")).toBe(true);
+    await mountComposer();
+
+    clearDeviceAccountSessionArtifacts(sessionStorage);
+    bindDeviceAccountOwner(ACCOUNT_B.id, localStorage, sessionStorage);
+    authFixture.user = ACCOUNT_B;
+    await rerender();
+
+    expect(readOnboardingAlternative(sessionStorage, ACCOUNT_A.id)).toBeNull();
+    expect(document.body.textContent).not.toContain(A_REQUEST);
+    sessionStorage.setItem(PLAN_DRAFT_KEY, JSON.stringify({ title: "B", creatorName: "", startTime: "", conciergeQuery: "B's request", stops: [] }));
+    expect(switchOnboardingPlan(sessionStorage, localStorage, ACCOUNT_B.id, "Camden")).toBe(true);
+    expect(readOnboardingAlternative(sessionStorage, ACCOUNT_B.id)?.other.session[PLAN_DRAFT_KEY]).toContain("B's request");
   });
 
   it("drops account A's request when A signs out with /plan open", async () => {

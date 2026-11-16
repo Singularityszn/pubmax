@@ -192,8 +192,8 @@ export function challengeOfTheMonthAt(at: Date): ChallengeId | null {
 // ── Progress ────────────────────────────────────────────────────────────────
 
 /**
- * Progress on every challenge. `visited` holds the Been list's current venue
- * ids. `firstLoggedAt` gives the timestamp a pub was first logged, if known.
+ * Progress on every challenge. `visited` holds canonical venue ids with visit
+ * proof. `firstLoggedAt` gives the first proof timestamp for a pub, if known.
  * An unknown first timestamp can hide an earlier completion, so it must
  * leave the finish date unknown. See README.md's profile features for bonus rules.
  */
@@ -258,5 +258,5 @@ export const CHALLENGE_COPY = {
   doubled: "Finished in its month. Double points.",
   finished: "Finished.",
   leftTitle: "Still to do",
-  fence: "Counts come from the pubs we list. A pub counts once it is on your Been list.",
+  fence: "Counts come from the pubs we list. A pub counts once you log a Pint Drop there or check in nearby.",
 } as const;

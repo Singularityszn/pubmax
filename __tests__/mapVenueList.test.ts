@@ -29,6 +29,26 @@ function venue(overrides: Partial<Venue> & { id: string }): Venue {
 }
 
 describe("buildMapVenueListModel — the list-toggle gate", () => {
+  it.each(["missing", "null"])("ranks the displayed pint when the map signal is %s", (signalState) => {
+    const pubs = [venue({ id: "five", cheapestPrice: 5, latestContributorPrice: 8, latestContributorAt: new Date().toISOString() }),
+      venue({ id: "six", cheapestPrice: 6 })];
+    const signals = signalState === "null" ? new Map([["five", { latestContributorPrice: null }]]) : null;
+    const model = buildMapVenueListModel(pubs, null, undefined, null, "this view", "ready", "cheapest", signals);
+    expect(model.rows.map((row) => [row.id, row.priceLabel])).toEqual([["five", "£5.00"], ["six", "£6.00"]]);
+    expect(mapVenueListCheapest(pubs, null, signals)).toEqual({ venue: pubs[0], priceGbp: 5 });
+  });
+  it("qualifies capped rows separately and never uses estimates to meet the cap", () => {
+    const pubs = [venue({ id: "under", cheapestPrice: 4 }), venue({ id: "over", cheapestPrice: 9 }),
+      venue({ id: "unknown", zone: 1 }), venue({ id: "unproven", cheapestPrice: 7.5, priceSource: undefined })];
+    const model = buildMapVenueListModel(pubs, null, undefined, null, "this view", "ready", "cheapest", null, {
+      rows: [{ zone: 1, medianGbp: 4.5, pricedCount: 50, enough: true }],
+      ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
+    }, 5);
+    expect(model.rows.map((row) => [row.id, row.capQualification])).toEqual([
+      ["under", "match"], ["over", "over"], ["unknown", "unknown"], ["unproven", "unknown"],
+    ]);
+    expect(model.rows.find((row) => row.id === "unknown")?.priceLabel).not.toContain("est.");
+  });
   it("shows a bundle listing instead of a cheaper zone estimate", () => {
     const pub = { ...venue({ id: "listed-bundle", zone: 5 }), bundlePrices: { listed: {
       priceGbp: 6.45, sourceUrl: "https://guinndex.co.uk/pub/kings-head-chingford-london",
@@ -72,6 +92,12 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
     expect(model.shown).toBe(MAP_VENUE_LIST_LIMIT + 5);
     expect(model.rows).toHaveLength(MAP_VENUE_LIST_LIMIT + 5);
     expect(model.truncated).toBe(false);
+  });
+
+  it("applies the row limit after cheapest ranking, including a cheaper pub farther away", () => {
+    const pubs = [venue({ id: "near", cheapestPrice: 5, longitude: -0.12 }),
+      venue({ id: "far", cheapestPrice: 4, longitude: -0.2 })];
+    expect(buildMapVenueListModel(pubs, [-0.12, 51.5], 1, null, "this view", "ready", "cheapest").rows[0]?.id).toBe("far");
   });
 
   it("honours a custom limit", () => {
@@ -538,7 +564,7 @@ describe("buildUkBasePubListModel", () => {
     expect(model.rows[0]).toMatchObject({
       id: "venue-uk-n-near",
       name: "Near Arms",
-      priceLabel: "Other pub · no listed price",
+      priceLabel: "Other pub · price not checked",
       pub: basePubs[1],
     });
   });

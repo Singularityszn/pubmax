@@ -1,7 +1,8 @@
 "use client";
 
+import MapSearchMissRecovery, { MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
+
 import { MapPin, X } from "lucide-react";
-import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "@/components/ui/icon-button";
@@ -32,7 +33,6 @@ import {
   UK_PLACE_SEARCH_GROUP_LABEL,
 } from "@/lib/mapSearchSuggest";
 import type { Locality } from "@/lib/localities";
-import { addPubHref } from "@/lib/venueSubmissions";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import type { UkPlace } from "@/lib/ukPlaceSearch";
 import type { Venue } from "@/lib/venues";
@@ -677,6 +677,7 @@ export default function MapSearchSuggest({
               </IconButton>
             </div>
           ) : null}
+          <MapSearchPostcodeRecovery query={trimmed} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">
             {indexedCities.length > 0 ? (
               <div role="group" aria-label="Cities" className="mapSearchSuggestGroup">
@@ -806,17 +807,7 @@ export default function MapSearchSuggest({
                 role="presentation"
               >
                 <p className="mapSearchSuggestEmptyTitle">{NO_RESULTS_MESSAGE}</p>
-                <p className="mapSearchSuggestEmptyHint">
-                  Try Soho, Willesden, or The Crown. Clear search to see every venue.
-                </p>
-                <Link
-                  href={addPubHref(trimmed)}
-                  prefetch={false}
-                  className="mapSearchSuggestEmptyAdd"
-                  data-testid="map-search-add-pub"
-                >
-                  Know a pub we&apos;re missing? Add it
-                </Link>
+                <MapSearchMissRecovery query={trimmed} onChooseArea={() => onQueryChange("")} />
               </div>
             ) : null}
           </div>

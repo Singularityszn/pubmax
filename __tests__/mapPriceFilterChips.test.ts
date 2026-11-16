@@ -18,6 +18,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -26,6 +27,7 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  vi.unstubAllGlobals();
 });
 
 function render(filters: Filters, onFiltersChange: (next: Filters) => void, onPicked: () => void) {

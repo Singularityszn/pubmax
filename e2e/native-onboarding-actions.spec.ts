@@ -77,7 +77,7 @@ for (const viewport of [
       });
       await expect(page.locator(".firstRunPermissionNote")).toBeInViewport({ ratio: 1 });
       await page.getByRole("button", { name: "Back", exact: true }).click();
-      await expectReachable(page, page.getByRole("button", { name: "That looks right" }));
+      await expectReachable(page, page.getByRole("button", { name: "Keep this pub" }));
     });
   }
 
@@ -104,6 +104,6 @@ for (const viewport of [
     await expect(consent).toBeHidden();
     await expectReachable(page, plan);
     await page.getByRole("button", { name: "Back", exact: true }).click();
-    await expectReachable(page, page.getByRole("button", { name: "That looks right" }));
+    await expectReachable(page, page.getByRole("button", { name: "Keep this pub" }));
   });
 }

@@ -54,6 +54,11 @@ for (const theme of ["light", "dark"] as const) {
         await expect(page.getByRole("button", { name: "Edit active 3-stop plan" })).toBeVisible();
       } else {
         await expect(page).toHaveURL(/\/plan\?[^#]*from=onboarding/);
+        const query = page.getByRole("textbox", { name: "Where, how many, what budget" });
+        await expect(query).toHaveValue("Pubs in Soho, maximum £6 per pint");
+        await expect(query).toBeEditable();
+        expect(await page.evaluate(() => localStorage.getItem("pubmax:nativePush:actionSeq:v1"))).toBeNull();
+        await page.getByRole("button", { name: "Plan it", exact: true }).click();
         await expect(page.getByTestId("plan-route-summary")).toBeVisible();
         await expect(page.getByRole("heading", { level: 1, name: /Soho/ })).toBeVisible();
         await expect(ask).toHaveCount(0);

@@ -31,6 +31,10 @@ vi.mock("@/components/map/PalRecommendationMapCanvas", () => ({ default: () => n
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: async () => [harp, lamb],
   loadSlimVenuesForCityResult: async () => ({ status: "ready", rows: [harp, lamb] }),
+  retainSlimVenuesForCity: () => ({
+    promise: Promise.resolve({ status: "ready", rows: [harp, lamb] }),
+    release: () => {},
+  }),
 }));
 vi.mock("@/lib/authedFetch", async (original) => ({
   ...(await original<typeof import("@/lib/authedFetch")>()), authedActionFetch: request,

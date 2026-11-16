@@ -51,7 +51,7 @@ import {
   reconcileNightCrawlAction,
   type NightCrawlActionType,
 } from "@/lib/nightCrawl";
-import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import { NIGHT_CRAWL_ENGAGE_EVENT, announceNightCrawlStopConfirmed } from "@/lib/nightCrawlEngage";
 import {
   requestNightModeEndingFromPlan,
   requestNightModeEndingHandoff,
@@ -199,6 +199,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
 
   const handOffConfirmedStop = useCallback(
     (confirmedPlan: PlanState | undefined, stopPosition: number) => {
+      announceNightCrawlStopConfirmed(planId);
       if (!confirmedPlan) return;
       const target = nightCrawlHandoffTarget({
         stops: confirmedPlan.stops,

@@ -58,6 +58,26 @@ describe("add-link doors", () => {
 });
 
 describe("the add link survives account creation", () => {
+  it("keeps Pal chat through both login doors and account claiming", () => {
+    const door = "/pal/chat";
+    expect(loginDestination("signin", door)).toBe(door);
+    const destination = loginDestination("signup", door);
+    expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${destination}`)).toBe(door);
+  });
+
+  it.each([
+    "//evil.test/pal/chat",
+    "https://evil.test/pal/chat",
+    "/pal/chat?returnTo=https://evil.test",
+    "/pal/chat#outside",
+    "/pal/chat/extra",
+    "/pal/../login",
+  ])("does not retain an unsupported Pal return through signup: %s", (door) => {
+    expect(loginDestination("signup", door)).toBe("/u/you");
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com/u/you?returnTo=${encodeURIComponent(door)}`)).toBeNull();
+  });
+
   it("keeps a league invitation through both login doors and handle claiming", () => {
     const invitation = "/social/leagues/join/ABCDEFGH";
     expect(loginDestination("signin", invitation)).toBe(invitation);
@@ -85,10 +105,10 @@ describe("the add link survives account creation", () => {
     ).toBe("/add/karan?auto=1");
   });
 
-  it("routes a sign-up from the Pint Drop composer back to the pub and price", () => {
+  it.each(["", "&pintDropReturn=daea85e1-3307-492c-9c64-294533f770bc"])("routes a sign-up from the Pint Drop composer back to the pub and price: %s", (handoff) => {
     // The composer's "Sign in to post" opens the sign-in door, and a stranger
     // reads "New here" as theirs. Both doors must end on the same composer.
-    const door = "/map?sel=venue-12ino21&log=1&price=5.20";
+    const door = `/map?sel=venue-12ino21&log=1&price=5.20${handoff}`;
     expect(loginDestination("signin", door)).toBe(door);
     const destination = loginDestination("signup", door);
     expect(destination).toBe(`/u/you?returnTo=${encodeURIComponent(door)}`);

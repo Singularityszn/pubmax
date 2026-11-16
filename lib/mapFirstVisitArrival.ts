@@ -130,3 +130,16 @@ export function shouldShowMapFirstVisitArrival(params: {
   if (searchSuppressesMapFirstVisitArrival(params.search)) return false;
   return true;
 }
+
+export function shouldShowMapArrivalLocationCard(params: {
+  eligible: boolean;
+  mobile: boolean;
+  permission: PermissionState | null;
+  hasPosition: boolean;
+}): boolean {
+  if (!params.eligible) return false;
+  if (params.mobile && (params.permission === "granted" || params.hasPosition)) {
+    return false;
+  }
+  return true;
+}

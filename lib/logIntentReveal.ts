@@ -10,10 +10,7 @@
  *
  * This is a REVEAL and never a re-layout: nothing here changes what the sheet
  * renders, its snap detent or its tab, and the composer's own fields are
- * untouched. It scrolls the price step into view once the step enters layout,
- * and it deliberately does NOT move focus: focusing the price field raises the
- * soft keyboard, which is a second decision (`lib/softKeyboard.ts` handles it
- * correctly either way) and a bigger change than the one the gap asks for.
+ * untouched. It focuses and reveals the price field when the step enters layout.
  */
 
 /** The composer's first block, which is the price field and its quick adds. */
@@ -87,6 +84,7 @@ export function takeLogIntentReveal(step: HTMLElement | null): boolean {
   if (!request || !step || typeof step.scrollIntoView !== "function") return false;
   if (step.getClientRects().length === 0) return false;
   pendingReveal = null;
+  step.querySelector?.<HTMLInputElement>("input")?.focus({ preventScroll: true });
   step.scrollIntoView({
     behavior: logIntentRevealBehavior(request.reducedMotion),
     block: "start",

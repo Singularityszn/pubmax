@@ -85,11 +85,11 @@ describe("landing hero policy", () => {
     expect(pintDropDoorHref("venue-eltcmh", -6.5)).toBe("/map?sel=venue-eltcmh&log=1");
   });
 
-  it("gives a stranger an answer before it asks them for anything", () => {
-    // The one filled action on the front door. /near answers from a London
-    // patch when the reader refuses location, so this tap never ends at a wall.
-    expect(LANDING_PRIMARY_HREF).toBe("/near?locate=1");
-    expect(LANDING_PRIMARY_LABEL).toBe("Cheapest pints near me");
+  it("opens Pal from the front door while prices keep their own public door", () => {
+    // The Pal-first action opens chat. Its guest sign-in handoff is exercised
+    // through the rendered homepage in e2e/landing-find-my-pint.spec.ts.
+    expect(LANDING_PRIMARY_HREF).toBe("/pal/chat");
+    expect(LANDING_PRIMARY_LABEL).toBe("Ask your Pub Pal");
   });
 
   it("keeps the plain receipt door for a document with no card behind it", () => {

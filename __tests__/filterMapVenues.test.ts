@@ -6,10 +6,15 @@ import {
   mapFiltersSuspendUkBasePubs,
   withForcedVenue,
 } from "@/lib/filterMapVenues";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { useMapQueryResults } from "@/components/map/pubmap/useMapQueryResults";
+import { pintCapMatchLines, pintCapMatches, settledPintCapMatches, type PintCapMatches } from "@/lib/pintCapMatches";
 import { ukBasePubsForDrawableVenues, type UkBasePub } from "@/lib/ukBasePubs";
 import { initialFilters } from "@/components/map/ControlRail";
 import type { Venue } from "@/lib/venues";
 import { buildDrinkHints } from "@/scripts/build_slim_index.mjs";
+import { defined } from "@/__tests__/helpers/defined";
 
 function slimPin(overrides: Partial<Venue> = {}): Venue {
   return {
@@ -151,6 +156,80 @@ describe("filterMapVenues", () => {
     });
 
     expect(filterMapVenues([bar, pub], filters, () => false)).toEqual([bar]);
+  });
+
+  describe("what a pint price cap let through", () => {
+    const priced = (id: string, cheapestPrice: number) =>
+      slimPin({ id, kind: "pub", cheapestPrice, priceSource: "Pub menu", priceObservedAt: "2026-01-01" });
+    const under = priced("pub-under", 5.2);
+    const atCap = priced("pub-at-cap", 6);
+    const over = priced("pub-over", 6.4);
+    const unknown = slimPin({ id: "pub-unknown", kind: "pub" });
+    const bar = slimPin({ id: "bar-anchor", kind: "bar", cheapestPrice: 14 });
+    const capped = { ...initialFilters, maxPrice: 6 };
+
+    it("keeps a pub with no recorded price, and counts it apart from the priced matches", () => {
+      const shown = filterMapVenues([under, atCap, over, unknown, bar], capped, () => false);
+      expect(shown.map((venue) => venue.id).sort()).toEqual(["bar-anchor", "pub-at-cap", "pub-under", "pub-unknown"]);
+      expect(pintCapMatches(shown, capped.maxPrice)).toEqual({ cap: 6, priced: 2, unknown: 1 });
+    });
+
+    it("keeps map authority when only the venue record carries a contributor price", () => {
+      const lowReport = { ...priced("published-eight", 8), latestContributorPrice: 4, latestContributorAt: new Date().toISOString() };
+      const highReport = { ...priced("published-five", 5), latestContributorPrice: 9, latestContributorAt: new Date().toISOString() };
+      expect(filterMapVenues([lowReport, highReport], capped, () => false).map((venue) => venue.id)).toEqual([highReport.id]);
+      expect(pintCapMatches([lowReport, highReport], capped.maxPrice)).toEqual({ cap: 6, priced: 1, unknown: 0 });
+    });
+
+    it("uses the same current contributor evidence for pins, cap counts and list qualification", () => {
+      const signals = new Map([
+        [under.id, { latestContributorPrice: 9, latestContributorAt: Date.parse("2026-11-14T12:00:00Z") }],
+        [over.id, { latestContributorPrice: 4, latestContributorAt: Date.parse("2026-11-14T12:00:00Z") }],
+      ]);
+      const shown = filterMapVenues([under, over, unknown], capped, () => false, () => "unknown", signals);
+      expect(shown.map((venue) => venue.id)).toEqual([over.id, unknown.id]);
+      expect(pintCapMatches(shown, 6, signals)).toEqual({ cap: 6, priced: 1, unknown: 1 });
+    });
+
+    it("never counts a pub over the cap as a match, even when a selection forces it onto the map", () => {
+      expect(pintCapMatches([under, over, unknown], 6)).toEqual({ cap: 6, priced: 1, unknown: 1 });
+    });
+
+    it.each([[6.5, "£6.50"], [9.5, "£9.50"], [4.5, "£4.50"]] as const)("prints the applied £%s cap rather than a nearby preset", (cap, figure) => {
+      const matches = defined(pintCapMatches([under, atCap, over, unknown], cap) ?? undefined);
+      expect(pintCapMatchLines(matches).priced).toContainEqual({ figure });
+    });
+
+    it("makes no zero-match claim while a read is pending or after it failed", () => {
+      for (const reads of [{ settled: false, failed: false }, { settled: true, failed: true }, { settled: false, failed: true }]) {
+        expect(settledPintCapMatches([], 6, reads)).toBeNull();
+        expect(settledPintCapMatches([under, unknown], 6, reads)).toBeNull();
+      }
+      expect(settledPintCapMatches([], 6, { settled: true, failed: false })).toEqual({ cap: 6, priced: 0, unknown: 0 });
+    });
+
+    it("counts the admitted search results, not the context pins around them", () => {
+      const searched = priced("pub-searched", 4.5);
+      const hiddenByKind = priced("pub-hidden-by-kind", 5);
+      const canvasVenues = [searched, under, atCap, unknown, over];
+      let matched: PintCapMatches | null = null;
+      function Probe() {
+        matched = useMapQueryResults({ canvasVenues, filteredVenues: [searched, hiddenByKind], maxPrice: 6, settled: true, failed: false }).pintCapMatched;
+        return null;
+      }
+      renderToStaticMarkup(createElement(Probe));
+      expect(matched).toEqual({ cap: 6, priced: 1, unknown: 0 });
+    });
+
+    it("has nothing to say and excludes no price when no cap is on", () => {
+      const high = priced("pub-no-cap-high", 12);
+      for (const maxPrice of [initialFilters.maxPrice, Number.POSITIVE_INFINITY]) {
+        expect(pintCapMatches([under, unknown], maxPrice)).toBeNull();
+        expect(filterMapVenues([high], { ...initialFilters, maxPrice }, () => false)).toEqual([high]);
+      }
+      expect(pintCapMatches([under, unknown, high], 11)).toEqual({ cap: 11, priced: 1, unknown: 1 });
+      expect(filterMapVenues([high], { ...initialFilters, maxPrice: 11 }, () => false)).toEqual([]);
+    });
   });
 
   it("applies food and cocktail filters from slim venue hints", () => {

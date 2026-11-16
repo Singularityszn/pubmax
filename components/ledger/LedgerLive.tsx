@@ -5,6 +5,8 @@ import { createContext, useCallback, useContext, useEffect, useState, type React
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
+import VisitReportPanel from "@/components/visits/VisitReportPanel";
+import VenuePhotoWall from "@/components/venue/VenuePhotoWall";
 import PriceBadge, { PintPriceBadge } from "@/components/PriceBadge";
 import ListedPriceSource from "@/components/venue/ListedPriceSource";
 import VenuePriceThen from "@/components/map/VenuePriceThen";
@@ -277,6 +279,36 @@ export function LedgerPriceRecord({ venue, bundle }: {
   );
 }
 
+export function LedgerCommunity({ venueId, venueName, ledgerUrl, curatedClaims }: {
+  venueId: string;
+  venueName: string;
+  ledgerUrl: string;
+  curatedClaims: VenueClaim[];
+}) {
+  const { state } = useLedgerLive();
+  const [visitsEmpty, setVisitsEmpty] = useState(false);
+  const [photosEmpty, setPhotosEmpty] = useState(false);
+  const claims = state.status === "ready" ? state.log.claims : curatedClaims;
+  const logEmpty = state.status === "ready"
+    && state.log.entries.length === 0 && state.log.familyEntries.length === 0;
+  const allEmpty = logEmpty && visitsEmpty && photosEmpty;
+
+  return (
+    <>
+      <ClaimList claims={claims} />
+      <details className="ledgerCommunity" open={!allEmpty}>
+        <summary hidden={!allEmpty}>Be the first to log here</summary>
+        <div>
+          <VisitReportPanel venueId={venueId} venueName={venueName} onEmptyChange={setVisitsEmpty} />
+          <VenuePhotoWall venueId={venueId} venueName={venueName} onEmptyChange={setPhotosEmpty} />
+          <p className="ledgerLaneNote">Public notes go in the logbook. Legacy notes stay at the Family Table below.</p>
+          <LedgerLogSections venueName={venueName} ledgerUrl={ledgerUrl} />
+        </div>
+      </details>
+    </>
+  );
+}
+
 function isFullFamilyEntry(
   entry: FamilyTableEntry | RedactedFamilyEntry,
 ): entry is FamilyTableEntry {
@@ -325,29 +357,18 @@ function LiveStatus({ state, reload }: LedgerLiveValue) {
   );
 }
 
-/**
- * The story, the logbook and the Family Table. `curatedClaims` is the story the
- * bundled dataset tells (the document's own copy, so a crawler and a reader
- * with no script still get it); once the live read lands, its list (the same
- * curated line first, then every drop-derived line) takes its place.
- */
-export function LedgerLogSections({
+function LedgerLogSections({
   venueName,
   ledgerUrl,
-  curatedClaims,
 }: {
   venueName: string;
   ledgerUrl: string;
-  curatedClaims: VenueClaim[];
 }) {
   const live = useLedgerLive();
   const { state } = live;
-  const claims = state.status === "ready" ? state.log.claims : curatedClaims;
 
   return (
     <>
-      <ClaimList claims={claims} />
-
       <section className="ledgerSection" aria-labelledby="ledgerEntriesHeading">
         <h2 id="ledgerEntriesHeading" className="ledgerSectionTitle">
           Logbook

@@ -2904,6 +2904,32 @@ describe("saves: two lanes, two promises", () => {
   });
 });
 
+describe("nearby Been proof", () => {
+  it("binds a nearby check-in to the bearer and refuses browser access to proof", async () => {
+    const { resolveVenue } = await import("@/lib/venueIndex");
+    const venue = (await resolveVenue(PRICE_VENUE))!;
+    const body = { action: "nearbyCheckIn", handle: "bobpm", userId: BOB, venueId: PRICE_VENUE,
+      location: { lat: venue.lat, lng: venue.lng, accuracy: 10, timestamp: Date.now() } };
+    const anonymous = await defined(handlers.writeSavedPub)(request("/api/saved-pubs", { body }), context({}));
+    expect(anonymous.status).toBeGreaterThanOrEqual(400);
+    const checked = await defined(handlers.writeSavedPub)(request("/api/saved-pubs", { bearer: BEARER_ALICE, body }), context({}));
+    expect(checked.status, await checked.clone().text()).toBe(200);
+    expect(truth(`select count(*) from public.nearby_visits where user_id = '${ALICE}' and venue_id = '${PRICE_VENUE}'`)).toBe("1");
+    expect(truth(`select count(*) from public.nearby_visits where user_id = '${BOB}'`)).toBe("0");
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      for (const sql of [
+        "select * from public.nearby_visits",
+        `insert into public.nearby_visits(user_id, venue_id) values ('${BOB}', 'forged')`,
+        "update public.nearby_visits set venue_id = 'forged'",
+        "delete from public.nearby_visits",
+      ]) {
+        expect(attemptAsRole(role, sub, sql).ok).toBe(false);
+      }
+    }
+    expect(truth("select count(*) from public.nearby_visits where venue_id = 'forged'")).toBe("0");
+  });
+});
+
 describe("imported Planned Night drafts", () => {
   it("saves only matched IDs and credit, and admits only the owner at both doors", async () => {
     const route = await import("@/app/api/pub-list-import/route");

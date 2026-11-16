@@ -1,6 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { LANDING_PRIMARY_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
+import { LANDING_PRIMARY_NAME, LANDING_NEAR_NAME, LANDING_RECEIPT_NAME } from "./helpers/landingHero";
 
 const MOBILE = { width: 390, height: 844 };
 
@@ -77,7 +77,7 @@ test.describe("Plan a crawl is one tap from the mobile home", () => {
       await page.setViewportSize({ width, height });
       await page.goto("/");
 
-      const plan = page.locator(".lpHero").getByRole("link", { name: "Plan a crawl", exact: true });
+      const plan = page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("link", { name: "Plan", exact: true });
       await expect(plan, `Plan door at ${width}px`).toBeVisible();
       await expect(plan).toHaveAttribute("href", "/plan");
 
@@ -123,8 +123,8 @@ test.describe("mobile landing entry", () => {
     // The near-me answer is the one primary, and it is the one-tap route to an
     // answer with no account and no wall in front of it.
     await page
-      .locator(".lpHero [data-primary-action]")
-      .getByRole("link", { name: LANDING_PRIMARY_NAME })
+      .locator(".lpHero .screenSecondary")
+      .getByRole("link", { name: LANDING_NEAR_NAME })
       .click();
 
     await expect(page).toHaveURL(/\/near\?locate=1$/);
@@ -199,7 +199,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "What a pint costs, pub by pub.",
+        name: "Make the group chat a real night.",
         exact: true,
       }),
     ).toBeVisible();
@@ -279,7 +279,7 @@ test.describe("mobile landing entry", () => {
     test.slow();
     await page.goto("/");
 
-    await page.locator(".lpHero").getByRole("link", { name: LANDING_PRIMARY_NAME }).click();
+    await page.locator(".lpHero .screenSecondary").getByRole("link", { name: LANDING_NEAR_NAME }).click();
     // /near writes the answered patch back to the URL once it settles
     // (NearMeNow's syncPatchToUrl), so the landing's own href may already
     // carry `&patch=` by the time the assertion polls.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 import PriceBadge from "@/components/PriceBadge";
+import { useAuth } from "@/components/auth/authContext";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { trackEvent } from "@/lib/analytics";
@@ -19,9 +20,10 @@ import {
   LANDING_PRIMARY_LABEL,
   LANDING_QUIET_DOORS,
   LANDING_RECEIPT_LABEL,
+  LANDING_SIGN_IN_HREF,
+  LANDING_SIGN_IN_LABEL,
   NEAR_ME_FAILED_LINE,
   NEAR_ME_NOTHING_LINE,
-  pintDropDoorHref,
   railHeading,
   type AnswerPublisher,
   type LandingAnswerScope,
@@ -46,12 +48,10 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 import LandingPhoto, { LandingPhotoCredit } from "./LandingPhoto";
 import LandingZoneChip from "./LandingZoneChip";
 
-// The landing hero (issue #1357, rebuilt on the captain's 7 Sep 2026 ask,
-// trimmed after the 16 Oct 2026 UX audit, and given the hunt on 1 Nov 2026):
-// the claim, one line under it, THE CHEAPEST PINT WE CAN FIND IN BRITAIN, then
-// the one filled action, then the quiet row, then the pub card and the three
-// next-cheapest rows. The DOM order is the phone order; the desktop seats the
-// hunt card and the rows beside the copy.
+// Hero layout and action hierarchy live in
+// docs/rules/components-design-system-and-launch-primitives.md.
+// Signed-in readers open chat; guests keep that destination through sign-in.
+// The hunt stays a server-rendered slot and prices still need no account.
 //
 // No brand kicker over the claim: the wordmark in the bar already says it, and
 // a second PUBMAXX six lines lower was the page repeating its own name.
@@ -74,7 +74,7 @@ import LandingZoneChip from "./LandingZoneChip";
 // today and it ends in a sign-in ask, so it is the first QUIET door now and
 // /near is the filled one (lib/landingHero.ts).
 //
-// The pub card under the picture stands on the pub's OWN photograph where we
+// The pub card uses the pub's OWN photograph where we
 // hold one, keyed on its venue id, and is a text-and-price card where we hold
 // none: a borough or city view behind a pub's name reads as that pub's front
 // door. Everything the card prints is a fact with its source beside it, and
@@ -327,16 +327,17 @@ export default function LandingHero({
   // the ANSWER, so a near-you swap drops a picture the new pub does not have.
   const resolved = answer ? landingPhotoFor({ venueId: answer.id }) : null;
   const photo = resolved?.scope === "pub" ? resolved : null;
-  // The one filled action, and it is the same door whether or not a pub card
-  // stands behind the document, and the same door for every visitor: /near
-  // answers in one tap, and offers the first-run journey there as a chip.
+  // The one filled action opens Pal, with the existing sign-in boundary.
+  // The destination survives sign-in, while an existing account opens chat
+  // directly. Both price doors remain available without an account.
+  const { user } = useAuth();
   const primary = (
     <Link
       prefetch={false}
-      href={LANDING_PRIMARY_HREF}
-      onClick={() => trackLandingCta("near")}
+      href={user ? LANDING_PRIMARY_HREF : LANDING_SIGN_IN_HREF}
+      onClick={() => trackLandingCta("pal")}
     >
-      {LANDING_PRIMARY_LABEL}
+      {user ? LANDING_PRIMARY_LABEL : LANDING_SIGN_IN_LABEL}
     </Link>
   );
 
@@ -355,10 +356,9 @@ export default function LandingHero({
   return (
     <Screen
       className="lpHero"
-      title="What a pint costs, pub by pub."
+      title="Make the group chat a real night."
       titleId="hero-title"
       lede={LANDING_INTRO}
-      answer={hunt ?? undefined}
       primary={primary}
       secondary={
         // Two quiet doors on one row. The receipt door comes first, because
@@ -382,6 +382,7 @@ export default function LandingHero({
       }
     >
       {answer ? <AnswerCard answer={answer} near={near} photo={photo} /> : null}
+      {hunt ? <div className="lpHuntAnswer">{hunt}</div> : null}
       {answer && answer.rail.length > 0 ? <AnswerRail answer={answer} /> : null}
     </Screen>
   );
@@ -538,7 +539,7 @@ function AnswerRail({ answer }: { answer: Answer }) {
       <ol className="lpRailList">
         {answer.rail.map((row) => (
           <li key={row.id} className="lpRailRow">
-            <Link prefetch={false} href={pintDropDoorHref(row.id, row.priceGbp)} className="lpRailLink">
+            <Link prefetch={false} href={venueMapUrl(row.id)} className="lpRailLink">
               <span className="lpRailMain">
                 <span className="lpRailName">{row.name}</span>
                 {row.walkMinutes != null ? (

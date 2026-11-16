@@ -6,6 +6,7 @@ import {
 } from "@/lib/mapReaderPosition";
 
 export type MapReaderPositionListener = (position: MapReaderPosition | null) => void;
+export type MapReaderPermissionListener = (state: PermissionState) => void;
 
 /** `GeolocationPositionError.PERMISSION_DENIED`, readable without a browser. */
 const PERMISSION_DENIED = 1;
@@ -17,6 +18,7 @@ const PERMISSION_DENIED = 1;
 export function attachMapReaderPositionWatch(
   onUpdate: MapReaderPositionListener,
   onLocationExposure: () => void = () => {},
+  onPermissionState: MapReaderPermissionListener = () => {},
 ): () => void {
   if (typeof navigator === "undefined" || !navigator.geolocation) {
     return () => {};
@@ -39,6 +41,7 @@ export function attachMapReaderPositionWatch(
 
   const onPosition = (fix: GeolocationPosition) => {
     if (detached) return;
+    onPermissionState("granted");
     onLocationExposure();
     onUpdate(mapReaderPositionFromGeolocation(fix));
   };
@@ -49,7 +52,10 @@ export function attachMapReaderPositionWatch(
     // refusal ends the watch.
     if (error.code !== PERMISSION_DENIED) return;
     stopWatch();
-    if (!detached) onUpdate(null);
+    if (!detached) {
+      onPermissionState("denied");
+      onUpdate(null);
+    }
   };
 
   const startWatch = () => {
@@ -64,6 +70,7 @@ export function attachMapReaderPositionWatch(
 
   const onPermissionChange = () => {
     if (!permissionStatus) return;
+    onPermissionState(permissionStatus.state);
     if (permissionStatus.state === "granted") {
       startWatch();
       return;
@@ -78,6 +85,7 @@ export function attachMapReaderPositionWatch(
       const status = await navigator.permissions.query({ name: "geolocation" });
       if (detached) return;
       permissionStatus = status;
+      onPermissionState(status.state);
       status.addEventListener("change", onPermissionChange);
       if (status.state === "granted") startWatch();
     } catch {
@@ -86,6 +94,7 @@ export function attachMapReaderPositionWatch(
   };
 
   const onLatch = () => {
+    onPermissionState("granted");
     startWatch();
   };
 

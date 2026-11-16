@@ -113,6 +113,26 @@ describe("buildPalTaste", () => {
     }
   });
 
+  it("keeps a diary usual as a venue preference with its pub and day, never as a drink logged", () => {
+    const taste = buildPalTaste({
+      diary: [
+        { ...diary("crown", "2026-09-04"), usualDrink: "Guinness" },
+        { ...diary("crown", "2026-10-02"), usualDrink: "Camden Hells" },
+        { ...diary("dog", "2026-10-05"), usualDrink: "  " },
+        { ...diary("lamb", "2026-10-06"), usualDrink: "London Pride" },
+      ],
+      drops: [],
+      saved: [],
+      placeOf,
+    });
+    expect(taste?.usuals).toEqual([
+      { drink: "London Pride", venue: "The Lamb", on: "2026-10-06" },
+      { drink: "Camden Hells", venue: "The Crown", on: "2026-10-02" },
+    ]);
+    expect(taste?.drinks).toEqual([]);
+    expect(taste?.lastVisit).toEqual({ name: "The Lamb", on: "2026-10-06", usualDrink: "London Pride" });
+  });
+
   it("uses only pint prices and needs two of them for a usual pint", () => {
     const one = buildPalTaste({ diary: [], drops: [drop("crown", "2026-10-02", { pintPriceGbp: 5 })], saved: [], placeOf });
     expect(one?.usualPintGbp).toBeNull();
@@ -173,6 +193,22 @@ describe("palTastePreamble", () => {
     expect(context).toContain("These are recorded prices, not a bill total or proof of what they drank.");
     expect(context).not.toContain("£6.20");
     expect(context).not.toContain("spent £");
+  });
+
+  it("says a diary usual is a preference at one pub and a priced drink is a price log, not what they drank", () => {
+    const read = buildPalTaste({
+      diary: [{ ...diary("crown", "2026-10-02"), usualDrink: "Guinness" }],
+      drops: [drop("dog", "2026-10-09", { drink: "Camden Hells", pintPriceGbp: 5.9 })],
+      saved: [],
+      placeOf,
+    });
+    const first = palTastePreamble(read);
+    expect(first).toContain("- Drinks I noted as my usual at a pub: Guinness at The Crown (noted 2 Oct). These are preferences I typed, not a record of what I drank.");
+    expect(first).toContain("- Drinks I logged a price for: Camden Hells. A logged price is not proof of what I drank.");
+    expect(first.join(" ")).not.toMatch(/usually drink/);
+    const third = palTastePreamble(read, "third").join("\n");
+    expect(third).toContain("- Drinks they noted as their usual at a pub: Guinness at The Crown (noted 2 Oct).");
+    expect(third).toContain("A logged price is not proof of what they drank.");
   });
   const taste = buildPalTaste({
     diary: [diary("crown", "2026-09-04", 5), diary("crown", "2026-09-11")],

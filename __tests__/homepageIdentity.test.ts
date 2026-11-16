@@ -94,7 +94,7 @@ describe("homepage identity", () => {
       mainEntity: { "@id": application["@id"] },
     });
     expect(document.body.textContent).toContain("Free to use.");
-    expect(document.body.textContent).toContain("Find a London pub, compare listed pint prices and plan your night.");
+    expect(document.body.textContent).toContain("Tell your Pub Pal what you fancy.");
   });
 
   it("assigns personal identity links to the founder instead of the organization", async () => {

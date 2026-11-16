@@ -98,8 +98,8 @@ export default function LandingPage({
 }: {
   /**
    * The cheapest pint we can find in Britain, rendered on the server
-   * (components/landing/LandingHuntCard.tsx) and seated where the hero's
-   * photograph stood. A slot, so its code never ships to the browser.
+   * (components/landing/LandingHuntCard.tsx). A slot, so its code never ships
+   * to the browser.
    */
   huntCard?: ReactNode;
   /**
@@ -175,9 +175,8 @@ export default function LandingPage({
         }]
       : []),
   ];
-  // With the switch on, the glass stands over the hunt card in the hero's
-  // answer slot: under the claim on a phone, beside it on a desktop, and
-  // always before the one primary action, never in its place.
+  // The preview glass shares the hunt slot, so the same grid area contains
+  // both cards when the preview is enabled.
   const heroAnswer =
     wild && priceGlass ? (
       <>
@@ -205,7 +204,11 @@ export default function LandingPage({
             front door and every app page name the product the same way, Social
             by its launch state. Moment is not a front door and is not in that
             list. */}
-        <nav className="lpPrimaryNav" aria-label="Landing navigation">
+        <nav
+          className="lpPrimaryNav"
+          aria-label="Landing navigation"
+          onFocus={(event) => event.target.scrollIntoView({ block: "nearest", inline: "nearest" })}
+        >
           {PRIMARY_NAV_ITEMS.map((item) =>
             item.key === "map" ? (
               <Link key={item.key} prefetch={false} href={mapCtaHref} {...warmProps}>
@@ -228,12 +231,6 @@ export default function LandingPage({
       <MobileWildNightPreviewGate />
 
       <main id="main">
-        {/* The whole first screen, at every width: the claim, the line under
-            it, the cheapest pint we can find in Britain, one primary action
-            (Cheapest pints near me), the quiet row of the receipt door and
-            Plan a crawl, then the one real pub and three next-cheapest rows.
-            The DOM order is the phone order; the desktop only seats the hunt
-            card and the rows beside the copy. */}
         <LandingHero card={card} archive={archive} rail={rail} hunt={heroAnswer} />
 
         {/* The founder's own photographs of London, each patch with the

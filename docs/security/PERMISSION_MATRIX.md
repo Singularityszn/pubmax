@@ -112,6 +112,7 @@ the honest refusal for that route (401, 403, 400 or 409) and no change.
 | Story Moment links at the table | denied | no rows | host rows only | no browser writes |
 | Published public or unlisted Story through the application reader | redacted public fields | redacted public fields for non-members | host retains source text | private drafts stay private |
 | A's upload object (`storage.objects` and the bucket paths) | invisible | invisible | invisible; only a server-minted signed URL serves it | n/a |
+| Read latest logged drink (`GET /api/pint-drops?ownLatestDrink=1`) | 401 | own drink only | own drink only | n/a |
 | Log a price (`POST /api/price-submit`, `POST /api/pint-drops`) | 401 | allowed under own actor | allowed under own actor | n/a |
 | Confirmation | 401, no row; anon and authenticated inserts refused at the table | a matching figure confirms and `pintTrust` becomes `confirmed` | a different figure does not confirm and `pintTrust` stays `disputed` | n/a |
 | Edit own price observation | n/a | newer-wins under own actor | newer-wins under own actor | n/a |
@@ -185,6 +186,17 @@ no side effect, as above.
 | Carry the first-run "Been here" taps (`POST /api/saved-pubs` with `action: "carryBeenHere"`) | 401, after the 403 and 404 above | adds to their OWN "Been here" list, never the named one; adds only, never toggles, never another list ||||| adds to their own "Been here" list |
 | `saved_pubs` at the table | denied | no rows, and a write is refused at the grant (0172) ||||| own rows, SELECT only; a write is refused at the grant |
 | A device RSVP (capability, no account) | reads the Plan it is a seat on; may not collaborate; names nobody at the inbox, the Wanted list, the export or deletion |||||||
+
+## Nearby Been proof (migration 0240)
+
+| Cell | anonymous | another account | owner |
+| --- | --- | --- | --- |
+| Nearby check-in (`POST /api/saved-pubs`, `action: nearbyCheckIn`) | denied | writes only its own proof | allowed with a fresh, accurate fix within 200 metres |
+| Read, insert, update or delete `nearby_visits` directly | denied | denied | denied |
+
+The server discards precise coordinates after checking proximity. It keeps only
+the account, canonical venue and first check-in time. Its insert is idempotent.
+The service role cannot update proof. Account deletion removes the records.
 
 ## Private leagues (migration 0239)
 

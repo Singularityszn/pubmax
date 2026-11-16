@@ -2,9 +2,10 @@ import "server-only";
 
 import { measureFromServingSize, type DrinkMeasure } from "@/lib/drinkMeasure";
 import type { DrinkPriceUpdate } from "@/lib/drinkPriceUpdates";
-import { selectObservedSubtypePriceForVenue } from "@/lib/drinkSubtypeObservedPrice";
+import { observedSubtypePricesForVenue } from "@/lib/drinkSubtypeObservedPrice";
 import { drinkSubtypeFromText } from "@/lib/drinkSubtypes";
 import {
+  isComparableNearDrinkMeasure,
   nearDrinkReadDay,
   type NearDrinkLaneId,
   type NearDrinkLanes,
@@ -25,7 +26,7 @@ import { venueGroupingKey, type Venue } from "@/lib/venues";
 //             for the Guinness line (lib/nearGuinness.server.ts), and the chip
 //             reads those same rows (nearGuinnessRows), so the two never differ.
 //   Coke      the /soft-drinks-and-water Coca-Cola lens (Coke Zero and Diet
-//             Coke) through selectObservedSubtypePriceForVenue.
+//             Coke) through observedSubtypePricesForVenue.
 //   Wine, coffee, alcohol-free
 //             the reviewed drink publish (public/data/drink_price_updates) and
 //             the listed site-harvest rows of the UK price bundle
@@ -33,7 +34,7 @@ import { venueGroupingKey, type Venue } from "@/lib/venues";
 //             two lanes the round forecast and the subtype pages read. An
 //             estimate never passes authoritativeBundleRows.
 //
-// One row per pub per measure: the cheapest the pub lists in that measure.
+// Keep the cheapest row per stated measure and every row with an unknown size.
 
 const COKE_LENS = "soft-drink-lucia-special";
 const LABEL_MAX = 60;
@@ -130,10 +131,15 @@ function fromBundleRow(row: UkPriceBundleRow, lane: MenuLane): MenuCandidate | n
   };
 }
 
-/** The cheapest candidate per measure, as rows for one venue. */
+/** Select comparable candidates and retain unranked unknown sizes. */
 function cheapestPerMeasure(venueId: string, candidates: readonly MenuCandidate[]): NearDrinkRow[] {
-  const best = new Map<DrinkMeasure | null, MenuCandidate>();
+  const best = new Map<DrinkMeasure, MenuCandidate>();
+  const unmeasured: MenuCandidate[] = [];
   for (const candidate of candidates) {
+    if (!isComparableNearDrinkMeasure(candidate.measure)) {
+      unmeasured.push(candidate);
+      continue;
+    }
     const held = best.get(candidate.measure);
     if (
       !held
@@ -143,7 +149,7 @@ function cheapestPerMeasure(venueId: string, candidates: readonly MenuCandidate[
       best.set(candidate.measure, candidate);
     }
   }
-  return [...best.values()].map((candidate) => [
+  return [...best.values(), ...unmeasured].map((candidate) => [
     venueId,
     candidate.priceGbp,
     candidate.observedOn,
@@ -180,17 +186,15 @@ export function buildNearDrinkLanes(
     const venueUpdates = key ? updatesByKey.get(key) ?? [] : [];
     const bundleRows = bundleByVenue.get(venue.id) ?? [];
 
-    const coke = selectObservedSubtypePriceForVenue(venue, COKE_LENS, venueUpdates, bundleRows);
-    if (coke) {
-      lanes.coke.push([
-        venue.id,
-        coke.priceGbp,
-        nearDrinkReadDay(coke.observedAt),
-        coke.publisher?.label ?? null,
-        cleanLabel(coke.drinkLabel),
-        null,
-      ]);
-    }
+    const coke = observedSubtypePricesForVenue(venue, COKE_LENS, venueUpdates, bundleRows)
+      .map(({ observed, servingSize }) => ({
+        priceGbp: observed.priceGbp,
+        observedOn: nearDrinkReadDay(observed.observedAt),
+        publisher: observed.publisher?.label ?? null,
+        drinkLabel: cleanLabel(observed.drinkLabel),
+        measure: measureFromServingSize(servingSize),
+      }));
+    lanes.coke.push(...coke.map((row) => [venue.id, row.priceGbp, row.observedOn, row.publisher, row.drinkLabel, row.measure] as const));
 
     const authoritative = authoritativeBundleRows(bundleRows);
     for (const lane of Object.keys(MENU_LANES) as MenuLane[]) {

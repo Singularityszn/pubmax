@@ -139,6 +139,18 @@
   cursor: default;
 }
 
+@media (max-width: 640px) {
+  .starterPacks__card {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .starterPacks__follow {
+    grid-column: 1 / -1;
+    grid-row: auto;
+    margin-top: var(--space-2);
+  }
+}
+
 /* Press feedback comes from the one shared owner in globals.css. */
 
 .starterPacks__results {

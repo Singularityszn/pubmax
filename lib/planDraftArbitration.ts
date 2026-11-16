@@ -505,10 +505,25 @@ type DraftArbitrationRecoveryAction =
   | "regenerate-route"
   | "none";
 
+/**
+ * One side of a conflict, holding only the fields the two sides disagree on.
+ * A key that is present with a null value means that side had nothing set.
+ */
+export type DraftArbitrationSide = {
+  venueId?: string | null;
+  venueName?: string | null;
+  area?: PlanningIntentArea;
+  startsAt?: string | null;
+};
+
 export type DraftArbitrationConflict = {
   code: DraftArbitrationConflictCode;
   message: string;
   recoveryAction: DraftArbitrationRecoveryAction;
+  /** What the Plan still uses. */
+  kept?: DraftArbitrationSide;
+  /** What arbitration did not apply. Nothing in storage is cleared for it. */
+  setAside?: DraftArbitrationSide;
 };
 
 type DraftField<T> = {
@@ -594,6 +609,19 @@ function firstPlanVenue(plan: ParsedPlanDraft | null | undefined): string | null
   return populated(venueId) ? venueId.trim() : null;
 }
 
+function knownVenueName(
+  venueId: string | null,
+  plan: ParsedPlanDraft | null,
+  route: ParsedPlanRouteDraft | null,
+): string | null {
+  if (!venueId) return null;
+  const stop = [...(plan?.draft.stops ?? []), ...(route?.value.stops ?? [])]
+    .find((candidate) => candidate.venueId?.trim() === venueId && populated(candidate.venueName));
+  return stop?.venueName?.trim() ?? null;
+}
+
+type IntentPreservation = { kept: DraftArbitrationSide; setAside: DraftArbitrationSide };
+
 function planText(
   plan: ParsedPlanDraft | null | undefined,
   key: keyof Pick<StoredPlanDraft, "title" | "creatorName" | "conciergeQuery">,
@@ -619,11 +647,14 @@ function startsAtField(
     : null;
 
   if (planValue && intakeValue) {
+    const differentTimes = "Your Plan and your guided answers have different start times.";
     if (plan?.legacy) {
       if (planValue !== intakeValue) conflicts.push({
         code: "draft-overlap",
-        message: "Kept an existing Plan time because its legacy age is unknown.",
+        message: `${differentTimes} We kept the time already in your Plan.`,
         recoveryAction: "review-plan-details",
+        kept: { startsAt: planValue },
+        setAside: { startsAt: intakeValue },
       });
       return { value: planValue, source: "plan-legacy" };
     }
@@ -634,9 +665,11 @@ function startsAtField(
     if (planValue !== intakeValue) conflicts.push({
       code: "draft-overlap",
       message: intakeWins
-        ? "Used the newer intake time and preserved the older Plan draft."
-        : "Used the newer Plan time and preserved the intake draft.",
+        ? `${differentTimes} We used your guided answers because they are newer.`
+        : `${differentTimes} We used your Plan because it is newer.`,
       recoveryAction: "review-plan-details",
+      kept: { startsAt: intakeWins ? intakeValue : planValue },
+      setAside: { startsAt: intakeWins ? planValue : intakeValue },
     });
     return intakeWins
       ? { value: intakeValue, source: "intake-v1" }
@@ -676,6 +709,7 @@ function acceptedVenueField(
   replaceAnchor: boolean,
   fallback: string | null | undefined,
   conflicts: DraftArbitrationConflict[],
+  preserved: IntentPreservation,
 ): DraftField<string | null> {
   const planVenueId = firstPlanVenue(plan);
   let accepted: DraftField<string | null> = planVenueId
@@ -691,22 +725,19 @@ function acceptedVenueField(
   if (route?.value.anchorVenueId && planVenueId && route.value.anchorVenueId !== planVenueId) {
     conflicts.push({
       code: "route-anchor-conflict",
-      message: "The saved Route starts somewhere different from the current Plan.",
+      message: "An earlier route starts at a different pub. Your Plan's first stop has not changed.",
       recoveryAction: "restore-accepted-stop",
-    });
-  }
-  if (intent && accepted.source !== "planning-intent" && accepted.value
-    && accepted.value !== intent.acceptedVenueId) {
-    conflicts.push({
-      code: "intent-preserved-existing",
-      message: "Kept existing Plan work instead of replacing it with a newer Venue acceptance.",
-      recoveryAction: "review-existing-plan",
+      kept: { venueId: planVenueId, venueName: knownVenueName(planVenueId, plan, route) },
+      setAside: {
+        venueId: route.value.anchorVenueId,
+        venueName: knownVenueName(route.value.anchorVenueId, null, route),
+      },
     });
   }
   if (selectedVenueId && replaceAnchor) {
     if (accepted.value !== selectedVenueId) conflicts.push({
       code: "anchor-replaced",
-      message: "Made the inspected Venue Stop 1 by explicit request.",
+      message: "The pub you chose is now Stop 1.",
       recoveryAction: "restore-accepted-stop",
     });
     accepted = { value: selectedVenueId, source: "explicit-url" };
@@ -717,29 +748,58 @@ function acceptedVenueField(
       recoveryAction: "make-it-stop-1",
     });
   }
+  if (intent && accepted.source !== "planning-intent" && accepted.value
+    && accepted.value !== intent.acceptedVenueId) {
+    preserved.kept.venueId = accepted.value;
+    preserved.kept.venueName = knownVenueName(accepted.value, plan, route);
+    preserved.setAside.venueId = intent.acceptedVenueId;
+    preserved.setAside.venueName = knownVenueName(intent.acceptedVenueId, plan, route);
+  }
   return accepted;
 }
 
-function addIntentPreservationConflicts(
+/**
+ * A newer Venue acceptance never replaces work the person already has. The
+ * fields it would have changed are reported as one outcome, with both sides,
+ * so the person can see what the Plan still uses.
+ */
+function addIntentPreservationConflict(
   intent: PlanningIntentV1 | null,
   area: DraftField<PlanningIntentArea>,
   startsAt: DraftField<string | null>,
+  preserved: IntentPreservation,
   conflicts: DraftArbitrationConflict[],
 ): void {
   if (intent?.acceptedArea && area.source !== "planning-intent" && !sameArea(area.value, intent.acceptedArea)) {
-    conflicts.push({
-      code: "intent-preserved-existing",
-      message: "Kept the existing Plan area instead of replacing it from Venue acceptance.",
-      recoveryAction: "review-existing-plan",
-    });
+    preserved.kept.area = area.value;
+    preserved.setAside.area = intent.acceptedArea;
   }
   if (intent?.startsAt && startsAt.source !== "planning-intent" && startsAt.value !== intent.startsAt) {
-    conflicts.push({
-      code: "intent-preserved-existing",
-      message: "Kept the existing Plan time instead of replacing it from Venue acceptance.",
-      recoveryAction: "review-existing-plan",
-    });
+    preserved.kept.startsAt = startsAt.value;
+    preserved.setAside.startsAt = intent.startsAt;
   }
+  const { kept, setAside } = preserved;
+  const venueKept = "venueId" in kept;
+  const details = [
+    ...("area" in kept ? ["area"] : []),
+    ...("startsAt" in kept ? ["start time"] : []),
+  ];
+  if (!venueKept && details.length === 0) return;
+  const sentences = [
+    ...(venueKept
+      ? ["You already have a Plan, so we kept its first stop. The pub you picked was not added."]
+      : []),
+    ...(details.length
+      ? [`${venueKept ? "We also kept" : "You already have a Plan, so we kept"} its ${details.join(" and ")}.`]
+      : []),
+  ];
+  conflicts.push({
+    code: "intent-preserved-existing",
+    message: sentences.join(" "),
+    recoveryAction: "review-existing-plan",
+    kept,
+    setAside,
+  });
 }
 
 function routeWithReplayState(
@@ -788,6 +848,7 @@ export function arbitratePlanDrafts(input: PlanDraftArbitrationInput): PlanDraft
     ? input.url.selectedVenueId.trim()
     : null;
 
+  const preserved: IntentPreservation = { kept: {}, setAside: {} };
   const acceptedVenueId = acceptedVenueField(
     plan,
     route,
@@ -796,6 +857,7 @@ export function arbitratePlanDrafts(input: PlanDraftArbitrationInput): PlanDraft
     input.url?.replaceAnchor === true,
     input.defaults?.acceptedVenueId,
     conflicts,
+    preserved,
   );
   const area = areaField(
     input.intakeDraft,
@@ -810,7 +872,7 @@ export function arbitratePlanDrafts(input: PlanDraftArbitrationInput): PlanDraft
     input.defaults?.startsAt,
     conflicts,
   );
-  addIntentPreservationConflicts(intent, area, startsAt, conflicts);
+  addIntentPreservationConflict(intent, area, startsAt, preserved, conflicts);
 
   const surface = input.url?.surface
     ? { value: input.url.surface, source: "explicit-url" as const }

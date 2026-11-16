@@ -143,6 +143,37 @@ describe("routeAskDeterministically", () => {
     }
   });
 
+  it.each([
+    ["Five pubs with a beer garden", "Find pubs in Soho", "Soho"],
+    ["A couple of dog friendly pubs with a pool table", "Quiet pubs in Camden", "Camden"],
+  ])("keeps the area of the last ask for a counted requirement follow-up: %s", async (followUp, prior, area) => {
+    const refined = refineRoutedAskQuery(followUp, prior, [prior]);
+    expect(refined).toContain(followUp);
+    expect((await parseConciergeIntent(refined, { skipModel: true })).intent.area).toBe(area);
+  });
+
+  it.each([
+    ["Pubs with a quiz in Soho", "whats_on"],
+    ["Pub quiz in Camden tonight", "whats_on"],
+    ["Plan a pub crawl with a quiz in Soho", "propose_plan"],
+  ])("keeps a quiz listings read apart from a quiz crawl: %s", (query, tool) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).toEqual([tool]);
+  });
+
+  it.each(["a pub without a quiz on Monday", "a pub with a garden but without a quiz on Monday"])(
+    "routes an excluded quiz to venue search: %s", (query) => {
+      expect(routeAskDeterministically(query)).toEqual([{ name: "search_venues", args: { query, limit: 4 } }]);
+    },
+  );
+
+  it("invents no area for a counted requirement ask with no area before it", async () => {
+    const query = "Five pubs with a beer garden";
+    for (const refined of [refineRoutedAskQuery(query, null), refineRoutedAskQuery(query, "Hello mate", ["Hello mate"])]) {
+      expect(refined).toBe(query);
+      expect((await parseConciergeIntent(refined, { skipModel: true })).intent.area).toBeUndefined();
+    }
+  });
+
   it.each(["Quiet-ish near Bank, 4 of us.", "Near Soho.", "For four.", "Date night.", "Garden."])(
     "keeps implicit discovery constraints ahead of the map: %s", (request) => {
       for (const query of [request + " Show the map.", "Show the map. " + request]) {
@@ -437,10 +468,37 @@ describe("routeAskDeterministically", () => {
     ["Show me 6 pubs in Soho on the map", 6],
     ["Find me three good places in Soho for six people", 3],
     ["Find pubs in Soho for two people", 4],
+    ["A couple of quiet pubs in Soho, please.", 2],
+    ["Show me a couple of places in Soho", 2],
+    ["Give me a couple quiet pubs in Soho", 2],
+    ["A couple more pubs in Soho", 2],
+    ["A couple of more quiet places in Soho", 2],
+    ["Find pubs in Soho for a couple of people", 4],
+    ["Find five pubs in Soho for a couple of people", 5],
+    ["Five dog friendly pubs in Soho", 5],
+    ["Three beer garden pubs in Camden", 3],
+    ["Two pints in three pubs in Soho", 3],
+    ["Five pubs with a garden and a quiz in Soho", 5],
+    ["A quiet pub in Soho for a couple", 4],
   ])("keeps the requested choices separate from the group size: %s", (query, limit) => {
     expect(routeAskDeterministically(String(query))).toEqual([
       { name: "search_venues", args: { query, limit } },
     ]);
+  });
+  it.each([
+    "Pubs in Soho under 10 euros",
+    "Pubs with a darts board in Soho",
+  ])("keeps budget and amenity asks in venue search: %s", (query) => {
+    expect(routeAskDeterministically(query)).toEqual([
+      { name: "search_venues", args: { query, limit: 4 } },
+    ]);
+  });
+  it.each([
+    "Let me see what matches my budget in Soho",
+    "Show something in Soho to match my budget",
+    "Can you show a few options to match my vibe",
+  ])("does not route preference matching to listings: %s", (query) => {
+    expect(routeAskDeterministically(query).map((call) => call.name)).not.toContain("whats_on");
   });
   it.each([
     "Find me four pubs in Soho and show them on the map.",

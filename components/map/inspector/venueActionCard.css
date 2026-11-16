@@ -26,6 +26,14 @@
   container: venue-actions / inline-size;
 }
 
+.venueActionMoreToggle {
+  display: none;
+}
+
+.venueActionSecondaryActions {
+  display: contents;
+}
+
 /* TWO GHOSTS THAT CANNOT SHARE A ROW ARE EACH THE SIZE OF THEIR LABEL, as a
    lone ghost is (venueSheet.css `:only-of-type`). At 320px with 1.5x text
    "Ask for a table" and Share wrap, and `flex: 1 1 0` stretched each into an
@@ -47,12 +55,12 @@
    ("Share <pub>") and drops the visible word, so the two longer labels keep
    theirs. The query is in em, so it follows the reader's text size. */
 @container venue-actions (max-width: calc(22em + 96px)) {
-  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]) [data-venue-share] {
     flex: 0 0 auto;
     min-width: var(--control-height);
   }
 
-  .venueActionCardActions:has(> [data-plan-door]) [data-venue-share] > span {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]) [data-venue-share] > span {
     display: none;
   }
 }
@@ -63,14 +71,14 @@
    width of the line it could not fill, which parked the icon far from the
    words. */
 @container venue-actions (max-width: calc(18em + 60px)) {
-  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]) .venueSheetStickyGhost {
     padding-inline: 8px;
     line-height: 1.15;
     white-space: normal;
     text-wrap: balance;
   }
 
-  .venueActionCardActions:has(> [data-plan-door]) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]) .venueSheetStickyGhost:not(.venueActionMoreToggle):not([data-venue-share]) > svg {
     display: none;
   }
 }
@@ -81,12 +89,12 @@
    more. The queries are in em plus the px of padding, icons and gaps, so they
    follow the reader's text size. */
 @container venue-actions (max-width: calc(18em + 140px)) {
-  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-venue-summon]) [data-venue-share] {
     flex: 0 0 auto;
     min-width: var(--control-height);
   }
 
-  .venueActionCardActions:has(> [data-venue-summon]) [data-venue-share] > span {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-venue-summon]) [data-venue-share] > span {
     display: none;
   }
 }
@@ -94,14 +102,14 @@
 /* Large text: the two labels break between words inside their own ghosts,
    as the plan door's row does, so Share never falls to a line of its own. */
 @container venue-actions (max-width: calc(15em + 142px)) {
-  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-venue-summon]):not(:has(.venueActionSecondaryActions > [data-plan-door])) .venueSheetStickyGhost {
     padding-inline: 8px;
     line-height: 1.15;
     white-space: normal;
     text-wrap: balance;
   }
 
-  .venueActionCardActions:has(> [data-venue-summon]):not(:has(> [data-plan-door])) .venueSheetStickyGhost:not([data-venue-share]) > svg {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-venue-summon]):not(:has(.venueActionSecondaryActions > [data-plan-door])) .venueSheetStickyGhost:not(.venueActionMoreToggle):not([data-venue-share]) > svg {
     display: none;
   }
 }
@@ -112,12 +120,12 @@
    6px), so no ghost is left alone on a line and none reads as the primary.
    Share has half a row here, so it keeps its word. */
 @container venue-actions (max-width: calc(25em + 190px)) {
-  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) > .venueSheetStickyGhost {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]):has(.venueActionSecondaryActions > [data-venue-summon]) .venueActionSecondaryActions > .venueSheetStickyGhost {
     flex: 1 1 calc(50% - 3px);
     min-width: 0;
   }
 
-  .venueActionCardActions:has(> [data-plan-door]):has(> [data-venue-summon]) [data-venue-share] > span {
+  .venueActionCardActions:has(.venueActionSecondaryActions > [data-plan-door]):has(.venueActionSecondaryActions > [data-venue-summon]) [data-venue-share] > span {
     display: inline;
   }
 }
@@ -133,6 +141,57 @@
 
 /* ── Phone: the sheet footer ─────────────────────────────────────────────── */
 @media (max-width: 640px) {
+  .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
+    grid-template-columns: minmax(0, auto) minmax(min-content, 1fr);
+  }
+
+  .venueActionCard .mobileVenuePeekSummary > .venueLogDoor {
+    grid-column: 1 / -1;
+    width: calc(100% - 96px);
+    justify-self: start;
+  }
+
+  @container venue-peek (max-width: 18em) {
+    .venueActionCard .mobileVenuePeekSummary:has(> .venueLogDoor) {
+      row-gap: var(--space-1);
+    }
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionMoreToggle {
+    display: inline-flex;
+    flex: 0 0 auto;
+    margin-inline-start: auto;
+    pointer-events: auto;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) {
+    position: relative;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) .venueActionCardActions:not(:has(.venueActionSecondaryActions.isOpen)) {
+    position: absolute;
+    inset-inline: var(--space-4);
+    pointer-events: none;
+    bottom: var(--space-3);
+    margin: 0;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionSecondaryActions {
+    display: none;
+    flex: 1 0 100%;
+    gap: calc(var(--space-3) / 2);
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionSecondaryActions.isOpen {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .venueActionCardActions .venueActionSecondaryActions.isOpen .venueSheetStickyGhost {
+    flex: 1 1 calc(50% - 3px);
+    min-width: 0;
+  }
+
   .mobileSharedSheetFooter .venueActionCard {
     padding: 10px 16px 12px;
     border-top: 1px solid var(--line);
@@ -154,8 +213,40 @@
   }
 }
 
+@media (max-width: 360px) {
+  .mobileSharedSheetFooter .venueActionCard {
+    grid-template-columns: minmax(0, 1fr);
+    padding: 0 var(--space-4) calc(var(--space-3) / 2);
+  }
+
+  .mobileSharedSheetFooter .venueActionCard > .mobileVenuePeekFrame,
+  .mobileSharedSheetFooter .venueActionCard .mobileVenuePeekSummary {
+    min-width: 0;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard .mobileVenuePeekSummary {
+    row-gap: 0;
+  }
+
+  .mobileSharedSheetFooter .venueActionCard:has(.mobileVenuePeekSummary > .venueLogDoor) .venueActionCardActions:not(:has(.venueActionSecondaryActions.isOpen)) {
+    bottom: calc(var(--space-3) / 2);
+  }
+}
+
 /* ── 641px and wider: the sticky top of the drawer ───────────────────────── */
 @media (min-width: 641px) {
+  .venueActionCard .mobileVenuePeekSource {
+    display: none;
+  }
+
+  .venueActionCard .venueActionCardActions .venueActionMoreToggle {
+    display: none;
+  }
+
+  .venueActionCard .venueActionCardActions .venueActionSecondaryActions {
+    display: contents;
+  }
+
   .mapDrawer.right .venueActionCard {
     position: sticky;
     /* Under the drawer's sticky head: 10px above its 44px row. */

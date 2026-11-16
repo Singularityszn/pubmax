@@ -56,6 +56,7 @@ type VenuePhotoComposerProps = {
   venueName: string;
   onCancel: () => void;
   onPosted: (photo: VenuePhotoDTO, note: string | null) => void;
+  onDraftChange?: (hasDraft: boolean) => void;
 };
 
 function fileKey(file: File): string {
@@ -70,6 +71,7 @@ export default function VenuePhotoComposer({
   venueName,
   onCancel,
   onPosted,
+  onDraftChange,
 }: VenuePhotoComposerProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [chosen, setChosen] = useState<File | null>(null);
@@ -80,6 +82,12 @@ export default function VenuePhotoComposer({
   const [shareToFeed, setShareToFeed] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const hasDraft = chosen !== null || cropped !== null;
+
+  useEffect(() => {
+    onDraftChange?.(hasDraft);
+    return () => onDraftChange?.(false);
+  }, [hasDraft, onDraftChange]);
 
   // The preview URL lives exactly as long as the crop it shows: a replaced or
   // discarded crop, and an unmount, each release it.

@@ -115,11 +115,11 @@ function retry() {
   expect(button, host.textContent ?? "").toBeDefined();
   button!.click();
 }
-function expectVerifiedSocialFeed() {
+function expectVerifiedSocialControls() {
   expect(host.querySelector(".sampleSkeleton.socialFeed")).toBeNull();
-  const feed = host.querySelector('section[aria-label="Social posts"]');
-  expect(feed).not.toBeNull();
-  expect(feed?.closest("[data-sample-skeleton]")).toBeNull();
+  const controls = host.querySelector('nav[aria-label="Post lanes"]');
+  expect(controls).not.toBeNull();
+  expect(controls?.closest("[data-sample-skeleton]")).toBeNull();
 }
 
 describe("account identity recovery", () => {
@@ -132,7 +132,7 @@ describe("account identity recovery", () => {
     await act(async () => retry());
     expect(actions.identityResolved).toBe(true);
     expect(actions.handle).toBe("alice");
-    expectVerifiedSocialFeed();
+    expectVerifiedSocialControls();
   });
 
   it("lets the You page recover without treating an unavailable account as a missing handle", async () => {
@@ -159,11 +159,11 @@ describe("account identity recovery", () => {
     identityResponse = async () => json({ handle: "alice" });
     await act(async () => retry());
     expect(actions.handle).toBe("alice");
-    expectVerifiedSocialFeed();
+    expectVerifiedSocialControls();
     await act(async () => release(json({ handle: "obsolete" })));
     expect(actions.handle).toBe("alice");
     expect(localStorage.getItem("pubmax_handle")).toBe("alice");
-    expectVerifiedSocialFeed();
+    expectVerifiedSocialControls();
   });
 
   it("does not publish another account's late identity after an account switch", async () => {
@@ -178,12 +178,12 @@ describe("account identity recovery", () => {
       h.subscriber?.("SIGNED_IN", h.session);
     });
     expect(actions.handle).toBe("bob");
-    expectVerifiedSocialFeed();
+    expectVerifiedSocialControls();
     await act(async () => release(json({ handle: "alice" })));
     expect(actions.user?.id).toBe("bob");
     expect(actions.handle).toBe("bob");
     expect(localStorage.getItem("pubmax_handle")).toBe("bob");
-    expectVerifiedSocialFeed();
+    expectVerifiedSocialControls();
   });
 
   it.each(["malformed", "rejected"])("offers recovery for a %s identity response", async (failure) => {

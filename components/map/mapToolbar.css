@@ -169,10 +169,8 @@
 }
 
 .mapToolbarSearchStatusCopy {
-  display: flex;
+  display: block;
   flex: 1 1 auto;
-  flex-wrap: wrap;
-  align-items: baseline;
   min-width: 0;
   overflow-wrap: break-word;
   white-space: normal;
@@ -180,12 +178,12 @@
 
 .mapToolbarSearchQuery {
   display: inline-block;
-  flex: 0 1 20ch;
   max-width: min(20ch, 45%);
   min-width: 4ch;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  vertical-align: bottom;
 }
 
 .mapToolbarSearchQualifier {
@@ -470,6 +468,21 @@ html[data-theme="dark"] .drinkShapeChipLabel {
   gap: 4px;
   min-width: 0;
   max-width: 100%;
+}
+
+@media (max-width: 640px) {
+  .mobileMapFilters .drinkShapeChipsStack .drinkShapeChips {
+    display: flex;
+    flex-wrap: wrap;
+    overflow-x: visible;
+  }
+
+  .mobileMapFilters .drinkShapeChipsStack .drinkShapeChip {
+    flex: 1 1 30%;
+    width: auto;
+    min-width: min-content;
+    padding-inline: 3px;
+  }
 }
 
 .drinkSubtypeChips {

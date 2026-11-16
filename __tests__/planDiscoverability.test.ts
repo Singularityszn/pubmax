@@ -36,9 +36,9 @@ const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 // a second filled button.
 
 describe("Lane H plan discoverability", () => {
-  it("keeps the near-me answer the landing's one primary and the Pal a door in the footer", () => {
+  it("leads with Pal and retains its footer door", () => {
     const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(hero).toMatch(/data-primary-action=""><a[^>]*href="\/near\?locate=1"/);
+    expect(hero).toMatch(/data-primary-action=""><a[^>]*href="\/login\?from=%2Fpal%2Fchat"/);
     // The Pal moved off the hero's quiet row on 7 Sep 2026: the row caps at two
     // and the receipt door took the first place. Its footer door is the one
     // that must stay.
@@ -55,15 +55,15 @@ describe("Lane H plan discoverability", () => {
   // under the hunt card the hero offers "Cheapest near you" and "Plan a crawl".
   // Plan is a QUIET door in the hero's secondary row, never its filled primary,
   // so it still does not compete with the one primary action.
-  it("keeps Plan in the footer directory and a quiet door in the hero, never its primary", () => {
+  it("keeps Plan in the footer and navigation without competing with Pal", () => {
     const footer = renderedLanding.match(/<nav class="lpFooterNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
     expect(footer).toMatch(/href="\/plan"[^>]*>Plan a night<\/a>/);
     const hero = renderedLanding.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
     const primary = hero.match(/data-primary-action="">[\s\S]*?<\/div>/)?.[0] ?? "";
     expect(primary).not.toMatch(/href="\/plan"/);
     const quietRow = hero.match(/<div class="screenSecondary">[\s\S]*?<\/div>/)?.[0] ?? "";
-    expect(quietRow).toMatch(/href="\/plan"[^>]*>Plan a crawl<\/a>/);
-    expect(hero.match(/href="\/plan"/g) ?? []).toHaveLength(1);
+    expect(quietRow).toMatch(/href="\/near\?locate=1"[^>]*>Cheapest pints near me<\/a>/);
+    expect(hero.match(/href="\/plan"/g) ?? []).toHaveLength(0);
   });
 
   it("offers Pub Pal as an alternate entry on the plan intake surface", () => {

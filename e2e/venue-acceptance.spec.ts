@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 import { proofShotPath } from "./helpers/proofShot";
 
@@ -32,6 +33,7 @@ test.beforeEach(async ({ page }) => {
 test("390px Map acceptance persists before Plan receives Stop 1", async ({ page }, testInfo) => {
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await openVenueSecondaryActions(portal);
   // The plan door stays in the card when logging takes the first row.
   const accept = portal
     .locator(".venueActionCard")
@@ -80,7 +82,7 @@ for (const width of [320, 390] as const) {
       await page.setViewportSize({ width, height: 844 });
       await page.goto(`/map?sel=${VENUE_ID}`);
       const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-      const toolbar = portal.getByRole("toolbar", { name: "Venue actions" });
+      const toolbar = await openVenueSecondaryActions(portal);
       await expect(toolbar).toBeVisible({ timeout: 30_000 });
       // Hydration rewrites the root's style attribute, so the scale is set once
       // the sheet is up, as e2e/mobile-large-text.spec.ts does, then read back.
@@ -232,6 +234,7 @@ test("storage denial stays on Venue and emits no acceptance events", async ({ pa
 
   await page.goto(`/map?sel=${VENUE_ID}`);
   const portal = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await openVenueSecondaryActions(portal);
   await portal.getByRole("button", { name: `Make it Stop 1: ${VENUE_NAME}` }).click();
 
   await expect(page).toHaveURL(new RegExp(`/map\\?sel=${VENUE_ID}$`));

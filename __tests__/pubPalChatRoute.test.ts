@@ -422,8 +422,8 @@ describe("POST /api/pub-pal/chat", () => {
       expect(body.proposals).toContainEqual(expect.objectContaining({ kind: "open_venue" }));
       expect(body.cards.every((card: { price: number; provenance?: { kind: string } }) => typeof card.price === "number" && card.provenance?.kind === "directory")).toBe(true);
       if (chip.id === "cheeky") expect(body.cards.every((card: { price: number }) => card.price <= 6)).toBe(true);
-      if (chip.id === "quiet") expect(body.cards.some((card: { note: string }) => /calmer fit/i.test(card.note))).toBe(true);
-      if (chip.id === "date") expect(body.cards.some((card: { note: string }) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+      if (chip.id === "quiet") expect(body.cards.some((card: { note: string }) => /Quietness not checked/i.test(card.note))).toBe(true);
+      if (chip.id === "date") expect(body.cards.some((card: { note: string }) => /Quietness not checked|date-night fit/i.test(card.note))).toBe(true);
     }
 
     expect(body.answer).not.toMatch(/not prices for that item|can't compare/i);
@@ -573,6 +573,7 @@ describe("POST /api/pub-pal/chat", () => {
       regulars: [],
       loved: [],
       notKeen: [],
+      usuals: [],
       drinks: [],
       usualPintGbp: 5.6,
       vibes: ["quiet pint"],
@@ -614,7 +615,7 @@ describe("POST /api/pub-pal/chat", () => {
     authState.userId = "11111111-1111-4111-8111-111111111111";
     tasteState.taste = {
       visits: 6, distinctPubs: 3, lastVisit: { name: "The Crown", on: "2026-10-10" },
-      patches: ["Soho"], regulars: [], loved: [], notKeen: [], drinks: [],
+      patches: ["Soho"], regulars: [], loved: [], notKeen: [], usuals: [], drinks: [],
       usualPintGbp: 5.6, vibes: ["quiet pint"], style: null, favouriteNight: null, wishlist: [],
     };
     const response = await POST(new Request("http://localhost/api/pub-pal/chat", {

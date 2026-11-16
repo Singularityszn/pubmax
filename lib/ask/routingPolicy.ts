@@ -13,6 +13,7 @@ import {
 } from "@/lib/ask/requestPolicy";
 
 import { detectWhatsOnIntent } from "@/lib/concierge/whatsOn";
+import { venueRequirementsInText } from "@/lib/concierge/requirements";
 import type { AskToolName } from "@/lib/ask/types";
 import type { DrinkCategory } from "@/lib/drinks";
 import { isKnownAskPlacePhrase } from "@/lib/ask/placePhrases";
@@ -467,10 +468,47 @@ function conciergeClaim(
   );
 }
 
-function requestedVenueCount(query: string): number | null {
-  const count = query.match(/\b(1|2|3|4|5|6|one|two|three|four|five|six)\s+(?:(?:good|quiet|lively|cosy|cozy|cheap|historic|local|nearby|listed|great|best)\s+)*(?:pubs?|bars?|venues?|places?)\b/i)?.[1]?.toLowerCase();
-  const words: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6 };
-  return count ? words[count] ?? Number(count) : null;
+const COUNT_WORDS: Readonly<Record<string, number>> = {
+  1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6,
+};
+const COUNT_NOUN = /^(?:pubs?|bars?|venues?|places?|stops?)$/;
+const COUNT_BREAKS = new Set([
+  "a", "an", "and", "around", "at", "drink", "drinks", "each", "for", "from", "friends", "hour", "hours", "in",
+  "mates", "minute", "minutes", "near", "of", "or", "over", "people", "per", "pint", "pints", "pounds", "quid",
+  "round", "rounds", "than", "the", "to", "under", "us", "with",
+]);
+const COUNT_MODIFIERS_MAX = 4;
+
+function countAt(words: readonly string[], index: number): { count: number; next: number } | null {
+  const word = words[index]!;
+  const couple = word === "a" && words[index + 1] === "couple" ? index + 1 : word === "couple" ? index : -1;
+  if (couple >= 0) return { count: 2, next: words[couple + 1] === "of" ? couple + 2 : couple + 1 };
+  const count = COUNT_WORDS[word];
+  return count === undefined ? null : { count, next: index + 1 };
+}
+
+export function requestedVenueCount(query: string): number | null {
+  const words = query.toLowerCase().match(/[a-z0-9'-]+|[^\sa-z0-9'-]/g) ?? [];
+  for (let index = 0; index < words.length; index += 1) {
+    const hit = countAt(words, index);
+    if (!hit) continue;
+    for (let next = hit.next; next < words.length && next <= hit.next + COUNT_MODIFIERS_MAX; next += 1) {
+      const word = words[next]!;
+      if (COUNT_NOUN.test(word)) return hit.count;
+      if (COUNT_BREAKS.has(word) || COUNT_WORDS[word] !== undefined || !/^[a-z'-]+$/.test(word)) break;
+    }
+  }
+  return null;
+}
+
+function quizRequirementCall(text: string, rawQuery: string): RoutedToolCall | null {
+  if (PLAN_RE.test(text) && /\b(?:crawl|pubs|stops?)\b/i.test(text)) return { name: "propose_plan", args: { query: rawQuery } };
+  const count = requestedVenueCount(text);
+  const requirements = venueRequirementsInText(text);
+  return requirements.some((requirement) => requirement.kind === "quiz")
+    && (count !== null || requirements.some((requirement) => requirement.kind !== "quiz" || requirement.excluded))
+    ? { name: "search_venues", args: { query: rawQuery, limit: count ?? 4 } }
+    : null;
 }
 
 function hasVenueDiscoveryConstraints(query: string): boolean {
@@ -570,6 +608,11 @@ export function routeAskDeterministically(query: string): RoutedToolCall[] {
   }
 
   const whatsOn = detectWhatsOnIntent(text);
+  const quizCall = whatsOn?.kind === "quiz" ? quizRequirementCall(text, rawQuery) : null;
+  if (quizCall) {
+    push(quizCall.name, quizCall.args);
+    return calls;
+  }
   const claim = conciergeClaim(text, whatsOn);
   if (claim) {
     push(claim.name, claim.args);

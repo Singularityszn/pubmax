@@ -135,6 +135,7 @@ export function parsePlanHandoffQueryFromSearch(search: string): string | null {
   } catch {
     return null;
   }
+  if (params.get("from") === "onboarding") return null;
   const query = params.get(PLAN_QUERY_PARAM);
   if (!query) return null;
   return cleanText(query, 500) || null;

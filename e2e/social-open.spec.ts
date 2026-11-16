@@ -194,9 +194,9 @@ test.describe("social open dress rehearsal", () => {
     };
 
     await page.goto("/social");
-    // Signed out, a stranger reads the London lane (captain decision 7).
+    // Signed out, a stranger can explore open crawls.
     await expect(
-      page.getByRole("heading", { name: "Across London", exact: true }),
+      page.getByRole("heading", { name: "Find a crawl to join", exact: true }),
     ).toBeVisible();
 
     await seedSession(page, E2E_AUTH_USER_ID, "social-open@example.test");

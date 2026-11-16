@@ -10,6 +10,7 @@
 // cheap and testable with no server imports.
 
 import { semanticAskRequest } from "@/lib/ask/requestPolicy";
+import { hasSportsIntent } from "@/lib/concierge/sportsIntent";
 import {
   WHATS_ON_KINDS,
   whatsOnBarePriceGbp,
@@ -30,9 +31,8 @@ export type WhatsOnQuery = {
 // Per-kind natural-language triggers. Order matters only for the human label;
 // detection ORs across all of them. Kept deliberately tight — a false positive
 // steals a query from the venue-ranking concierge.
-const KIND_TERMS: Record<WhatsOnKind, RegExp> = {
+const KIND_TERMS: Record<Exclude<WhatsOnKind, "sport">, RegExp> = {
   quiz: /\b(?:quiz|quizzes|trivia|pub quiz)\b/i,
-  sport: /\b(?:sport|sports|football|footy|rugby|boxing|cricket|the match|the game|premier league|champions league|world cup|six nations|showing the)\b/i,
   deal: /\b(?:deal|deals|offer|offers|curry club|steak club|burger club|wing(?:s)? night|happy hour|2 for 1|two for one)\b/i,
   music: /\b(?:live music|gig|gigs|band|bands|dj set|karaoke|open mic|jam night)\b/i,
   event: /\b(?:comedy|stand-?up|theatre|theater|club night|playhouse)\b/i,
@@ -46,7 +46,8 @@ const NON_AREA =
   /^(?:me|here|us|mine|my area|there|now|tonight|today|the\s+\S+|a\s+\S+|an\s+\S+)$/i;
 
 function detectKind(text: string): WhatsOnKind | undefined {
-  return WHATS_ON_KINDS.find((kind) => KIND_TERMS[kind].test(text));
+  return WHATS_ON_KINDS.find((kind) => kind === "sport"
+    ? hasSportsIntent(text) : KIND_TERMS[kind].test(text));
 }
 
 const WEEKDAYS: Record<string, number> = {

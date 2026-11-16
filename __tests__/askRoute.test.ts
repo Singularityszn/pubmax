@@ -457,7 +457,7 @@ describe("POST /api/ask", () => {
       if (chip.id === "bender") expect(result.data).toMatchObject({ intent: { groupSize: 4 } });
       if (chip.id === "date") {
         const venues = (result.data as { venues: Array<{ reasons: string[] }> }).venues;
-        expect(venues.every((venue) => venue.reasons.includes("Good date-night fit") && venue.reasons.includes("Venue heritage on record") && venue.reasons.includes("A calmer fit"))).toBe(true);
+        expect(venues.every((venue) => venue.reasons.includes("Good date-night fit") && venue.reasons.includes("Venue heritage on record") && venue.reasons.includes("Quietness not checked"))).toBe(true);
       }
 
     }
@@ -633,7 +633,7 @@ describe("POST /api/ask", () => {
 
   it("answers a mood ask with grounded venue cards keyless", async () => {
     const response = await post(
-      { query: "Garden near Soho for 4, not pricey", cityId: "london" },
+      { query: "Quiet near Soho for 4, not pricey", cityId: "london" },
       "198.51.100.21",
     );
     expect(response.status).toBe(200);

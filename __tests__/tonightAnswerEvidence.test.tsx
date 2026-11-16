@@ -91,7 +91,7 @@ describe("Tonight's selected pint evidence", () => {
     const root = createRoot(container);
     mounted.push(root);
     function Probe() {
-      const evidence = useTonightPintEvidence("near", digest);
+      const evidence = useTonightPintEvidence("near", digest, 4.5);
       return createElement("span", null, evidence ? JSON.stringify(evidence) : "waiting");
     }
     await act(async () => { root.render(createElement(Probe)); await new Promise((resolve) => setTimeout(resolve, 20)); });
@@ -104,13 +104,13 @@ describe("Tonight's selected pint evidence", () => {
 
   it("refuses a detail response from a different snapshot", async () => {
     vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({
-      priceDatasetDigest: "other", venue: { id: "near", prices: [{ pint_name: "Wrong lager" }] },
+      priceDatasetDigest: "other", venue: { id: "near", prices: [{ price_gbp: 4.5, pint_name: "Wrong lager" }] },
     }) }));
     const container = document.createElement("div");
     const root = createRoot(container);
     mounted.push(root);
     function Probe() {
-      const evidence = useTonightPintEvidence("near", "abcdefghijklmnopqrstuv");
+      const evidence = useTonightPintEvidence("near", "abcdefghijklmnopqrstuv", 4.5);
       return createElement("span", null, evidence ? JSON.stringify(evidence) : "waiting");
     }
     await act(async () => { root.render(createElement(Probe)); await new Promise((resolve) => setTimeout(resolve, 20)); });
@@ -122,14 +122,14 @@ describe("Tonight's selected pint evidence", () => {
     let finishFirst: (response: unknown) => void = () => undefined;
     const first = new Promise((resolve) => { finishFirst = resolve; });
     const body = (id: string, name: string) => ({ ok: true, json: async () => ({
-      priceDatasetDigest: digest, venue: { id, prices: [{ pint_name: name }] },
+      priceDatasetDigest: digest, venue: { id, prices: [{ price_gbp: 4.5, pint_name: name }] },
     }) });
     vi.stubGlobal("fetch", vi.fn().mockImplementationOnce(() => first).mockResolvedValueOnce(body("second", "Second lager")));
     const container = document.createElement("div");
     const root = createRoot(container);
     mounted.push(root);
     function Probe({ id }: { id: string }) {
-      const evidence = useTonightPintEvidence(id, digest);
+      const evidence = useTonightPintEvidence(id, digest, 4.5);
       return createElement("span", null, evidence?.drinkLabel ?? "waiting");
     }
     await act(async () => root.render(createElement(Probe, { id: "first" })));
@@ -155,11 +155,11 @@ describe("selected evidence request lifetime", () => {
     const root = createRoot(container);
     mounted.push(root);
     function Probe({ id, snapshot }: { id: string; snapshot: string }) {
-      const evidence = useTonightPintEvidence(id, snapshot);
+      const evidence = useTonightPintEvidence(id, snapshot, 4.5);
       return createElement("span", null, evidence?.drinkLabel ?? "unavailable");
     }
     const response = (id: string, snapshot: string, name: string) => ({ ok: true, json: async () => ({
-      priceDatasetDigest: snapshot, venue: { id, prices: [{ pint_name: name }] },
+      priceDatasetDigest: snapshot, venue: { id, prices: [{ price_gbp: 4.5, pint_name: name }] },
     }) } as Response);
     await act(async () => root.render(createElement(Probe, { id: "near", snapshot: digest })));
     const first = pending[0];
@@ -175,16 +175,40 @@ describe("selected evidence request lifetime", () => {
     expect(container.textContent).toBe("Current lager");
   });
 
+  it("retires the selected evidence when the price changes", async () => {
+    const pending: Array<{ signal: AbortSignal; resolve: (response: Response) => void }> = [];
+    vi.stubGlobal("fetch", vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      new Promise<Response>((resolve) => pending.push({ signal: init?.signal as AbortSignal, resolve })),
+    ));
+    const container = document.createElement("div");
+    const root = createRoot(container);
+    mounted.push(root);
+    function Probe({ price }: { price: number }) {
+      const evidence = useTonightPintEvidence("near", digest, price);
+      return createElement("span", null, evidence?.drinkLabel ?? "unavailable");
+    }
+    const response = (price: number, name: string) => ({ ok: true, json: async () => ({
+      priceDatasetDigest: digest, venue: { id: "near", prices: [{ price_gbp: price, pint_name: name }] },
+    }) } as Response);
+    await act(async () => root.render(createElement(Probe, { price: 4.5 })));
+    await act(async () => root.render(createElement(Probe, { price: 5 })));
+    expect(pending[0]?.signal.aborted).toBe(true);
+    await act(async () => { pending[1]?.resolve(response(5, "Current lager")); });
+    await vi.waitFor(() => expect(container.textContent).toBe("Current lager"));
+    await act(async () => { pending[0]?.resolve(response(4.5, "Stale lager")); });
+    expect(container.textContent).toBe("Current lager");
+  });
+
   it.each(["venue", "snapshot"])("does not reuse evidence after a failed return to the same %s", async (change) => {
     const body = { ok: true, json: async () => ({ priceDatasetDigest: digest,
-      venue: { id: "near", prices: [{ pint_name: "Old lager" }] },
+      venue: { id: "near", prices: [{ price_gbp: 4.5, pint_name: "Old lager" }] },
     }) };
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce(body).mockRejectedValue(new Error("offline")));
     const container = document.createElement("div");
     const root = createRoot(container);
     mounted.push(root);
     function Probe({ id, snapshot = digest }: { id: string | null; snapshot?: string }) {
-      const evidence = useTonightPintEvidence(id, snapshot);
+      const evidence = useTonightPintEvidence(id, snapshot, 4.5);
       return createElement("span", null, evidence?.drinkLabel ?? "unavailable");
     }
     await act(async () => root.render(createElement(Probe, { id: "near" })));

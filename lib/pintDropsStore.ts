@@ -252,6 +252,7 @@ export type PintDropStore = {
   listOwnVenueIds(authorHandle: string, cityId?: CityId | null): Promise<string[]>;
   cheapestOwnPublicPint(authorHandle: string): Promise<BeenCardDrop | null>;
   listOwnContributions(authorHandle: string): Promise<OwnDropContribution[]>;
+  latestOwnDrink(authorHandle: string): Promise<string | null>;
   /**
    * The LEGACY (family/heirloom) lane for one venue — the ledger-only capability
    * issue #27 (Family Table) can adopt (issue #29 exposes it, doesn't build its
@@ -1020,6 +1021,14 @@ export const memoryPintDropStore: PintDropStore = {
       ? (await storedVenueIds(venueId)).flatMap((id) => listVisiblePintDrops(id))
       : listAllVisiblePintDrops(cityId);
     return attributedAuthorVenueIds(rows, author, viewer);
+  },
+  async latestOwnDrink(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const latest = asAuthorDrops(listAllStoredPintDrops(), author)
+      .filter((drop) => drop.status === "visible" && !contributorHasRetired(drop.authorRetiredAt) && drop.drink.trim())
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0];
+    return latest?.drink.trim() || null;
   },
   async listOwnContributions(authorHandle) {
     const author = await resolveAuthor(authorHandle, (h) => memoryIdentityHandleStore.wornHandles(h));
@@ -1812,6 +1821,20 @@ export const supabasePintDropStore: PintDropStore = {
 
   async listVisibleAuthorVenueIds(authorHandle, viewer, cityId, venueId) {
     return durableAuthorVenueIds(authorHandle, viewer, cityId, venueId, false);
+  },
+  async latestOwnDrink(authorHandle) {
+    const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));
+    if (!author) return null;
+    const { data, error } = await admin().from(TABLE)
+      .select("drink")
+      .in("handle", wornHandleList(author))
+      .eq("status", "visible")
+      .is("author_retired_at", null)
+      .neq("drink", "")
+      .order("created_at", { ascending: false })
+      .limit(1);
+    if (error) throw new Error(error.message);
+    return data?.[0]?.drink?.trim() || null;
   },
   async listOwnContributions(authorHandle) {
     const author = await resolveAuthor(authorHandle, (h) => supabaseIdentityHandleStore.wornHandles(h));

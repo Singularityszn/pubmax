@@ -82,7 +82,7 @@ export type AnchoredPlanGenerationSelection<T extends ScoredPlanCandidate> =
       anchorValue: T;
       accessibilityEnforced: boolean;
     }
-  | { ok: false; reason: "ANCHOR_MISSING" };
+  | { ok: false; reason: "ANCHOR_MISSING" | "ANCHOR_INELIGIBLE"; message: string };
 
 /** Join canonical price, access, and opening evidence onto scored candidates. */
 async function groundedRouteCandidates<T extends ScoredPlanCandidate>(
@@ -214,22 +214,22 @@ function mustHaveWords(
   ];
 }
 
-/** The refusal that names the must-haves the reader set, so they know what to drop. */
+/** The refusal names the needs that could not be verified together. */
 function planRouteRefusalMessage(stopCount: number, areaName: string, mustHaves: readonly string[]): string {
   if (mustHaves.length === 0) {
-    return `No ${stopCount}-stop route in ${areaName} meets every must-have need with the information available.`;
+    return `We could not verify a ${stopCount}-stop route in ${areaName} with the information available. Browse pubs on the map or change your request.`;
   }
   const named = mustHaves.length > 1
     ? `${mustHaves.slice(0, -1).join(", ")} and ${mustHaves.at(-1)}`
     : mustHaves[0];
-  return `No ${stopCount}-stop route in ${areaName} fits ${named} with the information we have. Try dropping one.`;
+  return `We could not verify a ${stopCount}-stop route in ${areaName} that fits ${named} with the information we have. Browse pubs on the map or change your request.`;
 }
 
 /**
  * The one sentence a refused generation reads. Under a budget, a fully priced
  * route that meets every other rule and still costs more means the budget is
  * what refused it, so the sentence names that route and its total (the £20
- * crawl, lib/planBudgetCrawl.ts). Otherwise it names the must-haves to drop.
+ * crawl, lib/planBudgetCrawl.ts). Otherwise it names the unverified must-haves.
  */
 export function planGenerationRefusalMessage(
   context: Pick<NightContext, "stopCount" | "budgetLimitPence">,
@@ -328,7 +328,28 @@ export async function selectAnchoredPlanGenerationCandidates<T extends ScoredPla
     groundedConstraints(context, intake, accessibilityNeeds, now),
     anchorVenueId,
   );
-  if (!selection.ok) return { ok: false, reason: "ANCHOR_MISSING" };
+  if (!selection.ok) {
+    let message: string;
+    if (selection.reason === "ANCHOR_MISSING") {
+      message = "We could not build a route from that pub right now. Try a different pub.";
+    } else {
+      const budget = formatGbp(context.budgetLimitPence! / 100);
+      switch (selection.failure.requirement) {
+        case "safety": message = "That pub fails the safety check."; break;
+        case "exclusions": message = "That pub is excluded from plan suggestions."; break;
+        case "budgetCeiling": message = `That pub's listed price is above your ${budget} budget.`; break;
+        case "budgetEvidence": message = `We can't confirm that pub's price within your ${budget} budget.`; break;
+        case "accessibility": {
+          const need = selection.failure.need;
+          const label = PLAN_ACCESSIBILITY_NEEDS.find(({ id }) => id === need)!.label.toLowerCase();
+          message = `We can't confirm ${label} at that pub for your plan.`;
+          break;
+        }
+      }
+      message += " Your draft is kept.";
+    }
+    return { ok: false, reason: selection.reason, message };
+  }
   const accessibilityEnforced = accessibilityNeeds.length > 0;
   return selection.outcome === "anchor-only"
     ? {

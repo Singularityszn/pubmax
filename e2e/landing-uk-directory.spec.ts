@@ -3,6 +3,7 @@ import { expect, test, type Page, type TestInfo } from "@playwright/test";
 import { UI_UX_CHROMIUM_ARGS } from "../scripts/lib/uiUxBattleTestBrowser.mjs";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 test.use({ launchOptions: { args: [...UI_UX_CHROMIUM_ARGS] } });
 
@@ -162,6 +163,7 @@ test.describe("clicked UK directory arrivals", () => {
         request,
       }, testInfo) => {
         test.setTimeout(90_000);
+        await installDeterministicMapBasemap(page);
         await page.setViewportSize(viewport);
         await page.emulateMedia({ colorScheme: theme });
         await page.addInitScript((selectedTheme) => {
@@ -215,8 +217,10 @@ test.describe("clicked UK directory arrivals", () => {
         });
         page.on("requestfinished", (request) => pendingCountryRequests.delete(request.url()));
         page.on("requestfailed", (request) => pendingCountryRequests.delete(request.url()));
-        await entry.click();
-        await expect(page).toHaveURL(/\/map\?uk=1$/);
+        await expect(async () => {
+          if (!page.url().endsWith("/map?uk=1")) await entry.click();
+          await expect(page).toHaveURL(/\/map\?uk=1$/, { timeout: 1_000 });
+        }).toPass({ timeout: 20_000 });
         const ukNote = page.getByRole("complementary", { name: "UK pub map", exact: true });
         await expect(ukNote).toBeVisible({ timeout: 45_000 });
         await expect(ukNote).toContainText("Zoom in to load pubs on the map.");
