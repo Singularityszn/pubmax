@@ -155,6 +155,10 @@ test("legacy prices show unknown publisher and serving without inventing a pint 
 });
 
 test("another venue or amount cannot lend its source to a restored price", async ({ page }) => {
+  await page.route("**/api/price-submit?scope=public-price-presence**", (route) => {
+    const ids = new URL(route.request().url()).searchParams.getAll("venueId");
+    return route.fulfill({ json: { presence: Object.fromEntries(ids.map((id) => [id, "absent"])) } });
+  });
   const rows = validStops();
   rows[0].pintPriceEvidence.venueId = "wrong-venue";
   rows[1].pintPriceEvidence.pence = 1;
