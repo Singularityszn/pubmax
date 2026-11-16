@@ -62,8 +62,3 @@ c7354856c41b28f43636502474a1092bad3717ed:__tests__/rateLimitRefusalsUnchargedMig
 562e9590470157620d7b7de0ed0b95bbdc22dc29:__tests__/tableRequestsRoute.test.ts:generic-api-key:401
 97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:484
 97b0f05138375f77db1e9d8f81e9c8c1b2c302ec:__tests__/tableRequestsRoute.test.ts:generic-api-key:514
-
-# Synthetic requestKey values for the reclaim-race and claim-failure tests.
-# These idempotency keys are not credentials. Exact historical findings only.
-8f39c3a8f1882b6cf9083f718c21a0b2f5443074:__tests__/tableRequestsRoute.test.ts:generic-api-key:473
-b907bbe1b1934fb4a386c477f8d97788e7c05f0e:__tests__/tableRequestsRoute.test.ts:generic-api-key:559

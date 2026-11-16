@@ -80,3 +80,14 @@ regexTarget = "secret"
 regexes = [
   '''^0123456789abcdef0123456789abcdef$''',
 ]
+
+[[allowlists]]
+description = "Historical synthetic table-request retry fixtures across rebases and merge queue."
+targetRules = ["generic-api-key"]
+condition = "AND"
+paths = ['''^__tests__/tableRequestsRoute\.test\.ts$''']
+regexTarget = "secret"
+regexes = [
+  '''^test\-key\-reclaim\-race\-2749$''',
+  '''^test\-key\-claim\-failure\-2749$''',
+]
