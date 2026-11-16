@@ -26,13 +26,11 @@ function deps(caller: string | null, overrides: Partial<PointsDeps> = {}): Point
       getByUserId: async (userId) => [...profiles.values()].find((row) => row.userId === userId) ?? null,
     },
     withdrawn: async () => false,
-    nearbyVisits: async () => [
-      { venueId: "mitre", checkedAt: "2026-09-01T19:00:00Z" },
-      { venueId: "anchor-old", checkedAt: "2026-11-02T20:00:00Z" },
-    ],
     // A merged id counts as the pub it names now.
     venueAliases: async () => (venueId) => (venueId === "anchor-old" ? "anchor" : venueId),
     drops: async () => [
+      { venueId: "mitre", createdAt: "2026-09-01T19:00:00Z", priced: false, checked: false },
+      { venueId: "anchor-old", createdAt: "2026-11-02T20:00:00Z", priced: false, checked: false },
       { venueId: "lamb", createdAt: "2026-10-05T19:00:00.000Z", priced: true, checked: true },
       { venueId: "lamb", createdAt: "2026-10-06T19:00:00.000Z", priced: true, checked: false },
       { venueId: "stars", createdAt: "2026-10-07T19:00:00.000Z", priced: false, checked: false },
@@ -60,7 +58,6 @@ describe("readPointsBreakdown", () => {
   it("awards no visit or completion points for unproven Beens", async () => {
     const breakdown = await readPointsBreakdown(OWNER, deps("u-owner", {
       drops: async () => [],
-      nearbyVisits: async () => [],
       addedPubs: async () => 0,
       fixedPubs: async () => 0,
       drinkReviews: async () => 0,
@@ -77,26 +74,9 @@ describe("readPointsBreakdown", () => {
         { venueId: "anchor-old", createdAt: "2026-11-15T18:00:00Z", priced: false, checked: false },
         { venueId: "anchor", createdAt: "2026-11-15T19:00:00Z", priced: true, checked: false },
       ],
-      nearbyVisits: async () => [],
     }));
     expect(line(breakdown, "been")).toMatchObject({ count: 1, points: 5 });
     expect(line(breakdown, "priceLogged")).toMatchObject({ count: 1, points: 5 });
-  });
-
-  it("scores a nearby check-in once per canonical pub and account", async () => {
-    const breakdown = await readPointsBreakdown(OWNER, deps("u-owner", {
-      drops: async () => [],
-      nearbyVisits: async (userId) => userId === OWNER.userId ? [
-        { venueId: "anchor-old", checkedAt: "2026-11-15T19:00:00Z" },
-        { venueId: "anchor", checkedAt: "2026-11-15T20:00:00Z" },
-      ] : [],
-    }));
-    expect(line(breakdown, "been")).toMatchObject({ count: 1, points: 5 });
-    const other = await readPointsBreakdown(OTHER, deps("u-other", {
-      drops: async () => [],
-      nearbyVisits: async (userId) => userId === OWNER.userId ? [{ venueId: "anchor", checkedAt: "2026-11-15T19:00:00Z" }] : [],
-    }));
-    expect(line(other, "been")).toMatchObject({ count: 0, points: 0 });
   });
 
   it("counts each record once at its own value", async () => {
@@ -123,7 +103,6 @@ describe("readPointsBreakdown", () => {
       OWNER,
       deps("u-owner", {
         drops: async () => [],
-        nearbyVisits: async () => [],
         addedPubs: async () => 0,
         fixedPubs: async () => 0,
         drinkReviews: async () => 0,
@@ -151,11 +130,9 @@ describe("readPointsBreakdown", () => {
     const breakdown = await readPointsBreakdown(
       OWNER,
       deps("u-owner", {
-        nearbyVisits: async () => [
-          { venueId: "mitre", checkedAt: "2026-07-01T19:00:00Z" },
-          { venueId: "anchor-old", checkedAt: "2026-11-02T20:00:00Z" },
-        ],
         drops: async () => [
+          { venueId: "mitre", createdAt: "2026-07-01T19:00:00Z", priced: false, checked: false },
+          { venueId: "anchor-old", createdAt: "2026-11-02T20:00:00Z", priced: false, checked: false },
           { venueId: "lamb", createdAt: "2026-08-01T19:00:00Z", priced: true, checked: true },
           { venueId: "lamb", createdAt: "2026-10-06T19:00:00Z", priced: true, checked: false },
           { venueId: "stars", createdAt: "2026-10-07T19:00:00Z", priced: false, checked: false },
@@ -188,8 +165,7 @@ describe("readPointsBreakdown", () => {
     const breakdown = await readPointsBreakdown(
       OWNER,
       deps("u-owner", {
-        drops: async () => [],
-        nearbyVisits: async () => [{ venueId: "mitre", checkedAt: "" }],
+        drops: async () => [{ venueId: "mitre", createdAt: "", priced: false, checked: false }],
         challenges: async () => new Map([["red-lion", [{ label: "Mitre", venueIds: ["mitre"] }]]]),
       }),
     );
@@ -197,14 +173,10 @@ describe("readPointsBreakdown", () => {
     expect(line(breakdown, "challengeDoubled")).toMatchObject({ count: 0, points: 0 });
   });
 
-  it.each(["drops", "nearbyVisits", "venueAliases"] as const)(
+  it.each(["drops", "venueAliases"] as const)(
     "withholds monthly completion dates when %s cannot be read",
     async (failedRead) => {
       const records: Partial<PointsDeps> = {
-        nearbyVisits: async () => [
-          { venueId: "first", checkedAt: "2026-06-01T19:00:00Z" },
-          { venueId: "last", checkedAt: "2026-07-01T19:00:00Z" },
-        ],
         drops: async () => [
           { venueId: "first", createdAt: "2026-06-01T19:00:00Z", priced: false, checked: false },
           { venueId: "last", createdAt: "2026-07-01T19:00:00Z", priced: false, checked: false },
@@ -290,13 +262,12 @@ describe("readPointsStanding", () => {
     expect(standing).toEqual({ status: "ready", total: 1130, level: 6 });
   });
 
-  it("keeps one Been award when a nearby pub also has a drop", async () => {
+  it("requires a Pint Drop for a Been award", async () => {
     const records = deps("u-owner", {
-      nearbyVisits: async () => [{ venueId: "lamb", checkedAt: "2026-11-13T19:00:00Z" }],
       drops: async () => [], addedPubs: async () => 0, fixedPubs: async () => 0,
       drinkReviews: async () => 0, londonDistricts: async () => new Map(),
     });
-    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 5, level: 1 });
+    expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 0, level: 1 });
     records.drops = async () => [{ venueId: "lamb", createdAt: "2026-11-13T20:00:00Z", priced: false, checked: false }];
     expect(await readPointsStanding(OWNER, records)).toEqual({ status: "ready", total: 5, level: 1 });
   });

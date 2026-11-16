@@ -112,7 +112,7 @@ describe("carryBeenHere", () => {
     expect([...standing.visited]).toEqual([]);
   });
 
-  it("checks proximity on the server, saves Been idempotently, and awards five points", async () => {
+  it("checks proximity on the server and saves Been idempotently without scoring", async () => {
     caller.id = "user-mia";
     const venue = (await resolveVenue(lamb))!;
     const checkIn = () => POST(new Request(URL_BASE, { method: "POST", body: JSON.stringify({
@@ -123,7 +123,7 @@ describe("carryBeenHere", () => {
     expect((await checkIn()).status).toBe(200);
     expect((await listFor("mia")).filter((row) => row.venueId === lamb && row.listType === BEEN_HERE_LIST)).toHaveLength(1);
     const points = await readPointsBreakdown({ handle: "mia", userId: caller.id });
-    expect(points.lines.find((line) => line.key === "been")).toMatchObject({ count: 1, points: 5 });
+    expect(points.lines.find((line) => line.key === "been")).toMatchObject({ count: 0, points: 0 });
     expect((await readPointsBreakdown({ handle: "sam", userId: "user-sam" })).total).toBe(0);
   });
 

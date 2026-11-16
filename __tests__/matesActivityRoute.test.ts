@@ -340,7 +340,7 @@ describe("GET /api/social/mates-activity", () => {
       }
       const own = await pointsReader.readPointsBreakdown(mate);
       expect(own.status).toBe("ready");
-      const proven = source === "anonymous" || source === "nearby";
+      const proven = source === "anonymous";
       expect(own.challenges.find(({ id }) => id === "red-lion")).toMatchObject({ done: proven ? 2 : 0, total: 2, finished: proven });
       expect(own.lines.find(({ key }) => key === "challenge")).toMatchObject({ count: proven ? 1 : 0, points: proven ? 500 : 0 });
       const answer = await ask();
