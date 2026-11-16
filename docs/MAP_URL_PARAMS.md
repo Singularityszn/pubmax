@@ -183,10 +183,10 @@ could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
 
 ## First-visit arrival card
 
-After the pins reveal, a first visit to the map shows one arrival card
+After the pins reveal, the map can show one first-visit arrival card
 (`components/map/MapArrivalCard.tsx`). The
 [arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-owns its dismissal window and storage compatibility.
+owns its location-permission conditions, dismissal window and storage compatibility.
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
