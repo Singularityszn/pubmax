@@ -53,7 +53,7 @@ import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import { __resetMemorySavedPubs } from "@/lib/savedPubsStore";
 import { getVenueIndex, resolveVenue } from "@/lib/venueIndex";
 import { nearbyVisitStore, resetNearbyVisitsForTests } from "@/lib/nearbyVisitStore";
-import { readPointsBreakdown } from "@/lib/points.server";
+import { readPointsBreakdown, readPointsStandingWithVisits } from "@/lib/points.server";
 
 const URL_BASE = "http://localhost/api/saved-pubs";
 let lamb = "";
@@ -91,6 +91,27 @@ async function listFor(handle: string): Promise<Array<{ venueId: string; listTyp
 }
 
 describe("carryBeenHere", () => {
+  it.each([0, 20])("does not award points or league visits for fabricated coordinates with accuracy %s", async (accuracy) => {
+    caller.id = "user-mia";
+    for (const venueId of [lamb, grapes]) {
+      const venue = (await resolveVenue(venueId))!;
+      const response = await POST(new Request(URL_BASE, {
+        method: "POST",
+        body: JSON.stringify({
+          action: "nearbyCheckIn", venueId,
+          location: { lat: venue.lat, lng: venue.lng, accuracy, timestamp: Date.now() },
+        }),
+      }));
+      expect(response.status).toBe(200);
+    }
+    expect(await nearbyVisitStore().list(caller.id)).toHaveLength(2);
+    const points = await readPointsBreakdown({ handle: "mia", userId: caller.id });
+    expect(points.lines.find((line) => line.key === "been")).toMatchObject({ count: 0, points: 0 });
+    const standing = await readPointsStandingWithVisits({ handle: "mia", userId: caller.id });
+    expect(standing.total).toBe(0);
+    expect([...standing.visited]).toEqual([]);
+  });
+
   it("checks proximity on the server, saves Been idempotently, and awards five points", async () => {
     caller.id = "user-mia";
     const venue = (await resolveVenue(lamb))!;
