@@ -8,7 +8,7 @@
 import type { ChallengeId, ChallengeProgress } from "@/lib/challenges";
 
 const POINTS_EACH = {
-  /** A distinct pub backed by the owner's Pint Drop or a nearby check-in. */
+  /** A distinct pub backed by the owner's Pint Drop. */
   been: 5,
   /** A Pint Drop with a price. */
   priceLogged: 5,
@@ -192,7 +192,7 @@ export const POINTS_COPY = {
   } satisfies Record<PointsLineKey, string>,
   howTitle: "How points work",
   how: [
-    "5 once per pub backed by your Pint Drop or a nearby check-in. A Been on its own earns no points.",
+    "5 once per pub backed by your Pint Drop. A Been or nearby check-in on its own earns no points.",
     "5 for each price you log, and 10 more when a bill or a second drinker checks it.",
     "5 for each drink review logged to your account.",
     "50 for a London postcode district once every pub we list in it has a proven visit.",
