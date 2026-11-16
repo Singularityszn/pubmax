@@ -138,6 +138,12 @@ export function nearGuinnessRows(
   ]);
 }
 
+/** Generic containers do not establish an equivalent serving size. */
+export function isComparableNearDrinkMeasure(measure: DrinkMeasure | null): measure is DrinkMeasure {
+  return measure === "pint" || measure === "half"
+    || measure === "125ml" || measure === "175ml" || measure === "250ml";
+}
+
 function measureRank(measure: DrinkMeasure | null): number {
   return measure === null ? DRINK_MEASURES.length : DRINK_MEASURES.indexOf(measure);
 }
@@ -148,8 +154,8 @@ function qualifies(point: NearDrinkPoint): boolean {
 
 /**
  * The cheapest row of EACH measure within the walk of (lat, lng): measured
- * answers first, in the closed measure order, then the size-not-stated answer.
- * Two answers are never compared with each other. A tie on price goes to the
+ * answers first, in the closed measure order, then unranked size-not-stated rows.
+ * Unknown sizes are never compared. A measured tie on price goes to the
  * shorter walk, then to the venue id, so the answer never flips on row order.
  */
 export function cheapestDrinksNearby(
@@ -167,7 +173,8 @@ export function cheapestDrinksNearby(
     byVenue.set(id, [...(byVenue.get(id) ?? []), row]);
   }
 
-  const best = new Map<DrinkMeasure | null, { answer: NearDrinkAnswer; km: number }>();
+  const best = new Map<DrinkMeasure, { answer: NearDrinkAnswer; km: number }>();
+  const unmeasured: NearDrinkAnswer[] = [];
   for (const point of venues) {
     const venueRows = byVenue.get(point.id);
     if (!venueRows || !qualifies(point)) continue;
@@ -175,30 +182,28 @@ export function cheapestDrinksNearby(
     const walkMinutes = walkMinutesFromKm(km);
     if (walkMinutes > maxWalkMinutes) continue;
     for (const [, priceGbp, observedOn, publisher, drinkLabel, measure] of venueRows) {
-      const key = measure ?? null;
-      const held = best.get(key);
+      const answer: NearDrinkAnswer = {
+        id: point.id, name: point.name, priceGbp,
+        observedOn: nearDrinkReadDay(observedOn),
+        publisher: publisher?.trim() || null,
+        drinkLabel: drinkLabel?.trim() || null,
+        measure: measure ?? null, walkMinutes,
+      };
+      if (!isComparableNearDrinkMeasure(measure)) {
+        unmeasured.push(answer);
+        continue;
+      }
+      const held = best.get(measure);
       const better = !held
         || priceGbp < held.answer.priceGbp
         || (priceGbp === held.answer.priceGbp && (km < held.km || (km === held.km && point.id < held.answer.id)));
-      if (!better) continue;
-      best.set(key, {
-        km,
-        answer: {
-          id: point.id,
-          name: point.name,
-          priceGbp,
-          observedOn: nearDrinkReadDay(observedOn),
-          publisher: publisher?.trim() || null,
-          drinkLabel: drinkLabel?.trim() || null,
-          measure: key,
-          walkMinutes,
-        },
-      });
+      if (better) best.set(measure, { km, answer });
     }
   }
-  return [...best.entries()]
-    .sort(([left], [right]) => measureRank(left) - measureRank(right))
-    .map(([, entry]) => entry.answer);
+  return [
+    ...[...best.entries()].sort(([left], [right]) => measureRank(left) - measureRank(right)).map(([, entry]) => entry.answer),
+    ...unmeasured,
+  ];
 }
 
 /** The words an answer prints for its measure. */

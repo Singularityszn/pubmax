@@ -123,7 +123,7 @@ owns query framing, surrounding price pins, and sheet behavior after reload.
 A saved viewport contains the map's centre, zoom, pitch and bearing.
 Only an explicit public-place selection can authorise its settled viewport for storage.
 A gesture or a later automatic move invalidates that authorisation.
-The opening-location check and the map's Near me and travel-location requests clear the camera before a location answer arrives.
+The opening-location check, Near me, travel-location requests and automatic log-picker lookup clear the camera before a location answer arrives.
 A location watch or a location received from another map control also clears it.
 These events cancel pending camera saves and restores.
 Camera storage stays disabled for that map mount after location exposure, including after later public-place selections.
@@ -183,10 +183,10 @@ could-not-check notice, so a reload asks again (`ukBaseRestoreFor` and
 
 ## First-visit arrival card
 
-After the pins reveal, a first visit to the map shows one arrival card
+After the pins reveal, the map can show one first-visit arrival card
 (`components/map/MapArrivalCard.tsx`). The
 [arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-owns its dismissal window and storage compatibility.
+owns its location-permission conditions, dismissal window and storage compatibility.
 
 `searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
 the card back for an arrival that already has its own question. It is
@@ -226,6 +226,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
 | `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
 | `log` | `1` | `lib/mapUrlIntent.ts` (predicate), `lib/mapLogIntent.ts` (composer) | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
+| `pintDropReturn` | UUID v4 | `lib/pintDropDraft.ts`, `lib/accountClaimReturnTo.ts` | Restores a locally stored signed-out Pint Drop draft after sign-in. | Requires a matching stored token and venue within 30 minutes. Missing or mismatched tokens do not consume a valid handoff. A URL alone cannot restore a draft. | Preserved through crawl-state rewrites. A matching return consumes the stored handoff once. Account departure follows the [identity cleanup rule](rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device). |
 | `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserves city, drink, and pub through sign-in. Bound to the first opened pub through deselection; form entry, Home, picker dismissal, or another pub outside the restored picker retires it. Back to the held price picker allows a new pub choice. |
 | `table` | A digit-only crew size accepted by `parseTableRequestPartySize` in `lib/tableRequests.ts` | `lib/tableRequestIntent.ts` | With `sel`, opens the selected pub's table form with its crew size prefilled. `venueTableRequestUrl` preserves the pub's city map path. | An invalid size or a non-pub consumes `table` without opening the form. Without a matching `sel`, the sheet ignores it. | Crawl sync preserves it only for the same selection. Form entry or gate dismissal removes it. Sign-in and handle setup retain it through `/u/you?returnTo=`. A clean map entry or a new browse selection removes it, so another pub cannot inherit the request. |
 | `meet` | A 24-hour London time, `HH:MM` | `lib/summonMates.ts` | With `sel`, shows the summon line "Meet here at <time>." on the selected pub's action card. `venueSummonUrl` builds it beside the city-aware pub link. | A malformed time, a non-pub, or a `sel` for another pub shows nothing. | Same as `table`: crawl sync keeps it only for the same selection, and a new browse selection or a clean map entry removes it. |

@@ -36,6 +36,7 @@ import type {
   CategoryPriceIndexStatus,
   MapExperienceLens,
 } from "@/lib/mapExperienceLens";
+import { useDesktopMapCanvasExemption } from "@/components/map/useDesktopMapCanvasExemption";
 import { FOCUS_TRAP_EXEMPT_ATTRIBUTE } from "@/lib/useFocusTrap";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useSpringValue } from "@/lib/useSpringValue";
@@ -48,6 +49,11 @@ const MapSearchSuggest = lazyPanel(
   "Search did not open. Check your signal.",
 );
 
+
+function toolbarLaneTarget(detailOpen: boolean, leftOpen: boolean, width: number, hasSplitList: boolean): number {
+  if (detailOpen) return hasSplitList ? 0 : -width / 2;
+  return leftOpen ? width / 2 : 0;
+}
 
 /**
  * The map's drink, named on a control of its own.
@@ -320,6 +326,7 @@ export default function MapToolbar({
   // Reopening the tray starts at rest again (trayChipFilters).
   const [pintsPicked, setPintsPicked] = useState(false);
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  useDesktopMapCanvasExemption(toolbarRef, detailOpen, desktopLaneActive);
   const drinkChoicesRef = useRef<HTMLDivElement | null>(null);
   const closeDrinkChoices = () => {
     setLaneOpen(false);
@@ -388,7 +395,7 @@ export default function MapToolbar({
       : null;
     const sync = (immediate = false) => {
       const width = drawer?.getBoundingClientRect().width ?? 0;
-      const target = detailOpen ? -width / 2 : leftOpen ? width / 2 : 0;
+      const target = toolbarLaneTarget(detailOpen, leftOpen, width, Boolean(shell.querySelector(":scope > .mapSplitList")));
       if (immediate) {
         jumpLaneOffset(target);
       } else {

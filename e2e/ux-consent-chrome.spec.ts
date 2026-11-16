@@ -299,7 +299,7 @@ test("mobile consent never covers a control keyboard focus lands on in /social",
   await expect(socialPage.locator('.socialLondonLane[aria-busy="true"]')).toBeVisible();
   await expect(handle).toBeFocused();
   settleLane();
-  await expect(socialPage.locator(".socialEmptySignIn")).toBeVisible();
+  await expect(socialPage.locator(".socialLondonLane")).toHaveCount(0);
   await expect(socialPage.locator('[aria-busy="true"]')).toHaveCount(0, { timeout: 30_000 });
   await expect(handle).toBeFocused();
   await expect.poll(async () => {
@@ -604,8 +604,8 @@ for (const viewport of ONBOARDING_VIEWPORTS) {
     await page.getByRole("button", { name: "Soho" }).click();
 
     // Result.
-    await expect(page.getByRole("button", { name: "That looks right" })).toBeVisible({ timeout: 45_000 });
-    await expectPrimaryClearOfCard("That looks right");
+    await expect(page.getByRole("button", { name: "Keep this pub" })).toBeVisible({ timeout: 45_000 });
+    await expectPrimaryClearOfCard("Keep this pub");
   });
 }
 

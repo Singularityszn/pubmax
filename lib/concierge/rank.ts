@@ -1,6 +1,7 @@
 import { formatGbp } from "@/lib/formatGbp";
 import { comparablePint } from "@/lib/comparablePint.mjs";
 import { haversineKm } from "@/lib/haversine";
+import { positiveFeatureObservation, type VenueFeatureObservation } from "@/lib/venueFeatureEvidence";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 
@@ -33,6 +34,8 @@ type ConciergeContext = {
   timeOfDay?: "afternoon" | "evening" | "late";
 };
 
+export const QUIET_NOT_CHECKED = "Quietness not checked";
+
 export type ConciergeVenue = {
   id: string;
   name: string;
@@ -56,6 +59,17 @@ export type ConciergeVenue = {
     liveSports: boolean;
     liveMusic: boolean;
     nonAlcoholic?: boolean;
+    darts?: boolean;
+    pool?: boolean;
+  };
+  /**
+   * Dated, sourced facts. `amenities.beerGarden` also holds outdoor seating
+   * and undated flags, so only these may answer a hard garden ask.
+   */
+  features?: {
+    garden?: VenueFeatureObservation;
+    outdoorSeating?: VenueFeatureObservation;
+    dogsWelcome?: VenueFeatureObservation;
   };
   nearWater: boolean;
   hasStory: boolean;
@@ -220,10 +234,14 @@ function scoreOne(
     score += contribution;
     if (contribution > 0) {
       const label: Partial<Record<ConciergeMood, string>> = {
-        quiet: "A calmer fit",
+        quiet: QUIET_NOT_CHECKED,
         lively: "Lively atmosphere",
         cosy: "Cosy character",
-        garden: "Beer garden",
+        garden: positiveFeatureObservation(venue.features?.garden, "beerGarden", now)
+          ? "Beer garden"
+          : positiveFeatureObservation(venue.features?.outdoorSeating, "outdoorSeating", now)
+            ? "Outdoor seating"
+            : "Outdoor space listed",
         riverside: "Near the water",
         sports: "Shows live sport",
         date: "Good date-night fit",
@@ -232,6 +250,8 @@ function scoreOne(
         heritage: "Venue heritage on record",
       };
       if (label[mood]) reasons.push(label[mood]!);
+    } else if (mood === "quiet") {
+      reasons.push(QUIET_NOT_CHECKED);
     }
   }
 

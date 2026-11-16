@@ -36,4 +36,17 @@ describe("the map's shared pub feature controls", () => {
     expect(onChange).toHaveBeenCalledWith({ ...filters, requireBeerGarden: false, requireOutdoorSeating: false, requireLiveSports: false, requireDogFriendly: false, requireDarts: false, requirePool: false, openNow: false });
     act(() => root.unmount());
   });
+  it("claims no count, zero or loading, after a failed read, and still waits on a pending one", () => {
+    const host = document.createElement("div");
+    const root = createRoot(host);
+    const filters = { ...initialFilters, requireDogFriendly: true, lastOrders: true };
+    act(() => root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: 0, lastOrdersFailed: true })));
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    act(() => root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: 0, venueDataFailed: true })));
+    expect(host.querySelector('[role="status"]')).toBeNull();
+    act(() => root.render(createElement(VenueFeatureFilters, { filters, onChange: vi.fn(), resultCount: null })));
+    expect(host.querySelector('[role="status"]')?.textContent).toBe("Loading matching places…");
+    act(() => root.unmount());
+  });
 });

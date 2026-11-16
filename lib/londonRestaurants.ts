@@ -36,7 +36,8 @@ import {
   type LondonVenue,
 } from "@/lib/londonVenueShards";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
-import { NO_PINT_PRICE_CAP, type Filters, type Venue } from "@/lib/venues";
+import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
+import type { Filters, Venue } from "@/lib/venues";
 import { parseZoneParam } from "@/lib/zones";
 
 export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
@@ -235,7 +236,7 @@ export function londonRestaurantLayerShown(input: {
 function filtersAskBeyondARestaurantRow(filters: Filters): boolean {
   const zone = parseZoneParam(filters.zone);
   return (
-    filters.maxPrice < NO_PINT_PRICE_CAP ||
+    hasPintPriceCap(filters.maxPrice) ||
     (zone !== null && zone !== "all") ||
     filters.openNow ||
     filters.canonicalOnly ||

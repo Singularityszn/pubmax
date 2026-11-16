@@ -42,8 +42,9 @@ The review proved two independent defects:
      card reports its own visibility through
      `setMapFirstVisitArrivalCardVisible` (`lib/mapFirstVisitArrival.ts`); it
      asks for location itself, so a consent card over it would put two first
-     questions on one screen. It is one tap and one time per device, so the
-     surface behind it is not starved.
+     questions on one screen. The
+     [arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
+     owns its visibility conditions and dismissal window.
    - Native push and create password stand down on a phone-width map or plan-composer route,
      where the outing controls own the foot of the screen (`routeOwnsScreenFoot`,
      `lib/promptBudget.ts`). They do not claim there and come back on the next

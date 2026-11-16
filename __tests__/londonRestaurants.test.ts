@@ -394,6 +394,7 @@ describe("londonRestaurantsPassingMapFilters", () => {
       dishoom.id,
       rules.id,
     ]);
+    expect(pass({}, { maxPrice: Number.NEGATIVE_INFINITY })).toEqual([dishoom.id, rules.id]);
   });
 
   it("keeps the selected restaurant, as a selected curated pin is kept", () => {

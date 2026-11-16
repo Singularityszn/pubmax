@@ -500,3 +500,19 @@ html[data-theme="dark"] .ledgerPrimaryLink {
   text-decoration: underline;
   text-underline-offset: 2px;
 }
+
+.ledgerSecondaryActions {
+  margin: 16px 0 24px;
+}
+
+.ledgerSecondaryActions summary,
+.ledgerCommunity summary {
+  cursor: pointer;
+  min-height: 48px;
+  padding-block: 10px;
+  font-weight: 700;
+}
+
+.ledgerCommunity summary[hidden] {
+  display: none;
+}

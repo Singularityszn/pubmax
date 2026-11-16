@@ -1,22 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// D3 — an open venue drawer owns the right edge on desktop, so the map chrome
-// has to live in the lane that is left of it.
-//
-// Two things went wrong at once on production, and both are measured here.
-//
-//   1. OVERLAP. mapDesktopRail.css hides the toolbar's Conditions chip only
-//      while the drawer is closed, so opening the drawer put the chip BACK into
-//      a `flex-wrap: nowrap` row that was already full. The search cell shrank,
-//      its 260px child and 168px input kept their own floors, and the search
-//      field painted straight through the drink select's box.
-//   2. GHOST. The toolbar and the ambient banners are centred on the whole map
-//      stage, so their right halves ran under the translucent sheet and read as
-//      a second copy of the bar.
-//
-// The Conditions endpoint is mocked because the chip only renders when the
-// weather has a verdict, and without it the row is not full enough to overlap.
-// WebGL is never touched: every box read here is map chrome, not the canvas.
+// The pub replaces the left list column. Controls and banners stay within the
+// map lane without overlapping each other. Conditions fill the toolbar row.
 
 function stableVenueIdFromKey(key: string): string {
   let hash = 2166136261;
@@ -41,7 +26,9 @@ const ARNOS_ARMS_ID = stableVenueIdFromKey(
 );
 
 type ChromeGeometry = {
-  drawerLeft: number;
+  drawerRight: number;
+  mapLeft: number;
+  mapRight: number;
   controls: { label: string; left: number; right: number; top: number; bottom: number }[];
   overlaps: string[];
   ghosts: string[];
@@ -50,7 +37,10 @@ type ChromeGeometry = {
 async function readChromeGeometry(page: Page): Promise<ChromeGeometry> {
   return page.evaluate(() => {
     const drawer = document.querySelector<HTMLElement>(".mapDrawer.right.open")!;
-    const drawerLeft = drawer.getBoundingClientRect().left;
+    const drawerRight = drawer.getBoundingClientRect().right;
+    const map = document.querySelector<HTMLElement>(".mapStage")!.getBoundingClientRect();
+    const mapLeft = map.left;
+    const mapRight = map.right;
     const bar = document.querySelector<HTMLElement>(".mapToolbar")!;
 
     const controls = Array.from(
@@ -100,12 +90,12 @@ async function readChromeGeometry(page: Page): Promise<ChromeGeometry> {
       const node = document.querySelector<HTMLElement>(selector);
       if (!node) continue;
       const box = node.getBoundingClientRect();
-      if (box.width > 0 && box.right > drawerLeft + 1) {
-        ghosts.push(`${selector} right ${Math.round(box.right)} > drawer ${Math.round(drawerLeft)}`);
+      if (box.width > 0 && (box.left < mapLeft - 1 || box.right > mapRight + 1)) {
+        ghosts.push(`${selector} [${Math.round(box.left)}-${Math.round(box.right)}] outside map [${Math.round(mapLeft)}-${Math.round(mapRight)}]`);
       }
     }
 
-    return { drawerLeft, controls, overlaps, ghosts };
+    return { drawerRight, mapLeft, mapRight, controls, overlaps, ghosts };
   });
 }
 
@@ -159,12 +149,14 @@ test.describe("desktop venue sheet keeps the map chrome out of its lane (D3)", (
       expect(geometry.overlaps, geometry.overlaps.join(" | ")).toEqual([]);
       expect(geometry.ghosts, geometry.ghosts.join(" | ")).toEqual([]);
 
+      expect(geometry.mapLeft).toBeGreaterThanOrEqual(geometry.drawerRight - 1);
       // Every control the bar still shows stays inside the free map lane.
       for (const control of geometry.controls) {
+        expect(control.left, control.label).toBeGreaterThanOrEqual(geometry.mapLeft - 1);
         expect(
           control.right,
           `${control.label} reaches ${Math.round(control.right)}`,
-        ).toBeLessThanOrEqual(geometry.drawerLeft + 1);
+        ).toBeLessThanOrEqual(geometry.mapRight + 1);
       }
     });
   }

@@ -324,8 +324,8 @@ describe("propose_plan over the Pal webhook", () => {
       expect(cards.length).toBeGreaterThan(0);
       expect(result.priceEvidence).toHaveLength(cards.length);
       if (id === "cheeky") expect(cards.every((card) => card.price <= 6)).toBe(true);
-      if (id === "quiet") expect(cards.some((card) => /calmer fit/i.test(card.note))).toBe(true);
-      if (id === "date") expect(cards.some((card) => /calmer fit|date-night fit/i.test(card.note))).toBe(true);
+      if (id === "quiet") expect(cards.some((card) => /Quietness not checked/i.test(card.note))).toBe(true);
+      if (id === "date") expect(cards.some((card) => /Quietness not checked|date-night fit/i.test(card.note))).toBe(true);
     }
   });
 

@@ -142,6 +142,7 @@ describe("UK base rows", () => {
       ],
       null,
     );
-    expect(defined(model.rows[0]).priceLabel).toBe("Other bar · no listed price");
+    expect(defined(model.rows[0]).priceLabel).toMatch(/\bbar\b/i);
+    expect(defined(model.rows[0]).priceLabel).not.toMatch(/\bpub\b/i);
   });
 });

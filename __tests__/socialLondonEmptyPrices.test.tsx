@@ -9,6 +9,7 @@ import { describe, expect, it } from "vitest";
 import SocialLondonEmpty from "@/app/social/SocialLondonEmpty";
 import { buildSocialAlternatives } from "@/lib/socialAlternatives";
 import { parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
+import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 
 const rows = parseUkPriceBundleRows(JSON.parse(readFileSync(
   join(process.cwd(), "public/data/uk_prices/rows.json"), "utf8",
@@ -29,6 +30,16 @@ function pricesSection(venue: Parameters<typeof buildSocialAlternatives>[0][numb
   host.innerHTML = renderToStaticMarkup(createElement(SocialLondonEmpty, { alternatives }));
   return { alternatives, section: host.querySelector("section[aria-labelledby='social-empty-prices']") };
 }
+
+describe("Social first view dated pints", () => {
+  it("includes newer attributed pint observations from the published venue data", () => {
+    const venueRows = JSON.parse(readFileSync(join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8")) as VenuePrice[];
+    const venues = groupVenuePrices(venueRows);
+    const answer = buildSocialAlternatives(venues, [], Date.parse("2026-11-15T12:00:00Z"), rows);
+    expect(answer.prices[0]?.observedOn).toBe("2026-11-09");
+    expect(answer.prices[0]?.publisher.label).toBe("Pint Prices");
+  });
+});
 
 describe("Social empty-state pint prices from the published price bundle", () => {
   it("keeps a pub's published wine list out and says no dated price is held", () => {

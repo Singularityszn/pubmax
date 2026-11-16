@@ -28,14 +28,6 @@ import LandingPage from "@/components/landing/LandingPage";
 import type { HuntPint } from "@/lib/cheapestHunt";
 import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-// The hero's rhythm is the Screen primitive's order and nothing else: the
-// heading (no brand kicker over it: the wordmark already says it), one line
-// under it, the cheapest pint we can find in Britain (the hunt card that took
-// the photograph's place on 1 Nov 2026), the one primary, the quiet row, then
-// the one real pub and the three next-cheapest rows. That order is the DOM
-// order, so it is the phone order, and the desktop grid may only seat the hunt
-// card and the rows beside the copy, never reorder them.
-
 const huntPint: HuntPint = {
   venueId: "venue-hunt",
   pubName: "The Scolt Head",
@@ -105,16 +97,16 @@ describe("landing hero rhythm", () => {
     }),
   );
 
-  it("reads heading, lede, primary, quiet row, hunt card, pub card, rail, in that order", () => {
+  it("reads heading, lede, primary, quiet row, pub card, hunt card, rail, in that order", () => {
     const order = positions(html, [
       '<h1 class="screenTitle" id="hero-title">Make the group chat a real night.</h1>',
       '<p class="screenLede">',
       'data-primary-action=""',
       'class="screenSecondary"',
-      'class="lpHuntCard"',
       // The card carries its photograph class too (lib/landingImagery.ts), so
       // the needle is the stable prefix rather than the whole attribute.
       'class="lpPubCard lpAnswerCard',
+      'class="lpHuntCard"',
       'class="lpRail"',
     ]);
     expect([...order].sort((a, b) => a - b)).toEqual(order);

@@ -460,6 +460,11 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
   });
 
+  it("nearPoint() can load the wider radius needed by the pub picker", async () => {
+    const loader = createSlimShardLoader("london");
+    expect((await loader.nearPoint(51.585, -0.08, 5)).rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "e1"]);
+  });
+
   it("nearPoint() returns cached rows on repeat and overlapping reads", async () => {
     const loader = createSlimShardLoader("london");
     const first = await loader.nearPoint(51.5, -0.001);

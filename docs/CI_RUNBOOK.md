@@ -4,7 +4,7 @@ GitHub Actions workflows live under `.github/workflows/`. CI owns the full
 suite. A merge needs CI green on the latest commit. Before you push, run
 `npm run verify:no-mistakes:changed`.
 
-The main ruleset requires five green summary checks, one per pull-request
+The main ruleset requires four green summary checks, one per pull-request
 workflow. The GitHub merge queue runs them again on the commit that will land.
 See [The required checks and the merge queue](#the-required-checks-and-the-merge-queue).
 
@@ -13,12 +13,11 @@ See [The required checks and the merge queue](#the-required-checks-and-the-merge
 Before 7 Nov 2026 GitHub required no check on `main`. Only 19 of the last 43
 merged pull requests had green CI and green browser tests when they merged,
 and `main` broke twice on 6 Nov. For about 9 hours every pull request then
-failed its browser tests. So a merge now needs five green checks:
+failed its browser tests. So a merge now needs four green checks:
 
 | Required check | Workflow | What it is |
 | --- | --- | --- |
 | `CI check` | `ci.yml` | The summary job. It needs every other job in the workflow. |
-| `Browser tests check` | `e2e.yml` | The summary job. It needs `Merge queue proof`, the law pins, `Change scope` and the three layout pins. |
 | `RLS session check` | `rls-session.yml` | The summary job. It needs `Merge queue proof` and the RLS session job. |
 | `Security CI check` | `security-ci.yml` | The summary job. It needs `Merge queue proof` and all four security jobs. |
 | `Freshness check` | `freshness.yml` | The summary job. It needs change detection and the freshness job. |
@@ -36,34 +35,23 @@ every pull-request job in its workflow and runs its script.
 The browser summary excludes the two full-suite jobs and `nightly-failure-issue`.
 These jobs never run for pull requests or the merge queue.
 
-The five workflows also listen for `merge_group`. The queue tests each pull
-request on top of `main` and the pull requests ahead of it, so a change that
-is green alone but red beside another one never reaches `main`. The general change classifiers read `merge_group` as `code`, so those Linux jobs run in full.
+The four required workflows and the browser workflow also listen for
+`merge_group`. The queue tests each pull request on top of `main` and the
+pull requests ahead of it. The pull request merge commit may use an older base,
+so its checks cannot prove the queue commit. The general change classifiers
+read `merge_group` as `code`, so those Linux jobs run in full.
 Freshness checks the queue diff and runs its data checks only when data changed.
 
-The macOS layout pins run in the merge queue. Ordinary pull request pushes
-and `main` pushes skip them (captain, 9 Nov 2026). This replaces the 7 Nov 2026
-choice to leave them on each pull request push and each `main` push. The queue
-settings assume three Mac places. A pull request waited about an hour for one,
-and each push used about 42 Mac minutes. In the queue they test the exact commit
-that lands, which before ran them only after it was on `main`.
-`Browser tests check` still needs them, so a layout failure ejects its queue
-entry. Each layout job checks its merge-group branch after it receives a Mac
-runner, before checkout or setup. A `404` fails the job and releases the runner
-without installation or tests. Other API responses and connection failures
-allow the job to continue. Pull request jobs do not query a merge-group branch.
-To request an early run, add the `layout-pins` label to a pull request from this
-repository. The label cancels the older browser run and starts a new one.
-Each later push runs the pins again while the label stays.
-On labelled pull requests, the pins skip changes with no screen code unless
-classification fails.
-See [What a pull request runs](#what-a-pull-request-runs) for the classifier.
-Other label events skip every job and use separate,
-non-cancelling runs. Their check names start with `Not run for label - `, so
-they cannot replace the real browser checks.
-Each queue entry starts three layout jobs. With three available Mac places,
-the jobs can run together. See [Self-hosted Mac runners](#self-hosted-mac-runners)
-for runner setup.
+The macOS layout pins run on the nightly full-suite dispatch. They also run
+on a pull request from this repository while it carries the `layout-pins`
+label. Adding the label cancels the older browser run and starts a new one.
+Each later push runs the pins again while the label stays. The pins skip changes
+with no screen code unless classification fails. Other label events skip every
+job and use separate, non-cancelling runs. Their check names start with
+`Not run for label - `, so they cannot replace the real browser checks.
+The pins do not run on merge groups or main pushes. `Browser tests check`
+still reports and accepts skipped layout jobs. It is not a required check.
+See [Self-hosted Mac runners](#self-hosted-mac-runners) for runner setup.
 
 The queue moves `main` to the exact commit it tested. In
 `ci.yml`, `e2e.yml`, `rls-session.yml` and
@@ -75,8 +63,8 @@ only to save the Next.js build cache for later pull requests. GitHub scopes
 caches to their ref. Pull requests can restore caches from their own ref and
 the base branch, but cannot restore caches from temporary merge queue refs.
 `Review scope` still runs because the queue does not run it. The layout pins
-run in the queue and skip every `main` push. When the proof finds no run, or
-the API call fails, the proof-gated jobs run.
+skip the queue and every `main` push. When the proof finds no run, or the API
+call fails, the proof-gated jobs run.
 `__tests__/ciSummaryCheck.test.ts` holds which jobs run for each event.
 
 On pull requests and merge groups, `Coverage` runs after successful unit
@@ -130,7 +118,6 @@ gh api --method POST repos/Singularityszn/pubmax/rulesets --input - <<'JSON'
         "do_not_enforce_on_create": false,
         "required_status_checks": [
           { "context": "CI check", "integration_id": 15368 },
-          { "context": "Browser tests check", "integration_id": 15368 },
           { "context": "RLS session check", "integration_id": 15368 },
           { "context": "Security CI check", "integration_id": 15368 },
           { "context": "Freshness check", "integration_id": 15368 }
@@ -389,7 +376,7 @@ keyless projects. The [browser workflow](../.github/workflows/e2e.yml) owns
 the shard matrix and project lists. Each Chromium shard builds one server.
 `Full browser suite (WebGL and keyless)` builds both the normal and keyless
 servers. These jobs use the worker limit defined above.
-A dispatch skips the layout-pin jobs to avoid duplicate runs on the Mac pool.
+A dispatch also runs the three layout-pin jobs without quarantine exclusions.
 [The nightly full suite](#the-nightly-full-suite) owns dispatch timing and
 quarantine exclusions.
 
@@ -411,8 +398,9 @@ suite once, not once in the shards and again for coverage.
 
 ### The nightly full suite
 
-The full suite runs only on a dispatch, never on a pull request or a push to
-`main`. It has no `schedule`. GitHub started the old 03:17 UTC schedule six to
+The full suite and layout pins run on the nightly dispatch. The full suite
+never runs on a pull request or a push to `main`. It has no `schedule`.
+GitHub started the old 03:17 UTC schedule six to
 eight hours late (29 Oct to 7 Nov 2026), and the 20:17 UTC schedule at 23:38
 and 23:43 UTC (7 and 8 Nov 2026), while pull requests still came in. A pull
 request waited p50 79 minutes for a Mac place while the full suite ran,
@@ -580,7 +568,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | follows the [layout-job schedule](#the-required-checks-and-the-merge-queue) and layout scope above |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |
 | Browser tests / nightly failure report | not run on pull requests (nightly dispatch on `main` only) | same | same |
-| Browser tests / Browser tests check (required) | runs | runs | runs |
+| Browser tests / Browser tests check | runs | runs | runs |
 | RLS session tests | green, steps skipped | green, steps skipped | runs |
 | RLS session tests / RLS session check (required) | runs | runs | runs |
 | Security CI (zizmor, osv-scanner, Semgrep, gitleaks) | runs | runs | runs |

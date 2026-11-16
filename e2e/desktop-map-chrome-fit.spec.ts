@@ -30,14 +30,10 @@ async function renderedBox(locator: Locator, label: string) {
   return box;
 }
 
-/**
- * Where the map lane starts. From 1024px the list beside the map holds the
- * window's left edge (components/map/MapSplitList.tsx), the map stage starts at
- * its right edge, and the planner opens from there rather than over the list.
- */
+/** The map lane stays beside the column showing either the list or a pub. */
 async function mapLaneLeft(page: Page): Promise<number> {
   const stage = page.locator(".mapStage");
-  await expect(page.locator(".mapSplitList")).toBeVisible({ timeout: 20_000 });
+  await expect(stage).toBeVisible({ timeout: 20_000 });
   return (await renderedBox(stage, "map stage")).x;
 }
 
@@ -69,7 +65,7 @@ async function stubCityStatus(page: Page) {
   );
 }
 
-async function toolbarPubOption(page: Page, query: string, name: RegExp) {
+async function toolbarPubOption(page: Page, query: string, name: string | RegExp) {
   const search = page
     .locator(".mapToolbar")
     .getByRole("combobox", { name: "Search pubs" });
@@ -79,7 +75,7 @@ async function toolbarPubOption(page: Page, query: string, name: RegExp) {
   return option;
 }
 
-async function selectToolbarPub(page: Page, query: string, name: RegExp) {
+async function selectToolbarPub(page: Page, query: string, name: string | RegExp) {
   const option = await toolbarPubOption(page, query, name);
   await option.click();
 }
@@ -399,6 +395,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     { timeout: 90_000 },
   );
   await expect(retargetVenue).toHaveCount(1, { timeout: 20_000 });
+  const retargetVenueName = (await retargetVenue.locator(".mapSplitListRowName").innerText()).trim();
   await toolbar
     .getByRole("button", { name: "Plan an outing" })
     .evaluate((button) => (button as HTMLElement).click());
@@ -462,18 +459,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     Math.abs(ownershipChange.after - ownershipChange.before),
   ).toBeLessThan(16);
 
-  // Fully off-screen is also x < laneLeft - 1 (the planner leaves under the
-  // list beside the map), so wait for a frame that is still crossing rather
-  // than sampling after the spring has finished. Under load the
-  // spring can finish before the first sample, so mid-exchange geometry is
-  // asserted only when a crossing frame is caught.
-  //
-  // A crossing frame is one where the planner has covered less than 80% of its
-  // exit. Both drawers share one spring response (SpringDrawer), but the venue
-  // enters underdamped (SHEET_ENTRANCE_OVERSHOOT_DAMPING) and reaches its rest
-  // edge when the critically damped planner has covered about 88%, then
-  // overshoots left of it by about 18px. A tail frame of the planner's exit
-  // therefore finds the venue at or left of 800 in a correct exchange.
+  // Capture a planner exit frame when available. The pub stays in the list column.
   let caughtMidExchange = false;
   let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
   let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
@@ -510,27 +496,28 @@ test("1440px planner hands ownership to venue and Back restores composed state",
   if (caughtMidExchange && plannerMid && venueMid && toolbarMid) {
     expect(plannerMid.x).toBeLessThan(laneLeft);
     expect(plannerMid.x).toBeGreaterThan(laneLeft - plannerMid.width * 0.8);
-    expect(venueMid.x).toBeGreaterThan(800);
-    expect(venueMid.x).toBeLessThan(DESKTOP.width);
+    expect(venueMid.x + venueMid.width).toBeLessThanOrEqual(laneLeft + 1);
     await captureDrawerExchange(page, "mid-exchange");
   }
 
   await expect(planner).toHaveAttribute("aria-hidden", "true");
   await expect(venue).toHaveAttribute("aria-hidden", "false");
 
+  await venue.getByRole("button", { name: "Back to Plan an outing" }).click();
+  await expect(planner).toHaveAttribute("aria-hidden", "false");
+  await expect(planner.locator("#railSearchInput")).toHaveValue("Soho");
+  await (await indexedToolbarPubOption(page, "Soho", 0)).click();
+  await expect(planner).toHaveAttribute("aria-hidden", "true");
+  await expect(venue).toHaveAttribute("aria-hidden", "false");
+
   const venueBeforeRetarget = await renderedBox(
     venue,
-    "venue before mid-spring retarget",
+    "venue before another pub is chosen",
   );
-  const retargetVenueName = await retargetVenue.evaluate((button) => {
-    const name = button
-      .querySelector<HTMLElement>(".mapSplitListRowName")
-      ?.innerText.trim();
-    if (!name) throw new Error("retarget venue name is missing");
-    (button as HTMLElement).click();
-    return name;
-  });
-  await page.waitForTimeout(16);
+  await expect(page.locator(".mapSplitList")).toBeHidden();
+  await expect(page.locator(".mapSplitList")).toHaveJSProperty("inert", true);
+  await selectToolbarPub(page, retargetVenueName, retargetVenueName);
+  await expect(venue.getByRole("heading", { name: retargetVenueName }).first()).toBeVisible();
   const venueAfterRetarget = await renderedBox(
     venue,
     "venue after mid-spring retarget",
@@ -557,20 +544,18 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     renderedBox(venue, "open venue drawer"),
     renderedBox(toolbar, "toolbar beside venue"),
   ]);
-  // At rest the venue drawer docks to the right edge at the width it publishes
-  // (venueSheet.css: --desktop-venue-drawer-width: min(640px, 46vw), so 800px
-  // at 1440). The custom property is an unresolved min(), so its resolved
-  // computed width is read instead of restating 640 here.
-  const venueRestX = await venue.evaluate(
-    (node) => window.innerWidth - Number.parseFloat(getComputedStyle(node).width),
-  );
-  expect(venueOpen.x).toBeCloseTo(venueRestX, 1);
+  const listColumn = await renderedBox(page.locator(".mapSplitList"), "retained list column");
+  expect(venueOpen.x).toBeCloseTo(listColumn.x, 1);
+  expect(venueOpen.width).toBeCloseTo(listColumn.width, 1);
+  expect(venueOpen.x + venueOpen.width).toBeLessThanOrEqual(mapAfter.x + 1);
+  expect(toolbarOpen.x).toBeGreaterThanOrEqual(mapAfter.x + EDGE_GUTTER - SUBPIXEL_TOLERANCE);
   expect(toolbarOpen.x + toolbarOpen.width).toBeLessThanOrEqual(
-    venueOpen.x - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
+    mapAfter.x + mapAfter.width - EDGE_GUTTER + SUBPIXEL_TOLERANCE,
   );
+  expect(toolbarOpen.x).toBeLessThanOrEqual(toolbarBeforeOwnershipChange.x + SUBPIXEL_TOLERANCE);
   if (toolbarMid) {
-    expect(toolbarMid.x).toBeLessThan(toolbarBeforeOwnershipChange.x);
-    expect(toolbarMid.x).toBeGreaterThan(toolbarOpen.x);
+    expect(toolbarMid.x).toBeLessThanOrEqual(toolbarBeforeOwnershipChange.x + SUBPIXEL_TOLERANCE);
+    expect(toolbarMid.x).toBeGreaterThanOrEqual(toolbarOpen.x - SUBPIXEL_TOLERANCE);
   }
   expect(mapAfter).toEqual(mapBefore);
   await captureDrawerExchange(page, "venue-open");
@@ -586,7 +571,7 @@ test("1440px planner hands ownership to venue and Back restores composed state",
     .click();
   await expect(planner).toHaveAttribute("aria-hidden", "false");
   await expect(planner.locator("#railSearchInput")).toHaveValue(
-    "Soho",
+    retargetVenueName,
   );
   await expect
     .poll(() => page.locator(".mapDrawer.springDrawer.open").count(), {
@@ -743,15 +728,16 @@ test("1440px reduced motion swaps desktop drawer ownership immediately", async (
   await expect(venue).toHaveAttribute("aria-hidden", "false");
   await expect(page.locator(".mapDrawer.springDrawer.open")).toHaveCount(1);
 
-  const [plannerBox, venueBox] = await Promise.all([
-    renderedBox(planner, "reduced-motion planner"),
-    renderedBox(venue, "reduced-motion venue"),
-  ]);
-  // The closed planner rests under the list beside the map, one rail width
-  // left of the lane it opens into.
+  const venueBox = await renderedBox(venue, "reduced-motion venue");
+  await expect(planner.locator(":scope > div")).toHaveJSProperty("inert", true);
   const laneLeft = await mapLaneLeft(page);
-  expect(plannerBox.x).toBeCloseTo(laneLeft - EXPECTED_PLANNER_RAIL_WIDTHS[1440], 0);
-  expect(venueBox.x).toBeCloseTo(800, 0);
+  const list = page.locator(".mapSplitList");
+  await expect(list).toBeHidden();
+  await expect(list).toHaveJSProperty("inert", true);
+  const column = await renderedBox(list, "retained list column");
+  expect(venueBox.x).toBeCloseTo(column.x, 0);
+  expect(venueBox.width).toBeCloseTo(column.width, 0);
+  expect(venueBox.x + venueBox.width).toBeLessThanOrEqual(laneLeft + 1);
 });
 
 // ONE AMBIENT SURFACE HOLDS THE MAP. UI review 17 Sep 2026, finding 5: once the

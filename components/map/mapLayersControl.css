@@ -200,7 +200,7 @@
   align-items: center;
   gap: 6px;
   min-height: 44px;
-  padding: 5px 12px;
+  padding: 5px var(--space-3);
   border: 1px solid color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
   border-radius: var(--radius-pill);
   background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
