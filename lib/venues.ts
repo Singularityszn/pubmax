@@ -1,3 +1,4 @@
+import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { legacyCheapestPriceEvidence, legacyCheapestPriceReadDay } from "@/lib/legacyPriceEvidence.mjs";
@@ -1204,6 +1205,7 @@ function hasSlimFlag(venue: Venue, pick: (hints: VenueFilterHints) => boolean): 
 
 function matchesVenueQuery(venue: Venue, query: string): boolean {
   if (!query) return true;
+  if (mapSearchNameTier(venueSearchNames(venue), query) !== null) return true;
   const searchableFields = [
     ...venueSearchNames(venue),
     venue.address,

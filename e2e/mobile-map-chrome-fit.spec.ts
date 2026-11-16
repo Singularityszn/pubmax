@@ -9,6 +9,7 @@ import {
   expectMobileMapShellReady,
   forgetHeldTubeStatus,
   mobileMapShellControl,
+  openMobileFilterRefinements,
   routeTubeStatus,
 } from "./helpers/mobileMapShell";
 
@@ -18,7 +19,7 @@ import {
 // What used to stack here — a Near me / Tonight / Filters rail and a
 // full-width category band — is gone: the category toggles live in the Filters
 // sheet, Near me is a round map-edge FAB, and Tonight keeps its other homes
-// (the tab bar and a lens at the head of the Filters sheet). So the
+// (the tab bar and a lens in the additional filters). So the
 // measurements below are the bar, the chip row, the bottom card (which carries
 // the plan door), the map-edge lane and the budget they may not exceed: THREE
 // resting layers, counted by `restingLayers` below.
@@ -84,6 +85,7 @@ const PIN_READY_TARGET_MS =
   PERFORMANCE_BUDGETS.routes.find((route) => route.path === "/map")?.pinReady?.targetMs ?? 4_000;
 
 test.use({
+  serviceWorkers: PIN_SLA_ENFORCED ? "allow" : "block",
   launchOptions: {
     args: PIN_SLA_ENFORCED
       ? []
@@ -97,9 +99,14 @@ test.use({
 
 test.setTimeout(120_000);
 
+test.beforeEach(async ({ page }) => {
+  if (!PIN_SLA_ENFORCED) await installDeterministicMapBasemap(page);
+});
+
 test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   page,
 }) => {
+  test.info().annotations.push({ type: "basemap", description: PIN_SLA_ENFORCED ? "live" : "deterministic" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
@@ -125,6 +132,7 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
           __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
         }
       ).__pubmaxPaintedMapTapPoints?.().length > 0,
+    undefined,
     // A wait, not a ceiling: the recorded envelope in perf/route-budgets.json
     // is 9.8-25.5s on this SwiftShader build, so a shorter wait here would
     // fail the very run whose figure it exists to record. The enforced ceiling
@@ -208,6 +216,8 @@ async function openPhoneMap(
     page.getByRole("button", { name: "Plan a pub crawl" }),
   ).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+  await expect(page.locator(".maplibregl-canvas")).toBeVisible();
+  await expect(page.locator(".maplibregl-ctrl-attrib-button")).toBeVisible();
 }
 
 async function openLimitedPhoneMap(
@@ -449,6 +459,7 @@ for (const viewport of VIEWPORTS) {
     // is measured beside Near me.
     await openPhoneMap(page, viewport, "reduce", "/map", "urgent");
     await expect(await mobileMapShellControl(page, "tfl")).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator(".mapPeek")).toHaveAttribute("data-state", "answer");
     const layout = await shellLayout(page);
     console.log(
       `mobile-map-chrome-layout ${viewport.width}px ${JSON.stringify(layout)}`,
@@ -650,7 +661,7 @@ for (const viewport of VIEWPORTS) {
     expect(credit!.right, "clear of the map-edge column").toBeLessThanOrEqual(locate!.left);
   });
 
-  test(`${viewport.width}px What's On is a lens at the head of the Filters sheet`, async ({
+  test(`${viewport.width}px What's On leads the additional filters`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
@@ -663,12 +674,15 @@ for (const viewport of VIEWPORTS) {
     const sheet = page.locator(
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
     );
+    await expect(sheet.locator(".mobilePriceChoices")).toBeVisible();
+    await expect(sheet.locator(".mobileMapTonightLens")).toBeHidden();
+    await openMobileFilterRefinements(sheet);
     const lens = sheet.locator(".mobileMapTonightLens");
     await expect(lens).toBeVisible({ timeout: 20_000 });
-    const first = await sheet.locator(".mobileMapFilters").evaluate(
+    const first = await sheet.locator(".mobileFilterRefinements").evaluate(
       (root) => root.firstElementChild?.className ?? "",
     );
-    expect(first, "the lens leads the sheet").toContain("mobileMapTonightLens");
+    expect(first, "the lens leads the additional filters").toContain("mobileMapTonightLens");
     await expect(lens).toContainText("Pub listings tonight");
     await tapRenderedCentre(page, lens, viewport.width, "Pub listings tonight lens");
     await expect(
@@ -728,6 +742,7 @@ for (const viewport of VIEWPORTS) {
       '.mobileSheetPortal[data-sheet-kind="filters"]:visible',
     );
     await expect(sheet).toHaveCount(1);
+    await openMobileFilterRefinements(sheet);
 
     // The venue-type toggles have exactly one home on a phone: this sheet.
     const arc = sheet.getByRole("group", { name: "Venue types" });
@@ -751,15 +766,13 @@ for (const viewport of VIEWPORTS) {
       );
     }
 
-    const wine = sheet
-      .getByRole("group", { name: "Filter by drink shape" })
+    await tapRenderedCentre(page, sheet.locator(".mobileFilterDrink button"), viewport.width, "Drink choices");
+    const drinks = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]:visible');
+    const wine = drinks
+      .getByRole("group", { name: "Drink prices shown on the map" })
       .getByRole("button", { name: "Wine", exact: true });
     await tapRenderedCentre(page, wine, viewport.width, "Wine filter");
-    await expect(
-      sheet
-        .getByRole("group", { name: "Filter by drink shape" })
-        .getByRole("button", { name: "Wine (selected)" }),
-    ).toHaveAttribute("aria-pressed", "true");
+    await expect(wine).toHaveAttribute("aria-pressed", "true");
     expect(browserErrors).toEqual([]);
   });
 }
@@ -940,7 +953,6 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
 }) => {
   const viewport = VIEWPORTS[0];
   await openPhoneMap(page, viewport, "no-preference");
-  await page.waitForTimeout(500);
 
   const filters = await mobileMapShellControl(page, "filters");
   await tapRenderedCentre(page, filters, viewport.width, "Filters");
@@ -949,27 +961,26 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
   );
   await expect(filtersSheet).toHaveCount(1);
 
-  const wine = filtersSheet
-    .getByRole("group", { name: "Filter by drink shape" })
+  await tapRenderedCentre(page, filtersSheet.locator(".mobileFilterDrink button"), viewport.width, "Drink choices");
+  const drinks = page.locator('.mobileSheetPortal[data-sheet-kind="drink"]:visible');
+  const wine = drinks
+    .getByRole("group", { name: "Drink prices shown on the map" })
     .getByRole("button", { name: "Wine", exact: true });
   await tapRenderedCentre(page, wine, viewport.width, "Wine filter");
-  await expect(
-    filtersSheet.getByRole("button", { name: "Wine (selected)" }),
-  ).toHaveAttribute("aria-pressed", "true");
-  await page.waitForTimeout(500);
+  await expect(wine).toHaveAttribute("aria-pressed", "true");
 
   // The sheet's way out is SurfaceNav's Home control now
   // (components/ui/surface-nav.tsx); the bespoke close button it replaced is
   // gone, and so is the class this used to tap.
-  const closeFilters = filtersSheet.locator(".surfaceNavHome");
+  const closeDrinks = drinks.locator(".surfaceNavHome");
   await tapRenderedCentre(
     page,
-    closeFilters,
+    closeDrinks,
     viewport.width,
-    "Close Filters",
+    "Close drink choices",
   );
   await expect(filtersSheet).toHaveCount(0);
-  await page.waitForTimeout(500);
+  await expect(drinks).toHaveCount(0);
 
   const venueSheet = page.locator(
     '.mobileSheetPortal[data-sheet-kind="venue"]:visible',
@@ -1021,7 +1032,11 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
         if (pin) tappedPinId = pin.id;
         await page.mouse.click(target.x, target.y);
         // A cluster answers with a camera move; a pin answers with the sheet.
-        await page.waitForTimeout(pin ? 400 : 900);
+        await expect.poll(() => page.evaluate(() => {
+          const probe = (window as Window & { __pubmaxMapCamera?: { read: () => { moving: boolean; settling: boolean } } }).__pubmaxMapCamera;
+          const camera = probe?.read();
+          return camera ? !camera.moving && !camera.settling : false;
+        })).toBe(true);
         return (await venueSheet.count()) > 0;
       },
       { message: "a painted map pin receives its own tap", timeout: 90_000 },
@@ -1035,7 +1050,6 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
       message: "the sheet belongs to the pin that was tapped",
     })
     .toBe(tappedPinId);
-  await page.waitForTimeout(1_200);
 });
 
 // The right-edge floating stack: one column, never an overlap.

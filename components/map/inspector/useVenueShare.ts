@@ -22,6 +22,7 @@ export type VenueShareLoggedPint = {
 export function useVenueShare(
   venue: Venue,
   loggedPint: VenueShareLoggedPint | null = null,
+  selectionHint = "",
 ) {
   const [shareFeedback, setShareFeedback] = useState<ShareFeedback | null>(null);
   const currentShareFeedback =
@@ -29,7 +30,9 @@ export function useVenueShare(
 
   const shareVenue = useCallback(async () => {
     if (typeof window === "undefined") return;
-    const url = new URL(venueMapUrl(venue.id), window.location.origin).toString();
+    const target = new URL(venueMapUrl(venue.id), window.location.origin);
+    if (selectionHint) target.searchParams.set("at", selectionHint);
+    const url = target.toString();
     const title = venue.name;
     const setShareStatus = (tone: ShareFeedback["tone"], text: string) => {
       setShareFeedback({ venueId: venue.id, tone, text });
@@ -78,7 +81,7 @@ export function useVenueShare(
     } catch {
       setShareStatus("error", "Couldn't copy the link. Copy it from your browser bar.");
     }
-  }, [venue, loggedPint]);
+  }, [venue, loggedPint, selectionHint]);
 
   return { currentShareFeedback, shareVenue };
 }
