@@ -406,13 +406,6 @@
   overscroll-behavior: contain;
 }
 
-@media (min-width: 641px) and (max-width: 768px) {
-  .siteNavMoreMenuPortaled,
-  .siteNavBarFloating:has(.authMenu) {
-    z-index: calc(var(--z-modal) + 2);
-  }
-}
-
 .siteNavMoreItem {
   display: flex;
   flex-direction: column;
