@@ -1,6 +1,7 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import Script from "next/script";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
 import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
 import { mapPricesReadLineFor } from "@/lib/mapPricesReadLine.server";
@@ -47,16 +48,13 @@ export default async function MapPage() {
   const openingGround = loadMapOpeningGround();
   return (
     <>
-      {/* defer, not a sync script. On a cold first visit - the one the
-          budget sweep measures - this file registers a listener for
-          pubmax:first-pins and does nothing else, yet as a blocking script it
-          held /map's first paint for about 100 ms under the tracked throttle.
-          Its own law is that bytes pulled early compete with the work they are
-          meant to accelerate; a script that blocks the first paint in order to
-          SCHEDULE a warm is that same trade. It still runs long before the
-          event it waits for, and document.currentScript is set for a deferred
-          classic script, so the ?v= revision read is unchanged. */}
-      <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
+      {/* This page-only warm starts after hydration, so it cannot block the
+          document's first paint. It also checks the first-pins flag when it
+          loads, so it can start after a client navigation. */}
+      <Script
+        src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`}
+        strategy="afterInteractive"
+      />
       <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
       <PubMaxingShell
         cityId="london"

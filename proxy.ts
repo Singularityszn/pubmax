@@ -678,10 +678,9 @@ export const config = {
     // front of them bought nothing while putting a function failure in front of
     // a healthy file. The last branch does the same for the files at the root
     // of public/ and the /pal art, by extension, and ONLY there (a dynamic page
-    // such as /u/foo.png must keep its nonce): theme-init.js and
-    // map-first-paint-init.js load in <head>, so a cold start here delayed
-    // first paint. The final branches leave out the CDN documents (see
-    // the query entries above). Next only reads a matcher it can analyse STATICALLY, so
+    // such as /u/foo.png must keep its nonce). The final branches leave out
+    // the CDN documents (see the query entries above).
+    // Next only reads a matcher it can analyse STATICALLY, so
     // the alternation is written out here as a literal;
     // `__tests__/staticAssetPrefixes.test.ts` derives it from
     // lib/staticAssetPrefixes.mjs and fails when the two drift, and the same
