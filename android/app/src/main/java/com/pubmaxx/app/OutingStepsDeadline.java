@@ -47,7 +47,6 @@ final class OutingStepsDeadline {
         long remaining = windowSince + MAX_SPAN_MS - now;
         if (remaining <= 0) {
             expiredSession = windowSession;
-            disarm();
             return Verdict.EXPIRED;
         }
         armed = true;
