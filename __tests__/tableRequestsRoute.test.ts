@@ -470,7 +470,7 @@ describe("POST /api/table-requests: the two ways out", () => {
       lookupStarted.resolve();
       return addressResult.promise;
     });
-    const payload = request({ requestKey: "test-key-reclaim-race-2749" });
+    const payload = request({ requestKey: "test-key-1111111111111111" });
     const original = POST(post(payload));
     try {
       await lookupStarted.promise;
@@ -556,7 +556,7 @@ describe("POST /api/table-requests: the two ways out", () => {
     state.noProvider = noProvider;
     const transition = vi.spyOn(memoryTableRequestsStore, "transition").mockRejectedValue(new Error("claim unavailable"));
     try {
-      const response = await POST(post(request({ requestKey: "test-key-claim-failure-2749" })));
+      const response = await POST(post(request({ requestKey: "test-key-2222222222222222" })));
       expect(response.status).toBe(503);
       expect(await response.json()).toMatchObject({ retryable: true });
       expect(state.sent).toHaveLength(0);
