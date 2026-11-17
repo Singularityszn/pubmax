@@ -1,10 +1,3 @@
-// Tiny honest route-shape thumbnail for the /crawls cards (E4) and the invite page: the crawl's
-// resolved stop coordinates as a normalised polyline in a square viewBox.
-// Straight lines between stops — deliberately NOT a map, matching the
-// "straight-line" honesty rule in lib/routeLegs. Renders nothing when fewer
-// than 2 points exist (never fakes a shape). Strokes/fills use currentColor
-// so the card's CSS color drives it in both themes with zero new tokens.
-
 type RouteThumbnailProps = {
   /** Ordered stop coordinates in [lng, lat] (GeoJSON) order. */
   points: readonly [number, number][];
@@ -18,6 +11,7 @@ type RouteThumbnailProps = {
    */
   stopNumbers?: readonly number[];
   linePoints?: readonly [number, number][];
+  numberSize?: "default" | "compact";
 };
 
 const VIEW = 100;
@@ -29,6 +23,7 @@ export default function RouteThumbnail({
   label,
   stopNumbers,
   linePoints,
+  numberSize = "default",
 }: RouteThumbnailProps) {
   if (points.length < 2) return null;
 
@@ -59,8 +54,8 @@ export default function RouteThumbnail({
   // joins the true points.
   const pinCoords: [number, number][] = coords.map(([x, y]) => [x, y]);
   if (stopNumbers) {
-    const MIN_GAP = 15;
-    const PIN_R = 7;
+    const PIN_R = numberSize === "compact" ? 4.5 : 7;
+    const MIN_GAP = PIN_R * 2 + 1;
     const inFrame = (v: number) => Math.min(VIEW - PIN_R, Math.max(PIN_R, v));
     for (let pass = 0; pass < 12; pass += 1) {
       let moved = false;
@@ -103,7 +98,7 @@ export default function RouteThumbnail({
         points={polylinePoints}
         fill="none"
         stroke="currentColor"
-        strokeWidth={2.5}
+        strokeWidth={numberSize === "compact" ? 1.5 : 2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity={0.55}
@@ -125,13 +120,13 @@ export default function RouteThumbnail({
         }
         return (
           <g key={`${x}-${y}-${i}`} aria-hidden="true">
-            <circle cx={x} cy={y} r={7} fill="currentColor" />
+            <circle cx={x} cy={y} r={numberSize === "compact" ? 4.5 : 7} fill="currentColor" />
             <text
               x={x}
               y={y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={8}
+              fontSize={numberSize === "compact" ? 5.5 : 8}
               fontWeight={700}
               className="routeThumbnailNumber"
             >

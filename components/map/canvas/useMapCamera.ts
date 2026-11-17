@@ -45,7 +45,7 @@ export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestTok
 }
 
 export function whenWalkPanelSettles(done: () => void, waitForMount = false): () => void {
-  return whenBottomSheetSettles(0, () => done(), { waitForSheet: waitForMount, surfaceSelector: WALK_PANEL_SELECTOR });
+  return whenBottomSheetSettles(0, () => done(), { waitForSheet: waitForMount, surfaceSelector: WALK_PANEL_SELECTOR, surfaceAncestor: ".mapDrawer.left.open" });
 }
 
 // Chrome the near-me camera must stay clear of. The top values are only a
@@ -56,8 +56,8 @@ const PHONE_BOTTOM_INSET = 190;
 const DESKTOP_TOP_INSET = 150;
 const DESKTOP_BOTTOM_INSET = 110;
 
-// Reserve deferred phone controls until their mounted geometry is available.
-const PHONE_ROUTE_PADDING = { top: 160, right: 88, bottom: 280, left: 28 };
+const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
+const WALK_ROUTE_PADDING = { ...PHONE_ROUTE_PADDING, right: 88, bottom: 280 };
 const MIN_ROUTE_CONTENT_PX = 48;
 
 function desktopStatusSize(style: CSSStyleDeclaration | null) {
@@ -149,10 +149,14 @@ export function useNearbyCameraFraming({
   }, [mapReady, userLocation, routeLength, nearbyMapVenues, framingOwedRef, key]);
 }
 
-export const WALK_PANEL_SELECTOR = ".mapDrawer.left.open:has(.curatedWalkPanel)";
+const WALK_PANEL_SELECTOR = ".curatedWalkPanel";
+
+function walkPanelElement(): HTMLElement | null {
+  return document.querySelector(WALK_PANEL_SELECTOR)?.closest<HTMLElement>(".mapDrawer.left.open") ?? null;
+}
 
 function walkSurfacePadding(rect: DOMRect): Required<maplibregl.PaddingOptions> | null {
-  const panel = document.querySelector<HTMLElement>(WALK_PANEL_SELECTOR);
+  const panel = walkPanelElement();
   if (!panel || panel.closest('[data-sheet-exiting="true"]')) return null;
   const cover = panel.getBoundingClientRect();
   let coverTop = cover.top;
@@ -191,9 +195,11 @@ export function walkSurfaceOffset(): [number, number] | undefined {
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
+  isWalk: boolean,
 ): number | maplibregl.PaddingOptions {
   const container = map.getContainer();
-  const walkPadding = walkSurfacePadding(container.getBoundingClientRect());
+  const walkPadding = isWalk ? walkSurfacePadding(container.getBoundingClientRect()) : null;
+  const phonePadding = isWalk ? WALK_ROUTE_PADDING : PHONE_ROUTE_PADDING;
   const containerTop = container.getBoundingClientRect().top;
   const shortLandscape = !isPhone && container.clientHeight <= 500;
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
@@ -231,18 +237,18 @@ function routeFitPadding(
       // full disc diameter as well as the Pal's measured berth.
       return { ...inset, bottom: Math.max(inset.bottom, container.getBoundingClientRect().bottom - bounds.top + 48) };
     }, { bottom: 0, right: 0 });
-  const phoneBottomBounds = isPhone ? Array.from(document.querySelectorAll(".palSummon, .mobilePlanActivation, .mobileTabBar"))
+  const phoneBottomBounds = isWalk && isPhone ? Array.from(document.querySelectorAll(".palSummon, .mobilePlanActivation, .mobileTabBar"))
     .map((element) => element.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0) : [];
   const padding = walkPadding ?? (isPhone
-    ? { ...PHONE_ROUTE_PADDING,
+    ? { ...phonePadding,
         // Names extend beyond their discs. Keep them above the credit control.
-        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palInsets.bottom, ...phoneBottomBounds.map((rect) => container.getBoundingClientRect().bottom - rect.top + 16), attributionBounds?.height
+        bottom: Math.max(phonePadding.bottom, palInsets.bottom, ...phoneBottomBounds.map((rect) => container.getBoundingClientRect().bottom - rect.top + 16), attributionBounds?.height
           ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
         // Keep the full numbered disc clear of Near me and transport controls.
-        right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
+        right: Math.max(phonePadding.right, utilityBounds?.width
           ? container.getBoundingClientRect().right - utilityBounds.left + 24 : 0),
-        top: Math.max(PHONE_ROUTE_PADDING.top,
-        measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
+        top: Math.max(phonePadding.top,
+        measureTopChromeBottom(containerTop, phonePadding.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: Math.max(72, palInsets.right),
         bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 });
@@ -302,9 +308,10 @@ const SHEET_UNGROWN_COVER_PX = 64;
  * module already answers for near-me: how much map is left above the sheet.
  * One selector, one measurement, so the two moves cannot drift apart.
  */
-export function measureBottomSheetTop(containerTop: number, selector = BOTTOM_SHEET_SELECTOR): number | null {
+export function measureBottomSheetTop(containerTop: number, selector = BOTTOM_SHEET_SELECTOR, ancestor?: string): number | null {
   if (typeof document === "undefined") return null;
-  const sheet = document.querySelector(selector);
+  const match = document.querySelector(selector);
+  const sheet = ancestor ? match?.closest(ancestor) : match;
   if (!sheet) return null;
   const rect = sheet.getBoundingClientRect();
   if (rect.height <= 0) return null;
@@ -330,12 +337,13 @@ export type BottomSheetSettleOptions = {
   /** Keep watching briefly when the sheet portal has not mounted yet. */
   waitForSheet?: boolean;
   surfaceSelector?: string;
+  surfaceAncestor?: string;
 };
 
 export function whenBottomSheetSettles(
   containerTop: number,
   done: (coverTop: number | null) => void,
-  { waitForSheet = false, surfaceSelector = BOTTOM_SHEET_SELECTOR }: BottomSheetSettleOptions = {},
+  { waitForSheet = false, surfaceSelector = BOTTOM_SHEET_SELECTOR, surfaceAncestor }: BottomSheetSettleOptions = {},
 ): () => void {
   let cancelled = false;
   const finish = (coverTop: number | null) => {
@@ -344,7 +352,7 @@ export function whenBottomSheetSettles(
     done(coverTop);
   };
   const measure = (): number | null => {
-    const top = measureBottomSheetTop(containerTop, surfaceSelector);
+    const top = measureBottomSheetTop(containerTop, surfaceSelector, surfaceAncestor);
     if (top === null) return null;
     // Still growing. Not a band yet, and not "no sheet" either.
     return top;
@@ -362,7 +370,11 @@ export function whenBottomSheetSettles(
   // nothing to wait for, so do not spend the timeout finding that out. A venue
   // selection opts into waiting because its portal can mount one commit after
   // the canvas effect that requested the camera.
-  if (!document.querySelector(surfaceSelector) && !waitForSheet) {
+  const surface = () => {
+    const match = document.querySelector<HTMLElement>(surfaceSelector);
+    return surfaceAncestor ? match?.closest<HTMLElement>(surfaceAncestor) ?? null : match;
+  };
+  if (!surface() && !waitForSheet) {
     cancelled = true;
     done(null);
     return () => {
@@ -370,8 +382,7 @@ export function whenBottomSheetSettles(
     };
   }
   const startedAt = performance.now();
-  const surface = () => document.querySelector<HTMLElement>(surfaceSelector);
-  const position = () => { const rect = surface()?.getBoundingClientRect(); return rect ? [rect.x, rect.y, rect.width, rect.height].join(":") : ""; };
+  const position = () => { if (!surfaceAncestor) return ""; const rect = surface()?.getBoundingClientRect(); return rect ? [rect.x, rect.y, rect.width, rect.height].join(":") : ""; };
   let previous = measure();
   let previousPosition = position();
   let stableFrames = 0;
@@ -383,9 +394,9 @@ export function whenBottomSheetSettles(
     previous = current;
     previousPosition = currentPosition;
     const element = surface();
-    const changing = element && getComputedStyle(element).willChange;
-    const idle = !element?.closest('[data-sheet-exiting="true"]') && (!changing || changing === "auto") && (!element?.dataset.sheetMotion || element.dataset.sheetMotion === "idle");
-    const settled = (grown(current) || (!waitForSheet && !element)) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES && idle;
+    const changing = surfaceAncestor && element ? getComputedStyle(element).willChange : "";
+    const idle = !surfaceAncestor || !element?.closest('[data-sheet-exiting="true"]') && (!changing || changing === "auto") && (!element?.dataset.sheetMotion || element.dataset.sheetMotion === "idle");
+    const settled = (grown(current) || (Boolean(surfaceAncestor) && !waitForSheet && !element)) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES && idle;
     if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
       // A sheet that never grew is treated as no cover rather than as a band
       // pinned to the bottom of the screen.
@@ -431,6 +442,7 @@ export function useMapCamera(refs: CameraRefs) {
   } = refs;
   const routeFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const pendingOwnerRef = useRef<CameraIntentOwner | null>(null);
+  const routeWaitRef = useRef<(() => void) | null>(null);
   const userRequestRef = useRef(0);
   const palFrameRef = useRef<{ key: string; gestureEndedAt: number | null } | null>(null);
   const coordinator = useMemo(() => createCameraIntentCoordinator({
@@ -448,6 +460,7 @@ export function useMapCamera(refs: CameraRefs) {
     const requestToken = refs.latestRequestToken ?? 0;
     if (requestToken <= userRequestRef.current) return;
     userRequestRef.current = requestToken;
+    routeWaitRef.current?.();
     coordinator.dispose();
     pendingOwnerRef.current = null;
   }, [coordinator, refs.latestRequestToken]);
@@ -456,6 +469,7 @@ export function useMapCamera(refs: CameraRefs) {
     if (requestToken && requestToken < userRequestRef.current) return false;
     if (owner !== "user" && pendingOwnerRef.current === "user") return false;
     if (owner === "user") {
+      routeWaitRef.current?.();
       userRequestRef.current = requestToken || nextCameraRequestToken();
       palFrameRef.current = null;
       coordinator.dispose();
@@ -500,7 +514,7 @@ export function useMapCamera(refs: CameraRefs) {
     if (coordinator.schedule(kind, key, run)) pendingOwnerRef.current = owner;
   }, [claimCamera, coordinator, gestureCameraRef, mapRef]);
 
-  useEffect(() => () => coordinator.dispose(), [coordinator]);
+  useEffect(() => () => { routeWaitRef.current?.(); coordinator.dispose(); }, [coordinator]);
 
   // Near-me framing waits for the bottom sheet before it joins the lane (see
   // whenBottomSheetSettles), so a move is owed during that wait as well.
@@ -576,23 +590,34 @@ export function useMapCamera(refs: CameraRefs) {
       routeFrameRef.current = { key: routeKey, gestureEndedAt: gestureCameraRef.current.endedAt };
       // A road response can arrive after scheduling but before this frame.
       // Read its geometry when the owned camera move actually runs.
+      const isWalk = routeLineRef.current.features.some((feature) => feature.properties?.source === "curated");
       map.fitBounds(routeBounds(), {
-        padding: routeFitPadding(map, isPhone),
-        ...(document.querySelector(WALK_PANEL_SELECTOR) || routeLineRef.current.features.some((feature) => feature.properties?.source === "curated") ? { pitch: 0 } : {}),
+        padding: routeFitPadding(map, isPhone, isWalk),
+        ...(isWalk ? { pitch: 0 } : {}),
         maxZoom: 18,
         duration: reducedRef.current ? 0 : 800,
         // Keep the current rotation when fitting the route.
         bearing: map.getBearing(),
       });
     }, requestToken);
-    if (document.querySelector('.mobileSheetPortal[data-sheet-exiting="true"] .curatedWalkPanel')) {
+    if (routeLineRef.current.features.some((feature) => feature.properties?.source === "curated")
+      && document.querySelector('.mobileSheetPortal[data-sheet-exiting="true"] .curatedWalkPanel')) {
       const requestVersion = userRequestRef.current;
       sheetWaitsRef.current += 1;
       if (owner === "user") pendingOwnerRef.current = owner;
-      whenWalkPanelSettles(() => {
+      let waiting = true;
+      const release = () => {
+        if (!waiting) return;
+        waiting = false;
         sheetWaitsRef.current -= 1;
+        routeWaitRef.current = null;
+        if (requestVersion === userRequestRef.current && pendingOwnerRef.current === owner) pendingOwnerRef.current = null;
+      };
+      const cancel = whenWalkPanelSettles(() => {
+        release();
         if (requestVersion === userRequestRef.current) scheduleFit();
       });
+      routeWaitRef.current = () => { cancel(); release(); };
     } else scheduleFit();
   }, [claimCamera, gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
 

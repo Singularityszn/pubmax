@@ -36,11 +36,13 @@ export default function CuratedWalkPanel({ crawl, walk, mapped, onMap, onHide, o
     <aside className="routePanel curatedWalkPanel" aria-label={crawl.name}>
       <div className="curatedWalkHeading">
         {titleInSheet ? <p className="curatedWalkTiming">{walk.bestTime}</p> : <h2>{crawl.name}</h2>}
-        <Button variant="ghost" size="icon" aria-label="Copy walk link" onClick={() => void copyLink()}><Copy size={16} /></Button>
       </div>
       {!titleInSheet ? <p className="curatedWalkTiming">{walk.bestTime}</p> : null}
       <div className="curatedWalkSummary">
         <p className="curatedWalkMetrics"><Footprints size={16} aria-hidden="true" /><span>{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km<small>About {curatedWalkMinutes(walk)} min walking</small></span></p>
+      </div>
+      <div className="curatedWalkActions">
+        <Button variant="ghost" aria-label="Copy walk link" onClick={() => void copyLink()}><Copy size={16} />Copy link</Button>
         <Button variant="ghost" aria-label={mapped ? "Hide walking route" : "Show walking route"} title={mapped ? "Hide walking route" : "Show walking route"} onClick={mapped ? onHide : onMap}>
           {mapped ? <EyeOff size={16} /> : <Eye size={16} />}{mapped ? "Hide route" : "Show route"}
         </Button>

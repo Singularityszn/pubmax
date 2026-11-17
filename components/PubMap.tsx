@@ -7093,7 +7093,7 @@ export default function PubMap({
       {desktopSplitList}
 
       {/* List view provides the keyboard alternative to the canvas pins. */}
-      <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
+      <section className="mapStage" data-curated-walk-open={Boolean(curatedWalk && planningOpen)} aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {/* One toast at a time. A soft retry owns the surface outright, so the
             arrival and national-browse banners stand down with the selection
             note rather than stacking under it. */}

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectSelectedRoutePaint } from "./helpers/routeStopPaint";
 import { storeThemeChoice } from "./helpers/themeClock";
 import { installNativeShell } from "./helpers/nativeShell";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
@@ -171,6 +172,7 @@ for (const theme of ["light", "dark"] as const) {
       await expect.poll(() => page.evaluate(() => (window as typeof window & { __christmasMeasurements: WalkMeasurements }).__christmasMeasurements.landmarkMoves)).toBeGreaterThan(before);
       await expectCameraRest(page);
       const stop = christmasWalk.stops[index]!;
+      if (index === 5) await expectSelectedRoutePaint(page, [stop.longitude, stop.latitude]);
       await expect.poll(() => page.evaluate((id) => (window as typeof window & {
         __pubmaxPaintedRouteTapPoints?: () => RouteTapPoint[];
       }).__pubmaxPaintedRouteTapPoints?.().some((point) => point.id === id && point.selected) ?? false, stop.id)).toBe(true);

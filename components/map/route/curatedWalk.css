@@ -4,9 +4,9 @@
   justify-content: space-between;
   gap: 12px;
 }
-.curatedWalkKicker { display: flex; align-items: center; gap: 8px; color: var(--brass-ink); font-size: var(--text-sm); margin: 0; }
+.curatedWalkKicker { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: var(--text-sm); margin: 0; }
 .curatedWalkPanel h2 { margin: 0; text-wrap: balance; }
-.curatedWalkTiming { color: var(--muted); margin: 4px 0; }
+.curatedWalkTiming { color: var(--muted); margin: 0; }
 .curatedWalkMetrics { display: flex; align-items: center; gap: 8px; margin: 0; font-variant-numeric: tabular-nums; }
 .curatedWalkCopyStatus { font-size: var(--text-sm); margin: 0; }
 .curatedWalkCopyStatus:not(:empty) { margin-bottom: 12px; }
@@ -14,7 +14,7 @@
 .curatedWalkSources { margin-top: 16px; font-size: var(--text-sm); color: var(--muted); }
 .curatedWalkSources summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .curatedWalkSources a { color: var(--ink); text-decoration: underline; }
-.curatedWalkPreview { width: 100%; height: auto; display: block; color: var(--route-line); margin: 16px 0; }
+.curatedWalkPreview { width: min(100%, 240px); height: auto; display: block; color: var(--route-line); margin: 16px auto; }
 
 .curatedWalkPreview .routeThumbnailNumber { fill: var(--paper); font-family: var(--font-body); }
 
@@ -31,3 +31,12 @@
 .curatedWalkSummary > button { flex-shrink: 0; white-space: nowrap; }
 
 .curatedWalkCredit a { color: inherit; text-underline-offset: 2px; }
+.curatedWalkActions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.curatedWalkSummary { margin-top: 8px; }
+.curatedWalkActions > button { white-space: nowrap; }
+.mobileSharedSheet[data-surface="solid"] > .mobileSharedSheetHeader { padding-bottom: 0; }
+@media (min-width: 641px) and (max-width: 768px) {
+  .mapStage[data-curated-walk-open="true"] {
+    --map-top-clearance: calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px);
+  }
+}

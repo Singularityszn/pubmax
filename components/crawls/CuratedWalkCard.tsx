@@ -16,7 +16,7 @@ export default function CuratedWalkCard({ crawl, walk }: { crawl: CuratedCrawl; 
         <p className="curatedBlurb">{crawl.blurb}</p>
         <p className="curatedMeta">{walk.stops.length} stops · approx. {curatedWalkKm(walk).toFixed(1)} km</p>
         <Link className="curatedPlanBtn" href={curatedCrawlMapHref(crawl)} prefetch={false}>{walk.mapActionLabel}</Link>
-        <RouteThumbnail className="curatedWalkPreview" points={coords} linePoints={walk.path} stopNumbers={coords.map((_, index) => index + 1)} label={`${crawl.name}, ${walk.stops.length} numbered stops`} />
+        <RouteThumbnail className="curatedWalkPreview" points={coords} linePoints={walk.path} numberSize="compact" stopNumbers={coords.map((_, index) => index + 1)} label={`${crawl.name}, ${walk.stops.length} numbered stops`} />
         <p className="curatedMeta curatedWalkCredit">Walking line © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a></p>
       </article>
     </div>

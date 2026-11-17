@@ -1965,7 +1965,7 @@ export function buildRouteStops(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, routeStops } = ctx;
   // --- Route stops (numbered) above everything.
   if (!map.getSource("route-stops")) {
-    map.addSource("route-stops", { type: "geojson", data: routeStops });
+    map.addSource("route-stops", { type: "geojson", data: routeStops, promoteId: "id" });
   }
   addLayerOnce({
     id: "route-stops",
@@ -1973,7 +1973,7 @@ export function buildRouteStops(ctx: SceneCtx) {
     source: "route-stops",
     paint: {
       "circle-color": ["case", ["boolean", ["feature-state", "selected"], false], tokens.routeLine, tokens.inkDeep],
-      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 9, 16], 15, 16],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 8, 16], 15, 16],
       "circle-stroke-color": tokens.brassBright,
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 1.5, 2.5], 15, 2.5],
     },
@@ -2011,6 +2011,7 @@ export function buildRouteStops(ctx: SceneCtx) {
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": 2,
       "text-halo-blur": 0.4,
+      "text-opacity": ["step", ["zoom"], ["case", ["==", ["get", "walk"], true], 0, 1], 15.5, 1],
     },
   });
   addLayerOnce({
@@ -2029,7 +2030,6 @@ export function buildRouteStops(ctx: SceneCtx) {
       // journeys F23). The number itself always shows (allow-overlap).
       "text-padding": 12,
     },
-    // Stops are always dark-filled, so the label is the light-side token.
     paint: { "text-color": ["case", ["boolean", ["feature-state", "selected"], false], dark ? tokens.inkDeep : tokens.paper, dark ? tokens.ink : tokens.paper] },
   });
 }

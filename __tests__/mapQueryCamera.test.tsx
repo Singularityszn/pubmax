@@ -146,6 +146,12 @@ function fitQuery() {
 }
 
 describe("walk panel overview framing", () => {
+  function mountWalk() {
+    mount({ current: soho }, soho, undefined, { current: {
+      type: "FeatureCollection", features: [{ type: "Feature", properties: { source: "curated" },
+        geometry: { type: "LineString", coordinates: soho.map((stop) => [stop.longitude, stop.latitude]) } }],
+    } });
+  }
   function panel(rect: DOMRect) {
     const element = document.createElement("section");
     element.className = "mapDrawer left open";
@@ -163,10 +169,31 @@ describe("walk panel overview framing", () => {
     });
     return fitBounds.mock.calls.at(-1)?.[1];
   }
-  it("reserves measured phone controls before their deferred components mount", () => {
+  it("keeps the existing phone padding for an ordinary pub route", () => {
     mapViewport = { width: 390, height: 664 };
     vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
     mount({ current: soho }, soho);
+    expect(frame().padding).toMatchObject({ right: 28, bottom: 200 });
+  });
+  it("releases a closing-sheet wait when a newer camera action takes ownership", () => {
+    mountWalk();
+    const portal = document.createElement("div");
+    portal.className = "mobileSheetPortal";
+    portal.dataset.sheetExiting = "true";
+    portal.append(panel(new DOMRect(0, 563, 390, 28)));
+    document.body.append(portal);
+    try {
+      frame();
+      expect(camera.cameraLanePending()).toBe(true);
+      act(() => { camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user"); pendingFrame?.(performance.now()); });
+      expect(easeTo).toHaveBeenCalled();
+      expect(camera.cameraLanePending()).toBe(false);
+    } finally { portal.remove(); }
+  });
+  it("reserves measured phone controls before their deferred components mount", () => {
+    mapViewport = { width: 390, height: 664 };
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    mountWalk();
     const padding = frame().padding;
     expect(padding.right).toBeGreaterThanOrEqual(88);
     expect(padding.bottom).toBeGreaterThanOrEqual(280);
@@ -174,7 +201,7 @@ describe("walk panel overview framing", () => {
   it("keeps a closed phone overview clear of the visible Pal and map utility controls", () => {
     mapViewport = { width: 390, height: 664 };
     vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
-    mount({ current: soho }, soho);
+    mountWalk();
     const surfaces = [
       ["palSummon", new DOMRect(68, 402, 246, 52)],
       ["mobileMapUtilityCorner", new DOMRect(326, 78, 52, 311)],
@@ -195,7 +222,7 @@ describe("walk panel overview framing", () => {
   });
   it("reserves the final tablet sheet position when its entrance has not moved yet", () => {
     mapViewport = { width: 768, height: 1024 };
-    mount({ current: soho }, soho);
+    mountWalk();
     const drawer = panel(new DOMRect(0, 1024, 768, 1024));
     drawer.classList.add("springDrawer", "sheet-half");
     drawer.dataset.springAxis = "vertical";
@@ -205,7 +232,7 @@ describe("walk panel overview framing", () => {
     } finally { drawer.remove(); }
   });
   it("keeps a recovery fit pending while the walk sheet is closing", () => {
-    mount({ current: soho }, soho);
+    mountWalk();
     const portal = document.createElement("div");
     portal.className = "mobileSheetPortal";
     portal.dataset.sheetExiting = "true";
@@ -219,16 +246,17 @@ describe("walk panel overview framing", () => {
     } finally { portal.remove(); }
   });
   it("fits the walk in a flat plane without changing ordinary route pitch", () => {
-    mount({ current: soho }, soho);
+    mountWalk();
     const drawer = panel(new DOMRect(0, 80, 400, 820));
     try {
       expect(frame().pitch).toBe(0);
       drawer.remove();
+      mount({ current: soho }, soho);
       expect(frame()).not.toHaveProperty("pitch");
     } finally { drawer.remove(); }
   });
   it("keeps usable map space when a walk panel fills the viewport", () => {
-    mount({ current: soho }, soho);
+    mountWalk();
     const drawer = panel(new DOMRect(0, 0, 1280, 900));
     try {
       const padding = frame().padding;
