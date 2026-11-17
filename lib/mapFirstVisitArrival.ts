@@ -1,3 +1,4 @@
+import { fairPintActive } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
 // Pure policy: eligibility, planner-param suppression, dismiss storage, and
@@ -94,17 +95,19 @@ export function hasDismissedMapFirstVisitArrival(
  * in silence. Measured exactly that way once.
  */
 export function dismissMapFirstVisitArrivalOnMapUse(): void {
+  if (fairPintActive()) return;
   dismissMapFirstVisitArrival();
 }
 
 export function dismissMapFirstVisitArrival(
   storage?: Storage | null,
   now: number = Date.now(),
+  permanently = false,
 ): void {
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, `${DISMISSED_PREFIX}${now}`);
+    store.setItem(MAP_FIRST_VISIT_ARRIVAL_KEY, permanently ? "dismissed" : `${DISMISSED_PREFIX}${now}`);
     notifyMapFirstVisitArrivalChange();
   } catch {
     // Storage full / private mode — degrade silently.

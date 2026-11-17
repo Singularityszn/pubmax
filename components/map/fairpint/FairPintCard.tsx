@@ -18,7 +18,7 @@ export default function FairPintCard({ start, area, counts, drawCounts, located,
   const count = counts(pence), draw = drawCounts(pence);
   const figure = `£${(pence / 100).toFixed(2)}`;
   const geography = located ? "within 800 m" : "in view";
-  const line = offline ? "You're offline. Prices on screen may be old." : count.phase === "failed" ? "Could not load prices. Try again." : count.phase === "loading" ? "Loading prices…" : count.count === 0
+  const line = offline ? "You're offline. Prices on screen may be old." : count.phase === "failed" || draw.phase === "failed" ? "Could not load prices. Try again." : count.phase === "loading" ? "Loading prices…" : count.count === 0
     ? `No pubs ${geography} list a pint at ${figure} or less.${located ? " Raise it." : " Move the map or raise it."}`
     : `${count.count} pubs ${geography} list a pint at ${figure} or less.`;
   const reason = draw.phase === "loading" ? `Checking prices in ${area}…` : draw.phase === "ready" && draw.count < 3 ? `Fewer than 3 pubs in ${area} list a pint at ${figure} or less.` : "";
@@ -29,9 +29,10 @@ export default function FairPintCard({ start, area, counts, drawCounts, located,
   };
   return <aside className="fairPintCard" aria-label="Your fair pint">
     <h2>What&apos;s a fair pint to you?</h2>
-    <output className="fairPintFigure">{figure}</output>
+    <output className="fairPintFigure" aria-live="off">{figure}</output>
     <input className="fairPintRange" type="range" aria-label="Fair pint price" min={300} max={800} step={10} value={pence}
       aria-valuetext={`${figure}, ${count.phase === "ready" ? `${count.count} pubs ${located ? "within 800 metres" : "in view"}` : "loading prices"}`}
+      onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
       onInput={(event) => input(event.currentTarget.valueAsNumber)} onPointerUp={release} onKeyUp={release}
       onPointerCancel={() => { dirty.current = false; setPence(held.current); onInput(held.current); }}
       onKeyDown={(event) => { if (event.key === "PageUp" || event.key === "PageDown") { event.preventDefault(); input(Math.min(800, Math.max(300, pence + (event.key === "PageUp" ? 50 : -50)))); } }} />

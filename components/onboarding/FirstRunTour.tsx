@@ -1,4 +1,5 @@
 "use client";
+import { fairPintPromptsSuppressed, subscribeFairPintActive } from "@/lib/fairPint";
 
 import {
   useCallback,
@@ -125,7 +126,8 @@ export default function FirstRunTour(): React.JSX.Element | null {
   // Map-only, one-time gate (see lib/firstRunTour.ts) — AND the shared
   // one-prompt-per-session budget: don't open if a sibling surface (A2HS /
   // identity / push) already holds it. See docs/PROMPT_ORCHESTRATION.md.
-  const active =
+  const fairSuppressed = useSyncExternalStore(subscribeFairPintActive, fairPintPromptsSuppressed, () => false);
+  const active = !fairSuppressed &&
     shouldShowFirstRunTour({ mounted, seen, pathname, explicitIntent }) &&
     hasPromptBudget;
 

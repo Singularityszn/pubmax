@@ -1,3 +1,4 @@
+import { wireFairPintPaint } from "@/components/map/fairpint/fairPintPaint";
 import type * as maplibregl from "maplibre-gl";
 import { ROUTE_STOP_NAME_ANCHOR_OFFSET } from "@/lib/routeStopLabel";
 import {
@@ -2131,6 +2132,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   buildRouteLegTimes(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx, freshStyle);
+  wireFairPintPaint(ctx.map);
 }
 
 /** Visual polish and network-heavy overlays after the first paint frame. */

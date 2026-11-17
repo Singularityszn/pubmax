@@ -513,6 +513,7 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
+import FairPintFlow from "@/components/map/fairpint/FairPintFlow";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
@@ -1813,7 +1814,7 @@ export default function PubMap({
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const { readerPosition, visible: showMapArrivalCard } = useMapArrivalCard({
-    mobile: mobileViewport,
+    mobile: mobileViewport, cityId,
     onLocationExposure: invalidatePrivateCamera,
     pinsRevealed,
     recoveryToastActive: mapSoftRetryActive,
@@ -5972,12 +5973,9 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {showMapArrivalCard ? (
-        <MapArrivalCard
-          onUseLocation={useLocationFromArrivalCard}
-          onChooseArea={() => openChooseArea(null, true)}
-        />
-      ) : null}
+      {showMapArrivalCard ? cityId === "london" ? (
+        <FairPintFlow cityId={cityId} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} />
+      ) : <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}

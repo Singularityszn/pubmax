@@ -11,12 +11,14 @@ import {
 
 export function useMapArrivalCard({
   mobile,
+  cityId,
   onLocationExposure,
   pinsRevealed,
   recoveryToastActive,
   search,
 }: {
   mobile: boolean;
+  cityId: string;
   onLocationExposure: () => void;
   pinsRevealed: boolean;
   recoveryToastActive: boolean;
@@ -27,14 +29,14 @@ export function useMapArrivalCard({
     subscribeMapFirstVisitArrival,
     () =>
       shouldShowMapFirstVisitArrival({
-        pinsRevealed,
+        pinsRevealed: cityId === "london" || pinsRevealed,
         search,
         recoveryToastActive,
       }),
     () => false,
   );
   const readerPosition = useMapReaderPosition(onLocationExposure, setPermission);
-  const visible = shouldShowMapArrivalLocationCard({
+  const visible = cityId === "london" ? eligible : shouldShowMapArrivalLocationCard({
     eligible,
     mobile,
     permission,

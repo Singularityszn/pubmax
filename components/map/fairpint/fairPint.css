@@ -4,7 +4,8 @@
 .fairPintCount, .fairPintReason { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
 .fairPintReason { color: var(--muted); }
 .fairPintClose { position: absolute; top: 8px; right: 8px; }
-.fairPintRange { width: 100%; height: 44px; accent-color: var(--ink); cursor: pointer; touch-action: pan-y; }
-.fairPintRange::-webkit-slider-thumb { min-width: 44px; min-height: 44px; }
-.fairPintRange::-moz-range-thumb { width: 44px; height: 44px; }
+.fairPintRange { width: 100%; height: 44px; accent-color: var(--ink); cursor: pointer; touch-action: pan-y; appearance: none; background: transparent; }
+.fairPintRange::-webkit-slider-runnable-track { height: 6px; background: var(--hairline); border-radius: 3px; }
+.fairPintRange::-webkit-slider-thumb { appearance: none; width: 44px; height: 44px; margin-top: -19px; border-radius: 50%; background: var(--ink); }
+.fairPintRange::-moz-range-thumb { width: 44px; height: 44px; background: var(--ink); }
 @media (min-width: 641px) { .fairPintCard { left: auto; width: min(390px, calc(100vw - 48px)); right: 24px; bottom: 24px; } }

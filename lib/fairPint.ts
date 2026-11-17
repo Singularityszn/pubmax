@@ -74,3 +74,20 @@ export function expandFairPintPin(value: unknown, metadata?: { ft?: unknown; fu?
   }
   return { ...row, fairPint: [pence, url, date], ...(flags & 1 ? { priceSource: "Pint Prices" } : {}), ...(flags & 2 ? { priceObservedAt: date.slice(0, 10) } : {}) };
 }
+
+let session = { active: false, pence: 550 };
+let promptsSuppressed = false;
+export const fairPintPromptsSuppressed = () => promptsSuppressed;
+const activeListeners = new Set<() => void>();
+const paintListeners = new Set<() => void>();
+export const fairPintActive = () => session.active;
+export const fairPintSession = () => session;
+export function subscribeFairPintActive(listener: () => void) { activeListeners.add(listener); return () => { activeListeners.delete(listener); }; }
+export function subscribeFairPintPaint(listener: () => void) { paintListeners.add(listener); return () => { paintListeners.delete(listener); }; }
+export function setFairPintSession(active: boolean, pence = session.pence) {
+  const changed = active !== session.active;
+  if (active) promptsSuppressed = true;
+  session = { active, pence };
+  if (changed) activeListeners.forEach((listener) => listener());
+  paintListeners.forEach((listener) => listener());
+}
