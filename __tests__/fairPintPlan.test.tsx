@@ -2,10 +2,11 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
-import { useFairPintPlan } from "@/components/map/fairpint/useFairPintPlan";
+import { useFairPintPlan, warmFairPintTime } from "@/components/map/fairpint/useFairPintPlan";
+import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { inferNightContext } from "@/lib/nightPlanning";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 function generated(operationKey: string) { return { operationKey, groundingProof: "fixture-proof", inferredContext: inferNightContext("three stops in Camden").context, planningConfidence: { level: "low", warnings: [], missingEvidence: [], provenance: [], score: 0, routeReady: false }, stops: [1, 2, 3].map((id) => ({ venueId: `venue-${id}`, venueName: `Pub ${id}` })) }; }
 it("keeps only the newest draw even if the cancelled request answers late", async () => {
   let first!: (value: Response) => void, second!: (value: Response) => void;
@@ -74,4 +75,24 @@ it.each(["pending", "failed"])("restores the validated time after a %s revalidat
   expect(hook!.state.last).toBe(last);
   expect(fetcher).toHaveBeenCalledTimes(2);
   act(() => root.unmount());
+});
+
+it("releases map reads when the diagram never reports completion", async () => {
+  await warmFairPintTime(); vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(generated("no-diagram"))));
+  let hook: ReturnType<typeof useFairPintPlan>;
+  const applied = vi.fn();
+  function Host() { hook = useFairPintPlan("london", "camden", applied); return null; }
+  const root = createRoot(document.createElement("div"));
+  act(() => root.render(createElement(Host)));
+  try {
+    await act(async () => { await hook.draw(550); });
+    expect(fairPintDrawPending()).toBe(true);
+    const reader = waitForFairPintDraw();
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(fairPintDrawPending()).toBe(false);
+    await reader;
+    expect(applied).toHaveBeenCalledOnce();
+    expect(applied.mock.calls[0]?.[0].operationKey).toBe("no-diagram");
+  } finally { act(() => root.unmount()); }
 });
