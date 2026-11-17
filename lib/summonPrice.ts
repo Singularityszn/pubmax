@@ -17,9 +17,9 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
 /** A summon's own freshness rule. It changes no other price reader. */
-export const SUMMON_PRICE_MAX_AGE_DAYS = 30;
+const SUMMON_PRICE_MAX_AGE_DAYS = 30;
 /** The longest listing a summon quotes. A longer one is left out whole, never cut. */
-export const SUMMON_PRICE_STATEMENT_MAX = 160;
+const SUMMON_PRICE_STATEMENT_MAX = 160;
 
 const DRINK_MAX = 80;
 const SOURCE_URL_MAX = 300;
