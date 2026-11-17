@@ -180,16 +180,18 @@ describe("Social interactions route", () => {
     expect(vi.mocked(isLimited).mock.calls[0]?.[0]).toMatch(/^social-interaction:[a-f0-9]{64}$/);
   });
 
-  it.each(["PUT", "DELETE"] as const)("keeps %s block changes available during a Social freeze", async (method) => {
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    (["block", "mute"] as const).map((action) => ({ method, action })),
+  ))("keeps $method $action changes available during a Social freeze", async ({ method, action }) => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
     const route = await import("@/app/api/social/interactions/route");
     const response = await route[method](new Request(URL, {
       method,
-      body: JSON.stringify({ action: "block", targetHandle: "bob" }),
+      body: JSON.stringify({ action, targetHandle: "bob" }),
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
-    expect(store.setBlock).toHaveBeenCalledWith(actor, "22222222-2222-4222-8222-222222222222", method === "PUT");
+    expect(action === "block" ? store.setBlock : store.setMute).toHaveBeenCalledWith(actor, "22222222-2222-4222-8222-222222222222", method === "PUT");
   });
 
   it("still authenticates and rate limits frozen block changes", async () => {
@@ -203,13 +205,13 @@ describe("Social interactions route", () => {
     expect(store.setBlock).not.toHaveBeenCalled();
   });
 
-  it.each([
-    { action: "mute", targetHandle: "bob" },
+  it.each((["PUT", "DELETE"] as const).flatMap((method) => [
+    { action: "desired", postId: "11111111-1111-4111-8111-111111111111", kind: "save" },
     { action: "block", targetHandle: "bob", postId: "11111111-1111-4111-8111-111111111111" },
-  ])("keeps other writes frozen for %j", async (input) => {
+  ].map((input) => ({ method, input }))))("keeps other $method writes frozen for $input", async ({ method, input }) => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
-    const { PUT } = await import("@/app/api/social/interactions/route");
-    const response = await PUT(new Request(URL, { method: "PUT", body: JSON.stringify(input) }));
+    const route = await import("@/app/api/social/interactions/route");
+    const response = await route[method](new Request(URL, { method, body: JSON.stringify(input) }));
     expect(response.status).toBe(503);
     expect(store.setBlock).not.toHaveBeenCalled();
     expect(store.setMute).not.toHaveBeenCalled();
