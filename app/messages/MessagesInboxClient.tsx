@@ -17,6 +17,7 @@ import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -361,6 +362,7 @@ export default function MessagesInboxClient({
     >
       {!viewerSession.signedOut && user ? (
         <>
+          <MessageNotificationSettings />
           <label className="messagesInboxSearch">
             <Search size={16} aria-hidden="true" />
             <input

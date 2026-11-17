@@ -15,7 +15,7 @@ vi.mock("next/link", () => ({
     return createElement("a", { href, ...props }, children);
   },
 }));
-vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/messages", useRouter: () => ({ prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: (url: string, init: RequestInit) => state.fetch(url, init) }));

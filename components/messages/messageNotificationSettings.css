@@ -1,0 +1,15 @@
+.messageAlerts { position: relative; }
+.messageAlertsToggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; border: 0; background: transparent; color: var(--ink); font: inherit; text-align: left; }
+.messageAlertsPanel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--paper); color: var(--ink); }
+.messageAlertsPanel p { margin: 0; }
+.messageAlertsPanel button { min-height: 44px; padding: 8px 12px; border: 1px solid var(--hairline); border-radius: 10px; background: var(--paper); color: var(--ink); font: inherit; }
+.messageAlertsPanel label { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.5; }
+.messageAlertsPanel input { width: 20px; height: 20px; flex: 0 0 auto; }
+.messageAlertsHint { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.threadHeader > .messageAlerts { margin-left: auto; }
+.threadHeader .messageAlertsPanel { position: absolute; top: 100%; right: 0; z-index: 20; width: min(280px, calc(100vw - 32px)); transform-origin: top right; }
+.messageAlerts .pressable { touch-action: manipulation; transition: transform 160ms var(--ease-out); }
+.messageAlerts .pressable:active { transform: scale(.97); }
+.messageAlerts .pressable:focus-visible { transition: none; }
+.messageAlerts .pressable:focus-visible:active { transform: none; }
+@media (prefers-reduced-motion: reduce) { .messageAlerts .pressable { transition: opacity 160ms ease-out; } .messageAlerts .pressable:active { transform: none; opacity: .7; } }

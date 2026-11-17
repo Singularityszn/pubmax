@@ -1,0 +1,42 @@
+import { authedActionFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
+import { currentMessagePushToken, queueMessagePushOperation, messagePushDepartureRevision, flushMessagePushReleases } from "@/lib/messageNotificationLifecycle";
+export { currentMessagePushToken, messagePushFingerprint } from "@/lib/messageNotificationLifecycle";
+
+export const MESSAGE_NOTIFICATION_SETTINGS_CHANGED = "pubmax:message-notification-settings";
+
+export function saveMessageNotificationSetting(body: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
+  const revision = messagePushDepartureRevision();
+  if (body.action === "subscribe" || body.action === "restore") return queueMessagePushOperation(async () => {
+    if (signal?.aborted || revision !== messagePushDepartureRevision()) throw new Error("Account changed.");
+    await flushMessagePushReleases();
+    if (await currentMessagePushToken() !== body.token) throw new Error("This device needs a new subscription. Try again.");
+    await writeSetting(body, AbortSignal.timeout(3_000));
+  });
+  return writeSetting(body, signal);
+}
+
+async function writeSetting(body: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
+  const response = await authedActionFetch("/api/message-notifications", {
+    method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body), signal,
+  }, { requiresIdentity: true });
+  discardBody(response);
+  if (!response.ok) throw new Error("Could not save message alerts. Try again.");
+  if (body.action !== "presence") window.dispatchEvent(new Event(MESSAGE_NOTIFICATION_SETTINGS_CHANGED));
+}
+
+export function restoreMessagePushAccount(signal: AbortSignal, userId: string): Promise<void> {
+  const revision = messagePushDepartureRevision();
+  return queueMessagePushOperation(async () => {
+    if (signal.aborted || revision !== messagePushDepartureRevision()) return;
+    await flushMessagePushReleases();
+    try {
+      const registration = await navigator.serviceWorker.getRegistration();
+      for (const notification of await registration?.getNotifications() ?? []) {
+        if (notification.data?.recipientId && notification.data.recipientId !== userId) notification.close();
+      }
+    } catch { /* Tray access must not prevent device reconciliation. */ }
+    const token = await currentMessagePushToken();
+    if (token && !signal.aborted) await writeSetting({ action: "restore", token }, AbortSignal.timeout(3_000));
+  });
+}

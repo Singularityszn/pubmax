@@ -83,6 +83,7 @@ export function webPushSupport(): WebPushSupport {
 export async function registerWebPush(
   signal?: AbortSignal,
   onSlowSubscription?: () => void,
+  saveToken?: (token: string, signal: AbortSignal) => Promise<boolean>,
 ): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   if (!("PushManager" in window) || !("Notification" in window)) return null;
@@ -145,6 +146,7 @@ export async function registerWebPush(
     if (!token) return null;
 
     const request = step();
+    if (saveToken) return await saveToken(token, request) ? token : null;
     const response = await waitForWebPushWork(
       fetch("/api/push-tokens", {
         method: "POST",

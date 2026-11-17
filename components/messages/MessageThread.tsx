@@ -32,6 +32,8 @@ import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
+import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
+import { useMessageThreadPresence } from "@/components/messages/useMessageThreadPresence";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import MessageVenuePicker, {
@@ -347,6 +349,7 @@ export default function MessageThread({
 }: {
   conversationId: string;
 }): React.JSX.Element {
+  useMessageThreadPresence(conversationId);
   const { accountRevision, user, handle: authHandle } = useAuth();
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
@@ -1247,6 +1250,7 @@ export default function MessageThread({
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
+        <MessageNotificationSettings key={conversationId} conversationId={conversationId} />
         <MessageThreadMenu
           isGroup={isGroup}
           onDeleteChat={() => ask({ kind: "delete" })}

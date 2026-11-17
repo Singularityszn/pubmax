@@ -12,11 +12,21 @@ const inbox = vi.hoisted(() => ({
   unread: 1,
   reads: 0,
   // One object for the life of the file: the link keys its poll on the user.
-  auth: { user: { id: "user-ken" }, handle: "ken" },
+  auth: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" },
+  unresolved: false,
+  release: vi.fn(async () => undefined),
+  onIncoming: (() => {}) as () => void,
 }));
 
-vi.mock("next/navigation", () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
+vi.mock("next/navigation", () => ({ usePathname: () => "/messages", useRouter: () => ({ prefetch: vi.fn() }) }));
+vi.mock("@/lib/messagesRealtime", () => ({ subscribeToInbox: (_handle: string, onIncoming: () => void) => {
+  inbox.onIncoming = onIncoming;
+  return () => {};
+} }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }));
+vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: inbox.unresolved }) }));
+vi.mock("@/lib/messageNotificationClient", () => ({ restoreMessagePushAccount: async () => undefined }));
+vi.mock("@/lib/messageNotificationLifecycle", () => ({ MESSAGE_PUSH_DEPARTURE: "departure", releaseMessagePush: inbox.release }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: () => {
     inbox.reads += 1;
@@ -45,6 +55,9 @@ beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   inbox.unread = 1;
   inbox.reads = 0;
+  inbox.auth.user = { id: "user-ken" };
+  inbox.unresolved = false;
+  inbox.release.mockClear();
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -61,6 +74,17 @@ afterEach(() => {
 });
 
 describe("MessagesLink unread badge", () => {
+  it("does not release notifications while the session is unresolved", async () => {
+    inbox.auth.user = null;
+    inbox.unresolved = true;
+    await act(async () => root.render(createElement(MessagesLink)));
+    await settle();
+    expect(inbox.release).not.toHaveBeenCalled();
+    inbox.unresolved = false;
+    await act(async () => root.render(createElement(MessagesLink)));
+    await settle();
+    expect(inbox.release).toHaveBeenCalledTimes(1);
+  });
   it("shows the unread count from the inbox", () => {
     expect(label()).toBe("Messages, 1 unread");
   });
@@ -74,5 +98,12 @@ describe("MessagesLink unread badge", () => {
     await settle();
     expect(inbox.reads).toBeGreaterThan(before);
     expect(label()).toBe("Messages");
+  });
+
+  it("updates the badge immediately when an incoming message signal arrives", async () => {
+    inbox.unread = 2;
+    await act(async () => inbox.onIncoming());
+    await settle();
+    expect(label()).toBe("Messages, 2 unread");
   });
 });

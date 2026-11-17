@@ -252,7 +252,7 @@ export type MessagesStore = {
    *  alone, so a photo send or a report (which read the thread to prove
    *  participation) cannot mark anything read. Failed durable reads throw
    *  MessageReadUnavailableError; a healthy empty thread returns []. */
-  listMessages(conversationId: string, handle: string): Promise<MessageDTO[] | null>;
+  listMessages(conversationId: string, handle: string, options?: { messageId?: string; latestOnly?: boolean }): Promise<MessageDTO[] | null>;
   /** Mark the viewer's RECEIVED unread messages read. Returns how many rows
    *  changed, so the route can tell the sender's thread only when something did.
    *  A non-participant marks nothing and gets 0. Never throws. */
@@ -1328,23 +1328,25 @@ export const supabaseMessagesStore: MessagesStore = {
     };
   },
 
-  async listMessages(conversationId, handle) {
+  async listMessages(conversationId, handle, options) {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return null;
     if (isMemoryConversationId(conversationId)) {
-      return memoryMessagesStore.listMessages(conversationId, me);
+      return memoryMessagesStore.listMessages(conversationId, me, options);
     }
     try {
       // The membership and the rows are asked for TOGETHER, keyed on the same
       // id, so a thread open is one round trip's wait rather than two in a row.
       // The rows are still only RETURNED behind the courtesy check below.
-      const readRows = () =>
-        admin()
+      const readRows = () => {
+        const query = admin()
           .from(MESSAGES)
           .select(messageColumns())
           .eq("conversation_id", conversationId)
           .order("created_at", { ascending: false })
-          .limit(MAX_MESSAGES);
+          .limit(options?.messageId || options?.latestOnly ? 1 : MAX_MESSAGES);
+        return options?.messageId ? query.eq("id", options.messageId) : query;
+      };
       const [membership, firstRead, deleteMark] = await Promise.all([
         loadMembership(conversationId),
         readRows(),
@@ -1368,7 +1370,7 @@ export const supabaseMessagesStore: MessagesStore = {
     } catch (err) {
       if (isMissingMessagesSchema(err) && !requiresSupabaseStore()) {
         warnMemoryFallback("listMessages", err);
-        return memoryMessagesStore.listMessages(conversationId, me);
+        return memoryMessagesStore.listMessages(conversationId, me, options);
       }
       console.error(
         "[messages] listMessages failed:",
@@ -2273,7 +2275,7 @@ export const memoryMessagesStore: MessagesStore = {
     };
   },
 
-  async listMessages(conversationId, handle) {
+  async listMessages(conversationId, handle, options) {
     const me = normalizeHandle(handle);
     if (!conversationId || !me) return null;
     const conv = memConversations.get(conversationId);
@@ -2282,9 +2284,10 @@ export const memoryMessagesStore: MessagesStore = {
     // COURTESY CHECK — non-participant gets null (route → 404).
     if (!membership || !isMember(membership, me)) return null;
     const list = memVisibleMessages(conversationId, me)
+      .filter((message) => !options?.messageId || message.id === options.messageId)
       .slice()
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt)) // newest-first cap
-      .slice(0, MAX_MESSAGES)
+      .slice(0, options?.messageId || options?.latestOnly ? 1 : MAX_MESSAGES)
       .reverse(); // oldest-first display
     return list.map((m) => memMessageDTO(m, me));
   },

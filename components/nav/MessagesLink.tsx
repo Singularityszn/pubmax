@@ -2,21 +2,26 @@
 
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { subscribeToInbox } from "@/lib/messagesRealtime";
+import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
+import { MESSAGE_PUSH_DEPARTURE, releaseMessagePush, flushMessagePushReleases, queueMessagePushOperation } from "@/lib/messageNotificationLifecycle";
+import { getAccessToken } from "@/lib/authClient";
+import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import MessageArrivalNotice from "@/components/messages/MessageArrivalNotice";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { subscribeVisiblePolling } from "@/lib/visiblePolling";
 
 const HANDLE_KEY = "pubmax_handle";
-const POLL_MS = 60_000;
 
 function readHandle(): string {
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
@@ -24,7 +29,12 @@ function readHandle(): string {
 
 export default function MessagesLink(): React.JSX.Element | null {
   const router = useRouter();
+  const pathname = usePathname();
+  const pathnameRef = useRef(pathname);
+  useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
   const { user, handle: authHandle } = useAuth();
+  const viewerSession = useViewerSession();
+  const activeUserId = user?.id;
   const [handle, setHandle] = useState("");
   const [unreadResult, setUnreadResult] = useState<{
     userId: string;
@@ -32,6 +42,20 @@ export default function MessagesLink(): React.JSX.Element | null {
     count: number;
   } | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const previousRef = useRef<{ userId: string; rows: ConversationDTO[] } | null>(null);
+  const [arrival, setArrival] = useState<{ userId: string; conversation: ConversationDTO } | null>(null);
+
+  useEffect(() => {
+    if (viewerSession.unresolved) return;
+    const controller = new AbortController();
+    const stop = () => controller.abort();
+    window.addEventListener(MESSAGE_PUSH_DEPARTURE, stop);
+    if (activeUserId) void restoreMessagePushAccount(controller.signal, activeUserId).catch(() => undefined);
+    else void releaseMessagePush().catch(() => undefined);
+    return () => { controller.abort(); window.removeEventListener(MESSAGE_PUSH_DEPARTURE, stop); };
+  }, [activeUserId, viewerSession.unresolved]);
+
+  const dismissArrival = useCallback(() => setArrival(null), []);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +97,13 @@ export default function MessagesLink(): React.JSX.Element | null {
       const body = (await res.json()) as { conversations?: ConversationDTO[] };
       if (controller.signal.aborted || abortRef.current !== controller) return;
       const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
+      const previous = previousRef.current?.userId === user.id ? previousRef.current.rows : null;
+      const incoming = previous && (body.conversations ?? []).find((row) => {
+        const old = previous.find((item) => item.id === row.id);
+        return !row.lastFromMe && (row.unread ?? 0) > (old?.unread ?? 0) && (!old || row.lastAt !== old.lastAt);
+      });
+      previousRef.current = { userId: user.id, rows: body.conversations ?? [] };
+      if (incoming && pathnameRef.current !== `/messages/${incoming.id}`) setArrival({ userId: user.id, conversation: incoming });
       setUnreadResult({ userId: user.id, handle: h, count: total });
     } catch {
       // aborted / offline — leave the badge as-is; the nav never breaks on this.
@@ -87,14 +118,39 @@ export default function MessagesLink(): React.JSX.Element | null {
       void Promise.resolve().then(() => setUnreadResult(null));
       return;
     }
-    const stop = subscribeVisiblePolling(() => void refresh(), POLL_MS, () => abortRef.current?.abort());
+    let mounted = true;
+    void Promise.resolve().then(() => { if (mounted) void refresh(); });
+    const stop = subscribeToInbox(effectiveHandle, () => void refresh(true), { poll: () => void refresh() });
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") abortRef.current?.abort();
+      else void refresh();
+    };
+    const onFocus = () => void refresh();
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("focus", onFocus);
+    const onPush = (event: MessageEvent) => {
+      if (event.data?.type === "pubmax:message-preview-auth" && event.data.recipientId === user.id && event.ports[0]) {
+        const revision = readProviderAccountRevision();
+        void queueMessagePushOperation(() => flushMessagePushReleases(AbortSignal.timeout(1_000)))
+          .then(getAccessToken).then((token) => {
+            event.ports[0].postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
+          }).catch(() => event.ports[0].postMessage({ token: null }));
+      }
+      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) void refresh(true);
+    };
+    navigator.serviceWorker?.addEventListener("message", onPush);
     // A completed thread read supersedes an older unread-count request.
     const unsubscribeRead = subscribeMessagesRead(() => void refresh(true));
     return () => {
+      mounted = false;
       stop();
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("focus", onFocus);
+      abortRef.current?.abort();
+      navigator.serviceWorker?.removeEventListener("message", onPush);
       unsubscribeRead();
     };
-  }, [refresh, user]);
+  }, [refresh, user, effectiveHandle]);
 
   // A signed-out visitor has no inbox, so the link is not drawn for them at all
   // (Oct 2026 UX audit). It appears once a session exists.
@@ -103,6 +159,7 @@ export default function MessagesLink(): React.JSX.Element | null {
   const label = unread > 0 ? `Messages, ${unread} unread` : "Messages";
 
   return (
+    <>
     <Link
       href="/messages"
       // Warmed on intent by the handler below, so Next's automatic on-sight
@@ -123,14 +180,13 @@ export default function MessagesLink(): React.JSX.Element | null {
     >
       <MessageSquare size={20} aria-hidden="true" />
       {unread > 0 ? (
-        // key={unread} remounts the badge whenever the count changes, so the
-        // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —
-        // no separate "did it change" animation state to track.
-        <span key={unread} className="siteNavBellBadge" aria-hidden="true">
+        <span className="siteNavBellBadge" aria-hidden="true">
           {unread > 99 ? "99+" : unread}
         </span>
       ) : null}
       <NavPendingIndicator />
     </Link>
+    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} onDismiss={dismissArrival} /> : null}
+    </>
   );
 }
