@@ -108,12 +108,15 @@ function millilitres(amount: string, unit: string): number {
  * name and the quoted listing are both read, because either one is printed
  * beside the measure. A serving the text does not state is never inferred.
  */
-function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">, kind: "drink" | "listing"): boolean {
+function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">, kind: "drink" | "listing", drinkName?: string): boolean {
   for (const pour of text.matchAll(SPIRIT_POUR)) {
     if (pour[1]!.toLowerCase() !== measure) return true;
   }
   if ((kind === "drink" ? DRINK_CAN : LISTING_CAN).test(text)) return true;
   if (measure !== "bottle" && BOTTLE.test(text)) return true;
+  // A quoted drink name such as "Half Moon IPA" is not a serving instruction.
+  const servingText = drinkName ? text.toLowerCase().replaceAll(drinkName.toLowerCase(), "") : text;
+  if (measure !== "half" && /\b(?:per|a)\s+half(?=\s|$|[,.!?;:])/i.test(servingText)) return true;
   const expectedMl =
     measure === "pint" ? 568 : measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
   if (expectedMl !== null) {
@@ -152,7 +155,7 @@ function evidenceFromRow(venueId: string, row: VenuePrice, amount: number, nowMs
   if (!priceText || priceText.length > SUMMON_PRICE_STATEMENT_MAX) return null;
   const scalar = SCALAR_LISTING.exec(priceText);
   if (scalar ? !sameAmount(Number(scalar[1]), amount) : !listingStatesAmount(priceText, amount)) return null;
-  if (!scalar && servingConflicts(priceText, measure, "listing")) return null;
+  if (!scalar && servingConflicts(priceText, measure, "listing", drink)) return null;
 
   const source = namedLegacyPintPriceSource(row);
   if (!source || source.url.length > SOURCE_URL_MAX || /\s/.test(source.url) || UNSAFE_TEXT.test(source.url) || UNSAFE_TEXT.test(source.label)) {
