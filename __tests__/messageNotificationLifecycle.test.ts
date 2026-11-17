@@ -2,12 +2,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding, messagePushDepartureRevision } from "@/lib/messageNotificationLifecycle";
 const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
+vi.mock("@/lib/authProviderRevision", () => ({ providerOwnsSession: (_provider: string, userId: string) => account.active === userId, readProviderAccountSignal: () => new AbortController().signal }));
 vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authedFetch")>(), authedActionFetch: async (_url: string, init: RequestInit) => {
   if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
   return Response.json({ enabled: account.enabled });
 } }));
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
-import { restoreMessagePushAccount, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
+import { restoreMessagePushAccount, saveMessageNotificationSetting, MESSAGE_PUSH_RESTORED } from "@/lib/messageNotificationClient";
 import * as safeStorage from "@/lib/safeStorage";
 
 function fullStorage(storage: Storage): Storage {
@@ -26,6 +27,8 @@ const close = vi.fn();
 beforeEach(() => {
   vi.clearAllMocks();
   account.subscribe = null;
+  account.active = "A";
+  account.enabled = true;
   localStorage.clear();
   sessionStorage.clear();
   recordMessagePushBinding(encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!, "22222222-2222-4222-8222-222222222222");
@@ -45,6 +48,37 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it("announces only a confirmed current-account restoration", async () => {
+    const restored = vi.fn();
+    window.addEventListener(MESSAGE_PUSH_RESTORED, restored);
+    try {
+      await releaseMessagePush();
+      await restoreMessagePushAccount(new AbortController().signal, "A");
+      expect(restored).toHaveBeenCalledTimes(1);
+      expect(restored.mock.calls[0]![0].detail).toMatchObject({ userId: "A", sessionId: "22222222-2222-4222-8222-222222222222", departureRevision: messagePushDepartureRevision() });
+      await releaseMessagePush();
+      account.subscribe = async () => Response.json({ error: "unavailable" }, { status: 503 });
+      await expect(restoreMessagePushAccount(new AbortController().signal, "A")).rejects.toThrow();
+      expect(restored).toHaveBeenCalledTimes(1);
+    } finally { window.removeEventListener(MESSAGE_PUSH_RESTORED, restored); }
+  });
+  it("does not announce an obsolete restore after ownership changes", async () => {
+    let finish!: (response: Response) => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    account.subscribe = () => { entered(); return new Promise(resolve => { finish = resolve; }); };
+    const restored = vi.fn();
+    window.addEventListener(MESSAGE_PUSH_RESTORED, restored);
+    try {
+      const pending = restoreMessagePushAccount(new AbortController().signal, "A");
+      await started;
+      account.active = "B";
+      const departure = releaseMessagePush();
+      finish(Response.json({ ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" }));
+      await Promise.all([pending, departure]);
+      expect(restored).not.toHaveBeenCalled();
+    } finally { window.removeEventListener(MESSAGE_PUSH_RESTORED, restored); }
+  });
   it("detaches despite readable quota-full local storage containing an empty backlog", async () => {
     localStorage.setItem("pubmax:pending-message-detach", "[]");
     const write = vi.spyOn(safeStorage, "safeLocalStorage").mockReturnValue(fullStorage(localStorage));

@@ -7,7 +7,7 @@ const PRESENCE_THREAD = "b0000000-0000-4000-8000-000000000001";
 type Scope = "owner" | "other-user" | "other-session" | "other-device" | "wrong-secret";
 export type PresenceVectorStore = {
   start(scope?: Scope): Promise<number | null>;
-  write(conversation: string | null, activity: number, revision: number, scope?: Scope): Promise<void>;
+  write(conversation: string | null, activity: number, revision: number, scope?: Scope): Promise<boolean>;
   suppressed(): Promise<boolean>;
 };
 
@@ -16,27 +16,27 @@ export type PresenceVectorStore = {
 export async function exercisePresenceOrdering(store: PresenceVectorStore): Promise<void> {
   const first = (await store.start())!;
   expect(first).toBeGreaterThan(0);
-  await store.write(PRESENCE_THREAD, first, 1);
+  expect(await store.write(PRESENCE_THREAD, first, 1)).toBe(true);
   expect(await store.suppressed()).toBe(true);
   const current = (await store.start())!;
   expect(current).toBeGreaterThan(first);
   expect(await store.suppressed()).toBe(true);
-  await store.write(PRESENCE_THREAD, current, 1);
-  for (const [conversation, activity, revision, expected] of [
-    [null, first, 9, true],
-    [null, current, 3, false],
-    [PRESENCE_THREAD, current, 2, false],
-    [PRESENCE_THREAD, first, 99, false],
-    [PRESENCE_THREAD, current, 4, true],
-    [null, current, 3, true],
-    [null, current + 1000, 1, true],
+  expect(await store.write(PRESENCE_THREAD, current, 1)).toBe(true);
+  for (const [conversation, activity, revision, expected, applied] of [
+    [null, first, 9, true, false],
+    [null, current, 3, false, true],
+    [PRESENCE_THREAD, current, 2, false, false],
+    [PRESENCE_THREAD, first, 99, false, false],
+    [PRESENCE_THREAD, current, 4, true, true],
+    [null, current, 3, true, false],
+    [null, current + 1000, 1, true, false],
   ] as const) {
-    await store.write(conversation, activity, revision);
+    expect(await store.write(conversation, activity, revision)).toBe(applied);
     expect(await store.suppressed()).toBe(expected);
   }
   for (const scope of ["other-user", "other-session", "other-device", "wrong-secret"] as const) {
     expect(await store.start(scope)).toBeNull();
-    await store.write(null, current, 100, scope);
+    expect(await store.write(null, current, 100, scope)).toBe(false);
     expect(await store.suppressed()).toBe(true);
   }
   const [left, right] = await Promise.all([store.start(), store.start()]);

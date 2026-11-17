@@ -79,6 +79,7 @@ export function accessJwt(account: Account): string {
     base64url(
       JSON.stringify({
         sub: account.id,
+        session_id: account.id === ACCOUNTS.A.id ? "11111111-1111-4111-8111-111111111111" : "22222222-2222-4222-8222-222222222222",
         email: account.email,
         exp: JWT_EXPIRY_SECONDS,
         role: "authenticated",

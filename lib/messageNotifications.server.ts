@@ -3,6 +3,7 @@ import "server-only";
 import { bearerToken } from "@/lib/authServer";
 import type { MessageDTO } from "@/lib/messages";
 import { messagesStore } from "@/lib/messagesStore";
+import { messageNotificationSessionFromToken } from "@/lib/messageNotificationSession";
 import { messageNotificationStore } from "@/lib/messageNotificationStore";
 import { messageBlockRefusal } from "@/lib/messageSafety.server";
 import { isProfileTombstoned, profileStore, type ProfileRecord } from "@/lib/profileStore";
@@ -62,10 +63,5 @@ export async function resolveMessageNotificationPreview(token: string, recipient
 
 // The caller must first verify this request’s bearer with callerUserId.
 export function messageNotificationSessionId(request: Request, verifiedUserId: string): string | null {
-  try {
-    const encoded = bearerToken(request)?.split(".")[1];
-    if (!encoded) return null;
-    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString()) as { sub?: unknown; session_id?: unknown };
-    return payload.sub === verifiedUserId && typeof payload.session_id === "string" && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(payload.session_id) ? payload.session_id : null;
-  } catch { return null; }
+  return messageNotificationSessionFromToken(bearerToken(request), verifiedUserId);
 }

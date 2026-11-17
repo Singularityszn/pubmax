@@ -39,8 +39,8 @@ grant execute on function public.message_notification_presence_start(uuid, uuid,
 
 create function public.message_notification_presence(p_user_id uuid, p_session_id uuid, p_endpoint_hash text,
   p_token text, p_conversation_id uuid, p_activity_id bigint, p_revision bigint)
-returns void language sql security definer set search_path = '' as $$
-  update public.message_push_subscriptions s set
+returns boolean language sql security definer set search_path = '' as $$
+  with changed as (update public.message_push_subscriptions s set
     presence_revision = p_revision,
     presence_activity_id = p_activity_id,
     active_conversation_id = p_conversation_id,
@@ -48,7 +48,8 @@ returns void language sql security definer set search_path = '' as $$
   where s.endpoint_hash = p_endpoint_hash and s.token = p_token and s.user_id = p_user_id and s.session_id = p_session_id
     and p_activity_id between 1 and 9007199254740991 and p_revision between 1 and 9007199254740991
     and p_activity_id <= s.presence_generation
-    and (p_activity_id > s.presence_activity_id or (p_activity_id = s.presence_activity_id and p_revision > s.presence_revision));
+    and (p_activity_id > s.presence_activity_id or (p_activity_id = s.presence_activity_id and p_revision > s.presence_revision))
+  returning 1) select exists (select 1 from changed);
 $$;
 revoke all on function public.message_notification_presence(uuid, uuid, text, text, uuid, bigint, bigint) from public, anon, authenticated;
 grant execute on function public.message_notification_presence(uuid, uuid, text, text, uuid, bigint, bigint) to service_role;

@@ -2,11 +2,14 @@ import { useEffect } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { getAccessToken } from "@/lib/authClient";
-import { providerOwnsSession } from "@/lib/authProviderRevision";
-import { currentMessagePushToken, MESSAGE_PUSH_DEPARTURE } from "@/lib/messageNotificationLifecycle";
-import { MESSAGE_NOTIFICATION_SETTINGS_CHANGED } from "@/lib/messageNotificationClient";
+import { compositeActionSignal } from "@/lib/authedFetch";
+import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { currentMessagePushToken, MESSAGE_PUSH_DEPARTURE, messagePushDepartureRevision } from "@/lib/messageNotificationLifecycle";
+import { MESSAGE_NOTIFICATION_SETTINGS_CHANGED, MESSAGE_PUSH_RESTORED, type MessagePushRestored } from "@/lib/messageNotificationClient";
+import { messageNotificationSessionFromToken } from "@/lib/messageNotificationSession";
 import { INITIAL_THREAD_PRESENCE, transitionThreadPresence, type ThreadPresenceEvent, type ThreadPresenceEffect } from "@/lib/messageThreadPresenceState";
 import { discardBody } from "@/lib/responseBody";
+import { waitForWebPushWork } from "@/lib/webPush";
 
 export function useMessageThreadPresence(conversationId: string): void {
   const { user } = useAuth();
@@ -14,12 +17,14 @@ export function useMessageThreadPresence(conversationId: string): void {
   useEffect(() => {
     if (!userId) return;
     let state = INITIAL_THREAD_PRESENCE;
-    const controller = new AbortController();
-    const ownsSession = () => providerOwnsSession("supabase", userId);
-    const post = (bearer: string, body: object, clear = false) => fetch("/api/message-notifications", {
+    let controller = new AbortController();
+    let attemptSignal = controller.signal;
+    let notificationRead: Promise<Notification[]> | undefined;
+    const accountSignal = readProviderAccountSignal();
+    const ownsSession = () => !accountSignal.aborted && providerOwnsSession("supabase", userId);
+    const post = (bearer: string, body: object, signal: AbortSignal, clear = false) => fetch("/api/message-notifications", {
       method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${bearer}` },
-      body: JSON.stringify(body), keepalive: clear,
-      signal: clear ? AbortSignal.timeout(3_000) : controller.signal,
+      body: JSON.stringify(body), keepalive: clear, signal,
     });
     const dispatch = (event: ThreadPresenceEvent, notifications: readonly Notification[] = []) => {
       const next = transitionThreadPresence(state, event);
@@ -28,45 +33,60 @@ export function useMessageThreadPresence(conversationId: string): void {
         if (effect.type === "close-notifications") {
           for (const notification of notifications) notification.close();
         } else void run(effect).catch(() => {
-          if ("revision" in effect) dispatch({ type: "failed", revision: effect.revision });
+          if ("revision" in effect && !(effect.type === "send" && !effect.visible)) dispatch({ type: "failed", revision: effect.revision });
         });
       }
     };
     const run = async (effect: Exclude<ThreadPresenceEffect, { type: "close-notifications" }>): Promise<void> => {
+      if (effect.type === "abort") { controller.abort(); return; }
+      if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
+      if (effect.type === "credentials") {
+        controller.abort();
+        controller = new AbortController();
+        attemptSignal = compositeActionSignal([controller.signal, accountSignal, AbortSignal.timeout(3_000)]);
+      }
+      const signal = effect.type === "send" && !effect.visible ? AbortSignal.timeout(3_000) : attemptSignal;
+      const wait = <T,>(work: PromiseLike<T>) => waitForWebPushWork(work, signal);
       switch (effect.type) {
         case "credentials": {
-          const [bearer, token] = await Promise.all([getAccessToken(), currentMessagePushToken()]);
+          const [bearer, token] = await wait(Promise.all([getAccessToken(), currentMessagePushToken(signal)]));
           if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
-          dispatch({ type: "credentials", revision: effect.revision, binding: bearer && token ? { bearer, token } : null });
+          const sessionId = messageNotificationSessionFromToken(bearer, userId);
+          dispatch({ type: "credentials", revision: effect.revision, binding: bearer && token && sessionId ? { bearer, token, sessionId } : null });
           return;
         }
         case "reserve": {
+          const response = await wait(post(effect.binding.bearer, { action: "presence-start", token: effect.binding.token }, signal));
+          const body: unknown = await wait(response.json());
           if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
-          const response = await post(effect.binding.bearer, { action: "presence-start", token: effect.binding.token });
-          const body = await response.json() as { activityId?: unknown };
-          if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
-          dispatch({ type: "reserved", revision: effect.revision, activityId: response.ok && typeof body.activityId === "number" ? body.activityId : null });
+          const activityId = response.ok && body && typeof body === "object" && "activityId" in body && typeof body.activityId === "number" ? body.activityId : null;
+          dispatch({ type: "reserved", revision: effect.revision, activityId });
           return;
         }
         case "send": {
-          if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
-          const response = await post(effect.lease.bearer, {
+          const response = await wait(post(effect.lease.bearer, {
             action: "presence", presenceVersion: 2, token: effect.lease.token,
             conversationId: effect.visible ? conversationId : null,
             activityId: effect.lease.activityId, revision: effect.revision,
-          }, !effect.visible);
-          discardBody(response);
-          if (response.ok && effect.visible && ownsSession()) dispatch({ type: "delivered", revision: effect.revision });
+          }, signal, !effect.visible));
+          if (!effect.visible) { discardBody(response); return; }
+          const body: unknown = await wait(response.json());
+          if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
+          dispatch({ type: "delivered", revision: effect.revision, applied: response.ok && Boolean(body && typeof body === "object" && "applied" in body && body.applied === true) });
           return;
         }
         case "notifications": {
-          const registration = await navigator.serviceWorker.getRegistration();
-          const notifications = await registration?.getNotifications({ tag: `message:${conversationId}` }) ?? [];
+          if (notificationRead) return;
+          const read = navigator.serviceWorker.getRegistration().then(registration =>
+            signal.aborted || !ownsSession() ? [] : registration?.getNotifications({ tag: `message:${conversationId}` }) ?? []);
+          notificationRead = read;
+          const settled = () => { if (notificationRead === read) notificationRead = undefined; };
+          void read.then(settled, settled);
+          const notifications = await wait(read);
           if (!ownsSession()) { dispatch({ type: "ownership-lost" }); return; }
           dispatch({ type: "notifications-loaded", revision: effect.revision }, notifications);
           return;
         }
-        case "abort": controller.abort(); return;
         default: {
           const unreachable: never = effect;
           return unreachable;
@@ -75,20 +95,29 @@ export function useMessageThreadPresence(conversationId: string): void {
     };
     const refresh = () => dispatch({ type: document.visibilityState === "visible" ? "refresh" : "hide" });
     const clear = () => dispatch({ type: "hide" });
-    const stop = () => dispatch({ type: "stop" });
+    const depart = () => dispatch({ type: "depart", departureRevision: messagePushDepartureRevision() });
+    const restore = (event: Event) => {
+      const { detail } = event as CustomEvent<MessagePushRestored>;
+      if (!detail || detail.userId !== userId || !ownsSession()) return;
+      const previous = state;
+      dispatch({ type: "restored", ...detail });
+      if (state !== previous) refresh();
+    };
     refresh();
     const interval = setInterval(refresh, 20_000);
     document.addEventListener("visibilitychange", refresh);
     window.addEventListener("pagehide", clear);
     window.addEventListener(MESSAGE_NOTIFICATION_SETTINGS_CHANGED, refresh);
-    window.addEventListener(MESSAGE_PUSH_DEPARTURE, stop);
+    window.addEventListener(MESSAGE_PUSH_DEPARTURE, depart);
+    window.addEventListener(MESSAGE_PUSH_RESTORED, restore);
     return () => {
       clearInterval(interval);
       document.removeEventListener("visibilitychange", refresh);
       window.removeEventListener("pagehide", clear);
       window.removeEventListener(MESSAGE_NOTIFICATION_SETTINGS_CHANGED, refresh);
-      window.removeEventListener(MESSAGE_PUSH_DEPARTURE, stop);
-      stop();
+      window.removeEventListener(MESSAGE_PUSH_DEPARTURE, depart);
+      window.removeEventListener(MESSAGE_PUSH_RESTORED, restore);
+      dispatch({ type: "stop" });
     };
   }, [conversationId, userId]);
 }

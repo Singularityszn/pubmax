@@ -48,6 +48,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await pushRuntime(page);
   await seedSignedIn(page, "B");
   await auth.signedInAs("B");
+  await page.goto("about:blank");
   await page.route("**/api/messages?**", (route) => route.fulfill({ json: {
     conversations: [{
       id: THREAD,
@@ -150,6 +151,7 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
   const recipient = await installAuthDoubles(page);
   await seedSignedIn(page, "B");
   await recipient.signedInAs("B");
+  await page.goto("about:blank");
   let unread = 1;
   let body = "See you at seven";
   let stamp = "2026-11-16T21:00:00Z";

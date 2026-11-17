@@ -39,7 +39,11 @@ describe("message notification ownership", () => {
     expect(first.status).toBe(200);
     const { activityId } = await first.json();
     expect(activityId).toBeGreaterThan(0);
-    expect((await POST(request({ action: "presence", presenceVersion: 2, token, conversationId: THREAD, activityId, revision: 1 }))).status).toBe(200);
+    const applied = await POST(request({ action: "presence", presenceVersion: 2, token, conversationId: THREAD, activityId, revision: 1 }));
+    expect(applied.status).toBe(200);
+    expect(await applied.json()).toEqual({ ok: true, applied: true });
+    const stale = await POST(request({ action: "presence", presenceVersion: 2, token, conversationId: null, activityId, revision: 1 }));
+    expect(await stale.json()).toEqual({ ok: true, applied: false });
     expect(await realStore.targets("owner", THREAD)).toEqual([]);
     const { activityId: next } = await (await reserve()).json();
     expect(next).toBeGreaterThan(activityId);

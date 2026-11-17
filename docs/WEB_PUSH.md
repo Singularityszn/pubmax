@@ -70,15 +70,27 @@ recipient must have alerts enabled without a chat mute, sender mute or block.
 Each recipient/message pair is claimed before delivery. A failed delivery is
 not retried through that claim. A device viewing that conversation is excluded
 while its presence is less than 30 seconds old. Visible clients renew every
-20 seconds. Each visible heartbeat, including a new client lifetime, reserves
-its activity number through
-`presence-start`, scoped to the verified account, session and exact subscription.
+20 seconds. A new client lifetime, visibility resume or rejected ordered write
+requires an activity reservation through `presence-start`, scoped to the verified
+account, session and exact subscription. Normal heartbeats reuse that reservation
+and send one presence request. The store reports whether each ordered write
+applied. A rejected write reserves again on the next heartbeat. A bearer refresh
+within the same session keeps the reservation and uses the new bearer.
 The server allocates this number beyond its stored ordering floor without
 changing current presence. Heartbeats and clears carry `presenceVersion: 2`.
 Older installed clients without this protocol receive 400 for presence writes.
 They retain message delivery, consent and preview settings, but need a client
-update for foreground suppression. The new client fails closed until migration
-0243 is applied and its activity reservation succeeds.
+update for foreground suppression. Until migration 0243 is applied and an
+activity reservation succeeds, foreground suppression is unavailable. Generic
+message alerts still deliver. These failures do not drop private messages.
+
+Each complete foreground attempt has a three-second limit, including credential
+lookup, response bodies and notification tray reads. At most one native tray
+read remains outstanding per mounted thread. Its expired result cannot close
+notifications. A timeout permits recovery on the next heartbeat. Hiding or departing fences pending work. Account departure
+pauses renewal until the exact original binding is confirmed restored. Settings
+and visibility events cannot confirm restoration. Unmount and ownership loss
+remain terminal.
 
 The inbox and navigation badge share account-scoped reads and a private inbox
 subscription. Arrival and read signals invalidate the shared result. Visible

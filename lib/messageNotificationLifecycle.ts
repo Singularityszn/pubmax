@@ -75,8 +75,9 @@ function readBoundBinding(): Binding | null | undefined {
     return isBinding(stored) ? stored : null;
   } catch { /* Retain the last in-memory binding. */ }
 }
-export function recordMessagePushBinding(token: string, sessionId: string | null, revision = bindingState.revision): void {
+export function recordMessagePushBinding(token: string, sessionId: string | null, revision = bindingState.revision): boolean {
   applyBindingEvent({ type: "binding-recorded", token, sessionId, revision, storedReleases: readReleases() });
+  return bindingState.phase === "bound" && bindingState.revision === revision && bindingState.binding.token === token && bindingState.binding.sessionId === sessionId;
 }
 export async function flushMessagePushReleases(signal?: AbortSignal, currentToken?: string): Promise<void> {
   loadReleases();

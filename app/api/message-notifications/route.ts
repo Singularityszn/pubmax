@@ -102,8 +102,8 @@ async function updateNotificationPresence({ request, userId, body, store }: Noti
   const sessionId = messageNotificationSessionId(request, userId);
   if (!sessionId || !await store.sessionActive(userId, sessionId)) return publicApiError("Sign in again to enable message alerts.", "UNAUTHENTICATED", 401);
   if (body.conversationId && !await conversationAccess(userId, body.conversationId)) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
-  await store.presence(userId, body.token, body.conversationId, sessionId, body.activityId, body.revision);
-  return jsonNoStore({ ok: true });
+  const applied = await store.presence(userId, body.token, body.conversationId, sessionId, body.activityId, body.revision);
+  return jsonNoStore({ ok: true, applied });
 }
 
 const notificationHandlers: Record<NotificationAction, NotificationHandler> = {

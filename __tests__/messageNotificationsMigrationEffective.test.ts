@@ -49,11 +49,11 @@ describe("message notification privacy migration", () => {
         return result ? Number(result) : null;
       },
       write: async (thread, activity, revision, scope) => {
-        database.sql(`set role service_role; select public.message_notification_presence(
+        return database.sql(`set role service_role; select public.message_notification_presence(
           '${scope === "other-user" ? "a0000000-0000-4000-8000-000000000002" : OWNER}',
           '${scope === "other-session" ? "d0000000-0000-4000-8000-000000000002" : SESSION}',
           '${scope === "other-device" ? "other-hash" : "hash"}', '${scope === "wrong-secret" ? "wrong-token" : "private-token"}',
-          ${thread ? `'${thread}'` : "null"}, ${activity}, ${revision}); reset role;`);
+          ${thread ? `'${thread}'` : "null"}, ${activity}, ${revision}); reset role;`) === "t";
       },
       suppressed: async () => database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`) === "",
     });
