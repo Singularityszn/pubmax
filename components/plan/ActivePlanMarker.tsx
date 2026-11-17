@@ -17,6 +17,7 @@ import {
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { discardBody } from "@/lib/responseBody";
+import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 // Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
 // Night Mode card can surface it across every screen. Renders nothing — it's a
@@ -75,6 +76,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
       return;
     }
     let cancelled = false;
+    let retryOnResume = false;
     const onAbort = (): void => {
       cancelled = true;
     };
@@ -104,10 +106,17 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
           // A session or network race gets the same bounded retry as a 503.
         }
       }
+      retryOnResume = !cancelled && !actionSignal.aborted;
     };
+    const stopRecovery = subscribeToReconnectRecovery(() => {
+      if (!retryOnResume || cancelled) return;
+      retryOnResume = false;
+      void claim();
+    }, { events: ["online", "visible", "focus"] });
     void claim();
     return () => {
       cancelled = true;
+      stopRecovery();
       actionSignal.removeEventListener("abort", onAbort);
       if (retryTimer) clearTimeout(retryTimer);
     };

@@ -125,8 +125,8 @@ describe("the private Night Receipt projection", () => {
 
   it("shows nothing for a legacy Plan with no recorded status", () => {
     const state = completedState();
-    const { status: _status, ...plan } = state.plan;
-    expect(project({ ...state, plan })).toEqual({ kind: "none" });
+    delete state.plan.status;
+    expect(project(state)).toEqual({ kind: "none" });
   });
 
   it("lists the owner's completed route in order with its saved price evidence", () => {

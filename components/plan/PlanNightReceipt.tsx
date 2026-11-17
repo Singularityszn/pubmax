@@ -19,6 +19,7 @@ import {
   readPlanCapabilitySnapshot,
 } from "@/lib/planSessionCapability";
 import { discardBody } from "@/lib/responseBody";
+import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 import "./planNightReceipt.css";
 
@@ -90,14 +91,12 @@ function useRecheckCount(planId: string): number {
     const recheck = () => {
       if (document.visibilityState !== "hidden") setCount((current) => current + 1);
     };
-    window.addEventListener("focus", recheck);
+    const stopRecovery = subscribeToReconnectRecovery(recheck, { events: ["visible", "focus"] });
     const claimed = planAccountClaimEvent(planId);
     window.addEventListener(claimed, recheck);
-    document.addEventListener("visibilitychange", recheck);
     return () => {
-      window.removeEventListener("focus", recheck);
+      stopRecovery();
       window.removeEventListener(claimed, recheck);
-      document.removeEventListener("visibilitychange", recheck);
     };
   }, [planId]);
   return count;

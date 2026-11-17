@@ -8,7 +8,7 @@ const DEFAULT_RECOVERY_EVENTS: readonly ReconnectRecoveryEvent[] = [
   "visible",
 ];
 
-type ReconnectRecoveryEvent = "online" | "visible" | "pageshow";
+type ReconnectRecoveryEvent = "online" | "visible" | "pageshow" | "focus";
 
 type RecoveryWindow = Pick<Window, "addEventListener" | "removeEventListener" | "setTimeout" | "clearTimeout">;
 type RecoveryDocument = Pick<Document, "addEventListener" | "removeEventListener"> & {
@@ -63,6 +63,9 @@ export function subscribeToReconnectRecovery(
     }, debounceMs);
   };
   const onOnline = () => schedule();
+  const onFocus = () => {
+    if (documentTarget.visibilityState !== "hidden") schedule();
+  };
   const onVisibilityChange = () => {
     if (documentTarget.visibilityState === "visible") schedule();
   };
@@ -71,6 +74,7 @@ export function subscribeToReconnectRecovery(
   };
 
   if (events.includes("online")) windowTarget.addEventListener("online", onOnline);
+  if (events.includes("focus")) windowTarget.addEventListener("focus", onFocus);
   if (events.includes("visible")) {
     documentTarget.addEventListener("visibilitychange", onVisibilityChange);
   }
@@ -78,6 +82,7 @@ export function subscribeToReconnectRecovery(
 
   return () => {
     if (events.includes("online")) windowTarget.removeEventListener("online", onOnline);
+    if (events.includes("focus")) windowTarget.removeEventListener("focus", onFocus);
     if (events.includes("visible")) {
       documentTarget.removeEventListener("visibilitychange", onVisibilityChange);
     }

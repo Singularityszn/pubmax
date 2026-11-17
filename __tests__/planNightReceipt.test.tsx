@@ -14,6 +14,18 @@ const auth = vi.hoisted(() => ({
   identityResolved: true,
 }));
 
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/authServer", () => ({
+  verifyCallerAuth: async (request: Request) => {
+    const bearer = request.headers.get("authorization");
+    const account = [ACCOUNT_A, ACCOUNT_B].find(candidate => bearer === `Bearer ${candidate.token}`);
+    return account
+      ? { status: "verified", identity: { id: account.id, email: null, createdAt: null } }
+      : { status: "invalid" };
+  },
+}));
+
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: auth.account ? { id: auth.account.id } : null,
@@ -32,6 +44,12 @@ vi.mock("@/lib/planSessionCapability", async (importOriginal) => ({
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import PlanNightReceipt from "@/components/plan/PlanNightReceipt";
+import { POST as createPlan } from "@/app/api/plans/route";
+import { GET as readPlan } from "@/app/api/plans/[id]/route";
+import { PUT as claimPlan } from "@/app/api/plans/[id]/session/route";
+import { planMemberCookieName } from "@/lib/planMemberCapability";
+import { __resetMemoryPlans, planStore } from "@/lib/planStore";
+
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -126,26 +144,61 @@ afterEach(async () => {
 });
 
 describe("the private Night Receipt on the Plan page", () => {
-  it("reads again when the first host account claim finishes after an initial refusal", async () => {
-    let finishClaim!: (response: Response) => void;
-    let bound = false;
-    claimAnswer = () => new Promise<Response>((resolve) => { finishClaim = resolve; });
-    receiptAnswer = async () => bound ? json({ receipt: RECEIPT }) : refused();
+  it("reads the real completed Plan after its real host account claim finishes", async () => {
+    __resetMemoryPlans();
+    const created = await createPlan(new Request("http://localhost/api/plans", {
+      method: "POST",
+      headers: { "idempotency-key": `receipt-claim-${crypto.randomUUID()}` },
+      body: JSON.stringify({ title: "Claimed receipt night", creatorName: "Fixture host",
+        startTime: new Date(Date.now() + 3_600_000).toISOString(),
+        stops: [{ venueId: "venue-7tarkc" }, { venueId: "venue-122cuu1" }],
+      }),
+    }));
+    expect(created.status).toBe(201);
+    const host = await created.json() as { plan: { plan: { id: string } }; memberToken: string };
+    const id = host.plan.plan.id;
+    for (const status of ["ready", "active", "completed"] as const) {
+      expect((await planStore().update(id, host.memberToken, { status })).ok).toBe(true);
+    }
+    let finishClaim!: () => void;
+    let firstRead!: () => void;
+    let ownedRead!: () => void;
+    const heldClaim = new Promise<void>(resolve => { finishClaim = resolve; });
+    const initialReceipt = new Promise<void>(resolve => { firstRead = resolve; });
+    const ownerReceipt = new Promise<void>(resolve => { ownedRead = resolve; });
+    const statuses: number[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const url = String(input);
+      const headers = new Headers(init.headers);
+      headers.set("cookie", `${planMemberCookieName(id)}=${encodeURIComponent(host.memberToken)}`);
+      const request = new Request(`http://localhost${url}`, { ...init, headers });
+      const context = { params: Promise.resolve({ id }) };
+      if (url === `/api/plans/${id}/session`) {
+        await heldClaim;
+        return claimPlan(request, context);
+      }
+      if (url !== `/api/plans/${id}?view=receipt`) throw new Error(`Unexpected fixture request: ${url}`);
+      const response = await readPlan(request, context);
+      statuses.push(response.status);
+      const decode = response.json.bind(response);
+      response.json = () => (bodyRead = decode());
+      if (response.status === 403) firstRead();
+      if (response.status === 200) ownedRead();
+      return response;
+    }));
     await act(async () => {
       root.render(createElement(Fragment, null,
-        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
-        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+        createElement(ActivePlanMarker, { id, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: id }),
       ));
     });
-    await settle();
+    await act(async () => { await initialReceipt; });
     expect(receiptOnScreen()).toBeNull();
-    expect(receiptReads()).toHaveLength(1);
-
-    bound = true;
-    await act(async () => { finishClaim(json({ ok: true })); });
+    await act(async () => { finishClaim(); });
+    await act(async () => { await ownerReceipt; });
     await settle();
-    expect(receiptOnScreen()).not.toBeNull();
-    expect(receiptReads()).toHaveLength(2);
+    expect(receiptOnScreen()?.textContent).toContain("Claimed receipt night");
+    expect(statuses).toEqual([403, 200]);
   });
 
   it("does not repeat a refused receipt read after a failed account claim", async () => {
@@ -199,6 +252,26 @@ describe("the private Night Receipt on the Plan page", () => {
     expect(receiptOnScreen()).not.toBeNull();
   });
 
+  it("does not retry a definite account-claim refusal on resume", async () => {
+    vi.useFakeTimers();
+    receiptAnswer = async () => refused();
+    await act(async () => {
+      root.render(createElement(Fragment, null,
+        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+      ));
+    });
+    await settle();
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      window.dispatchEvent(new Event("online"));
+      await vi.advanceTimersByTimeAsync(150);
+    });
+    await settle();
+    expect(calls.filter(call => call.url === `/api/plans/${PLAN_ID}/session`)).toHaveLength(1);
+    expect(receiptOnScreen()).toBeNull();
+  });
+
   it("shows the bound host account its receipt from the account-bound read", async () => {
     await show();
 
@@ -250,6 +323,7 @@ describe("the private Night Receipt on the Plan page", () => {
     ["an unreadable answer", async () => new Response("<html>", { status: 200 })],
     ["a failed request", async () => { throw new TypeError("Failed to fetch"); }],
   ] as Array<[string, Answer]>)("clears a shown receipt when the check on return to the app meets %s", async (_label, answer) => {
+    vi.useFakeTimers();
     await show();
     expect(receiptOnScreen()).not.toBeNull();
 
@@ -257,6 +331,7 @@ describe("the private Night Receipt on the Plan page", () => {
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
     });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
     await settle();
 
     expect(receiptReads()).toHaveLength(2);
@@ -279,12 +354,14 @@ describe("the private Night Receipt on the Plan page", () => {
   });
 
   it("checks again when the app comes back into view", async () => {
+    vi.useFakeTimers();
     await show();
     receiptAnswer = async () => refused();
 
     await act(async () => {
       document.dispatchEvent(new Event("visibilitychange"));
     });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
     await settle();
 
     expect(receiptReads()).toHaveLength(2);
