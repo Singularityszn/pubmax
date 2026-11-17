@@ -173,6 +173,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
       expect(chipBox).not.toBeNull();
       expect(Math.min(chipBox!.x + chipBox!.width, drawerBox!.x + drawerBox!.width) - Math.max(chipBox!.x, drawerBox!.x)).toBeLessThanOrEqual(0);
       expect(chipBox!.x).toBeGreaterThanOrEqual(0);
+      expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(width);
       await expect.poll(() => drawer.getAttribute("aria-modal")).toBeNull();
 
       const heights = await chip
