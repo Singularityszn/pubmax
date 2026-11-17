@@ -426,6 +426,12 @@
   white-space: normal;
 }
 
+.crews__attendanceLink {
+  color: var(--color-text);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
 .crews__attendanceActions {
   grid-column: 1 / -1;
   display: flex;

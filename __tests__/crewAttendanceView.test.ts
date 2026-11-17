@@ -42,9 +42,14 @@ describe("host attendance view", () => {
 
   it("wakes at the real opening and closing, and not after the close", () => {
     const at = (now: number) => run(CREW_ATTENDANCE_LOADING, { type: "loaded", data: hostRead, now });
-    expect(at(OPENS - 60_000)).toMatchObject({ refreshAt: OPENS, beforeOpen: true });
-    expect(at(NOW)).toMatchObject({ refreshAt: CLOSES, beforeOpen: false });
-    expect(at(CLOSES + 1)).toMatchObject({ refreshAt: null, beforeOpen: false });
+    expect(at(OPENS - 60_000)).toMatchObject({ boundary: { refreshAt: OPENS }, beforeOpen: true });
+    expect(at(NOW)).toMatchObject({ boundary: { refreshAt: CLOSES }, beforeOpen: false });
+    expect(at(CLOSES + 1)).toMatchObject({ boundary: { refreshAt: null }, beforeOpen: false });
+    const before = at(OPENS - 60_000);
+    if (before.status !== "ready") throw new Error("not read");
+    for (const view of [run(before, { type: "refresh" }), run(before, { type: "save", memberId: BEA, state: "attended" })]) {
+      expect(view.status === "ready" && view.boundary).toBe(before.boundary);
+    }
   });
 
   it("one save at a time, only while open and settled, and a saved mark replaces its row", () => {

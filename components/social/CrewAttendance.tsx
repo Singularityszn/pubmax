@@ -57,7 +57,7 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
     return () => controller.abort();
   }, [path, attempt]);
 
-  useRefreshAt(view.status === "ready" ? view : null, view.status === "ready" || view.status === "unavailable", reload);
+  useRefreshAt(view.status === "ready" ? view.boundary : null, view.status === "ready" || view.status === "unavailable", reload);
 
   const handles = new Map(members.map((member) => [member.memberId, member.handle]));
 
@@ -125,7 +125,7 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
         <p>{who} marked you {MARK_LABEL[own.state].toLowerCase()}.</p>
         <p className="crews__muted">
           It&rsquo;s their word, not a check. It never earns points. If it&rsquo;s wrong,{" "}
-          <a href="#crew-members-title">report it to a moderator</a> from Who is in.
+          <a className="crews__attendanceLink" href="#crew-members-title">report it to a moderator</a> from Who is in.
         </p>
       </section>
     );

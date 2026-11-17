@@ -18,8 +18,8 @@ export type CrewAttendanceView =
       status: "ready";
       data: CrewAttendanceDTO;
       beforeOpen: boolean;
-      /** The next opening or closing, when the read must be taken again. */
-      refreshAt: number | null;
+      /** The next opening or closing, when the read must be taken again. One object per read. */
+      boundary: { refreshAt: number | null };
       refreshing: boolean;
       saving: { memberId: string; state: CrewAttendanceState } | null;
       notice: CrewAttendanceNotice | null;
@@ -52,7 +52,7 @@ export function nextCrewAttendanceView(view: CrewAttendanceView, event: CrewAtte
         status: "ready",
         data: event.data,
         beforeOpen: event.now < Date.parse(event.data.opensAt),
-        refreshAt: nextBoundary(event.data, event.now),
+        boundary: { refreshAt: nextBoundary(event.data, event.now) },
         refreshing: false,
         saving: view.status === "ready" ? view.saving : null,
         notice: view.status === "ready" ? view.notice : null,
