@@ -141,7 +141,7 @@ describe("Social Posts account resolution", () => {
     const slot = door.querySelector('section[aria-label="Social posts"]');
     expect(slot, "the pending account must reserve the door's slot").not.toBeNull();
     const content = slot!.querySelector(".emptyState")!.parentElement!;
-    const pendingChildren = Array.from(door.children);
+    const switcher = door.querySelector("nav");
     const sizingContent = content.textContent;
     // The sizing copy is the same shape as the answer (a one-line title and
     // the value line) and names no door before the session answers. Only the
@@ -185,8 +185,8 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
-    // Everything above the packs kept its place while the account answered.
-    expect(Array.from(door.children).slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
+    expect(door.querySelector("nav")).toBe(switcher);
+    expect(slot!.parentElement).toBe(door);
   });
 
   it("keeps an unanswered account neutral and hides stale signed-out copy when resolution restarts", async () => {
