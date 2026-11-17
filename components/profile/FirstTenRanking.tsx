@@ -12,6 +12,7 @@ import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Button } from "@/components/ui/button";
 import { FIRST_TEN_GOAL, firstTenCount, firstTenProgressLine } from "@/lib/firstTenRankingSession";
 import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import type { ComparePubCloseReason } from "@/components/social/ComparePubFlow";
 
 import "./firstTenRanking.css";
 
@@ -30,7 +31,7 @@ export default function FirstTenRanking({
   entries: SocialPubRankingEntry[];
   onSaved: (entries: SocialPubRankingEntry[]) => void;
   /** The session ended. The owner reads the list again. */
-  onClosed: (pendingWrite?: Promise<void>) => void;
+  onClosed: (pendingWrite?: Promise<void>, reason?: ComparePubCloseReason) => void;
   disabled: boolean;
   completionFocusRef: RefObject<HTMLHeadingElement | null>;
 }): React.JSX.Element | null {
@@ -54,7 +55,7 @@ export default function FirstTenRanking({
     <div className="firstTen" role="group" aria-labelledby={titleId}>
       <h3 id={titleId} className="firstTen__title">Rank your first ten</h3>
       <p className="firstTen__line">
-        Pick pubs you remember and answer a few quick questions. Only you see the list, and you can stop whenever you like.
+        Pick pubs you remember and answer a few quick questions. You can stop whenever you like.
       </p>
       <div className="firstTen__foot">
         <p className="firstTen__count">
@@ -68,10 +69,10 @@ export default function FirstTenRanking({
         <ComparePubFlow
           entries={entries}
           progress={firstTenProgressLine(count)}
-          onClose={(pendingWrite) => {
-            completedOnClose.current = count >= FIRST_TEN_GOAL;
+          onClose={(pendingWrite, reason) => {
+            completedOnClose.current = reason !== "refused" && count >= FIRST_TEN_GOAL;
             setOpen(false);
-            onClosed(pendingWrite);
+            onClosed(pendingWrite, reason);
           }}
           onSaved={onSaved}
         />

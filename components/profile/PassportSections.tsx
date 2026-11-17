@@ -14,6 +14,7 @@ import type { Route } from "next";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import type { ComparePubCloseReason } from "@/components/social/ComparePubFlow";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import { authedFetch } from "@/lib/authedFetch";
@@ -126,7 +127,20 @@ function PassportRanked({ handle }: { handle: string }) {
   const [refresh, setRefresh] = useState<"ready" | "checking" | "retrying" | "unavailable">("ready");
   const generation = useRef(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const focusAfterRead = useRef(false);
+  // The reader came from this section's own session, so a refusal on the next
+  // read keeps a heading for their focus.
+  const fromSession = useRef(false);
+  // The account whose refusal reached a reader inside the section. A refusal
+  // on arrival shows nothing.
+  const [retired, setRetired] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!retired || retired !== account) return;
+    // A closing comparison hands the page back in a microtask.
+    queueMicrotask(() => headingRef.current?.focus());
+  }, [retired, account]);
 
   useLayoutEffect(() => {
     if (refresh === "ready" && focusAfterRead.current) {
@@ -149,11 +163,15 @@ function PassportRanked({ handle }: { handle: string }) {
       .catch((): RankedRead => ({ account, unavailable: true }))
       .then((next) => {
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
+        const readerInside = fromSession.current || Boolean(sectionRef.current?.contains(document.activeElement));
+        fromSession.current = false;
         if (!next) {
+          if (readerInside) setRetired(account);
           setRead(null);
           setRefresh("ready");
           return;
         }
+        setRetired(null);
         setRefresh("unavailable" in next ? "unavailable" : "ready");
         // A list already read stays up when a later read fails.
         setRead((current) => ("unavailable" in next && current?.account === account && "entries" in current ? current : next));
@@ -168,8 +186,15 @@ function PassportRanked({ handle }: { handle: string }) {
     setRevision((value) => value + 1);
   }
 
-  function closed(pendingWrite?: Promise<void>) {
+  function closed(pendingWrite?: Promise<void>, reason?: ComparePubCloseReason) {
     const closedGeneration = ++generation.current;
+    if (reason === "refused") {
+      setRead(null);
+      setRefresh("ready");
+      setRetired(account);
+      return;
+    }
+    fromSession.current = true;
     setRefresh("checking");
     void Promise.resolve(pendingWrite).then(() => {
       if (generation.current === closedGeneration) setRevision((value) => value + 1);
@@ -179,7 +204,16 @@ function PassportRanked({ handle }: { handle: string }) {
   const statusText = read?.account !== account || refresh === "ready" ? ""
     : refresh === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…";
   const announcement = <p className="sr-only" role="status">{statusText}</p>;
-  if (!read || read.account !== account) return <>{announcement}</>;
+  if (!read || read.account !== account) {
+    return retired === account ? (
+      <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
+          {PASSPORT_COPY.rankedTitle}
+        </h2>
+        <p className="passportQuiet" role="status">Your ranking is not available to this account right now.</p>
+      </section>
+    ) : <>{announcement}</>;
+  }
   const retryStatus = refresh !== "ready" ? (
     <>
       <p className="passportQuiet" aria-hidden="true">{statusText}</p>
@@ -194,7 +228,7 @@ function PassportRanked({ handle }: { handle: string }) {
   ) : null;
   if ("unavailable" in read) {
     return (
-      <>{announcement}<section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+      <>{announcement}<section ref={sectionRef} id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
         <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
         </h2>
@@ -233,7 +267,7 @@ function PassportRanked({ handle }: { handle: string }) {
   }
 
   return (
-    <>{announcement}<section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+    <>{announcement}<section ref={sectionRef} id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
       <div className="passportSectionHead">
         <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}

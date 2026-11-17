@@ -401,3 +401,36 @@ test("a reread completes ten and restores focus", async ({ page }) => {
   await expect(card(page)).toHaveCount(0);
   await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
 });
+
+test("a save Social refuses ends the session without rows and keeps focus", async ({ page }) => {
+  const fixture = newFixture({ A: [{ venueId: "w2-crown", band: "loved" }] });
+  await openProfile(page, fixture);
+  await expect(card(page)).toContainText("1 of 10 ranked");
+  await startSession(page);
+  await pickPub(page, "lamb", "The Lamb");
+  fixture.next.POST = (route) => route.fulfill({ status: 403, json: { code: "SOCIAL_ACCOUNT_SUSPENDED", error: "Social access is suspended." } });
+  const saves = fixture.posts.length;
+  await dialog(page).getByRole("button", { name: "It was fine" }).click();
+  await expect(dialog(page)).toHaveCount(0);
+  const heading = page.getByRole("heading", { name: "Your pubs, ranked" });
+  await expect(heading).toBeFocused();
+  await expect(page.locator("#passport-ranked")).toContainText("Your ranking is not available to this account right now.");
+  await expect(page.locator("#passport-ranked").getByRole("link", { name: "The Crown" })).toHaveCount(0);
+  await expect(card(page)).toHaveCount(0);
+  expect(fixture.posts.length).toBe(saves + 1);
+  expect(fixture.rows.A.map((row) => row.venueId)).toEqual(["w2-crown"]);
+  expectQuiet(fixture);
+});
+
+test("a retry Social refuses keeps focus without rows", async ({ page }) => {
+  const fixture = newFixture({ A: [{ venueId: "w2-crown", band: "loved" }] });
+  fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
+  await openProfile(page, fixture);
+  const retry = page.getByRole("button", { name: "Try again", exact: true });
+  await expect(retry).toBeVisible();
+  fixture.refuse.A = { status: 403, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" };
+  await retry.click();
+  await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
+  await expect(page.locator("#passport-ranked")).toContainText("Your ranking is not available to this account right now.");
+  await expect(page.getByRole("link", { name: "The Crown" })).toHaveCount(0);
+});

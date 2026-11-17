@@ -4,11 +4,11 @@ import { X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
-import { authedActionJson, authedFetch } from "@/lib/authedFetch";
+import { AuthActionJsonParseError, authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
-import { rankingSaveLanded } from "@/lib/firstTenRankingSession";
+import { rankingSaveAnswer, rankingSaveLanded } from "@/lib/firstTenRankingSession";
 import {
   answerSocialPubComparison,
   nextSocialPubOpponent,
@@ -16,6 +16,7 @@ import {
   SOCIAL_PUB_BANDS,
   socialPubComparisonNeighbours,
   socialPubRankingPayload,
+  socialPubRankingReadFailure,
   startSocialPubComparison,
   type SocialPubBand,
   type SocialPubComparison,
@@ -31,16 +32,23 @@ type Step = "pick" | "band" | "compare" | "saving" | "checking" | "unconfirmed" 
 type Neighbours = ReturnType<typeof socialPubComparisonNeighbours>;
 /** A save whose outcome only a fresh list can tell: its answer was lost, or the list moved. */
 type Unsettled = { kind: "lost"; band: SocialPubBand; neighbours: Neighbours } | { kind: "stale"; band: SocialPubBand };
-async function readRankings(signal: AbortSignal): Promise<SocialPubRankingEntry[] | null> {
+type ListRead = { kind: "entries"; entries: SocialPubRankingEntry[] } | { kind: "refused" } | { kind: "unavailable" };
+
+/** Why a flow ended other than by the reader: Social refused this account. */
+export type ComparePubCloseReason = "refused";
+
+async function readRankings(signal: AbortSignal): Promise<ListRead> {
   try {
     const reply = await authedFetch("/api/social/rankings", { credentials: "same-origin", signal }, { requiresIdentity: true });
     if (!reply.ok) {
-      discardBody(reply);
-      return null;
+      // Reading the refusal also releases the response.
+      const body: unknown = await reply.json().catch(() => null);
+      return { kind: socialPubRankingReadFailure(reply.status, body) === "refused" ? "refused" : "unavailable" };
     }
-    return socialPubRankingPayload(await reply.json());
+    const entries = socialPubRankingPayload(await reply.json());
+    return entries ? { kind: "entries", entries } : { kind: "unavailable" };
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
 }
 
@@ -69,7 +77,12 @@ export default function ComparePubFlow({
   startVenue?: Venue | null;
   /** A session's own count, announced politely as it moves. */
   progress?: string;
-  onClose: (pendingWrite?: Promise<void>) => void;
+  /**
+   * The flow ended. `pendingWrite` settles once a save the server never
+   * confirmed has its answer. `"refused"` means Social refused this account:
+   * the caller drops what it holds for it and reads nothing more.
+   */
+  onClose: (pendingWrite?: Promise<void>, reason?: ComparePubCloseReason) => void;
   onSaved: (entries: SocialPubRankingEntry[]) => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -96,6 +109,12 @@ export default function ComparePubFlow({
     if (closing.current) return;
     closing.current = true;
     onClose(pendingWrite.current);
+  }, [onClose]);
+  const retire = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    pendingWrite.current = undefined;
+    onClose(undefined, "refused");
   }, [onClose]);
   useDismissOnEscape(true, close, dialogRef);
 
@@ -179,12 +198,17 @@ export default function ComparePubFlow({
     setUnsettled(open);
     setNotice(null);
     setStep("checking");
-    const fresh = await readRankings(reads.current.signal);
+    const read = await readRankings(reads.current.signal);
     if (!mounted.current || !sameAccount()) return;
-    if (!fresh) {
+    if (read.kind === "refused") {
+      retire();
+      return;
+    }
+    if (read.kind === "unavailable") {
       setStep("unconfirmed");
       return;
     }
+    const fresh = read.entries;
     setUnsettled(null);
     setList(fresh);
     if (open.kind === "lost" && rankingSaveLanded(fresh, subject.id, open.band, open.neighbours)) {
@@ -230,6 +254,17 @@ export default function ComparePubFlow({
         setStep("band");
         return;
       }
+      // An unreadable answer still has its status.
+      const unread = cause instanceof AuthActionJsonParseError ? rankingSaveAnswer(cause.status, null) : "unknown";
+      if (unread === "refused") {
+        retire();
+        return;
+      }
+      if (unread === "rejected") {
+        setNotice("That ranking did not save. Try again.");
+        setStep("band");
+        return;
+      }
       await reconcile(lost);
       return;
     }
@@ -240,12 +275,16 @@ export default function ComparePubFlow({
       acknowledge(subject.id, entries);
       return;
     }
-    const code = body !== null && typeof body === "object" ? (body as { code?: unknown }).code : undefined;
-    if (response.status === 409 && code === "STALE_RANKING") {
+    const outcome = rankingSaveAnswer(response.status, body);
+    if (outcome === "refused") {
+      retire();
+      return;
+    }
+    if (outcome === "stale") {
       await reconcile({ kind: "stale", band: chosenBand });
       return;
     }
-    if (response.ok || response.status === 409 || response.status >= 500) {
+    if (outcome === "unknown") {
       await reconcile(lost);
       return;
     }

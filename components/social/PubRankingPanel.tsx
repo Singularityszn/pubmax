@@ -81,7 +81,17 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
   const pendingWrite = useRef<Promise<void> | undefined>(undefined);
   const generation = useRef(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
   const focusAfterRead = useRef(false);
+  // A refusal that reaches a reader inside the section keeps a heading for
+  // their focus. A refusal on arrival shows nothing.
+  const [retired, setRetired] = useState(false);
+
+  useEffect(() => {
+    if (phase !== "refused" || !retired) return;
+    // A closing comparison hands the page back in a microtask.
+    queueMicrotask(() => headingRef.current?.focus());
+  }, [phase, retired]);
 
   useLayoutEffect(() => {
     if (phase === "ready" && focusAfterRead.current) headingRef.current?.focus();
@@ -95,6 +105,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
     function refuse(error: unknown): never {
       if (error instanceof RankingReadError && error.kind === "refused" &&
         !controller.signal.aborted && generation.current === requestGeneration) {
+        setRetired(Boolean(sectionRef.current?.contains(document.activeElement)));
         setLoaded(null);
         setComparing(false);
         setPhase("refused");
@@ -110,6 +121,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
         if (controller.signal.aborted || generation.current !== requestGeneration) return;
         if (!Array.isArray(lot?.entries)) throw new RankingReadError("unavailable");
         setLoaded({ scope, rows: starRows(lot.entries), compared: [] });
+        setRetired(false);
         setPhase("ready");
         return;
       }
@@ -126,11 +138,13 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
         rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars.value.entries),
         compared: comparedEntries,
       });
+      setRetired(false);
       setPhase("ready");
     })().catch((error: unknown) => {
       if (controller.signal.aborted || generation.current !== requestGeneration) return;
       const next = error instanceof RankingReadError ? error.kind : "unavailable";
       if (next === "refused") {
+        setRetired(Boolean(sectionRef.current?.contains(document.activeElement)));
         setLoaded(null);
         setComparing(false);
       }
@@ -145,9 +159,16 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
     setPhase(retrying ? "retrying" : "checking");
     setRevision((value) => value + 1);
   }
-  if (phase === "refused") return null;
+  if (phase === "refused") {
+    return retired ? (
+      <section className="pubRanking" aria-labelledby="pub-ranking-title">
+        <h2 id="pub-ranking-title" ref={headingRef} tabIndex={-1}>Your pubs, ranked</h2>
+        <p className="pubRanking__empty" role="status">Your ranking is not available to this account right now.</p>
+      </section>
+    ) : null;
+  }
   return (
-    <section className="pubRanking" aria-labelledby="pub-ranking-title">
+    <section ref={sectionRef} className="pubRanking" aria-labelledby="pub-ranking-title">
       <h2 id="pub-ranking-title" ref={headingRef} tabIndex={-1}>{scope === "mine" ? "Your pubs, ranked" : "Your lot's pubs"}</h2>
       <div className="pubRanking__switch" role="radiogroup" aria-label="Whose ranking">
         {(["mine", "lot"] as const).map((option) => (
@@ -210,12 +231,24 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
       {comparing && loaded ? (
         <ComparePubFlow
           entries={loaded.compared}
-          onClose={(pending) => {
+          onClose={(pending, reason) => {
             setComparing(false);
+            if (reason === "refused") {
+              generation.current += 1;
+              setLoaded(null);
+              setRetired(true);
+              setPhase("refused");
+              return;
+            }
             pendingWrite.current = pending;
             refresh();
           }}
-          onSaved={() => refresh()}
+          onSaved={(saved) => {
+            // The server's own answer is the checkpoint: no read can beat it.
+            generation.current += 1;
+            setLoaded({ scope: "mine", rows: comparedRows(saved), compared: saved });
+            setPhase("ready");
+          }}
         />
       ) : null}
     </section>
