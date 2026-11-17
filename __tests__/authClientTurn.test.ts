@@ -67,25 +67,25 @@ describe("when the browser auth client may load", () => {
     expect(await settled(turn.ready)).toBe(true);
   });
 
-  it.each(["/", "/tonight", "/u/karan", "/mapping"])("loads at once on %s, where no pins are coming", async (pathname) => {
+  it.each(["/login", "/signup", "/auth/callback", "/auth/forgot-password", "/auth/reset-password"])("loads at once on auth surface %s", async (pathname) => {
     const turn = authClientTurn(fakeWindow(pathname), SIGNED_OUT);
 
     expect(await settled(turn.ready)).toBe(true);
   });
 
-  it("loads at once when the pins are already up", async () => {
+  it("keeps a signed-out map light even when its pins are already up", async () => {
     const turn = authClientTurn(fakeWindow("/map"), { ...SIGNED_OUT, pinsVisible: true });
 
-    expect(await settled(turn.ready)).toBe(true);
+    expect(await settled(turn.ready)).toBe(false);
   });
 
-  it.each(["/map", "/map/manchester"])("holds a signed-out reader on %s until the pins are visible", async (pathname) => {
+  it.each(["/map", "/map/manchester"])("keeps the SDK unloaded on signed-out %s after pins become visible", async (pathname) => {
     const win = fakeWindow(pathname);
     const turn = authClientTurn(win, SIGNED_OUT);
 
     expect(await settled(turn.ready)).toBe(false);
     win.dispatchEvent(new Event(PINS_VISIBLE_EVENT));
-    expect(await settled(turn.ready)).toBe(true);
+    expect(await settled(turn.ready)).toBe(false);
   });
 
   it.each(["pointerdown", "keydown", "touchstart"])("keeps waiting through a %s on the map", async (type) => {
@@ -103,20 +103,30 @@ describe("when the browser auth client may load", () => {
       return Promise.resolve(false);
     };
     authClientTurn(fakeWindow("/map"), { ...SIGNED_OUT, storedSession: true, durableSession });
-    authClientTurn(fakeWindow("/tonight"), { ...SIGNED_OUT, durableSession });
+    authClientTurn(fakeWindow("/login"), { ...SIGNED_OUT, durableSession });
     expect(asked).toBe(0);
 
     authClientTurn(fakeWindow("/map"), { ...SIGNED_OUT, durableSession });
     expect(asked).toBe(1);
   });
 
-  it.each(["/", "/tonight", "/mapping"])("releases the map wait when navigation reaches %s", async (pathname) => {
+  it.each(["/login", "/auth/reset-password", "/auth/callback"])("releases the map wait when navigation reaches %s", async (pathname) => {
     const turn = authClientTurn(fakeWindow("/map"), SIGNED_OUT);
 
     turn.updatePathname("/map/manchester");
     expect(await settled(turn.ready)).toBe(false);
 
     turn.updatePathname(pathname);
+    expect(await settled(turn.ready)).toBe(true);
+  });
+
+  it.each(["/", "/about", "/map", "/tonight", "/mapping", "/u/karan"])("does not request the SDK for an unrelated signed-out visit to %s", async (pathname) => {
+    const turn = authClientTurn(fakeWindow(pathname), SIGNED_OUT);
+    expect(turn.waiting).toBe(true);
+    expect(await settled(turn.ready)).toBe(false);
+    turn.updatePathname("/about");
+    expect(await settled(turn.ready)).toBe(false);
+    turn.releaseForSignIn();
     expect(await settled(turn.ready)).toBe(true);
   });
 
