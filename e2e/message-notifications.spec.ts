@@ -112,6 +112,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   }
   const preview = page.getByRole("checkbox", { name: /Show the sender/ });
   stallNextSave = true;
+  await preview.focus();
   await preview.uncheck();
   await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByText("Could not save message alerts. Try again.", { exact: true })).toBeVisible();
