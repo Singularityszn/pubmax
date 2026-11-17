@@ -938,9 +938,12 @@ html[data-theme="dark"] .messageBubblePhoto {
    grows, and everything else sits on the field's bottom line so a three-line
    message keeps the buttons where a thumb left them. */
 .composer {
+  --composer-field-gap: 0.2rem;
+  --composer-count-height: calc(var(--text-xs) * var(--leading-normal));
+  --composer-count-space: 0px;
   --composer-min-height: calc(
     max(44px, 1em * var(--composer-line-height) + 2 * var(--composer-field-padding))
-      + 2 * var(--composer-row-padding) + 2px
+      + var(--composer-count-space) + 2 * var(--composer-row-padding) + 2px
   );
 
   min-height: var(--composer-min-height);
@@ -950,6 +953,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: var(--composer-row-padding) 0.3rem;
   border: 1px solid var(--line);
   border-radius: 26px;
+}
+
+.composer:has(.composerCount) {
+  --composer-count-space: calc(var(--composer-count-height) + var(--composer-field-gap));
 }
 
 .messageThreadShell[data-compact-composer] .composer {
@@ -971,7 +978,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.2rem;
+  gap: var(--composer-field-gap);
 }
 
 .composerInput {
@@ -1171,6 +1178,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-self: flex-end;
   padding-right: 0.5rem;
   font-size: var(--text-xs);
+  line-height: var(--composer-count-height);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }

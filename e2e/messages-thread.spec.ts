@@ -2092,6 +2092,81 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
   });
 }
 
+test.describe("compact photo counter", () => {
+  test.use({ hasTouch: true, isMobile: false });
+
+  for (const theme of ["light", "dark"] as const) for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    test(`a long caption and its counter fit with a pending photo and send error in ${theme} with ${reducedMotion}`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await storeThemeChoice(page, theme);
+      await installThread(page, fixture());
+      await page.route("**/api/messages/c1", async route => {
+        if (route.request().method() === "POST") {
+          await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } });
+        } else await route.fallback();
+      });
+      await page.goto("/messages/c1");
+      await page.locator("#message-photo-file").setInputFiles("e2e/fixtures/bill.jpg");
+      await expect(page.locator(".composerPendingThumb")).toBeVisible();
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      const send = page.getByRole("button", { name: "Send", exact: true });
+      const caption = "x".repeat(900);
+      await field.fill(caption);
+      await send.click();
+      const retry = page.getByRole("button", { name: "Retry send", exact: true });
+      await expect(retry).toBeEnabled();
+      await field.focus();
+      await page.setViewportSize({ width: 1180, height: 200 });
+      await expect(async () => {
+        const composer = await box(page, ".composer");
+        const input = await box(page, ".composerInput");
+        const counter = await box(page, ".composerCount");
+        expect(input.height).toBeGreaterThanOrEqual(44);
+        expect(counter.top).toBeGreaterThanOrEqual(input.bottom);
+        expect(counter.bottom).toBeLessThanOrEqual(composer.bottom - 1);
+      }).toPass();
+      for (const control of [page.getByRole("button", { name: "Remove", exact: true }), retry, send, field]) {
+        await control.scrollIntoViewIfNeeded();
+        await expect(async () => {
+          const header = await box(page, ".threadHeader");
+          const bounds = (await control.boundingBox())!;
+          expect(bounds.width).toBeGreaterThanOrEqual(44);
+          expect(bounds.height).toBeGreaterThanOrEqual(44);
+          expect(bounds.y).toBeGreaterThanOrEqual(header.bottom);
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(200);
+          await expect(control).toBeInViewport({ ratio: 0.99 });
+          expect(await control.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+          })).toBe(true);
+        }).toPass();
+      }
+      await expect(field).toHaveValue(caption);
+      await field.press("End");
+      await field.press("Backspace");
+      await expect(field).toHaveValue(caption.slice(0, -1));
+      await expect(page.locator(".composerCount")).toHaveCount(0);
+      const overflow = await field.evaluate((element: HTMLTextAreaElement) => {
+        element.scrollTop = element.scrollHeight;
+        return { height: element.clientHeight, scroll: element.scrollHeight, end: element.scrollTop + element.clientHeight };
+      });
+      expect(overflow.scroll).toBeGreaterThan(overflow.height);
+      expect(overflow.end).toBeGreaterThanOrEqual(overflow.scroll - 1);
+      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+      await field.fill(caption);
+      await page.screenshot({ path: testInfo.outputPath("compact-photo-counter.png") });
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await expect(async () => {
+        const composer = await box(page, ".composer");
+        const counter = await box(page, ".composerCount");
+        expect(counter.bottom).toBeLessThanOrEqual(composer.bottom - 1);
+      }).toPass();
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-compact-composer", "");
+    });
+  }
+});
+
 test.describe("compact photo composer", () => {
   test.use({ isMobile: false });
 
