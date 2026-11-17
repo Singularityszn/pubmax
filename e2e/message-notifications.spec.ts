@@ -573,7 +573,7 @@ for (const stage of ["response", "body"] as const) {
     await page.evaluate(() => (window as unknown as { __finishPresence?: () => void }).__finishPresence?.());
     const writes = actions.filter(action => action.action === "presence");
     expect(writes.map(write => write.activityId)).toEqual([1, 1]);
-    await testInfo.attach("presence-requests.json", { body: Buffer.from(JSON.stringify(actions.map(({ token: _token, ...action }) => action), null, 2)), contentType: "application/json" });
+    await testInfo.attach("presence-requests.json", { body: Buffer.from(JSON.stringify(actions.map(action => Object.fromEntries(Object.entries(action).filter(([key]) => key !== "token"))), null, 2)), contentType: "application/json" });
     await page.screenshot({ path: testInfo.outputPath(`presence-${stage}-recovered.png`), scale: "css" });
   });
 }
@@ -617,6 +617,6 @@ test("a failed account switch restores presence in the same mounted thread", asy
   await expect.poll(() => actions.filter(action => action.action === "presence" && action.conversationId === THREAD).length).toBe(before + 1);
   await expect(page.locator(".threadMessages")).toHaveAttribute("data-presence-mount", "original");
   expect(actions.some(action => action.action === "presence" && action.conversationId === null)).toBe(true);
-  await testInfo.attach("failed-switch-presence.json", { body: Buffer.from(JSON.stringify(actions.map(({ token: _token, ...action }) => action), null, 2)), contentType: "application/json" });
+  await testInfo.attach("failed-switch-presence.json", { body: Buffer.from(JSON.stringify(actions.map(action => Object.fromEntries(Object.entries(action).filter(([key]) => key !== "token"))), null, 2)), contentType: "application/json" });
   await page.screenshot({ path: testInfo.outputPath("failed-switch-presence-restored.png"), scale: "css" });
 });
