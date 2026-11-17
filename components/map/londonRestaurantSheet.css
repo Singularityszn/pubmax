@@ -136,4 +136,4 @@
   }
 }
 
-[data-london-restaurant] summary { min-height: 44px; cursor: pointer; }
+[data-london-restaurant] summary { display: list-item; min-height: 44px; cursor: pointer; }
