@@ -16,6 +16,7 @@ import {
   accountOf,
   admit,
   block,
+  blockCall,
   bootCrewAdmissionDatabase,
   call,
   correct,
@@ -40,7 +41,7 @@ import {
   request,
   requestCall,
   revision,
-  rollbackWithSetting,
+  rollbackOutcome,
   rpc,
   running,
   seats,
@@ -48,7 +49,6 @@ import {
   state,
   stopCrewAdmissionDatabase,
   suspendCall,
-  tryRollback,
   waiting,
   waitingRpc,
   waitingRpcResult,
@@ -427,24 +427,60 @@ describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () =>
 describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
-  it("rollback refuses to drop recorded corrections until their export is acknowledged, then reapplies", () => {
+  const removedAndCorrected = () => {
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana, xav]);
     const removedMember = memberId(crew, xav);
     remove(host, crew, xav);
-    correct(crew, removedMember);
-    const refused = tryRollback();
-    expect(refused.ok).toBe(false);
-    expect(refused.said).toMatch(/export/i);
-    expect(db().sql(`select to_regclass('public.social_crew_removal_corrections') is not null
-      and to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)') is not null`)).toBe("t");
-    rollbackWithSetting("pubmax.crew_removal_corrections_exported", "yes");
-    expect(db().sql(`select to_regclass('public.social_crew_removal_corrections') is null`)).toBe("t");
+    return { host, crew, xav, removedMember };
+  };
+  const ledgerRows = () => db().sql("select count(*) from public.social_crew_removal_corrections");
+
+  it("rollback waits for a correction in flight, counts it, and needs the export count to name every row", async () => {
+    const first = removedAndCorrected();
+    expect(correct(first.crew, first.removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    const second = removedAndCorrected();
+    const correction = await holdRpc(correctCall(second.crew, second.removedMember));
+    let rolling: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      rolling = rollbackOutcome("rollback_after_correction", "1");
+      await expect.poll(() => waitsOnAnyLock("rollback_after_correction")).toBe("t");
+    } finally { await correction.finish(); }
+    const refused = await rolling;
+    expect(refused?.ok).toBe(false);
+    expect(refused?.said).toMatch(/would drop 2 crew removal corrections/);
+    expect(ledgerRows()).toBe("2");
+
+    const unacknowledged = await rollbackOutcome("rollback_without_export");
+    expect(unacknowledged.ok).toBe(false);
+    expect(ledgerRows()).toBe("2");
+
+    expect(await rollbackOutcome("rollback_with_export", "2")).toMatchObject({ ok: true });
+    expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
     stageTo("after");
     const bea = person();
-    admit(host, crew, bea);
-    remove(host, crew, bea);
-    expect(request(bea, crew)).toEqual(NOT_FOUND);
-    expect(request(xav, crew)).toMatchObject({ ok: true, code: "requested" });
+    admit(first.host, first.crew, bea);
+    remove(first.host, first.crew, bea);
+    expect(request(bea, first.crew)).toEqual(NOT_FOUND);
+    expect(request(first.xav, first.crew)).toMatchObject({ ok: true, code: "requested" });
+  });
+
+  it("a correction that reaches the ledger after the rollback counted it fails, and no row is dropped unseen", async () => {
+    const pending = removedAndCorrected();
+    const ana = person(), cal = person();
+    const blockInFlight = await holdRpc(blockCall(ana, cal));
+    let rolling: Promise<{ ok: boolean; said: string }> | null = null;
+    let correcting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      rolling = rollbackOutcome("rollback_behind_block");
+      await expect.poll(() => waitsOnAnyLock("rollback_behind_block")).toBe("t");
+      correcting = outcome("correction_during_rollback", rpc(correctCall(pending.crew, pending.removedMember)));
+      await expect.poll(() => waitsOnAnyLock("correction_during_rollback")).toBe("t");
+    } finally { await blockInFlight.finish(); }
+    expect(await rolling).toMatchObject({ ok: true });
+    expect((await correcting)?.ok).toBe(false);
+    expect(state(pending.crew, pending.xav)).toBe("removed");
+    expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
+    stageTo("after");
   });
 });
