@@ -1,4 +1,5 @@
 import { decodeWebPushSubscription, encodeWebPushSubscription } from "@/lib/webPushSubscription";
+import { waitForWebPushWork } from "@/lib/webPush";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
 type Binding = { token: string; sessionId: string };
@@ -74,16 +75,17 @@ export async function flushMessagePushReleases(signal?: AbortSignal, currentToke
 }
 
 export const MESSAGE_PUSH_DEPARTURE = "pubmax:message-push-departure";
-export async function currentMessagePushToken(): Promise<string | null> {
+export async function currentMessagePushToken(signal: AbortSignal = AbortSignal.timeout(3_000)): Promise<string | null> {
   if (!("serviceWorker" in navigator)) return null;
-  const registration = await navigator.serviceWorker.getRegistration();
-  const subscription = await registration?.pushManager.getSubscription();
+  const registration = await waitForWebPushWork(navigator.serviceWorker.getRegistration(), signal);
+  if (!registration?.pushManager) return null;
+  const subscription = await waitForWebPushWork(registration.pushManager.getSubscription(), signal);
   return subscription ? encodeWebPushSubscription(subscription.toJSON()) : null;
 }
-export async function messagePushFingerprint(token: string): Promise<string> {
+export async function messagePushFingerprint(token: string, signal?: AbortSignal): Promise<string> {
   const endpoint = decodeWebPushSubscription(token)?.endpoint;
   if (!endpoint) throw new Error("Invalid message subscription.");
-  const bytes = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint));
+  const bytes = await waitForWebPushWork(crypto.subtle.digest("SHA-256", new TextEncoder().encode(endpoint)), signal);
   return Array.from(new Uint8Array(bytes), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 

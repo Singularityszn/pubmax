@@ -6,7 +6,7 @@ import { messageNotificationStore } from "@/lib/messageNotificationStore";
 import { messagesStore } from "@/lib/messagesStore";
 import { messageNotificationSenderAllowed, messageNotificationSessionId, resolveMessageNotificationPreview } from "@/lib/messageNotifications.server";
 import { isLimited } from "@/lib/pintDrops";
-import { profileStore } from "@/lib/profileStore";
+import { profileStore, type ProfileRecord } from "@/lib/profileStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 
@@ -15,10 +15,11 @@ function validDeviceToken(value: unknown): value is string {
 }
 function bindingAction(value: unknown): boolean { return value === "subscribe" || value === "restore"; }
 
-async function conversationAccess(userId: string, id: string): Promise<string | null> {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
-  const [handle, membership] = await Promise.all([profileStore().getHandleByUserId(userId), messagesStore().membership(id)]);
-  return handle && membership?.handles.includes(handle) ? handle : null;
+const conversationIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+async function conversationAccess(userId: string, id: string): Promise<ProfileRecord | null> {
+  if (!conversationIdPattern.test(id)) return null;
+  const [profile, membership] = await Promise.all([profileStore().getByUserId(userId), messagesStore().membership(id)]);
+  return profile?.userId === userId && membership?.handles.includes(profile.handle) ? profile : null;
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -28,19 +29,17 @@ export async function GET(request: Request): Promise<Response> {
   const conversationId = params.get("conversationId");
   const settingsOnly = params.get("settingsOnly") === "1";
   try {
-    const handle = conversationId ? await conversationAccess(userId, conversationId) : null;
-    if (conversationId && !handle) {
-      return publicApiError("Conversation not found.", "NOT_FOUND", 404);
-    }
+    if (conversationId && !conversationIdPattern.test(conversationId)) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     const store = messageNotificationStore();
-    const [preferences, muted] = await Promise.all([
+    const [recipient, preferences, muted] = await Promise.all([
+      conversationId ? conversationAccess(userId, conversationId) : null,
       store.preferences(userId), conversationId ? store.muted(userId, conversationId) : false,
     ]);
+    if (conversationId && !recipient) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
+    const handle = recipient?.handle;
     let quiet = !preferences.enabled || muted;
     if (conversationId && handle && !quiet && !settingsOnly) {
-      const [recipient, messages] = await Promise.all([
-        profileStore().getByHandle(handle), messagesStore().listMessages(conversationId, handle, { latestOnly: true }),
-      ]);
+      const messages = await messagesStore().listMessages(conversationId, handle, { latestOnly: true });
       const latest = messages?.[0];
       const sender = latest ? await profileStore().getByHandle(latest.senderHandle) : null;
       quiet = !sender || !recipient || recipient.userId !== userId || !await messageNotificationSenderAllowed(sender, recipient);

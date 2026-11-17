@@ -25,7 +25,7 @@ async function pushRuntime(page: Page): Promise<void> {
     const subscription = { unsubscribe: async () => { unsubscribed++; return true; }, toJSON: () => ({ endpoint: "https://web.push.apple.com/message-e2e", keys: { p256dh: "e2ePublicKey_material", auth: "e2eAuthKey_material" } }) };
     const registration = {
       active: { scriptURL: `${location.origin}/sw.js?message-previews=1`, postMessage(_data: unknown, ports: MessagePort[]) { ports[0].postMessage({ ok: true }); } },
-      pushManager: { getSubscription: async () => subscription, subscribe: async () => subscription },
+      pushManager: { getSubscription: async () => (window as unknown as { __hangMessageSubscription?: boolean }).__hangMessageSubscription ? new Promise(() => {}) : subscription, subscribe: async () => subscription },
       getNotifications: async () => [{ data: { recipientId: "previous-account" }, close() { closed++; } }],
     };
     Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
@@ -60,11 +60,12 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   let preferences = { enabled: false, preview: false, muted: false, registered: false };
   const actions: string[] = [];
   let stallNextSave = false;
+  let loseBindingOnSave = false;
   await page.route("**/api/message-notifications**", async (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       actions.push(body.action);
-      if (body.action === "preferences" && stallNextSave) { stallNextSave = false; return; }
+      if (body.action === "preferences" && stallNextSave) { stallNextSave = false; if (loseBindingOnSave) preferences.registered = false; return; }
       if (body.action === "subscribe") preferences.registered = true;
       if (body.action === "preferences") preferences = { ...preferences, enabled: body.enabled, preview: body.preview };
       await route.fulfill({ json: { ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } });
@@ -127,6 +128,18 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await disable.focus();
   await disable.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
   await expect(preview).toBeFocused();
+  preferences.registered = false;
+  await page.getByRole("button", { name: "Message notifications", exact: true }).click();
+  await page.getByRole("button", { name: "Message notifications", exact: true }).click();
+  const activate = page.getByRole("button", { name: "Turn on alerts on this device", exact: true });
+  await expect(activate).toBeVisible();
+  stallNextSave = true;
+  loseBindingOnSave = true;
+  await activate.click();
+  await expect(page.getByText("Could not confirm your change. Check the setting and try again.", { exact: true })).toBeVisible();
+  await expect(activate).toBeVisible();
+  expect(preferences.registered).toBe(false);
+  await page.screenshot({ path: testInfo.outputPath("device-activation-not-confirmed.png"), scale: "css" });
   await disable.click();
   await expect.poll(() => preferences.enabled).toBe(false);
 });
@@ -349,21 +362,58 @@ test("an arrival from another chat clears the active header and composer", async
   await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
   await expect(page.locator(".messageArrival")).toBeVisible();
   await page.locator(".messageArrival a").focus();
-  for (const width of [390, 768, 1440]) {
+  for (const width of [390, 768, 1440, 768, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    await page.screenshot({ path: testInfo.outputPath(`other-chat-${width}.png`), scale: "css" });
     await expect.poll(async () => {
       const header = await page.locator(".threadHeader").boundingBox();
       const notice = await page.locator(".messageArrival").boundingBox();
       return header && notice ? notice.y - header.y - header.height : -Infinity;
     }).toBeGreaterThanOrEqual(12);
+    const header = (await page.locator(".threadHeader").boundingBox())!;
     const notice = (await page.locator(".messageArrival").boundingBox())!;
+    expect(notice.y - header.y - header.height).toBeLessThanOrEqual(16);
+    const pane = (await page.locator(".messagesThreadPane").boundingBox())!;
+    expect(Math.abs(notice.x + notice.width / 2 - pane.x - pane.width / 2)).toBeLessThanOrEqual(1);
     const composer = (await page.locator(".composerDock").boundingBox())!;
     expect(notice.y + notice.height).toBeLessThanOrEqual(composer.y - 12);
     await expect(page.getByRole("button", { name: "Dismiss message notification", exact: true })).toBeInViewport({ ratio: 1 });
+    await page.screenshot({ path: testInfo.outputPath(`other-chat-${width}.png`), scale: "css" });
   }
+  await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
+  await expect.poll(async () => {
+    const box = await page.locator(".messageArrival").boundingBox();
+    return box?.y ?? 0;
+  }).toBeGreaterThan(500);
+  await page.screenshot({ path: testInfo.outputPath("other-chat-return-to-inbox.png"), scale: "css" });
   await expect(page.locator(".messageArrival")).toContainText(`@${ACCOUNTS.A.handle}`);
   await page.locator(".messageArrival a").click();
   await expect(page).toHaveURL(new RegExp(`/messages/${THREAD}$`));
   await expect(page.locator(".threadMessages").getByText("A message from the other chat", { exact: true })).toBeVisible();
+});
+
+
+test("global alert settings recover from a hung browser subscription", async ({ page }, testInfo) => {
+  await pushRuntime(page);
+  const auth = await installAuthDoubles(page);
+  await seedSignedIn(page, "B");
+  await auth.signedInAs("B");
+  await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [] } }));
+  await page.route("**/api/message-notifications**", route => route.fulfill({ json: { enabled: false, preview: false, muted: false, registered: false } }));
+  await page.goto("/messages");
+  await page.evaluate(() => { (window as unknown as { __hangMessageSubscription: boolean }).__hangMessageSubscription = true; });
+  await page.getByRole("button", { name: "Message notifications", exact: true }).click();
+  const retry = page.getByRole("button", { name: "Try again", exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expect(retry).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`subscription-timeout-${width}.png`), scale: "css" });
+  }
+  await page.evaluate(() => { (window as unknown as { __hangMessageSubscription: boolean }).__hangMessageSubscription = false; });
+  await retry.click();
+  await expect(page.getByRole("checkbox", { name: /Show the sender/ })).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __permissionRequests: number }).__permissionRequests)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("subscription-timeout-recovered.png"), scale: "css" });
 });

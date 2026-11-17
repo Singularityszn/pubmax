@@ -13,7 +13,7 @@ function webPushAbortReason(signal: AbortSignal): unknown {
 
 /** Race browser work against a signal, so a promise that never settles (a service
  * worker that never becomes ready) cannot hold a prompt open for ever. */
-function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
+export function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return Promise.resolve(work);
   if (signal.aborted) return Promise.reject(webPushAbortReason(signal));
   return new Promise<T>((resolve, reject) => {

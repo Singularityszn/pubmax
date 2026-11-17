@@ -10,20 +10,29 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { currentMessagePushToken, messagePushFingerprint, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { registerWebPush, webPushSupport } from "@/lib/webPush";
+import { registerWebPush, webPushSupport, waitForWebPushWork } from "@/lib/webPush";
 import "./messageNotificationSettings.css";
 
 type Settings = { enabled: boolean; preview: boolean; muted: boolean; registered?: boolean };
 type Props = { conversationId?: string; compact?: boolean };
 
 async function readSettings(conversationId: string | undefined, signal: AbortSignal): Promise<Settings> {
-  const token = conversationId ? null : await currentMessagePushToken().catch(() => null);
-  const fingerprint = token ? await messagePushFingerprint(token).catch(() => null) : null;
-  const response = await authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}&settingsOnly=1` : ""}`, {
-    signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
-  }, { requiresIdentity: true });
-  if (!response.ok) throw new Error("Could not read message alerts.");
-  return response.json() as Promise<Settings>;
+  const scope = new AbortController();
+  const cancel = () => scope.abort(signal.reason);
+  if (signal.aborted) cancel();
+  else signal.addEventListener("abort", cancel, { once: true });
+  const deadline = setTimeout(() => scope.abort(new DOMException("The read timed out.", "TimeoutError")), 3_000);
+  const read = async () => {
+    const token = conversationId ? null : await currentMessagePushToken(scope.signal).catch(() => null);
+    const fingerprint = token ? await messagePushFingerprint(token, scope.signal).catch(() => null) : null;
+    const response = await authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}&settingsOnly=1` : ""}`, {
+      signal: scope.signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
+    }, { requiresIdentity: true });
+    if (!response.ok) throw new Error("Could not read message alerts.");
+    return response.json() as Promise<Settings>;
+  };
+  try { return await waitForWebPushWork(read(), scope.signal); }
+  finally { clearTimeout(deadline); signal.removeEventListener("abort", cancel); }
 }
 
 export default function MessageNotificationSettings({ conversationId, compact }: Props): React.JSX.Element | null {
@@ -98,7 +107,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
           const confirmed = await readSettings(conversationId, confirmation.signal);
           if (!confirmation.signal.aborted) {
             setSettings(confirmed);
-            if (confirmed[kind] === next[kind]) confirmationError = "";
+            if (confirmed[kind] === next[kind] && (kind !== "enabled" || !next.enabled || confirmed.registered === true)) confirmationError = "";
           }
         } catch {
           if (!confirmation.signal.aborted || confirmation.signal.reason?.name === "TimeoutError") setSettings(null);
@@ -127,10 +136,10 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
         {!conversationId && !compact ? "Message notifications" : null}
       </IconButton>
       {open ? <div id={panelId} className="messageAlertsPanel" role="region" aria-label="Message alerts" aria-busy={pending || (!settings && !error)}>
-        <p>Message alerts</p>
+        <h2>Message alerts</h2>
         {settings ? <>
           {conversationId ? <Button variant="secondary" className="pressable" aria-disabled={pending} onClick={() => void change("muted")}>{settings.muted ? "Unmute this chat" : "Mute this chat"}</Button> : <>
-            {native ? <p className="messageAlertsHint">Message alerts outside the app aren’t available yet. Unread badges and chat mutes still work.</p> : <>
+            {native ? <p className="messageAlertsHint">{settings.enabled ? "Message alerts are on for another device. You can turn them off here. This app shows unread badges and chat mutes." : "Message alerts outside the app aren’t available yet. Unread badges and chat mutes still work."}</p> : <>
               <Button className="pressable" disabled={!onThisDevice && support !== "supported"} aria-disabled={pending} onClick={() => void change("enabled")}>{saving === "enabled" ? "Saving…" : onThisDevice ? "Turn off alerts on all devices" : settings.enabled ? "Turn on alerts on this device" : "Turn on message alerts"}</Button>
               <label><input type="checkbox" checked={settings.preview} aria-disabled={pending} onClick={(event) => { if (pending) event.preventDefault(); }} onChange={() => void change("preview")} /> Show the sender and a short preview while PubMaxxing is open in the background</label>
               <p className="messageAlertsHint">Closed-app alerts never show message text. Muted chats stay quiet.</p>

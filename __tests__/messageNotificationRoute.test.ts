@@ -8,7 +8,7 @@ const presence = vi.fn();
 const release = vi.fn();
 const saveToken = vi.fn();
 vi.mock("@/lib/authServer", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authServer")>(), callerUserId: async () => state.userId || null }));
-vi.mock("@/lib/profileStore", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/profileStore")>(), profileStore: () => ({ getHandleByUserId: async () => "ken", getByHandle: async (handle: string) => ({ id: handle, handle, userId: handle === "ken" ? "owner" : "sender" }) }) }));
+vi.mock("@/lib/profileStore", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/profileStore")>(), profileStore: () => ({ getHandleByUserId: async () => "ken", getByUserId: async (userId: string) => ({ id: "ken", handle: "ken", userId }), getByHandle: async (handle: string) => ({ id: handle, handle, userId: handle === "ken" ? "owner" : "sender" }) }) }));
 vi.mock("@/lib/messagesStore", () => ({ messagesStore: () => ({ membership: async () => state.member ? { handles: ["ken", "sam"] } : null, listMessages: async () => { if (state.latestUnavailable) throw new Error("latest message unavailable"); return [{ senderHandle: "sam" }]; } }) }));
 vi.mock("@/lib/messageNotifications.server", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/messageNotifications.server")>(), messageNotificationSenderAllowed: async () => state.allowed }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));

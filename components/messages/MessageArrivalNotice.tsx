@@ -36,19 +36,32 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
     return () => clearTimeout(timeout);
   }, [allowed, interacting, onDismiss]);
   useLayoutEffect(() => {
-    if (!host || !allowed || inbox) return;
     const notice = noticeRef.current;
+    if (!notice) return;
+    const reset = () => { for (const property of ["top", "inset-inline-start", "inset-inline-end", "margin-inline"]) notice.style.removeProperty(property); };
+    reset();
+    if (!host || !allowed || inbox) return;
     const header = document.querySelector<HTMLElement>(".threadHeader");
-    if (!notice || !header) return;
+    if (!header) return;
+    const pane = header.closest<HTMLElement>(".messagesThreadPane");
     const measure = () => {
       const bounds = header.getBoundingClientRect();
-      notice.style.setProperty("--message-thread-notice-top", `${bounds.height > 0 ? Math.max(0, bounds.bottom + 12) : 0}px`);
+      if (bounds.height <= 0) { reset(); return; }
+      const frame = (pane ?? header).getBoundingClientRect();
+      const width = notice.getBoundingClientRect().width;
+      const left = Math.max(16, Math.min(innerWidth - width - 16, frame.x + frame.width / 2 - width / 2));
+      const values = { top: `${Math.max(0, bounds.bottom + 12)}px`, "inset-inline-start": `${left}px`, "inset-inline-end": "auto", "margin-inline": "0px" };
+      for (const [property, value] of Object.entries(values)) if (notice.style.getPropertyValue(property) !== value) notice.style.setProperty(property, value);
     };
+    let frame: number | null = null;
+    const onScroll = () => { if (frame === null) frame = requestAnimationFrame(() => { frame = null; measure(); }); };
     measure();
     const observer = new ResizeObserver(measure);
     observer.observe(header);
+    if (pane) observer.observe(pane);
     window.addEventListener("resize", measure);
-    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
+    window.addEventListener("scroll", onScroll, { capture: true, passive: true });
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", onScroll, true); if (frame !== null) cancelAnimationFrame(frame); reset(); };
   }, [host, allowed, inbox, currentPath]);
   const destination = conversation.kind === "group"
     ? conversation.title || "your group"
