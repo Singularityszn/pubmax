@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Check, Copy, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
-import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls, curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { namedRoutePathForCrawl } from "@/lib/namedRoutes";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
@@ -113,7 +113,8 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [] }: {
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [], curatedCrawlIds }: {
+  curatedCrawlIds?: string[];
   cityCrawlGroups?: CityCrawlGroup[];
   pack?: string;
   encodedStory?: string | null;
@@ -128,7 +129,9 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   // hides the directory from a reader whose JavaScript cannot run.
   const activePackId = pack;
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
-  const visibleCrawls = visibleCuratedCrawls(activePackId);
+  const visibleCrawls = useMemo(() => curatedCrawlIds
+    ? curatedCrawlIds.flatMap((id) => curatedCrawls.find((crawl) => crawl.id === id) ?? [])
+    : visibleCuratedCrawls(activePackId), [activePackId, curatedCrawlIds]);
 
   // The server supplies ?s= again on navigation. Invalid values fall through
   // to the directory because decodeCrawlStory never throws.
