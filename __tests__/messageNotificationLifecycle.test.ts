@@ -43,7 +43,7 @@ describe("message alerts on account departure", () => {
     const controller = new AbortController();
     const failed = vi.fn();
     account.subscribe = (signal) => new Promise((_resolve, reject) => {
-      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+      signal?.addEventListener("abort", () => reject(new DOMException("The fetch was aborted.", "AbortError")), { once: true });
     });
     const saving = saveMessageNotificationSetting({ action: "preferences", enabled: true, preview: false }, controller.signal).catch(failed);
     try {
