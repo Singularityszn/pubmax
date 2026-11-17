@@ -1,30 +1,34 @@
 "use client";
 
-import { useCallback, useState, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import PriceBadge from "@/components/PriceBadge";
-import { canonicalStateFromBody } from "@/components/plan/PlanSummary";
-import { readPlanMemberProjection, usePlanMemberRead } from "@/components/plan/usePlanMemberRead";
 import Kicker from "@/components/ui/kicker";
+import { accountBoundFetch, captureAccountAuth, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import { compositeActionSignal } from "@/lib/authedFetch";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { formatPence } from "@/lib/formatGbp";
-import { projectNightReceipt, type NightReceipt } from "@/lib/nightReceipt";
-import type { CrawlEnding, PlanState } from "@/lib/plan";
-import { isPlanPreviewProjection } from "@/lib/planPrivacy";
+import type { NightReceipt } from "@/lib/nightReceipt";
+import type { CrawlEnding } from "@/lib/plan";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
 } from "@/lib/planSessionCapability";
+import { discardBody } from "@/lib/responseBody";
 
 import "./planNightReceipt.css";
 
 // The owner's private receipt for a completed Plan. The server never renders
-// it: it appears only after the capability-gated member read answers, and only
-// for the host role that the Plan session reported. A change of account
-// remounts it, so no receipt survives into the next account.
+// it. A Plan capability cookie belongs to the device, so it cannot prove which
+// account is reading: one device can hold A's host cookie while B is signed in.
+// Only the account-bound receipt read can answer (lib/nightReceipt.server.ts),
+// and it checks that the host seat's account is the signed-in account. Each
+// account gets its own component lifetime and its own reads. A refusal, an
+// unavailable check or an unreadable answer clears the receipt, and the page
+// asks again when the app comes back into view.
 
 const ENDING_WORDS: Record<CrawlEnding, string> = {
   food: "With food",
@@ -53,8 +57,8 @@ function plannedForWords(iso: string): string {
   return `${part("weekday")} ${part("day")} ${part("month")} ${part("year")}, ${clock}`;
 }
 
-function usePlanRole(planId: string) {
-  const snapshot = useSyncExternalStore(
+function usePlanCapabilitySnapshot(planId: string): string {
+  return useSyncExternalStore(
     (onChange) => {
       const event = planCapabilityEvent(planId);
       window.addEventListener(event, onChange);
@@ -63,7 +67,41 @@ function usePlanRole(planId: string) {
     () => readPlanCapabilitySnapshot(planId),
     () => "|0|",
   );
-  return parsePlanCapabilitySnapshot(snapshot).role;
+}
+
+function receiptFrom(body: unknown): NightReceipt | null {
+  const receipt = (body as { receipt?: Partial<NightReceipt> | null } | null)?.receipt;
+  return receipt && typeof receipt.title === "string" && Array.isArray(receipt.stops) ? receipt as NightReceipt : null;
+}
+
+/** The receipt this account may see, or null for any refusal or doubt. */
+async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signal: AbortSignal): Promise<NightReceipt | null> {
+  try {
+    const response = await accountBoundFetch(auth, `/api/plans/${planId}?view=receipt`, { cache: "no-store", signal });
+    if (!response.ok) {
+      discardBody(response);
+      return null;
+    }
+    return receiptFrom(await response.json());
+  } catch {
+    return null;
+  }
+}
+
+function useReturnCount(): number {
+  const [count, setCount] = useState(0);
+  useEffect(() => {
+    const recheck = () => {
+      if (document.visibilityState !== "hidden") setCount((current) => current + 1);
+    };
+    window.addEventListener("focus", recheck);
+    document.addEventListener("visibilitychange", recheck);
+    return () => {
+      window.removeEventListener("focus", recheck);
+      document.removeEventListener("visibilitychange", recheck);
+    };
+  }, []);
+  return count;
 }
 
 function Receipt({ receipt }: { receipt: NightReceipt }) {
@@ -123,25 +161,33 @@ function Receipt({ receipt }: { receipt: NightReceipt }) {
   );
 }
 
-function AccountReceipt({ planId }: { planId: string }) {
-  const [state, setState] = useState<PlanState | null>(null);
-  const role = usePlanRole(planId);
-  const read = useCallback((isActive: () => boolean) => {
-    void readPlanMemberProjection(planId).then((body) => {
-      if (!isActive()) return;
-      const canonical = canonicalStateFromBody(body);
-      if (canonical) setState(canonical);
-      else if (isPlanPreviewProjection(body)) setState(null);
+function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId: string; accessToken: string }) {
+  const capability = usePlanCapabilitySnapshot(planId);
+  const { role } = parsePlanCapabilitySnapshot(capability);
+  const returns = useReturnCount();
+  const [shown, setShown] = useState<{ capability: string; receipt: NightReceipt } | null>(null);
+  useEffect(() => {
+    if (role !== "host") return;
+    const retired = new AbortController();
+    const signal = compositeActionSignal([retired.signal, readProviderAccountSignal()]);
+    void readOwnedReceipt({ userId, accessToken }, planId, signal).then((receipt) => {
+      if (!signal.aborted) setShown(receipt ? { capability, receipt } : null);
     });
-  }, [planId]);
-  usePlanMemberRead(planId, read);
-  const projection = projectNightReceipt({ state, role });
-  return projection.kind === "receipt" ? <Receipt receipt={projection.receipt} /> : null;
+    return () => retired.abort();
+  }, [accessToken, capability, planId, returns, role, userId]);
+  return shown?.capability === capability ? <Receipt receipt={shown.receipt} /> : null;
 }
 
 export default function PlanNightReceipt({ planId }: { planId: string }) {
-  const { identityResolved } = useAuth();
-  const accountGeneration = useLiveAccountGeneration();
-  if (!identityResolved) return null;
-  return <AccountReceipt key={accountGeneration} planId={planId} />;
+  const { identityResolved, user, session } = useAuth();
+  const auth = identityResolved ? captureAccountAuth(user?.id ?? null, session) : null;
+  if (!auth) return null;
+  return (
+    <OwnerReceipt
+      key={`${auth.userId}:${planId}`}
+      planId={planId}
+      userId={auth.userId}
+      accessToken={auth.accessToken}
+    />
+  );
 }

@@ -2,11 +2,14 @@ import { isNonPublicVenueName } from "@/lib/venueKindFilters";
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
-// The private Night Receipt belongs to the host of a completed Plan. A guest
-// member reads the same full Plan and still sees none, and a reader with no
-// capability sees only the preview. Each capability reaches the browser the way
-// a real member's does: the token seeded below is exchanged for the HttpOnly
-// session by restorePlanCapability on mount.
+// The private Night Receipt belongs to the account bound to a completed Plan's
+// host seat. The host capability cookie alone proves no account, so a
+// signed-out reader who holds it sees none, and the receipt read refuses that
+// cookie. A guest and a reader with no capability see none either. Each
+// capability reaches the browser the way a real member's does: the token seeded
+// below is exchanged for the HttpOnly session by restorePlanCapability on mount.
+// The keyless server has no account verification, so the signed-in owner path
+// is proved in __tests__/nightReceipt.test.ts and planNightReceipt.test.tsx.
 
 const GUEST_NAME = "Guest mate";
 
@@ -67,7 +70,7 @@ async function openPlan(page: Page, planId: string, token: string | null): Promi
   await read;
 }
 
-test("only the host of a completed Plan sees the private Night Receipt", async ({ browser, playwright, baseURL }) => {
+test("a host capability cookie without its bound account shows no Night Receipt", async ({ browser, playwright, baseURL }) => {
   const host = await playwright.request.newContext({ baseURL });
   const guest = await playwright.request.newContext({ baseURL });
   const { planId, hostToken, guestToken } = await completedPlanWithGuest(host, guest);
@@ -75,11 +78,11 @@ test("only the host of a completed Plan sees the private Night Receipt", async (
   const hostContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
   const hostPage = await hostContext.newPage();
   await openPlan(hostPage, planId, hostToken);
-  const receipt = hostPage.getByRole("region", { name: "Your night receipt" });
-  await expect(receipt).toBeVisible();
-  await expect(receipt.getByRole("definition")).toContainText(["Not recorded", "Heading home"]);
-  await expect(receipt).not.toContainText(GUEST_NAME);
-  expect(await hostPage.evaluate(() => document.documentElement.scrollWidth)).toBe(390);
+  await expect(hostPage.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
+  await expect(hostPage.getByRole("region", { name: "Your night receipt" })).toHaveCount(0);
+  const receiptRead = await hostPage.request.get(`/api/plans/${planId}?view=receipt`);
+  expect(receiptRead.status()).toBe(403);
+  expect(await receiptRead.text()).not.toContain("Receipt night");
 
   const guestContext = await browser.newContext();
   const guestPage = await guestContext.newPage();

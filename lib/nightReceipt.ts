@@ -1,6 +1,7 @@
 // The private Night Receipt for the owner of a completed Plan. Pure: it reads
-// only the capability-gated member PlanState and the server-confirmed role,
-// and it adds no fact those records cannot hold up.
+// only the PlanState and the host role that the account-bound server read
+// (lib/nightReceipt.server.ts) has already proved, and it adds no fact those
+// records cannot hold up.
 //
 // Left off on purpose:
 // - Crew names. A mate's name needs its own consent, so none is copied in.
