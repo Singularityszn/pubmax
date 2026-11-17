@@ -487,28 +487,40 @@ test.describe("map keyboard and screen-reader venue path", () => {
     const focusableSelector =
       'a[href]:visible, button:not([disabled]):visible, summary:visible, input:not([disabled]):visible, select:not([disabled]):visible, textarea:not([disabled]):visible, [tabindex]:not([tabindex="-1"]):visible';
     const focusables = drawer.locator(focusableSelector);
-    const firstFocusable = focusables.first();
-    const lastFocusable = focusables.last();
+    const focusEdge = async (edge: "first" | "last") => {
+      await focusables.evaluateAll((elements, edge) => {
+        const shown = elements.filter((element) => element.checkVisibility());
+        const target = edge === "first" ? shown[0] : shown.at(-1);
+        (target as HTMLElement | undefined)?.focus();
+      }, edge);
+    };
+    const expectEdgeFocused = async (edge: "first" | "last") => {
+      await expect.poll(() => focusables.evaluateAll((elements, edge) => {
+        const shown = elements.filter((element) => element.checkVisibility());
+        const target = edge === "first" ? shown[0] : shown.at(-1);
+        return target !== undefined && target === document.activeElement;
+      }, edge)).toBe(true);
+    };
     const toolbar = page.locator(".mapToolbar");
     const toolbarFocusables = toolbar.locator(focusableSelector);
     const firstExemptFocusable = page.getByRole("link", { name: "Open PUBMAXX landing page", exact: true });
     const lastToolbarFocusable = toolbarFocusables.last();
     await expect(toolbar).toBeVisible();
 
-    await lastFocusable.focus();
+    await focusEdge("last");
     await page.keyboard.press("Tab");
     await expect(firstExemptFocusable).toBeFocused();
     await page.keyboard.press("Shift+Tab");
-    await expect(lastFocusable).toBeFocused();
+    await expectEdgeFocused("last");
 
-    await firstFocusable.focus();
+    await focusEdge("first");
     await page.keyboard.press("Shift+Tab");
     await expect(lastToolbarFocusable).toBeFocused();
     await page.keyboard.press("Tab");
-    await expect(firstFocusable).toBeFocused();
+    await expectEdgeFocused("first");
 
     // Traverse the exempt header and toolbar, then use Filters with keys.
-    await lastFocusable.focus();
+    await focusEdge("last");
     await page.keyboard.press("Tab");
     await expect(firstExemptFocusable).toBeFocused();
     const filters = toolbar.locator(".mapVenueKindFilterBtn");
