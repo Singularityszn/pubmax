@@ -109,6 +109,19 @@ it("publishes fresh comparison entries while optional reviews are unavailable", 
   expect(button("Rank a pub")?.getAttribute("aria-disabled")).not.toBe("true");
 });
 
+it("shows comparison entries before optional reviews settle, then honours a late refusal", async () => {
+  let finishReviews!: (response: Response) => void;
+  net.get.mockImplementation((url: string) => url === "/api/social/rankings"
+    ? Promise.resolve(new Response(JSON.stringify({ entries: saved })))
+    : new Promise<Response>((resolve) => { finishReviews = resolve; }));
+  await mount();
+  expect(host.textContent).toContain("The crown");
+  expect(button("Rank a pub")?.getAttribute("aria-disabled")).not.toBe("true");
+  await act(async () => finishReviews(new Response("null", { status: 403 })));
+  expect(host.textContent).not.toContain("The crown");
+  expect(button("Rank a pub")).toBeUndefined();
+});
+
 it("still retires comparison entries when the reviews read refuses access", async () => {
   await mount();
   const finish = await closePending();
