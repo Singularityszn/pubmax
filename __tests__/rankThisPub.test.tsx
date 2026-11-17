@@ -73,11 +73,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i += 1) {
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
+  await act(async () => {});
 }
 
 async function render() {
@@ -300,6 +296,32 @@ describe("RankThisPub", () => {
     await act(async () => close.click());
     expect(compare()).toBeNull();
     expect(net.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes an acknowledged comparison without another read and keeps the saved position", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledOnce();
+  });
+
+  it("reconciles a closed write after its promise rejects", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    let rejectWrite!: (error: Error) => void;
+    net.pending = new Promise<void>((_resolve, reject) => { rejectWrite = reject; });
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!.click());
+    expect(net.read).toHaveBeenCalledOnce();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await act(async () => rejectWrite(new Error("The answer was lost")));
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledTimes(2);
   });
 
   it("reads the saved position after the newer comparison's outstanding write settles", async () => {
