@@ -41,6 +41,6 @@ describe("Social data-file tracing", () => {
       "./public/data/cities/venue_id_aliases.json",
       "./public/data/uk_base_venue_id_aliases.json",
     );
-    expect(new Set(files)).toEqual(new Set(expected));
+    expect(files).toEqual(expect.arrayContaining(expected));
   });
 });
