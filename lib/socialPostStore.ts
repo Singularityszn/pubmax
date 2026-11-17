@@ -25,6 +25,7 @@ import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
+import { matchesSocialPostFeedSelection, type SocialPostFeedLane } from "@/lib/socialPostFeedMembership";
 import { isLondonLaneArea } from "@/lib/socialLondonLane";
 
 export type SocialPostActor = {
@@ -44,8 +45,6 @@ export type SocialPostRelationships = {
    */
   mutedProfileIds?: Set<string>;
 };
-
-type SocialPostFeedLane = "discover" | "nearby" | "following";
 
 type SocialPostFeedInput = {
   lane: SocialPostFeedLane;
@@ -425,12 +424,9 @@ function feedAllows(
   tag?: string | null,
 ): boolean {
   if (!canRead(post, viewer, relationships)) return false;
-  if (lane === "discover" && !tagAllows(post, tag)) return false;
+  if (!matchesSocialPostFeedSelection(post, lane, area, tag)) return false;
   if (relationships.mutedProfileIds?.has(post.authorProfileId)) return false;
-  if (lane === "discover") return post.visibility === "public";
-  if (lane === "nearby") return post.visibility === "public" && post.area === area;
-  // "Somebody you follow" is a short list, so it would name a hidden author.
-  if (post.nameHidden) return false;
+  if (lane !== "following") return true;
   if (!relationships.followingProfileIds.has(post.authorProfileId)) return false;
   return post.visibility === "public" ||
     (post.visibility === "friends" && relationships.mutualProfileIds.has(post.authorProfileId));

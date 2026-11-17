@@ -2,12 +2,12 @@ import type { Route } from "next";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeSocialHashtag } from "@/lib/socialHashtag";
 
-type SocialFeedLane = "following" | "nearby" | "discover";
+import type { SocialPostFeedLane } from "@/lib/socialPostFeedMembership";
 
 export type SocialPostsShellState = {
   valid: boolean;
   tab: "posts";
-  feed: SocialFeedLane;
+  feed: SocialPostFeedLane;
   area: NightAreaSlug | null;
   /** Across town only: one stored-form hashtag the lane is narrowed to. */
   tag?: string | null;

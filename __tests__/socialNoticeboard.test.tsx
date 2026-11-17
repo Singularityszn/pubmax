@@ -158,7 +158,7 @@ it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all fo
 
 const editMembershipCases: { label: string; state: SocialPostsShellState; edit: Partial<SocialPostDTO>; retained: boolean }[] = [
   { label: "Nearby private edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { visibility: "private" }, retained: false },
-  { label: "Nearby area edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { area: "soho" }, retained: false },
+  { label: "Nearby area edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { area: "balham" }, retained: false },
   { label: "Nearby matching edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { body: "Still in this lane" }, retained: true },
   { label: "Across town friends edit", state: { valid: true, tab: "posts", feed: "discover", area: null }, edit: { visibility: "friends" }, retained: false },
   { label: "Across town removed hashtag", state: { valid: true, tab: "posts", feed: "discover", area: null, tag: "garden" }, edit: { hashtags: [] }, retained: false },

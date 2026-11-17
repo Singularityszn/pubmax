@@ -55,6 +55,7 @@ import {
   type SocialShellState,
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import { matchesSocialPostFeedSelection } from "@/lib/socialPostFeedMembership";
 import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { forgetSurfaceSnapshot, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
@@ -755,7 +756,7 @@ function SocialPageAccountState({
     if (updated) {
       const next = chronological(postsRef.current.map(item => item.id === updated.id
         ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
-        : item));
+        : item).filter(item => initialState.tab !== "posts" || matchesSocialPostFeedSelection(item, initialState.feed, initialState.area, initialState.tag)));
       postsRef.current = next;
       setPosts(next);
       if (feedSnapshotKey && feedData.current?.key === feedSnapshotKey) {
@@ -765,7 +766,7 @@ function SocialPageAccountState({
       }
     }
     refreshAfterSave();
-  }, [feedSnapshotKey, refreshAfterSave]);
+  }, [feedSnapshotKey, initialState, refreshAfterSave]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;
