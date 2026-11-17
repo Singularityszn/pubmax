@@ -59,6 +59,24 @@ afterEach(async () => {
   actor.revision = 1;
 });
 
+it("announces a cold feed failure once and recovers through Retry", async () => {
+  let failed = true;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    return failed ? Response.json({}, { status: 503 }) : Response.json({ posts: [feedPost("Recovered post", 12)], nextCursor: null });
+  });
+  await mountFeed();
+  const announcements = [...host.querySelectorAll('.socialFeed [role="status"], .socialFeed [role="alert"]')]
+    .filter(node => node.textContent?.trim());
+  expect(announcements).toHaveLength(1);
+  expect(announcements[0]?.getAttribute("role")).toBe("alert");
+  failed = false;
+  await act(async () => host.querySelector<HTMLButtonElement>(".socialFeedError button")!.click());
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
+  expect(host.querySelector(".socialFeedError")).toBeNull();
+});
+
 it("bounds a deep refresh and keeps the fresh continuation reachable", async () => {
   const window = await readSocialPostWindow(async cursor => {
     const index = cursor ? Number(cursor) : 0;

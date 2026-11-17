@@ -600,16 +600,18 @@ it("coalesces repeated manual recovery while its read is pending", async () => {
   await poll();
   await answer(outage());
   const retry = host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!;
+  retry.focus();
   await act(async () => {
     for (let i = 0; i < 5; i++) retry.click();
   });
   expect(transport.reads).toHaveLength(1);
-  expect(retry.disabled).toBe(true);
+  expect(retry.getAttribute("aria-disabled")).toBe("true");
+  expect(document.activeElement).toBe(retry);
   await answer(thread("Recovered history"));
   expect(host.querySelector(".threadReadRecovery")).toBeNull();
   await poll();
   await answer(outage());
-  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.disabled).toBe(false);
+  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.getAttribute("aria-disabled")).toBe("false");
 });
 
 it.each(["conversation", "reader"])("does not let the previous %s retry unlock a new pending retry", async change => {
@@ -627,7 +629,7 @@ it.each(["conversation", "reader"])("does not let the previous %s retry unlock a
   await click(".threadReadRecovery button");
   expect(transport.reads).toHaveLength(2);
   await answer(thread("Obsolete response"));
-  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.disabled).toBe(true);
+  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.getAttribute("aria-disabled")).toBe("true");
   expect(host.textContent).not.toContain("Obsolete response");
   await answer(thread("Current recovery", conversation));
   expect(host.querySelector(".threadReadRecovery")).toBeNull();
