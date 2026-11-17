@@ -254,18 +254,67 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     { label: "a planner's venue", entries: [planner, venue] },
     { label: "a venue's planner", entries: [venue, planner] },
     { label: "a planner", entries: [planner] },
-  ])("dismisses $label before a primary tab without queuing traversal", async ({ entries }) => {
+    { label: "a reordered trail", entries: [planner, venue, planner] },
+    { label: "a completed area choice", entries: [{ id: "choose-area", title: "Choose area" }] },
+  ])("leaves one map entry behind a primary tab after $label", async ({ entries }) => {
     await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    window.history.replaceState(null, "", "/about");
+    window.history.pushState(stampMapSurfaceHistory(null, [], ""), "", "/map");
     openSurfaces(...entries);
-    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
-    act(() => requestMobileSheetDismiss());
-    expect(go).not.toHaveBeenCalled();
+    if (entries[0]?.id === "choose-area") act(() => navigation.complete("choose-area"));
+    const navigate = vi.fn(() => window.history.pushState(null, "", "/plan"));
+    await traverse(() => {
+      expect(requestMobileSheetDismiss(navigate)).toBe(true);
+      expect(navigate).not.toHaveBeenCalled();
+    });
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(window.location.pathname).toBe("/plan");
     expect(onHome).toHaveBeenCalledOnce();
-    expect(trail()).toEqual([]);
-    expect(new URLSearchParams(window.location.search).has("sel")).toBe(false);
     expect(navigation.holdsSurface("venue")).toBe(false);
     expect(navigation.holdsSurface("planner")).toBe(false);
     expect(onVenueClose).toHaveBeenCalledTimes(entries.some(entry => entry.id === "venue") ? 1 : 0);
+    await traverse(() => window.history.back());
+    expect(window.location.pathname).toBe("/map");
+    expect(trail()).toEqual([]);
+    expect(window.location.search).toBe("");
+    await traverse(() => window.history.back());
+    expect(window.location.pathname).toBe("/about");
+    await traverse(() => window.history.forward());
+    expect(window.location.pathname).toBe("/map");
+    expect(trail()).toEqual([]);
+    await traverse(() => window.history.forward());
+    expect(window.location.pathname).toBe("/plan");
+  });
+
+  it("lets a primary tab navigate normally from the map root", () => {
+    const navigate = vi.fn();
+    const go = vi.spyOn(window.history, "go");
+    expect(requestMobileSheetDismiss(navigate)).toBe(false);
+    expect(go).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("lets a primary tab navigate normally without a map owner", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    const navigate = vi.fn();
+    expect(requestMobileSheetDismiss(navigate)).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest primary tab while the return to Map is pending", async () => {
+    openSurfaces(venue);
+    const go = vi.spyOn(window.history, "go");
+    const first = vi.fn();
+    const latest = vi.fn(() => window.history.pushState(null, "", "/social"));
+    await traverse(() => {
+      expect(requestMobileSheetDismiss(first)).toBe(true);
+      expect(requestMobileSheetDismiss(latest)).toBe(true);
+    });
+    expect(go).toHaveBeenCalledOnce();
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledOnce();
+    expect(window.location.pathname).toBe("/social");
   });
 
   it("completes an area choice before opening a pub, so Back returns to the map", async () => {

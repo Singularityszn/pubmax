@@ -15,7 +15,7 @@ import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
-import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -1035,15 +1035,12 @@ describe("closing a route stop", () => {
     }
     await act(async () => root.render(createElement(Journey)));
     if (moved) gesture.current.movementSerial += 1;
-    if (exit === "direct dismiss") {
-      act(() => window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT)));
-    } else {
-      await act(async () => {
-        const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
-        navigation.home();
-        await landed;
-      });
-    }
+    await act(async () => {
+      const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
+      if (exit === "direct dismiss") requestMobileSheetDismiss(() => {});
+      else navigation.home();
+      await landed;
+    });
     expect(fitRoute).not.toHaveBeenCalled();
     act(() => resolveVenues());
     expect(restoreCamera).not.toHaveBeenCalled();

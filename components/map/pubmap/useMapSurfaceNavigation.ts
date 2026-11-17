@@ -209,6 +209,7 @@ export function useMapSurfaceNavigation({
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
     const { mappedWalk, selectedVenueRequestToken, onVenueClose } = venueCloseRef.current;
@@ -406,6 +407,8 @@ export function useMapSurfaceNavigation({
       const closingHome = pendingHomeRef.current !== null;
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
+      const navigate = pendingNavigationRef.current;
+      pendingNavigationRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
         const url = urlForStack(next, "");
         if (currentBrowserUrl() !== url) window.history.replaceState(window.history.state, "", url);
@@ -429,6 +432,9 @@ export function useMapSurfaceNavigation({
       onRestoreRef.current(currentSurface(next));
       if (next.length === 0 && rootStateRef.current?.returnCamera) {
         onReturnToMapRef.current?.(rootStateRef.current.returnCamera);
+      }
+      if (window.location.pathname === ownedPathRef.current && landed !== null && next.length === 0) {
+        navigate?.();
       }
     };
     window.addEventListener("popstate", onPop);
@@ -541,16 +547,16 @@ export function useMapSurfaceNavigation({
   }, [publishStack]);
 
   useEffect(() => {
-    const onDismiss = () => {
-      const root = ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>;
+    const onDismiss = (event: Event) => {
       const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
-      publishStack(root);
-      window.history.replaceState(
-        stampMapSurfaceHistory(window.history.state, root, "", above),
-        "",
-        urlForStack(root, ""),
-      );
+      if (above === 0) return;
+      event.preventDefault();
+      pendingNavigationRef.current = (event as CustomEvent<() => void>).detail;
+      if (pendingHomeRef.current !== null) return;
+      pendingHomeRef.current = stackRef.current;
+      publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
       onHomeRef.current();
+      window.history.go(-above);
     };
     window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
     return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
