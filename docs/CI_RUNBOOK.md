@@ -328,7 +328,7 @@ each hosted Linux job is its own machine.
 
 ### Security CI is blocking
 
-`security-ci.yml` runs zizmor online over `.github/`, osv-scanner over every lockfile, Semgrep, and gitleaks.
+`security-ci.yml` runs zizmor online over `.github/`, the npm audit guard for every tracked npm lockfile, osv-scanner over every lockfile, Semgrep, and gitleaks. The npm guard checks production lockfile dependencies before OSV can apply a development-only exception.
 It runs on pull requests, merge groups, pushes to `main`, Mondays, and manual dispatches.
 The main ruleset requires `Security CI check`, which fails if any security job fails or is cancelled.
 zizmor uses `github.token`, the job token, rather than a repository secret.
