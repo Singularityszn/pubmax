@@ -40,6 +40,8 @@ type MessagePhotoProps = {
   height: number;
   senderHandle: string;
   handle: string;
+  previewUrl?: string;
+  onStoredLoad?: () => void;
 };
 
 export default function MessagePhoto({
@@ -48,9 +50,12 @@ export default function MessagePhoto({
   height,
   senderHandle,
   handle,
+  previewUrl,
+  onStoredLoad,
 }: MessagePhotoProps): React.JSX.Element {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const [attempt, setAttempt] = useState(0);
@@ -64,7 +69,7 @@ export default function MessagePhoto({
 
   useEffect(() => {
     let active = true;
-    queueMicrotask(() => { if (active) { setFailed(false); setObjectUrl(null); } });
+    queueMicrotask(() => { if (active) { setFailed(false); setObjectUrl(null); setLoaded(false); } });
     let created: string | null = null;
     const controller = new AbortController();
     const address = handle ? `${url}?handle=${encodeURIComponent(handle)}` : url;
@@ -94,6 +99,10 @@ export default function MessagePhoto({
     };
   }, [url, handle, attempt]);
 
+  useEffect(() => {
+    if (loaded) onStoredLoad?.();
+  }, [loaded, onStoredLoad]);
+
   const close = useCallback(() => setOpen(false), []);
   const viewerError = useCallback(() => { setOpen(false); setDialogError("Could not open photo. Try again."); }, []);
 
@@ -104,22 +113,20 @@ export default function MessagePhoto({
     [MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height),
   } as React.CSSProperties;
 
-  if (failed) {
-    return <figure className="messagePhotoFigure" style={tile}>
-      <div className="messagePhotoPending messagePhotoFailed"><span>{MESSAGE_PHOTO_UNREADABLE_LINE}</span>
-        <button type="button" onClick={() => { setAttempt(value => value + 1); }}>Retry photo</button>
-      </div>
-    </figure>;
-  }
+  const shownUrl = failed && !previewUrl ? null : loaded ? objectUrl : previewUrl;
+  const retry = <div className="messagePhotoPending messagePhotoFailed"><span>{MESSAGE_PHOTO_UNREADABLE_LINE}</span>
+    <button type="button" onClick={() => { setAttempt(value => value + 1); }}>Retry photo</button>
+  </div>;
+  const preload = objectUrl && !loaded && !failed ? (
+    // eslint-disable-next-line @next/next/no-img-element -- authenticated bytes are decoded before replacing a borrowed preview
+    <img hidden src={objectUrl} alt="" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+  ) : null;
 
-  if (!objectUrl) {
-    // The box is reserved at the photo's own aspect, so the thread does not
-    // jump under a reader's thumb when the bytes land.
-    return (
-      <figure className="messagePhotoFigure" style={tile}>
-        <p className="messagePhotoPending">Loading photo</p>
-      </figure>
-    );
+  if (!shownUrl) {
+    return <figure className="messagePhotoFigure" style={tile}>
+      {failed ? retry : <p className="messagePhotoPending">Loading photo</p>}
+      {preload}
+    </figure>;
   }
 
   const alt = messagePhotoAltText(senderHandle);
@@ -138,7 +145,7 @@ export default function MessagePhoto({
         {/* eslint-disable-next-line @next/next/no-img-element -- gated bytes read as an object URL; no loader can fetch them */}
         <img
           className="messagePhoto"
-          src={objectUrl}
+          src={shownUrl}
           width={width}
           height={height}
           alt={alt}
@@ -146,8 +153,10 @@ export default function MessagePhoto({
           onError={() => setFailed(true)}
         />
       </button>
+      {preload}
+      {failed ? retry : null}
       {dialogError ? <p role="status">{dialogError}</p> : null}
-      {open ? <MessagePhotoViewer url={objectUrl} alt={alt} width={width} height={height} onClose={close} onError={viewerError} /> : null}
+      {open ? <MessagePhotoViewer url={shownUrl} alt={alt} width={width} height={height} onClose={close} onError={viewerError} /> : null}
     </figure>
   );
 }

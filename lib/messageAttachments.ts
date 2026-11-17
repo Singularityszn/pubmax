@@ -53,7 +53,6 @@ import type { Route } from "next";
 import { profilePath } from "@/lib/appLink";
 import { formatGbp } from "@/lib/formatGbp";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
-import type { CropTarget } from "@/lib/profileImagePicker";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -80,30 +79,10 @@ export function isMessageAttachmentKind(
 
 /** Sentence noun for reader-facing copy, so one wording serves every message. */
 export const MESSAGE_PHOTO_NOUN = "Photo";
-const MESSAGE_PHOTO_NOUN_LOWER = "photo";
-
 /** Fallback aspect ratio for photos without usable stored dimensions. */
 export const MESSAGE_PHOTO_ASPECT_RATIO = 4 / 5;
-/** Longest edge of the stored JPEG, regardless of orientation. */
-const MESSAGE_PHOTO_MAX_EDGE = 2_048;
-export const MESSAGE_PHOTO_OUTPUT_HEIGHT = MESSAGE_PHOTO_MAX_EDGE;
-export const MESSAGE_PHOTO_OUTPUT_WIDTH = Math.round(
-  MESSAGE_PHOTO_MAX_EDGE * MESSAGE_PHOTO_ASPECT_RATIO,
-);
 /** Server re-encode quality for message photos (mozjpeg). */
 export const MESSAGE_PHOTO_JPEG_QUALITY = 85;
-
-/** Legacy crop target. The message composer now uses preparePhotoUpload. */
-export const MESSAGE_PHOTO_CROP_TARGET: CropTarget = {
-  id: "message-photo",
-  aspectRatio: MESSAGE_PHOTO_ASPECT_RATIO,
-  outputBox: {
-    width: MESSAGE_PHOTO_OUTPUT_WIDTH,
-    height: MESSAGE_PHOTO_OUTPUT_HEIGHT,
-  },
-  nounLower: MESSAGE_PHOTO_NOUN_LOWER,
-  fileName: "message-photo.jpg",
-};
 
 /**
  * Storage keys. Serving and staging are SIBLINGS rather than nested, so a

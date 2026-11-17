@@ -82,7 +82,6 @@
   font: inherit;
 }
 
-.composerDock { backdrop-filter: blur(16px); }
 .messageThread :is(button, a) {
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
@@ -90,8 +89,4 @@
 
 @media (hover: hover) and (pointer: fine) {
   .composerPhotoRetry:hover { background: var(--panel-raised); }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  .composerDock { backdrop-filter: none; background: var(--panel); }
 }

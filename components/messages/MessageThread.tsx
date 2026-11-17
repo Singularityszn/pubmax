@@ -507,9 +507,18 @@ export default function MessageThread({
   }, []);
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
-    draft, setDraft, pending, setPending, outbox, sending, preparing, error,
+    sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, error,
     selectPhotos, clearPending, cancelPreparation, abandon, send, retrySend,
   } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
+
+  useEffect(() => {
+    for (const [id, sent] of Object.entries(sentPhotos)) {
+      const row = messages.find(message => message.id === id);
+      if (sent.handle !== handle || !row || row.unsent || row.attachment?.kind !== "photo" || row.attachment.url !== sent.url) {
+        releaseSentPhoto(id, sent.photo.previewUrl);
+      }
+    }
+  }, [messages, handle, sentPhotos, releaseSentPhoto]);
 
   useLayoutEffect(() => {
     if (state === "deleted" || state === "left" || state === "notfound") abandon();
@@ -828,6 +837,9 @@ export default function MessageThread({
     if (attachment.kind === "photo") {
       return (
         <MessagePhoto
+          key={`${user?.id ?? ""}:${accountRevision}:${conversationId}:${m.id}:${attachment.url}:${handle}`}
+          previewUrl={sentPhotos[m.id]?.url === attachment.url && sentPhotos[m.id]?.handle === handle ? sentPhotos[m.id]?.photo.previewUrl : undefined}
+          onStoredLoad={() => releaseSentPhoto(m.id, sentPhotos[m.id]?.photo.previewUrl)}
           url={attachment.url}
           width={attachment.width}
           height={attachment.height}

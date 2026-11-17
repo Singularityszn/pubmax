@@ -25,10 +25,6 @@ import {
   MESSAGE_ATTACH_POLL_LABEL,
   MESSAGE_CONTACT_OPEN_LABEL,
   MESSAGE_EVENT_OPEN_LABEL,
-  MESSAGE_PHOTO_ASPECT_RATIO,
-  MESSAGE_PHOTO_CROP_TARGET,
-  MESSAGE_PHOTO_OUTPUT_HEIGHT,
-  MESSAGE_PHOTO_OUTPUT_WIDTH,
   messageContactCardLabel,
   messageEventCardLabel,
   messagePhotoAltText,
@@ -80,16 +76,7 @@ describe("the attachment set is closed at five", () => {
     expect(isMessagePhotoServingKey("conv-1", "msg-9", "avatars/conv-1/msg-9.jpg")).toBe(false);
   });
 
-  it("frames a message photo portrait, because a phone photograph is", () => {
-    expect(MESSAGE_PHOTO_ASPECT_RATIO).toBeCloseTo(0.8);
-    expect(MESSAGE_PHOTO_OUTPUT_HEIGHT).toBe(
-      Math.round(MESSAGE_PHOTO_OUTPUT_WIDTH / MESSAGE_PHOTO_ASPECT_RATIO),
-    );
-    expect(MESSAGE_PHOTO_CROP_TARGET.outputBox).toEqual({
-      width: MESSAGE_PHOTO_OUTPUT_WIDTH,
-      height: MESSAGE_PHOTO_OUTPUT_HEIGHT,
-    });
-  });
+
 });
 
 describe("a pub card holds a pub, never a place", () => {

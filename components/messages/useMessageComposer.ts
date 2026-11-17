@@ -52,6 +52,7 @@ export function useMessageComposer(options: Options) {
   const [draft, setDraft] = useState("");
   const [pending, setPending] = useState<PendingMessageAttachment | null>(null);
   const [outbox, setOutbox] = useState<OutboxMessage[]>([]);
+  const [sentPhotos, setSentPhotos] = useState<Record<string, { url: string; handle: string; photo: MessagePhotoDraft }>>({});
   const owner = `${user?.id ?? ""}:${accountRevision}:${conversationId}`;
   const [activity, dispatch] = useReducer(transitionComposerActivity, { phase: "ready", scope: owner } as ComposerActivity);
   const sending = activity.phase === "sending";
@@ -67,11 +68,10 @@ export function useMessageComposer(options: Options) {
   const [renderedOwner, setRenderedOwner] = useState(owner);
   if (renderedOwner !== owner) {
     setRenderedOwner(owner);
-    setDraft(""); setPending(null); setOutbox([]); dispatch({ type: "reset", scope: owner });
+    setDraft(""); setPending(null); setOutbox([]); setSentPhotos({}); dispatch({ type: "reset", scope: owner });
   }
 
   useLayoutEffect(() => {
-    const urls = ownedUrls.current;
     scope.current += 1;
     pick.current += 1;
     inFlight.current = false;
@@ -79,19 +79,25 @@ export function useMessageComposer(options: Options) {
     return () => {
       scope.current += 1;
       pick.current += 1;
+    };
+  }, [owner]);
+
+  useEffect(() => {
+    const urls = ownedUrls.current;
+    return () => {
       for (const url of urls) URL.revokeObjectURL(url);
       urls.clear();
     };
   }, [owner]);
 
   useEffect(() => {
-    const live = new Set([...messagePhotos(pending).map(photo => photo.previewUrl), ...outbox.flatMap(row => row.pendingPhoto ? [row.pendingPhoto.previewUrl] : [])]);
+    const live = new Set([...messagePhotos(pending).map(photo => photo.previewUrl), ...outbox.flatMap(row => row.pendingPhoto ? [row.pendingPhoto.previewUrl] : []), ...Object.values(sentPhotos).map(sent => sent.photo.previewUrl)]);
     for (const url of ownedUrls.current) {
       if (live.has(url)) continue;
       URL.revokeObjectURL(url);
       ownedUrls.current.delete(url);
     }
-  }, [pending, outbox]);
+  }, [pending, outbox, sentPhotos]);
 
   useEffect(() => {
     const revision = scope.current;
@@ -122,7 +128,7 @@ export function useMessageComposer(options: Options) {
     pick.current += 1;
     inFlight.current = false;
     unsentKey.current = null;
-    setDraft(""); setPending(null); setOutbox([]);
+    setDraft(""); setPending(null); setOutbox([]); setSentPhotos({});
     dispatch({ type: "reset", scope: owner });
     discardMessagePhotoRecovery(owner);
   }, [owner]);
@@ -174,6 +180,14 @@ export function useMessageComposer(options: Options) {
       if (revision === scope.current && selection === pick.current) dispatch({ type: "finish", scope: owner });
     }
   }, [owner, setError]);
+
+  const acknowledge = useCallback((stored: MessageDTO, attachment: PendingMessageAttachment | null, handle: string) => {
+    if (attachment?.kind === "photo" && stored.attachment?.kind === "photo") {
+      const url = stored.attachment.url;
+      setSentPhotos(value => ({ ...value, [stored.id]: { url, handle, photo: attachment } }));
+    }
+    onStored(stored);
+  }, [onStored]);
 
   const send = useCallback(async () => {
     const handle = normalizeHandle(authHandle ?? "") || normalizeHandle(safeLocalStorage()?.getItem("pubmax_handle") ?? "");
@@ -230,7 +244,7 @@ export function useMessageComposer(options: Options) {
           return;
         }
         const stored = (result as { message?: MessageDTO } | null)?.message;
-        if (stored && typeof stored.id === "string") onStored(stored);
+        if (stored && typeof stored.id === "string") acknowledge(stored, attachment, handle);
         else await refresh();
         if (!current()) return;
         setOutbox(value => value.filter(item => item.id !== row.id));
@@ -245,7 +259,16 @@ export function useMessageComposer(options: Options) {
     } finally {
       if (revision === scope.current) { inFlight.current = false; dispatch({ type: "finish", scope: owner }); }
     }
-  }, [conversationId, authHandle, draft, pending, preparing, user, refresh, onStored, onSignedOut, fromRefusal, owner, setError]);
+  }, [conversationId, authHandle, draft, pending, preparing, user, refresh, acknowledge, onSignedOut, fromRefusal, owner, setError]);
 
-  return { draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, abandon, send };
+  const releaseSentPhoto = useCallback((id: string, previewUrl?: string) => {
+    setSentPhotos(value => {
+      if (!value[id] || value[id].photo.previewUrl !== previewUrl) return value;
+      const next = { ...value };
+      delete next[id];
+      return next;
+    });
+  }, []);
+
+  return { sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, abandon, send };
 }

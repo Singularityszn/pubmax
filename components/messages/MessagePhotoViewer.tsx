@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
 import { clampPhotoView, rawPhotoView, rubberbandPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { releaseVelocity, springTo } from "@/lib/springAnimate";
 import { projectMomentum } from "@/lib/springMotion";
 
@@ -13,6 +14,7 @@ const distance = (points: Point[]): number => points.length < 2 ? 0 : Math.hypot
 export default function MessagePhotoViewer({ url, alt, width, height, onClose, onError }: Props) {
   const dialog = useRef<HTMLDialogElement>(null);
   const stage = useRef<HTMLDivElement>(null);
+  useDismissOnEscape(true, onClose, dialog, true);
   const image = useRef<HTMLImageElement>(null);
   const view = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
   const displayed = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });

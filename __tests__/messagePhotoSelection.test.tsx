@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, StrictMode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MessageDTO } from "@/lib/messages";
@@ -9,6 +9,7 @@ const state = vi.hoisted(() => ({
   auth: { user: { id: "alice-id" }, handle: "alice", accountRevision: 1 },
   prepare: vi.fn(),
   messages: [] as MessageDTO[],
+  request: vi.fn(),
 }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => createElement("a", { href }, children) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }));
@@ -19,7 +20,7 @@ vi.mock("@/lib/messagesRealtime", () => ({ subscribeToMessages: () => () => {}, 
 vi.mock("@/lib/preparePhotoUpload", () => ({ preparePhotoUpload: (file: File) => state.prepare(file) }));
 vi.mock("@/lib/authedFetch", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
-  authedActionFetch: async () => Response.json({ messages: state.messages }),
+  authedActionFetch: (url: string, init?: RequestInit) => state.request(url, init),
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
@@ -31,12 +32,14 @@ let root: Root;
 const revoke = vi.fn();
 const createUrl = vi.fn();
 
-async function mount() {
-  await act(async () => { root.render(createElement(MessageThread, { conversationId: "c1" })); });
+async function mount(strict = false) {
+  const thread = createElement(MessageThread, { conversationId: "c1" });
+  await act(async () => { root.render(strict ? createElement(StrictMode, {}, thread) : thread); });
 }
 async function choosePhoto() {
   const input = container.querySelector<HTMLInputElement>("#message-photo-file")!;
   const file = new File([new Uint8Array([1, 2, 3])], "pint.jpg", { type: "image/jpeg" });
+  Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
   Object.defineProperty(input, "files", { value: [file], configurable: true });
   await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
   return file;
@@ -48,8 +51,11 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   state.auth = { user: { id: "alice-id" }, handle: "alice", accountRevision: 1 };
   state.messages = [];
+  state.request.mockReset().mockImplementation(async () => Response.json({ messages: state.messages }));
   state.prepare.mockReset().mockImplementation(async file => ({ file, width: 1200, height: 600 }));
-  createUrl.mockReset().mockReturnValue("blob:photo"); revoke.mockReset();
+  createUrl.mockReset().mockReturnValue("blob:photo"); revoke.mockReset().mockImplementation((url: string) => {
+    expect(Array.from(container.querySelectorAll("img")).some(image => image.getAttribute("src") === url)).toBe(false);
+  });
   vi.stubGlobal("URL", class extends URL { static createObjectURL = createUrl; static revokeObjectURL = revoke; });
   window.matchMedia = (() => ({ matches: false, addEventListener() {}, removeEventListener() {} })) as unknown as typeof window.matchMedia;
   Element.prototype.scrollIntoView = () => {};
@@ -105,6 +111,72 @@ describe("choosing a DM photo preserves its frame and the composer's focus", () 
   });
 });
 
+// The send acknowledgement is not a media load. The sender must keep readable
+// bytes while the authenticated image request waits, fails or changes scope.
+describe("successful photo handoff", () => {
+  let release: (response: Response) => void;
+  const stored: MessageDTO = {
+    id: "saved-photo", conversationId: "c1", senderHandle: "alice", body: "", createdAt: "2026-11-17T07:00:00Z", read: false, flagged: false,
+    attachment: { kind: "photo", url: "/api/messages/c1/photo/saved-photo", width: 1200, height: 600 },
+  };
+  beforeEach(() => {
+    createUrl.mockReturnValueOnce("blob:local").mockReturnValue("blob:stored");
+    state.request.mockImplementation((url: string, init?: RequestInit) => {
+      if (url.includes("/photo/")) return new Promise<Response>(resolve => { release = resolve; });
+      if (init?.method === "POST") return Promise.resolve(Response.json({ message: stored }));
+      return Promise.resolve(Response.json({ messages: state.messages }));
+    });
+  });
+  async function sendPhoto() {
+    await mount(true); await choosePhoto();
+    await act(async () => container.querySelector<HTMLButtonElement>(".composerSend")!.click());
+  }
+  const visiblePhoto = () => container.querySelector<HTMLImageElement>(".messagePhotoButton .messagePhoto");
+  it("keeps the local frame until stored image load, then releases only the unused URL", async () => {
+    await sendPhoto();
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+    expect(revoke).not.toHaveBeenCalledWith("blob:local");
+    await act(async () => release(new Response(new Blob(["stored"], { type: "image/jpeg" }))));
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+    expect(revoke).not.toHaveBeenCalledWith("blob:local");
+    await act(async () => container.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("load")));
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:stored");
+    expect(revoke).toHaveBeenCalledWith("blob:local");
+    expect(revoke).not.toHaveBeenCalledWith("blob:stored");
+    await act(async () => root.render(null));
+    expect(revoke).toHaveBeenCalledWith("blob:stored");
+  });
+  it("keeps the sender's preview readable when stored media fails and retries", async () => {
+    await sendPhoto();
+    await act(async () => release(new Response(null, { status: 503 })));
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+    expect(revoke).not.toHaveBeenCalledWith("blob:local");
+    const retry = Array.from(container.querySelectorAll("button")).find(button => button.textContent === "Retry photo")!;
+    await act(async () => retry.click());
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+  });
+  it.each(["account", "revision", "handle", "conversation", "unmount"])("drops borrowed bytes on %s without accepting a stale media response", async boundary => {
+    await sendPhoto();
+    const finish = release;
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+    state.messages = [stored];
+    if (boundary === "account") state.auth = { user: { id: "sam-id" }, handle: "sam", accountRevision: 2 };
+    if (boundary === "handle") state.auth = { ...state.auth, handle: "sam" };
+    if (boundary === "revision") state.auth = { ...state.auth, accountRevision: 2 };
+    await act(async () => root.render(boundary === "unmount" ? null : createElement(StrictMode, {}, createElement(MessageThread, { conversationId: boundary === "conversation" ? "c2" : "c1" }))));
+    expect(container.querySelector('img[src="blob:local"]')).toBeNull();
+    expect(revoke).toHaveBeenCalledWith("blob:local");
+    await act(async () => finish(new Response(new Blob(["late"], { type: "image/jpeg" }))));
+    expect(container.querySelector('img[src="blob:stored"]')).toBeNull();
+  });
+  it("reserves a loading box for a remote photo without a local preview", async () => {
+    state.messages = [stored];
+    await mount();
+    expect(visiblePhoto()).toBeNull();
+    expect(container.querySelector(".messagePhotoPending")?.textContent).toBe("Loading photo");
+  });
+});
+
 describe("photo viewer pan release", () => {
   let frames: Map<number, FrameRequestCallback>;
   let reducedMotion: boolean;
@@ -147,6 +219,17 @@ describe("photo viewer pan release", () => {
       if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, key, descriptor);
       else Reflect.deleteProperty(HTMLDialogElement.prototype, key);
     }
+  });
+
+  it("claims the shared native window Escape event exactly once", async () => {
+    const onClose = vi.fn();
+    await act(async () => root.render(createElement(MessagePhotoViewer, {
+      url: "blob:photo", alt: "A pub", width: 800, height: 800, onClose, onError: vi.fn(),
+    })));
+    const event = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+    await act(async () => { window.dispatchEvent(event); });
+    expect(event.defaultPrevented).toBe(true);
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   function pointer(type: string, x: number, y: number, time: number, pointerId = 1) {
@@ -229,6 +312,7 @@ describe("photo viewer pan release", () => {
       attachment: { kind: "photo", url: "/api/messages/c1/media/m1", width: 800, height: 800 } }];
     await mount();
     container.querySelector<HTMLTextAreaElement>(".composerInput")!.focus();
+    await act(async () => container.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("load")));
     const row = container.querySelector<HTMLLIElement>(".messageRow")!;
     expect(row.hasAttribute("data-revealed")).toBe(false);
     await act(async () => container.querySelector<HTMLButtonElement>(".messagePhotoButton")!.click());

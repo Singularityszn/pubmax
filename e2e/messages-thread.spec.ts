@@ -114,6 +114,20 @@ test.describe("photo action and pinch regression", () => {
     await expect(page.locator(".messagePhotoButton")).toHaveCount(2);
   });
 
+  test("photo viewer consumes shared native Escape and restores opener focus", async ({ page }) => {
+    const opener = page.locator(".messagePhotoButton").first();
+    await opener.tap();
+    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+    const consumed = await page.evaluate(() => {
+      const event = new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true, cancelable: true });
+      window.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    expect(consumed).toBe(true);
+    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toHaveCount(0);
+    await expect(opener).toBeFocused();
+  });
+
   test("photo selection keeps touch actions and resisted pinch anchors", async ({ page, browserName }, testInfo) => {
     for (const [index, action] of ["Unsend", "Report"].entries()) {
       await page.locator(".composerInput").focus();
@@ -931,12 +945,20 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     if (browserName === "chromium") expect(requests[1]!.key).toBe(requests[0]!.key);
     release();
     if (photoCount > 1) { await expect(async () => expect(requests).toHaveLength(3)).toPass(); release(); }
-    await expect(page.locator(".messagePhotoPending")).toHaveCount(photoCount);
+    await expect(page.locator("[data-sending]")).toHaveCount(0);
+    await readable(".messagePhotoButton .messagePhoto", photoCount);
+    await expect(page.locator(".messagePhotoPending")).toHaveCount(0);
     const reserved = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };
     }));
     await shot("loading-photos"); await scaleIsOne();
+    const localUrls = await page.locator(".messagePhotoButton .messagePhoto").evaluateAll(images => images.map(image => image.getAttribute("src")));
     holdMedia = false; releaseMedia.forEach(resolve => resolve());
+    await expect(async () => {
+      const storedUrls = await page.locator(".messagePhotoButton .messagePhoto").evaluateAll(images => images.map(image => image.getAttribute("src")));
+      expect(storedUrls).toHaveLength(photoCount);
+      expect(storedUrls.every(url => !localUrls.includes(url))).toBe(true);
+    }).toPass();
     await readable(".messagePhotoButton .messagePhoto", photoCount);
     const loaded = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
       const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };

@@ -17,6 +17,7 @@
 import { encodeMomentPhoto } from "@/lib/momentPhotoEditor";
 import {
   MOMENT_FIT_OUTPUT_TYPE,
+  MOMENT_FIT_LONG_EDGES,
   momentFitBox,
   momentFitFileName,
   planMomentFitAttempts,
@@ -105,11 +106,12 @@ export async function fitMomentPhoto(
   file: File,
   budget: number = UPLOAD_PHOTO_MAX_BYTES,
   deps: MomentPhotoFitDeps = browserMomentPhotoFitDeps,
+  maxEdge: number = MOMENT_FIT_LONG_EDGES[0]!,
 ): Promise<MomentPhotoFitOutcome> {
   const decoded = await deps.decode(file).catch(() => null);
   if (!decoded) return { outcome: "unreadable" };
   try {
-    const attempts = planMomentFitAttempts(decoded);
+    const attempts = planMomentFitAttempts(decoded, maxEdge);
     for (const [index, attempt] of attempts.entries()) {
       const box = momentFitBox(decoded, attempt.longEdge);
       let blob: Blob;

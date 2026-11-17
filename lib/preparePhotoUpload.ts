@@ -1,3 +1,4 @@
+import { MESSAGE_PHOTO_MAX_EDGE } from "@/lib/messagePhotoBudget";
 import { fitMomentPhoto } from "@/lib/momentPhotoFit";
 import {
   MOMENT_PHOTO_FIT_FAILED_LINE,
@@ -18,7 +19,7 @@ export async function preparePhotoUpload(file: File): Promise<PreparedPhotoUploa
   if (decision.outcome === "refuse") throw new Error(decision.message);
   // Decode and redraw even small files so EXIF orientation and metadata cannot
   // change the frame between the local preview and the server's JPEG.
-  const fitted = await fitMomentPhoto(file);
+  const fitted = await fitMomentPhoto(file, undefined, undefined, MESSAGE_PHOTO_MAX_EDGE);
   if (fitted.outcome === "unreadable") throw new Error(unreadableImageMessageFor("photo", isLikelyHeic(file)));
   if (fitted.outcome === "too-large") throw new Error(MOMENT_PHOTO_FIT_FAILED_LINE);
   return { file: fitted.file, width: fitted.width, height: fitted.height };
