@@ -1183,11 +1183,9 @@ function SocialPageAccountState({
                   ? `Loading ${surfaceName} posts…`
                   : loadingMore
                     ? `Loading more ${surfaceName} posts…`
-                    : quietFeedFailure || (feedStatus === "error" && posts.length > 0)
+                    : quietFeedFailure || feedStatus === "error"
                       ? ""
-                      : feedStatus === "error"
-                        ? `${surfaceName} posts are unavailable right now.`
-                        : `${posts.length} ${surfaceName} posts loaded.`}
+                      : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
               {quietFeedFailure || (feedStatus === "error" && posts.length > 0) ? (
                 <p className="socialFeedInlineError" role="status">

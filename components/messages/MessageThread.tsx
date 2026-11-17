@@ -196,7 +196,7 @@ function ThreadReadRecovery({ visible, pending, onRetry }: { visible: boolean; p
   if (!visible) return null;
   return <p className="inboxStaleNotice threadReadRecovery" role="status">
     Couldn&rsquo;t refresh these messages. They show what loaded last.
-    <button type="button" className="threadRetryBtn" disabled={pending} aria-busy={pending} onClick={onRetry}>
+    <button type="button" className="threadRetryBtn" aria-disabled={pending} aria-busy={pending} onClick={onRetry}>
       {pending ? "Trying again…" : "Try again"}
     </button>
   </p>;
