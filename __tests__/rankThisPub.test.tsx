@@ -207,7 +207,7 @@ describe("RankThisPub", () => {
 
   it.each([401, 403])("retires a confirmed position after an unreadable HTTP %s refusal", async (status) => {
     await render();
-    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
     await clickRank();
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
     expect(rankButton()?.textContent).toBe("Ranked #2");
@@ -219,7 +219,7 @@ describe("RankThisPub", () => {
 
   it("retires the checkpoint when the comparison reports an access refusal", async () => {
     await render();
-    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
     await clickRank();
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close refused flow")!.click());
     expect(compare()).toBeNull();
