@@ -10,6 +10,7 @@ import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useNearMeRequests } from "@/components/map/pubmap/useNearMeRequests";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
+import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
@@ -75,7 +76,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   routeLineRef: { current: GeoJSON.FeatureCollection } = { current: { type: "FeatureCollection", features: [] } },
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
-  opening = { resolved: false, area: null as MapCameraFocus | null },
+  opening: { resolved: boolean; area: MapCameraFocus | null; walkPanelOpen?: boolean } = { resolved: false, area: null },
   readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue: { current: string; requestToken?: number } = { current: "" },
   search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[]; settledBuiltStopIds?: ReadonlySet<string> } = { venues: route, activePlanRoute: [] }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
@@ -109,6 +110,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       locationFirstMapView: { center: [-2.3216, 54.5232], zoom: 14 },
       cancelOpeningLocation: () => {},
     });
+    useCuratedWalkFraming(Boolean(opening.walkPanelOpen), readiness.current, camera.fitRoute);
     useMapFocusPoint(readiness.current, opening.area ?? location.openingLocationFocus, useRef(null), camera.cinematic);
     useEffect(() => {
       if (readiness.current && searchRecovery.current) camera.fitQueryVenues("search-recovery", searchRecovery.current);
@@ -146,11 +148,11 @@ function fitQuery() {
 }
 
 describe("walk panel overview framing", () => {
-  function mountWalk() {
+  function mountWalk(open = false) {
     mount({ current: soho }, soho, undefined, { current: {
       type: "FeatureCollection", features: [{ type: "Feature", properties: { source: "curated" },
         geometry: { type: "LineString", coordinates: soho.map((stop) => [stop.longitude, stop.latitude]) } }],
-    } });
+    } }, undefined, false, undefined, { resolved: false, area: null, walkPanelOpen: open });
   }
   function panel(rect: DOMRect) {
     const element = document.createElement("section");
@@ -169,6 +171,18 @@ describe("walk panel overview framing", () => {
     });
     return fitBounds.mock.calls.at(-1)?.[1];
   }
+  it("reports an opening walk fit as pending and lets a newer action cancel it", () => {
+    mountWalk(true);
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(camera.cameraLanePending()).toBe(true);
+    act(() => {
+      camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user");
+      pendingFrame?.(performance.now());
+    });
+    expect(camera.cameraLanePending()).toBe(false);
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
   it("keeps the existing phone padding for an ordinary pub route", () => {
     mapViewport = { width: 390, height: 664 };
     vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
