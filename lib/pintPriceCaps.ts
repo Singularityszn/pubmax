@@ -87,6 +87,10 @@ export function nearestPintPriceCap(maxPrice: number): PintPriceCap {
   return PINT_PRICE_CAPS_ASCENDING[nearestPintPriceCapIndex(maxPrice)] ?? ANY_CAP;
 }
 
+function exactPintPriceCap(value: number): boolean {
+  return Number.isFinite(value) && value >= 3 && value <= 8 && Math.abs(value * 10 - Math.round(value * 10)) < 1e-9;
+}
+
 /**
  * The `Filters.maxPrice` a figure from outside the controls is applied as: the
  * nearest shared cap. Every owner that reads a cap from a link, a saved session
@@ -94,9 +98,6 @@ export function nearestPintPriceCap(maxPrice: number): PintPriceCap {
  * every control prints (review finding 4, PR 2402). A rail that said "≤ £6"
  * while £6.25 still filtered the map was printing one cap and applying another.
  */
-function exactPintPriceCap(value: number): boolean {
-  return Number.isFinite(value) && value >= 3 && value <= 8 && Math.abs(value * 10 - Math.round(value * 10)) < 1e-9;
-}
 export function appliedPintPriceCap(maxPrice: number): number {
   return exactPintPriceCap(maxPrice) ? maxPrice : nearestPintPriceCap(maxPrice).maxPrice;
 }
@@ -104,7 +105,8 @@ export function appliedPintPriceCap(maxPrice: number): number {
 /** A dial value is an exact entry in the shared cap set. */
 export function pintPriceCapsFor(value: number): readonly PintPriceCap[] {
   if (PINT_PRICE_CAPS.some((entry) => pintPriceCapIsActive(value, entry.maxPrice)) || !exactPintPriceCap(value)) return PINT_PRICE_CAPS;
-  return [...PINT_PRICE_CAPS, { ...cap(value, value <= 5.5 ? "green" : "amber"), kind: "custom", shortLabel: formatGbp(value) }];
+  const custom: PintPriceCap = { ...cap(value, nearestPintPriceCap(value).tone), kind: "custom", shortLabel: formatGbp(value) };
+  return [...PINT_PRICE_CAPS, custom].sort((a, b) => b.maxPrice - a.maxPrice);
 }
 
 export function pintPriceCapsAscendingFor(value: number): readonly PintPriceCap[] {

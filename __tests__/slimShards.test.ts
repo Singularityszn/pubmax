@@ -841,3 +841,23 @@ describe("adopted price snapshot at every shard entry", () => {
     expect((await loader.nearPoint(51.5, -0.12)).rows.map((row) => row.id)).toEqual(["current"]);
   });
 });
+
+it("shares snapshot-qualified cells between map and fair-pint readers", async () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const core = defined(MANIFEST.shards[0]);
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [core] };
+  let reads = 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+    reads++;
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[core.url] }) } as Response;
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const bounds = { west: -0.2, south: 51.45, east: -0.01, north: 51.54 };
+  const first = await createSlimShardLoader("london").inBounds(bounds);
+  const second = await createSlimShardLoader("london").inBounds(bounds);
+  expect(first.map((row) => row.id)).toEqual(["c1", "c2"]);
+  expect(second).toEqual(first);
+  expect(reads).toBe(1);
+  vi.unstubAllGlobals();
+});

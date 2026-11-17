@@ -256,6 +256,8 @@ export function shardForPoint(
   return best;
 }
 
+const spatialReads = new WeakMap<typeof fetch, Map<string, Promise<SlimShardLoadResult>>>();
+
 // --- stateful per-city loader ------------------------------------------------
 
 const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v2";
@@ -780,15 +782,24 @@ export function createSlimShardLoader(
               onRevisionSkew: (served: unknown) => shardSkews.set(requestPath, { served }),
             };
       shardSkews.delete(requestPath);
-      const created = readShardWithSlot(requestPath, shardOptions, foreground, key)
-        .then((result) => {
-          if (result.status !== "ready") shardPromises.delete(key);
-          return result;
-        })
-        .catch(() => {
-          shardPromises.delete(key); // allow retry
-          return { rows: [], status: "unavailable" as const };
-        });
+      let shared = spatialReads.get(fetch);
+      if (!shared) { shared = new Map(); spatialReads.set(fetch, shared); }
+      let read = !options.bypassInFlight && expectedPriceDatasetDigest ? shared.get(key) : undefined;
+      if (!read) {
+        read = readShardWithSlot(requestPath, shardOptions, foreground, key)
+          .catch(() => ({ rows: [], status: "unavailable" as const }));
+        if (expectedPriceDatasetDigest) {
+          const request = read;
+          shared.set(key, request);
+          void request.then((result) => {
+            if (result.status !== "ready" && shared.get(key) === request) shared.delete(key);
+          });
+        }
+      }
+      const created = read.then((result) => {
+        if (result.status !== "ready") shardPromises.delete(key);
+        return result;
+      });
       shardPromises.set(key, created);
       p = created;
     }

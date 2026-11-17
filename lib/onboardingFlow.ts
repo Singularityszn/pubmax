@@ -86,7 +86,7 @@ export const LOCATION_PRIMER = {
   privacy: "We use your location to rank nearby pubs and pick an area for your plan. Your coordinates are never stored or sent.",
 } as const;
 
-const BUDGET_KEY = "pubmax:onboarding:budget:v1";
+export const BUDGET_KEY = "pubmax:onboarding:budget:v1";
 
 /** The remembered budget choice. Anything unrecognised reads as unanswered. */
 export function readBudgetChoice(storage?: Storage | null): BudgetChoiceId | null {

@@ -21,6 +21,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { tsImport } from "tsx/esm/api";
+import { compactFairPintPayload } from "../lib/slimListingPrices.mjs";
 
 import {
   CORE_FILE,
@@ -909,7 +910,6 @@ async function main() {
 
   const { groupVenuePrices } = await tsImport("../lib/venues.ts", import.meta.url);
   const { canonicalPintPriceInput } = await tsImport("../lib/planRouteEvidence.ts", import.meta.url);
-  const { compactFairPintPayload } = await tsImport("../lib/fairPint.ts", import.meta.url);
   const canonical = new Map(groupVenuePrices(rows).map((venue) =>
     [venue.id, canonicalPintPriceInput(venue, Date.now())]));
   const scrapedIds = await readScrapedIds();

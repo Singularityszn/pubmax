@@ -1,18 +1,19 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { compactFairPintPayload, fairPintRequest, transitionFairPintPlan, isFairPint } from "@/lib/fairPint";
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
+afterEach(() => vi.useRealTimers());
 const now = Date.parse("2026-11-17T12:00:00Z");
 const source = { label: "Pint Prices", url: "https://example.com/pub", observedAt: "2026-11-01T12:00:00Z" };
 
 describe("fair pint parity", () => {
   it("round trips source URLs, exact timestamps and existing pin metadata", () => {
-    for (const url of ["https://www.pint-prices.com/pub/A%20B/C%20D", "https://example.com/pub", "https://www.pint-prices.com/pub/Street/A%20%26%20B"]) {
+    for (const url of ["https://www.pint-prices.com/pub/A%20B/C%20D", "https://www.pint-prices.com/pub/A B/C D", "https://example.com/pub", "https://www.pint-prices.com/pub/Street/A%20%26%20B"]) {
       const pin = { id: "a", name: "A & B", fairPint: [550, url, "2026-11-01T12:03:04.123Z"] as const, priceSource: "Pint Prices", priceObservedAt: "2026-11-01" };
       expect(rowsFromSlimPayload(compactFairPintPayload([pin, pin]))).toEqual([pin, pin]);
     }
@@ -38,19 +39,21 @@ describe("fair pint parity", () => {
     expect(pins).toEqual(["under", "equal"]);
   });
 
-  it("matches the generator for every shipped slim cell at three ceilings", async () => {
+  it.each([now, now + 61 * 86400000])("matches every shipped cell at three ceilings at %s", async (observedNow) => {
+    vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(observedNow);
     const root = path.join(__dirname, "../public/data");
     const manifest = JSON.parse(readFileSync(path.join(root, "venues_slim.manifest.json"), "utf8"));
     const rows: SlimVenue[] = manifest.shards.flatMap((shard: { url: string }) => {
       const payload = JSON.parse(readFileSync(path.join(root, path.basename(shard.url)), "utf8"));
       return rowsFromSlimPayload(payload) as SlimVenue[];
     });
+    expect(manifest.shards.some((shard: { core: boolean }) => shard.core)).toBe(true);
     expect(rows.length).toBeGreaterThan(0);
-    const evidence = await planPriceEvidenceForVenues(rows.map((row) => ({ ...row, area: row.borough })), now);
+    const evidence = await planPriceEvidenceForVenues(rows.map((row) => ({ ...row, area: row.borough })), observedNow);
     const mismatches = [400, 550, 700].flatMap((ceiling) => rows.flatMap((row) => {
       const price = evidence.get(row.id)!;
       const expected = priceEvidenceUsableForCeiling(price) && price.pence! <= ceiling;
-      return isFairPint(row, ceiling, now) === expected ? [] : [`${row.id}:${ceiling}`];
+      return isFairPint(row, ceiling, observedNow) === expected ? [] : [`${row.id}:${ceiling}`];
     }));
     expect(mismatches).toEqual([]);
   });
@@ -62,7 +65,7 @@ it("builds a three-stop per-pint request without using the route budget", () => 
 it("ignores superseded draw results and keeps the last route on failure", () => {
   const first = { phase: "dial" as const, request: 0, last: null, error: "", retryAt: 0 };
   const pending = transitionFairPintPlan(first, { type: "draw", request: 2 });
-  const last = { generated: {} as import("@/lib/fairPint").FairPintGenerated, pence: 530, start: "2026-11-17T18:00" };
+  const last = { generated: {} as import("@/lib/fairPint").FairPintGenerated, pence: 530, start: "2026-11-17T18:00", startIso: "2026-11-17T18:00:00.000Z" };
   expect(transitionFairPintPlan(pending, { type: "drawn", request: 1, last })).toBe(pending);
   const result = transitionFairPintPlan(pending, { type: "drawn", request: 2, last });
   const revalidating = transitionFairPintPlan(result, { type: "draw", request: 3 });
