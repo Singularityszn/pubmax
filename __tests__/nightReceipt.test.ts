@@ -13,6 +13,8 @@ const durable = vi.hoisted(() => {
     configured: false,
     seats: [] as Array<{ id: string; token_hash: string; joined_at: string; can_collaborate: boolean }>,
     hostRead: { data: null, error: null } as { data: unknown; error: unknown },
+    seatError: null as unknown,
+    planReads: [] as Array<{ data: unknown; error: unknown }>,
   };
   const admin = () => ({
     from: (table: string) => {
@@ -24,9 +26,9 @@ const durable = vi.hoisted(() => {
         order: () => query,
         limit: () => query,
         maybeSingle: async () => table === "plans"
-          ? { data: { id: "plan" }, error: null }
+          ? state.planReads.shift() ?? { data: { id: "plan" }, error: null }
           : columns === "user_id" ? state.hostRead : { data: null, error: { message: `unexpected read ${columns}` } },
-        then: (resolve: (value: unknown) => unknown) => resolve({ data: state.seats, error: null }),
+        then: (resolve: (value: unknown) => unknown) => resolve({ data: state.seats, error: state.seatError }),
       };
       return query;
     },
@@ -396,6 +398,9 @@ describe("the account-bound Night Receipt read", () => {
 
     beforeEach(() => {
       durable.state.configured = true;
+      durable.state.seatError = null;
+      durable.state.planReads = [];
+      durable.state.hostRead = { data: { user_id: ACCOUNT_A }, error: null };
       durable.state.seats = [{
         id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
         token_hash: hashPlanMemberToken(hostToken),
@@ -408,6 +413,29 @@ describe("the account-bound Night Receipt read", () => {
     it("fails closed and retryable when the host account cannot be read", async () => {
       durable.state.hostRead = { data: null, error: { message: "canceling statement due to statement timeout" } };
 
+      const response = await receiptRead(planId, hostToken);
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const body = await response.json();
+      expect(body).toMatchObject({ retryable: true });
+      expect(body).not.toHaveProperty("receipt");
+    });
+
+    it("answers retryably when the host seat lookup fails", async () => {
+      durable.state.seatError = { message: "member lookup unavailable" };
+      const response = await receiptRead(planId, hostToken);
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const body = await response.json();
+      expect(body).toMatchObject({ retryable: true });
+      expect(body).not.toHaveProperty("receipt");
+    });
+
+    it("answers retryably when the verified owner's Plan cannot be read", async () => {
+      durable.state.planReads = [
+        { data: { id: planId }, error: null },
+        { data: null, error: { message: "plan lookup unavailable" } },
+      ];
       const response = await receiptRead(planId, hostToken);
       expect(response.status).toBe(503);
       expect(response.headers.get("cache-control")).toBe("no-store");

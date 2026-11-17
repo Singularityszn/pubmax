@@ -122,6 +122,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("the private Night Receipt on the Plan page", () => {
@@ -158,6 +159,44 @@ describe("the private Night Receipt on the Plan page", () => {
     await settle();
     expect(receiptOnScreen()).toBeNull();
     expect(receiptReads()).toHaveLength(1);
+  });
+
+  it("recovers an exhausted transient host claim when the app returns", async () => {
+    vi.useFakeTimers();
+    let bound = false;
+    let available = false;
+    claimAnswer = async () => {
+      if (!available) return json({ retryable: true }, 503);
+      bound = true;
+      return json({ claimed: true });
+    };
+    receiptAnswer = async () => bound ? json({ receipt: RECEIPT }) : refused();
+    await act(async () => {
+      root.render(createElement(Fragment, null,
+        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+      ));
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_250); });
+    expect(receiptOnScreen()).toBeNull();
+    available = true;
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it("checks once when visibility and focus both report the same return", async () => {
+    vi.useFakeTimers();
+    await show();
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await settle();
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    await settle();
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptReads()).toHaveLength(2);
+    expect(receiptOnScreen()).not.toBeNull();
   });
 
   it("shows the bound host account its receipt from the account-bound read", async () => {
