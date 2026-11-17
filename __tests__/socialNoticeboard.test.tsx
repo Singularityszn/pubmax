@@ -89,6 +89,37 @@ it("keeps a four-page window during automatic refresh and offers an explicit ref
   expect([...host.querySelectorAll("button")].some(button => button.textContent === "Load more")).toBe(true);
 });
 
+it.each(["view", "remount"])("retains a four-page window and its continuation after %s", async mode => {
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+    return Response.json({ posts: [feedPost(`Page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
+  });
+  await mountFollowing();
+  for (let page = 0; page < 3; page += 1) {
+    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  }
+  if (mode === "view") {
+    await act(async () => root.render(createElement(SocialPageClient, {
+      initialState: { valid: true, tab: "posts", feed: "nearby", area: null }, rivalry: [], heritageCrawls: [],
+    })));
+  } else {
+    await act(async () => root.unmount());
+    root = createRoot(host);
+  }
+
+  await act(async () => root.render(createElement(SocialPageClient, {
+    initialState: { valid: true, tab: "posts", feed: "following", area: null }, rivalry: [], heritageCrawls: [],
+  })));
+
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
+  expect(host.textContent).toContain("Page 4");
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(5);
+  expect(host.textContent).toContain("Page 5");
+});
+
 it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all four pages after %s", async action => {
   let refreshing = false;
   let finish!: (response: Response) => void;
