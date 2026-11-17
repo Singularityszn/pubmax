@@ -18,7 +18,7 @@ export type ComparisonPlan = {
 };
 
 /** A save only a fresh list can settle: its answer was lost, or the list moved. */
-export type ComparisonUnsettled =
+type ComparisonUnsettled =
   | { kind: "lost"; band: SocialPubBand; neighbours: ComparisonNeighbours }
   | { kind: "stale"; band: SocialPubBand };
 
@@ -74,7 +74,7 @@ export type ComparisonEvent =
   | { type: "dismiss" }
   | { type: "account_changed"; account: number };
 
-export type ComparisonEffect =
+type ComparisonEffect =
   | { type: "save"; attempt: number; venueId: string; band: SocialPubBand; neighbours: ComparisonNeighbours }
   | { type: "check"; attempt: number }
   | { type: "publish"; entries: SocialPubRankingEntry[] }

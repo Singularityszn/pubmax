@@ -6,7 +6,7 @@
 // late answer for an older one changes nothing.
 
 /** The comparison dialog over this list: shut, open, or open with a confirmed save. */
-export type RankingSession = "none" | "open" | "saved";
+type RankingSession = "none" | "open" | "saved";
 
 export type RankingCheckpoint<T> =
   | { phase: "reading"; request: number; session: RankingSession; kept: T | null; retrying: boolean; fromSession: boolean }
