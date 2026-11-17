@@ -1,6 +1,7 @@
 import { dropWithdrawnAuthors } from "@/lib/accountPublicAccess.server";
 import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
+import { boundedJson } from "@/lib/boundedRequest.server";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 import { listOwnSocialRelationships } from "@/lib/socialRelationshipList.server";
@@ -123,7 +124,7 @@ async function verified(request: Request): Promise<{ actor: Actor } | { response
 
 async function body(request: Request): Promise<Record<string, unknown> | null> {
   try {
-    return record(await request.json());
+    return record(await boundedJson(request));
   } catch {
     return null;
   }
