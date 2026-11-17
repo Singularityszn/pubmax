@@ -6062,7 +6062,7 @@ export default function PubMap({
       >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
-        <TonightArcChips visibility={isLondon ? venueKindVisibility : { ...venueKindVisibility, osmRestaurants: undefined }} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
+        <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={isLondon} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
           <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />

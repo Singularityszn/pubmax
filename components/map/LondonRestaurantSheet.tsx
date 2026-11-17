@@ -41,8 +41,7 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
-        , ODbL.
-        {restaurant.observedAt ? <> <span className="londonRestaurantDate">{creditDay(undefined, restaurant.observedAt.slice(0, 10))}.</span></> : null} <DataCreditsLink />
+        , ODbL{restaurant.observedAt ? <>, <span className="londonRestaurantDate">{creditDay(undefined, restaurant.observedAt.slice(0, 10))}.</span></> : "."} <DataCreditsLink />
       </p>
     </div>
   );

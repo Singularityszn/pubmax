@@ -28,11 +28,13 @@ const CHIPS: ReadonlyArray<{
 
 export default function TonightArcChips({
   visibility,
+  restaurantLayerAvailable = false,
   experienceLens = "all",
   variant = "popover",
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  restaurantLayerAvailable?: boolean;
   experienceLens?: MapExperienceLens;
   /**
    * Where the toggles are read.
@@ -49,7 +51,7 @@ export default function TonightArcChips({
 }) {
   const offeredKinds = offeredVenueKinds(experienceLens);
   const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind as CuratedVenueKind));
-  if (visibility.osmRestaurants !== undefined) {
+  if (restaurantLayerAvailable) {
     chips.push({ kind: "osmRestaurants", label: "All restaurants", Icon: ForkKnife });
   }
   return (
@@ -73,7 +75,7 @@ export default function TonightArcChips({
         {chips.map((chip) => {
           const on = chip.kind === "club"
             ? (visibility.club ?? visibility.bar)
-            : visibility[chip.kind];
+            : (visibility[chip.kind] ?? false);
           const Icon = chip.Icon;
           return (
             <button

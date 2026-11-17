@@ -1,7 +1,7 @@
 # London OSM restaurants
 
 The map reads `manifest.json` and its immutable chunks only after the reader enables
-**OSM restaurants**, or opens an explicit restaurant link. Existing curated restaurant
+**All restaurants**, or opens an explicit restaurant link. Existing curated restaurant
 pins keep their separate Restaurants filter. Priced pins paint before this layer loads.
 
 ## Rebuild

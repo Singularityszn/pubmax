@@ -46,6 +46,7 @@ const TonightArcChips = dynamic(
 
 export default function MapVenueKindFilter({
   visibility,
+  restaurantLayerAvailable = false,
   featureFilters,
   featureFilterCount = 0,
   experienceLens = "all",
@@ -58,6 +59,7 @@ export default function MapVenueKindFilter({
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  restaurantLayerAvailable?: boolean;
   featureFilters?: ReactNode;
   featureFilterCount?: number;
   experienceLens?: MapExperienceLens;
@@ -147,6 +149,7 @@ export default function MapVenueKindFilter({
           {featureFilters}
           <TonightArcChips
             visibility={visibility}
+            restaurantLayerAvailable={restaurantLayerAvailable}
             experienceLens={experienceLens}
             variant="popover"
             onChange={onChange}
