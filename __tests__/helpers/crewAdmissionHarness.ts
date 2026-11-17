@@ -10,7 +10,9 @@ import { asServiceRole, startPostgres, type PostgresSession } from "./postgres";
 
 const directory = join(process.cwd(), "supabase/migrations");
 const name = "20261117090000_0243_crew_admission_safety_locks.sql";
-const rollback = "rollback/20261117090000_0243_crew_admission_safety_locks_rollback.sql";
+/** The migrations under test, in apply order. Rollback runs them in reverse. */
+const FORWARD = [name];
+const ROLLBACK = FORWARD.map((file) => `rollback/${file.replace(/\.sql$/, "_rollback.sql")}`).reverse();
 
 export const DIGEST = "a".repeat(64);
 export const NOT_FOUND = { ok: false, code: "not_found" };
@@ -62,15 +64,15 @@ function replicateSupabaseOwnership() {
 export const MIGRATOR = "pubmax_migrator";
 
 /** Applies one 0243 file the way production does: as the migration role, not a superuser. */
-function applyAsMigrator(file: string) {
-  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`, "-f", join(directory, file)],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+function applyAsMigrator(files: readonly string[]) {
+  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`,
+    ...files.flatMap((file) => ["-f", join(directory, file)])], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
 /** Moves the one database to a stage: the forward file applies 0243, the rollback file removes it. */
 export function stageTo(next: Stage) {
   if (stage === next) return;
-  applyAsMigrator(next === "after" ? name : rollback);
+  applyAsMigrator(next === "after" ? FORWARD : ROLLBACK);
   stage = next;
 }
 
@@ -109,13 +111,14 @@ export const corrections = (crew: string) =>
 /** The forward file as the migration role, answering whether the database took it and what it said. */
 export function forwardOutcome() {
   try {
-    applyAsMigrator(name);
+    applyAsMigrator(FORWARD);
     stage = "after";
     return { ok: true, said: "" };
   } catch (error) {
     return { ok: false, said: String((error as { stderr?: unknown }).stderr ?? error) };
   }
 }
+export const releaseCall = (limit = 20) => `release_departed_social_crew_places(${limit})`;
 export const revision = (crew: string) => db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
 export const mutual = (a: Person, b: Person) => db().sql(`insert into public.follows(follower_id,followee_id)
   values ('${a.profile}','${b.profile}'),('${b.profile}','${a.profile}') on conflict do nothing`);
@@ -286,7 +289,7 @@ export const running = () => session !== null;
 export function rollbackOutcome(application: string, exportedRows?: string) {
   const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`, "-c", `set role ${MIGRATOR}`];
   if (exportedRows !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${exportedRows}'`);
-  args.push("-f", join(directory, rollback));
+  args.push(...ROLLBACK.flatMap((file) => ["-f", join(directory, file)]));
   return new Promise<{ ok: boolean; said: string }>((resolve) => {
     execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => {
       if (!error) stage = "before";
