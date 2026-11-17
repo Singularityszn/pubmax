@@ -106,6 +106,18 @@ describe("a lost save answer", () => {
     expect(onSaved).toHaveBeenCalledWith(list(["crown", "loved"], ["lamb", "fine"]));
   });
 
+  it.each([
+    [200, null], [409, null], [200, { entries: [null] }],
+  ])("reconciles an incomplete save response (%s) before acknowledging", async (status, body) => {
+    await open(list(["crown", "loved"]));
+    net.post.mockResolvedValueOnce(answer(body, status as number));
+    net.get.mockResolvedValueOnce(reply({ entries: list(["crown", "loved"], ["lamb", "fine"]) }));
+    await click("It was fine");
+    expect(heading()).toBe("The lamb is in");
+    expect(onSaved).toHaveBeenCalledWith(list(["crown", "loved"], ["lamb", "fine"]));
+    expect(net.post).toHaveBeenCalledTimes(1);
+  });
+
   it("offers only a check while the list cannot be read, then recovers on the next read", async () => {
     await open(list(["crown", "loved"]));
     net.post.mockRejectedValueOnce(new TypeError("Failed to fetch"));

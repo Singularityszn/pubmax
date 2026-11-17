@@ -102,3 +102,26 @@ it.each([false, true])("hides the old snapshot after refusal, including an unrea
   expect(host.textContent).not.toContain("The crown");
   expect(button("Rank a pub")).toBeUndefined();
 });
+
+it("removes private rows when a delayed refusal follows an earlier outage", async () => {
+  await mount();
+  const finish = await closePending();
+  let refuse!: (response: Response) => void;
+  net.get.mockImplementation((url: string) => url === "/api/social/rankings"
+    ? new Promise<Response>((resolve) => { refuse = resolve; })
+    : Promise.reject(new TypeError("Network failed")));
+  await act(async () => finish());
+  expect(host.textContent).toContain("The crown");
+  await act(async () => refuse(new Response("null", { status: 403 })));
+  expect(host.textContent).not.toContain("The crown");
+});
+
+it("removes private rows immediately when refusal precedes a stalled companion read", async () => {
+  await mount();
+  const finish = await closePending();
+  net.get.mockImplementation((url: string) => url === "/api/social/rankings"
+    ? Promise.resolve(new Response("null", { status: 403 }))
+    : new Promise<Response>(() => {}));
+  await act(async () => finish());
+  expect(host.textContent).not.toContain("The crown");
+});

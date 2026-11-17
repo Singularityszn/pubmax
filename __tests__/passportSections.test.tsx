@@ -187,7 +187,7 @@ describe("first ten ranking on the owner's profile", () => {
     expect(firstTen()?.querySelector("button")?.textContent).toBe("Start ranking");
   });
 
-  it.each([{}, { entries: null }])("does not present an incomplete answer as an empty ranking: %j", async (body) => {
+  it.each([{}, { entries: null }, { entries: [null] }])("does not present an incomplete answer as an empty ranking: %j", async (body) => {
     auth.user = { id: "owner-account" };
     rankingReads(rankingJson(body));
     const host = await renderOwner();
