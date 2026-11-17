@@ -478,7 +478,7 @@ for (const viewport of VIEWPORTS) {
 
 type OverlayMeasured = {
   cropCard: Box;
-  viewer: Box;
+  viewer: Box & { x: number; y: number };
   viewport: Box;
   /** Whether a hit test at each crop action's centre lands inside the card. */
   cropActionsOwnTheirTaps: boolean[];
@@ -536,9 +536,6 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
       "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>');
     dialog.append(img);
     host.append(dialog);
-    // The dialog's height is its PICTURE's height, so a rect read before the
-    // image loads answers zero - which silently satisfies every upper bound
-    // this probe checks. Wait for the decode, then measure.
     await img.decode().catch(() => undefined);
 
     const box = (selector: string): Box => {
@@ -575,9 +572,10 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
         )
       : null;
 
+    const viewerRect = dialog.getBoundingClientRect();
     const measured = {
       cropCard: box("#overlay-probe .messageCropCard"),
-      viewer: box("#viewer-probe"),
+      viewer: { width: viewerRect.width, height: viewerRect.height, x: viewerRect.x, y: viewerRect.y },
       viewport: {
         width: window.innerWidth,
         height: window.innerHeight,
@@ -614,8 +612,7 @@ test.describe("message attach preview and lightbox at phone 390", () => {
     const measured = await measurePhoneOverlays(page);
     expect(measured.cropCard.width).toBeLessThanOrEqual(measured.viewport.width);
     expect(measured.cropCard.height).toBeLessThan(measured.viewport.height * 0.85);
-    expect(measured.viewer.width).toBeCloseTo(measured.viewport.width, 0);
-    expect(measured.viewer.height).toBeCloseTo(measured.viewport.height, 0);
+    expect(measured.viewer).toEqual({ x: 0, y: 0, ...measured.viewport });
   });
 
   test("the crop card's own Use photo and Cancel own their taps", async ({ page }) => {
@@ -650,7 +647,7 @@ test.describe("message attach preview and lightbox at phone 390", () => {
 });
 
 /** The lightbox dialog alone, measured under whatever viewport is current. */
-async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }> {
+async function measureViewerDialog(page: Page): Promise<Box & { x: number; y: number; viewport: Box }> {
   return page.evaluate(async () => {
     document.getElementById("viewer-probe")?.remove();
     const host = document.querySelector(".messagesMain") ?? document.body;
@@ -660,18 +657,16 @@ async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }>
     dialog.open = true;
     const img = document.createElement("img");
     img.className = "messagePhotoViewerImage";
-    // A tall source, so the dialog's own height cap is what binds rather than
-    // the picture running out.
     img.src =
       "data:image/svg+xml," +
       encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1600"/>');
     dialog.append(img);
     host.append(dialog);
-    // A dialog with no loaded picture in it is zero high, and zero passes every
-    // upper bound below while proving nothing. Measure the loaded thing.
     await img.decode().catch(() => undefined);
     const rect = dialog.getBoundingClientRect();
     const measured = {
+      x: rect.x,
+      y: rect.y,
       width: rect.width,
       height: rect.height,
       viewport: { width: window.innerWidth, height: window.innerHeight },
@@ -681,12 +676,8 @@ async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }>
   });
 }
 
-// "View full" is a FULL-FRAME view, and the bug being fixed was a phone one, so
-// the narrow caps are scoped to the 640px breakpoint and a desktop keeps the
-// room it always had. That is a claim about rendered pixels at a wide viewport,
-// which no read of the stylesheet can make.
-test.describe("the lightbox keeps its desktop room", () => {
-  test("opens near 60rem wide at 1280, not the phone's 36rem", async ({ page }) => {
+test.describe("the photo viewer fills the desktop viewport", () => {
+  test("opens at the viewport origin and fills 1280 by 900", async ({ page }) => {
     await page.setViewportSize({ width: 1280, height: 900 });
     await page.addInitScript(() => {
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -696,18 +687,9 @@ test.describe("the lightbox keeps its desktop room", () => {
     expect(response?.status()).toBe(200);
     await expect(page.locator(".messagesMain")).toBeVisible();
 
-    const measured = await measureViewerDialog(page);
+    const { viewport, ...viewer } = await measureViewerDialog(page);
 
-    // THE DEFECT: the phone bound was unconditional, so this dialog rendered
-    // 576px wide (36rem) on a desktop that had been giving it 960px.
-    const PHONE_CAP_PX = 36 * 16;
-    expect(measured.width).toBeGreaterThan(PHONE_CAP_PX + 1);
-    expect(measured.width).toBeCloseTo(60 * 16, -1);
-    // And it may still not run off the screen.
-    expect(measured.width).toBeLessThanOrEqual(measured.viewport.width);
-    // 92dvh of room, against the phone rule's 72dvh.
-    expect(measured.height).toBeGreaterThan(measured.viewport.height * 0.75);
-    expect(measured.height).toBeLessThanOrEqual(measured.viewport.height * 0.93);
+    expect(viewer).toEqual({ x: 0, y: 0, ...viewport });
   });
 });
 
