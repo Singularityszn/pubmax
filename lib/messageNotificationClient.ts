@@ -13,7 +13,10 @@ export function saveMessageNotificationSetting(body: Record<string, unknown>, si
     await writeSetting(body, AbortSignal.timeout(3_000));
   });
   const deadline = AbortSignal.timeout(3_000);
-  return writeSetting(body, signal ? compositeActionSignal([signal, deadline]) : deadline);
+  return writeSetting(body, signal ? compositeActionSignal([signal, deadline]) : deadline).catch((error: unknown) => {
+    if (deadline.aborted && !signal?.aborted) throw deadline.reason;
+    throw error;
+  });
 }
 
 async function writeSetting(body: Record<string, unknown>, signal?: AbortSignal): Promise<void> {
