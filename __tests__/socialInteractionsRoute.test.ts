@@ -181,17 +181,45 @@ describe("Social interactions route", () => {
   });
 
   it.each((["PUT", "DELETE"] as const).flatMap((method) =>
-    (["block", "mute"] as const).map((action) => ({ method, action })),
-  ))("keeps $method $action changes available during a Social freeze", async ({ method, action }) => {
+    (["block", "mute"] as const).flatMap((action) => [
+      { method, action, target: { targetHandle: "bob" } },
+      { method, action, target: { targetProfileId: "22222222-2222-4222-8222-222222222222" } },
+    ]),
+  ))("keeps $method $action changes to $target available during a Social freeze", async ({ method, action, target }) => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
     const route = await import("@/app/api/social/interactions/route");
     const response = await route[method](new Request(URL, {
       method,
-      body: JSON.stringify({ action, targetHandle: "bob" }),
+      body: JSON.stringify({ action, ...target }),
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
     expect(action === "block" ? store.setBlock : store.setMute).toHaveBeenCalledWith(actor, "22222222-2222-4222-8222-222222222222", method === "PUT");
+  });
+
+  it.each(["PUT", "DELETE"] as const)("honours the real freeze environment for %s", async (method) => {
+    const actual = await vi.importActual<typeof import("@/lib/opsFreeze")>("@/lib/opsFreeze");
+    vi.mocked(socialFreezeResponse).mockImplementation(actual.socialFreezeResponse);
+    vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");
+    try {
+      const route = await import("@/app/api/social/interactions/route");
+      const ordinary = await route[method](new Request(URL, {
+        method,
+        body: JSON.stringify({ action: "desired", postId: "11111111-1111-4111-8111-111111111111", kind: "save" }),
+      }));
+      expect(ordinary.status).toBe(503);
+      expect((await ordinary.json()).code).toBe("SOCIAL_FROZEN");
+      for (const action of ["block", "mute"] as const) {
+        const response = await route[method](new Request(URL, {
+          method,
+          body: JSON.stringify({ action, targetProfileId: "22222222-2222-4222-8222-222222222222" }),
+        }));
+        expect(response.status).toBe(200);
+      }
+      expect(store.setDesired).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
   });
 
   it.each((["PUT", "DELETE"] as const).flatMap((method) =>

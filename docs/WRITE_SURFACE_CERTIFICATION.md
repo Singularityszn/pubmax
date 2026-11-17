@@ -368,7 +368,7 @@ bodies.
 
 - **Route / methods:** `GET`, `PUT`, `POST`, and `DELETE` share one reviewed
   route. GET reads bounded interaction pages. PUT and DELETE set Cheers,
-  private saves, reposts, comment policy and blocks to explicit desired state.
+  private saves, reposts, comment policy, blocks and mutes to explicit desired state.
   POST creates held comments and quotes, queues reports, changes owned
   notification state, appends feature-request history, or performs named staff
   moderation.
