@@ -27,7 +27,7 @@ vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onP
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { clearSurfaceCache, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
-import { mergeSocialPostHead, readSocialPostWindow } from "@/lib/socialPostWindow";
+import { mergeSocialPostHead, readSocialPostWindow, type SocialPostWindow } from "@/lib/socialPostWindow";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostsShellState } from "@/lib/socialShell";
 
@@ -682,7 +682,7 @@ it("keeps unchanged record identities and the browsing cursor on head reconcilia
 
 it("accounts for automatically accumulated rows when protecting a deep window", () => {
   const batch = (n: number) => Array.from({ length: 20 }, (_, i) => feedPost(`Batch ${n} row ${i}`, 12));
-  let window = { posts: batch(0), pages: 1, nextCursor: "original-continuation" };
+  let window: SocialPostWindow = { posts: batch(0), pages: 1, nextCursor: "original-continuation" };
   for (let n = 1; n <= 3; n++) window = mergeSocialPostHead(window, { posts: batch(n), nextCursor: `head-${n}` });
   expect(window.posts).toHaveLength(80);
   expect(window.pages).toBe(4);
@@ -694,8 +694,8 @@ it("accepts authoritative same-version venue redaction and nested profile change
   const fresh = { ...previous, venueProjected: false, venueId: null, venueName: null, author: { handle: "new-handle" } };
   const merged = mergeSocialPostHead({ posts: [previous], pages: 1, nextCursor: null }, { posts: [fresh], nextCursor: null });
   expect(merged.posts[0]).toBe(fresh);
-  expect(merged.posts[0].venueId).toBeNull();
-  expect(merged.posts[0].author.handle).toBe("new-handle");
+  expect(merged.posts[0]?.venueId).toBeNull();
+  expect(merged.posts[0]?.author.handle).toBe("new-handle");
 });
 
 it("retains equal DTO identities regardless of JSON object field order", () => {
