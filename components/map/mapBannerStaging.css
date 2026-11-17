@@ -23,6 +23,10 @@
       asked for rather than ambient, so it takes the surface off the two
       banners above it for as long as it is open. */
 
+body:has(.mapConciergeAsk--open) .palSummon {
+  display: none;
+}
+
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
   .appShell.onboarding-open .cityStatusStack,

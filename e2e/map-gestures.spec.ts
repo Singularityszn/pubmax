@@ -1,4 +1,4 @@
-import { expect, test, type CDPSession, type Page } from "@playwright/test";
+import { expect, test, type CDPSession, type Locator, type Page } from "@playwright/test";
 
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
@@ -121,7 +121,7 @@ for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
       const points = ([[-0.134383, 51.5113], [-0.135402, 51.5108], [-0.135301, 51.5106]] as [number, number][])
         .map(coordinate => camera.project(coordinate));
       const state = camera.read();
-      return { settled: !state.moving && !state.settling, points,
+      return { settled: !state.moving && !state.settling, zoom: state.zoom, points,
         obstructions: points.map(point => offsets.map(([x, y]) => {
           const hit = document.elementFromPoint(point.x + x!, point.y + y!);
           return hit === canvas ? null : hit?.className ?? "outside viewport";
@@ -140,18 +140,64 @@ for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
     const box = await ask.boundingBox();
     expect(box?.width).toBe(44);
     expect(box?.height).toBe(44);
-    await ask.tap();
-    await expect(page.getByRole("dialog", { name: "Ask the map about a pub" })).toBeVisible();
-    await page.getByRole("button", { name: "Close ask", exact: true }).tap();
-    await expect(ask).toBeVisible();
-    const stop = (await readStops()).points[2]!;
-    await page.touchscreen.tap(stop.x, stop.y);
-    await expect(page).toHaveURL(/sel=venue-s2ppfm/);
-    await page.getByRole("button", { name: "Close pub detail", exact: true }).tap();
-    await expect(page).not.toHaveURL(/sel=/);
-    await expectClearStops("recovered");
-    await ask.tap();
-    await expect(page.getByRole("dialog", { name: "Ask the map about a pub" })).toBeVisible();
+    await page.route("**/api/ask", route => route.fulfill({ json: {
+      answer: "No verified answer for this browser fixture.", cards: [], proposals: [], status: "ready",
+    } }));
+    const dialog = page.getByRole("dialog", { name: "Ask the map about a pub" });
+    const expectUncovered = async (control: Locator) => {
+      await control.scrollIntoViewIfNeeded();
+      const hits = await control.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return [[4, box.height / 2], [box.width - 4, box.height / 2],
+          [box.width / 2, 4], [box.width / 2, box.height - 4], [box.width / 2, box.height / 2]]
+          .map(([x, y]) => {
+            const hit = document.elementFromPoint(box.left + x!, box.top + y!);
+            return element.contains(hit) ? null : { hit: hit?.className, x: box.left + x!, y: box.top + y!, box: box.toJSON() };
+          }).filter(Boolean);
+      });
+      if (hits.length) await page.screenshot({ path: testInfo.outputPath("obstructed-control.png") });
+      expect(hits, "The entire actionable control must receive taps").toEqual([]);
+    };
+    const exerciseAsk = async (stage: "initial" | "recovered") => {
+      await ask.tap();
+      await expect(dialog).toBeVisible();
+      await page.screenshot({ path: testInfo.outputPath(`${stage}-ask-open.png`) });
+      const close = dialog.getByRole("button", { name: "Close ask", exact: true });
+      await expectUncovered(close);
+      const examples = dialog.locator(".mapConciergeAskChip");
+      await expect(examples).toHaveCount(stage === "initial" ? 4 : 0);
+      for (const example of await examples.all()) await expectUncovered(example);
+      if (await examples.count()) {
+        const request = page.waitForRequest(request => request.url().endsWith("/api/ask") && request.method() === "POST");
+        await examples.first().tap();
+        expect((await request).postDataJSON().query).toBe("Quiet-ish near Bank, 4 of us");
+        await expect(dialog.getByText("No verified answer for this browser fixture.", { exact: true })).toBeVisible();
+      }
+      const input = dialog.locator("input");
+      await expectUncovered(input);
+      await input.tap();
+      await input.fill("Tube delays right now");
+      const submit = dialog.getByRole("button", { name: "Ask", exact: true });
+      await expectUncovered(submit);
+      const request = page.waitForRequest(request => request.url().endsWith("/api/ask") && request.method() === "POST");
+      await submit.tap();
+      expect((await request).postDataJSON().query).toBe("Tube delays right now");
+      await expect(submit).toBeEnabled();
+      await expectUncovered(close);
+      await close.tap();
+      await expect(ask).toBeVisible();
+    };
+    await exerciseAsk("initial");
+    // Each disc must select its own venue, including the close Soho pair.
+    for (const [index, id] of ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"].entries()) {
+      const stop = (await readStops()).points[index]!;
+      await page.touchscreen.tap(stop.x, stop.y);
+      await expect(page).toHaveURL(new RegExp(`sel=${id}`));
+      await page.getByRole("button", { name: "Close pub detail", exact: true }).tap();
+      await expect(page).not.toHaveURL(/sel=/);
+      await expectClearStops(`recovered-${index + 1}`);
+    }
+    await exerciseAsk("recovered");
   });
 }
 

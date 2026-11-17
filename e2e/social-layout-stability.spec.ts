@@ -8,12 +8,14 @@ const CASES = [
   { label: "desktop empty feed", width: 1280, height: 720, populated: false },
   { label: "phone empty feed", width: 390, height: 844, populated: false },
   { label: "desktop populated feed and activity", width: 1280, height: 720, populated: true },
+  { label: "phone populated feed and activity", width: 390, height: 844, populated: true },
   { label: "desktop from map", width: 1280, height: 720, populated: false, fromMap: true },
 ] as const;
 
 for (const day of ["2026-10-30", "2026-11-17"]) for (const sample of CASES) {
   test(`Social stays steady while access resolves: ${sample.label} on ${day}`, async ({ page }, info) => {
-    await page.clock.setFixedTime(new Date(`${day}T14:00:00Z`));
+    // Activate the campaign only after the public fixture is present.
+    await page.clock.setFixedTime(new Date(`${day === "2026-11-17" ? "2026-11-16" : day}T14:00:00Z`));
     await page.setViewportSize({ width: sample.width, height: sample.height });
     const auth = await installAuthDoubles(page);
     await seedSignedIn(page, "A");
@@ -92,14 +94,30 @@ for (const day of ["2026-10-30", "2026-11-17"]) for (const sample of CASES) {
     if (sample.populated) {
       await expect(page.getByRole("heading", { name: "Your lot, lately" })).toBeVisible();
       await expect(page.getByText(post.body, { exact: true })).toBeVisible();
-      await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
+      if (sample.width >= 900) {
+        await expect(page.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
+      } else {
+        await expect(page.locator(".socialContextRail")).toBeHidden();
+      }
     } else {
       await expect(page.locator(".socialFeed")).toHaveCount(0);
       await expect(page.getByRole("navigation", { name: "Post lanes" })).toBeVisible();
     }
     await expect(page.getByText("No crews yet. Start one and your lot can join the night.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Rank a pub", exact: true })).toBeVisible();
+    const publicContent = page.locator(sample.populated ? ".socialPostList" : ".socialLondonEmpty");
+    await expect(publicContent).toHaveCount(1);
+    const readPublicPosition = () => publicContent.evaluate(element => {
+      const box = element.getBoundingClientRect();
+      return { x: box.left + window.scrollX, y: box.top + window.scrollY, width: box.width, height: box.height };
+    });
+    const beforeCampaign = await readPublicPosition();
+    expect(beforeCampaign.width).toBeGreaterThan(0);
+    expect(beforeCampaign.height).toBeGreaterThan(0);
+    await page.screenshot({ path: info.outputPath("social-before-campaign.png") });
     if (day === "2026-11-17") {
+      await page.clock.setFixedTime(new Date(`${day}T14:00:00Z`));
+      await page.evaluate(() => window.dispatchEvent(new Event("pageshow")));
       await expect(page.getByText("No prices from today in these public results.", { exact: true })).toBeVisible();
     } else {
       await expect(page.locator(".socialLogInPublic")).toHaveCount(0);
@@ -109,13 +127,14 @@ for (const day of ["2026-10-30", "2026-11-17"]) for (const sample of CASES) {
     const shifts = await page.evaluate(() => (window as typeof window & { socialShiftSamples: unknown[] }).socialShiftSamples);
     await info.attach("layout-shifts", { body: JSON.stringify(shifts), contentType: "application/json" });
     await info.attach("web-vitals", { body: JSON.stringify(vitals), contentType: "application/json" });
-    const publicContentMoves = (shifts as Array<{ sources: Array<{
-      node?: string; previous: { y: number; height: number }; current: { y: number; height: number };
-    }> }>).flatMap((shift) => shift.sources)
-      .filter((source) => source.node === "socialLondonEmpty" && source.previous.height > 0 && source.current.height > 0)
-      .map((source) => Math.abs(source.current.y - source.previous.y));
-    expect(publicContentMoves.every((distance) => distance <= 1),
-      "The optional daily campaign must not displace the public Social content").toBe(true);
+    const afterCampaign = await readPublicPosition();
+    await info.attach("public-content-positions", {
+      body: JSON.stringify({ beforeCampaign, afterCampaign }), contentType: "application/json",
+    });
+    expect(afterCampaign.height).toBeGreaterThan(0);
+    // Optional campaign content must not displace a card that the reader could already read.
+    expect(Math.abs(afterCampaign.y - beforeCampaign.y)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterCampaign.x - beforeCampaign.x)).toBeLessThanOrEqual(1);
     expect(vitals.cls, "Access and feed results must not move the page past the CLS target").toBeLessThanOrEqual(0.1);
   });
 }
