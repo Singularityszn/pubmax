@@ -129,7 +129,11 @@ function readOpen(): boolean {
   }
   if (width !== baselineLayoutWidth) return open;
   baselineLayoutHeight = Math.max(baselineLayoutHeight, height);
-  return softKeyboardOpen({ ...evidence, layoutViewportHeight: baselineLayoutHeight });
+  return softKeyboardOpen(evidence) || softKeyboardOpen({
+    textEntryFocused: focused,
+    visualViewportHeight: height,
+    layoutViewportHeight: baselineLayoutHeight,
+  });
 }
 
 // useSyncExternalStore requires a cached snapshot: recomputing from the DOM on

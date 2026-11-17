@@ -26,6 +26,7 @@ export function useThreadViewportFit({
 }) {
   const listRef = useRef<HTMLUListElement | null>(null);
   const followingNewestRef = useRef(true);
+  const fitViewportRef = useRef<(() => void) | null>(null);
 
   const attachViewport = useCallback((shell: HTMLDivElement | null) => {
     if (!shell) return;
@@ -82,7 +83,24 @@ export function useThreadViewportFit({
         if (shell.style.height !== nextHeight) shell.style.height = nextHeight;
         if (shell.style.top !== nextTop) shell.style.top = nextTop;
       }
+      shell.removeAttribute("data-compact-composer");
+      const composer = shell.querySelector<HTMLElement>(".composer");
+      const dock = shell.querySelector<HTMLElement>(".composerDock");
+      const header = shell.querySelector<HTMLElement>(".threadHeader");
+      const picker = shell.querySelector<HTMLElement>(".composerPickerRegion");
+      const bounds = getComputedStyle(shell).display === "contents"
+        ? shell.closest<HTMLElement>(".messagesThreadPane") : shell;
+      if (composer && dock && header && bounds) {
+        const style = getComputedStyle(dock);
+        const minimum = parseFloat(getComputedStyle(composer).minHeight)
+          + parseFloat(style.paddingTop) + parseFloat(style.paddingBottom)
+          + (picker ? parseFloat(getComputedStyle(picker).minHeight) + parseFloat(style.rowGap) : 0);
+        const bottom = Math.min(top + height, bounds.getBoundingClientRect().bottom
+          - parseFloat(getComputedStyle(bounds).borderBottomWidth));
+        shell.toggleAttribute("data-compact-composer", minimum > bottom - header.getBoundingClientRect().bottom);
+      }
     };
+    fitViewportRef.current = fit;
     fit();
     const unsubscribe = subscribeSoftKeyboard(fit);
     viewport?.addEventListener("resize", fit);
@@ -93,12 +111,17 @@ export function useThreadViewportFit({
       viewport?.removeEventListener("resize", fit);
       viewport?.removeEventListener("scroll", fit);
       window.removeEventListener("resize", fit);
+      if (fitViewportRef.current === fit) fitViewportRef.current = null;
       panel?.style.removeProperty("top");
       panel?.style.removeProperty("height");
       panel?.style.removeProperty("max-height");
       panel?.style.removeProperty("z-index");
     };
   }, []);
+
+  useLayoutEffect(() => {
+    fitViewportRef.current?.();
+  });
 
   const scrollToNewest = useCallback(() => {
     const list = listRef.current;

@@ -888,26 +888,39 @@ html[data-theme="dark"] .messageBubblePhoto {
 /* ── composer ─────────────────────────────────────────────────────────────── */
 /* The dock holds the field, attachments and errors outside the scrolling list. */
 .composerDock {
+  --composer-line-height: 1.35;
+  --composer-field-padding: 0.65rem;
+  --composer-row-padding: 0.2rem;
+  --composer-dock-gap: 0.5rem;
+  --composer-dock-padding: 0.5rem;
+
   position: relative;
   z-index: 3;
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - max(var(--composer-clearance), var(--keyboard-inset, 0px)));
-  overflow-y: auto;
-  gap: 0.5rem;
+  gap: var(--composer-dock-gap);
   margin: 0 calc(var(--messages-gutter) * -1);
-  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  padding: var(--composer-dock-padding) 0.75rem calc(var(--composer-dock-padding) + env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
   background: var(--messages-surface, var(--paper));
   border-top: 0;
+}
+
+.messageThreadShell[data-compact-composer] .composerDock {
+  --composer-field-padding: clamp(0px, (44px - 1em * var(--composer-line-height)) / 2, 0.65rem);
+  --composer-row-padding: 2px;
+  --composer-dock-gap: 4px;
+  --composer-dock-padding: 4px;
 }
 
 .composerPickerRegion {
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
-  min-height: 0;
+  min-height: 48px;
   padding-bottom: 1px;
   overflow-y: auto;
   overscroll-behavior-y: contain;
@@ -917,17 +930,30 @@ html[data-theme="dark"] .messageBubblePhoto {
   outline-offset: -2px;
 }
 
+.composerPickerRegion .composerPhotoRetry {
+  padding-block: 0;
+}
+
 /* One row: the attachments, the field, Send. The field is the only thing that
    grows, and everything else sits on the field's bottom line so a three-line
    message keeps the buttons where a thumb left them. */
 .composer {
-  min-height: calc(44px + 0.4rem + 2px);
+  --composer-min-height: calc(
+    max(44px, 1em * var(--composer-line-height) + 2 * var(--composer-field-padding))
+      + 2 * var(--composer-row-padding) + 2px
+  );
+
+  min-height: var(--composer-min-height);
   display: flex;
   align-items: flex-end;
   gap: 0.25rem;
-  padding: 0.2rem 0.3rem;
+  padding: var(--composer-row-padding) 0.3rem;
   border: 1px solid var(--line);
   border-radius: 26px;
+}
+
+.messageThreadShell[data-compact-composer] .composer {
+  max-height: var(--composer-min-height);
 }
 
 .composerControls {
@@ -957,13 +983,13 @@ html[data-theme="dark"] .messageBubblePhoto {
   overflow-y: auto;
   min-height: 44px;
   max-height: 9rem;
-  padding: 0.65rem 0.4rem;
+  padding: var(--composer-field-padding) 0.4rem;
   border: none;
   border-radius: 22px;
   background: transparent;
   color: var(--ink);
   font: inherit;
-  line-height: 1.35;
+  line-height: var(--composer-line-height);
 }
 
 .composerInput::placeholder {
@@ -1461,11 +1487,12 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   .messagesThreadPane .composerDock {
+    --composer-dock-padding: 8px;
     position: static;
     min-height: calc(44px + 16px);
     max-height: none;
     margin: 0;
-    padding: 8px 0.75rem;
+    padding: var(--composer-dock-padding) 0.75rem;
   }
 
   .messagesThreadPane > .conversationPreview,
@@ -2200,7 +2227,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messageThreadShell .composerDock {
     position: static;
     margin: 0;
-    padding-bottom: 0.5rem;
+    padding-bottom: var(--composer-dock-padding);
     padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));
     padding-right: calc(0.75rem + env(safe-area-inset-right, 0px));
   }
@@ -2209,7 +2236,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 @media (min-width: 641px) and (max-width: 1023px) {
   body:not(:has(.analyticsConsentPrompt)) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) .composerDock {
-    padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(var(--composer-dock-padding), env(safe-area-inset-bottom, 0px));
   }
 }
 
