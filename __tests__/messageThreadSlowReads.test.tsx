@@ -25,7 +25,7 @@ const realtime = vi.hoisted(() => ({
   signal: null as (() => void) | null,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => viewer.current }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => viewer.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ phase: "signed-in", signedIn: true, signedOut: false, unresolved: false }),
 }));

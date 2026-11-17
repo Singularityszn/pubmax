@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";

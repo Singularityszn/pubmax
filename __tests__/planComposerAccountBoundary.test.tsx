@@ -37,7 +37,7 @@ const authFixture = vi.hoisted(() => ({
   handle: null as string | null,
   identityResolved: true,
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ ...authFixture, session: null, loading: false }),
 }));
 

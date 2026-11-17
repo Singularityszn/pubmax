@@ -9,7 +9,7 @@ vi.mock("next/link", () => ({
     createElement("a", { ...props, href }, children),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: null, session: null, loading: false, identityResolved: true, getCurrentUserId: () => null }),
 }));
 

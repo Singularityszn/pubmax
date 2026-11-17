@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ accountRevision: 0, user: { id: "account-a" } }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

@@ -10,7 +10,7 @@ const shell = vi.hoisted(() => ({ native: false, pick: vi.fn() }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: network.read, authedActionFetch: network.write }));
 vi.mock("@/lib/nativePlatform", () => ({ isNativeApp: () => shell.native }));
 vi.mock("@/lib/nativeCamera", () => ({ pickNativePhoto: shell.pick }));
-vi.mock("@/components/auth/authContext", async () => {
+vi.mock("@/components/auth/AuthProvider", async () => {
   const context = await vi.importActual<typeof import("@/components/auth/authContext")>("@/components/auth/authContext");
   return { useAuth: context.useAuth };
 });

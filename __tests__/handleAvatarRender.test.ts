@@ -41,7 +41,7 @@ const auth = vi.hoisted(() => ({
   identityResolved: true,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
 vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => null,
 }));

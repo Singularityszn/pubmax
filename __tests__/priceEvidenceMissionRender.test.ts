@@ -9,7 +9,7 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { SUBMITTABLE_DRINK_CATEGORIES, submitCategoryLabel } from "@/lib/communityPrice";
 import type { PriceEvidenceMission } from "@/lib/priceEvidenceMissions";
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: { id: "signed-in" },
     handle: "night_owl",

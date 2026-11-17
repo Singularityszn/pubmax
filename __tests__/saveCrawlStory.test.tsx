@@ -14,7 +14,7 @@ const gateAuth = vi.hoisted(() => ({
   user: null as { id: string } | null,
   contributionAuth: null as { userId: string; accessToken: string } | null,
 }));
-vi.mock("@/components/auth/authContext", async (importOriginal) => {
+vi.mock("@/components/auth/AuthProvider", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/auth/AuthProvider")>();
   return {
     ...actual,

@@ -15,7 +15,7 @@
 
 import { useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import {
   ACCOUNT_EXPORT_BUSY_LINE,

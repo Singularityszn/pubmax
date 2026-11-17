@@ -13,7 +13,7 @@ vi.mock("next/link", () => ({ default: ({ href, children, ...props }: {
   href: string; children: React.ReactNode;
 }) => createElement("a", { href, ...props }, children) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }) }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({
   user: auth.user, loading: false, configured: true,
   supabaseAuthState: auth.unavailable ? "unavailable" : "authenticated",
   clerkIntegrationConfigured: false, socialProviders: { google: false, apple: false, microsoft: false },

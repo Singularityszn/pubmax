@@ -7,7 +7,7 @@
 
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import PintDropWithLine from "@/components/map/composer/PintDropWithLine";

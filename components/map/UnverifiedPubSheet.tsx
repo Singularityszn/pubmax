@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { priceBand, priceBandAreaForVenue, priceBandNote } from "@/lib/priceBand";
 import { ExternalLink, MapPin, Sparkles, Share2 } from "lucide-react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useVenueShare } from "@/components/map/inspector/useVenueShare";
 import { formatSelectionHint } from "@/lib/mapSelectionHistory";
 import { venueDirectionsUrl } from "@/lib/venueJourney";

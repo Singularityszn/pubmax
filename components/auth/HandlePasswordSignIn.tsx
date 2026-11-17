@@ -3,8 +3,7 @@
 import { FormEvent, useState, useSyncExternalStore } from "react";
 
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
-import { useAuth } from "@/components/auth/authContext";
-import { awaitAuthRuntime } from "@/lib/authRuntimeReady";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
@@ -68,7 +67,7 @@ export default function HandlePasswordSignIn({
   disabled = false,
   redirectTo = null,
 }: HandlePasswordSignInProps): React.JSX.Element {
-  const { configured, waitForAuthRuntime } = useAuth();
+  const { configured } = useAuth();
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState("");
   const [password, setPassword] = useState("");
@@ -88,7 +87,6 @@ export default function HandlePasswordSignIn({
     trackEvent("sign_in_initiated", { provider: "handle_password" });
 
     try {
-      await awaitAuthRuntime(waitForAuthRuntime);
       const res = await fetch("/api/auth/handle-password", {
         method: "POST",
         headers: { "content-type": "application/json" },

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";

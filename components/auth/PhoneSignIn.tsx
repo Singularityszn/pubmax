@@ -3,8 +3,7 @@
 import { FormEvent, useEffect, useState, useSyncExternalStore } from "react";
 
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
-import { useAuth } from "@/components/auth/authContext";
-import { awaitAuthRuntime } from "@/lib/authRuntimeReady";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { navigateAfterHandlePasswordSignIn } from "@/components/auth/HandlePasswordSignIn";
 import { Button } from "@/components/ui/button";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
@@ -46,7 +45,7 @@ export default function PhoneSignIn({
   disabled = false,
   redirectTo = null,
 }: PhoneSignInProps): React.JSX.Element {
-  const { configured, waitForAuthRuntime } = useAuth();
+  const { configured } = useAuth();
   const [available, setAvailable] = useState(false);
   const [step, setStep] = useState<Step>("closed");
   const [phone, setPhone] = useState("");
@@ -89,7 +88,6 @@ export default function PhoneSignIn({
     setBusy(true);
     trackEvent("sign_in_initiated", { provider: "phone" });
     try {
-      await awaitAuthRuntime(waitForAuthRuntime);
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) {
         setError("Sign-in is not configured on this build.");
@@ -125,7 +123,6 @@ export default function PhoneSignIn({
     setBanned(false);
     setBusy(true);
     try {
-      await awaitAuthRuntime(waitForAuthRuntime);
       const supabase = await ensureSupabaseBrowser();
       if (!supabase) {
         setError("Sign-in is not configured on this build.");

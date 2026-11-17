@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const reads = vi.hoisted(() => ({ get: vi.fn(), action: vi.fn() }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: reads.get, authedActionFetch: reads.action }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: null }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null }) }));
 
 import { deleteDiaryEntry } from "@/components/diary/diaryClient";
 import { usePassportRead } from "@/components/profile/PassportData";

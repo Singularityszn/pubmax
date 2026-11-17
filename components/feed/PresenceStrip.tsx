@@ -14,7 +14,7 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { readProviderIdentityRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";

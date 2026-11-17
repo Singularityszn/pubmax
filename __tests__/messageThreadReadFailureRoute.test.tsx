@@ -27,7 +27,7 @@ const bridge = vi.hoisted(() => ({
 // Keep the route, linked-actor gate, ownership gate, store and SDK real.
 // Only client session/UI/realtime boundaries are inert. The transport bridge
 // constructs the same bearer Request and calls the actual route handler.
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => viewer,
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

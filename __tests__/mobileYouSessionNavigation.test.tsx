@@ -11,7 +11,7 @@ const auth = vi.hoisted(() => ({
   providerAuthState: "signed-out" as ProviderAuthState,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 vi.mock("next/navigation", () => ({
   usePathname: () => "/tonight",

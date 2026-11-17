@@ -9,7 +9,7 @@ const state = vi.hoisted(() => ({
   finePointer: false, mobile: false, request: vi.fn(), track: vi.fn(),
   auth: { user: { id: "user-1" }, handle: "alice", accountRevision: 1 },
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => state.auth,
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

@@ -10,7 +10,7 @@ const authState = vi.hoisted(() => ({
   current: { user: { id: "user-1" }, handle: "alice", accountRevision: 1 },
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

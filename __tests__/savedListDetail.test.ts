@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const socialState = vi.hoisted(() => ({ enabled: true, viewerHandle: "" }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "viewer" } }),
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({

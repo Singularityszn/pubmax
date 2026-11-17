@@ -70,7 +70,7 @@ import VenueSpoonsValueRow from "./VenueSpoonsValueRow";
 import OverviewFold from "./OverviewFold";
 import VenueCorrectionDoor from "./VenueCorrectionDoor";
 import VenueKitchenReport from "./VenueKitchenReport";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import VenueRecordSummary from "./VenueRecordSummary";
 import SharePintButton from "@/components/share/SharePintButton";

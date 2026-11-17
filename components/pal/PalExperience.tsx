@@ -21,7 +21,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";

@@ -31,7 +31,7 @@ const occupancyState = vi.hoisted(() => ({
   } as OccupancyNowAnswer | null,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: authState.user,
     session: authState.session,

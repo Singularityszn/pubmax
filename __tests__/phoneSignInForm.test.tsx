@@ -10,7 +10,7 @@ const auth = vi.hoisted(() => ({
 const available = vi.hoisted(() => ({ value: true as boolean | null }));
 const persisted = vi.hoisted(() => vi.fn());
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ configured: true }),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));

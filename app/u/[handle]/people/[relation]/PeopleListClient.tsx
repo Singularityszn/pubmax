@@ -16,7 +16,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";

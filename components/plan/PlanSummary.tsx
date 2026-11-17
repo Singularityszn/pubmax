@@ -31,7 +31,7 @@ import {
   normalizePlanStopCount,
   PLAN_STOP_COUNT_RANGE_SENTENCE,
 } from "@/lib/planStopCount";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { tryGetNightArea } from "@/lib/nightAreas";
 import { discardBody } from "@/lib/responseBody";

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useOptimisticSpillRetry } from "@/components/feed/useOptimisticSpillRetry";
 import FeedCard from "@/components/feed/FeedCard";
 import FeedFilters from "@/components/feed/FeedFilters";

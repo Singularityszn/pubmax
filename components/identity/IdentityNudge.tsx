@@ -15,7 +15,7 @@
 //
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { hasSocialAuthProviders } from "@/lib/authProviderAvailability";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";

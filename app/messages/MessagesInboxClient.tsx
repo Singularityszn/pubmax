@@ -14,7 +14,7 @@ import {
 
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import { IconButton } from "@/components/ui/icon-button";

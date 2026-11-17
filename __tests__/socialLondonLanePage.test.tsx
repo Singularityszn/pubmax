@@ -29,7 +29,7 @@ vi.mock("next/link", () => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }),
 }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => viewer.auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => viewer.auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => viewer.session }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request, authedFetch: transport.request }));

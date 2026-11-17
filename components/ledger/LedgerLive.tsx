@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import ReadLedgerButton from "@/components/ledger/ReadLedgerButton";
 import VisitReportPanel from "@/components/visits/VisitReportPanel";
 import VenuePhotoWall from "@/components/venue/VenuePhotoWall";

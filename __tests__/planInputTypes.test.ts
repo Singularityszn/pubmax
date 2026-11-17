@@ -21,7 +21,7 @@ vi.mock("next/navigation", () => ({
     prefetch: () => Promise.resolve(),
   }),
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: null, session: null, identityResolved: true }),
 }));
 

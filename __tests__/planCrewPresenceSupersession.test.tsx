@@ -6,7 +6,7 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 // Same auth-provider and unrelated side-effect boundaries as the existing
 // PlanCrew mounted suites. Capability events and recovery helpers stay real.
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: { id: "11111111-1111-4111-8111-111111111111" },
     session: { access_token: "fixture-account-token" }, identityResolved: true,

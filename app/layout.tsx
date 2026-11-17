@@ -14,7 +14,7 @@ import DeferredShellExtras from "@/components/DeferredShellExtras";
 import PalVoiceHost from "@/components/pubpal/PalVoiceHost";
 import ClientErrorReporter from "@/components/ClientErrorReporter";
 import OfflineReady from "@/components/OfflineReady";
-import { AuthBoundary as AuthProvider } from "@/components/auth/AuthBoundary";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import {
   isClerkConfigured,

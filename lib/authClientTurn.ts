@@ -3,8 +3,6 @@
 // after map pins appear or while a person browses between public routes.
 const AUTH_PATH = /^\/(?:login|signup|auth)(?:\/|$)/;
 
-export function isAuthEntryPath(pathname: string): boolean { return AUTH_PATH.test(pathname); }
-
 export type AuthClientTurnWindow = Pick<Window, "addEventListener" | "removeEventListener"> & {
   location: Pick<Location, "pathname">;
 };
@@ -38,7 +36,7 @@ export function authClientTurn(
   if (
     input.storedSession ||
     input.pendingSignIn ||
-    isAuthEntryPath(win.location.pathname)
+    AUTH_PATH.test(win.location.pathname)
   ) {
     return { ready: Promise.resolve(), waiting: false, updatePathname: () => {}, releaseForSignIn: () => {}, cancel: () => {} };
   }
@@ -75,7 +73,7 @@ export function authClientTurn(
     waiting: true,
     releaseForSignIn: go,
     updatePathname: (pathname) => {
-      if (isAuthEntryPath(pathname)) go();
+      if (AUTH_PATH.test(pathname)) go();
     },
     cancel,
   };

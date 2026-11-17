@@ -9,7 +9,7 @@ const harness = vi.hoisted(() => ({
   cheapEnabled: vi.fn(),
   actionFetch: vi.fn(),
 }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => harness.auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => harness.auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ signedIn: true, signedOut: false, unresolved: false }),
 }));

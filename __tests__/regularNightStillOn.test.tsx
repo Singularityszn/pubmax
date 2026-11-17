@@ -22,7 +22,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({
     unresolved: viewer.phase === "unresolved",
   }),
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ handle: viewer.handle, identityResolved: viewer.identityResolved }),
 }));
 vi.mock("@/components/auth/authContext", () => ({

@@ -29,7 +29,7 @@ const sessionState = vi.hoisted(() => ({
   user: null as { id: string } | null,
   unresolved: false,
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: sessionState.user, signOut: async () => undefined }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

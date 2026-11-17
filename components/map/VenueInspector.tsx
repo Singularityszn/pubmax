@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { type Venue } from "@/lib/venues";
 import type { PintDropsState } from "@/components/map/usePintDrops";

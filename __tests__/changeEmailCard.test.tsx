@@ -8,7 +8,7 @@ const authState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
 const updateUser = vi.hoisted(() => vi.fn<(input: { email: string }) => Promise<{ error: unknown }>>());
 const supabaseState = vi.hoisted(() => ({ client: null as unknown }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/lib/authClient", () => ({

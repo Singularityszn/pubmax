@@ -37,7 +37,7 @@ vi.mock("next/image", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: "host" }, loading: false }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

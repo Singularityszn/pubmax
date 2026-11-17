@@ -5,7 +5,7 @@ import { useStaggeredRead } from "@/lib/useStaggeredRead";
 import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   useAccountScopedDraft,

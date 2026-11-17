@@ -34,7 +34,7 @@ vi.mock("@/lib/messagesRealtime", () => ({ subscribeToInbox: (_handle: string, o
   inbox.onIncoming = () => { invalidateMessagesInbox(_handle); onIncoming(); };
   return () => {};
 } }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => inbox.auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: inbox.unresolved }) }));
 vi.mock("@/lib/messageNotificationClient", () => ({ restoreMessagePushAccount: async () => undefined }));
 vi.mock("@/lib/messageNotificationLifecycle", () => ({ MESSAGE_PUSH_DEPARTURE: "departure", releaseMessagePush: inbox.release }));

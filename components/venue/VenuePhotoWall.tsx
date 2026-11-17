@@ -23,7 +23,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { categoryLabel } from "@/lib/drinks";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import FoundingMemberMark from "@/components/founding/FoundingMemberMark";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";

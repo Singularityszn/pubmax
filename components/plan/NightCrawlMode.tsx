@@ -19,7 +19,7 @@
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 
 import { useCrawlOfflinePack } from "@/components/plan/useCrawlOfflinePack";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import PlanNightPresentation, { MysteryGlanceLine, MysteryStopTitle, PlanMysteryControls } from "@/components/plan/PlanNightPresentation";
 import PlanNightClues from "@/components/plan/PlanNightClues";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";

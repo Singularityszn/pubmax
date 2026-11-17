@@ -53,7 +53,7 @@ const authedActionFetch = vi.hoisted(() => vi.fn());
 // One user object for every render: the component refetches when `user` changes
 // identity, so a fresh object per call would refetch for ever.
 const signedInAuth = vi.hoisted(() => ({ user: { id: "user-1" } }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => signedInAuth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => signedInAuth }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ signedIn: true, signedOut: false, unresolved: false }),
 }));

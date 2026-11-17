@@ -16,7 +16,7 @@ import { LogIn } from "lucide-react";
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
 import type { PublicProfileCard } from "@/components/auth/publicProfileCard";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
-import { useAuth, type SignOutScope } from "@/components/auth/authContext";
+import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { hasSocialAuthProviders, type AuthStartResult } from "@/lib/authProviderAvailability";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";

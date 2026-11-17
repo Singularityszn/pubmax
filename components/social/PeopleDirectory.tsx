@@ -24,7 +24,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { followListHandleSet } from "@/lib/followList";

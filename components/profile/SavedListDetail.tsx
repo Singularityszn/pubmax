@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { profilePath } from "@/lib/appLink";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";

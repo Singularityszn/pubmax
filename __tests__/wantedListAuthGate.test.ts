@@ -25,7 +25,7 @@ const authState = vi.hoisted(() => ({
 const authedFetch = vi.hoisted(() => vi.fn());
 const getCurrentUserId = vi.hoisted(() => vi.fn());
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ ...authState.current, getCurrentUserId }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

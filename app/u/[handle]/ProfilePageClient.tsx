@@ -31,7 +31,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import SiteNavMore, {
   type SiteNavMoreItem,
 } from "@/components/nav/SiteNavMore";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import EmptyState from "@/components/ui/empty-state";

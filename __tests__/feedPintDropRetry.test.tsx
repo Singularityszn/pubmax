@@ -7,7 +7,7 @@ import type { FeedItem, PintDropDTO } from "@/lib/feed";
 import { defined } from "@/__tests__/helpers/defined";
 
 const card = vi.hoisted(() => ({ retry: null as null | ((id: string) => Promise<void>) }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ handle: "alice" }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ handle: "alice" }) }));
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "test-token" }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/app/tonight/TonightConditionsStrip", () => ({ default: () => null }));

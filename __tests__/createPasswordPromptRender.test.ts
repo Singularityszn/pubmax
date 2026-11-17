@@ -28,7 +28,7 @@ vi.mock("next/link", () => ({
 vi.mock("next/navigation", () => ({
   usePathname: () => navigation.pathname,
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));

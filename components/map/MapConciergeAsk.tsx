@@ -12,7 +12,7 @@ import { MapPin, X } from "lucide-react";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import { PintPriceBadge } from "@/components/PriceBadge";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {

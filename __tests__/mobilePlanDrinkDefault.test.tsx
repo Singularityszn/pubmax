@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: null }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null }) }));
 
 import { MobilePlanActivation } from "@/components/plan/MobilePlanActivation";
 import type { MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";

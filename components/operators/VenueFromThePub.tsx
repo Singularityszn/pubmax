@@ -19,7 +19,7 @@
 
 import { useEffect, useId, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import OperatorRailPanel from "@/components/operators/OperatorRailPanel";
 import {
   FROM_THE_PUB_LABEL,

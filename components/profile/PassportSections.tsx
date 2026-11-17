@@ -13,7 +13,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import { authedFetch } from "@/lib/authedFetch";

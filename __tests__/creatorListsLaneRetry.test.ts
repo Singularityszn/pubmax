@@ -33,7 +33,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href }, children),
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ identityResolved: true }),
 }));
 

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import SocialPostCard from "@/components/social/SocialPostCard";
 import EmptyState from "@/components/ui/empty-state";
 import { authedActionFetch } from "@/lib/authedFetch";

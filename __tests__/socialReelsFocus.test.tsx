@@ -19,7 +19,7 @@ vi.mock("next/link", () => ({
   },
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ accountRevision: 0, identityResolved: true, user: { id: "reader" } }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ accountRevision: 0, identityResolved: true, user: { id: "reader" } }) }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ phase: "signed-in", signedIn: true, signedOut: false, unresolved: false }) }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));

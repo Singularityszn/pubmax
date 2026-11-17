@@ -49,15 +49,6 @@ const eslintConfig = [
   ...nextVitals,
   ...nextTypescript,
   {
-    files: ["app/**/*.{ts,tsx}", "components/**/*.{ts,tsx}", "lib/**/*.{ts,tsx}"],
-    rules: {
-      "no-restricted-imports": ["error", { paths: [{
-        name: "@/components/auth/AuthProvider", allowTypeImports: true,
-        message: "Read auth state and types through authContext. AuthBoundary loads the session runtime dynamically.",
-      }] }],
-    },
-  },
-  {
     // eslint-plugin-react still auto-detects React via the removed ESLint 10
     // RuleContext.getFilename() API (jsx-eslint/eslint-plugin-react#3977). Pin
     // the version so detect never runs. Drop once that plugin declares eslint 10.

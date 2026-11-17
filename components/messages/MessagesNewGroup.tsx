@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { GROUP_CREATE_LABEL } from "@/lib/messageGroupThread";
 

@@ -14,7 +14,7 @@ import {
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import EmptyState from "@/components/ui/empty-state";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundRotaGate from "@/components/wild/RoundRotaGate";
 import {

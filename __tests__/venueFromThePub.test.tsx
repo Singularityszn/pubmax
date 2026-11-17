@@ -9,7 +9,7 @@ import { describe, expect, it, vi } from "vitest";
 // door is ONE row in the pub fold; Tonight's block names the pub and the night.
 // Neither surface ever says "Sponsored": the pub's word is not paid.
 
-vi.mock("@/components/auth/authContext", async (importOriginal) => {
+vi.mock("@/components/auth/AuthProvider", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/components/auth/AuthProvider")>();
   return { ...actual, useAuth: () => ({ ...actual.useAuth(), configured: true }) };
 });

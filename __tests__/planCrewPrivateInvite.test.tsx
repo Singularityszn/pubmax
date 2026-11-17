@@ -24,7 +24,7 @@ const seams = vi.hoisted(() => ({
   writeCapability: vi.fn(),
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: null, session: null, identityResolved: true }),
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn(), trackMeaningfulCoreAction: vi.fn() }));

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   accountBoundFetch,

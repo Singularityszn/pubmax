@@ -13,7 +13,7 @@
 import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { Button } from "@/components/ui/button";
 import { sameAccountAuth, accountComposerAuth, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";

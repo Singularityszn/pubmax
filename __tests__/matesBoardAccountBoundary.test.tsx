@@ -10,7 +10,7 @@ const session = vi.hoisted(() => ({
   providerAuthState: "authenticated",
   request: vi.fn(),
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ accountRevision: session.revision }),
 }));
 vi.mock("@/components/auth/authContext", () => ({

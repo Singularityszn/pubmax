@@ -4,7 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ owner: "owner-a" }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ user: { id: auth.owner }, session: { user: { id: auth.owner }, access_token: "test-only-token" } }),
 }));
 import PalMemoryConfirmCard from "@/components/pal/PalMemoryConfirmCard";

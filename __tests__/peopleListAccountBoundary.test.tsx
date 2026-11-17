@@ -37,7 +37,7 @@ vi.mock("@/lib/authClient", async (importOriginal) => {
     getAccessToken: async () => (session.userId ? `token-${session.userId}` : null),
   };
 });
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     accountRevision: session.accountRevision,
     user: session.userId ? { id: session.userId } : null,

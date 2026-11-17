@@ -15,7 +15,7 @@ const thread = vi.hoisted(() => ({
   session: { phase: "signed-in", signedIn: true, signedOut: false, unresolved: false },
 }));
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => thread.auth }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => thread.auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => thread.session }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("next/link", () => ({

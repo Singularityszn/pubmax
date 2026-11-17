@@ -14,7 +14,7 @@ const authState = vi.hoisted(() => ({ current: {} as Record<string, unknown> }))
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/SignInButton", () => ({

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { readMapFixOutcomes, readMapFixSeenAt, unseenMapFixCount } from "@/lib/mapFixOutcomes";

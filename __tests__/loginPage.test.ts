@@ -56,7 +56,7 @@ vi.mock("next/navigation", () => ({
   redirect: navigation.redirect,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: authState.current.user,
     loading: authState.current.loading,

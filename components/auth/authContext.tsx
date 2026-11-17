@@ -21,8 +21,6 @@ export type SignOutScope = "account" | "device";
 export type CancelAuthAttemptOptions = { keepEmailLink?: boolean };
 
 export type AuthContextValue = {
-  /** Ready for direct password, phone or recovery session installation. */
-  waitForAuthRuntime?: () => Promise<boolean>;
   /** Current session, or null when signed out / not yet loaded. */
   session: Session | null;
   /** Convenience: session?.user, or null. */

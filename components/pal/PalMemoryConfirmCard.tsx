@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import type { AskProposal } from "@/lib/ask/types";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { confirmPalMemoryProposal } from "@/lib/palMemoryConfirmClient";

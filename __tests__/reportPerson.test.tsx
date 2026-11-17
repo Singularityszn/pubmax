@@ -11,7 +11,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const auth = vi.hoisted(() => ({ value: { user: { id: "user-a" } as unknown, handle: "alice" as string | null } }));
 const authedActionFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.value }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.value }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 
 import ReportPerson from "@/components/social/ReportPerson";

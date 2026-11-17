@@ -124,7 +124,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href: String(href), ...props }, children),
 }));
 
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     // Clerk-backed Social identity has no Supabase session. The component
     // must use the provider-neutral revision seam for both providers.

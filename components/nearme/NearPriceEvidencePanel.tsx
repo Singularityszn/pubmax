@@ -2,7 +2,7 @@
 
 import { Component, lazy, Suspense, useLayoutEffect, useRef, useState, type ComponentProps, type ComponentType, type ReactNode, type RefObject } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { ReadyButton } from "@/components/ui/ready-button";
 
 import type NearPriceEvidenceMission from "./NearPriceEvidenceMission";

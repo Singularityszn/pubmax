@@ -34,7 +34,7 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({
 }));
 
 const viewer = vi.hoisted(() => ({ auth: { user: { id: "user-1" }, handle: "mia", configured: true } }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => viewer.auth,
 }));
 

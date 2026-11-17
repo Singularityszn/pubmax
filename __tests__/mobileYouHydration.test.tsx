@@ -18,6 +18,7 @@ vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/authClient", async (original) => ({
   ...await original<typeof import("@/lib/authClient")>(),
   isAuthConfigured: () => true,
+  hasStoredBrowserSession: () => h.session !== null,
   ensureSupabaseBrowser: async () => ({ auth: {
     getSession: async () => ({ data: { session: h.session }, error: null }),
     onAuthStateChange: (callback: typeof h.subscriber) => {

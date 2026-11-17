@@ -4,7 +4,7 @@ import { useEffect, useState, type ComponentProps, type ReactNode } from "react"
 
 import type { ClerkProvider } from "@clerk/nextjs";
 
-import { AuthBoundary as AuthProvider } from "@/components/auth/AuthBoundary";
+import { AuthProvider } from "@/components/auth/AuthProvider";
 
 type OptionalClerkProviderProps = {
   appearance?: ComponentProps<typeof ClerkProvider>["appearance"];

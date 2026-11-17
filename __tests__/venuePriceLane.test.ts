@@ -45,7 +45,7 @@ vi.mock("@/lib/areaNews.server", () => ({
   loadAreaNews: async () => ({ status: "ready", version: 1, generatedAt: "", entries: [] }),
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
-vi.mock("@/components/auth/authContext", () => ({
+vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: null, handle: null, identityResolved: true, loading: false, configured: false,
   }),

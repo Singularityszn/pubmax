@@ -46,7 +46,7 @@ const fetchLog = vi.hoisted(() => ({
   threadConversation: null as Record<string, unknown> | null,
 }));
 
-vi.mock("@/components/auth/authContext", () => ({ useAuth: () => authState.current }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => authState.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ phase: "signed-in", signedIn: true, signedOut: false, unresolved: false }),
 }));

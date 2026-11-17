@@ -7,7 +7,7 @@
 
 import { useState } from "react";
 
-import { useAuth } from "@/components/auth/authContext";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { liveAccountDeparted } from "@/lib/deviceAccountIdentity";
 
 type LiveAccountBoundary = Readonly<{ accountId: string | null; generation: number }>;
