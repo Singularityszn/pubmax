@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const routeState = vi.hoisted(() => ({
   access: null as unknown,
   limited: false,
+  detail: null as null | (() => Promise<unknown>),
 }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -30,6 +31,12 @@ vi.mock("@/lib/venueIndex", () => ({
       : { status: "unknown", canonicalId: id },
 }));
 
+// The pub's public detail, as `GET /api/venue/[id]` reads it. A summon reads it
+// again on the server and never takes a price from the request.
+vi.mock("@/lib/venueDetailIndex", () => ({
+  lookupVenueDetail: async () => routeState.detail ? routeState.detail() : { status: "missing" },
+}));
+
 import { GET, POST } from "@/app/api/summon/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryMessages, messagesStore } from "@/lib/messagesStore";
@@ -42,6 +49,7 @@ import {
   setSocialMemoryBlock,
   setSocialMemoryMute,
 } from "@/lib/socialBlockMemory";
+import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 const PUB = "summon-test-pub";
 const ME = "summon_me_12";
@@ -77,13 +85,40 @@ async function inbox(handle: string) {
   return (await messagesStore().listMessages(conversationId, handle)) ?? [];
 }
 
+const NOW = new Date("2026-11-17T12:00:00Z");
+const SOURCE = "https://www.pint-prices.com/pub/94%20Lamb's%20Conduit%20Street/The%20Lamb";
+const PRICED_LINE = `Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`;
+
+/** The Lamb's public detail with one listed Amstel row, as the detail reader groups it. */
+function lambDetail(overrides: Partial<VenuePrice> = {}, id = PUB): { status: "found"; venue: Venue } {
+  const [venue] = groupVenuePrices([{
+    app_price_id: "app_price_lamb_1",
+    pub_name: "The Lamb",
+    pint_name: "Amstel",
+    measure: "pint",
+    price_gbp: 5.5,
+    price_text: "£5.50",
+    address: "94 Lamb's Conduit Street, London, WC1N 3LZ",
+    latitude: 51.5226,
+    longitude: -0.1188,
+    pub_url: SOURCE,
+    scraped_at_values: "2026-11-09T13:07:13+00:00",
+    ...overrides,
+  } as VenuePrice]);
+  return { status: "found", venue: { ...venue!, id } };
+}
+
 beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(NOW);
+  routeState.detail = null;
   me = __seedMemoryOwnedProfile(ME, "user-me-12");
   routeState.access = { ok: true, actor: { accountId: "acct-me-12", profileId: me.id, handle: ME } };
   routeState.limited = false;
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   __resetMemoryFollows();
   __resetMemoryProfiles();
@@ -236,6 +271,7 @@ describe("POST /api/summon", () => {
   });
 
   it("never reaches a muted, blocked or non-mutual handle, even when the request names it", async () => {
+    routeState.detail = async () => lambDetail();
     await mate("summon_ann_12");
     const mutesMe = await mate("summon_mutes_12");
     const blocksMe = await mate("summon_blocks_12");
@@ -272,5 +308,71 @@ describe("POST /api/summon", () => {
     routeState.limited = true;
     expect((await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] })).status).toBe(429);
     expect(await inbox("summon_ann_12")).toEqual([]);
+  });
+
+  it("adds the server's dated price to each stored message and ignores any price in the request", async () => {
+    routeState.detail = async () => lambDetail();
+    await mate("summon_ann_12");
+
+    const response = await summon({
+      venueId: PUB,
+      time: "20:00",
+      mates: ["summon_ann_12"],
+      price: { drink: "Amstel", amountGbp: 1, sourceUrl: "https://evil.example/" },
+      priceText: "£1 a pint",
+      body: "Free pints at The Lamb",
+    });
+
+    expect(response.status).toBe(201);
+    const [message] = await inbox("summon_ann_12");
+    expect(message).toMatchObject({
+      body: `Come to The Lamb at 8pm? ${PRICED_LINE}`,
+      attachment: { kind: "venue", venueId: PUB },
+    });
+  });
+
+  it("sends the evidence read at send time, not what an earlier preview showed", async () => {
+    routeState.detail = async () => lambDetail();
+    await mate("summon_ann_12");
+    routeState.detail = async () => lambDetail({ price_gbp: 5.2, price_text: "£5.20", scraped_at_values: "2026-11-16T18:00:00Z" });
+
+    expect((await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] })).status).toBe(201);
+    expect((await inbox("summon_ann_12"))[0]?.body).toBe(
+      `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.20, read 16 November 2026. Source: ${SOURCE}`,
+    );
+  });
+
+  it.each([
+    ["the detail read throws", async () => { throw new Error("detail down"); }],
+    ["the detail is unavailable", async () => ({ status: "unavailable" })],
+    ["the evidence is older than 30 London days", async () => lambDetail({ scraped_at_values: "2026-10-01T12:00:00Z" })],
+    ["the row states no measure", async () => lambDetail({ measure: undefined })],
+    ["the detail describes another pub", async () => lambDetail({}, "another-pub")],
+  ])("still sends the price-free invite when %s", async (_label, detail) => {
+    routeState.detail = detail;
+    await mate("summon_ann_12");
+
+    expect((await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] })).status).toBe(201);
+    expect((await inbox("summon_ann_12"))[0]?.body).toBe("Come to The Lamb at 8pm?");
+  });
+
+  it("names a partial send exactly, with the price on the message that landed", async () => {
+    routeState.detail = async () => lambDetail();
+    await mate("summon_ann_12");
+    await mate("summon_bo_12");
+    const store = messagesStore();
+    const send = store.send.bind(store);
+    vi.spyOn(await import("@/lib/messagesStore"), "messagesStore").mockReturnValue(store);
+    vi.spyOn(store, "send").mockImplementation(async (conversationId, sender, body, attachment, options) => {
+      const members = await store.findConversation(ME, "summon_bo_12");
+      return conversationId === members ? null : send(conversationId, sender, body, attachment, options);
+    });
+
+    const response = await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12", "summon_bo_12"] });
+
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ sent: ["summon_ann_12"], failed: ["summon_bo_12"] });
+    expect((await inbox("summon_ann_12"))[0]?.body).toBe(`Come to The Lamb at 8pm? ${PRICED_LINE}`);
+    expect(await inbox("summon_bo_12")).toEqual([]);
   });
 });

@@ -9,6 +9,7 @@
 
 import type { Route } from "next";
 
+import type { SummonPriceEvidence } from "@/lib/summonPrice";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The map parameter that carries a summon's time beside `sel`. */
@@ -44,12 +45,12 @@ export function formatSummonTime(time: string): string {
 }
 
 /** The words a mate receives, in a message and in a shared link alike. */
-export function summonText(pubName: string, time: string): string {
+export function summonText(pubName: string, time: string, _price?: SummonPriceEvidence | null): string {
   return `Come to ${pubName} at ${formatSummonTime(time)}?`;
 }
 
 /** The shared text: the invite and where the pub is. */
-export function summonShareText(pubName: string, time: string): string {
+export function summonShareText(pubName: string, time: string, _price?: SummonPriceEvidence | null): string {
   return `${summonText(pubName, time)} It's on the PUBMAXX map.`;
 }
 

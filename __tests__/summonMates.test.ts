@@ -5,9 +5,13 @@ import {
   formatSummonTime,
   parseSummonTime,
   summonSentLine,
+  summonShareText,
+  summonText,
   summonTimeFromSearch,
   venueSummonUrl,
 } from "@/lib/summonMates";
+import { selectSummonPrice } from "@/lib/summonPrice";
+import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 describe("summon time", () => {
   it("accepts a 24-hour HH:MM and nothing else", () => {
@@ -51,5 +55,139 @@ describe("summon receipt", () => {
   it("names exactly the mates it reached", () => {
     expect(summonSentLine(["ann"])).toBe("Sent to @ann. They'll find it in Messages.");
     expect(summonSentLine(["ann", "bo", "cy"])).toBe("Sent to @ann, @bo and @cy. They'll find it in Messages.");
+  });
+});
+
+// A dated price rides on a summon only when ONE row, the row behind the pub's
+// listed figure, carries every fact the line prints: drink, stated measure,
+// amount, the publisher's own page and a London read day no more than 30 days
+// old. Anything less and the invite goes without a price.
+describe("summon price", () => {
+  const NOW = Date.parse("2026-11-17T12:00:00Z");
+  const SOURCE = "https://www.pint-prices.com/pub/1%20Conduit%20Street/The%20Lamb";
+
+  function row(overrides: Partial<VenuePrice> = {}): VenuePrice {
+    return {
+      app_price_id: "app_price_lamb_1",
+      pub_name: "The Lamb",
+      pint_name: "Amstel",
+      measure: "pint",
+      price_gbp: 5.5,
+      price_text: "£5.50",
+      address: "94 Lamb's Conduit Street, London, WC1N 3LZ",
+      latitude: 51.5226,
+      longitude: -0.1188,
+      primary_borough: "Camden",
+      boroughs_visible: "Camden",
+      estimated_average_price_text: "",
+      pub_url: SOURCE,
+      source_datasets: "individual_pub_page",
+      data_quality_notes: "",
+      scraped_at_values: "2026-11-09T13:07:13+00:00",
+      ...overrides,
+    } as VenuePrice;
+  }
+
+  function pub(...rows: VenuePrice[]): Venue {
+    const [venue] = groupVenuePrices(rows);
+    return { ...venue!, id: "pub-lamb" };
+  }
+
+  it("takes drink, measure, amount, source and read day from the one row behind the listed figure", () => {
+    const venue = pub(row({ app_price_id: "dear", pint_name: "Guinness", price_gbp: 6.8, price_text: "£6.80" }), row());
+    expect(selectSummonPrice(venue, NOW)).toEqual({
+      venueId: "pub-lamb",
+      rowId: "app_price_lamb_1",
+      drink: "Amstel",
+      measure: "pint",
+      amountGbp: 5.5,
+      priceText: "£5.50",
+      statement: null,
+      sourceLabel: "Pint Prices",
+      sourceUrl: SOURCE,
+      observedAt: "2026-11-09T13:07:13.000Z",
+      readDay: "2026-11-09",
+    });
+    expect(summonText("The Lamb", "20:00", selectSummonPrice(venue, NOW))).toBe(
+      `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
+    );
+    expect(summonShareText("The Lamb", "20:00", selectSummonPrice(venue, NOW))).toBe(
+      `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE} It's on the PUBMAXX map.`,
+    );
+  });
+
+  it("keeps the price-free invite when no price is given", () => {
+    expect(summonText("The Lamb", "20:00", null)).toBe("Come to The Lamb at 8pm?");
+    expect(summonShareText("The Lamb", "20:00", null)).toBe("Come to The Lamb at 8pm? It's on the PUBMAXX map.");
+  });
+
+  it("quotes a conditional listing whole, conditions and all", () => {
+    const statement = "£4.50 for members, Monday to Thursday before 7pm, £1 cup deposit";
+    const evidence = selectSummonPrice(pub(row({ price_gbp: 4.5, price_text: statement })), NOW);
+    expect(evidence).toMatchObject({ amountGbp: 4.5, priceText: statement, statement });
+    expect(summonText("The Lamb", "20:00", evidence)).toBe(
+      `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) as "${statement}", read 9 November 2026. Source: ${SOURCE}`,
+    );
+  });
+
+  it("keeps a 160-character listing and drops a longer one whole, never cutting it", () => {
+    const fits = `£4.50 members only ${"x".repeat(141)}`;
+    expect(fits).toHaveLength(160);
+    expect(selectSummonPrice(pub(row({ price_gbp: 4.5, price_text: fits })), NOW)?.statement).toBe(fits);
+    expect(selectSummonPrice(pub(row({ price_gbp: 4.5, price_text: `${fits}y` })), NOW)).toBeNull();
+  });
+
+  it("never borrows another row's evidence for the cheapest figure", () => {
+    const dear = row({ app_price_id: "dear", pint_name: "Guinness", price_gbp: 6.8, price_text: "£6.80" });
+    expect(selectSummonPrice(pub(dear, row({ pub_url: "" })), NOW)).toBeNull();
+    expect(selectSummonPrice(pub(dear, row({ measure: undefined })), NOW)).toBeNull();
+    expect(selectSummonPrice(pub(dear, row({ scraped_at_values: "" })), NOW)).toBeNull();
+  });
+
+  it("reads 30 London calendar days as fresh and 31 as too old", () => {
+    // 2026-10-17T23:30Z is 00:30 on 18 October in London: 30 days before 17 November.
+    expect(selectSummonPrice(pub(row({ scraped_at_values: "2026-10-17T23:30:00Z" })), NOW)?.readDay).toBe("2026-10-18");
+    expect(selectSummonPrice(pub(row({ scraped_at_values: "2026-10-17T22:30:00Z" })), NOW)).toBeNull();
+  });
+
+  it.each([
+    ["no stated measure", { measure: undefined }],
+    ["an unlabelled other measure", { measure: "other" }],
+    ["a half sold under a pint", { pint_name: "Half of Amstel" }],
+    ["a bottle sold under a pint", { pint_name: "Amstel 330ml bottle" }],
+    ["no drink", { pint_name: " " }],
+    ["no listing text", { price_text: "" }],
+    ["a listing for another amount", { price_text: "£6.00" }],
+    ["a listing that never states the amount", { price_text: "Two for £10 before 7pm" }],
+    ["markup in the listing", { price_text: "£5.50 <b>members</b>" }],
+    ["no publisher page", { pub_url: "" }],
+    ["a future read", { scraped_at_values: "2026-11-18T09:00:00Z" }],
+    ["a future read beside a past one", { scraped_at_values: "2026-11-09T13:07:13Z|2026-11-18T09:00:00Z" }],
+    ["no read day", { scraped_at_values: "" }],
+    ["a figure out of the pint band", { price_gbp: 1.99, price_text: "£1.99" }],
+    ["no figure", { price_gbp: null, price_text: "", estimated_average_price_text: "£5.28" }],
+  ])("omits the price for %s", (_label, overrides) => {
+    expect(selectSummonPrice(pub(row(overrides as Partial<VenuePrice>)), NOW)).toBeNull();
+  });
+
+  it("never quotes a superseded row, a non-pub or a figure the pub does not list", () => {
+    const superseded = row({
+      app_price_id: "old",
+      price_gbp: 3.5,
+      price_text: "£3.50",
+      price_superseded: {
+        reason: "operator_change",
+        operator: "Old Co",
+        left_on: "2026-10-01",
+        evidence: "Sold.",
+        evidence_urls: ["https://example.com/sold"],
+        recorded_on: "2026-10-02",
+      },
+    });
+    const live = pub(row());
+    expect(selectSummonPrice({ ...live, prices: [superseded, ...live.prices] }, NOW)?.rowId).toBe("app_price_lamb_1");
+    expect(selectSummonPrice({ ...live, kind: "bar" }, NOW)).toBeNull();
+    expect(selectSummonPrice({ ...live, cheapestPrice: 4.2, latestContributorPrice: 4.2 }, NOW)).toBeNull();
+    expect(selectSummonPrice(null, NOW)).toBeNull();
   });
 });
