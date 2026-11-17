@@ -187,7 +187,7 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     expect(outcome.ok).toBe(true);
     if (!outcome.ok) return;
     expect(outcome.conversationId).toBe("conv_palILvHkE8vMpwSSiRKE2AMkOerQj7gvpoA");
-    const { conversationId: _conversationId, ...answer } = outcome;
+    const answer = { ...outcome, conversationId: undefined };
     expect(JSON.stringify(answer)).not.toMatch(/golden lion|beer garden|dog.friendly|2am/i);
   });
 });
