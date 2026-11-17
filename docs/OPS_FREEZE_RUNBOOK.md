@@ -59,6 +59,8 @@ sit outside the guard on purpose:
   People keep control of their own private choices. These changes publish no
   content and send no notification. Authentication, target checks and the
   ordinary rate limit still apply.
+- **Social reporting and moderation** (`report`, `moderate` and
+  `report_resolution` on `POST /api/social/interactions`).
 - **Reporting** a pint drop (`action: "report"` on `POST /api/pint-drops`).
 - **Reporting** a message (`action: "report"` on `POST /api/messages/[id]`).
 - **Moderation** actions you take as owner (`restore` / `keep_hidden` on
@@ -83,12 +85,13 @@ left open for the same reason (private coordination, not broadcast).
 | Pint drops — react | `POST /api/pint-drops/reactions` |
 | Messages — send | `POST /api/messages`, send branch of `POST /api/messages/[id]` |
 | Follows | `POST /api/profiles/[handle]/follow` |
-| Social interactions | `PUT` / `DELETE /api/social/interactions`, except block and mute controls |
+| Social interactions | `POST`, `PUT` and `DELETE /api/social/interactions`, except the private controls and reporting/moderation actions listed above |
 | Night moments | `POST /api/night-memories/[id]/moments`, `POST /api/night-stories/[id]/moments` |
 | Story create + publish | `POST /api/night-stories`, `.../publish-proposals`, `.../publish-confirmations` |
 
-The seam is `lib/opsFreeze.ts`; the containment fence in
-`__tests__/opsFreeze.test.ts` fails CI if a guarded family stops calling it.
+The seam is `lib/opsFreeze.ts`. The core containment fence is
+`__tests__/opsFreeze.test.ts`. The interactions route has its own behavioural
+freeze checks in `__tests__/socialInteractionsRoute.test.ts`.
 
 ## What to tell users
 
