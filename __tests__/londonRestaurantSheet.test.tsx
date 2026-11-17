@@ -147,6 +147,21 @@ it("credits OSM without adding prices or an alcohol claim", async () => {
   expect(credit?.textContent).toBe("OpenStreetMap contributors");
 });
 
+it.each(["Mo-Su 12:00-23:30", "PH unknown"])("credits the extract date for restaurant facts and shared hours: %s", async openingHours => {
+  // Geofabrik's extract timestamp describes the data, not a visit or the day the app reads it.
+  await act(async () => root.render(createElement(LondonRestaurantSheet, { restaurant: {
+    id: "venue-osm-n101", name: "Example", address: "", lat: 51.5, lng: -0.1, kind: "restaurant", borough: "",
+    observedAt: "2026-11-15T23:00:00Z", openingHours,
+  } })));
+  expect(container.querySelector(".londonRestaurantSource")?.textContent).toContain("OSM data as of 15 Nov 2026");
+  expect(container.querySelector(".venuePlacesDetailsCredit")?.textContent).toBe("OSM data as of 15 Nov 2026");
+  const details = container.querySelector("details")!;
+  await act(async () => details.querySelector("summary")!.click());
+  expect(details.open).toBe(true);
+  if (openingHours.startsWith("Mo-Su")) expect(details.querySelector("dd")?.textContent).toBe("12:00 to 23:30");
+  else expect(details.querySelector("p")?.textContent).toBe(openingHours);
+});
+
 it("hands the canvas a new list only when the restaurants on it change", async () => {
   const drawn: (readonly { id: string }[])[] = [];
   function DrawnRestaurants({ list }: { list: readonly { id: string }[] }) {

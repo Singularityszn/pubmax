@@ -3089,7 +3089,6 @@ export default function PubMap({
     drinkLensPrices,
     experienceLensPrices,
   );
-  // An explicit OSM link also opens its sheet while the layer starts off.
   const londonRestaurantRead = useLondonRestaurants({
     selectedVenueId,
     selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
@@ -5846,7 +5845,6 @@ export default function PubMap({
     );
   }
 
-  // A London venue-layer place has its own sheet; everything else is a venue.
   function renderSelectedPlacePanel() {
     if (selectedCoffeeCafe) return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
     if (selectedLondonRestaurant) {
@@ -6054,7 +6052,7 @@ export default function PubMap({
       >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
-        <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={isLondon} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
+        <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
           <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
@@ -6685,6 +6683,7 @@ export default function PubMap({
   function renderDesktopToolbar() {
     return (
       !mobileViewport ? <MapToolbar
+        restaurantLayerAvailable={londonRestaurantRead.layerAvailable}
         cityLabel={mapChipLabel}
         outsideCurated={outsideCuratedBounds || ukNationalBrowse}
         query={filters.query}

@@ -1,7 +1,7 @@
 # London OSM restaurants
 
 The map reads `manifest.json` and its immutable chunks only after the reader enables
-**All restaurants**, or opens an explicit restaurant link. Existing curated restaurant
+**More restaurants (unpriced)**, or opens an explicit restaurant link. Existing curated restaurant
 pins keep their separate Restaurants filter. Loading waits for the map's initial pin hold
 to end. The layer draws from zoom 12. Explicit links can load a sheet below this zoom.
 A drink view suppresses the layer except for an explicit restaurant selection.

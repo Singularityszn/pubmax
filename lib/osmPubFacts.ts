@@ -73,7 +73,7 @@ export function osmPubFactsFromRow(row: unknown): OsmPubFacts | null {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** `2024-05-03` reads "3 May 2024", and a month-only check date `2024-05` reads "May 2024". */
-function dayLabel(value: string): string | null {
+export function dayLabel(value: string): string | null {
   const match = CHECK_DATE.exec(value);
   if (!match) return null;
   const [, year = "", month = "", day] = match;
@@ -89,7 +89,7 @@ function dayLabel(value: string): string | null {
  * the pub on that day, so it reads "checked". Without one, the day is when we
  * read OpenStreetMap, so it reads "read" rather than claiming a check.
  */
-export function creditDay(checkDate: string | undefined, readOn: string): string {
+function creditDay(checkDate: string | undefined, readOn: string): string {
   const checked = checkDate ? dayLabel(checkDate) : null;
   if (checked) return `checked ${checked}`;
   return `read ${dayLabel(readOn) ?? readOn}`;

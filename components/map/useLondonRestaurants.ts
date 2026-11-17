@@ -12,6 +12,7 @@ import {
 
 export type LondonRestaurantsState = {
   mode: ReturnType<typeof londonRestaurantLayerMode>;
+  layerAvailable: boolean;
   status: LondonRestaurantStatus;
   restaurants: readonly LondonRestaurant[];
   byId: ReadonlyMap<string, LondonRestaurant>;
@@ -76,7 +77,8 @@ export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonR
   );
   const changingScope = settledRead !== null && !(settledRead.scope === "all" && status === "ready")
     && (settledRead.scope !== scope || settledRead.selectedVenueId !== selectedVenueId);
-  return { mode, status: changingScope ? "loading" : status, restaurants, byId };
+  const layerAvailable = londonRestaurantLayerMode({ ...input, restaurantKindVisible: true }) === "layer";
+  return { mode, layerAvailable, status: changingScope ? "loading" : status, restaurants, byId };
 }
 
 /**

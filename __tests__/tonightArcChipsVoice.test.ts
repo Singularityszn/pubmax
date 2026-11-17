@@ -46,7 +46,7 @@ it("keeps optional restaurant state when the control is unavailable outside Lond
     const [visibility, setVisibility] = useState(defaultVenueKindVisibility("london"));
     return createElement(TonightArcChips, { visibility, restaurantLayerAvailable: available, onChange: setVisibility });
   }
-  const allRestaurants = () => [...host.querySelectorAll("button")].find(button => button.textContent?.includes("All restaurants"));
+  const allRestaurants = () => [...host.querySelectorAll("button")].find(button => button.textContent?.includes("More restaurants (unpriced)"));
   try {
     await act(async () => root.render(createElement(Controls, { available: false })));
     expect(allRestaurants()).toBeUndefined();

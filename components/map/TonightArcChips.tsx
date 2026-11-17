@@ -52,7 +52,7 @@ export default function TonightArcChips({
   const offeredKinds = offeredVenueKinds(experienceLens);
   const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind as CuratedVenueKind));
   if (restaurantLayerAvailable) {
-    chips.push({ kind: "osmRestaurants", label: "All restaurants", Icon: ForkKnife });
+    chips.push({ kind: "osmRestaurants", label: "More restaurants (unpriced)", Icon: ForkKnife });
   }
   return (
     <div

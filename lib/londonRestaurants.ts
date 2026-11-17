@@ -16,7 +16,7 @@
 // 2. A CURATED VENUE OWNS ITS OWN PLACE. The curated index already pins some
 //    of these restaurants (Rules, Quo Vadis, The Wolseley). The OSM row beside
 //    one is dropped, unless explicitly selected for a shared link.
-// 3. THE OPTIONAL LAYER AND VIEW DECIDE. The All restaurants switch is separate
+// 3. THE OPTIONAL LAYER AND VIEW DECIDE. The More restaurants (unpriced) switch is separate
 //    from curated restaurant pins. A drink view draws only an explicit selection.
 // 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name, an address or
 //    a borough, as it does a curated pin's. A search for an area the pack does
