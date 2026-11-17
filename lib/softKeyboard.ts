@@ -16,11 +16,8 @@
 // pair together is the honest signal, which is why this module reports the
 // pair rather than either half.
 //
-// The bar is hidden by TRANSFORM alone (components/nav/mobileNav.css, the same
-// idiom the night-mode rule already uses). Nothing here touches the body's
-// bottom padding: that clearance is reserved for the bar's own height, and
-// dropping it while the keyboard is open would reflow the page underneath the
-// caret - the layout jump this fix exists to avoid.
+// See components/nav/mobileNav.css for the shared tab-bar clearance invariant.
+// Thread-specific geometry follows docs/rules/components-venue-plan-and-message-surfaces.md.
 
 import { nativePlatform } from "@/lib/nativePlatform";
 
@@ -118,7 +115,7 @@ function readOpen(): boolean {
   // unobscured, so that reading is the baseline, and a focused field keeps
   // it. A width change (a rotation or a resized window) with the keyboard up
   // leaves no baseline for the new shape, so the answer holds until the field
-  // blurs or the height rises by a keyboard at the new width.
+  // blurs or the visual viewport height rises by a keyboard at the new width.
   const { innerWidth: width, innerHeight: height } = window;
   const viewportHeight = visual?.height ?? height;
   lowestViewportHeight = width === lowestViewportWidth ? Math.min(lowestViewportHeight, viewportHeight) : viewportHeight;
