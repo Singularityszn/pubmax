@@ -1,10 +1,10 @@
 # Installed-web push runbook
 
-Wave 1.3 adds VAPID Web Push behind the existing `PushProvider` seam. It does
-not add user or Plan identity. The registry in `lib/pushTokenStore.ts` is
-identity-free by design. Native APNs tokens and web subscriptions can share it,
-but the manual daily brief deliberately targets only web registrations.
-Plan/person targeting remains unavailable.
+VAPID Web Push uses the existing `PushProvider` seam. The public registry in
+`lib/pushTokenStore.ts` remains identity-free. Native tokens and web subscriptions
+can share it, but the manual daily brief targets only web registrations.
+Private messages use a separate account-bound registry described under
+[Message alerts](#message-alerts). Plan-scoped delivery remains unavailable.
 
 ## Owner activation
 
@@ -15,10 +15,11 @@ Plan/person targeting remains unavailable.
    `supabase/migrations/20260723121000_0052_web_push_subscriptions.sql`. It adds
    `web` to the existing identity-free registry and raises the opaque-token
    bound to 2048; existing native rows do not change.
-4. Deploy. The UI must call `registerWebPush()` only after a real user action;
-   the installed-PWA prompt does so only after a successful plan action in the
-   current document. It participates in the shared prompt budget and never
-   appears in an ordinary browser tab, the native shell, or on boot.
+4. Deploy only on the captain's instruction. The UI must call `registerWebPush()`
+   only after a real user action. The installed-PWA prompt does so after a
+   successful plan action in the current document. It participates in the shared
+   prompt budget and never appears in an ordinary browser tab, the native shell,
+   or on boot.
 
 Without the VAPID pair the provider returns `vapid_not_configured` for every web
 subscription and logs an actionable skip. Keyless app development remains
@@ -40,6 +41,47 @@ separate 10-second limit. Leaving the control cancels the app's wait and prevent
 a late subscription result from registering a token. Cancellation does not stop
 the browser's own subscription work. Regression coverage is in
 `__tests__/webPush.test.ts` and `__tests__/webPushPending.test.tsx`.
+
+## Message alerts
+
+The [Messages guide](../README.md#features) owns setup and preview controls.
+Message alerts require the VAPID configuration above and migration
+`supabase/migrations/20261116220000_0242_message_notifications.sql`.
+Apply and deployment require the captain's separate instructions.
+The migration has a rollback beside it under `supabase/migrations/rollback/`.
+
+`registerWebPush()` accepts a `saveToken` callback for private registration.
+Message alerts use that callback to register through `/api/message-notifications`
+without adding a public-broadcast registration. The browser subscription can
+still be shared with existing public alerts. The
+[permission matrix](security/PERMISSION_MATRIX.md) owns account, session,
+subscription-secret and preview access rules.
+
+Stored sends schedule `lib/messageNotifications.server.ts` alongside Realtime
+signalling. Delivery failure does not fail the message send.
+The sender must remain eligible, the message must remain visible, and the
+recipient must have alerts enabled without a chat mute, sender mute or block.
+Each recipient/message pair is claimed before delivery. A failed delivery is
+not retried through that claim. A device viewing that conversation is excluded
+while its presence is less than 30 seconds old.
+
+The inbox and navigation badge share account-scoped reads and a private inbox
+subscription. Arrival and read signals invalidate the shared result. Visible
+tabs retain fallback polling when Realtime is unavailable and a slower safety
+poll when it is live. Hidden tabs stop polling and refresh when shown again.
+
+Transport payloads contain generic text and routing IDs. A preview-enabled
+worker asks an open client for its current authorisation, then resolves the
+preview through the permission checks above. Missing authorisation or a lookup
+that exceeds 1.5 seconds leaves the generic alert. Notifications share a tag
+per conversation so later alerts replace earlier ones without renotifying.
+
+Sign-out and account switching attempt to detach the current message binding
+and close its notifications. Failed detach requests remain queued for later
+contact. Departure preserves the browser subscription used by public alerts.
+A signed-in account with alerts enabled can restore its device binding without
+another permission prompt. Revoked sessions are excluded when delivery targets
+are read. Generic pushes already in flight can still appear after departure.
 
 ## Step Out weekly nudge
 

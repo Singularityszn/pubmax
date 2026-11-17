@@ -104,7 +104,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
       await page.setViewportSize({ width, height: 900 });
       const panel = page.getByRole("region", { name: "Message alerts", exact: true });
       await expect(panel).toBeVisible();
-      expect(await panel.evaluate((element) => {
+      await expect.poll(() => panel.evaluate((element) => {
         const bounds = element.getBoundingClientRect();
         return bounds.left >= 0 && bounds.right <= innerWidth;
       })).toBe(true);
