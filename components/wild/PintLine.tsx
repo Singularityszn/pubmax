@@ -220,7 +220,7 @@ function Glass() {
   );
 }
 
-export default function PintLine({ crawl }: { crawl: WildCrawl }) {
+export default function PintLine({ crawl, presentation = false }: { crawl: WildCrawl; presentation?: boolean }) {
   const uid = useId();
   const titleId = `${uid}-title`;
   const drawingId = `${uid}-drawing`;
@@ -248,7 +248,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
   // be wrapped wrong once the page's own face arrives.
   useEffect(() => {
     let alive = true;
-    void fontsSettled().then(() => {
+    void (presentation ? Promise.resolve() : fontsSettled()).then(() => {
       if (!alive || !stageRef.current) return;
       const real = canvasMeasure(stageRef.current);
       setMeasure(() => real ?? ((text: string, font) => text.length * PINT_LINE_TYPE[font].size * 0.62));
@@ -256,7 +256,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [presentation]);
 
   const inputs = useMemo<PintLineStopInput[]>(
     () =>
@@ -283,7 +283,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
     if (!layout) return;
     const nodes = readNodes(sectionRef.current, layout.stations.length);
     if (!nodes) return;
-    if (played.current === run || prefersReducedMotion()) {
+    if (presentation || played.current === run || prefersReducedMotion()) {
       played.current = run;
       showFinal(nodes, layout);
       return;
@@ -292,7 +292,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
     return play(nodes, layout);
     // layoutKey stands for the layout: a new object with the same geometry is not a new line.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layoutKey, run]);
+  }, [layoutKey, run, presentation]);
 
   const replay = useCallback(() => setRun((value) => value + 1), []);
   const [shared, setShared] = useState<string | null>(null);
@@ -342,7 +342,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
   };
 
   return (
-    <section ref={sectionRef} className="pintLine" aria-labelledby={titleId}>
+    <section ref={sectionRef} className="pintLine" data-presentation={presentation || undefined} aria-label={presentation ? crawl.name : undefined} aria-labelledby={presentation ? undefined : titleId}>
       <header className="pintLine__head">
         <p className="pintLine__kicker">
           <span className="pintLine__kickerMark" aria-hidden="true" />
@@ -507,7 +507,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
           : "We cannot place every stop, so there is no walking total."}
       </p>
 
-      <div className="pintLine__actions">
+      {!presentation ? <div className="pintLine__actions">
         <Button type="button" variant="ghost" onClick={replay}>
           Run the line again
         </Button>
@@ -517,7 +517,7 @@ export default function PintLine({ crawl }: { crawl: WildCrawl }) {
         <p className="pintLine__shared" role="status">
           {shared}
         </p>
-      </div>
+      </div> : null}
     </section>
   );
 }

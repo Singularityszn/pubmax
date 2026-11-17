@@ -91,3 +91,26 @@ export function setFairPintSession(active: boolean, pence = session.pence) {
   if (changed) activeListeners.forEach((listener) => listener());
   paintListeners.forEach((listener) => listener());
 }
+
+export type FairPintGenerated = {
+  stops: { venueId: string; venueName: string; estimatedPintPricePence?: number | null; priceCategory?: string; priceServing?: string; priceEvidence?: import("@/lib/planRouteEvidence").PlanPriceEvidence | null; walkingMinutesFromPrevious?: number | null }[];
+  inferredContext: import("@/lib/nightPlanning").NightContext;
+  planningConfidence: import("@/lib/planIntelligence").PlanningConfidence;
+  routeTotals?: import("@/lib/planIntelligence").PlanRouteTotals;
+  groundingProof: string; operationKey: string;
+};
+export function fairPintRequest(cityId: string, nightArea: string, pence: number, planStartIso?: string) {
+  return { cityId, query: `maximum £${(pence / 100).toFixed(2)} per pint`, context: { nightArea, stopCount: 3 }, ...(planStartIso ? { planStartIso } : {}) };
+}
+export type FairPintDrawn = { generated: FairPintGenerated; pence: number; start: string };
+export type FairPintPlanState = { phase: "dial" | "drawing" | "result"; request: number; last: FairPintDrawn | null; error: string; retryAt: number };
+export type FairPintPlanEvent = { type: "draw"; request: number } | { type: "drawn"; request: number; last: FairPintDrawn } | { type: "failed"; request: number; error: string; retryAt: number } | { type: "back" };
+export function transitionFairPintPlan(state: FairPintPlanState, event: FairPintPlanEvent): FairPintPlanState {
+  switch (event.type) {
+    case "draw": return { ...state, phase: "drawing", request: event.request, error: "", retryAt: 0 };
+    case "drawn": return state.request !== event.request ? state : { ...state, phase: "result", last: event.last, error: "" };
+    case "failed": return state.request !== event.request ? state : { ...state, phase: state.last ? "result" : "dial", error: event.error, retryAt: event.retryAt };
+    case "back": return { ...state, phase: "dial" };
+    default: { const never: never = event; return never; }
+  }
+}

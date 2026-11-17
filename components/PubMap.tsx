@@ -5974,7 +5974,7 @@ export default function PubMap({
     return (
       <>
       {showMapArrivalCard ? cityId === "london" ? (
-        <FairPintFlow cityId={cityId} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} />
+        <FairPintFlow mobile={mobileViewport} cityId={cityId} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} />
       ) : <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}

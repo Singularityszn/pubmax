@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import "./fairPint.css";
 
 export type FairPintCounts = { phase: "loading" } | { phase: "failed" } | { phase: "ready"; count: number };
-export default function FairPintCard({ start, area, counts, drawCounts, located, locationOff, offline, onInput, onCommit, onLocation, onRetry, onDraw, onClose }: {
+export default function FairPintCard({ start, area, counts, drawCounts, located, locationOff, offline, onInput, onCommit, onLocation, onRetry, onDraw, onClose, drawUnavailable = false, error = "", pending = false }: {
+  drawUnavailable?: boolean; error?: string; pending?: boolean;
   start: number; area: string; counts: (pence: number) => FairPintCounts; drawCounts: (pence: number) => FairPintCounts;
   located: boolean; locationOff: boolean; offline: boolean;
   onInput: (pence: number) => void; onCommit: (pence: number) => void; onLocation: () => void;
@@ -40,7 +41,8 @@ export default function FairPintCard({ start, area, counts, drawCounts, located,
     <span className="sr-only" aria-live="polite">{announcement}</span>
     {count.phase === "failed" || draw.phase === "failed" ? <Button variant="ghost" onClick={onRetry}>Retry</Button> : null}
     <Button variant="ghost" onClick={onLocation}>{locationOff ? "Location is off" : "Use my location"}</Button>
-    <Button onClick={() => onDraw(pence)} disabled={offline || draw.phase !== "ready" || draw.count < 3}>Draw my night in {area}</Button>
+    {error ? <p role="alert">{error}</p> : null}{pending ? <p role="status">Drawing your night…</p> : null}
+    <Button aria-busy={pending} onClick={() => onDraw(pence)} disabled={drawUnavailable || offline || draw.phase !== "ready" || draw.count < 3}>Draw my night in {area}</Button>
     {reason ? <p className="fairPintReason">{reason}</p> : null}
     <Button className="fairPintClose" variant="ghost" size="icon" aria-label="Close" onClick={onClose}><X size={18} aria-hidden="true" /></Button>
   </aside>;

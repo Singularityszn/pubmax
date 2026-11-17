@@ -14,7 +14,7 @@ export function wireFairPintPaint(map: Map) {
     layers.forEach(([id, property], index) => {
       if (!map.getLayer(id)) return;
       const value = active ? fairPintOpacity(pence, id.startsWith("cluster")) : baseline[index];
-      const transition = active ? { duration: 0, delay: 0 } : transitions[index] ?? null;
+      const transition = active ? { duration: 0, delay: 0 } : transitions[index] ?? undefined;
       if (JSON.stringify(map.getPaintProperty(id, `${property}-transition`)) !== JSON.stringify(transition)) map.setPaintProperty(id, `${property}-transition`, transition);
       if (JSON.stringify(map.getPaintProperty(id, property)) !== JSON.stringify(value)) map.setPaintProperty(id, property, value);
     });

@@ -9,3 +9,15 @@
 .fairPintRange::-webkit-slider-thumb { appearance: none; width: 44px; height: 44px; margin-top: -19px; border-radius: 50%; background: var(--ink); }
 .fairPintRange::-moz-range-thumb { width: 44px; height: 44px; background: var(--ink); }
 @media (min-width: 641px) { .fairPintCard { left: auto; width: min(390px, calc(100vw - 48px)); right: 24px; bottom: 24px; } }
+.fairPintResult { max-height: 70dvh; display: flex; flex-direction: column; }
+.fairPintResultBody { display: grid; gap: 12px; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.fairPintResultActions { display: grid; gap: 6px; padding-top: 12px; flex: none; }
+.fairPintResultBody .pintLine { padding: 0; border: 0; background: transparent; }
+.pintLine[data-presentation] .pintLine__head, .pintLine[data-presentation] .pintLine__note { display: none; }
+.fairPintStops { padding-left: 22px; margin: 0; display: grid; gap: 16px; }
+.fairPintStops li > * { display: block; }
+.fairPintStops a { color: var(--ink); text-decoration: underline; text-underline-offset: 3px; }
+.fairPintStamp { font-family: var(--font-data); font-size: var(--text-sm); }
+.fairPintResultBody input { min-height: 44px; width: 100%; padding: 8px; border: 1px solid var(--muted); border-radius: 8px; color: var(--ink); background: var(--panel-raised); }
+.fairPintWarnings { padding-left: 20px; font-size: var(--text-sm); }
+.fairPintError { position: fixed; inset-inline: 24px; bottom: calc(var(--tabbar-height, 64px) + 12px); z-index: calc(var(--z-tabbar) + 3); color: var(--ink); background: var(--panel-raised); padding: 12px; }

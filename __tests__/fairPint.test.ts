@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { compactFairPintPayload, isFairPint } from "@/lib/fairPint";
+import { compactFairPintPayload, fairPintRequest, transitionFairPintPlan, isFairPint } from "@/lib/fairPint";
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
@@ -54,4 +54,19 @@ describe("fair pint parity", () => {
     }));
     expect(mismatches).toEqual([]);
   });
+});
+
+it("builds a three-stop per-pint request without using the route budget", () => {
+  expect(fairPintRequest("london", "camden", 530)).toEqual({ cityId: "london", query: "maximum £5.30 per pint", context: { nightArea: "camden", stopCount: 3 } });
+});
+it("ignores superseded draw results and keeps the last route on failure", () => {
+  const first = { phase: "dial" as const, request: 0, last: null, error: "", retryAt: 0 };
+  const pending = transitionFairPintPlan(first, { type: "draw", request: 2 });
+  const last = { generated: {} as import("@/lib/fairPint").FairPintGenerated, pence: 530, start: "2026-11-17T18:00" };
+  expect(transitionFairPintPlan(pending, { type: "drawn", request: 1, last })).toBe(pending);
+  const result = transitionFairPintPlan(pending, { type: "drawn", request: 2, last });
+  const revalidating = transitionFairPintPlan(result, { type: "draw", request: 3 });
+  const failed = transitionFairPintPlan(revalidating, { type: "failed", request: 3, error: "No connection", retryAt: 0 });
+  expect(failed.last).toBe(last);
+  expect(failed.phase).toBe("result");
 });

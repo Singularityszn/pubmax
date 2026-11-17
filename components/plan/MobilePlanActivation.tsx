@@ -17,6 +17,7 @@ import { PLAN_FIELD_LABEL, PLAN_HEADING } from "@/lib/planCopy";
 import { getNightAreasForCity, nearestRouteReadyNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { budgetCeiling, clearPlannerHandoff, readPlannerHandoff } from "@/lib/onboardingFlow";
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
+import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import type { PlanBudgetSummary, PlanEndingRecommendation, PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { MapGeneratedRouteResponse } from "@/lib/mapRouteTransfer";
 import { shouldWarmMapIntent } from "@/lib/mapWarmup";
@@ -293,7 +294,7 @@ export function MobilePlanActivation({
         <div className="mobilePlannerResult" role="status">
           <div className="mobilePlannerConfidence" data-level={result.confidence.level}>
             <ShieldCheck size={16} aria-hidden="true" />
-            <div><strong>{result.confidence.level === "high" ? "Prices checked" : result.confidence.level === "medium" ? "Not all checked" : "Rough guess, yours to change"}</strong><span>{result.budget.basis === "selected-drink-price-unavailable" ? "We don't have recorded prices for the drink you picked. Check each stop before relying on the budget." : result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
+            <div><strong>{planningConfidenceLabel(result.confidence.level)}</strong><span>{result.budget.basis === "selected-drink-price-unavailable" ? "We don't have recorded prices for the drink you picked. Check each stop before relying on the budget." : result.budget.estimatedPerPersonPence === null ? "Some prices are missing. Check each stop before relying on the budget." : `Estimated £${(result.budget.estimatedPerPersonPence / 100).toFixed(2)} each for one recorded pint per stop.`}</span>{result.confidence.warnings.length ? <ul aria-label="Route warnings">{result.confidence.warnings.map((warning) => <li key={warning}><small>{warning}</small></li>)}</ul> : null}</div>
           </div>
           <p className="mobilePlannerRouteTotal">{result.routeTotalLabel}</p>
           <p className="mobilePlannerNextStep">Route preview stays on this device. <Link className="[color:inherit] underline underline-offset-2" href={MAP_ROUTE_PLAN_HREF} onClick={() => carryRouteToPlan(result.mapRoute)}>Lock it in on Plan</Link> when you want a shareable crew link.</p>
