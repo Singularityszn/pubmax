@@ -513,7 +513,8 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
-import FairPintFlow from "@/components/map/fairpint/FairPintFlow";
+import { FairPintMapBridge } from "@/components/map/fairpint/FairPintHost";
+import { supportsFairPint } from "@/lib/fairPint";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
@@ -5973,9 +5974,7 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {showMapArrivalCard ? cityId === "london" ? (
-        <FairPintFlow mobile={mobileViewport} cityId={cityId} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} />
-      ) : <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
+      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}

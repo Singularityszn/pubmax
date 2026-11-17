@@ -1,5 +1,8 @@
 "use client";
 
+import FairPintPrelude from "@/components/map/fairpint/FairPintPrelude";
+import { supportsFairPint } from "@/lib/fairPint";
+import { FairPintHost } from "@/components/map/fairpint/FairPintHost";
 import dynamic from "next/dynamic";
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -140,13 +143,14 @@ export default function PubMaxingShell({
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
       <MapPricesReadContext.Provider value={pricesReadLine}>
         <h1 className="sr-only">{mapDisplayName} pub map</h1>
-        <PubMap
+        {supportsFairPint(cityId) ? <FairPintPrelude cityId={cityId} /> : null}
+        <FairPintHost cityId={cityId}><PubMap
           key={cityId}
           cityId={cityId}
           placeArrival={placeArrival}
           nationalBrowse={ukNationalBrowse}
           zonePintIndex={zonePintIndex}
-        />
+        /></FairPintHost>
         {/* A city with no listed prices says so (lib/cityPubsOnlyNote.ts). It
             mounts here, outside the edit-locked PubMap, and portals into the
             map stage so the banner staging rules reach it. A UK place arrival
