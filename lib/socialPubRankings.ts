@@ -126,6 +126,18 @@ export function socialPubComparisonNeighbours(session: SocialPubComparison): { a
   };
 }
 
-export function socialPubRankingPayload(_body: unknown): SocialPubRankingEntry[] | null {
-  return null;
+/** Invalid data is unavailable, never an authoritative empty list. */
+export function socialPubRankingPayload(body: unknown): SocialPubRankingEntry[] | null {
+  if (!body || typeof body !== "object" || Array.isArray(body)) return null;
+  const entries = (body as { entries?: unknown }).entries;
+  if (!Array.isArray(entries)) return null;
+  const valid = entries.every((entry: unknown) => {
+    if (!entry || typeof entry !== "object" || Array.isArray(entry)) return false;
+    const row = entry as Record<string, unknown>;
+    return typeof row.venueId === "string" && row.venueId.trim() !== "" &&
+      (row.venueName === null || typeof row.venueName === "string") &&
+      isSocialPubBand(row.band) && typeof row.place === "number" && Number.isInteger(row.place) && row.place > 0 &&
+      typeof row.score === "number" && Number.isFinite(row.score) && row.score >= 0 && row.score <= 10;
+  });
+  return valid ? entries as SocialPubRankingEntry[] : null;
 }
