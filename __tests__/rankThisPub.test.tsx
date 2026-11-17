@@ -186,6 +186,36 @@ describe("RankThisPub", () => {
     expect(notice()).toBe("Adult verification is needed for Social.");
   });
 
+  it.each([401, 403, 503])("retires the last confirmed position after an access refusal (%s)", async (status) => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    net.read.mockResolvedValueOnce(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Access is not available." }, status));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    net.read.mockReturnValueOnce(new Promise<Response>(() => {}));
+    await clickRank();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    expect(rankButton()?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it("keeps a confirmed save when its follow-up read is temporarily unavailable", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    net.pending = Promise.resolve();
+    net.read.mockResolvedValueOnce(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, 503));
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!.click());
+    await flush();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(notice()).toBe("Your ranking is unavailable right now.");
+  });
+
   it("does not open a false empty ranking from a malformed answer", async () => {
     await render();
     net.read.mockResolvedValueOnce(json({}));
