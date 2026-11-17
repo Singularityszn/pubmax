@@ -209,6 +209,25 @@ describe("mounted camera focus ownership", () => {
     }
   });
 
+  it("centres a landmark with a valid zero offset when its panel is closed", async () => {
+    const picked = focus("landmark", 10, LONDON);
+    const applied = { current: null as string | null };
+    const movement = Promise.withResolvers<void>();
+    cinematic.mockImplementationOnce(movement.resolve);
+    function LandmarkCamera() {
+      useMapFocusPoint(true, picked, applied, cinematic);
+      return null;
+    }
+    await act(async () => {
+      root.render(createElement(LandmarkCamera));
+    });
+    await movement.promise;
+    expect(cinematic).toHaveBeenCalledWith(
+      { center: LONDON, zoom: 14, duration: 900, offset: [0, 0] },
+      "landmark", "user", picked.token,
+    );
+  });
+
   it("waits for readiness and applies each owner's first move once", () => {
     render({ resolved: true, ready: false });
     expect(cinematic).not.toHaveBeenCalled();
