@@ -93,11 +93,15 @@ and visibility events cannot confirm restoration. Unmount and ownership loss
 remain terminal.
 
 The inbox and navigation badge share account-scoped reads and a private inbox
-subscription. Arrival and read signals invalidate the shared result. Visible
-tabs poll every 15 seconds when Realtime is unavailable and every 60 seconds
-when it is live. Hidden tabs stop polling, cancel pending badge reads and
-refresh when shown again. A completed message read replaces a pending badge
-read. Aborted reads and replies from a previous account cannot update the badge.
+subscription. Each shared read has a three-second limit through response-body
+completion. A timeout rejects its waiting readers and removes the pending entry,
+so the next refresh can retry. Successful results remain shared for
+250 milliseconds to cover readers rendering together. Arrival and read signals
+invalidate the shared result. Visible tabs poll every 15 seconds when Realtime
+is unavailable and every 60 seconds when it is live. Hidden tabs stop polling,
+cancel pending badge reads and refresh when shown again. A completed message
+read replaces a pending badge read. Aborted reads and replies from a previous
+account cannot update the badge.
 
 Transport payloads contain generic text and routing IDs. A preview-enabled
 worker asks an open client for its current authorisation, then resolves the

@@ -463,6 +463,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The preview checkbox optionally shows the sender and a short preview while PubMaxxing remains open in the background. Closed-app alerts show no message text. An already displayed preview can remain after you unsend its message. Open **Chat notifications** in a thread header to mute or unmute that chat. Muted chats stay quiet. The [message push runbook](docs/WEB_PUSH.md#message-alerts) explains delivery limits and account switching.
 
+  With message alerts enabled, a new incoming message can show an in-app notice linking to its chat. The notice shows the conversation name, with no message text. It excludes the chat you are viewing and respects chat mutes, sender mutes and blocks. Choose **Dismiss message notification** to close it.
+
   In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
 
   Open **Chat options** in the thread header. Choose **Delete chat**. Confirm to remove the chat and its existing history from your view. Other participants keep their messages. A later message restores the chat in your inbox with only the messages sent after deletion. Deleting a group chat keeps your membership. Choose **Back to inbox** to see later messages after deletion.
