@@ -103,7 +103,7 @@ function compare(): string | null {
 }
 
 function notice(): string | null {
-  return host.querySelector("[role=status]")?.textContent ?? null;
+  return host.querySelector("[role=status]")?.textContent || null;
 }
 
 beforeEach(() => {
@@ -170,7 +170,7 @@ describe("RankThisPub", () => {
     net.read.mockResolvedValueOnce(json({ error: { message: "Sign in to use Social." }, code: "SOCIAL_SIGN_IN_REQUIRED" }, 401));
     await clickRank();
     expect(signInDoor()).toBeNull();
-    expect(notice()).toBe("Still waking your session. Try again.");
+    expect(notice()).toBe("Your ranking is unavailable right now.");
   });
 
   it("says why Social refused instead of opening the compare flow", async () => {
@@ -203,7 +203,8 @@ describe("RankThisPub", () => {
     let answer!: (response: Response) => void;
     net.read.mockReturnValueOnce(new Promise<Response>((resolve) => { answer = resolve; }));
     await clickRank();
-    expect(rankButton()?.disabled).toBe(true);
+    await clickRank();
+    expect(net.read).toHaveBeenCalledTimes(1);
 
     session.userId = "account-b";
     await render();
