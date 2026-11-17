@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
-import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
+import { invalidateMessagesInbox, invalidateMessagesInboxOnFocus, markMessagesInboxVisible, readMessagesInbox } from "@/lib/messagesInboxClient";
 import type { ConversationDTO } from "@/lib/messages";
 import { announceInboxArrival, subscribeToInbox } from "@/lib/messagesRealtime";
 import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
@@ -122,11 +122,15 @@ export default function MessagesLink(): React.JSX.Element | null {
     let mounted = true;
     void Promise.resolve().then(() => { if (mounted) void refresh(); });
     const stop = subscribeToInbox(effectiveHandle, () => void refresh(true), { poll: () => void refresh() });
-    const onVisibility = () => {
+    const onVisibility = (event: Event) => {
       if (document.visibilityState === "hidden") abortRef.current?.abort();
-      else { invalidateMessagesInbox(effectiveHandle, false); void refresh(); }
+      else {
+        invalidateMessagesInbox(effectiveHandle, false);
+        void refresh();
+        markMessagesInboxVisible(effectiveHandle, event.timeStamp);
+      }
     };
-    const onFocus = () => { invalidateMessagesInbox(effectiveHandle, false); void refresh(); };
+    const onFocus = () => { invalidateMessagesInboxOnFocus(effectiveHandle); void refresh(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onFocus);
     const onPush = (event: MessageEvent) => {
@@ -188,7 +192,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       ) : null}
       <NavPendingIndicator />
     </Link>
-    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} inbox={pathname === "/messages"} onDismiss={dismissArrival} /> : null}
+    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} inbox={pathname === "/messages"} currentPath={pathname} onDismiss={dismissArrival} /> : null}
     </>
   );
 }

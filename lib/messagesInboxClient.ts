@@ -7,7 +7,7 @@ import { discardBody } from "@/lib/responseBody";
 export type MessagesInboxRead = { status: number; conversations: ConversationDTO[]; degraded: boolean };
 type Entry = {
   key: string; handle: string; promise: Promise<MessagesInboxRead>; controller: AbortController;
-  waiting: number; settled: boolean; dispose: () => void;
+  startedAt: number; visibleFresh: boolean; waiting: number; settled: boolean; dispose: () => void;
 };
 let current: Entry | null = null;
 
@@ -17,6 +17,15 @@ export function invalidateMessagesInbox(handle?: string, supersede = true): void
   const previous = current;
   current = null;
   previous.dispose();
+}
+
+export function markMessagesInboxVisible(handle: string, since: number): void {
+  if (current?.handle === handle && current.startedAt >= since) current.visibleFresh = true;
+}
+
+export function invalidateMessagesInboxOnFocus(handle?: string): void {
+  if (current?.visibleFresh && (!handle || current.handle === handle)) return;
+  invalidateMessagesInbox(handle, false);
 }
 
 function join(entry: Entry, signal?: AbortSignal): Promise<MessagesInboxRead> {
@@ -53,7 +62,7 @@ export function readMessagesInbox(userId: string, handle: string, signal?: Abort
   invalidateMessagesInbox();
   const controller = new AbortController();
   const entry: Entry = {
-    key, handle, controller, waiting: 0, settled: false, dispose: () => {},
+    key, handle, controller, startedAt: performance.now(), visibleFresh: false, waiting: 0, settled: false, dispose: () => {},
     promise: Promise.resolve({ status: 0, conversations: [], degraded: false }),
   };
   let expiry: ReturnType<typeof setTimeout> | undefined;

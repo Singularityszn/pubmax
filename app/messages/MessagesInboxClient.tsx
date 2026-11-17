@@ -20,7 +20,7 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import { IconButton } from "@/components/ui/icon-button";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
-import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
+import { invalidateMessagesInbox, invalidateMessagesInboxOnFocus, readMessagesInbox } from "@/lib/messagesInboxClient";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import {
   conversationRowHandle,
@@ -285,7 +285,7 @@ export default function MessagesInboxClient({
     if (paneHidden) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => refresh(controller.signal));
-    const onFocus = () => { invalidateMessagesInbox(undefined, false); void refresh(); };
+    const onFocus = () => { invalidateMessagesInboxOnFocus(); void refresh(); };
     window.addEventListener("focus", onFocus);
     return () => {
       controller.abort();

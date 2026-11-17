@@ -17,7 +17,7 @@ type Settings = { enabled: boolean; preview: boolean; muted: boolean; registered
 type Props = { conversationId?: string; compact?: boolean };
 
 async function readSettings(conversationId: string | undefined, signal: AbortSignal): Promise<Settings> {
-  const token = await currentMessagePushToken().catch(() => null);
+  const token = conversationId ? null : await currentMessagePushToken().catch(() => null);
   const fingerprint = token ? await messagePushFingerprint(token).catch(() => null) : null;
   const response = await authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}&settingsOnly=1` : ""}`, {
     signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
@@ -92,16 +92,20 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
       if (!controller.signal.aborted && typeof error === "object" && error !== null && "name" in error && error.name === "TimeoutError") {
         const confirmation = new AbortController();
         controllerRef.current = confirmation;
+        let confirmationError = "Could not confirm your change. Check the setting and try again.";
         const deadline = setTimeout(() => confirmation.abort(new DOMException("The read timed out.", "TimeoutError")), 3_000);
         try {
           const confirmed = await readSettings(conversationId, confirmation.signal);
-          if (!confirmation.signal.aborted) setSettings(confirmed);
+          if (!confirmation.signal.aborted) {
+            setSettings(confirmed);
+            if (confirmed[kind] === next[kind]) confirmationError = "";
+          }
         } catch {
           if (!confirmation.signal.aborted || confirmation.signal.reason?.name === "TimeoutError") setSettings(null);
         } finally {
           clearTimeout(deadline);
           if (!confirmation.signal.aborted || confirmation.signal.reason?.name === "TimeoutError") {
-            setError("Could not confirm your change. Check the setting and try again.");
+            setError(confirmationError);
             setSaving(null);
           }
         }
@@ -118,7 +122,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
   const onThisDevice = settings?.enabled && settings.registered;
   return (
     <div ref={rootRef} className={`messageAlerts${compact ? " messageAlerts--compact" : ""}`}>
-      <IconButton variant="ghost" ref={toggleRef} className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? `Chat notifications${settings?.muted ? ", muted" : ""}` : "Message notifications"} aria-description={settings?.muted ? "This chat is muted." : undefined} aria-controls={panelId} aria-expanded={open} aria-busy={pending} aria-disabled={pending && !open} onClick={() => { if (!pending || open) setOpen(!open); }}>
+      <IconButton variant="ghost" size={conversationId || compact ? "icon" : "default"} ref={toggleRef} className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? `Chat notifications${settings?.muted ? ", muted" : ""}` : "Message notifications"} aria-controls={panelId} aria-expanded={open} aria-busy={pending} aria-disabled={pending && !open} onClick={() => { if (!pending || open) setOpen(!open); }}>
         {settings?.muted ? <BellOff size={20} aria-hidden="true" /> : <Bell size={20} aria-hidden="true" />}
         {!conversationId && !compact ? "Message notifications" : null}
       </IconButton>

@@ -11,11 +11,11 @@ import { socialInteractionStore } from "@/lib/socialInteractionStore";
 
 export async function messageNotificationSenderAllowed(sender: ProfileRecord, recipient: ProfileRecord): Promise<boolean> {
   if (!sender.userId || !recipient.userId || sender.userId === recipient.userId || isProfileTombstoned(sender) || isProfileTombstoned(recipient)) return false;
-  if (await messageBlockRefusal([sender.handle, recipient.handle])) return false;
-  const relationship = await socialInteractionStore().relationship({
-    accountId: recipient.userId, profileId: recipient.id, handle: recipient.handle,
-  }, sender.id);
-  return !relationship.blocked && !relationship.muted;
+  const [refusal, relationship] = await Promise.all([
+    messageBlockRefusal([sender.handle, recipient.handle]),
+    socialInteractionStore().relationship({ accountId: recipient.userId, profileId: recipient.id, handle: recipient.handle }, sender.id),
+  ]);
+  return !refusal && !relationship.blocked && !relationship.muted;
 }
 
 export async function notifyMessageRecipients(message: MessageDTO): Promise<void> {

@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import "./messageArrivalNotice.css";
 
-export default function MessageArrivalNotice({ conversation, onDismiss, inbox = false }: { conversation: ConversationDTO; onDismiss: () => void; inbox?: boolean }): React.JSX.Element | null {
+export default function MessageArrivalNotice({ conversation, onDismiss, inbox = false, currentPath = "" }: { conversation: ConversationDTO; onDismiss: () => void; inbox?: boolean; currentPath?: string }): React.JSX.Element | null {
+  const noticeRef = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
@@ -34,10 +35,28 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
     const timeout = setTimeout(onDismiss, 6_000);
     return () => clearTimeout(timeout);
   }, [allowed, interacting, onDismiss]);
+  useLayoutEffect(() => {
+    if (!host || !allowed || inbox) return;
+    const notice = noticeRef.current;
+    const header = document.querySelector<HTMLElement>(".threadHeader");
+    if (!notice || !header) return;
+    const measure = () => {
+      const bounds = header.getBoundingClientRect();
+      notice.style.setProperty("--message-thread-notice-top", `${bounds.height > 0 ? Math.max(0, bounds.bottom + 12) : 0}px`);
+    };
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(header);
+    window.addEventListener("resize", measure);
+    return () => { observer.disconnect(); window.removeEventListener("resize", measure); };
+  }, [host, allowed, inbox, currentPath]);
+  const destination = conversation.kind === "group"
+    ? conversation.title || "your group"
+    : conversation.otherDisplayName || `@${conversation.otherHandle}`;
   if (!host) return null;
-  return createPortal(<div className={allowed ? `messageArrival${inbox ? " messageArrival--inbox" : ""}` : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
+  return createPortal(<div ref={noticeRef} className={allowed ? `messageArrival${inbox ? " messageArrival--inbox" : ""}` : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
     {allowed ? <>
-    <Link href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>Open your conversation</span></Link>
+    <Link href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>{destination}</span></Link>
     <button type="button" aria-label="Dismiss message notification" onClick={onDismiss}><X size={18} aria-hidden="true" /></button>
     </> : null}
   </div>, host);
