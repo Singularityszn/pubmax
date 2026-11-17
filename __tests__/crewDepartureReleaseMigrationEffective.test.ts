@@ -9,6 +9,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { postgresSkipReason } from "./helpers/postgres";
 import {
   type Person,
+  DIGEST,
   NOT_FOUND,
   REFUSED_BY_LOCKS,
   admit,
@@ -20,14 +21,18 @@ import {
   decide,
   decideCall,
   deleteAccount,
+  hold,
   holdRpc,
   invite,
   json,
+  key,
+  memberId,
   mutual,
   outcome,
   person,
   releaseCall,
   request,
+  requestCall,
   revision,
   rollbackOutcome,
   rpc,
@@ -128,7 +133,7 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     expect(db().sql(`select count(*) from public.social_crew_join_requests where crew_id='${crew}' and requester_account_id='${bea.account}'`)).toBe("0");
   });
 
-  it("a sweep waits for an admission in the same crew, and both finish with one place each", async () => {
+  it("a sweep skips a busy crew without waiting, and later cleanup keeps one place each", async () => {
     const host = person(), ana = person(), cal = person(), xav = person(), bea = person();
     const crew = crewWith(host, [ana, cal]);
     withCapacity(crew, 4);
@@ -137,16 +142,60 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     db().sql(deleteAccount(xav));
     const approval = await holdRpc(decideCall(host, crew, asked.request_id as string));
     expect(approval.result).toMatchObject({ ok: true, code: "accepted" });
-    let sweeping: Promise<{ ok: boolean; said: string }> | null = null;
     try {
-      sweeping = outcome("sweep_after_approval", rpc(releaseCall()));
-      await expect.poll(() => waitsOnAnyLock("sweep_after_approval")).toBe("t");
+      const swept = await outcome("sweep_after_approval", `set lock_timeout='250ms'; ${rpc(releaseCall())}`);
+      expect(swept.ok, swept.said).toBe(true);
+      expect(swept.said).not.toMatch(REFUSED_BY_LOCKS);
     } finally { await approval.finish(); }
-    const swept = await sweeping;
-    expect(swept?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
-    expect(swept?.ok).toBe(true);
+    releaseAll();
     expect([state(crew, xav), state(crew, bea)]).toEqual(["left", "active"]);
     expect(activeCount(crew)).toBe("4");
+  });
+
+  it("a batch sweep does not deadlock with creator deletion and admission in another crew", async () => {
+    releaseAll();
+    const creator = person(), departedOwner = person(), otherHost = person(), applicant = person();
+    mutual(creator, departedOwner);
+    mutual(creator, otherHost);
+    const crews = [crewWith(creator, [departedOwner, otherHost]), crewWith(creator, [departedOwner, otherHost])].sort();
+    const [first, second] = crews as [string, string];
+    for (const [crew, owner] of [[first, departedOwner], [second, otherHost]] as const) {
+      expect(call(`transfer_social_crew_owner_atomic('${creator.account}','${crew}',
+        '${memberId(crew, owner)}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "transferred" });
+    }
+    const plan = db().sql(`select plan_id from public.social_crews where id='${first}'`);
+    expect(db().sql(`select owner_user_id from public.plans where id='${plan}'`)).toBe(creator.user);
+    db().sql(deleteAccount(departedOwner));
+    db().sql(`create function public.departure_test_barrier() returns trigger language plpgsql as $$
+      begin
+        if new.id='${plan}' and new.status='abandoned' then perform pg_advisory_xact_lock(246731); end if;
+        return new;
+      end; $$;
+      create trigger departure_test_barrier before update on public.plans
+        for each row execute function public.departure_test_barrier();`);
+    const barrier = await hold("select pg_advisory_xact_lock(246731)", "postgres");
+    const jobs: Array<Promise<{ ok: boolean; said: string }>> = [];
+    let results: Array<{ ok: boolean; said: string }> = [];
+    try {
+      jobs.push(outcome("batch_departure_sweep", rpc(releaseCall(100))));
+      await expect.poll(() => waitsOnAnyLock("batch_departure_sweep")).toBe("t");
+      jobs.push(outcome("batch_creator_delete", deleteAccount(creator), "postgres"));
+      await expect.poll(() => waitsOnAnyLock("batch_creator_delete")).toBe("t");
+      jobs.push(outcome("batch_other_admission", rpc(requestCall(applicant, second))));
+      await expect.poll(() => waitsOnAnyLock("batch_other_admission")).toBe("t");
+    } finally {
+      await barrier.finish();
+      results = await Promise.all(jobs);
+      db().sql("drop trigger departure_test_barrier on public.plans; drop function public.departure_test_barrier()");
+    }
+    for (const result of results) {
+      expect(result.ok, result.said).toBe(true);
+      expect(result.said).not.toMatch(REFUSED_BY_LOCKS);
+    }
+    expect(planStatus(first)).toBe("abandoned");
+    expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
+    releaseAll();
+    expect(state(second, creator)).toBe("left");
   });
 
   it("only the service role can run the sweep, and no role can call the per-crew step", () => {
