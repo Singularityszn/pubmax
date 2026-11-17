@@ -88,6 +88,10 @@ test("real generated prices keep their source links and dates after reload", asy
 });
 
 test("reorder and repeated swaps retain real generated quotes after reload", async ({ page }) => {
+  await page.route("**/api/price-submit?scope=public-price-presence**", (route) => {
+    const ids = new URL(route.request().url()).searchParams.getAll("venueId");
+    return route.fulfill({ json: { presence: Object.fromEntries(ids.map((id) => [id, "unknown"])) } });
+  });
   await page.goto("/plan");
   const response = await sortDescribeFirst(page, "Quiet in Clapham for 4");
   const body = await response.json();
