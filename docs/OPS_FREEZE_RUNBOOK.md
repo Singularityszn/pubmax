@@ -58,7 +58,9 @@ sit outside the guard on purpose:
 - **Block, unblock, mute and unmute** (`PUT` / `DELETE /api/social/interactions`).
   People keep control of their own private choices. These changes publish no
   content and send no notification. Authentication, target checks and the
-  ordinary rate limit still apply.
+  ordinary rate limit still apply. The JSON body must contain only `action`
+  and either `targetHandle` or `targetProfileId`, within the 64 KiB body limit.
+  Extra keys stay frozen.
 - **Social reporting and moderation** (`report`, `moderate` and
   `report_resolution` on `POST /api/social/interactions`).
 - **Reporting** a pint drop (`action: "report"` on `POST /api/pint-drops`).
