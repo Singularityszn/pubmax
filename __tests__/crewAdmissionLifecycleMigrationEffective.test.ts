@@ -291,7 +291,27 @@ describe.skipIf(skipReason !== null)("after 0243: Crew write receipts end with t
     expect(receipts(xav)).toBe("0");
   });
 
-  it("a Crew write that meets the person's deletion in flight is undone whole and leaves no receipt", async () => {
+  it("a leave that starts while the person's deletion waits after writing the account row is undone whole", async () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const profileRow = await hold(`select id from public.profiles where id='${xav.profile}' for update`, "postgres");
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    let leaving: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("delete_waiting_on_profile", deleteAccount(xav), "postgres");
+      await expect.poll(() => waitsOnAnyLock("delete_waiting_on_profile")).toBe("t");
+      leaving = outcome("leave_during_delete", rpc(leaveCall(crew, xav)));
+      await expect.poll(() => waitsOnAnyLock("leave_during_delete")).toBe("t");
+    } finally { await profileRow.finish(); }
+    const [deleted, left] = await Promise.all([deletion, leaving]);
+    for (const answer of [deleted, left]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(deleted?.ok).toBe(true);
+    expect(left?.said).toContain("the account was deleted");
+    expect(state(crew, xav)).toBe("active");
+    expect(receipts(xav)).toBe("0");
+  });
+
+  it("a Crew write that meets the person's deletion in flight is undone whole, a refusal stays neutral, and neither leaves a receipt", async () => {
     const host = person(), ana = person(), xav = person(), yan = person();
     const crew = crewWith(host, [ana, xav]);
     const other = crewWith(host);
@@ -309,8 +329,12 @@ describe.skipIf(skipReason !== null)("after 0243: Crew write receipts end with t
       } finally { await deletion.finish(); }
       const answer = await writing;
       expect(answer?.said ?? "", label).not.toMatch(REFUSED_BY_LOCKS);
-      expect(answer?.ok, label).toBe(false);
-      expect(answer?.said, label).toContain("the account was deleted");
+      if (label === "leave") {
+        expect(answer?.ok, label).toBe(false);
+        expect(answer?.said, label).toContain("the account was deleted");
+      } else {
+        expect(json(answer?.said.trim() ?? "{}"), label).toEqual(NOT_FOUND);
+      }
       expect(receipts(who), label).toBe("0");
     }
     expect(state(crew, xav)).toBe("active");

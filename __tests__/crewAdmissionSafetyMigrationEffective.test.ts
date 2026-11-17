@@ -328,7 +328,8 @@ describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpe
 
   it("no browser role and not the service role can call an internal lock, rule or trigger helper", () => {
     const helpers = ["_lock_social_participant_accounts(uuid[])", "_social_crew_admission_refused(uuid,uuid)",
-      "_social_crew_admission_ineligible(uuid,uuid)", "_lock_social_block_participants()", "_lock_social_auth_user_accounts()"];
+      "_social_crew_admission_ineligible(uuid,uuid)", "_lock_social_block_participants()", "_lock_social_auth_user_accounts()",
+      "_purge_social_crew_receipts_on_unbind()"];
     for (const role of ["anon", "authenticated", "service_role"]) {
       for (const helper of helpers) {
         expect(db().sql(`select has_function_privilege('${role}','public.${helper}','execute')`), `${role} ${helper}`).toBe("f");
@@ -532,7 +533,8 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
       and to_regprocedure('public._social_crew_admission_ineligible(uuid,uuid)') is null
       and to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)') is null
       and to_regclass('public.social_crew_removal_corrections') is null
-      and not exists(select 1 from pg_trigger where tgname='social_blocks_lock_participant_accounts')`)).toBe("t");
+      and to_regprocedure('public._purge_social_crew_receipts_on_unbind()') is null
+      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','social_account_unbind_purges_crew_receipts'))`)).toBe("t");
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana]);
     block(xav, ana);

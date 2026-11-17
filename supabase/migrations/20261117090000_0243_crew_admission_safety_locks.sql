@@ -1,80 +1,73 @@
--- 0243: crew admission and invitation refuse blocked and removed people, under
--- the auth row and participant-account locks that blocks, suspension, provisioning
--- and account deletion share.
+-- 0243: crew admission and invitation refuse blocked and removed people, under the
+-- auth row and participant-account locks that blocks, suspension, provisioning and
+-- account deletion share. Covered functions only; no whole-database claim.
 --
--- 1. _lock_social_participant_accounts takes one transaction advisory lock per
---    participant account, in account-ID order. A later pair lock comes after these.
+-- 1. _lock_social_participant_accounts takes one advisory lock per participant account,
+--    in account-ID order. A later pair lock comes after these.
 -- 2. _social_crew_admission_ineligible is the one read-only rule: the person is not
---    active, this crew removed them, or a block in either direction joins them to an
---    accepted member who still has an account. A member whose account deletion
---    finished (suspended, unbound, profile tombstoned) keeps their row and counted
---    place, but their kept blocks bar nobody. A suspended member with an account
---    still bars. _social_crew_admission_refused locks, then asks the rule in a new
---    statement. A crew holds at most 20 accepted members (capacity 4 to 20, default
---    20), so one admission takes at most 21 account locks.
--- 3. A join request, a join decision, an invitation and an invitation acceptance
---    answer not_found, the answer an unknown crew gets, when the rule refuses. The
---    rule runs before already_pending, so a second request or invitation on a new
---    key cannot tell a refused person that something is pending. A replayed key
---    returns its stored answer first. After the locks, a decision and an invitation
---    recheck that the actor is an active owner or cohost, and an acceptance rechecks
---    that the invitee is still Mutual with the owner and that the inviter is active.
---    The host queue hides a request the rule refuses and takes no lock. A requester
---    cancels their own pending request with no relationship check. Declining an
---    invitation takes no admission check.
--- 4. Lock order, for these functions only:
---    - request_social_crew_join_atomic, decide_social_crew_join_request_atomic,
---      invite_social_crew_member_atomic and accept_social_crew_invitation_atomic lock
---      the crew row, then the row they act on (the join request or the invitation),
---      then the person's auth row with KEY SHARE, then the account locks, then the
---      plan join lock and the seat rows. Every crew, request or invitation row they
---      touch after the account locks belongs to the crew whose row they hold.
---    - correct_social_crew_removal_admin locks the crew row, the member row, the
---      subject's auth row with KEY SHARE, then the subject's account lock, then writes
---      the ledger. It takes no seat.
---    - auth.users DELETE holds the auth row before any trigger runs. Its first BEFORE
---      DELETE trigger, lock_social_accounts_on_auth_user_delete, takes the account
---      lock before 0198's tombstone writes the account and profile rows. Its foreign
---      key cascade then deletes the subject's correction rows. The deletion touches no
---      crew, request or invitation row.
---    - set_social_account_suspension_admin takes its supabase user lock, the auth row
---      with KEY SHARE, the account lock, then the profile and account rows.
---    - provision_social_product_account takes its supabase user lock and the auth row
---      with KEY SHARE, then the profile and account rows. It takes no account lock: it
---      never changes ownership_state, and it waits for any deletion of that auth row.
+--    active, this crew removed them, or a block either way joins them to an accepted
+--    member who still has an account. A member whose deletion finished keeps their row
+--    and counted place, but their kept blocks bar nobody; a suspended member with an
+--    account still bars. _social_crew_admission_refused locks, then asks the rule in a
+--    new statement. Capacity is at most 20, so an admission takes at most 21 locks.
+-- 3. Request, decision, invitation and acceptance answer not_found, as for an unknown
+--    crew, when the rule refuses. The rule runs before already_pending; a replayed key
+--    returns its stored answer first. After the locks a decision and an invitation
+--    recheck the actor's owner or cohost role, and an acceptance rechecks Mutual with
+--    the owner and the inviter's active owner or cohost place. The host queue hides
+--    refused requests and takes no lock. A requester cancels their own request, and an
+--    invitee declines, with no admission check.
+-- 4. Lock order:
+--    - The four admission functions: crew row, the request or invitation row, the
+--      person's auth row (KEY SHARE), account locks, plan join lock, seat rows. Crew,
+--      request and invitation rows touched later belong to the crew they hold.
+--    - correct_social_crew_removal_admin: crew row, member row, subject's auth row
+--      (KEY SHARE), subject's account lock, ledger. No seat.
+--    - auth.users DELETE holds the auth row before any trigger. Its first BEFORE DELETE
+--      trigger, lock_social_accounts_on_auth_user_delete, takes the account lock, then
+--      the person's own Plan and seat rows, before 0198's tombstone writes the account
+--      and profile rows. It touches no crew, request or invitation row.
+--    - set_social_account_suspension_admin: supabase user lock, auth row (KEY SHARE),
+--      account lock, profile and account rows.
+--    - provision_social_product_account: supabase user lock, auth row (KEY SHARE),
+--      profile and account rows. No account lock: it never changes ownership_state.
 --    - A block insert, or an update that moves a block, takes the account locks of
 --      every person it names through social_blocks_lock_participant_accounts.
---    So a deletion in flight makes the others wait and then refuse, and a deletion that
---    starts later waits for them and then completes. migrate_social_product_account
---    (0071) and every other writer of these rows are outside this order and unproven.
+--    - _social_crew_finish_write, the last step of every Crew write, locks the actor's
+--      account row (KEY SHARE) before its receipt.
+--    A deletion in flight makes the others wait and then refuse; one that starts later
+--    waits and then completes. migrate_social_product_account (0071) and other writers
+--    of these rows are outside this order and unproven.
 -- 5. A row lock on auth.users needs UPDATE on it, which the first statement checks.
 --    The internal helpers are revoked from every role, the service role included.
 -- 6. A block between two accepted members changes no membership and pauses nothing.
--- 7. Removal bars that one crew. It is not a suspension. Only an active moderator,
---    who is not the removed person, lifts that bar through the service-only
---    correct_social_crew_removal_admin, with a reason. It turns 'removed' into 'left',
---    moves the crew's authority revision and writes one row to the append-only
---    social_crew_removal_corrections. No seat is taken.
---    Each ledger row names its subject's auth user. The subject_user_id foreign key
---    deletes the row in the same transaction as that account deletion, and the crew_id
---    foreign key deletes it with its crew. A subject with no bound auth user, or one
---    whose deletion commits while the correction waits, gets 'gone' and no change.
---    Only the service role can read or add rows. The subject's own-record export is
---    implemented outside this migration. Departed members' counted seats, write-receipt
---    erasure and 0071's lock order are release holds owned outside this migration.
--- 8. A crew-bound Plan can be deleted, with its crew and crew history. The seat
---    reference from member rows is checked at commit. Nothing in the app deletes a
---    Plan. The operator deletes one in one transaction that locks the crew row, then
---    the Plan row, then deletes the Plan (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md).
---    An admission locks the crew row before the Plan row, so this order matches it.
+-- 7. Removal bars that one crew; it is not a suspension. Only an active moderator who
+--    is not the removed person lifts it through the service-only
+--    correct_social_crew_removal_admin, with a reason: 'removed' becomes 'left', the
+--    authority revision moves, and one row goes to the append-only
+--    social_crew_removal_corrections. No seat is taken. A row is deleted with its
+--    subject's account (subject_user_id) and with its crew (crew_id). A subject with no
+--    bound auth user, or one deleted while the correction waits, gets 'gone'. Only the
+--    service role reads or adds rows. The own-record export is outside this migration.
+-- 8. Private Crew write receipts end with their account. When deletion unbinds an
+--    account, social_account_unbind_purges_crew_receipts deletes its receipts in the
+--    same transaction. A Crew write whose actor was deleted while it waited fails whole,
+--    with no receipt; a refusal keeps its neutral answer and stores no receipt. Applying 0243 also deletes receipts
+--    already left by deleted accounts (unbound, profile tombstoned). Suspended and
+--    unbound legacy accounts keep theirs. Deleted receipts cannot be restored.
+-- 9. A crew-bound Plan can be deleted, with its crew history. The seat reference from
+--    member rows is checked at commit. Nothing in the app deletes a Plan; the operator
+--    transaction locks the crew row, then the Plan row, then deletes the Plan
+--    (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md), the order admission uses.
+-- Holds outside this migration: departed members' counted seats and 0071's lock order.
 --
--- Rollback restores the 0110, 0114, 0075, 0092 and 0224 function bodies, drops the
--- social_blocks trigger, helpers, correction function and ledger, and restores the
--- RESTRICT seat reference. The migration role does not own auth.users and cannot drop
--- a trigger there, so the rollback leaves lock_social_accounts_on_auth_user_delete in
--- place and makes its function return at once. Reapplying checks and reuses it. It waits for auth.users while holding nothing, then takes every
--- other lock without waiting, and stops while the ledger holds rows, unless the session
--- names their exact exported count.
+-- Rollback restores the 0110, 0114, 0075, 0092 and 0224 bodies and the RESTRICT seat
+-- reference, and drops the social_blocks and account triggers, helpers, correction
+-- function and ledger. It cannot drop a trigger on auth.users, which the migration role
+-- does not own: it leaves lock_social_accounts_on_auth_user_delete with a function that
+-- returns at once, and reapplying checks and reuses that trigger. It waits for
+-- auth.users holding nothing, takes every other lock without waiting, and stops while
+-- the ledger holds rows unless the session names their exact exported count.
 begin;
 
 -- A row lock on auth.users needs UPDATE on it. Without that this migration stops here.
@@ -90,11 +83,8 @@ $$;
 -- foreign key on auth.users, so it takes auth.users first and no deletion interleaves.
 lock table auth.users in share row exclusive mode;
 
--- A crew-bound Plan delete cascades to seats and, separately, to its crew and member
--- rows. Under RESTRICT, or NO ACTION checked per statement, the seat cascade fails
--- while the member rows still exist. Checked at commit instead, the whole delete
--- completes, and a lone seat delete that would leave a member row behind still fails.
--- The two references into member rows stay RESTRICT.
+-- Item 9: checked at commit, a crew-bound Plan delete completes, and a lone seat delete
+-- that would leave a member row behind still fails. The other two stay RESTRICT.
 alter table public.social_crew_members
   drop constraint social_crew_members_plan_member_id_fkey,
   add constraint social_crew_members_plan_member_id_fkey
@@ -186,9 +176,57 @@ begin
     select account.id from public.private_social_accounts account
     where account.supabase_user_id=old.id
   ));
+  -- Before the tombstone writes the account row: a Crew write locks a seat row before
+  -- it locks the account row for its receipt.
+  perform 1 from public.plans where owner_user_id=old.id for update;
+  perform 1 from public.plan_crew_members where user_id=old.id for update;
   return old;
 end;
 $$;
+
+-- The last step of every Crew write. It waits for an account deletion in flight. If the
+-- actor was deleted meanwhile, a write fails whole and a refusal keeps its neutral
+-- answer; neither stores a receipt.
+create or replace function public._social_crew_finish_write(
+  p_actor uuid, p_operation text, p_key text, p_digest text, p_response jsonb
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  perform 1 from public.private_social_accounts where id=p_actor for key share;
+  if exists(select 1 from public.private_social_accounts account
+      join public.profiles profile on profile.id=account.profile_id
+      where account.id=p_actor and account.supabase_user_id is null and profile.tombstoned_at is not null) then
+    if p_response @> '{"ok":false}'::jsonb then return p_response; end if;
+    raise exception 'social crew write refused: the account was deleted' using errcode='55000';
+  end if;
+  insert into public.private_social_crew_write_receipts(
+    actor_account_id,operation,idempotency_key,payload_digest,response
+  ) values(p_actor,p_operation,p_key,p_digest,p_response);
+  return p_response;
+end;
+$$;
+
+-- Only account deletion unbinds an account. Its receipts go in the same transaction.
+create function public._purge_social_crew_receipts_on_unbind()
+returns trigger language plpgsql security definer set search_path=''
+as $$
+begin
+  delete from public.private_social_crew_write_receipts where actor_account_id=new.id;
+  return new;
+end;
+$$;
+
+create trigger social_account_unbind_purges_crew_receipts
+after update of supabase_user_id on public.private_social_accounts
+for each row when (old.supabase_user_id is not null and new.supabase_user_id is null)
+execute function public._purge_social_crew_receipts_on_unbind();
+
+-- Receipts already left by accounts deleted before 0243. Not restored by rollback.
+delete from public.private_social_crew_write_receipts receipt
+using public.private_social_accounts account, public.profiles profile
+where account.id=receipt.actor_account_id and profile.id=account.profile_id
+  and account.supabase_user_id is null and profile.tombstoned_at is not null;
 
 -- Create the trigger, or reuse the one a rollback left only when it is exactly this
 -- one: BEFORE DELETE, FOR EACH ROW, enabled, no condition, no arguments, this function.
@@ -376,10 +414,8 @@ begin
       return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
     if public._social_crew_admission_refused(p_crew_id,p_actor_account_id) then
       return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
-    -- A new statement, so it reads an owner or inviter suspension or deletion that
-    -- committed while the account locks waited. Removal, leaving and role changes
-    -- take the crew row, which this call holds, so the inviter's place and role here
-    -- are current.
+    -- A new statement, so it reads suspensions and deletions that committed while the
+    -- account locks waited. Removal, leaving and role changes need the crew row we hold.
     if public._social_crew_relationship_between_accounts(p_actor_account_id,v_owner) is distinct from 'mutual'
       or not exists(select 1 from public.social_crew_members inviter
         join public.private_social_accounts account on account.id=inviter.social_account_id
@@ -686,9 +722,7 @@ begin
 end;
 $$;
 
--- A moderator corrects a mistaken removal from one crew. The member becomes 'left',
--- so the person can ask again and every admission check still applies. No seat is
--- taken here. A repeat, or a member that is not removed, changes nothing.
+-- Item 7. A repeat, or a member that is not removed, changes nothing.
 create table public.social_crew_removal_corrections (
   id uuid primary key default gen_random_uuid(),
   -- The row goes with its crew, and with its subject's auth user, in the same
@@ -756,6 +790,7 @@ revoke all on function public._social_crew_admission_refused(uuid,uuid) from pub
 revoke all on function public._lock_social_block_participants() from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_admission_ineligible(uuid,uuid) from public, anon, authenticated, service_role;
 revoke all on function public._lock_social_auth_user_accounts() from public, anon, authenticated, service_role;
+revoke all on function public._purge_social_crew_receipts_on_unbind() from public, anon, authenticated, service_role;
 revoke all on function public.correct_social_crew_removal_admin(uuid,uuid,uuid,text) from public, anon, authenticated;
 grant execute on function public.correct_social_crew_removal_admin(uuid,uuid,uuid,text) to service_role;
 

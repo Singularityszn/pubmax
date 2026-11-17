@@ -76,7 +76,7 @@ The delete removes the Plan's seats, its crew, member rows, join requests, invit
 
 ## Rollback
 
-Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
+Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
 
 1. Export the rows and note how many there are.
 
@@ -93,5 +93,7 @@ Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, adm
 3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
 
 The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.
+
+Migration 0243 also deletes private Crew write receipts that belong to deleted accounts, both those left before it was applied and each one when an account is deleted later. The rollback cannot restore deleted receipts. After a rollback, account deletion leaves receipts behind again, which the published privacy text does not allow, so reapply 0243 or replace that protection before deletions resume.
 
 The migration role does not own `auth.users`, so it cannot drop a trigger there. The rollback leaves `lock_social_accounts_on_auth_user_delete` in place and makes its function return at once, so account deletion takes no account lock. Reapplying 0243 reuses that trigger only when it is exactly the 0243 trigger. When a different trigger has that name, the reapply stops, and the owner of `auth.users` must remove it.

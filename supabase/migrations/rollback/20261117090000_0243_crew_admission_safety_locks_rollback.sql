@@ -28,8 +28,8 @@ begin;
 -- auth.users; run it again. Sign-ins and Social writes wait while it runs.
 lock table auth.users in access exclusive mode;
 lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
-  public.social_crew_invitations, public.plan_crew_members, public.social_blocks
-  in access exclusive mode nowait;
+  public.social_crew_invitations, public.plan_crew_members, public.social_blocks,
+  public.private_social_accounts in access exclusive mode nowait;
 
 do $$
 declare v_rows bigint := 0;
@@ -494,6 +494,22 @@ begin
 end;
 $$;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
+-- Receipts deleted while 0243 was applied stay deleted. A rollback cannot restore them.
+drop trigger if exists social_account_unbind_purges_crew_receipts on public.private_social_accounts;
+drop function if exists public._purge_social_crew_receipts_on_unbind();
+create or replace function public._social_crew_finish_write(
+  p_actor uuid, p_operation text, p_key text, p_digest text, p_response jsonb
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  insert into public.private_social_crew_write_receipts(
+    actor_account_id,operation,idempotency_key,payload_digest,response
+  ) values(p_actor,p_operation,p_key,p_digest,p_response);
+  return p_response;
+end;
+$$;
+
 drop function if exists public._lock_social_block_participants();
 drop function if exists public._social_crew_admission_refused(uuid,uuid);
 drop function if exists public._social_crew_admission_ineligible(uuid,uuid);
