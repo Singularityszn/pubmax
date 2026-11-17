@@ -1,12 +1,6 @@
 /* Direct and group messaging use the scoped visual rule in
    docs/rules/components-venue-plan-and-message-surfaces.md.
 
-   On phones and tablets, the thread fits the visual viewport. The message
-   list scrolls between its header and composer. The shell clears the tab bar
-   until lib/softKeyboard.ts reports an open keyboard. On a desktop the split is a
-   fixed-height panel: the inbox and the thread each scroll on their own and
-   the composer never leaves the bottom edge.
-
    THE EDGES follow the de-box rule (docs/DESIGN_SYSTEM.md): borders are for
    inputs, fills are for selection, hairlines are for structure. An inbox row
    is a flat row with a face; a text bubble is a fill; the composer has one border. */
@@ -924,10 +918,19 @@ html[data-theme="dark"] .messageBubblePhoto {
   flex-shrink: 0;
 }
 
+.messageThreadShell:has(.composerPickerRegion) .threadMessages {
+  flex-basis: 0;
+}
+
 .composerPickerRegion {
   min-height: 0;
+  padding-bottom: 1px;
   overflow-y: auto;
   overscroll-behavior-y: contain;
+}
+
+.composerPickerRegion :focus-visible {
+  outline-offset: -2px;
 }
 
 /* One row: the attachments, the field, Send. The field is the only thing that
@@ -1510,8 +1513,6 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* ── the phone ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* The dock clears the page's reserved chrome lane. A keyboard inset
-     replaces that lane instead of adding to it. */
   .messageThreadShell {
     --thread-tabbar-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
   }

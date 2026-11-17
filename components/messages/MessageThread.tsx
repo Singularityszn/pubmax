@@ -117,14 +117,11 @@ import "@/components/messages/messagePhotos.css";
 //
 // Bubble width constraints: app/messages/messages.css.
 //
-// Timeline, reveal and read-state rules:
+// Timeline, layout, reveal and read-state rules:
 // docs/rules/components-venue-plan-and-message-surfaces.md.
 //
 // Delivery and retry rules:
 // docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries.
-//
-// The phone thread fits the visual viewport. Only its message list scrolls.
-// lib/softKeyboard.ts withdraws the tab bar while the keyboard is open.
 //
 // Attachment rules: lib/messageAttachments.ts.
 
