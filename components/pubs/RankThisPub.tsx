@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -40,9 +40,7 @@ async function readRanking(): Promise<State> {
     );
     const entries = response.ok ? rankingEntries(body) : null;
     if (entries) return { kind: "comparing", entries };
-    // A 401 here means the server did not see a session the browser has not
-    // settled as signed out, so it is a wait, not a sign-in invitation.
-    if (response.status === 401) return { kind: "failed", message: new AuthActionSessionError().message };
+    if (response.status === 401) return { kind: "failed", message: RANKING_UNAVAILABLE };
     return { kind: "failed", message: errorMessageFrom(response.ok ? null : body, RANKING_UNAVAILABLE) };
   } catch (error) {
     return {
@@ -75,26 +73,50 @@ export default function RankThisPub(props: Props) {
 function RankIt({ venueId, venueName }: Props) {
   const [state, setState] = useState<State>({ kind: "idle" });
   const [placed, setPlaced] = useState<SocialPubRankingEntry | null>(null);
+  const mounted = useRef(false);
+
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
 
   async function open() {
+    if (state.kind === "loading" || state.kind === "comparing") return;
     setState({ kind: "loading" });
-    setState(await readRanking());
+    const next = await readRanking();
+    if (mounted.current) setState(next);
+  }
+
+  function close(value?: unknown) {
+    // Older comparison versions pass click events instead of a write promise.
+    const pending = value instanceof Promise ? value : undefined;
+    setState({ kind: pending ? "loading" : "idle" });
+    if (!pending) return;
+    const refresh = async () => {
+      if (!mounted.current) return;
+      const next = await readRanking();
+      if (!mounted.current) return;
+      if (next.kind === "comparing") {
+        setPlaced(next.entries.find((entry) => entry.venueId === venueId) ?? null);
+        setState({ kind: "idle" });
+      } else setState(next);
+    };
+    void pending.then(refresh, refresh);
   }
 
   return (
     <>
-      <button type="button" className="pubPage__action" onClick={() => void open()} disabled={state.kind === "loading"}>
+      <button type="button" className="pubPage__action" onClick={() => void open()} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
         {placed ? `Ranked #${placed.place}` : "Rank it"}
       </button>
-      {state.kind === "failed" ? (
-        // Its own line under the action row, not a wedge between two pills.
-        <p className="pubPage__note" role="status" style={{ order: 1, flexBasis: "100%" }}>{state.message}</p>
-      ) : null}
+      <p className={state.kind === "failed" ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
+        {state.kind === "failed" ? state.message : ""}
+      </p>
       {state.kind === "comparing" ? (
         <ComparePubFlow
           entries={state.entries}
           startVenue={{ id: venueId, name: venueName }}
-          onClose={() => setState({ kind: "idle" })}
+          onClose={close}
           onSaved={(entries) => setPlaced(entries.find((entry) => entry.venueId === venueId) ?? null)}
         />
       ) : null}

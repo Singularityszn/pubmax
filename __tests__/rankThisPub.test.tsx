@@ -26,7 +26,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 // One network double for both transports: the read answers the same whichever
 // helper the component uses, so a red run shows the behaviour, not the wiring.
-const net = vi.hoisted(() => ({ read: vi.fn<() => Promise<Response>>() }));
+const net = vi.hoisted(() => ({ read: vi.fn<() => Promise<Response>>(), pending: undefined as Promise<void> | undefined }));
 vi.mock("@/lib/authedFetch", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authedFetch")>();
   return {
@@ -40,14 +40,17 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
 });
 
 vi.mock("@/components/social/ComparePubFlow", () => ({
-  default: ({ entries, startVenue, onSaved }: {
+  default: ({ entries, startVenue, onSaved, onClose }: {
     entries: Array<{ venueId: string }>;
     startVenue?: { id: string; name: string };
     onSaved: (entries: Array<{ venueId: string; place: number }>) => void;
+    onClose: (value?: unknown) => void;
   }) => (
     <div data-testid="compare">
-      {`${startVenue?.id}:${entries.map((entry) => entry.venueId).join(",")}`}
+      <output>{`${startVenue?.id}:${entries.map((entry) => entry.venueId).join(",")}`}</output>
       <button type="button" onClick={() => onSaved([{ venueId: "lamb", place: 1 }, { venueId: "seven-stars", place: 2 }])}>Save compare</button>
+      <button type="button" onClick={(event) => onClose(event)}>Close compare</button>
+      <button type="button" onClick={() => onClose(net.pending)}>Close pending save</button>
     </div>
   ),
 }));
@@ -99,7 +102,7 @@ function signInDoor(): HTMLAnchorElement | null {
 }
 
 function compare(): string | null {
-  return host.querySelector("[data-testid=compare]")?.textContent?.replace("Save compare", "") ?? null;
+  return host.querySelector("[data-testid=compare] output")?.textContent ?? null;
 }
 
 function notice(): string | null {
@@ -113,6 +116,7 @@ beforeEach(() => {
   session.phase = "signed-in";
   session.userId = "account-a";
   net.read.mockReset();
+  net.pending = undefined;
 });
 
 afterEach(() => {
@@ -230,6 +234,49 @@ describe("RankThisPub", () => {
     session.userId = "account-b";
     await render();
     expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+  });
+
+  it("accepts a click event from the older comparison without treating it as a write", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!;
+    await act(async () => close.click());
+    expect(compare()).toBeNull();
+    expect(net.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the saved position after the newer comparison's outstanding write settles", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    let finish!: () => void;
+    net.pending = new Promise<void>((resolve) => { finish = resolve; });
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!;
+    await act(async () => close.click());
+    await clickRank();
+    expect(net.read).toHaveBeenCalledTimes(1);
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await act(async () => finish());
+    await flush();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+  });
+
+  it("does not start a closed session's refresh after its account departs", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    let finish!: () => void;
+    net.pending = new Promise<void>((resolve) => { finish = resolve; });
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!;
+    await act(async () => close.click());
+    session.userId = "account-b";
+    await render();
+    await act(async () => finish());
+    await flush();
+    expect(net.read).toHaveBeenCalledTimes(1);
     expect(rankButton()?.textContent).toBe("Rank it");
   });
 });
