@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
-const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void), outbox: null as null | ((post: SocialPostDTO) => void) }));
+const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void), outbox: null as null | ((post: SocialPostDTO) => void), edit: null as null | Partial<SocialPostDTO> }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "alice" }, accountRevision: 1, identityResolved: true }) }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedIn: true, signedOut: false }) }));
@@ -19,7 +19,7 @@ vi.mock("@/components/social/PeopleDirectory", () => ({ default: () => null }));
 vi.mock("@/components/social/PubRankingPanel", () => ({ default: () => null }));
 vi.mock("@/components/social/SocialPostCard", () => ({ default: ({ post, editor }: { post: { body: string }; editor?: React.ReactNode }) => createElement("article", { className: "socialPostCard" }, post.body, editor) }));
 vi.mock("@/app/social/SocialPostEditor", () => ({ SocialPostEditor: ({ post, onSaved }: { post: { body: string }; onSaved: (post: unknown) => void }) =>
-  createElement("button", { onClick: () => onSaved({ ...post, body: "Accepted edit" }) }, "Save edit") }));
+  createElement("button", { onClick: () => onSaved({ ...post, body: "Accepted edit", ...composer.edit }) }, "Save edit") }));
 vi.mock("@/app/social/SocialComposer", () => ({ default: ({ onSaved }: { onSaved: (post: SocialPostDTO) => void }) => { composer.save = onSaved; return null; } }));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onPostChanged: (post: SocialPostDTO) => void }) => { composer.outbox = onPostChanged; return null; } }));
@@ -28,6 +28,7 @@ import SocialPageClient from "@/app/social/SocialPageClient";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { readSocialPostWindow } from "@/lib/socialPostWindow";
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import type { SocialPostsShellState } from "@/lib/socialShell";
 
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
@@ -38,13 +39,13 @@ const feedPost = (body: string, hour: number): SocialPostDTO => ({
   nameHidden: false, moderationState: "approved", featureRequest: null, revision: 0,
   mutationVersion: 0, editedAt: null, updatedAt: `2026-11-16T${hour}:00:00Z`,
 });
-async function mountFollowing(): Promise<void> {
+async function mountFeed(initialState: SocialPostsShellState = { valid: true, tab: "posts", feed: "following", area: null }): Promise<void> {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   host = document.createElement("div");
   root = createRoot(host);
   document.body.appendChild(host);
   await act(async () => root.render(createElement(SocialPageClient, {
-    initialState: { valid: true, tab: "posts", feed: "following", area: null }, rivalry: [], heritageCrawls: [],
+    initialState, rivalry: [], heritageCrawls: [],
   })));
 }
 
@@ -52,6 +53,7 @@ afterEach(async () => {
   if (root) await act(async () => root.unmount());
   host?.remove();
   clearSurfaceCache();
+  composer.edit = null;
 });
 
 it("bounds a deep refresh and keeps the fresh continuation reachable", async () => {
@@ -72,7 +74,7 @@ it("keeps a four-page window during automatic refresh and offers an explicit ref
     const index = Number(cursor ?? 0);
     return Response.json({ posts: [feedPost(`Page ${index + 1}`, 12)], nextCursor: String(index + 1) });
   });
-  await mountFollowing();
+  await mountFeed();
   for (let page = 0; page < 3; page += 1) {
     await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
   }
@@ -96,7 +98,7 @@ it.each(["view", "remount"])("retains a four-page window and its continuation af
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
     return Response.json({ posts: [feedPost(`Page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
   });
-  await mountFollowing();
+  await mountFeed();
   for (let page = 0; page < 3; page += 1) {
     await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
   }
@@ -130,7 +132,7 @@ it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all fo
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
     return Response.json({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
   });
-  await mountFollowing();
+  await mountFeed();
   for (let page = 0; page < 3; page += 1) {
     await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
   }
@@ -154,6 +156,50 @@ it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all fo
   expect([...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!.disabled).toBe(false);
 });
 
+const editMembershipCases: { label: string; state: SocialPostsShellState; edit: Partial<SocialPostDTO>; retained: boolean }[] = [
+  { label: "Nearby private edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { visibility: "private" }, retained: false },
+  { label: "Nearby area edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { area: "soho" }, retained: false },
+  { label: "Nearby matching edit", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { body: "Still in this lane" }, retained: true },
+  { label: "Across town friends edit", state: { valid: true, tab: "posts", feed: "discover", area: null }, edit: { visibility: "friends" }, retained: false },
+  { label: "Across town removed hashtag", state: { valid: true, tab: "posts", feed: "discover", area: null, tag: "garden" }, edit: { hashtags: [] }, retained: false },
+  { label: "Across town matching hashtag", state: { valid: true, tab: "posts", feed: "discover", area: null, tag: "garden" }, edit: { hashtags: ["garden", "pub"] }, retained: true },
+  { label: "Following private edit", state: { valid: true, tab: "posts", feed: "following", area: null }, edit: { visibility: "private" }, retained: false },
+];
+
+for (const door of ["card", "Outbox"] as const) {
+  it.each(editMembershipCases)(`preserves deep feed membership and continuation after a ${door} $label`, async ({ state, edit, retained }) => {
+    transport.request.mockImplementation(async (href: string) => {
+      if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+      if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+      const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+      return Response.json({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"], ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
+    });
+    await mountFeed(state);
+    for (let page = 0; page < 3; page += 1) {
+      await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    }
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
+    composer.edit = { body: "Accepted edit", ...edit };
+    await act(async () => {
+      if (door === "card") host.querySelector<HTMLButtonElement>(".socialPostCard button")!.click();
+      else composer.outbox!({ ...feedPost("Page 4", 13), ownedByViewer: true, visibility: "public", area: "camden", hashtags: ["garden"], ...composer.edit });
+    });
+    const count = retained ? 4 : 3;
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count);
+    for (const body of ["Page 1", "Page 2", "Page 3"]) expect(host.textContent).toContain(body);
+    if (retained) expect(host.textContent).toContain(edit.body ?? "Accepted edit");
+    else expect(host.textContent).not.toContain("Accepted edit");
+    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count + 1);
+    expect(host.textContent).toContain("Page 5");
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    await act(async () => root.render(createElement(SocialPageClient, { initialState: state, rivalry: [], heritageCrawls: [] })));
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count + 1);
+    if (!retained) expect(host.textContent).not.toContain("Accepted edit");
+  });
+}
+
 it("does not renew the first page's age by loading another page", async () => {
   const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
   let hold = false;
@@ -165,7 +211,7 @@ it("does not renew the first page's age by loading another page", async () => {
     return Response.json({ posts: [feedPost(cursor ? "Older post" : "First post", cursor ? 11 : 12)], nextCursor: cursor ? null : "older" });
   });
   try {
-    await mountFollowing();
+    await mountFeed();
     clock.mockReturnValue(299_000);
     await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
     expect(host.querySelectorAll(".socialPostCard")).toHaveLength(2);
@@ -174,7 +220,7 @@ it("does not renew the first page's age by loading another page", async () => {
     clock.mockReturnValue(301_001);
     hold = true;
 
-    await mountFollowing();
+    await mountFeed();
 
     expect(host.textContent).not.toContain("First post");
     expect(host.textContent).not.toContain("Older post");
@@ -190,7 +236,7 @@ it("disables pagination while a refresh is pending and preserves the visible pos
     if (++reads > 1) return new Promise<Response>(resolve => { finish = resolve; });
     return Response.json({ posts: [feedPost("Original post", 12)], nextCursor: "older" });
   });
-  await mountFollowing();
+  await mountFeed();
   await act(async () => window.dispatchEvent(new Event("focus")));
   const loadMore = [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!;
   expect(loadMore.disabled).toBe(true);
@@ -211,7 +257,7 @@ it("keeps an accepted edit when its revalidation fails", async () => {
     if (++reads > 1) return new Promise<Response>(resolve => { finish = resolve; });
     return Response.json({ posts: [{ ...feedPost("Original post", 12), ownedByViewer: true }], nextCursor: null });
   });
-  await mountFollowing();
+  await mountFeed();
 
   await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Save edit")!.click());
   expect(host.querySelector(".socialPostCard")?.textContent).toContain("Accepted edit");
@@ -229,7 +275,7 @@ it("keeps the warm Following window while visiting a view with no feed request",
     if (++reads > 1) return new Promise<Response>(() => {});
     return Response.json({ posts: [feedPost("A warm post", 12)], nextCursor: null });
   });
-  await mountFollowing();
+  await mountFeed();
   await act(async () => root.render(createElement(SocialPageClient, {
     initialState: { valid: true, tab: "posts", feed: "nearby", area: null }, rivalry: [], heritageCrawls: [],
   })));
@@ -255,7 +301,7 @@ it("revalidates loaded pages through fresh cursors and removes a deleted older p
       ? { posts: [feedPost("Original first post", 11)], nextCursor: "fresh-continuation" }
       : { posts: [feedPost("New first post", 12)], nextCursor: "fresh-second-page" });
   });
-  await mountFollowing();
+  await mountFeed();
   await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(2);
   changed = true;
@@ -274,7 +320,7 @@ it.each([401, 403])("removes protected posts when loading more is denied with %s
     if (href.includes("cursor=")) return Response.json({ error: "Denied" }, { status });
     return Response.json({ posts: [feedPost("Protected post", 12)], nextCursor: "older" });
   });
-  await mountFollowing();
+  await mountFeed();
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
 
   await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
