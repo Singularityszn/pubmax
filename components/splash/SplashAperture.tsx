@@ -1,4 +1,3 @@
-import "./splashAperture.css";
 
 /**
  * Aperture splash (PIECE 3 of feat(landing): hero scroll cinema with
