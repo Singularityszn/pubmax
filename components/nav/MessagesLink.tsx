@@ -99,11 +99,11 @@ export default function MessagesLink(): React.JSX.Element | null {
       const rows = read.conversations;
       const total = rows.reduce((sum, c) => sum + (c.unread || 0), 0);
       const previous = previousRef.current?.userId === user.id ? previousRef.current.rows : null;
-      const incoming = previous && rows.find((row) => {
+      const incoming = !read.degraded && previous && rows.find((row) => {
         const old = previous.find((item) => item.id === row.id);
-        return !row.lastFromMe && (row.unread ?? 0) > (old?.unread ?? 0) && (!old || row.lastAt !== old.lastAt);
+        return row.lastMessageId && !row.lastFromMe && (row.unread ?? 0) > 0 && row.lastMessageId !== old?.lastMessageId;
       });
-      previousRef.current = { userId: user.id, rows };
+      if (!read.degraded) previousRef.current = { userId: user.id, rows };
       if (incoming && pathnameRef.current !== `/messages/${incoming.id}`) setArrival({ userId: user.id, conversation: incoming });
       setUnreadResult({ userId: user.id, handle: h, count: total });
     } catch {
@@ -192,7 +192,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       ) : null}
       <NavPendingIndicator />
     </Link>
-    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} inbox={pathname === "/messages"} currentPath={pathname} onDismiss={dismissArrival} /> : null}
+    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastMessageId}`} conversation={arrival.conversation} inbox={pathname === "/messages"} currentPath={pathname} onDismiss={dismissArrival} /> : null}
     </>
   );
 }

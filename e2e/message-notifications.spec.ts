@@ -155,12 +155,13 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
   let unread = 1;
   let body = "See you at seven";
   let stamp = "2026-11-16T21:00:00Z";
+  let lastMessageId = "m1";
   let inboxReads = 0;
   const pendingInbox = new Set<unknown>();
   page.on("request", (request) => { if (request.url().includes("/api/messages?")) pendingInbox.add(request); });
   page.on("requestfinished", (request) => pendingInbox.delete(request));
   page.on("requestfailed", (request) => pendingInbox.delete(request));
-  const rows = () => [{ id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: body, lastAt: stamp, lastFromMe: false, unread }];
+  const rows = () => [{ id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: body, lastMessageId, lastAt: stamp, lastFromMe: false, unread }];
   await page.route("**/api/messages?**", (route) => { inboxReads++; return route.fulfill({ json: { conversations: rows() } }); });
   await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
   await page.route(`**/api/messages/${THREAD}**`, (route) => route.fulfill({ json: { messages: [{ id: "m1", conversationId: THREAD, senderHandle: ACCOUNTS.A.handle, body, createdAt: "2026-11-16T22:00:00Z", read: true, flagged: false }] } }));
@@ -170,12 +171,13 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
     const auth = await installAuthDoubles(sender);
     await seedSignedIn(sender, "A");
     await auth.signedInAs("A");
-    await sender.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: [{ ...rows()[0], otherHandle: ACCOUNTS.B.handle }] } }));
+    await sender.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: [{ ...rows()[0], otherHandle: ACCOUNTS.B.handle, lastFromMe: true, unread: 0 }] } }));
     await sender.route(`**/api/messages/${THREAD}**`, async (route) => {
       if (route.request().method() === "POST") {
         body = route.request().postDataJSON().body;
         unread = 2;
         stamp = "2026-11-16T22:00:00Z";
+        lastMessageId = "m2";
         await route.fulfill({ json: { message: { id: "m2", conversationId: THREAD, senderHandle: ACCOUNTS.A.handle, body, createdAt: "2026-11-16T22:00:00Z", read: false, flagged: false } } });
       } else await route.fulfill({ json: { messages: [] } });
     });
@@ -217,6 +219,7 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
     await expect(page.locator(".threadMessages").getByText("The Lamb works for me", { exact: true })).toBeVisible();
     unread = 3;
     stamp = "2026-11-16T22:01:00Z";
+    lastMessageId = "m3";
     await page.evaluate((id) => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
     await expect(page.getByRole("link", { name: "Messages, 3 unread", exact: true })).toBeVisible();
     await expect(page.locator(".messageArrival")).toHaveCount(0);
@@ -380,8 +383,9 @@ test("an arrival from another chat clears the active header and composer", async
   await auth.signedInAs("B");
   let unread = 1;
   let lastAt = "2026-11-17T09:00:00Z";
+  let lastMessageId = "m1";
   await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [
-    { id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: "A message from the other chat", lastAt, lastFromMe: false, unread },
+    { id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: "A message from the other chat", lastMessageId, lastAt, lastFromMe: false, unread },
     { id: reading, otherHandle: "maeve", lastBody: "The chat you are reading", lastAt, lastFromMe: false, unread: 0 },
   ] } }));
   await page.route("**/api/message-notifications**", route => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false, registered: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
@@ -390,6 +394,7 @@ test("an arrival from another chat clears the active header and composer", async
   await expect(page.locator(".threadMessages").getByText("The chat you are reading", { exact: true })).toBeVisible();
   unread = 2;
   lastAt = "2026-11-17T09:01:00Z";
+  lastMessageId = "m2";
   await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
   await expect(page.locator(".messageArrival")).toBeVisible();
   await page.locator(".messageArrival a").focus();
@@ -416,6 +421,7 @@ test("an arrival from another chat clears the active header and composer", async
   await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeAttached();
   unread = 3;
   lastAt = "2026-11-17T09:02:00Z";
+  lastMessageId = "m3";
   await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
   await expect(page.locator(".messageArrival")).toBeVisible();
   await expect.poll(async () => {

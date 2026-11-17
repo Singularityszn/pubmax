@@ -8685,7 +8685,7 @@ export type Database = {
           p_activity_id: number | null;
           p_revision: number | null;
         };
-        Returns: undefined;
+        Returns: boolean;
       };
       message_notification_presence_start: {
         Args: {

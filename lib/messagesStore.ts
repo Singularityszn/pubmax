@@ -734,7 +734,7 @@ async function readInboxUnread(
 }
 
 function inboxLastColumns(): string {
-  const columns = "conversation_id, sender_handle, body, attachment_kind, created_at";
+  const columns = "id, conversation_id, sender_handle, body, attachment_kind, created_at";
   return `${columns}, unsent_at`;
 }
 
@@ -1313,7 +1313,7 @@ export const supabaseMessagesStore: MessagesStore = {
       return {
         id,
         ...conversationRowIdentity(row, groupMembership.get(id) ?? null, me),
-        ...(last ? { lastBody: previewBody(last) } : {}),
+        ...(last ? { lastMessageId: String(last.id), lastBody: previewBody(last) } : {}),
         lastAt: String(row.last_message_at ?? new Date(0).toISOString()),
         lastFromMe: last ? normalizeHandle(String(last.sender_handle)) === me : false,
         // UNCOUNTED IS NOT ZERO. A scan that could not run leaves the field off
@@ -2022,6 +2022,7 @@ function memConversationDTO(conv: MemoryConversation, me: string): ConversationD
       : {}),
     ...(last
       ? {
+          lastMessageId: last.id,
           lastBody: previewBody({
             body: last.body,
             attachment_kind: last.attachmentKind,
