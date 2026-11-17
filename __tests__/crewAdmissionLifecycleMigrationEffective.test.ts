@@ -40,7 +40,6 @@ import {
   request,
   requestCall,
   revision,
-  rollback,
   rollbackWithSetting,
   rpc,
   running,

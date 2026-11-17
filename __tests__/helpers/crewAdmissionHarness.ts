@@ -8,9 +8,9 @@ import { join } from "node:path";
 import { expect } from "vitest";
 import { asServiceRole, startPostgres, type PostgresSession } from "./postgres";
 
-export const directory = join(process.cwd(), "supabase/migrations");
-export const name = "20261117090000_0243_crew_admission_safety_locks.sql";
-export const rollback = "rollback/20261117090000_0243_crew_admission_safety_locks_rollback.sql";
+const directory = join(process.cwd(), "supabase/migrations");
+const name = "20261117090000_0243_crew_admission_safety_locks.sql";
+const rollback = "rollback/20261117090000_0243_crew_admission_safety_locks_rollback.sql";
 
 export const DIGEST = "a".repeat(64);
 export const NOT_FOUND = { ok: false, code: "not_found" };

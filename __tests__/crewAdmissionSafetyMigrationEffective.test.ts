@@ -38,7 +38,6 @@ import {
   remove,
   request,
   requestState,
-  rollback,
   rpc,
   running,
   stageTo,
