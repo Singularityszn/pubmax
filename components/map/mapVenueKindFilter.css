@@ -145,3 +145,10 @@
     right: 0;
   }
 }
+
+.mapVenueKindFilterBtn:focus-visible,
+.mapVenueKindFilterReset:focus-visible {
+  transform: none;
+  scale: 1;
+  transition: none;
+}

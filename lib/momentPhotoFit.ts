@@ -1,7 +1,8 @@
 // The DOM half of the Moment photo intake: decode a chosen photo, draw it down
 // and re-encode it as a JPEG until it weighs less than the wire limit. The
-// ladder it walks and every number on it are `lib/momentPhotoIntake.ts`; the
-// encoder is the Moment editor's own (`encodeMomentPhoto`), so the bytes that
+// default ladder is in `lib/momentPhotoIntake.ts`. Callers can cap its longest
+// edge without changing the Moment defaults. The encoder is the Moment
+// editor's own (`encodeMomentPhoto`), so the bytes that
 // leave here are the bytes the editor would have written.
 //
 // Decoding goes through `createImageBitmap` with `imageOrientation:
@@ -17,6 +18,7 @@
 import { encodeMomentPhoto } from "@/lib/momentPhotoEditor";
 import {
   MOMENT_FIT_OUTPUT_TYPE,
+  MOMENT_FIT_LONG_EDGES,
   momentFitBox,
   momentFitFileName,
   planMomentFitAttempts,
@@ -36,7 +38,7 @@ export type MomentPhotoFitDeps = {
 };
 
 export type MomentPhotoFitOutcome =
-  | { outcome: "fitted"; file: File; attempt: MomentFitAttempt; attempts: number }
+  | { outcome: "fitted"; file: File; width: number; height: number; attempt: MomentFitAttempt; attempts: number }
   | { outcome: "unreadable" }
   | { outcome: "too-large" };
 
@@ -105,11 +107,12 @@ export async function fitMomentPhoto(
   file: File,
   budget: number = UPLOAD_PHOTO_MAX_BYTES,
   deps: MomentPhotoFitDeps = browserMomentPhotoFitDeps,
+  maxEdge: number = MOMENT_FIT_LONG_EDGES[0]!,
 ): Promise<MomentPhotoFitOutcome> {
   const decoded = await deps.decode(file).catch(() => null);
   if (!decoded) return { outcome: "unreadable" };
   try {
-    const attempts = planMomentFitAttempts(decoded);
+    const attempts = planMomentFitAttempts(decoded, maxEdge);
     for (const [index, attempt] of attempts.entries()) {
       const box = momentFitBox(decoded, attempt.longEdge);
       let blob: Blob;
@@ -123,7 +126,7 @@ export async function fitMomentPhoto(
           type: MOMENT_FIT_OUTPUT_TYPE,
           lastModified: file.lastModified,
         });
-        return { outcome: "fitted", file: fitted, attempt, attempts: index + 1 };
+        return { outcome: "fitted", file: fitted, ...box, attempt, attempts: index + 1 };
       }
     }
     return { outcome: "too-large" };

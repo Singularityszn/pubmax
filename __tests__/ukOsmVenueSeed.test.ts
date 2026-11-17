@@ -11,6 +11,8 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  londonRestaurantSeed,
+  restaurantElementsFromGeoJSON,
   packFetchedAt,
   runArtifactPlan,
   venuePackPath,
@@ -54,6 +56,49 @@ const LONDON_CELL: [number, number, number, number] = [50.8, -0.7, 51.8, 0.3];
 function node(id: number, tags: Record<string, string>) {
   return { type: "node", id, lat: 51.5, lon: -0.1, tags };
 }
+
+describe("the Geofabrik restaurant geometry", () => {
+  it("preserves OSM identities and centres points, ways and relation polygons", () => {
+    const features = [
+      { type: "Feature", properties: { "@type": "node", "@id": 1, amenity: "restaurant", name: "Kitchen", cuisine: "indian" }, geometry: { type: "Point", coordinates: [-0.12, 51.52] } },
+      { type: "Feature", properties: { "@type": "way", "@id": 2, amenity: "restaurant", name: "Dry kitchen", alcohol: "no" }, geometry: { type: "Polygon", coordinates: [[[-0.14, 51.50], [-0.12, 51.50], [-0.12, 51.52], [-0.14, 51.50]]] } },
+      { type: "Feature", properties: { "@type": "relation", "@id": 3, amenity: "restaurant", name: "Courtyard" }, geometry: { type: "MultiPolygon", coordinates: [[[[-0.16, 51.50], [-0.12, 51.50], [-0.12, 51.54], [-0.16, 51.50]]]] } },
+      { type: "Feature", properties: { "@type": "node", "@id": 4, amenity: "cafe" }, geometry: { type: "Point", coordinates: [-0.1, 51.5] } },
+    ];
+    const rows = restaurantElementsFromGeoJSON(features);
+    expect(rows.map(({ type, id }) => `${type}/${id}`)).toEqual(["node/1", "way/2", "relation/3"]);
+    expect(rows[0]?.center).toEqual({ lat: 51.52, lon: -0.12 });
+    expect(rows[1]?.center.lat).toBeCloseTo(51.51);
+    expect(rows[1]?.center.lon).toBeCloseTo(-0.13);
+    expect(rows[2]?.center.lat).toBeCloseTo(51.52);
+    expect(rows[0]?.tags.cuisine).toBe("indian");
+  });
+
+  it("refuses a restaurant with no usable geometry or original OSM identity", () => {
+    const feature = { properties: { "@type": "way", "@id": 2, amenity: "restaurant" }, geometry: { type: "Polygon", coordinates: [] } };
+    expect(() => restaurantElementsFromGeoJSON([feature])).toThrow(/geometry/);
+    expect(() => restaurantElementsFromGeoJSON([{ ...feature, properties: { amenity: "restaurant" } }])).toThrow(/identity/);
+  });
+});
+
+describe("the London restaurant snapshot", () => {
+  it("includes dry restaurants, preserves tagged facts and excludes other amenities", () => {
+    const body = { osm3s: { timestamp_osm_base: new Date().toISOString() }, elements: [
+      node(100, { amenity: "restaurant", name: "Dry kitchen", alcohol: "no", cuisine: "indian", opening_hours: "Mo-Fr 12:00-21:00" }),
+      node(101, { amenity: "restaurant", name: "Plain kitchen" }),
+      node(102, { amenity: "cafe", name: "Coffee" }),
+    ] };
+    const seed = londonRestaurantSeed(body);
+    expect(seed.venues.map((venue) => venue.name)).toEqual(["Dry kitchen", "Plain kitchen"]);
+    expect(seed.venues[0]).toMatchObject({ cuisine: "indian", openingHours: "Mo-Fr 12:00-21:00" });
+    expect(seed.venues[1]).toMatchObject({ cuisine: null, openingHours: null });
+    expect(() => londonRestaurantSeed({ ...body, remark: "runtime error" })).toThrow(/incomplete/);
+    const oldStamp = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const replay = { ...body, osm3s: { timestamp_osm_base: oldStamp } };
+    expect(() => londonRestaurantSeed(replay)).toThrow(/stale/);
+    expect(londonRestaurantSeed(replay, { allowStale: true }).fetchedAt).toBe(oldStamp);
+  });
+});
 
 describe("UK venue taxonomy", () => {
   it("keeps the pub query contract: UK area clip, 90 second timeout, nodes and ways", () => {

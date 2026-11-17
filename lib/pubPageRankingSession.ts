@@ -10,6 +10,7 @@ export type PubPageRankingRead =
 
 export type PubPageRankingState = Scope & (
   | { kind: "idle" }
+  | { kind: "closed" }
   | { kind: "loading"; origin: "open" }
   | { kind: "loading"; origin: "closed"; pendingWrite: Promise<void> }
   | { kind: "failed"; message: string }
@@ -61,17 +62,18 @@ export function transitionPubPageRanking(state: PubPageRankingState, event: PubP
         }
       }
     }
-    case "saved":
-      if (state.kind !== "comparing" || !matches(state, event)) return state;
-      return {
-        ...context(state), kind: "comparing", entries: event.entries,
-        checkpoint: event.entries.find((entry) => entry.venueId === state.venueId) ?? null,
-      };
+    case "saved": {
+      if ((state.kind !== "comparing" && state.kind !== "closed") || !matches(state, event)) return state;
+      const checkpoint = event.entries.find((entry) => entry.venueId === state.venueId) ?? null;
+      return state.kind === "closed"
+        ? { ...context(state), kind: "idle", checkpoint, requestId: state.requestId + 1 }
+        : { ...context(state), kind: "comparing", entries: event.entries, checkpoint };
+    }
     case "close":
       if (state.kind !== "comparing" || !matches(state, event)) return state;
       return event.pendingWrite
         ? { ...context(state), kind: "loading", origin: "closed", pendingWrite: event.pendingWrite, requestId: state.requestId + 1 }
-        : { ...context(state), kind: "idle", requestId: state.requestId + 1 };
+        : { ...context(state), kind: "closed" };
     case "refused":
       if (state.kind !== "comparing" || !matches(state, event)) return state;
       return { ...context(state), kind: "refused", message: event.message, checkpoint: null };

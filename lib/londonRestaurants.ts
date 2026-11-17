@@ -1,13 +1,11 @@
 // The London restaurants the map draws: every `restaurant` row of the London
-// venue layer, read from the one-file pack
+// venue layer, read from bounded lazy chunks
 // (`scripts/build_london_restaurant_pack.mjs`,
-// `public/data/london_restaurants/restaurants.json`).
+// `public/data/london_restaurants/manifest.json`).
 //
-// A row is on that layer only when it serves alcohol: OpenStreetMap tags it
-// with a bar or alcohol, or the restaurant's own website says so
-// (`data/london_restaurant_drinks/`). Its name, address and position are
-// OpenStreetMap's. Its borough is the borough polygon its point falls in, found
-// by the lookup that places curated pins.
+// Membership comes only from OSM amenity=restaurant, including restaurants
+// with no alcohol tag. Cuisine and opening hours are optional OSM tags.
+// The layer starts off and reads its restaurant-only chunks on demand.
 //
 // PURE and browser-safe, apart from `loadLondonRestaurants`, which fetches.
 // Four rules ride with it:
@@ -17,17 +15,16 @@
 //    price property for the pin colour to find.
 // 2. A CURATED VENUE OWNS ITS OWN PLACE. The curated index already pins some
 //    of these restaurants (Rules, Quo Vadis, The Wolseley). The OSM row beside
-//    one is dropped rather than drawn as a second fork a few metres away.
-// 3. THE KIND FILTER AND THE VIEW DECIDE, as they do for a curated restaurant.
-//    Restaurants hidden in the filter, or a view that is not about restaurants,
-//    take this layer off the map.
+//    one is dropped, unless explicitly selected for a shared link.
+// 3. THE OPTIONAL LAYER AND VIEW DECIDE. The More restaurants (unpriced) switch is separate
+//    from curated restaurant pins. A drink view draws only an explicit selection.
 // 4. THE MAP'S FILTERS NARROW IT TOO. The search matches a name, an address or
 //    a borough, as it does a curated pin's. A search for an area the pack does
 //    not name (Soho, Shoreditch) keeps the restaurants within 400 m of a
 //    curated pin whose address or borough names it. Near me keeps the
 //    restaurants inside its walk ring. A filter that asks what a row cannot
 //    answer (a price, Open now, Saved only, an amenity, a drink, a zone) hides
-//    every restaurant while it is on.
+//    unselected restaurants while it is on. An explicit selection stays visible.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
@@ -40,13 +37,13 @@ import { hasPintPriceCap } from "@/lib/pintPriceCapValue";
 import type { Filters, Venue } from "@/lib/venues";
 import { parseZoneParam } from "@/lib/zones";
 
-export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/restaurants.json";
-const LONDON_RESTAURANT_PACK_VERSION = 2;
+export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/manifest.json";
+const LONDON_RESTAURANT_PACK_VERSION = 3;
 
 /**
- * The zoom the layer draws from, and the zoom the map first asks for the pack
- * at. The same floor as every unclustered pin layer (`PIN_MIN_ZOOM` in
- * components/map/canvas/buildScene.ts, held equal by
+ * The zoom the layer draws from and opt-in starts loading. Explicit links can
+ * load a sheet below this zoom. The same floor as unclustered pin layers
+ * (`PIN_MIN_ZOOM` in components/map/canvas/buildScene.ts, held equal by
  * __tests__/londonRestaurants.test.ts). It lives here so the map shell can
  * read it without loading the canvas module.
  */
@@ -80,14 +77,10 @@ export type LondonRestaurant = LondonVenue & {
    * (`scripts/lib/boroughFromPoint.mjs`), or "" outside every borough.
    */
   borough: string;
+  cuisine?: string;
+  openingHours?: string;
+  observedAt?: string;
 };
-
-/** A pack row: the shard row `[osmRef, name, address, lat, lng, kind]`, then the borough. */
-type PackRow = [unknown, unknown, unknown, unknown, unknown, unknown, string];
-
-function isPackRow(value: unknown): value is PackRow {
-  return Array.isArray(value) && value.length === 7 && typeof value[6] === "string";
-}
 
 /** Where the map's read of the pack stands. */
 export type LondonRestaurantStatus = "idle" | "loading" | "ready" | "failed";
@@ -106,15 +99,22 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
     pack.kind !== "restaurant" ||
     !Array.isArray(rows) ||
     pack.count !== rows.length ||
-    !rows.every(isPackRow)
+    !rows.every((row) => Array.isArray(row) && row.length === 9
+      && typeof row[6] === "string"
+      && typeof row[7] === "string" && typeof row[8] === "string")
   ) {
     return null;
   }
   const restaurants: LondonRestaurant[] = [];
   for (const row of rows) {
     const [venue] = parseLondonVenueShard({ venues: [row.slice(0, 6)] });
-    if (!venue || venue.kind !== "restaurant") return null;
-    restaurants.push({ ...venue, borough: row[6] });
+    if (!venue || venue.kind !== "restaurant" || !/^[nwr]\d+$/.test(row[0])) return null;
+    restaurants.push({
+      ...venue, borough: row[6],
+      ...(row[7] ? { cuisine: row[7] } : {}),
+      ...(row[8] ? { openingHours: row[8] } : {}),
+      ...(typeof pack.observedAt === "string" ? { observedAt: pack.observedAt } : {}),
+    });
   }
   return restaurants;
 }
@@ -122,14 +122,52 @@ export function parseLondonRestaurantPack(value: unknown): LondonRestaurant[] | 
 /** Read the pack. Rejects when it cannot be read or does not decode. */
 export async function loadLondonRestaurants(
   fetchImpl: typeof fetch = fetch,
+  selectedVenueId?: string,
 ): Promise<LondonRestaurant[]> {
   const response = await fetchImpl(LONDON_RESTAURANT_PACK_PATH);
   if (!response.ok) {
     throw new Error(`${LONDON_RESTAURANT_PACK_PATH} answered ${response.status}`);
   }
-  const restaurants = parseLondonRestaurantPack(await response.json());
-  if (!restaurants) throw new Error("London restaurant pack is malformed");
-  return restaurants;
+  const body: unknown = await response.json();
+  if (typeof body !== "object" || body === null) throw new Error("London restaurant manifest is malformed");
+  const manifest = body as Record<string, unknown>;
+  if (manifest.version !== 3 || manifest.kind !== "restaurant"
+    || typeof manifest.urlPrefix !== "string"
+    || !/^\/data\/london_restaurants\/packs\/[a-f0-9]{16}\/$/.test(manifest.urlPrefix)
+    || !Array.isArray(manifest.shards) || !manifest.shards.length) {
+    throw new Error("London restaurant manifest is malformed");
+  }
+  for (const [index, entry] of manifest.shards.entries()) {
+    if (typeof entry?.firstId !== "string" || !/^[nwr][1-9]\d*$/.test(entry.firstId)
+      || typeof entry.lastId !== "string" || !/^[nwr][1-9]\d*$/.test(entry.lastId)
+      || entry.firstId > entry.lastId || (index > 0 && manifest.shards[index - 1].lastId >= entry.firstId)) {
+      throw new Error("London restaurant chunk range is malformed");
+    }
+  }
+  const selectedRef = selectedVenueId?.replace(/^venue-osm-/, "");
+  const entries = manifest.shards.filter(entry => !selectedRef || (
+    typeof entry.firstId === "string" && typeof entry.lastId === "string"
+    && selectedRef >= entry.firstId && selectedRef <= entry.lastId
+  ));
+  const restaurants: LondonRestaurant[] = [];
+  const chunks = await Promise.all(entries.map(async (entry) => {
+    if (typeof entry?.id !== "string" || !/^\d+$/.test(entry.id)
+      || !Number.isInteger(entry.count) || entry.count < 1) {
+      throw new Error("London restaurant chunk entry is malformed");
+    }
+    const chunk = await fetchImpl(`${manifest.urlPrefix}${entry.id}.json`);
+    if (!chunk.ok) throw new Error(`London restaurant chunk answered ${chunk.status}`);
+    const places = parseLondonRestaurantPack(await chunk.json());
+    if (!places || places.length !== entry.count
+      || places[0]?.id !== `venue-osm-${entry.firstId}`
+      || places.at(-1)?.id !== `venue-osm-${entry.lastId}`) throw new Error("London restaurant chunk is malformed");
+    return places;
+  }));
+  restaurants.push(...chunks.flat());
+  if ((!selectedRef && restaurants.length !== manifest.count) || new Set(restaurants.map((row) => row.id)).size !== restaurants.length) {
+    throw new Error("London restaurant manifest count is malformed");
+  }
+  return selectedRef ? restaurants.filter(row => row.id === selectedVenueId) : restaurants;
 }
 
 /**
@@ -178,6 +216,7 @@ function twinCell(lat: number, lng: number): [number, number] {
 export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
   restaurants: readonly T[],
   curated: readonly PlacedName[],
+  selectedVenueId = "",
 ): T[] {
   if (curated.length === 0) return [...restaurants];
   const cells = new Map<string, { venue: PlacedName; tokens: string[] }[]>();
@@ -189,6 +228,7 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
     cells.set(key, bucket);
   }
   return restaurants.filter((restaurant) => {
+    if (restaurant.id === selectedVenueId) return true;
     const [latCell, lngCell] = twinCell(restaurant.lat, restaurant.lng);
     let tokens: string[] | null = null;
     for (let dLat = -1; dLat <= 1; dLat += 1) {
@@ -212,21 +252,21 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
 }
 
 /**
- * Whether the map shows this layer. London only, because the pack is London's.
- * Restaurants must be on in the kind filter. A drink lane or a view owns the
- * map otherwise, and this layer has no price for one to read, except the food
- * view, which is the question a restaurant answers.
+ * Loading and visibility contract: public/data/london_restaurants/README.md.
  */
-export function londonRestaurantLayerShown(input: {
+export function londonRestaurantLayerMode(input: {
   isLondon: boolean;
   restaurantKindVisible: boolean;
   experienceLens: MapExperienceLens;
   /** A drink lane or a view is painting the map from its own prices. */
   lensOwnsMap: boolean;
-}): boolean {
-  if (!input.isLondon || !input.restaurantKindVisible) return false;
-  return input.experienceLens === "food" || !input.lensOwnsMap;
+  selectedVenueId?: string;
+}): "off" | "selection" | "layer" {
+  if (!input.isLondon) return "off";
+  if (input.restaurantKindVisible && (input.experienceLens === "food" || !input.lensOwnsMap)) return "layer";
+  return isLondonVenueId(input.selectedVenueId ?? "") ? "selection" : "off";
 }
+
 
 /**
  * Whether a map filter asks a question a restaurant row cannot answer. A row
@@ -319,9 +359,11 @@ export function londonRestaurantsPassingMapFilters(
     savedOnly: boolean;
     nearMe: { location: { lat: number; lng: number }; radiusKm: number } | null;
     selectedVenueId: string;
+    restaurantKindVisible?: boolean;
     curated: readonly AreaPin[];
   },
 ): readonly LondonRestaurant[] {
+  if (input.restaurantKindVisible === false) return restaurants.filter((row) => row.id === input.selectedVenueId);
   const query = input.filters.query.trim().toLowerCase();
   const nearMe = input.nearMe;
   const nothingPasses = input.savedOnly || filtersAskBeyondARestaurantRow(input.filters);

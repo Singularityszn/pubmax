@@ -26,7 +26,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 // One network double for both transports: the read answers the same whichever
 // helper the component uses, so a red run shows the behaviour, not the wiring.
-const net = vi.hoisted(() => ({ read: vi.fn<() => Promise<Response>>(), pending: undefined as Promise<void> | undefined }));
+const net = vi.hoisted(() => ({ read: vi.fn<() => Promise<Response>>(), pending: undefined as Promise<void> | undefined, realComparison: false }));
 vi.mock("@/lib/authedFetch", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authedFetch")>();
   return {
@@ -41,13 +41,17 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
   };
 });
 
-vi.mock("@/components/social/ComparePubFlow", () => ({
+vi.mock("@/components/social/ComparePubFlow", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/social/ComparePubFlow")>();
+  return ({
   default: ({ entries, startVenue, onSaved, onClose }: {
     entries: Array<{ venueId: string }>;
     startVenue?: { id: string; name: string };
     onSaved: (entries: Array<{ venueId: string; place: number }>) => void;
     onClose: (value?: unknown, reason?: "refused") => void;
-  }) => (
+  }) => net.realComparison ? (
+    <actual.default entries={entries as SocialPubRankingEntry[]} startVenue={startVenue} onSaved={onSaved} onClose={onClose} />
+  ) : (
     <div data-testid="compare">
       <output>{`${startVenue?.id}:${entries.map((entry) => entry.venueId).join(",")}`}</output>
       <button type="button" onClick={() => onSaved([{ venueId: "lamb", place: 1 }, { venueId: "seven-stars", place: 2 }])}>Save compare</button>
@@ -56,7 +60,8 @@ vi.mock("@/components/social/ComparePubFlow", () => ({
       <button type="button" onClick={() => onClose(undefined, "refused")}>Close refused flow</button>
     </div>
   ),
-}));
+});
+});
 
 import { AuthActionSessionError } from "@/lib/authedFetch";
 import RankThisPub from "@/components/pubs/RankThisPub";
@@ -118,6 +123,7 @@ beforeEach(() => {
   session.userId = "account-a";
   net.read.mockReset();
   net.pending = undefined;
+  net.realComparison = false;
 });
 
 describe("pub-page ranking transitions", () => {
@@ -141,7 +147,7 @@ describe("pub-page ranking transitions", () => {
     const unavailable = transitionPubPageRanking(reading, {
       type: "read", scope, requestId: reading.requestId, result: { kind: "failed", message: "Unavailable" },
     });
-    expect(closed.kind).toBe("idle");
+    expect(closed.kind).toBe("closed");
     expect(unavailable.kind).toBe("failed");
     expect(unavailable.checkpoint?.place).toBe(1);
   });
@@ -195,6 +201,18 @@ describe("pub-page ranking transitions", () => {
     expect(reconciled.checkpoint?.place).toBe(2);
   });
 
+  it.each(["open", "refused"] as const)("ignores a closed comparison acknowledgement after a newer %s", (next) => {
+    const previous = comparing();
+    const closed = transitionPubPageRanking(previous, { type: "close", scope, requestId: previous.requestId });
+    const reading = transitionPubPageRanking(closed, { type: "open" });
+    const current = next === "open" ? reading : transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "refused", message: "Access refused" },
+    });
+    expect(transitionPubPageRanking(current, {
+      type: "saved", scope, requestId: previous.requestId, entries: [{ ...entries[0]!, place: 1 }],
+    })).toBe(current);
+  });
+
   it("does not publish a different pub's position", () => {
     const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
     const opened = transitionPubPageRanking(reading, {
@@ -203,6 +221,30 @@ describe("pub-page ranking transitions", () => {
     expect(opened.kind).toBe("comparing");
     expect(opened.checkpoint).toBeNull();
   });
+});
+
+
+it("keeps the real comparison's successful save after closing during its POST", async () => {
+  net.realComparison = true;
+  let finish!: (response: Response) => void;
+  const write = new Promise<Response>((resolve) => { finish = resolve; });
+  const savedEntries = [ENTRY, { ...ENTRY, venueId: "seven-stars", venueName: "The Seven Stars", place: 2 }];
+  net.read.mockResolvedValueOnce(json({ entries: [] })).mockReturnValueOnce(write)
+    .mockResolvedValueOnce(json({ entries: savedEntries }));
+  await render();
+  await clickRank();
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>('[data-band="loved"]')!.click();
+  });
+  expect(net.read).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>('.comparePub__close')!.click();
+  });
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => {
+    finish(json({ entries: savedEntries }));
+  });
+  expect(rankButton()?.textContent).toBe("Ranked #2");
 });
 
 afterEach(() => {
