@@ -55,14 +55,28 @@ What the ledger does today:
 
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
 - When the subject deletes their account, their rows are deleted in the same transaction.
-- When the crew is deleted, its rows are deleted. A crew-bound Plan cannot be deleted today while its member rows reference seats.
+- When the crew is deleted, its rows are deleted. Deleting a crew-bound Plan deletes its crew (see below).
 - The subject's own-record export is built outside migration 0243. It is not live yet.
 
-Export, the Plan deletion change and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
+Export and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
+
+## Deleting a crew-bound Plan
+
+No app screen or route deletes a Plan. When an operator must delete one, use this one transaction and no other order. It locks the crew row, then the Plan row, then deletes the Plan. An admission also locks the crew row first, so the two wait for each other instead of deadlocking. A plain `delete from public.plans` can deadlock with an admission in flight.
+
+```sql
+begin;
+select id from public.social_crews where plan_id = '<plan id>' for update;
+select id from public.plans where id = '<plan id>' for update;
+delete from public.plans where id = '<plan id>';
+commit;
+```
+
+The delete removes the Plan's seats, its crew, member rows, join requests, invitations and correction rows. The seat reference from member rows is checked at commit, so this delete completes. A delete of one seat row that a member row still uses fails at commit. A delete of one member row that a request or invitation still names fails at once.
 
 ## Rollback
 
-Rollback of 0243 first locks the crew tables, then `auth.users`, then the ledger, so sign-ins and Social writes wait until it commits. It counts the ledger rows. While the ledger has rows, the rollback stops.
+Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
 
 1. Export the rows and note how many there are.
 
@@ -77,3 +91,5 @@ Rollback of 0243 first locks the crew tables, then `auth.users`, then the ledger
    ```
 
 3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
+
+The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.

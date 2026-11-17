@@ -9,7 +9,7 @@
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
 --
--- THE LEDGER IS NOT DROPPED SILENTLY. The first statement locks
+-- THE LEDGER IS NOT DROPPED SILENTLY. Before anything else, the rollback locks
 -- social_crew_removal_corrections against new corrections and counts its rows. When
 -- there are rows, the rollback stops unless the session first ran
 -- set pubmax.crew_removal_corrections_exported = '<that exact row count>';
@@ -18,23 +18,22 @@
 
 begin;
 
--- Lock order: the crew tables, then auth.users, then the ledger. A correction takes a
--- crew row, then an auth row, then writes the ledger. An account deletion takes
--- auth.users, then cascades into the ledger. Dropping the auth.users trigger needs
--- ACCESS EXCLUSIVE there, so it is taken now, before the ledger. This rollback then
--- never holds one of these while it waits for another. Sign-ins and Social writes
--- wait until it commits.
-lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
-  public.social_crew_invitations in access exclusive mode;
+-- Locks. auth.users comes first, while this rollback holds nothing, so waiting for it
+-- cannot close a cycle: a correction, admission, deletion or plan join that holds an
+-- auth row finishes first. Every other lock is then taken without waiting. When one
+-- is busy, the rollback stops at once with "could not obtain lock" and releases
+-- auth.users; run it again. Sign-ins and Social writes wait while it runs.
 lock table auth.users in access exclusive mode;
+lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
+  public.social_crew_invitations, public.plan_crew_members, public.social_blocks
+  in access exclusive mode nowait;
 
 do $$
 declare v_rows bigint := 0;
 begin
   if to_regclass('public.social_crew_removal_corrections') is not null then
-    -- SHARE ROW EXCLUSIVE waits for every correction that has written a row, then
-    -- stops new ones until this rollback commits. So the count is what the drop removes.
-    lock table public.social_crew_removal_corrections in share row exclusive mode;
+    -- Held until commit, so no correction can add a row between this count and the drop.
+    lock table public.social_crew_removal_corrections in access exclusive mode nowait;
     select count(*) into v_rows from public.social_crew_removal_corrections;
   end if;
   if v_rows > 0
@@ -489,6 +488,10 @@ drop function if exists public._lock_social_block_participants();
 drop function if exists public._social_crew_admission_refused(uuid,uuid);
 drop function if exists public._social_crew_admission_ineligible(uuid,uuid);
 drop function if exists public._lock_social_participant_accounts(uuid[]);
+alter table public.social_crew_members
+  drop constraint social_crew_members_plan_member_id_fkey,
+  add constraint social_crew_members_plan_member_id_fkey
+    foreign key (plan_member_id) references public.plan_crew_members(id) on delete restrict;
 -- The ledger goes last. The lock taken at the top still holds it.
 drop function if exists public.correct_social_crew_removal_admin(uuid,uuid,uuid,text);
 drop table if exists public.social_crew_removal_corrections;

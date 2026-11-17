@@ -60,15 +60,19 @@
 --    foreign key deletes it with its crew. A subject with no bound auth user, or one
 --    whose deletion commits while the correction waits, gets 'gone' and no change.
 --    Only the service role can read or add rows. The subject's own-record export is
---    implemented outside this migration. A crew-bound Plan, and so its crew, still
---    cannot be deleted while a member row references a seat (RESTRICT); that change,
---    departed members' counted seats, write-receipt erasure and 0071's lock order are
---    release holds owned outside this migration.
+--    implemented outside this migration. Departed members' counted seats, write-receipt
+--    erasure and 0071's lock order are release holds owned outside this migration.
+-- 8. A crew-bound Plan can be deleted, with its crew and crew history. The seat
+--    reference from member rows is checked at commit. Nothing in the app deletes a
+--    Plan. The operator deletes one in one transaction that locks the crew row, then
+--    the Plan row, then deletes the Plan (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md).
+--    An admission locks the crew row before the Plan row, so this order matches it.
 --
 -- Rollback restores the 0110, 0114, 0075, 0092 and 0224 function bodies and drops
--- the triggers, helpers, correction function and ledger. It first locks the crew
--- tables, auth.users and the ledger, in that order, and stops while the ledger holds
--- rows, unless the session names their exact exported count.
+-- the triggers, helpers, correction function and ledger, and restores the RESTRICT
+-- seat reference. It waits for auth.users while holding nothing, then takes every
+-- other lock without waiting, and stops while the ledger holds rows, unless the session
+-- names their exact exported count.
 begin;
 
 -- A row lock on auth.users needs UPDATE on it. Without that this migration stops here.
@@ -83,6 +87,17 @@ $$;
 -- An account deletion locks auth.users first. This migration adds a trigger and a
 -- foreign key on auth.users, so it takes auth.users first and no deletion interleaves.
 lock table auth.users in share row exclusive mode;
+
+-- A crew-bound Plan delete cascades to seats and, separately, to its crew and member
+-- rows. Under RESTRICT, or NO ACTION checked per statement, the seat cascade fails
+-- while the member rows still exist. Checked at commit instead, the whole delete
+-- completes, and a lone seat delete that would leave a member row behind still fails.
+-- The two references into member rows stay RESTRICT.
+alter table public.social_crew_members
+  drop constraint social_crew_members_plan_member_id_fkey,
+  add constraint social_crew_members_plan_member_id_fkey
+    foreign key (plan_member_id) references public.plan_crew_members(id)
+    on delete no action deferrable initially deferred;
 
 create function public._lock_social_participant_accounts(p_accounts uuid[])
 returns void language plpgsql security definer set search_path=''
