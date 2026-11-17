@@ -99,6 +99,39 @@ async function mount() {
 }
 
 describe("a signed-out reader opening the map", () => {
+  it("prepares the client when a reader opens the desktop sign-in menu", async () => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton, { compact: true })));
+    });
+    expect(h.loads).toBe(0);
+
+    await act(async () => container.querySelector<HTMLButtonElement>(".authCompactTrigger")!.click());
+
+    expect(h.loads).toBeGreaterThan(0);
+    expect(container.querySelector<HTMLInputElement>("input[type=email]")?.disabled).toBe(false);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it.each(["pointerdown", "keydown"])("prepares a visible email form on %s, but not on automatic focus", async (type) => {
+    let finish!: () => void;
+    h.sessionRead = new Promise((resolve) => { finish = () => resolve({ data: { session: null }, error: null }); });
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    const input = container.querySelector<HTMLInputElement>("input[type=email]")!;
+    await act(async () => input.focus());
+    expect(h.loads).toBe(0);
+
+    await act(async () => input.dispatchEvent(type === "keydown"
+      ? new KeyboardEvent(type, { key: "a", bubbles: true })
+      : new Event(type, { bubbles: true })));
+
+    expect(h.loads).toBeGreaterThan(0);
+    expect(input.disabled).toBe(false);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+    await act(async () => { finish(); });
+  });
+
   it("does not repeat a confirmed negative resume probe on focus", async () => {
     await mount();
     expect(container.textContent).toBe("settled:signed-out");
