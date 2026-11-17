@@ -136,7 +136,7 @@ describe("successful photo handoff", () => {
     await sendPhoto();
     expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
     expect(revoke).not.toHaveBeenCalledWith("blob:local");
-    await act(async () => release(new Response(new Blob(["stored"], { type: "image/jpeg" }))));
+    await act(async () => release(new Response("stored", { headers: { "Content-Type": "image/jpeg" } })));
     expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
     expect(revoke).not.toHaveBeenCalledWith("blob:local");
     await act(async () => container.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("load")));
@@ -166,7 +166,7 @@ describe("successful photo handoff", () => {
     await act(async () => root.render(boundary === "unmount" ? null : createElement(StrictMode, {}, createElement(MessageThread, { conversationId: boundary === "conversation" ? "c2" : "c1" }))));
     expect(container.querySelector('img[src="blob:local"]')).toBeNull();
     expect(revoke).toHaveBeenCalledWith("blob:local");
-    await act(async () => finish(new Response(new Blob(["late"], { type: "image/jpeg" }))));
+    await act(async () => finish(new Response("late", { headers: { "Content-Type": "image/jpeg" } })));
     expect(container.querySelector('img[src="blob:stored"]')).toBeNull();
   });
   it("reserves a loading box for a remote photo without a local preview", async () => {
