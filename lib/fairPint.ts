@@ -81,6 +81,7 @@ export type FairPintPlanEvent =
   | { type: "draw"; request: number }
   | { type: "drawn"; request: number; last: FairPintDrawn }
   | { type: "failed"; request: number; error: string; retryAt: number }
+  | { type: "restore" }
   | { type: "back" };
 
 export type FairPintSaveState =

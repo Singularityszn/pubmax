@@ -19,6 +19,8 @@ export function transitionFairPintPlan(state: FairPintPlanState, event: FairPint
       return state.request !== event.request
         ? state
         : { ...state, phase: state.last ? "result" : "dial", error: event.error, retryAt: event.retryAt };
+    case "restore":
+      return state.last ? { ...state, phase: "result", error: "" } : state;
     case "back":
       return { ...state, phase: "dial" };
     default: {

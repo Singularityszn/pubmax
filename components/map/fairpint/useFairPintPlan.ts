@@ -142,6 +142,7 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
       routePending.current = null;
       releaseDrawing();
       setStart(value);
+      if (value === state.last?.start) dispatch({ type: "restore" });
     },
     retrying: state.retryAt > retryReady,
     draw,
