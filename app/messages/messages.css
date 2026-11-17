@@ -909,7 +909,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   flex: 0 1 auto;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100dvh - 7.5rem - var(--composer-clearance) - var(--keyboard-inset, 0px));
+  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - var(--composer-clearance) - var(--keyboard-inset, 0px));
   overflow-y: auto;
   gap: 0.5rem;
   margin: 0 calc(var(--messages-gutter, 20px) * -1);

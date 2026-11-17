@@ -343,6 +343,27 @@ export default function MessageThread({
     () => false,
   );
   const keyboardInset = useKeyboardInset();
+  const measureThreadHeader = useCallback((header: HTMLDivElement | null) => {
+    if (!header) return;
+    const shell = header.parentElement!;
+    const measure = () => {
+      shell.style.setProperty("--thread-header-bottom", `${Math.max(window.visualViewport?.offsetTop ?? 0, header.getBoundingClientRect().bottom)}px`);
+    };
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(header);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    measure();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
+  }, []);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
@@ -1156,7 +1177,7 @@ export default function MessageThread({
         data-keyboard-open={keyboardOpen ? "" : undefined}
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-      <div className="threadHeader">
+      <div className="threadHeader" ref={measureThreadHeader}>
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>

@@ -1239,8 +1239,8 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
 test.describe("compact photo composer", () => {
   test.use({ isMobile: false });
 
-  for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) {
-    test(`photo selection controls remain reachable with large text at ${width}px in ${theme}`, async ({ page }, testInfo) => {
+  for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) for (const keyboard of width === 390 ? [false, true] : [false]) {
+    test(`photo selection controls remain reachable with large text at ${width}px in ${theme}${keyboard ? " with a keyboard inset" : ""}`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 900 });
       await storeThemeChoice(page, theme);
       await installThread(page, fixture());
@@ -1262,31 +1262,65 @@ test.describe("compact photo composer", () => {
       const caption = "A photo caption for a small viewport with large accessible text.";
       await field.fill(caption);
       await page.setViewportSize({ width, height: 480 });
+      if (keyboard) {
+        await field.focus();
+        await page.evaluate(() => {
+          const viewport = window.visualViewport!;
+          Object.defineProperties(viewport, {
+            height: { configurable: true, get: () => 220 },
+            offsetTop: { configurable: true, get: () => 0 },
+          });
+          viewport.dispatchEvent(new Event("resize"));
+        });
+        await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+        await expect(page.locator(".messageThreadShell")).toHaveCSS("--keyboard-inset", "260px");
+      }
+      await expectReadableCaption(field);
 
-      const reachable = async (control: Locator, direction: number) => {
+      const reachable = async (control: Locator) => {
         await expect(async () => {
-          const box = await page.locator(".composerDock").boundingBox();
+          const dock = page.locator(".composerDock");
+          const box = await dock.boundingBox();
           expect(box).not.toBeNull();
-          const top = Math.max(80, box!.y);
-          const bottom = Math.min(460, box!.y + box!.height);
+          const header = (await page.locator(".threadHeader").boundingBox())!;
+          const visual = await page.evaluate(() => ({
+            top: window.visualViewport?.offsetTop ?? 0,
+            bottom: (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? innerHeight),
+          }));
+          const top = Math.max(80, visual.top, header.y + header.height, box!.y);
+          const bottom = Math.min(460, visual.bottom, box!.y + box!.height);
           expect(bottom).toBeGreaterThan(top);
+          expect(box!.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
+          expect(box!.y + box!.height).toBeLessThanOrEqual(visual.bottom + 1);
+          expect(await dock.evaluate(element => {
+            const style = getComputedStyle(element);
+            return element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+          })).toBeGreaterThanOrEqual(44);
           await page.mouse.move(box!.x + 4, (top + bottom) / 2);
-          await page.mouse.wheel(0, direction * 600);
+          const target = await control.boundingBox();
+          expect(target).not.toBeNull();
+          await page.mouse.wheel(0, target!.y + target!.height / 2 - (top + bottom) / 2);
           await expect(control).toBeInViewport({ ratio: 0.99 });
+          const visible = (await control.boundingBox())!;
+          expect(visible.width).toBeGreaterThanOrEqual(44);
+          expect(visible.height).toBeGreaterThanOrEqual(44);
+          expect(visible.y).toBeGreaterThanOrEqual(top - 1);
+          expect(visible.y + visible.height).toBeLessThanOrEqual(bottom + 1);
           expect(await control.evaluate(element => {
             const rect = element.getBoundingClientRect();
             return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
           })).toBe(true);
         }).toPass();
       };
-      await reachable(page.getByRole("button", { name: "Remove", exact: true }), -1);
+      await reachable(page.getByRole("button", { name: "Remove", exact: true }));
       const send = page.getByRole("button", { name: "Send", exact: true });
-      await reachable(send, 1);
+      await reachable(send);
       await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-send.png`) });
       await send.click();
       const retry = page.getByRole("button", { name: "Retry send", exact: true });
       await expect(retry).toBeEnabled();
-      await reachable(retry, -1);
+      if (keyboard) await field.focus();
+      await reachable(retry);
       await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-retry.png`) });
       expect(sends).toBe(1);
       await expect(field).toHaveValue(caption);
