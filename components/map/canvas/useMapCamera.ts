@@ -685,7 +685,7 @@ export function useMapCamera(refs: CameraRefs) {
     points.forEach((point) => bounds.extend([point.lng, point.lat]));
     const isPhone = window.matchMedia("(max-width: 640px)").matches;
     scheduleCamera("pal", kind, key, (map) => map.fitBounds(bounds, {
-      padding: routeFitPadding(map, isPhone),
+      padding: routeFitPadding(map, isPhone, false),
       maxZoom: 16,
       duration: reducedRef.current ? 0 : 800,
       bearing: map.getBearing(),
