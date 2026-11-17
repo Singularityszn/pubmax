@@ -191,6 +191,22 @@ describe("summon price", () => {
     ["a half listing under a wine measure", { measure: "125ml", pint_name: "House wine", price_text: "£5.50 halves before 7pm" }],
     ["a half listing under a bottle measure", { measure: "bottle", pint_name: "Peroni", price_text: "£5.50 halves before 7pm" }],
     ["a half listing under a spirit measure", { measure: "single", pint_name: "Gin", price_text: "£5.50 halves before 7pm" }],
+    ["a conditional schooner under a pint", { price_text: "£5.50 per schooner before 7pm" }],
+    ["a conditional third under a pint", { price_text: "£5.50 a third before 7pm" }],
+    ["conditional two-thirds under a pint", { price_text: "£5.50 per two-thirds on weekdays" }],
+    ["a conditional small serving under a pint", { price_text: "£5.50 small before 7pm" }],
+    ["a compound halfpint under a pint", { price_text: "£5.50 halfpint before 7pm" }],
+    ["compound halfpints under a pint", { price_text: "£5.50 halfpints before 7pm" }],
+    ["a conditional schooner under a half", { measure: "half", price_text: "£5.50 per schooner before 7pm" }],
+    ["a conditional third under wine", { measure: "175ml", price_text: "£5.50 per third before 7pm" }],
+    ["plural schooners under a pint", { price_text: "£5.50 schooners" }],
+    ["a conditional single under a pint", { price_text: "£5.50 for a single before 7pm" }],
+    ["a conditional single under a double", { measure: "double", price_text: "£5.50 for a single before 7pm" }],
+    ["conditional singles under a double", { measure: "double", price_text: "£5.50 singles before 7pm" }],
+    ["a conditional double under a single", { measure: "single", price_text: "£5.50 per double before 7pm" }],
+    ["conditional doubles under a single", { measure: "single", price_text: "£5.50 doubles before 7pm" }],
+    ["a matching half beside a conflicting schooner", { measure: "half", price_text: "£5.50 per half or schooner before 7pm" }],
+    ["a matching double beside a conflicting single", { measure: "double", price_text: "£5.50 per single or double before 7pm" }],
     ["a can listing labelled as a bottle", { measure: "bottle", price_text: "£5.50 per 440ml can" }],
     ["a single listing labelled as a double", { measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 single measure" }],
     ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
@@ -238,7 +254,19 @@ describe("summon price", () => {
       .toMatchObject({ measure: "half", statement: "£5.50 per half before 7pm" });
   });
 
-  it.each(["Half Moon IPA", "Other Half Green Diamond", "Half Moon (Cask)"])("keeps %s as a drink name inside the listing", (pint_name) => {
+  it.each([
+    ["half", "£5.50 per halfpint before 7pm"],
+    ["half", "£5.50 halfpints before 7pm"],
+    ["single", "£5.50 per single before 7pm"],
+    ["single", "£5.50 singles before 7pm"],
+    ["double", "£5.50 per double before 7pm"],
+    ["double", "£5.50 doubles before 7pm"],
+  ] as const)("keeps the matching %s listing %s", (measure, price_text) => {
+    expect(selectSummonPrice(pub(row({ measure, price_text })), NOW))
+      .toMatchObject({ measure, statement: price_text });
+  });
+
+  it.each(["Half Moon IPA", "Other Half Green Diamond", "Half Moon (Cask)", "Small Beer Lager", "Third Wheel Bitter", "Double IPA"])("keeps %s as a drink name inside the listing", (pint_name) => {
     const price_text = `£5.50 for a ${pint_name} before 7pm`;
     expect(selectSummonPrice(pub(row({ pint_name, price_text })), NOW))
       .toMatchObject({ measure: "pint", drink: pint_name, statement: price_text });
