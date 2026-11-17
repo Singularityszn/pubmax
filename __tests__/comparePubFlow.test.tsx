@@ -95,6 +95,25 @@ afterEach(() => {
 });
 
 describe("a lost save answer", () => {
+  it("releases a failed reconciliation response before offering another check", async () => {
+    await open(list(["crown", "loved"]));
+    net.post.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const failed = reply({ code: "RANKING_UNAVAILABLE" }, 503);
+    net.get.mockResolvedValueOnce(failed);
+    await click("It was fine");
+    expect(heading()).toBe("We lost the answer");
+    expect(failed.bodyUsed).toBe(true);
+  });
+
+  it("closes a confirmed save without an unresolved write", async () => {
+    await open(list(["crown", "loved"]));
+    net.post.mockResolvedValueOnce(answer({ entries: list(["crown", "loved"], ["lamb", "fine"]) }));
+    await click("It was fine");
+    await click("Done");
+    expect(onSaved).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledWith(undefined);
+  });
+
   it("rereads the list and acknowledges a save that landed, without a second save", async () => {
     await open(list(["crown", "loved"]));
     net.post.mockRejectedValueOnce(new TypeError("Failed to fetch"));
@@ -210,6 +229,22 @@ describe("an account switch", () => {
 });
 
 describe("an account switch during search", () => {
+  it("releases a rejected search response", async () => {
+    vi.useFakeTimers();
+    root = createRoot(host);
+    await act(async () => root!.render(<ComparePubFlow entries={[]} onClose={onClose} onSaved={onSaved} />));
+    const failed = reply({ error: "Unavailable" }, 503);
+    net.get.mockResolvedValueOnce(failed);
+    const input = dialog().querySelector("input")!;
+    await act(async () => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(input, "lamb");
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    expect(net.get).toHaveBeenCalledOnce();
+    expect(failed.bodyUsed).toBe(true);
+  });
+
   it("closes the flow while a search is still out", async () => {
     vi.useFakeTimers();
     root = createRoot(host);

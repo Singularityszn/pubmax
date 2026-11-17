@@ -8,10 +8,11 @@ const net = vi.hoisted(() => ({ get: vi.fn(), pending: undefined as Promise<void
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: net.get }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/components/social/ComparePubFlow", () => ({
-  default: ({ entries, onClose }: { entries: Array<{ venueName: string }>; onClose: (pending?: Promise<void>) => void }) => (
+  default: ({ entries, onClose, onSaved }: { entries: Array<{ venueName: string }>; onClose: (pending?: Promise<void>) => void; onSaved: () => void }) => (
     <div role="dialog">
       {entries.map((entry) => entry.venueName).join(", ")}
       <button onClick={() => onClose(net.pending)}>Close while saving</button>
+      <button onClick={onSaved}>Confirm save</button>
     </div>
   ),
 }));
@@ -77,6 +78,18 @@ it("waits for a closed write and refreshes before another comparison", async () 
   expect(host.textContent).toContain("The lamb");
   await act(async () => button("Rank a pub").click());
   expect(host.querySelector("[role=dialog]")?.textContent).toContain("The lamb");
+});
+
+it("does not reopen a retired comparison after access is restored", async () => {
+  await mount();
+  await act(async () => button("Rank a pub").click());
+  status = 403;
+  await act(async () => button("Confirm save").click());
+  expect(host.querySelector("[role=dialog]")).toBeNull();
+  status = 200;
+  await act(async () => root.render(<PubRankingPanel refreshKey="access-restored" />));
+  expect(host.textContent).toContain("The crown");
+  expect(host.querySelector("[role=dialog]")).toBeNull();
 });
 
 it("keeps the confirmed list during an outage and requires a successful retry", async () => {
