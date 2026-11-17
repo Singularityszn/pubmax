@@ -95,9 +95,11 @@ it("keeps an early release when Close arrives before the controller loads", asyn
   const commit = vi.fn();
   const host = document.createElement("div"), root = createRoot(host);
   try {
-    await act(async () => root.render(createElement(FairPintHost, { cityId: "london" }, createElement(FairPintMapBridge, {
-      bounds: { west: -0.13, east: -0.12, south: 51.53, north: 51.54 }, center: [-0.125, 51.535], onCommit: commit, onRoute: () => {},
-    }))));
+    await act(async () => root.render(
+      <FairPintHost cityId="london">
+        <FairPintMapBridge bounds={{ west: -0.13, east: -0.12, south: 51.53, north: 51.54 }} center={[-0.125, 51.535]} onCommit={commit} onRoute={() => {}} />
+      </FairPintHost>,
+    ));
     await vi.dynamicImportSettled();
     expect(commit).toHaveBeenCalledOnce();
     expect(commit).toHaveBeenCalledWith(5.3);
