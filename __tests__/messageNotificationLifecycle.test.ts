@@ -33,6 +33,32 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it.each(["restore", "subscribe"] as const)("does not let a delayed %s erase the detach after departure", async operation => {
+    const registration = (await navigator.serviceWorker.getRegistration())!;
+    const subscription = await registration.pushManager.getSubscription();
+    vi.spyOn(navigator.serviceWorker, "getRegistration").mockResolvedValue(registration);
+    let resume!: () => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const held = new Promise<void>(resolve => { resume = resolve; });
+    if (operation === "restore") vi.spyOn(registration, "getNotifications").mockImplementationOnce(async () => { entered(); await held; return []; });
+    else vi.spyOn(registration.pushManager, "getSubscription").mockImplementationOnce(async () => { entered(); await held; return subscription; });
+    const write = vi.fn(async () => { account.owner = "A"; return Response.json({ bound: true, sessionId: "22222222-2222-4222-8222-222222222222" }); });
+    account.subscribe = write;
+    account.owner = "A";
+    vi.stubGlobal("fetch", vi.fn(async () => { account.owner = ""; return Response.json({ ok: true }); }));
+    const token = encodeWebPushSubscription(subscription!.toJSON())!;
+    const work = (operation === "restore" ? restoreMessagePushAccount(new AbortController().signal, "A") : saveMessageNotificationSetting({ action: "subscribe", token })).catch(() => undefined);
+    await started;
+    const departure = releaseMessagePush();
+    resume();
+    try {
+      await Promise.all([work, departure]);
+      expect(write).not.toHaveBeenCalled();
+      expect(account.owner).toBe("");
+      expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toEqual([]);
+    } finally { vi.restoreAllMocks(); }
+  });
   it("closes legacy private notifications while a detach waits for its deadline", async () => {
     vi.useFakeTimers();
     vi.stubGlobal("fetch", vi.fn((_url, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
