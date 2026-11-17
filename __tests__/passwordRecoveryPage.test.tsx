@@ -118,7 +118,7 @@ it("offers only session completion after a saved password needs cleanup retry", 
     .mockResolvedValueOnce({ status: "retry", passwordSaved: true, message: "Your password is saved. Try again to secure your account." })
     .mockResolvedValueOnce({ status: "saved", session: { access_token: "saved", refresh_token: "saved", user: { id: "owner" } } });
   vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(finish, { dispose: vi.fn() }));
-  vi.mocked(installRecoveredSession).mockResolvedValue(true);
+  vi.mocked(installRecoveredSession).mockResolvedValue("installed");
   window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
   act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
   act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
@@ -173,4 +173,47 @@ it("replaces an impossible cleanup retry with the existing sign-in path", async 
   await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
   expect(host.querySelector("form")).toBeNull();
   expect(host.querySelector(".passwordRecoveryBody a")?.getAttribute("href")).toBe("/login");
+});
+
+it("offers existing sign-in after a saved password cannot be persisted in this browser", async () => {
+  const { createPasswordRecoveryFinisher } = await import("@/lib/passwordRecoveryClient");
+  const { installRecoveredSession } = await import("@/lib/authClient");
+  const dispose = vi.fn();
+  vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(vi.fn().mockResolvedValue({ status: "saved", session: { access_token: "saved", refresh_token: "saved", user: { id: "owner" } } }), { dispose }));
+  vi.mocked(installRecoveredSession).mockResolvedValueOnce("unavailable");
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("form")).toBeNull();
+  expect(host.querySelector(".passwordRecoveryBody a")?.getAttribute("href")).toBe("/login");
+  expect(dispose).toHaveBeenCalledTimes(1);
+});
+
+it("disposes the private recovery client when the submitted proof is invalid", async () => {
+  const { createPasswordRecoveryFinisher } = await import("@/lib/passwordRecoveryClient");
+  const dispose = vi.fn();
+  vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(vi.fn().mockResolvedValue({ status: "invalid" }), { dispose }));
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("input")).toBeNull();
+  expect(dispose).toHaveBeenCalledTimes(1);
+});
+
+it("offers sign-in if storage becomes unreadable after a saved-password retry", async () => {
+  const { createPasswordRecoveryFinisher } = await import("@/lib/passwordRecoveryClient");
+  const { captureRecoverySessionBaseline } = await import("@/lib/authClient");
+  const finish = vi.fn().mockResolvedValue({ status: "retry", passwordSaved: true, message: "Retry" });
+  vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(finish, { dispose: vi.fn() }));
+  vi.mocked(captureRecoverySessionBaseline).mockReturnValueOnce({ value: null, matches: () => true }).mockReturnValueOnce(null);
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("form")).toBeNull();
+  expect(host.querySelector(".passwordRecoveryBody a")?.getAttribute("href")).toBe("/login");
+  expect(finish).toHaveBeenCalledTimes(1);
 });

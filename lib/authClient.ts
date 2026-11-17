@@ -108,12 +108,13 @@ export function captureRecoverySessionBaseline(): { value: string | null; matche
 
 export async function installRecoveredSession(
   session: Session, current: () => boolean, baseline: ReturnType<typeof captureRecoverySessionBaseline>,
-): Promise<boolean> {
+): Promise<"installed" | "retry" | "unavailable"> {
   const client = await ensureSupabaseBrowser();
-  if (!client || !canonicalStorage || !current() || !baseline?.matches() || nativeInstallation || recoveryInstallation) return false;
+  if (!client || !canonicalStorage || !baseline) return "unavailable";
+  if (!current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return "retry";
   const initialized = await client.auth.initialize();
-  if (initialized.error || !current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return false;
-  if (typeof session.expires_at !== "number" || session.expires_at * 1000 <= Date.now() + 60_000) return false;
+  if (initialized.error || !current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return "retry";
+  if (typeof session.expires_at !== "number" || session.expires_at * 1000 <= Date.now() + 60_000) return "retry";
   const { storage, key } = canonicalStorage;
   const pending = { session, current, previous: baseline.value, published: false };
   recoveryInstallation = pending;
@@ -121,8 +122,11 @@ export async function installRecoveredSession(
     const result = await client.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
     const stored = JSON.parse(storage.getItem(key) ?? "null");
     return !result.error && !!result.data.session && sameNativeSession(stored, result.data.session) &&
-      (pending.published || current());
-  } catch { return false; }
+      (pending.published || current()) ? "installed" : "retry";
+  } catch (error) {
+    return error !== null && typeof error === "object" && "name" in error &&
+      ["QuotaExceededError", "SecurityError"].includes(String(error.name)) ? "unavailable" : "retry";
+  }
   finally { if (recoveryInstallation === pending) recoveryInstallation = null; }
 }
 

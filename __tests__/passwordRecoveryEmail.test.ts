@@ -24,3 +24,11 @@ it.each([{ status: 429, code: "rate_limit" }, { status: 400, code: "over_email_s
   await sendPasswordRecoveryEmail("private@example.test", "https://pubmaxxing.com/auth/forgot-password");
   expect(report).toHaveBeenCalledWith("warn", "auth.password_recovery.delivery_refused", error);
 });
+
+it.each(["validation_failed", "email_address_invalid"])("does not alert for an address the public provider rejects: %s", async code => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://recovery-email-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_email");
+  reset.mockResolvedValue({ error: { code, status: 400 } });
+  await sendPasswordRecoveryEmail("a,b@example.test", "https://pubmaxxing.com/auth/forgot-password");
+  expect(report).toHaveBeenCalledWith("warn", "auth.password_recovery.delivery_refused", { code, status: 400 });
+});

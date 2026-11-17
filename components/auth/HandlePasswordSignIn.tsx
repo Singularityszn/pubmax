@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useState, useSyncExternalStore } from "react";
+import { FormEvent, useId, useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
@@ -69,6 +69,7 @@ export default function HandlePasswordSignIn({
   redirectTo = null,
 }: HandlePasswordSignInProps): React.JSX.Element {
   const { configured } = useAuth();
+  const passwordId = useId();
   const [open, setOpen] = useState(false);
   const [handle, setHandle] = useState("");
   const [password, setPassword] = useState("");
@@ -197,11 +198,11 @@ export default function HandlePasswordSignIn({
       </label>
       <div className="loginPageHandlePasswordField">
         <div className="loginPagePasswordLabel">
-          <label htmlFor="handle-sign-in-password">Password</label>
+          <label htmlFor={passwordId}>Password</label>
           <Link href="/auth/forgot-password" className="loginPageQuietLink">Forgot password?</Link>
         </div>
         <input
-          id="handle-sign-in-password"
+          id={passwordId}
           type="password"
           name="password"
           data-testid="e2e-login-password"

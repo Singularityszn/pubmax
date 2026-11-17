@@ -130,6 +130,13 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
     performance.mark?.(reset ? "pubmax:password-recovery:reset-ready" : "pubmax:password-recovery:request-ready");
   }, [configured, ready, reset, state.status]);
 
+  function clearRecovery(): void {
+    token.current = null;
+    disposeFinisher(finisher.current);
+    finisher.current = null;
+    setPassword(""); setConfirm("");
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!ready || operation.current || !configured) return;
@@ -149,6 +156,14 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
     const operationToken = token.current;
     const ownsOperation = () => mounted.current && operation.current === owner && token.current === operationToken;
     const baseline = reset ? captureRecoverySessionBaseline() : null;
+    if (reset && !baseline) {
+      operation.current = null;
+      if (passwordSaved.current) {
+        clearRecovery();
+        dispatch({ type: "sign-in" });
+      } else dispatch({ type: "failed", message: "Allow browser storage to reset your password, then try again." });
+      return;
+    }
     const accountSignal = readProviderAccountSignal();
     dispatch({ type: "submit" });
     try {
@@ -159,23 +174,19 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
         });
         if (!response.ok) throw new Error();
       } else {
-        if (!baseline) throw new Error();
         if (!token.current) { dispatch({ type: "invalid" }); return; }
         finisher.current ??= createPasswordRecoveryFinisher(token.current).catch(error => {
           finisher.current = null;
           throw error;
         });
-        const result = await (await finisher.current)(password, () => ownsOperation() && !accountSignal.aborted && baseline.matches());
+        const result = await (await finisher.current)(password, () => ownsOperation() && !accountSignal.aborted && baseline?.matches() === true);
         if (!ownsOperation()) return;
         if (result.status === "sign-in") {
-          token.current = null;
-          disposeFinisher(finisher.current);
-          finisher.current = null;
-          setPassword(""); setConfirm("");
+          clearRecovery();
           dispatch({ type: "sign-in" });
           return;
         }
-        if (result.status === "invalid") { dispatch({ type: "invalid", expired: true }); return; }
+        if (result.status === "invalid") { clearRecovery(); dispatch({ type: "invalid", expired: true }); return; }
         passwordSaved.current = result.status === "saved" || result.passwordSaved;
         if (passwordSaved.current) { setPassword(""); setConfirm(""); }
         if (result.status === "retry") {
@@ -184,12 +195,16 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
         }
         if (accountSignal.aborted) throw new Error();
         const installed = await installRecoveredSession(result.session, () => ownsOperation() && !accountSignal.aborted, baseline);
-        if (!installed) throw new Error();
+        if (!ownsOperation()) return;
+        if (installed === "unavailable") {
+          clearRecovery();
+          dispatch({ type: "sign-in" });
+          return;
+        }
+        if (installed !== "installed") throw new Error();
       }
       if (ownsOperation()) {
-        token.current = null;
-        disposeFinisher(finisher.current);
-        finisher.current = null;
+        clearRecovery();
         dispatch({ type: "complete" });
       }
     } catch {
@@ -212,6 +227,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
         <div className={reset ? "passwordRecoveryBody passwordRecoveryBody--reset" : "passwordRecoveryBody"}>
         {showForm ? (
           <form onSubmit={submit} noValidate method="post" aria-label={reset ? "Reset password" : "Request password reset"} aria-busy={busy}>
+            {!reset ? <noscript><p>Turn on JavaScript to request a reset link.</p></noscript> : null}
             {reset && !securing ? (
               <>
                 <div className="passwordRecoveryField passwordRecoveryField--password">

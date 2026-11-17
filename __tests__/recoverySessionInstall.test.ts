@@ -37,7 +37,7 @@ it.each(["account-switch", "same-account-switch", "replacement-link", "unmount"]
   current = false;
   if (mode.includes("switch")) await client.auth.setSession(b);
   release();
-  expect(await installing).toBe(false);
+  expect(await installing).toBe("retry");
   expect((await client.auth.getSession()).data.session?.refresh_token ?? null).toBe(mode.includes("switch") ? b.refresh_token : null);
   await client.auth.stopAutoRefresh();
 });
@@ -59,11 +59,11 @@ it("rolls back a cancelled save before publishing identity, and keeps a valid sa
     if (cancel) current = false;
     if (!ignoreStaleRecoverySessionEvent(value)) { published.push(value.user.id); current = false; }
   });
-  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(false);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe("retry");
   expect((await client.auth.getSession()).data.session).toBeNull();
   expect(published).toEqual([]);
   current = true; cancel = false;
-  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(true);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe("installed");
   expect(published).toEqual([a.user.id]);
   registration.data.subscription.unsubscribe();
   await client.auth.stopAutoRefresh();
@@ -91,7 +91,7 @@ it("does not renew and install a cancelled recovery after a suspended tab resume
     current = false;
     return install(tokens);
   });
-  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(false);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe("retry");
   expect((await client.auth.getSession()).data.session).toBeNull();
   expect(request).not.toHaveBeenCalled();
   await client.auth.stopAutoRefresh();
@@ -109,7 +109,26 @@ it("preserves a same-user login completed after submission but before recovery i
   await client.auth.setSession(initial);
   const baseline = captureRecoverySessionBaseline();
   await client.auth.setSession(concurrent);
-  expect(await installRecoveredSession(recovered, () => true, baseline)).toBe(false);
+  expect(await installRecoveredSession(recovered, () => true, baseline)).toBe("retry");
   expect((await client.auth.getSession()).data.session?.refresh_token).toBe(concurrent.refresh_token);
   await client.auth.stopAutoRefresh();
+});
+
+it.each(["probe", "install"])("reports unavailable persistence when storage fails during %s", async phase => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://recovery-quota-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_quota");
+  const a = session("recovering-a");
+  const request = vi.fn(async () => Response.json(a.user));
+  vi.stubGlobal("fetch", request);
+  const { captureRecoverySessionBaseline, installRecoveredSession, ensureSupabaseBrowser } = await import("@/lib/authClient");
+  const baseline = captureRecoverySessionBaseline();
+  expect(baseline).not.toBeNull();
+  if (phase === "install") await ensureSupabaseBrowser();
+  const storage = window.localStorage;
+  const owner = Object.hasOwn(storage, "setItem") ? storage : Object.getPrototypeOf(storage);
+  vi.spyOn(owner, "setItem").mockImplementation(() => { throw new DOMException("Storage is full", "QuotaExceededError"); });
+  expect(await installRecoveredSession(a, () => true, baseline)).toBe("unavailable");
+  if (phase === "probe") expect(request).not.toHaveBeenCalled();
+  await (await ensureSupabaseBrowser())?.auth.stopAutoRefresh();
 });
