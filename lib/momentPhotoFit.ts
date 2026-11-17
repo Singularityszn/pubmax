@@ -1,7 +1,8 @@
 // The DOM half of the Moment photo intake: decode a chosen photo, draw it down
 // and re-encode it as a JPEG until it weighs less than the wire limit. The
-// ladder it walks and every number on it are `lib/momentPhotoIntake.ts`; the
-// encoder is the Moment editor's own (`encodeMomentPhoto`), so the bytes that
+// default ladder is in `lib/momentPhotoIntake.ts`. Callers can cap its longest
+// edge without changing the Moment defaults. The encoder is the Moment
+// editor's own (`encodeMomentPhoto`), so the bytes that
 // leave here are the bytes the editor would have written.
 //
 // Decoding goes through `createImageBitmap` with `imageOrientation:

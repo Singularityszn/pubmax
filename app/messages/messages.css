@@ -833,8 +833,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   width: 100%;
   height: 100%;
   border-radius: var(--radius);
-  /* `contain`, never `cover`: if a stored dimension ever disagreed with the
-     bytes, a photograph letterboxes rather than being silently cut. */
+  /* `contain` preserves the full photo when the minimum tap target changes
+     the frame's aspect, or stored dimensions disagree with the bytes. */
   object-fit: contain;
 }
 
