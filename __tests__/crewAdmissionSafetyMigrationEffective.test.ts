@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import {
   DIGEST,
+  MIGRATOR,
   NOT_FOUND,
   NO_CREW,
   type Person,
@@ -57,6 +58,14 @@ afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
 describe.skipIf(skipReason !== null)("before 0243", () => {
   beforeAll(() => { if (running()) stageTo("before"); });
+
+  it("as on Supabase, the migration role cannot drop a trigger on auth.users", async () => {
+    const refused = await db().attempt(`begin; set local role ${MIGRATOR};
+      drop trigger profiles_tombstone_on_auth_user_delete on auth.users; rollback;`);
+    expect(refused.ok).toBe(false);
+    expect(refused.said).toContain("must be owner of relation users");
+    expect(db().sql("select count(*) from pg_trigger where tgname='profiles_tombstone_on_auth_user_delete'")).toBe("1");
+  });
 
   it("this cluster grants EXECUTE on a new function to every Supabase role, as Supabase does", () => {
     db().sql("create function public._default_grant_probe_0243() returns int language sql as 'select 1'");
@@ -501,10 +510,9 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
     expect(db().sql(`select to_regprocedure('public._lock_social_participant_accounts(uuid[])') is null
       and to_regprocedure('public._social_crew_admission_refused(uuid,uuid)') is null
       and to_regprocedure('public._social_crew_admission_ineligible(uuid,uuid)') is null
-      and to_regprocedure('public._lock_social_auth_user_accounts()') is null
       and to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)') is null
       and to_regclass('public.social_crew_removal_corrections') is null
-      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','lock_social_accounts_on_auth_user_delete'))`)).toBe("t");
+      and not exists(select 1 from pg_trigger where tgname='social_blocks_lock_participant_accounts')`)).toBe("t");
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana]);
     block(xav, ana);

@@ -27,6 +27,7 @@ import {
   decide,
   decideCall,
   deleteAccount,
+  forwardOutcome,
   hold,
   holdRpc,
   invite,
@@ -600,5 +601,44 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
       expect(busy.said).toContain("could not obtain lock");
     } finally { await crewRow.finish(); }
     expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is not null")).toBe("t");
+  });
+
+  it("rollback leaves the auth.users trigger in place but inert, and reapplying makes it lock again", async () => {
+    expect(await rollbackOutcome("rollback_for_inert_trigger", ledgerRows())).toMatchObject({ ok: true });
+    expect(db().sql(`select count(*) from pg_trigger where tgname='lock_social_accounts_on_auth_user_delete'`)).toBe("1");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(db().sql(`select has_function_privilege('${role}','public._lock_social_auth_user_accounts()','execute')`), role).toBe("f");
+    }
+    const xav = person();
+    const heldAccount = await hold(`select pg_advisory_xact_lock(hashtextextended('social-account:${xav.account}',0))`, "postgres");
+    try {
+      expect(await db().attempt(deleteAccount(xav))).toMatchObject({ ok: true });
+    } finally { await heldAccount.finish(); }
+
+    stageTo("after");
+    expect(db().sql(`select count(*) from pg_trigger where tgname='lock_social_accounts_on_auth_user_delete'`)).toBe("1");
+    const bea = person();
+    const heldAgain = await hold(`select pg_advisory_xact_lock(hashtextextended('social-account:${bea.account}',0))`, "postgres");
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("delete_after_reapply", deleteAccount(bea), "postgres");
+      await expect.poll(() => waitsOnAccountLock("delete_after_reapply")).toBe("t");
+    } finally { await heldAgain.finish(); }
+    expect((await deletion)?.ok).toBe(true);
+  });
+
+  it("reapplying stops when a different trigger already has that name on auth.users", async () => {
+    expect(await rollbackOutcome("rollback_for_foreign_trigger", ledgerRows())).toMatchObject({ ok: true });
+    db().sql(`drop trigger lock_social_accounts_on_auth_user_delete on auth.users;
+      create trigger lock_social_accounts_on_auth_user_delete after delete on auth.users
+      for each row execute function public._lock_social_auth_user_accounts();`);
+    const refused = forwardOutcome();
+    expect(refused.ok).toBe(false);
+    expect(refused.said).toContain("lock_social_accounts_on_auth_user_delete");
+    expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
+    db().sql(`drop trigger lock_social_accounts_on_auth_user_delete on auth.users;
+      create trigger lock_social_accounts_on_auth_user_delete before delete on auth.users
+      for each row execute function public._lock_social_auth_user_accounts();`);
+    expect(forwardOutcome()).toMatchObject({ ok: true });
   });
 });
