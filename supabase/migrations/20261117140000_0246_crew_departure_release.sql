@@ -21,7 +21,8 @@
 --      waits can remain pending until the next sweep or admission.
 --    Lock order: crew row, member rows, Plan row, seat and invitation rows. It takes no
 --    auth row and no account lock.
---    The sweep locks its whole batch of crew rows first and skips busy crews.
+--    The sweep locks its whole batch of crew rows first and skips busy crews. It then
+--    releases them in Plan ID order, the order account deletion locks a person's Plans.
 -- 4. Rollback drops both functions and restores 0245's _social_crew_admission_refused.
 --    Places already freed and nights already cancelled stay as they are.
 begin;
@@ -71,9 +72,9 @@ returns jsonb language plpgsql security definer set search_path=''
 as $$
 declare v_batch uuid[]; v_crew uuid; v_crews integer := 0; v_changed integer := 0;
 begin
-  select coalesce(array_agg(locked.id order by locked.id),array[]::uuid[]) into v_batch
+  select coalesce(array_agg(locked.id order by locked.plan_id),array[]::uuid[]) into v_batch
   from (
-    select crew.id from public.social_crews crew
+    select crew.id, crew.plan_id from public.social_crews crew
     where exists (
       select 1 from public.social_crew_members member
       join public.plans plan on plan.id=crew.plan_id
@@ -83,7 +84,7 @@ begin
         and account.supabase_user_id is null and profile.tombstoned_at is not null
         and (member.role<>'owner' or plan.status in ('draft','ready','active','ending'))
     )
-    order by crew.id
+    order by crew.plan_id
     limit greatest(1,least(coalesce(p_limit,20),100))
     for update of crew skip locked
   ) locked;
