@@ -2145,11 +2145,6 @@ html[data-theme="dark"] .messageBubblePhoto {
     );
   }
 
-  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
-    visibility: hidden;
-    pointer-events: none;
-  }
-
   body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .mobileTabBar {
     visibility: hidden;
     opacity: 0;
@@ -2223,5 +2218,16 @@ html[data-theme="dark"] .messageBubblePhoto {
     position: relative;
     min-height: 0;
     transition-property: none;
+  }
+
+  .messagesSplit:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) {
+    --messages-consent-clearance: 0px;
+  }
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
   }
 }
