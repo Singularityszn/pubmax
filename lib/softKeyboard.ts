@@ -120,14 +120,15 @@ function readOpen(): boolean {
   // leaves no baseline for the new shape, so the answer holds until the field
   // blurs or the height rises by a keyboard at the new width.
   const { innerWidth: width, innerHeight: height } = window;
-  lowestLayoutHeight = width === lowestLayoutWidth ? Math.min(lowestLayoutHeight, height) : height;
-  lowestLayoutWidth = width;
+  const viewportHeight = visual?.height ?? height;
+  lowestViewportHeight = width === lowestViewportWidth ? Math.min(lowestViewportHeight, viewportHeight) : viewportHeight;
+  lowestViewportWidth = width;
   const keyboardClosed =
-    height - lowestLayoutHeight >= Math.max(height, baselineLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+    viewportHeight - lowestViewportHeight >= Math.max(viewportHeight, baselineLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
   if (!focused || (width !== baselineLayoutWidth && (!open || keyboardClosed))) {
     baselineLayoutHeight = height;
     baselineLayoutWidth = width;
-    lowestLayoutHeight = height;
+    lowestViewportHeight = viewportHeight;
   }
   if (width !== baselineLayoutWidth) return open;
   baselineLayoutHeight = Math.max(baselineLayoutHeight, height);
@@ -140,8 +141,8 @@ function readOpen(): boolean {
 let open = false;
 let baselineLayoutHeight = 0;
 let baselineLayoutWidth = 0;
-let lowestLayoutHeight = 0;
-let lowestLayoutWidth = 0;
+let lowestViewportHeight = 0;
+let lowestViewportWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
@@ -213,7 +214,7 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     open = false;
     baselineLayoutHeight = 0;
     baselineLayoutWidth = 0;
-    lowestLayoutHeight = 0;
-    lowestLayoutWidth = 0;
+    lowestViewportHeight = 0;
+    lowestViewportWidth = 0;
   };
 }
