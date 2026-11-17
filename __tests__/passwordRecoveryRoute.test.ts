@@ -1,7 +1,7 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
 const background = vi.hoisted(() => [] as Array<() => Promise<void>>);
-const limited = vi.hoisted(() => vi.fn(async () => false));
+const limited = vi.hoisted(() => vi.fn<(key: string, durable: string, limit: number, window: number, opts: { failClosed: boolean }) => Promise<boolean>>(async () => false));
 const send = vi.hoisted(() => vi.fn(async () => {}));
 vi.mock("next/server", () => ({ after: (work: () => Promise<void>) => background.push(work) }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: limited }));

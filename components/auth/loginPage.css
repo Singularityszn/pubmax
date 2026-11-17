@@ -450,6 +450,20 @@ header.loginPageHead {
   font-size: var(--text-base);
 }
 
+.loginPagePasswordLabel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.loginPagePasswordLabel a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
 /* Shown under EVERY failure, never only for an account with no password: a
    line that appeared conditionally would answer "does this handle exist". */
 .loginPageHandlePasswordGuidance {
