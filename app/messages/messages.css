@@ -1379,7 +1379,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messagesSplit {
     display: grid;
     grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
-    height: calc(100dvh - 9rem);
+    --messages-consent-clearance: 0px;
+    height: calc(100dvh - 9rem - var(--messages-consent-clearance));
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--line);
@@ -1395,10 +1396,8 @@ html[data-theme="dark"] .messageBubblePhoto {
      viewport-sized box and the card lands on the composer row at its foot
      (verify-preview-4, 7.2 at 1440). */
   body:has(.analyticsConsentPrompt) .messagesSplit {
-    height: calc(
-      100dvh - 9rem
-        - var(--analytics-consent-clearance)
-        - max(12px, env(safe-area-inset-bottom, 0px))
+    --messages-consent-clearance: calc(
+      var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
     );
   }
 

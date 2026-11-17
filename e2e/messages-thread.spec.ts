@@ -818,8 +818,109 @@ test.describe("the message thread at 320", () => {
   });
 });
 
+async function expectThreadControlsReachable(page: Page, visibleFoot: number): Promise<void> {
+  await expect(async () => {
+    const header = await box(page, ".threadHeader");
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    await expect(send).toBeEnabled();
+    expect(header.top).toBeGreaterThanOrEqual(0);
+    for (const target of [field, send, page.locator(".threadHeader button").first()]) {
+      const rect = (await target.boundingBox())!;
+      expect(rect.height).toBeGreaterThanOrEqual(44);
+      expect(rect.width).toBeGreaterThanOrEqual(44);
+      expect(rect.y).toBeGreaterThanOrEqual(target === field || target === send ? header.bottom : header.top);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(visibleFoot);
+      expect(await target.evaluate((element) => {
+        const r = element.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        return [[x, y], [x, r.top + 1], [x, r.bottom - 1], [r.left + 1, y], [r.right - 1, y]]
+          .every(([px, py]) => element.contains(document.elementFromPoint(px, py)));
+      })).toBe(true);
+    }
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+  }).toPass();
+}
+
 test.describe("thread keyboard geometry with touch input", () => {
   test.use({ hasTouch: true });
+  for (const startWidth of [844, 1180]) {
+    test(`thread keyboard geometry survives rotation from ${startWidth}`, async ({ page }) => {
+      const startHeight = startWidth === 844 ? 390 : 820;
+      const endWidth = startWidth === 844 ? 1180 : 844;
+      const endHeight = endWidth === 844 ? 390 : 820;
+      await page.setViewportSize({ width: startWidth, height: startHeight });
+      await installThread(page, fixture());
+      await page.addInitScript((height) => {
+        Object.defineProperties(window.visualViewport!, {
+          height: { configurable: true, writable: true, value: height },
+          offsetTop: { configurable: true, writable: true, value: 0 },
+        });
+      }, startHeight);
+      await page.goto("/messages/c1");
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await field.fill("Hello");
+      const resize = async (width: number, height: number) => {
+        await page.evaluate((height) => Object.assign(window.visualViewport!, { height }), height);
+        await page.setViewportSize({ width, height });
+        await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+      };
+      await resize(startWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(endWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await field.blur();
+      await expectThreadControlsReachable(page, 200);
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-viewport-reduced", "");
+      await resize(endWidth, endHeight);
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+      await expectThreadControlsReachable(page, endHeight);
+      await field.focus();
+      await resize(endWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(startWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(startWidth, startHeight);
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+      await expectThreadControlsReachable(page, startHeight);
+    });
+  }
+
+  for (const resizeContent of [false, true]) {
+    test(`thread keyboard geometry clears visible consent with content resize ${resizeContent}`, async ({ page }) => {
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await installThread(page, fixture());
+      await page.addInitScript(() => {
+        window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+        window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+        Object.defineProperties(window.visualViewport!, {
+          height: { configurable: true, writable: true, value: 820 },
+          offsetTop: { configurable: true, writable: true, value: 0 },
+        });
+      });
+      await page.goto("/messages/c1");
+      const consent = page.getByLabel("Anonymous analytics choice");
+      await expect(consent).toBeVisible();
+      await page.getByRole("textbox", { name: "Message", exact: true }).fill("Hello");
+      await page.evaluate(() => Object.assign(window.visualViewport!, { height: 400 }));
+      if (resizeContent) await page.setViewportSize({ width: 1180, height: 400 });
+      await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+      await expectThreadControlsReachable(page, 400);
+      await expect(async () => {
+        const [dock, strip] = await Promise.all([box(page, ".composerDock"), consent.boundingBox()]);
+        expect(dock.bottom).toBeLessThanOrEqual(Math.min(strip!.y, 400 - strip!.height));
+      }).toPass();
+      await page.evaluate(() => Object.assign(window.visualViewport!, { height: 820 }));
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+      await expectThreadControlsReachable(page, 820);
+      expect((await box(page, ".composerDock")).bottom).toBeLessThanOrEqual((await consent.boundingBox())!.y);
+    });
+  }
+
   for (const reducedMotion of ["no-preference", "reduce"] as const) {
     for (const width of [844, 1180]) {
       test(`thread keyboard geometry bounds tall drafts and attachment errors at ${width} with ${reducedMotion}`, async ({ page }, testInfo) => {

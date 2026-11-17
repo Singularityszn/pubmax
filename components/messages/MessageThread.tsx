@@ -92,6 +92,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   isTextEntryElement,
+  SOFT_KEYBOARD_MIN_SHRINK_RATIO,
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
   softKeyboardOpen,
@@ -574,17 +575,24 @@ export default function MessageThread({
     const viewport = window.visualViewport;
     let layoutWidth = window.innerWidth;
     let layoutHeight = window.innerHeight;
+    let lowestHeight = window.visualViewport?.height ?? window.innerHeight;
+    let lowestWidth = layoutWidth;
     const panel = shell.closest<HTMLElement>(".messagesSplit");
     let panelShift = 0;
     const fit = () => {
       // Pinch zoom changes the view, not the conversation's layout.
       if (viewport && viewport.scale !== 1) return;
-      if (window.innerWidth !== layoutWidth) {
-        layoutWidth = window.innerWidth;
-        layoutHeight = window.innerHeight;
-      }
       const focused = isTextEntryElement(document.activeElement);
       const wasReduced = shell.hasAttribute("data-viewport-reduced");
+      const height = viewport?.height ?? window.innerHeight;
+      lowestHeight = window.innerWidth === lowestWidth ? Math.min(lowestHeight, height) : height;
+      lowestWidth = window.innerWidth;
+      const recovered = height - lowestHeight >= Math.max(height, layoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+      if (window.innerWidth !== layoutWidth && ((!wasReduced && !readSoftKeyboardOpen()) || recovered)) {
+        layoutWidth = window.innerWidth;
+        layoutHeight = window.innerHeight;
+        lowestHeight = height;
+      }
       if (!focused && !wasReduced) layoutHeight = window.innerHeight;
       layoutHeight = Math.max(layoutHeight, window.innerHeight);
       shell.toggleAttribute("data-viewport-reduced", readSoftKeyboardOpen() || (wasReduced && softKeyboardOpen({
@@ -592,7 +600,6 @@ export default function MessageThread({
         visualViewportHeight: viewport?.height ?? window.innerHeight,
         layoutViewportHeight: layoutHeight,
       })));
-      const height = viewport?.height ?? window.innerHeight;
       const top = viewport?.offsetTop ?? 0;
       if (panel && window.matchMedia("(min-width: 1024px) and (pointer: coarse)").matches) {
         shell.style.removeProperty("height");
@@ -601,15 +608,17 @@ export default function MessageThread({
         const contentResized = shell.hasAttribute("data-viewport-reduced") && window.innerHeight < layoutHeight;
         panelShift = (contentResized ? top : Math.max(top, normalTop)) - normalTop;
         const nextTop = `${panelShift}px`;
-        const maxHeight = `${Math.max(0, top + height - normalTop - panelShift)}px`;
+        const maxHeight = `calc(${Math.max(0, top + height - normalTop - panelShift)}px - var(--messages-consent-clearance))`;
         const nextHeight = contentResized ? maxHeight : "";
         if (panel.style.top !== nextTop) panel.style.top = nextTop;
+        panel.style.zIndex = panelShift < 0 ? "var(--z-float)" : "";
         if (panel.style.height !== nextHeight) panel.style.height = nextHeight;
         if (panel.style.maxHeight !== maxHeight) panel.style.maxHeight = maxHeight;
       } else {
         panel?.style.removeProperty("top");
         panel?.style.removeProperty("height");
         panel?.style.removeProperty("max-height");
+        panel?.style.removeProperty("z-index");
         panelShift = 0;
         const nextHeight = `calc(${height}px - var(--composer-clearance))`;
         const nextTop = `${top}px`;
@@ -630,6 +639,7 @@ export default function MessageThread({
       panel?.style.removeProperty("top");
       panel?.style.removeProperty("height");
       panel?.style.removeProperty("max-height");
+      panel?.style.removeProperty("z-index");
     };
   }, []);
 
