@@ -142,7 +142,10 @@ function PassportRanked({ handle }: { handle: string }) {
     const controller = new AbortController();
     void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response): Promise<RankedRead | null> => {
-        const body = (await response.json().catch(() => ({}))) as { entries?: SocialPubRankingEntry[]; code?: unknown; retryable?: unknown };
+        const payload: unknown = await response.json().catch(() => null);
+        const body = payload !== null && typeof payload === "object" && !Array.isArray(payload)
+          ? payload as { entries?: SocialPubRankingEntry[]; code?: unknown; retryable?: unknown }
+          : {};
         if (response.ok) return Array.isArray(body.entries) ? { account, entries: body.entries } : { account, unavailable: true };
         return rankingReadFailure(response.status, body.code, body.retryable) === "refused" ? null : { account, unavailable: true };
       })
