@@ -198,6 +198,51 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     expect(state(second, creator)).toBe("left");
   });
 
+  it("a batch sweep and the shared creator's deletion lock two cancelled nights in one order", async () => {
+    releaseAll();
+    const creator = person(), departedOwner = person();
+    mutual(creator, departedOwner);
+    const crews = [crewWith(creator, [departedOwner]), crewWith(creator, [departedOwner])].sort();
+    const [first, second] = crews as [string, string];
+    for (const crew of crews) {
+      expect(call(`transfer_social_crew_owner_atomic('${creator.account}','${crew}',
+        '${memberId(crew, departedOwner)}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "transferred" });
+    }
+    const planOf = (crew: string) => db().sql(`select plan_id from public.social_crews where id='${crew}'`);
+    const [firstPlan, secondPlan] = [planOf(first), planOf(second)];
+    // Heap order is any order. Store the sweep's first night last, so the deletion's scan reaches it last.
+    db().sql(`create index departure_test_heap_order on public.plans ((id='${firstPlan}'), id);
+      cluster public.plans using departure_test_heap_order; drop index public.departure_test_heap_order;`);
+    expect(db().sql(`select (select ctid from public.plans where id='${secondPlan}') < (select ctid from public.plans where id='${firstPlan}')`)).toBe("t");
+    db().sql(deleteAccount(departedOwner));
+    db().sql(`create function public.departure_test_plan_order_barrier() returns trigger language plpgsql as $$
+      begin
+        if new.id='${firstPlan}' and new.status='abandoned' then perform pg_advisory_xact_lock(246732); end if;
+        return new;
+      end; $$;
+      create trigger departure_test_plan_order_barrier before update on public.plans
+        for each row execute function public.departure_test_plan_order_barrier();`);
+    const barrier = await hold("select pg_advisory_xact_lock(246732)", "postgres");
+    const jobs: Array<Promise<{ ok: boolean; said: string }>> = [];
+    let results: Array<{ ok: boolean; said: string }> = [];
+    try {
+      jobs.push(outcome("plan_order_sweep", rpc(releaseCall(100))));
+      await expect.poll(() => waitsOnAnyLock("plan_order_sweep")).toBe("t");
+      jobs.push(outcome("plan_order_creator_delete", deleteAccount(creator), "postgres"));
+      await expect.poll(() => waitsOnAnyLock("plan_order_creator_delete")).toBe("t");
+    } finally {
+      await barrier.finish();
+      results = await Promise.all(jobs);
+      db().sql("drop trigger departure_test_plan_order_barrier on public.plans; drop function public.departure_test_plan_order_barrier()");
+    }
+    for (const result of results) {
+      expect(result.ok, result.said).toBe(true);
+      expect(result.said).not.toMatch(REFUSED_BY_LOCKS);
+    }
+    expect([planStatus(first), planStatus(second)]).toEqual(["abandoned", "abandoned"]);
+    expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
+  });
+
   it("only the service role can run the sweep, and no role can call the per-crew step", () => {
     for (const role of ["anon", "authenticated"]) {
       expect(db().sql(`select has_function_privilege('${role}','public.release_departed_social_crew_places(integer)','execute')`), role).toBe("f");
