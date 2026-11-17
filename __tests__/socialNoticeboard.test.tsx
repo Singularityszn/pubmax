@@ -496,12 +496,16 @@ it("polls only the head, retains older pages and reports background failures pol
     fail = true;
     await act(async () => vi.advanceTimersByTime(15_000));
     expect(host.querySelector(".socialFeedInlineError")?.getAttribute("role")).toBe("status");
+    const announcements = () => [...host.querySelectorAll('.socialFeed [role="status"], .socialFeed [role="alert"]')]
+      .filter(node => node.textContent?.trim());
+    expect(announcements()).toHaveLength(1);
     const beforeBackoff = heads;
     await act(async () => vi.advanceTimersByTime(15_000));
     expect(heads).toBe(beforeBackoff);
     const retry = [...host.querySelectorAll("button")].find(button => button.textContent === "Retry")!;
     await act(async () => retry.click());
-    expect(host.querySelector(".socialFeedInlineError")?.getAttribute("role")).toBe("alert");
+    expect(announcements()).toHaveLength(1);
+    expect(announcements()[0].getAttribute("role")).toBe("status");
     fail = false;
     await act(async () => retry.click());
     expect(host.querySelector(".socialFeedInlineError")).toBeNull();

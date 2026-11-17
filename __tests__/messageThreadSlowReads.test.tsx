@@ -581,6 +581,37 @@ it("follows incoming history when the reader stays at the newest position", asyn
   expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
 });
 
+it.each([true, false])("keeps the reading position when recovery appears (newest=%s)", async newest => {
+  await render();
+  await answer(thread("Retained history"));
+  Object.defineProperty(window, "scrollY", { configurable: true, value: newest ? 132 : 0 });
+  await act(async () => window.dispatchEvent(new Event("scroll")));
+  scrollTo.mockClear();
+  await poll();
+  await answer(outage());
+  expect(host.querySelector(".threadReadRecovery")).not.toBeNull();
+  if (newest) expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+  else expect(scrollTo).not.toHaveBeenCalled();
+});
+
+it("coalesces repeated manual recovery while its read is pending", async () => {
+  await render();
+  await answer(thread("Retained history"));
+  await poll();
+  await answer(outage());
+  const retry = host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!;
+  await act(async () => {
+    for (let i = 0; i < 5; i++) retry.click();
+  });
+  expect(transport.reads).toHaveLength(1);
+  expect(retry.disabled).toBe(true);
+  await answer(thread("Recovered history"));
+  expect(host.querySelector(".threadReadRecovery")).toBeNull();
+  await poll();
+  await answer(outage());
+  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.disabled).toBe(false);
+});
+
 it("lands an intentional send at the newest position after reading older history", async () => {
   await render();
   await answer(thread("Earlier history"));
