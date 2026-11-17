@@ -323,7 +323,7 @@ test("the credit sentence reads as one line of prose at 390", async ({
   expect(geometry!.link.top).toBeGreaterThanOrEqual(geometry!.hint.bottom - 1);
 });
 
-test("the credit sentence and its link share one row on a desktop width", async ({
+test("the credit sentence and its link remain clear in the desktop drawer", async ({
   page,
 }) => {
   await installContributorBoundary(page);
@@ -341,21 +341,25 @@ test("the credit sentence and its link share one row on a desktop width", async 
   await expect(submit.getByRole("status")).toBeVisible();
 
   const geometry = await page.evaluate(() => {
-    const hint = document.querySelector(".vpsubImpactRow .vpsubStampHint");
-    const link = document.querySelector(".vpsubImpactRow .vpsubImpactLink");
-    if (!hint || !link) return null;
+    const row = document.querySelector(".vpsubImpactRow");
+    const hint = row?.querySelector(".vpsubStampHint");
+    const link = row?.querySelector(".vpsubImpactLink");
+    if (!row || !hint || !link) return null;
+    const rowRect = row.getBoundingClientRect();
     const hintRect = hint.getBoundingClientRect();
     const linkRect = link.getBoundingClientRect();
     return {
-      lines: hintRect.height,
-      sameRow: linkRect.top < hintRect.bottom,
-      linkLeft: linkRect.left,
-      hintRight: hintRect.right,
+      rowLeft: rowRect.left, rowRight: rowRect.right,
+      hintLeft: hintRect.left, hintRight: hintRect.right, hintBottom: hintRect.bottom,
+      linkLeft: linkRect.left, linkRight: linkRect.right, linkTop: linkRect.top,
     };
   });
   expect(geometry).not.toBeNull();
-  expect(geometry!.sameRow).toBe(true);
-  expect(geometry!.linkLeft).toBeGreaterThanOrEqual(geometry!.hintRight - 1);
+  expect(geometry!.hintLeft).toBeGreaterThanOrEqual(geometry!.rowLeft - 1);
+  expect(geometry!.hintRight).toBeLessThanOrEqual(geometry!.rowRight + 1);
+  expect(geometry!.linkLeft).toBeGreaterThanOrEqual(geometry!.rowLeft - 1);
+  expect(geometry!.linkRight).toBeLessThanOrEqual(geometry!.rowRight + 1);
+  expect(geometry!.linkTop >= geometry!.hintBottom - 1 || geometry!.linkLeft >= geometry!.hintRight - 1).toBe(true);
 });
 
 test("map sheet keeps one-tap prices when the mission is missing", async ({

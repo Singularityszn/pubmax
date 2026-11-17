@@ -24,7 +24,7 @@ FROM surface × intent → TO surface, with the exact mechanic. Deep-link params
 | Discover / drink card | "show me these on the map" | Map (drink lens) | `Link` → `/map?drink=<cat>` (or `food=1&q=<cuisine>`, `cocktails=1`, `crawl=<id>`). A non-beer `drink` PRICES the map by that drink (colour, pin figure, cheapest-area list) rather than narrowing it; the other params still narrow pins + list. | back → Discover, scroll restored |
 | Pubs list item | "put this pub on the map" | Map pin | `Link` → `venueMapUrl(id)` = `/map?sel=<id>`. MUST open the venue sheet AND centre the camera on the pin (fly-to). | sheet closes first, then back → Pubs |
 | Near / Tonight result | "keep this Venue" | Accepted Map Venue | Explicit Keep action writes PlanningIntent, then opens `sel` with verified `accept=1&src=<source>`. Browsing the result writes nothing. | back → source result |
-| Venue sheet (pub) | "make this Stop 1" | Plan | Sticky action `Make it Stop 1` confirms the local write before opening `/plan`. An accepted arrival keeps its own source; another pub sheet records how it was selected, and `map-search` when nothing named it. Storage failure stays on the Venue and announces the error. | back → Venue |
+| Venue sheet (pub) | "make this Stop 1" | Plan | The [action-card rule](rules/components-venue-plan-and-message-surfaces.md#the-venue-sheet-has-one-action-card-and-it-spends-the-sheet-s-one-coral) determines where `Make it Stop 1` appears. The action confirms the local write before opening `/plan`. An accepted arrival keeps its own source; another pub sheet records how it was selected, and `map-search` when nothing named it. Storage failure stays on the Venue and announces the error. | back → Venue |
 | Feed story | "see this pub" → "on the map" | Venue → Map | Story pub `Link` → `/map?sel=<venueId>` (same sheet+centre contract as Pubs). | sheet → back → Feed |
 | Crawl editorial | "walk this crawl" | Map crawl mode | `Link` → `/map?crawl=<id>` (curated) or `?mode=build&pubs=<ids>`. Map draws the polyline + route panel. | back → Crawls |
 | Pint Drop composer | finished / cancelled | back where they were | Composer is a mode of Map (`?log=1`), not a page. Closing clears `log` and returns to the map beneath; if arrived from a tab, the tab's root shows. | closing composer ≠ leaving Map |
@@ -74,13 +74,11 @@ in [README Features](../README.md#features).
 
 ## 4. Back-stack rules
 
-1. **Tab switches never build history.** Tapping a bottom tab replaces, it does not
-   push — back must never walk the user backward through tabs they tapped.
-2. **In-tab pushes DO build history** (list→detail, story→venue, plan→join).
-3. Map sheet Back gestures follow the [surface navigation contract](rules/components-sheets-chrome-and-navigation.md#no-surface-is-a-dead-end-and-the-way-out-is-one-pattern).
+1. **In-tab pushes DO build history** (list→detail, story→venue, plan→join).
+2. Map sheet Back gestures and primary-tab exits follow the [surface navigation contract](rules/components-sheets-chrome-and-navigation.md#no-surface-is-a-dead-end-and-the-way-out-is-one-pattern).
    The [map guide](../README.md#features) owns planner exit and Home destinations.
    Tab-bar visibility and sheet clearance follow the [sheet portal clearance rules](../components/mobile/mobileMapShell.css).
-4. **Scroll restoration:** returning to Discover / Pubs / Stories restores the prior
+3. **Scroll restoration:** returning to Discover / Pubs / Stories restores the prior
    scroll position (Next default scroll restoration); deep-linking into Map does not
    inherit list scroll.
 

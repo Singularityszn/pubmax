@@ -46,6 +46,8 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   await expect(sheet).toBeVisible();
+  const refinements = sheet.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   const mapViewGroup = sheet.getByRole("group", { name: "Map view" });
   const all = mapViewGroup.getByRole("button", { name: "All", exact: true });
   const noAlcohol = mapViewGroup.getByRole("button", {
@@ -104,6 +106,8 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
     "Filters: food view active",
   );
 
+  await all.click();
+  await expect(sheet.getByRole("button", { name: "Pints", exact: true })).toBeVisible();
   expect(errors).toEqual([]);
 });
 

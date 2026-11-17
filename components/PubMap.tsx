@@ -636,7 +636,6 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   MAP_SHEET_TITLES,
   readMobileMapSession,
-  MOBILE_SHEET_DISMISS_EVENT,
   withCityCameraAttitude,
   writeMobileMapSession,
   type MobileShellState,
@@ -1566,6 +1565,7 @@ export default function PubMap({
   const [selectedVenueRequestToken, setSelectedVenueRequestToken] = useState(() =>
     restoredSession.selectedVenueId ? nextCameraRequestToken() : 0,
   );
+  const [closeVenueRequestToken, setCloseVenueRequestToken] = useState(0);
   const [searchPickedVenueId, setSearchPickedVenueId] = useState(() =>
     seed.filters.query ? seed.selectedVenueId : "",
   );
@@ -5098,7 +5098,7 @@ export default function PubMap({
     viewport: mapViewport,
   });
   const closeMapSurfaces = useCallback(() => {
-    const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
+    const searchPick = !routePending && routeForMap.length < 2 && selectedVenueId === searchPickedVenueId && filters.query.trim()
       ? venueById.get(searchPickedVenueId)
       : null;
     if (searchPick) {
@@ -5112,17 +5112,12 @@ export default function PubMap({
     releasePlannerMode(); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, routePending, routeForMap.length, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
   }, [clearLogIntent, closeMapSurfaces]);
 
-  useEffect(() => {
-    const onDismiss = () => closeEverySurface();
-    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
-    return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
-  }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
       const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
@@ -5179,6 +5174,10 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onReturnToMap: moveMapCameraTo,
+    mappedRouteActive: routeForMap.length >= 2,
+    mappedRoutePending: routePending,
+    selectedVenueRequestToken,
+    onVenueClose: setCloseVenueRequestToken,
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
@@ -6047,7 +6046,7 @@ export default function PubMap({
         {...mobilePriceChoicesProps}
         onClearFilters={clearMobileFilters}
         refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
-        drinkControl={<div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
+        drinkControl={experienceLens === "food" ? null : <div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
@@ -6589,6 +6588,7 @@ export default function PubMap({
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
         selectedVenueRequestToken={selectedVenueRequestToken}
+        closeVenueRequestToken={closeVenueRequestToken}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
         onUkBasePubsChange={setRenderedBasePubs}

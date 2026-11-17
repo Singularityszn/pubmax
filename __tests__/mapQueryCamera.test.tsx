@@ -1,18 +1,21 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useEffect, useRef } from "react";
+import { act, createElement, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
+import { latestMapCameraRequestToken, palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
+import { useNearMeRequests } from "@/components/map/pubmap/useNearMeRequests";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -783,25 +786,27 @@ describe("query camera with contextual price pins", () => {
     expect(camera.cameraLanePending()).toBe(false);
   });
 
-  it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s with the inspector open", (change) => {
-    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
-    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
-      undefined, undefined, undefined, undefined, { current: soho[0]!.id });
-    camera.fitPalPicks(1, picks);
-    flush();
-    act(() => {
-      if (change === "hide") planRef.current!.hideRoute();
-      else {
-        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
-        planRef.current!.mapRoute();
-      }
+  describe.each([false, true])("with inspector open: %s", (inspectorOpen) => {
+    it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s", (change) => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+        undefined, undefined, undefined, undefined, { current: inspectorOpen ? soho[0]!.id : "" });
+      camera.fitPalPicks(1, picks);
+      flush();
+      act(() => {
+        if (change === "hide") planRef.current!.hideRoute();
+        else {
+          planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+          planRef.current!.mapRoute();
+        }
+      });
+      flush();
+      camera.fitQueryVenues();
+      flush();
+      expect(fitBounds).toHaveBeenCalledTimes(2);
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
     });
-    flush();
-    camera.fitQueryVenues();
-    flush();
-    expect(fitBounds).toHaveBeenCalledTimes(2);
-    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
-      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
   });
 
   it("blocks mounted restoration updates while Pal owns the camera", () => {
@@ -992,5 +997,436 @@ describe("query camera with contextual price pins", () => {
     mount({ current: [] });
     fitQuery();
     expect(fitBounds).not.toHaveBeenCalled();
+  });
+});
+
+describe("closing a route stop", () => {
+  it.each([
+    ["home", false], ["home", true], ["direct dismiss", false], ["direct dismiss", true],
+  ] as const)("recovers a cold mapped walk after %s and its remaining venue resolves, reader moved: %s", async (exit, moved) => {
+    const fitRoute = vi.fn();
+    const restoreCamera = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    let resolveVenues!: () => void;
+    const selectedToken = nextCameraRequestToken();
+    window.history.replaceState(null, "", "/map?mode=build&pubs=soho-west,soho-east&sel=soho-west");
+    function Journey() {
+      const [venues, setVenues] = useState(soho.slice(0, 1));
+      const [selected, setSelected] = useState("soho-west");
+      const [closeToken, setCloseToken] = useState(0);
+      const presentation = useMapPlanPresentation({ mode: "build", builtIds: soho.map(pub => pub.id),
+        routeMapped: true, suggestedRoute: [], activePlanRoute: [],
+        venueById: new Map(venues.map(pub => [pub.id, pub])) });
+      resolveVenues = () => setVenues(soho);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: window.location.search, surfaceId: selected ? "venue" : "none", surfaceTitle: "Stop",
+        surfaceState: { ...EMPTY_MAP_SURFACE_STATE, venueId: selected }, selectionHint: "",
+        mappedRouteActive: presentation.routeForMap.length >= 2,
+        mappedRoutePending: presentation.routePending,
+        selectedVenueRequestToken: selectedToken, onVenueClose: setCloseToken,
+        onRestore: entry => setSelected(entry?.id === "venue" ? entry.state?.venueId ?? "" : ""),
+        onReturnToMap: restoreCamera, onHome: () => setSelected(""), onSurfaceClose: () => {},
+      });
+      useRouteCameraFraming({ mapReady: true, routeKey: presentation.routeForMap.map(pub => pub.id).join(">"),
+        routePending: presentation.routePending, selectedVenueId: selected, closeRequestToken: closeToken,
+        gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    await act(async () => root.render(createElement(Journey)));
+    if (moved) gesture.current.movementSerial += 1;
+    await act(async () => {
+      const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
+      if (exit === "direct dismiss") requestMobileSheetDismiss(() => {});
+      else navigation.home();
+      await landed;
+    });
+    expect(fitRoute).not.toHaveBeenCalled();
+    act(() => resolveVenues());
+    expect(restoreCamera).not.toHaveBeenCalled();
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", selectedToken);
+  });
+
+  it.each(["direct dismiss", "no-walk clear"])("does not retain a selection marker after %s without a walk", (exit) => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    let routeKey = "";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey, selectedVenueId: selected,
+        closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    if (exit === "direct dismiss") closeToken = nextCameraRequestToken();
+    render();
+    fitRoute.mockClear();
+    routeKey = "a>b";
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("automatic", 0);
+  });
+
+  // The ownership contract requires the newest deliberate request to win,
+  // even when route data or map readiness delays both requests.
+  it.each([
+    ["route data", "close", false], ["route data", "close", true],
+    ["route data", "route", false], ["route data", "route", true],
+    ["map readiness", "close", false], ["map readiness", "close", true],
+    ["map readiness", "route", false], ["map readiness", "route", true],
+  ] as const)("honours the newest %s-delayed %s request, reader moved: %s", (delay, newest, moved) => {
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let ready = false;
+    let requestToken = nextCameraRequestToken();
+    let closeToken = 0;
+    function Camera() {
+      const ownedCamera = useMapCamera({
+        latestRequestToken: latestMapCameraRequestToken({ routeRequestToken: requestToken,
+          closeVenueRequestToken: closeToken, nearbyRequestToken: 0,
+          selectedVenueId: selected, selectedVenueRequestToken: 0 }),
+        mapRef: { current: { stop: vi.fn(), fitBounds, getBearing: () => -8,
+          getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
+            getBoundingClientRect: () => ({ top: 0 }) }),
+        } as unknown as MapLibreMap },
+        reducedRef: { current: true }, cityViewRef: { current: {
+          center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
+        cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
+        routeRef: { current: soho }, routeLineRef: { current: { type: "FeatureCollection", features: [] } },
+        venuesRef: { current: soho }, gestureCameraRef: gesture,
+      });
+      useRouteCameraFraming({ mapReady: delay === "route data" || ready,
+        routePending: delay === "route data" && !ready, routeKey: "a>b",
+        selectedVenueId: selected, requestToken, closeRequestToken: closeToken,
+        gestureCameraRef: gesture, fitRoute: ownedCamera.fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    if (moved) gesture.current.movementSerial += 1;
+    render();
+    if (newest === "route") requestToken = nextCameraRequestToken();
+    ready = true;
+    render();
+    act(() => { pendingFrame?.(performance.now()); pendingFrame = undefined; });
+    if (moved && newest === "close") expect(fitBounds).not.toHaveBeenCalled();
+    else {
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    }
+  });
+
+  it.each([
+    ["home", false], ["home", true],
+    ["back", false], ["back", true],
+    ["browser back", false], ["browser back", true],
+    ["parent home", false], ["parent home", true],
+  ] as const)("keeps walk camera ownership through %s, reader moved: %s", async (exit, moved) => {
+    const fitRoute = vi.fn();
+    const restoreCamera = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let navigation: ReturnType<typeof useMapSurfaceNavigation>;
+    const selectedToken = nextCameraRequestToken();
+    let mapWalk: () => void;
+    let openStop: () => void;
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [mapped, setMapped] = useState(false);
+      const [selected, setSelected] = useState("");
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "",
+        mappedRouteActive: mapped,
+        onRestore: (entry) => setSelected(entry?.id === "venue" ? entry.state?.venueId ?? "" : ""),
+        onReturnToMap: restoreCamera,
+        selectedVenueRequestToken: selectedToken,
+        onVenueClose: setCloseToken,
+        onHome: () => setSelected(""), onSurfaceClose: () => {},
+      });
+      mapWalk = () => setMapped(true);
+      openStop = () => {
+        navigation.open({ id: "venue", title: "Stop", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "b" } });
+        setSelected("b");
+      };
+      useRouteCameraFraming({
+        mapReady: true, routeKey: mapped ? "a>b" : "", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute,
+      });
+      return null;
+    }
+    async function traverse(action: () => void) {
+      await act(async () => {
+        const landed = new Promise<void>((resolve) => {
+          window.addEventListener("popstate", () => resolve(), { once: true });
+        });
+        action();
+        await landed;
+      });
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({
+      id: "planner", title: "Plan",
+      state: { ...EMPTY_MAP_SURFACE_STATE, returnCamera: { center: [-0.14, 51.54], zoom: 14 } },
+    }));
+    act(() => mapWalk());
+    act(() => openStop());
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+
+    await traverse(() => {
+      if (exit === "home") navigation.home();
+      else if (exit === "browser back") window.history.back();
+      else navigation.back();
+    });
+    expect(restoreCamera).not.toHaveBeenCalled();
+    expect(fitRoute).toHaveBeenCalledTimes(moved ? 0 : 1);
+    if (!moved) expect(fitRoute).toHaveBeenCalledWith("user", expect.any(Number));
+
+    if (exit !== "home") {
+      await traverse(() => {
+        if (exit === "parent home") navigation.home();
+        else navigation.back();
+      });
+    }
+    expect(restoreCamera).not.toHaveBeenCalled();
+    expect(fitRoute).toHaveBeenCalledTimes(moved ? 0 : 1);
+  });
+
+  it.each(["nearby", "search", "area"] as const)("keeps a newer queued %s camera move when the venue closes", async (action) => {
+    const selectedToken = nextCameraRequestToken();
+    let request = 0;
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    const refs = {
+      mapRef: { current: { stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
+        getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
+          getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
+      } as unknown as MapLibreMap },
+      reducedRef: { current: true }, cityViewRef: { current: {
+        center: [-0.13, 51.51] as [number, number], zoom: 12, pitch: 40, bearing: -8 } },
+      cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] as [[number, number], [number, number]] },
+      routeRef: { current: soho }, routeLineRef: { current: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection },
+      venuesRef: { current: soho }, queryVenuesRef: { current: soho.slice(0, 1) },
+      gestureCameraRef: { current: { active: false, endedAt: null, movementSerial: 0 } },
+    };
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [selected, setSelected] = useState("stop");
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "", mappedRouteActive: true,
+        selectedVenueRequestToken: selectedToken, onVenueClose: setCloseToken,
+        onHome: () => setSelected(""), onSurfaceClose: () => {},
+        onRestore: (entry) => setSelected(entry?.id === "venue" ? "stop" : ""),
+      });
+      camera = useMapCamera({ ...refs, latestRequestToken: Math.max(selectedToken, request, closeToken) });
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: refs.gestureCameraRef, fitRoute: camera.fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({ id: "venue", title: "Stop",
+      state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "stop" } }));
+    request = nextCameraRequestToken();
+    act(() => root.render(createElement(Journey)));
+    act(() => {
+      if (action === "nearby") camera.fitNearby({ lat: 51.52, lng: -0.12 }, soho, "user", request);
+      else if (action === "search") camera.fitQueryVenues("search-recovery", request);
+      else camera.cinematic({ center: [-0.12, 51.52], zoom: 14 }, "area", "user", request);
+    });
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => window.addEventListener("popstate", () => resolve(), { once: true }));
+      navigation.home();
+      await landed;
+    });
+    act(() => { pendingFrame?.(performance.now()); pendingFrame = undefined; });
+    if (action === "search") {
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.139, 51.514]]);
+    } else {
+      expect(fitBounds).not.toHaveBeenCalled();
+      expect(easeTo).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ center: [-0.12, 51.52] }));
+    }
+  });
+
+  // Near me owns the latest deliberate request even if geolocation resolves
+  // after navigation. A close signal must not invalidate that pending request.
+  it.each([false, true])("honours delayed Near me when a venue closes, mapped walk: %s", async (mapped) => {
+    let resolveLocation!: PositionCallback;
+    vi.stubGlobal("navigator", { geolocation: {
+      getCurrentPosition: (success: PositionCallback) => { resolveLocation = success; },
+      watchPosition: vi.fn(),
+    } });
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    let runNearMe!: ReturnType<typeof useNearMeRequests>["runNearMe"];
+    const selectedToken = nextCameraRequestToken();
+    const location = vi.fn();
+    const nearbyToken = vi.fn();
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "",
+        mappedRouteActive: mapped,
+        selectedVenueRequestToken: selectedToken,
+        onRestore: () => {}, onHome: () => {}, onSurfaceClose: () => {},
+        onVenueClose: setCloseToken,
+      });
+      ({ runNearMe } = useNearMeRequests({
+        cityId: "london", stopCount: 2, invalidatePrivateCamera: () => {},
+        setNearbyError: () => {}, setNearbyLoading: () => {}, setUserLocation: location,
+        setNearbyRequestToken: nearbyToken, setPendingNearMeRequest: () => {},
+        openChooseAreaRef: { current: () => {} },
+      }));
+      return createElement("output", null, closeToken);
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({ id: "venue", title: "Stop",
+      state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "b" } }));
+    act(() => runNearMe("tap"));
+    const request = currentCameraRequestToken();
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => window.addEventListener("popstate", () => resolve(), { once: true }));
+      navigation.home();
+      await landed;
+    });
+    expect(host.textContent).toBe(String(mapped ? selectedToken : 0));
+    expect(currentCameraRequestToken()).toBe(request);
+    act(() => resolveLocation({ coords: { latitude: 51.52, longitude: -0.12 } } as GeolocationPosition));
+    expect(location).toHaveBeenCalledExactlyOnceWith({ lat: 51.52, lng: -0.12 });
+    expect(nearbyToken).toHaveBeenCalledExactlyOnceWith(request);
+  });
+
+  // The close contract preserves reader movement across separate React commits.
+  // An automatic fit after the late signal would overwrite that movement.
+  it.each([false, true])("preserves movement when selection clears before the close signal: %s", (moved) => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+    selected = "";
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).not.toHaveBeenCalled();
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
+  });
+
+  it("honours another explicit route request when an earlier close signal arrives late", () => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    const venueToken = nextCameraRequestToken();
+    let requestToken = 0;
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        requestToken, closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    requestToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", requestToken);
+    fitRoute.mockClear();
+    closeToken = venueToken;
+    requestToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", requestToken);
+  });
+
+  it("captures a fresh movement baseline when the same venue opens again", () => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    render();
+    gesture.current.movementSerial += 1;
+    selected = "stop";
+    render();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
+  });
+
+  it("retains a close signal that arrives before selection clears", () => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    selected = "";
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
+  });
+
+  it("does not claim the camera when there is no walk", () => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null as number | null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).not.toHaveBeenCalled();
+  });
+  it.each([false, true])("restores the walk unless the reader moved it: %s", (moved) => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null as number | null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledWith("user", closeToken);
   });
 });
