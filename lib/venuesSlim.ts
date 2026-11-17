@@ -19,7 +19,7 @@
 // that dropped malformed rows is never stored: a later fetch failure would
 // otherwise treat a truncated index as the whole city.
 
-import { waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
+import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
@@ -364,7 +364,7 @@ async function readSlimPayload(
     applySlimLoadEvent(path, wire, { type: "reopen" });
     wire.controller.signal.throwIfAborted();
   }
-  await waitForFairPintDraw();
+  if (fairPintDrawPending()) await waitForFairPintDraw();
   wire?.controller.signal.throwIfAborted();
   const response = earlyPayloadRejected || cache === "no-store"
     ? await fetch(path, { cache: "no-store", signal: wire?.controller.signal, priority: "low" })

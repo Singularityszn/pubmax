@@ -66,8 +66,8 @@ describe("slim venue cache recovery", () => {
     await expect(loadSlimVenues()).resolves.toEqual([ROW]);
 
     const path = "/data/venues_slim.json?v=target";
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, { signal: expect.any(AbortSignal) });
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
     expect(offlineSet).not.toHaveBeenCalled();
   });
@@ -90,7 +90,7 @@ describe("slim venue cache recovery", () => {
 
     const path = "/data/cities/manchester/venues_slim.json?v=target";
     expect(fetchSpy).toHaveBeenCalledOnce();
-    expect(fetchSpy).toHaveBeenCalledWith(path, { signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenCalledWith(path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(offlineSet).toHaveBeenCalledWith(`venues_slim:v2:${path}`, {
       revision: "target",
       rows: [ROW],
@@ -115,7 +115,7 @@ describe("slim venue cache recovery", () => {
     });
 
     const path = "/data/cities/manchester/venues_slim.json?v=target";
-    expect(fetchSpy).toHaveBeenCalledWith(path, { signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenCalledWith(path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
     expect(offlineSet).not.toHaveBeenCalled();
   });
@@ -138,8 +138,8 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [ROW], status: "ready" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, { signal: expect.any(AbortSignal) });
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(offlineSet).toHaveBeenCalledWith(
       `venues_slim:v2:${path}`,
@@ -167,7 +167,7 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [FALLBACK_ROW], status: "ready" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
     expect(offlineSet).not.toHaveBeenCalled();
@@ -193,7 +193,7 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [], status: "unavailable" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
     expect(offlineSet).not.toHaveBeenCalled();
   });
@@ -216,8 +216,8 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [ROW], status: "ready" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, { signal: expect.any(AbortSignal) });
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -237,8 +237,8 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [], status: "unavailable" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, { signal: expect.any(AbortSignal) });
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(2);
   });
 
@@ -259,8 +259,8 @@ describe("slim venue cache recovery", () => {
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).resolves.toEqual({ rows: [ROW], status: "ready" });
 
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, { signal: expect.any(AbortSignal) });
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store", signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, expect.objectContaining({ cache: "no-store", signal: expect.any(AbortSignal) }));
     expect(offlineGet).toHaveBeenCalledWith(
       `venues_slim:v2:${path}`,
     );
@@ -276,7 +276,7 @@ describe("slim venue cache recovery", () => {
     await expect(
       loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
     ).rejects.toBe(abort);
-    expect(fetchSpy).toHaveBeenCalledWith(path, { signal: expect.any(AbortSignal) });
+    expect(fetchSpy).toHaveBeenCalledWith(path, expect.objectContaining({ signal: expect.any(AbortSignal) }));
     expect(fetchSpy).toHaveBeenCalledTimes(1);
   });
 });

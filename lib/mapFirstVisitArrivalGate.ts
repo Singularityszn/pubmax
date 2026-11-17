@@ -65,6 +65,7 @@ export function subscribeMapFirstVisitArrival(
 
 const fairPintDraws = new Set<symbol>();
 const drawWaiters = new Set<() => void>();
+export const fairPintDrawPending = () => fairPintDraws.size > 0;
 export function holdFairPintDraw(): () => void {
   const request = Symbol();
   fairPintDraws.add(request);

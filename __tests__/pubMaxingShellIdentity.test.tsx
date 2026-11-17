@@ -17,6 +17,7 @@ import PubMaxingShell from "@/components/PubMaxingShell";
 afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 it("keeps the map and coverage note distinct while the city changes", async () => {
+  vi.stubGlobal("matchMedia", () => ({ matches: false, addEventListener: vi.fn(), removeEventListener: vi.fn() }));
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }));
   const errors = vi.spyOn(console, "error");
   const host = document.createElement("div");
