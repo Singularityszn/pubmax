@@ -1,6 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { listEnabledCities } from "../lib/cities";
+import { rowsFromSlimPayload } from "../lib/slimPayload";
 import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 test.use({ serviceWorkers: "block" });
@@ -16,7 +17,7 @@ type FixtureVenue = {
 
 async function searchFixture(page: Page, loaded: FixtureVenue[], indexed: FixtureVenue[]) {
   const core = JSON.parse(await readFile("public/data/venues_slim.core.json", "utf8"));
-  const base = core.rows.find((row: { kind?: string }) => !row.kind || row.kind === "pub");
+  const base = (rowsFromSlimPayload(core) as Array<Record<string, unknown>>).find((row) => !row.kind || row.kind === "pub");
   const rows = loaded.map((venue) => ({
     ...base, id: venue.id, name: venue.name, sourceName: undefined, kind: venue.venueKind ?? "pub",
     lat: venue.lat ?? 51.5147, lng: -0.12, locality: venue.area, borough: "Westminster",

@@ -14,9 +14,14 @@ const source = { label: "Pint Prices", url: "https://example.com/pub", observedA
 describe("fair pint parity", () => {
   it("round trips source URLs, exact timestamps and existing pin metadata", () => {
     for (const url of ["https://www.pint-prices.com/pub/A%20B/C%20D", "https://www.pint-prices.com/pub/A B/C D", "https://example.com/pub", "https://www.pint-prices.com/pub/Street/A%20%26%20B"]) {
-      const pin = { id: "a", name: "A & B", fairPint: [550, url, "2026-11-01T12:03:04.123Z"] as const, priceSource: "Pint Prices", priceObservedAt: "2026-11-01" };
+      const pin = { id: "a", name: "A & B", borough: "Camden", fairPint: [550, url, "2026-11-01T12:03:04.123Z"] as const, priceSource: "Pint Prices", priceObservedAt: "2026-11-01" };
       expect(rowsFromSlimPayload(compactFairPintPayload([pin, pin]))).toEqual([pin, pin]);
     }
+  });
+  it("round trips boroughs on unpriced rows and still accepts unpacked cells", () => {
+    const rows = [{ id: "unpriced", borough: "", cheapestPrice: null }, { id: "missing" }];
+    expect(rowsFromSlimPayload(compactFairPintPayload(rows))).toEqual(rows);
+    expect(rowsFromSlimPayload({ rows })).toEqual(rows);
   });
   it("keeps exactly the generator ceiling's fixture venues", () => {
     const fixtures = [

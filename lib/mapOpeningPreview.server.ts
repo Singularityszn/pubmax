@@ -12,6 +12,7 @@ import {
   type OpeningGround,
 } from "@/lib/mapOpeningSnapshot";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 /**
  * The opening discs for the prerendered /map, read from the very eager cell a
@@ -28,9 +29,9 @@ export async function loadMapOpeningPreview(): Promise<OpeningPreviewDisc[]> {
       join(process.cwd(), "public", "data", "venues_slim.core.json"),
       "utf8",
     );
-    const payload = JSON.parse(raw) as { rows?: unknown };
-    if (!Array.isArray(payload.rows)) return [];
-    return openingPreviewDiscs(payload.rows as SlimVenue[]);
+    const rows = rowsFromSlimPayload(JSON.parse(raw));
+    if (!rows) return [];
+    return openingPreviewDiscs(rows as SlimVenue[]);
   } catch {
     return [];
   }
