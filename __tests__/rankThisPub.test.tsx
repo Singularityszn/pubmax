@@ -31,10 +31,12 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/authedFetch")>();
   return {
     AuthActionSessionError: actual.AuthActionSessionError,
+    AuthActionJsonParseError: actual.AuthActionJsonParseError,
     authedFetch: () => net.read(),
     authedActionJson: async () => {
       const response = await net.read();
-      return { response, body: await response.json() };
+      try { return { response, body: await response.json() }; }
+      catch { throw new actual.AuthActionJsonParseError(response.status); }
     },
   };
 });
@@ -44,13 +46,14 @@ vi.mock("@/components/social/ComparePubFlow", () => ({
     entries: Array<{ venueId: string }>;
     startVenue?: { id: string; name: string };
     onSaved: (entries: Array<{ venueId: string; place: number }>) => void;
-    onClose: (value?: unknown) => void;
+    onClose: (value?: unknown, reason?: "refused") => void;
   }) => (
     <div data-testid="compare">
       <output>{`${startVenue?.id}:${entries.map((entry) => entry.venueId).join(",")}`}</output>
       <button type="button" onClick={() => onSaved([{ venueId: "lamb", place: 1 }, { venueId: "seven-stars", place: 2 }])}>Save compare</button>
       <button type="button" onClick={(event) => onClose(event)}>Close compare</button>
       <button type="button" onClick={() => onClose(net.pending)}>Close pending save</button>
+      <button type="button" onClick={() => onClose(undefined, "refused")}>Close refused flow</button>
     </div>
   ),
 }));
@@ -174,7 +177,7 @@ describe("RankThisPub", () => {
     net.read.mockResolvedValueOnce(json({ error: { message: "Sign in to use Social." }, code: "SOCIAL_SIGN_IN_REQUIRED" }, 401));
     await clickRank();
     expect(signInDoor()).toBeNull();
-    expect(notice()).toBe("Your ranking is unavailable right now.");
+    expect(notice()).toBe("We could not confirm access to your ranking.");
   });
 
   it("says why Social refused instead of opening the compare flow", async () => {
@@ -200,6 +203,28 @@ describe("RankThisPub", () => {
     await clickRank();
     expect(rankButton()?.textContent).toBe("Rank it");
     expect(rankButton()?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it.each([401, 403])("retires a confirmed position after an unreadable HTTP %s refusal", async (status) => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    net.read.mockResolvedValueOnce(new Response("", { status }));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+  });
+
+  it("retires the checkpoint when the comparison reports an access refusal", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close refused flow")!.click());
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    expect(notice()).toBe("We could not confirm access to your ranking.");
   });
 
   it("keeps a confirmed save when its follow-up read is temporarily unavailable", async () => {
