@@ -206,6 +206,7 @@ test.describe("first ten ranking", () => {
     await expect(dialog(page)).toContainText("Your first ten are in.");
     await dialog(page).getByRole("button", { name: "Done" }).click();
     await expect(card(page)).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
     await page.reload();
     await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeVisible();
     await expect(card(page)).toHaveCount(0);
@@ -244,6 +245,52 @@ test.describe("first ten ranking", () => {
     await dialog(page).getByRole("button", { name: "It was fine" }).click();
     await expect(dialog(page).getByRole("heading", { name: "The Lamb is in" })).toBeVisible();
     expect(fixture.posts).toHaveLength(2);
+  });
+
+  test("closing an unconfirmed save keeps ranking locked until a fresh read succeeds", async ({ page }) => {
+    const fixture = newFixture({ A: [{ venueId: "w2-crown", band: "loved" }] });
+    await openProfile(page, fixture);
+    await startSession(page);
+    await pickPub(page, "lamb", "The Lamb");
+    fixture.next.POST = commitThenDrop(fixture);
+    fixture.next.GET = (route) => route.abort("internetdisconnected");
+    await dialog(page).getByRole("button", { name: "It was fine" }).click();
+    await expect(dialog(page).getByRole("heading", { name: "We lost the answer" })).toBeVisible();
+    fixture.next.GET = (route) => route.abort("internetdisconnected");
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).first().click();
+    await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+    await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeDisabled();
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await expect(card(page)).toContainText("2 of 10 ranked");
+    await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeEnabled();
+    await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
+    expect(fixture.posts).toHaveLength(1);
+  });
+
+  test("closing during a save waits for it before reading the next checkpoint", async ({ page }) => {
+    const fixture = newFixture({ A: [{ venueId: "w2-crown", band: "loved" }] });
+    let finish!: () => Promise<void>;
+    fixture.next.POST = async (route, account) => {
+      await new Promise<void>((resolve) => {
+        finish = async () => {
+          const placed = place(fixture.rows[account], route.request().postDataJSON())!;
+          fixture.rows[account] = placed;
+          await route.fulfill({ json: { entries: entries(placed) } });
+          resolve();
+        };
+      });
+    };
+    await openProfile(page, fixture);
+    await startSession(page);
+    await pickPub(page, "lamb", "The Lamb");
+    await dialog(page).getByRole("button", { name: "It was fine" }).click();
+    await expect(dialog(page).getByRole("status").filter({ hasText: "Saving your ranking…" })).toBeVisible();
+    await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
+    await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeDisabled();
+    await finish();
+    await expect(card(page)).toContainText("2 of 10 ranked");
+    await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeEnabled();
+    expect(fixture.posts).toHaveLength(1);
   });
 
   test("a list changed in another tab restarts the questions only after a fresh read", async ({ page, context }) => {

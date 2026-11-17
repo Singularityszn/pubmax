@@ -167,6 +167,17 @@ describe("a list that moved in another tab", () => {
 });
 
 describe("an account switch", () => {
+  it("does not publish a result after the dialog has retired", async () => {
+    await open(list(["crown", "loved"]));
+    let finish!: (value: unknown) => void;
+    net.post.mockReturnValueOnce(new Promise((resolve) => { finish = resolve; }));
+    await click("It was fine");
+    act(() => root!.unmount());
+    root = null;
+    await act(async () => finish(answer({ entries: list(["crown", "loved"], ["lamb", "fine"]) })));
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it("closes the flow and drops a save answer that arrives afterwards", async () => {
     await open(list(["crown", "loved"]));
     let finish!: (value: unknown) => void;
@@ -219,6 +230,7 @@ describe("save recovery rules", () => {
     expect(rankingReadFailure(403, "SOCIAL_ADULT_VERIFICATION_REQUIRED")).toBe("refused");
     expect(rankingReadFailure(401, "SOCIAL_SIGN_IN_REQUIRED")).toBe("refused");
     expect(rankingReadFailure(503, "SOCIAL_ACCESS_UNAVAILABLE")).toBe("refused");
+    expect(rankingReadFailure(503, "SOCIAL_ACCESS_UNAVAILABLE", true)).toBe("unavailable");
     expect(rankingReadFailure(503, "RANKING_UNAVAILABLE")).toBe("unavailable");
     expect(rankingReadFailure(0, undefined)).toBe("unavailable");
   });

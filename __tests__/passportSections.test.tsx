@@ -167,9 +167,9 @@ describe("first ten ranking on the owner's profile", () => {
     expect(firstTen()).toBeNull();
   });
 
-  it("shows an unavailable read with a way to read it again", async () => {
+  it.each(["RANKING_UNAVAILABLE", "SOCIAL_ACCESS_UNAVAILABLE"])("shows a retryable %s read with a way to read it again", async (code) => {
     auth.user = { id: "owner-account" };
-    rankingReads(rankingJson({ code: "RANKING_UNAVAILABLE" }, 503), rankingJson({ entries: [] }));
+    rankingReads(rankingJson({ code, retryable: true }, 503), rankingJson({ entries: [] }));
     const host = await renderOwner();
     expect(host.textContent).toContain("Your ranking is unavailable right now.");
     expect(host.textContent).not.toContain("0 of 10");
