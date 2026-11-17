@@ -129,10 +129,15 @@ describe("message alerts on account departure", () => {
     recordMessagePushBinding(other, "33333333-3333-4333-8333-333333333333");
     await releaseMessagePush();
     let released = 0;
-    vi.stubGlobal("fetch", vi.fn(async () => { released++; return new Response(null, { status: released === 1 ? 400 : 200 }); }));
+    vi.stubGlobal("fetch", vi.fn(async () => { released++; return released === 1 ? new Response(null, { status: 400 }) : Response.json({ ok: true }); }));
     await flushMessagePushReleases();
     expect(released).toBe(2);
     expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toEqual([]);
+  });
+  it.each([408, 200])("retains a detach after a transient or captive-portal %i response", async (status) => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response("Pub Wi-Fi sign in", { status })));
+    await releaseMessagePush();
+    expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toHaveLength(1);
   });
   it("does not wait longer than three seconds for an unresponsive preview worker", async () => {
     vi.useFakeTimers();

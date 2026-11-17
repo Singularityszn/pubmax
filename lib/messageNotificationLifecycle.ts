@@ -58,9 +58,15 @@ export async function flushMessagePushReleases(signal?: AbortSignal, currentToke
       method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(binding),
       keepalive: true, signal: signal ?? AbortSignal.timeout(3_000),
     });
-    const permanent = response.status >= 400 && response.status < 500 && response.status !== 429;
-    if (!response.ok && !permanent) throw new Error("Message detach is pending.");
-    await response.body?.cancel().catch(() => undefined);
+    const permanent = response.status >= 400 && response.status < 500 && response.status !== 429 && response.status !== 408;
+    if (!response.ok && !permanent) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new Error("Message detach is pending.");
+    }
+    if (response.ok) {
+      const result = await response.json() as { ok?: boolean };
+      if (result?.ok !== true) throw new Error("Message detach is pending.");
+    } else await response.body?.cancel().catch(() => undefined);
     loadReleases();
     pendingReleases.delete(key);
     rememberReleases();

@@ -149,6 +149,11 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
     await page.locator(".messageArrival a").focus();
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
+      await expect.poll(async () => {
+        const navBox = await page.locator(".siteNavBar").boundingBox();
+        const toastBox = await page.locator(".messageArrival").boundingBox();
+        return navBox && toastBox ? toastBox.y - navBox.y - navBox.height : -Infinity;
+      }).toBeGreaterThanOrEqual(0);
       await page.screenshot({ path: testInfo.outputPath(`recipient-arrival-${width}.png`), scale: "css" });
     }
     await page.screenshot({ path: testInfo.outputPath("recipient-arrival.png"), fullPage: true });

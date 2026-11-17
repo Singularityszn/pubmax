@@ -14,16 +14,24 @@ vi.mock("@/lib/messageNotifications.server", async (importOriginal) => ({ ...awa
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));
 vi.mock("@/lib/messageNotificationStore", () => ({ messageNotificationStore: () => ({ preferences: async () => state.prefs, muted: async () => state.muted, savePreferences, setMuted, presence, release, saveToken, sessionActive: async () => true }) }));
 
-import { DELETE, GET, POST } from "@/app/api/message-notifications/route";
+import { DELETE, GET, POST, PUT } from "@/app/api/message-notifications/route";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const THREAD = "11111111-1111-4111-8111-111111111111";
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const jwt = `header.${Buffer.from(JSON.stringify({ sub: "owner", session_id: SESSION })).toString("base64url")}.signature`;
-const request = (body: unknown) => new Request("https://pubmaxxing.com/api/message-notifications", { method: "POST", body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: `Bearer ${jwt}` } });
+const request = (body: unknown, method = "POST") => new Request("https://pubmaxxing.com/api/message-notifications", { method, body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: `Bearer ${jwt}` } });
 beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
+  it.each(["", "different-user"])("returns no preview before allocating a per-user limit for %s", async (userId) => {
+    state.userId = userId;
+    state.limited = true;
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/anonymous-preview", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
+    const response = await PUT(request({ token, recipientId: THREAD, conversationId: THREAD, messageId: THREAD }, "PUT"));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ preview: null });
+  });
   it("reconciles an existing device without clearing an enabled binding first", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/restore", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
     state.prefs.enabled = true;

@@ -7,6 +7,7 @@ import { messagesStore } from "@/lib/messagesStore";
 import { messageNotificationSenderAllowed, messageNotificationSessionId, resolveMessageNotificationPreview } from "@/lib/messageNotifications.server";
 import { isLimited } from "@/lib/pintDrops";
 import { profileStore } from "@/lib/profileStore";
+import { clientIp, hashIp } from "@/lib/supabase";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 function validDeviceToken(value: unknown): value is string {
@@ -93,6 +94,8 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
+  const ipKey = `message-notification-release-ip:${hashIp(clientIp(request))}`;
+  if (await isLimited(ipKey, ipKey, 7200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
   try {
     const body = await request.json() as { token?: unknown; sessionId?: unknown };
     if (typeof body?.token !== "string" || body.token.length > 2048 || !decodeWebPushSubscription(body.token) || typeof body.sessionId !== "string" || !/^[a-f0-9-]{36}$/i.test(body.sessionId)) return publicApiError("Invalid subscription.", "INVALID_REQUEST", 400);
@@ -111,9 +114,10 @@ export async function PUT(request: Request): Promise<Response> {
     const body = await request.json() as Record<string, unknown>;
     const { token, recipientId, conversationId, messageId } = body;
     if (typeof token !== "string" || token.length > 2048 || !decodeWebPushSubscription(token) || ![recipientId, conversationId, messageId].every((id) => typeof id === "string" && /^[a-f0-9-]{36}$/i.test(id))) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
-    const key = `message-notification-preview:${createHash("sha256").update(token).digest("hex")}`;
-    if (await isLimited(key, key, 1200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
     const userId = await callerUserId(request);
+    if (!userId || userId !== recipientId) return jsonNoStore({ preview: null });
+    const key = `message-notification-preview:${userId}`;
+    if (await isLimited(key, key, 1200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
     const sessionId = userId ? messageNotificationSessionId(request, userId) : null;
     const preview = userId && userId === recipientId && sessionId ? await resolveMessageNotificationPreview(token, userId, conversationId as string, messageId as string, sessionId) : null;
     return jsonNoStore({ preview });
