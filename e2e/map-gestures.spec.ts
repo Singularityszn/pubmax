@@ -5,6 +5,8 @@ import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
 import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { holdLondonAfternoon } from "./helpers/themeClock";
+import { installNativeShell } from "./helpers/nativeShell";
 
 // The map a reader turns with two fingers, in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project).
@@ -89,6 +91,69 @@ test.beforeEach(async ({ page }) => {
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 });
+
+for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
+  test(`a short landscape walk keeps Ask and every stop tappable at ${width}px in ${theme}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 390 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(theme => {
+      localStorage.setItem("pubmax-theme", theme);
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+    }, theme);
+    if (width === 844) await installNativeShell(page, "ios");
+    await installDeterministicMapBasemap(page);
+    await page.route("**/api/walk-route?**", route => route.fulfill({
+      status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+    }));
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    const readStops = () => page.evaluate(() => {
+      const camera = (window as typeof window & {
+        __pubmaxMapCamera: { read(): CameraReading; project(point: [number, number]): { x: number; y: number } };
+      }).__pubmaxMapCamera;
+      const canvas = document.querySelector(".maplibregl-canvas");
+      // The route disc has a 16px radius and a 2.5px stroke. Sample its rim,
+      // since a clear centre alone allows chrome to cover the numbered stop.
+      const offsets = [[0, 0], [-22, 0], [22, 0], [0, -22], [0, 22], [-16, -16], [16, -16], [-16, 16], [16, 16]];
+      const points = ([[-0.134383, 51.5113], [-0.135402, 51.5108], [-0.135301, 51.5106]] as [number, number][])
+        .map(coordinate => camera.project(coordinate));
+      const state = camera.read();
+      return { settled: !state.moving && !state.settling, points,
+        obstructions: points.map(point => offsets.map(([x, y]) => {
+          const hit = document.elementFromPoint(point.x + x!, point.y + y!);
+          return hit === canvas ? null : hit?.className ?? "outside viewport";
+        }).filter(Boolean)) };
+    });
+    const expectClearStops = async (stage: string) => {
+      await expect.poll(async () => (await readStops()).settled).toBe(true);
+      await testInfo.attach(`${stage}-geometry`, { body: JSON.stringify(await readStops()), contentType: "application/json" });
+      await page.screenshot({ path: testInfo.outputPath(`${stage}-view.png`) });
+      await expect.poll(async () => (await readStops()).obstructions,
+        { message: "Every numbered stop rim must clear the toolbar and map controls" }).toEqual([[], [], []]);
+    };
+    await expectClearStops("initial");
+    const ask = page.getByRole("button", { name: "Ask the map", exact: true });
+    await expect(ask).toBeVisible();
+    const box = await ask.boundingBox();
+    expect(box?.width).toBe(44);
+    expect(box?.height).toBe(44);
+    await ask.tap();
+    await expect(page.getByRole("dialog", { name: "Ask the map about a pub" })).toBeVisible();
+    await page.getByRole("button", { name: "Close ask", exact: true }).tap();
+    await expect(ask).toBeVisible();
+    const stop = (await readStops()).points[2]!;
+    await page.touchscreen.tap(stop.x, stop.y);
+    await expect(page).toHaveURL(/sel=venue-s2ppfm/);
+    await page.getByRole("button", { name: "Close pub detail", exact: true }).tap();
+    await expect(page).not.toHaveURL(/sel=/);
+    await expectClearStops("recovered");
+    await ask.tap();
+    await expect(page.getByRole("dialog", { name: "Ask the map about a pub" })).toBeVisible();
+  });
+}
 
 for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
   test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {

@@ -173,18 +173,21 @@ function routeFitPadding(
   const attributionBounds = isPhone
     ? container.querySelector(".maplibregl-ctrl-attrib")?.getBoundingClientRect()
     : null;
-  const palBottom = Array.from(document.querySelectorAll(".palSummon, .palVoiceBar"))
+  const palInsets = Array.from(document.querySelectorAll(".palSummon, .palVoiceBar"))
     .reduce((inset, element) => {
       const bounds = element.getBoundingClientRect();
       if (!bounds.width || !bounds.height || getComputedStyle(element).visibility === "hidden") return inset;
+      if (shortLandscape && element.matches(".palSummon")) {
+        return { ...inset, right: Math.max(inset.right, container.getBoundingClientRect().right - bounds.left + 24) };
+      }
       // Tilt projects the lower stops beyond the flat bounds. Reserve the
       // full disc diameter as well as the Pal's measured berth.
-      return Math.max(inset, container.getBoundingClientRect().bottom - bounds.top + 48);
-    }, 0);
+      return { ...inset, bottom: Math.max(inset.bottom, container.getBoundingClientRect().bottom - bounds.top + 48) };
+    }, { bottom: 0, right: 0 });
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING,
         // Names extend beyond their discs. Keep them above the credit control.
-        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palBottom, attributionBounds?.height
+        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palInsets.bottom, attributionBounds?.height
           ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
         // Keep the full numbered disc clear of Near me and transport controls.
         right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
@@ -192,7 +195,8 @@ function routeFitPadding(
         top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
-    : { top: desktopTop, right: 72, bottom: Math.max(desktopBottom, palBottom), left: 72 };
+    : { top: desktopTop, right: Math.max(72, palInsets.right),
+        bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 };
   const verticalScale = Math.min(
     1,
     Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
