@@ -146,7 +146,7 @@ export async function registerWebPush(
     if (!token) return null;
 
     const request = step();
-    if (saveToken) return await saveToken(token, request) ? token : null;
+    if (saveToken) return await waitForWebPushWork(saveToken(token, request), request) ? token : null;
     const response = await waitForWebPushWork(
       fetch("/api/push-tokens", {
         method: "POST",

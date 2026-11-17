@@ -46,7 +46,7 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
     const pane = header.closest<HTMLElement>(".messagesThreadPane");
     const measure = () => {
       const bounds = header.getBoundingClientRect();
-      if (bounds.height <= 0) { reset(); return; }
+      if (bounds.height <= 0 || bounds.bottom <= 0) { reset(); return; }
       const frame = (pane ?? header).getBoundingClientRect();
       const width = notice.getBoundingClientRect().width;
       const left = Math.max(16, Math.min(innerWidth - width - 16, frame.x + frame.width / 2 - width / 2));

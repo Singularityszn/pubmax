@@ -104,7 +104,7 @@ export async function releaseMessagePush(): Promise<void> {
   const deadline = new Promise<void>((resolve) => { timer = setTimeout(() => { controller.abort(); resolve(); }, 3_000); });
   const work = queueMessagePushOperation(async () => {
     if (controller.signal.aborted) return;
-    const registration = await navigator.serviceWorker?.getRegistration();
+    const registration = await waitForWebPushWork(navigator.serviceWorker?.getRegistration() ?? Promise.resolve(undefined), controller.signal);
     if (controller.signal.aborted) return;
     const barrier = registration?.active && new URL(registration.active.scriptURL).searchParams.get("message-previews") === "1"
       ? new Promise<void>((resolve) => {
@@ -115,7 +115,7 @@ export async function releaseMessagePush(): Promise<void> {
         registration.active!.postMessage({ type: "pubmax:message-push-departure" }, [channel.port2]);
       }) : Promise.resolve();
     await Promise.allSettled([flushMessagePushReleases(controller.signal), barrier]);
-    for (const notification of await registration?.getNotifications() ?? []) if (notification.data?.recipientId) notification.close();
+    for (const notification of await waitForWebPushWork(registration?.getNotifications() ?? Promise.resolve([]), controller.signal)) if (notification.data?.recipientId) notification.close();
   });
   try { await Promise.race([work, deadline]); } catch { /* Auth departure must complete even while offline. */ }
   finally { clearTimeout(timer); }

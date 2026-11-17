@@ -139,7 +139,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
         <h2>Message alerts</h2>
         {settings ? <>
           {conversationId ? <Button variant="secondary" className="pressable" aria-disabled={pending} onClick={() => void change("muted")}>{settings.muted ? "Unmute this chat" : "Mute this chat"}</Button> : <>
-            {native ? <p className="messageAlertsHint">{settings.enabled ? "Message alerts are on for another device. You can turn them off here. This app shows unread badges and chat mutes." : "Message alerts outside the app aren’t available yet. Unread badges and chat mutes still work."}</p> : <>
+            {native ? <p className="messageAlertsHint">{settings.enabled ? "Message alerts are on for your account. You can turn them off for all devices here. This app shows unread badges and chat mutes." : "Message alerts outside the app aren’t available yet. Unread badges and chat mutes still work."}</p> : <>
               <Button className="pressable" disabled={!onThisDevice && support !== "supported"} aria-disabled={pending} onClick={() => void change("enabled")}>{saving === "enabled" ? "Saving…" : onThisDevice ? "Turn off alerts on all devices" : settings.enabled ? "Turn on alerts on this device" : "Turn on message alerts"}</Button>
               <label><input type="checkbox" checked={settings.preview} aria-disabled={pending} onClick={(event) => { if (pending) event.preventDefault(); }} onChange={() => void change("preview")} /> Show the sender and a short preview while PubMaxxing is open in the background</label>
               <p className="messageAlertsHint">Closed-app alerts never show message text. Muted chats stay quiet.</p>

@@ -172,7 +172,7 @@ it("leaves global loading and offers retry when the subscription never answers",
     await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
     const retry = Array.from(host.querySelectorAll("button")).find(button => button.textContent === "Try again");
     expect(retry).toBeDefined();
-    expect(toggle().getAttribute("aria-busy")).toBe("false");
+    expect(host.querySelector('[role="region"]')!.getAttribute("aria-busy")).toBe("false");
     state.token.mockResolvedValue(null);
     await click(retry!);
     expect(preview().checked).toBe(false);
@@ -188,7 +188,7 @@ it("leaves confirmation busy state when the subscription lookup hangs", async ()
     state.token.mockImplementation(() => new Promise(() => {}));
     await click(preview());
     await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
-    expect(toggle().getAttribute("aria-busy")).toBe("false");
+    expect(host.querySelector('[role="region"]')!.getAttribute("aria-busy")).toBe("false");
     expect(host.querySelector("input")).toBeNull();
     expect(Array.from(host.querySelectorAll("button")).some(button => button.textContent === "Try again")).toBe(true);
   } finally { vi.useRealTimers(); }

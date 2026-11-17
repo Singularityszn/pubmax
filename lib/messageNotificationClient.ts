@@ -1,3 +1,4 @@
+import { waitForWebPushWork } from "@/lib/webPush";
 import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { currentMessagePushToken, queueMessagePushOperation, messagePushDepartureRevision, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
@@ -38,13 +39,14 @@ export function restoreMessagePushAccount(signal: AbortSignal, userId: string): 
   const revision = messagePushDepartureRevision();
   return queueMessagePushOperation(async () => {
     if (signal.aborted || revision !== messagePushDepartureRevision()) return;
+    const scope = compositeActionSignal([signal, AbortSignal.timeout(3_000)]);
     try {
-      const registration = await navigator.serviceWorker.getRegistration();
-      for (const notification of await registration?.getNotifications() ?? []) {
+      const registration = await waitForWebPushWork(navigator.serviceWorker.getRegistration(), scope);
+      for (const notification of await waitForWebPushWork(registration?.getNotifications() ?? Promise.resolve([]), scope)) {
         if (notification.data?.recipientId && notification.data.recipientId !== userId) notification.close();
       }
     } catch { /* Tray access must not prevent device reconciliation. */ }
-    const token = await currentMessagePushToken(signal);
+    const token = await currentMessagePushToken(scope);
     if (token && !signal.aborted) await writeSetting({ action: "restore", token }, AbortSignal.timeout(3_000));
   });
 }
