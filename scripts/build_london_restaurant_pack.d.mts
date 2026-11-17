@@ -6,6 +6,7 @@ type LayerManifest = {
   urlPrefix: string;
   shards: { id: string; count: number }[];
   countsByKind?: Record<string, number>;
+  restaurantSnapshot?: { fetchedAt: string };
 };
 
 export function restaurantRowsFromLayer(
@@ -22,12 +23,14 @@ export function kindRowsFromLayer(
 export function restaurantPackBody(
   manifest: LayerManifest,
   rows: unknown[][],
+  facts?: ReadonlyMap<unknown, { cuisine?: string | null; openingHours?: string | null }>,
 ): {
   version: number;
   kind: "restaurant";
   layer: string;
   license: string;
   attribution: string;
+  observedAt: string | null;
   count: number;
   venues: unknown[][];
 };

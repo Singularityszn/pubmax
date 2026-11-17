@@ -40,7 +40,7 @@ const UPLOADED_IMAGE_MAX_PIXELS = 20_000_000;
 
 /**
  * What the server is willing to decode. Deliberately three types and not the
- * picker's five: a browser converts an iPhone's HEIC to JPEG in the crop step,
+ * picker's five: browser photo preparation converts decodable HEIC to JPEG,
  * so widening a picker never widens this.
  */
 const UPLOADED_IMAGE_ALLOWED_TYPES: ReadonlySet<string> = new Set([

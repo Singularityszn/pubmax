@@ -268,9 +268,9 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["city_venues_slim"]);
   });
 
-  it("permits London venue shards when the diff carries the restaurant drinks evidence", () => {
+  it("permits London venue shards when the diff carries the OSM restaurant snapshot", () => {
     const report = summarizeReviewScope([
-      "data/london_restaurant_drinks/evidence.json",
+      "data/osm/uk/london_osm_restaurants.json",
       "public/data/london_venues/manifest.json",
       "public/data/london_venues/packs/0123456789abcdef/51.500_-0.125.json",
     ]);
@@ -280,14 +280,14 @@ describe("review scope guard", () => {
     expect(report.regeneratedLanes).toEqual(["london_venues"]);
   });
 
-  it("permits London venue shards when the diff carries the restaurant drinks exclusions", () => {
+  it("refuses restaurant drinks exclusions as a venue regeneration input", () => {
     const report = summarizeReviewScope([
       "data/london_restaurant_drinks/exclusions.json",
       "public/data/london_venues/manifest.json",
     ]);
 
-    expect(report.ok).toBe(true);
-    expect(report.regeneratedLanes).toEqual(["london_venues"]);
+    expect(report.ok).toBe(false);
+    expect(report.forbidden).toEqual([{ category: "generated", path: "public/data/london_venues/manifest.json" }]);
   });
 
   it("permits London venue shards and the desk pack when the diff carries the UK venue packs", () => {

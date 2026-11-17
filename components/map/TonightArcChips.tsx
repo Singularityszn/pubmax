@@ -15,7 +15,7 @@ import "./tonightArcChips.css";
 // One reachable control for each kind the map offers. Legacy Club visibility
 // follows Bars until the reader makes an explicit Club choice.
 const CHIPS: ReadonlyArray<{
-  kind: CuratedVenueKind;
+  kind: CuratedVenueKind | "osmRestaurants";
   label: string;
   Icon: LucideIcon;
 }> = [
@@ -28,11 +28,13 @@ const CHIPS: ReadonlyArray<{
 
 export default function TonightArcChips({
   visibility,
+  restaurantLayerAvailable = false,
   experienceLens = "all",
   variant = "popover",
   onChange,
 }: {
   visibility: VenueKindVisibility;
+  restaurantLayerAvailable?: boolean;
   experienceLens?: MapExperienceLens;
   /**
    * Where the toggles are read.
@@ -48,7 +50,10 @@ export default function TonightArcChips({
   onChange: (next: VenueKindVisibility) => void;
 }) {
   const offeredKinds = offeredVenueKinds(experienceLens);
-  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind));
+  const chips = CHIPS.filter((chip) => offeredKinds.includes(chip.kind as CuratedVenueKind));
+  if (restaurantLayerAvailable) {
+    chips.push({ kind: "osmRestaurants", label: "More restaurants (unpriced)", Icon: ForkKnife });
+  }
   return (
     <div
       className={
@@ -70,7 +75,7 @@ export default function TonightArcChips({
         {chips.map((chip) => {
           const on = chip.kind === "club"
             ? (visibility.club ?? visibility.bar)
-            : visibility[chip.kind];
+            : (visibility[chip.kind] ?? false);
           const Icon = chip.Icon;
           return (
             <button
@@ -78,7 +83,9 @@ export default function TonightArcChips({
               type="button"
               className={on ? "tonightArcChip isOn" : "tonightArcChip"}
               aria-pressed={on}
-              onClick={() => onChange(toggleVenueKind(visibility, chip.kind))}
+              onClick={() => onChange(chip.kind === "osmRestaurants"
+                ? { ...visibility, osmRestaurants: !visibility.osmRestaurants }
+                : toggleVenueKind(visibility, chip.kind))}
             >
               {/* The tick, not a colour, marks selection (aria-pressed already
                   names it for readers, so the glyph stays decorative). */}
