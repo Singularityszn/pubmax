@@ -610,7 +610,8 @@ export function useMapCamera(refs: CameraRefs) {
       const isWalk = routeLineRef.current.features.some((feature) => feature.properties?.source === "curated");
       map.fitBounds(routeBounds(), {
         padding: routeFitPadding(map, isPhone, isWalk),
-        ...(isWalk ? { pitch: 0 } : {}),
+        // MapLibre's legacy fit offset assumes a flat plane, so tilt can hide stops behind this sheet.
+        ...(isWalk || document.querySelector("#fair-pint-lock-form, .fairPintResultFallback") ? { pitch: 0 } : {}),
         maxZoom: 18,
         duration: reducedRef.current ? 0 : 800,
         // Keep the current rotation when fitting the route.
