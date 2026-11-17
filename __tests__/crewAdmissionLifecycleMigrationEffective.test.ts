@@ -442,6 +442,10 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     rollbackWithSetting("pubmax.crew_removal_corrections_exported", "yes");
     expect(db().sql(`select to_regclass('public.social_crew_removal_corrections') is null`)).toBe("t");
     stageTo("after");
-    expect(request(xav, crew)).toEqual(NOT_FOUND);
+    const bea = person();
+    admit(host, crew, bea);
+    remove(host, crew, bea);
+    expect(request(bea, crew)).toEqual(NOT_FOUND);
+    expect(request(xav, crew)).toMatchObject({ ok: true, code: "requested" });
   });
 });

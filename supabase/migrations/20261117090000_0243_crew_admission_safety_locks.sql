@@ -1,43 +1,55 @@
 -- 0243: crew admission and invitation refuse blocked and removed people, under
--- participant-account locks that blocks, suspension and account deletion share.
+-- the auth row and participant-account locks that blocks, suspension, provisioning
+-- and account deletion share.
 --
 -- 1. _lock_social_participant_accounts takes one transaction advisory lock per
 --    participant account, in account-ID order. A later pair lock comes after these.
 -- 2. _social_crew_admission_ineligible is the one read-only rule: the person is not
---    active, this crew removed them, or a block in either direction joins them to
---    any accepted member. _social_crew_admission_refused takes the account locks of
---    every accepted member and the person, then asks that rule in a new statement.
---    A crew holds at most 20 accepted members (capacity 4 to 20, default 20), so one
---    admission takes at most 21 account locks.
+--    active, this crew removed them, or a block in either direction joins them to an
+--    accepted member who still has an account. A member whose account deletion
+--    finished (suspended, unbound, profile tombstoned) keeps their row and counted
+--    place, but their kept blocks bar nobody. A suspended member with an account
+--    still bars. _social_crew_admission_refused locks, then asks the rule in a new
+--    statement. A crew holds at most 20 accepted members (capacity 4 to 20, default
+--    20), so one admission takes at most 21 account locks.
 -- 3. A join request, a join decision, an invitation and an invitation acceptance
---    answer not_found, the answer an unknown crew gets, when the rule refuses. A
---    decision also rechecks, after the locks, that its actor is still an active
---    owner or cohost. The host queue hides a request the rule refuses and takes no
---    lock. A requester cancels their own pending request with no relationship check.
---    Declining an invitation takes no admission check.
--- 4. Lock order. An admission or invitation locks the crew row, then the account
---    locks. A block insert, or an update that moves a block, takes the account locks
---    of every person it names. A suspension takes the account lock after its
---    supabase user lock and before the profile and account rows. Account deletion
---    takes the account lock in the first BEFORE DELETE trigger on auth.users, before
---    0198's tombstone writes the account and profile rows. No crew row is locked
---    after an account lock, so these writes cannot wait on each other in a circle.
--- 5. auth.users DELETE locks the auth row before any trigger runs, and a new plan
---    seat checks that row through the plan_crew_members foreign key. So admission
---    and invitation take KEY SHARE on the person's auth row after the crew row and
---    before the account locks. A deletion in flight makes them wait, and they then
---    refuse. A deletion that starts later waits for them, and then completes.
---    The full order is crew row, auth row, account locks, plan join lock, rows.
---    That row lock needs UPDATE on auth.users, which the first statement checks.
+--    answer not_found, the answer an unknown crew gets, when the rule refuses. The
+--    rule runs before already_pending, so a second request or invitation on a new
+--    key cannot tell a refused person that something is pending. A replayed key
+--    returns its stored answer first. After the locks, a decision and an invitation
+--    recheck that the actor is an active owner or cohost, and an acceptance rechecks
+--    that the invitee is still Mutual with the owner and that the inviter is active.
+--    The host queue hides a request the rule refuses and takes no lock. A requester
+--    cancels their own pending request with no relationship check. Declining an
+--    invitation takes no admission check.
+-- 4. Lock order. A crew write locks the crew row, then the row it acts on (the join
+--    request, the invitation or the member), then the person's auth row with KEY
+--    SHARE, then the account locks, then the plan join lock and the seat rows. Every
+--    crew, request or invitation row touched after the account locks belongs to a
+--    crew whose row lock that write already holds. Deletion touches none of them.
+--    auth.users DELETE holds the auth row before any trigger runs. Its first BEFORE
+--    DELETE trigger, lock_social_accounts_on_auth_user_delete, takes the account lock
+--    before 0198's tombstone writes the account and profile rows. Provisioning and
+--    suspension take their supabase user lock, then the auth row with KEY SHARE, then
+--    the account lock, then the profile and account rows. A block, or an update that
+--    moves a block, takes the account locks of every person it names. So a deletion
+--    in flight makes the others wait and then refuse, and a deletion that starts later
+--    waits for them and then completes. These guarantees cover the named functions
+--    only. Other writers of these rows are not proven here.
+-- 5. A row lock on auth.users needs UPDATE on it, which the first statement checks.
 -- 6. A block between two accepted members changes no membership and pauses nothing.
+-- 7. Removal bars that one crew. It is not a suspension. Only an active moderator,
+--    who is not the removed person, lifts that bar through the service-only
+--    correct_social_crew_removal_admin, with a reason. It takes the crew row, the
+--    member row and the account lock, turns 'removed' into 'left', moves the crew's
+--    authority revision and writes one row to social_crew_removal_corrections. No seat
+--    is taken. The ledger is crew history: service-only, append-only, outside the
+--    account export like membership rows, kept through account deletion and deleted
+--    with its crew.
 --
--- 7. Removal bars that one crew. It is not a suspension. Only an active moderator
---    lifts that bar, through correct_social_crew_removal_admin. It is service-only,
---    needs a reason, takes the crew row and the account lock, turns 'removed' into
---    'left' and writes one row to the append-only social_crew_removal_corrections.
---
--- Rollback restores the 0110, 0114, 0075 and 0224 function bodies and drops the
--- triggers, helpers, the correction function and its ledger.
+-- Rollback restores the 0110, 0114, 0075, 0092 and 0224 function bodies and drops
+-- the triggers, helpers, correction function and ledger. It stops while the ledger
+-- holds rows until their export is acknowledged.
 begin;
 
 -- A row lock on auth.users needs UPDATE on it. Without that this migration stops here.
@@ -78,7 +90,8 @@ as $$
       from public.private_social_accounts candidate
       join public.social_crew_members member
         on member.crew_id=p_crew and member.state='active' and member.social_account_id<>candidate.id
-      join public.private_social_accounts other on other.id=member.social_account_id
+      join public.private_social_accounts other
+        on other.id=member.social_account_id and other.supabase_user_id is not null
       join public.social_blocks block
         on (block.blocker_profile_id=candidate.profile_id and block.blocked_profile_id=other.profile_id)
         or (block.blocker_profile_id=other.profile_id and block.blocked_profile_id=candidate.profile_id)
@@ -171,11 +184,11 @@ begin
     if exists(select 1 from public.social_crew_members
       where crew_id=p_crew_id and social_account_id=p_actor_account_id and state='active') then
       return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'already_member'); end if;
+    if public._social_crew_admission_refused(p_crew_id,p_actor_account_id) then
+      return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'not_found'); end if;
     if exists(select 1 from public.social_crew_join_requests
       where crew_id=p_crew_id and requester_account_id=p_actor_account_id and state='pending') then
       return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'already_pending'); end if;
-    if public._social_crew_admission_refused(p_crew_id,p_actor_account_id) then
-      return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'not_found'); end if;
     insert into public.social_crew_join_requests(id,crew_id,requester_account_id,expires_at)
       values(v_id,p_crew_id,p_actor_account_id,v_expiry);
     v_response:=jsonb_build_object('ok',true,'code','requested','request_id',v_id);
@@ -258,14 +271,14 @@ begin
     where crew_id=p_crew_id and target_account_id=v_target and state='pending' and now()>=expires_at;
   if exists(select 1 from public.social_crew_members where crew_id=p_crew_id and social_account_id=v_target and state='active') then
     return public._social_crew_fail_write(p_actor_account_id,'invite',p_idempotency_key,p_payload_digest,'already_member'); end if;
-  if exists(select 1 from public.social_crew_invitations
-    where crew_id=p_crew_id and target_account_id=v_target and state='pending') then
-    return public._social_crew_fail_write(p_actor_account_id,'invite',p_idempotency_key,p_payload_digest,'already_pending'); end if;
   if public._social_crew_admission_refused(p_crew_id,v_target) then
     return public._social_crew_fail_write(p_actor_account_id,'invite',p_idempotency_key,p_payload_digest,'not_found'); end if;
   if not exists(select 1 from public.private_social_accounts where id=p_actor_account_id and ownership_state='active')
     or coalesce(public._social_crew_member_role(p_crew_id,p_actor_account_id),'') not in ('owner','cohost') then
     return public._social_crew_fail_write(p_actor_account_id,'invite',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if exists(select 1 from public.social_crew_invitations
+    where crew_id=p_crew_id and target_account_id=v_target and state='pending') then
+    return public._social_crew_fail_write(p_actor_account_id,'invite',p_idempotency_key,p_payload_digest,'already_pending'); end if;
   select id into v_inviter from public.social_crew_members where crew_id=p_crew_id and social_account_id=p_actor_account_id and state='active';
   insert into public.social_crew_invitations(id,crew_id,target_account_id,invited_by_member_id,expires_at)
     values(v_id,p_crew_id,v_target,v_inviter,v_expiry);
@@ -302,6 +315,13 @@ begin
     if public._social_crew_relationship_between_accounts(p_actor_account_id,v_owner) is distinct from 'mutual' then
       return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
     if public._social_crew_admission_refused(p_crew_id,p_actor_account_id) then
+      return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+    -- A new statement, so it reads an owner or inviter suspension or deletion that
+    -- committed while the account locks waited.
+    if public._social_crew_relationship_between_accounts(p_actor_account_id,v_owner) is distinct from 'mutual'
+      or not exists(select 1 from public.social_crew_members inviter
+        join public.private_social_accounts account on account.id=inviter.social_account_id
+        where inviter.id=v_row.invited_by_member_id and account.ownership_state='active') then
       return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
     v_member:=public._activate_social_crew_member(p_crew_id,p_actor_account_id);
     if v_member is null then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'full'); end if;
@@ -426,6 +446,96 @@ as $$
   from manager;
 $$;
 
+create or replace function public.provision_social_product_account(
+  p_supabase_user_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_profile public.profiles%rowtype;
+  v_account public.private_social_accounts%rowtype;
+  v_clerk_placeholder text := 'supabase:' || p_supabase_user_id::text;
+begin
+  if p_supabase_user_id is null then
+    return jsonb_build_object('ok', false, 'code', 'invalid');
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('supabase:' || p_supabase_user_id::text, 0)
+  );
+
+  -- auth.users DELETE holds this row before its triggers run. Taking it before the
+  -- profile row keeps one order with deletion, which writes the profile later.
+  perform 1 from auth.users where id = p_supabase_user_id for key share;
+  if not found then
+    return jsonb_build_object('ok', false, 'code', 'invalid');
+  end if;
+
+  select * into v_profile
+    from public.profiles
+   where user_id = p_supabase_user_id
+   limit 1
+   for update;
+
+  if not found
+     or v_profile.handle is null
+     or char_length(trim(v_profile.handle)) = 0 then
+    return jsonb_build_object('ok', false, 'code', 'profile_not_claimed');
+  end if;
+
+  select * into v_account
+    from public.private_social_accounts
+   where supabase_user_id = p_supabase_user_id
+      or profile_id = v_profile.id
+   order by id
+   limit 1
+   for update;
+
+  if v_account.id is not null then
+    if v_account.profile_id <> v_profile.id then
+      return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+    end if;
+    if v_account.supabase_user_id is not null
+       and v_account.supabase_user_id <> p_supabase_user_id then
+      return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+    end if;
+    if v_account.supabase_user_id is null then
+      update public.private_social_accounts
+         set supabase_user_id = p_supabase_user_id,
+             updated_at = now(),
+             ownership_changed_at = now()
+       where id = v_account.id;
+    end if;
+    return jsonb_build_object(
+      'ok', true,
+      'product_account_id', v_account.id,
+      'provisioned', false
+    );
+  end if;
+
+  insert into public.private_social_accounts (
+    clerk_user_id,
+    supabase_user_id,
+    profile_id
+  ) values (
+    v_clerk_placeholder,
+    p_supabase_user_id,
+    v_profile.id
+  ) returning * into v_account;
+
+  return jsonb_build_object(
+    'ok', true,
+    'product_account_id', v_account.id,
+    'provisioned', true
+  );
+exception when unique_violation then
+  return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+end;
+$$;
+
 create or replace function public.set_social_account_suspension_admin(
   p_staff_role_id uuid,
   p_profile_id uuid,
@@ -461,6 +571,10 @@ begin
   select user_id into v_user from public.profiles where id = p_profile_id;
   if v_user is not null then
     perform pg_advisory_xact_lock(hashtextextended('supabase:' || v_user::text, 0));
+    perform 1 from auth.users where id = v_user for key share;
+    if not found then
+      return jsonb_build_object('ok', false, 'code', 'gone');
+    end if;
   end if;
   perform public._lock_social_participant_accounts(array(
     select account.id from public.private_social_accounts account where account.profile_id = p_profile_id
@@ -513,8 +627,9 @@ $$;
 -- taken here. A repeat, or a member that is not removed, changes nothing.
 create table public.social_crew_removal_corrections (
   id uuid primary key default gen_random_uuid(),
-  -- No foreign keys: the ledger outlives the crew, member and staff rows.
-  crew_id uuid not null,
+  -- Crew history: it goes with the crew row, as membership rows do. The account,
+  -- member and staff IDs carry no foreign key, so the row outlives those changes.
+  crew_id uuid not null references public.social_crews(id) on delete cascade,
   member_id uuid not null,
   social_account_id uuid not null,
   reason text not null check (char_length(reason) between 3 and 500),
@@ -546,9 +661,13 @@ begin
   where id=p_member_id and crew_id=p_crew_id for update;
   if v_member.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
   perform public._lock_social_participant_accounts(array[v_member.social_account_id]);
+  if exists(select 1 from public.private_social_accounts
+    where id=v_member.social_account_id and profile_id=v_staff.profile_id) then
+    return jsonb_build_object('ok',false,'code','forbidden'); end if;
   if v_member.state<>'removed' then
     return jsonb_build_object('ok',true,'code','unchanged','state',v_member.state); end if;
   update public.social_crew_members set state='left',updated_at=now() where id=v_member.id;
+  update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id;
   insert into public.social_crew_removal_corrections(
     crew_id,member_id,social_account_id,reason,staff_role_id,staff_display_name
   ) values (

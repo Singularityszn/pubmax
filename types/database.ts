@@ -5199,7 +5199,15 @@ export type Database = {
           staff_display_name?: string;
           created_at?: string;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_removal_corrections_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: false;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+        ];
       };
       social_crews: {
         Row: {

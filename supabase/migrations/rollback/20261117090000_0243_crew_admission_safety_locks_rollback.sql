@@ -1,13 +1,31 @@
 -- Rollback 0243: crew admission and invitation check only the host pair again, and
--- block, suspension and account deletion writes stop taking participant-account locks.
+-- block, suspension, provisioning and account deletion writes stop taking the auth
+-- row and participant-account locks in one order.
 -- It restores the 0110 join request and decision bodies, the 0075 invitation and
--- invitation acceptance bodies, the 0114 host queue body and the 0224 suspension
--- body, then drops both triggers and the four helpers.
--- Rollback discloses nothing. A removed person can request that crew again, the host
--- queue shows requests that acceptance refuses, and a requester whom the host has
--- since blocked cannot cancel their own request again. The removal correction
--- ledger is dropped with its rows, so export social_crew_removal_corrections first.
+-- invitation acceptance bodies, the 0114 host queue body, the 0092 provisioning body
+-- and the 0224 suspension body, then drops both triggers, the helpers, the removal
+-- correction function and its ledger.
+-- Rollback discloses nothing, but it removes protections. A removed person can request
+-- that crew again, the host queue shows requests that acceptance refuses, and a
+-- requester whom the host has since blocked cannot cancel their own request again.
+--
+-- THE LEDGER IS NOT DROPPED SILENTLY. When social_crew_removal_corrections holds a
+-- row, this rollback stops. Export the rows first, then run the rollback in a session
+-- that has run: set pubmax.crew_removal_corrections_exported = 'yes';
 begin;
+
+do $$
+declare v_rows bigint := 0;
+begin
+  if to_regclass('public.social_crew_removal_corrections') is not null then
+    execute 'select count(*) from public.social_crew_removal_corrections' into v_rows;
+  end if;
+  if v_rows > 0
+    and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> 'yes' then
+    raise exception 'Rollback 0243 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported = ''yes'' and run it again.', v_rows;
+  end if;
+end;
+$$;
 
 create or replace function public.request_social_crew_join_atomic(
   p_actor_account_id uuid,p_crew_id uuid,p_action text,p_idempotency_key text,p_payload_digest text
@@ -283,6 +301,89 @@ as $$
     )
   )
   from manager;
+$$;
+
+create or replace function public.provision_social_product_account(
+  p_supabase_user_id uuid
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  v_profile public.profiles%rowtype;
+  v_account public.private_social_accounts%rowtype;
+  v_clerk_placeholder text := 'supabase:' || p_supabase_user_id::text;
+begin
+  if p_supabase_user_id is null then
+    return jsonb_build_object('ok', false, 'code', 'invalid');
+  end if;
+
+  perform pg_advisory_xact_lock(
+    hashtextextended('supabase:' || p_supabase_user_id::text, 0)
+  );
+
+  select * into v_profile
+    from public.profiles
+   where user_id = p_supabase_user_id
+   limit 1
+   for update;
+
+  if not found
+     or v_profile.handle is null
+     or char_length(trim(v_profile.handle)) = 0 then
+    return jsonb_build_object('ok', false, 'code', 'profile_not_claimed');
+  end if;
+
+  select * into v_account
+    from public.private_social_accounts
+   where supabase_user_id = p_supabase_user_id
+      or profile_id = v_profile.id
+   order by id
+   limit 1
+   for update;
+
+  if v_account.id is not null then
+    if v_account.profile_id <> v_profile.id then
+      return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+    end if;
+    if v_account.supabase_user_id is not null
+       and v_account.supabase_user_id <> p_supabase_user_id then
+      return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+    end if;
+    if v_account.supabase_user_id is null then
+      update public.private_social_accounts
+         set supabase_user_id = p_supabase_user_id,
+             updated_at = now(),
+             ownership_changed_at = now()
+       where id = v_account.id;
+    end if;
+    return jsonb_build_object(
+      'ok', true,
+      'product_account_id', v_account.id,
+      'provisioned', false
+    );
+  end if;
+
+  insert into public.private_social_accounts (
+    clerk_user_id,
+    supabase_user_id,
+    profile_id
+  ) values (
+    v_clerk_placeholder,
+    p_supabase_user_id,
+    v_profile.id
+  ) returning * into v_account;
+
+  return jsonb_build_object(
+    'ok', true,
+    'product_account_id', v_account.id,
+    'provisioned', true
+  );
+exception when unique_violation then
+  return jsonb_build_object('ok', false, 'code', 'ownership_conflict');
+end;
 $$;
 
 create or replace function public.set_social_account_suspension_admin(
