@@ -1,5 +1,5 @@
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
-import { budgetCeiling, readBudgetChoice } from "@/lib/onboardingFlow";
+import { budgetCeiling, readBudgetChoice } from "@/lib/budgetChoice";
 import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
