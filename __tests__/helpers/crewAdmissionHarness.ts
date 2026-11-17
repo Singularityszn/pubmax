@@ -56,6 +56,8 @@ export const accountOf = (who: Person) =>
     from public.private_social_accounts where profile_id='${who.profile}'),'none')`);
 export const makeCohost = (crew: string, who: Person) =>
   db().sql(`update public.social_crew_members set role='cohost' where crew_id='${crew}' and social_account_id='${who.account}'`);
+export const corrections = (crew: string) =>
+  db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`);
 export const revision = (crew: string) => db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
 export const mutual = (a: Person, b: Person) => db().sql(`insert into public.follows(follower_id,followee_id)
   values ('${a.profile}','${b.profile}'),('${b.profile}','${a.profile}') on conflict do nothing`);

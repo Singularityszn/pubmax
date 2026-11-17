@@ -15,12 +15,14 @@ import {
   STAFF_ROLE,
   accountOf,
   admit,
+  answerInvitation,
   block,
   blockCall,
   bootCrewAdmissionDatabase,
   call,
   correct,
   correctCall,
+  corrections,
   crewWith,
   db,
   decide,
@@ -410,17 +412,97 @@ describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () =>
     expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
   });
 
-  it("the correction ledger keeps its row through the person's deletion and goes with its crew", () => {
-    const host = person(), xav = person();
-    const crew = crewWith(host);
-    db().sql(`select public._activate_social_crew_member('${crew}','${xav.account}')`);
+  it("the subject's account deletion erases their correction row with the account, and a deleted subject cannot be corrected", () => {
+    const host = person(), ana = person(), xav = person(), bea = person();
+    const crew = crewWith(host, [ana, xav, bea]);
+    const xavMember = memberId(crew, xav);
+    const beaMember = memberId(crew, bea);
+    remove(host, crew, xav);
+    remove(host, crew, bea);
+    expect(correct(crew, xavMember)).toMatchObject({ ok: true, code: "corrected" });
+    expect(corrections(crew)).toBe("1");
+    db().sql(deleteAccount(xav));
+    expect(corrections(crew)).toBe("0");
+    db().sql(deleteAccount(bea));
+    expect(correct(crew, beaMember)).toEqual({ ok: false, code: "gone" });
+    expect(state(crew, bea)).toBe("removed");
+    expect(corrections(crew)).toBe("0");
+  });
+
+  it("a correction waits for its subject's deletion in flight, then answers gone and changes nothing", async () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
     const removedMember = memberId(crew, xav);
     remove(host, crew, xav);
-    correct(crew, removedMember);
-    db().sql(deleteAccount(xav));
-    expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("1");
-    db().sql(`delete from public.social_crews where id='${crew}'`);
-    expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
+    const revisionBefore = revision(crew);
+    const deletion = await hold(deleteAccount(xav), "postgres");
+    let correcting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      correcting = outcome("correct_after_delete", rpc(correctCall(crew, removedMember)));
+      await expect.poll(() => waitsOnAnyLock("correct_after_delete")).toBe("t");
+    } finally { await deletion.finish(); }
+    const answer = await correcting;
+    expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(answer?.said.trim() ?? "{}")).toEqual({ ok: false, code: "gone" });
+    expect(state(crew, xav)).toBe("removed");
+    expect(revision(crew)).toBe(revisionBefore);
+    expect(corrections(crew)).toBe("0");
+  });
+
+  it("a subject's deletion waits for a correction in flight, then erases the row it wrote", async () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const removedMember = memberId(crew, xav);
+    remove(host, crew, xav);
+    const correction = await holdRpc(correctCall(crew, removedMember));
+    expect(correction.result).toMatchObject({ ok: true, code: "corrected" });
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("delete_after_correct", deleteAccount(xav), "postgres");
+      await expect.poll(() => waitsOnAnyLock("delete_after_correct")).toBe("t");
+      expect(await waitsOnAccountLock("delete_after_correct")).toBe("f");
+    } finally { await correction.finish(); }
+    const answer = await deletion;
+    expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(answer?.ok).toBe(true);
+    expect(state(crew, xav)).toBe("left");
+    expect(corrections(crew)).toBe("0");
+  });
+});
+
+describe.skipIf(skipReason !== null)("after 0243: deleting a crew-bound Plan", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("deleting a Plan removes its crew, members, decided requests and accepted invitations, while a lone referenced row is still refused", async () => {
+    const host = person(), ana = person(), xav = person(), bea = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav).invitation_id as string;
+    expect(answerInvitation(xav, crew, invitation, "accepted")).toMatchObject({ ok: true, code: "accepted" });
+    request(bea, crew);
+    const plan = db().sql(`select plan_id from public.social_crews where id='${crew}'`);
+    const history = () => db().sql(`select
+      (select count(*) from public.social_crews where id='${crew}')||'|'||
+      (select count(*) from public.social_crew_members where crew_id='${crew}')||'|'||
+      (select count(*) from public.social_crew_join_requests where crew_id='${crew}')||'|'||
+      (select count(*) from public.social_crew_invitations where crew_id='${crew}')`);
+    expect(history()).toBe("1|3|2|1");
+
+    const kept = crewWith(host, [ana]);
+    const hostMember = memberId(kept, host);
+    const anaSeat = db().sql(`select plan_member_id from public.social_crew_members where crew_id='${kept}' and social_account_id='${ana.account}'`);
+    for (const orphaning of [`delete from public.social_crew_members where id='${hostMember}'`,
+      `delete from public.plan_crew_members where id='${anaSeat}'`]) {
+      const refused = await db().attempt(orphaning);
+      expect(refused.ok, orphaning).toBe(false);
+      expect(refused.said, orphaning).toContain("23503");
+    }
+
+    const deleted = await db().attempt(`delete from public.plans where id='${plan}'`);
+    expect(deleted.said).toBe("");
+    expect(deleted.ok).toBe(true);
+    expect(history()).toBe("0|0|0|0");
+    expect(state(kept, ana)).toBe("active");
   });
 });
 
@@ -464,6 +546,27 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     remove(first.host, first.crew, bea);
     expect(request(bea, first.crew)).toEqual(NOT_FOUND);
     expect(request(first.xav, first.crew)).toMatchObject({ ok: true, code: "requested" });
+  });
+
+  it("a rollback and an account deletion that cascades into the ledger both finish", async () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana]);
+    const asked = request(xav, crew);
+    const approval = await holdRpc(decideCall(host, crew, asked.request_id as string));
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    let rolling: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("delete_before_rollback", deleteAccount(ana), "postgres");
+      await expect.poll(() => waitsOnAccountLock("delete_before_rollback")).toBe("t");
+      rolling = rollbackOutcome("rollback_beside_delete", ledgerRows());
+      await expect.poll(() => waitsOnAnyLock("rollback_beside_delete")).toBe("t");
+    } finally { await approval.finish(); }
+    const [deleted, rolled] = await Promise.all([deletion, rolling]);
+    for (const answer of [deleted, rolled]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(deleted?.ok).toBe(true);
+    expect(rolled?.ok).toBe(true);
+    expect(ownership(ana)).toBe("suspended");
+    stageTo("after");
   });
 
   it("a correction that reaches the ledger after the rollback counted it fails, and no row is dropped unseen", async () => {
