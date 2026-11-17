@@ -38,7 +38,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
       {table.price ? (
         <p className="socialAlternativeSource">
           {table.price.sentence}{" "}
-          <a href={table.price.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>
+          <a className="openTableSource" href={table.price.sourceUrl} target="_blank" rel="noopener noreferrer">Source</a>
         </p>
       ) : null}
       <Link className="socialOpenTableAction" prefetch={false} href={`/social/crews/${table.crewId}`}>
