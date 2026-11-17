@@ -679,3 +679,30 @@ it("keeps unchanged record identities and the browsing cursor on head reconcilia
   expect(merged.nextCursor).toBe("third-page");
   expect(merged.pages).toBe(2);
 });
+
+it("accounts for automatically accumulated rows when protecting a deep window", () => {
+  const batch = (n: number) => Array.from({ length: 20 }, (_, i) => feedPost(`Batch ${n} row ${i}`, 12));
+  let window = { posts: batch(0), pages: 1, nextCursor: "original-continuation" };
+  for (let n = 1; n <= 3; n++) window = mergeSocialPostHead(window, { posts: batch(n), nextCursor: `head-${n}` });
+  expect(window.posts).toHaveLength(80);
+  expect(window.pages).toBe(4);
+  expect(window.nextCursor).toBe("original-continuation");
+});
+
+it("accepts authoritative same-version venue redaction and nested profile changes", () => {
+  const previous = { ...feedPost("Known post", 12), venueProjected: true, venueId: "known-pub", venueName: "Known pub" };
+  const fresh = { ...previous, venueProjected: false, venueId: null, venueName: null, author: { handle: "new-handle" } };
+  const merged = mergeSocialPostHead({ posts: [previous], pages: 1, nextCursor: null }, { posts: [fresh], nextCursor: null });
+  expect(merged.posts[0]).toBe(fresh);
+  expect(merged.posts[0].venueId).toBeNull();
+  expect(merged.posts[0].author.handle).toBe("new-handle");
+});
+
+it("retains equal DTO identities regardless of JSON object field order", () => {
+  const previous = { ...feedPost("Known post", 12), hashtags: ["garden"] };
+  const fresh = Object.fromEntries(Object.entries(previous).reverse()) as SocialPostDTO;
+  fresh.author = { ...previous.author };
+  fresh.hashtags = [...previous.hashtags];
+  const window = { posts: [previous], pages: 1, nextCursor: null };
+  expect(mergeSocialPostHead(window, { posts: [fresh], nextCursor: null })).toBe(window);
+});

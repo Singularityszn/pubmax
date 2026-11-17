@@ -555,3 +555,44 @@ it("keeps mounted history independently of detached cache eviction", async () =>
   expect(host.textContent).toContain("Still reading this note");
   expect(host.querySelector(".composerInput")).not.toBeNull();
 });
+
+it.each(["unchanged", "appended"])("preserves older history through an %s background read", async change => {
+  await render();
+  await answer(thread("Older history"));
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+  await act(async () => window.dispatchEvent(new Event("scroll")));
+  scrollTo.mockClear();
+  await poll();
+  const next = await thread("Older history").json();
+  if (change === "appended") next.messages.push((await thread("New incoming history").json()).messages[0]);
+  await answer(Response.json(next));
+  expect(scrollTo).not.toHaveBeenCalled();
+  expect(host.textContent).toContain(change === "appended" ? "New incoming history" : "Older history");
+});
+
+it("follows incoming history when the reader stays at the newest position", async () => {
+  await render();
+  await answer(thread("Earlier history"));
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 132 });
+  await act(async () => window.dispatchEvent(new Event("scroll")));
+  scrollTo.mockClear();
+  await poll();
+  await answer(thread("Latest history"));
+  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+});
+
+it("lands an intentional send at the newest position after reading older history", async () => {
+  await render();
+  await answer(thread("Earlier history"));
+  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
+  await act(async () => window.dispatchEvent(new Event("scroll")));
+  scrollTo.mockClear();
+  const input = host.querySelector<HTMLTextAreaElement>(".composerInput")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "An intentional send");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click(".composerSend");
+  expect(host.textContent).toContain("An intentional send");
+  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+});
