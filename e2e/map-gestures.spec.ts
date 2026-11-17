@@ -2,7 +2,8 @@ import { expect, test, type CDPSession, type Page } from "@playwright/test";
 
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The map a reader turns with two fingers, in a real browser with a real
@@ -128,6 +129,103 @@ for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
     expect(after.bearing).toBeCloseTo(panned.bearing, 7);
     expect(after.pitch).toBeCloseTo(panned.pitch, 7);
   });
+}
+
+for (const exit of ["close button", "direct dismiss"] as const) {
+  for (const moved of [false, true]) {
+    test(`a cold mapped walk resolves after ${exit}, reader panned: ${moved}`, async ({ page, request }, testInfo) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installDeterministicMapBasemap(page);
+      await page.addInitScript(() => localStorage.setItem("pubmax-theme", "light"));
+      const delayedId = "venue-122cuu1";
+      const details = await Promise.all(["venue-7tarkc", delayedId].map(async id => {
+        const response = await request.get(`/api/venue/${id}`);
+        expect(response.ok()).toBe(true);
+        return response.json();
+      }));
+      await page.route("**/api/venue/venue-7tarkc*", route => route.fulfill({ json: details[0] }));
+      const core = await (await request.get("/data/venues_slim.core.json")).json();
+      const manifest = await (await request.get("/data/venues_slim.manifest.json")).json();
+      const rows = core.rows.filter((row: { id: string }) => row.id !== delayedId);
+      let releaseVenue!: () => void;
+      let requested = false;
+      const venueReady = new Promise<void>(resolve => { releaseVenue = resolve; });
+      page.on("close", releaseVenue);
+      await page.route(/\/data\/venues_slim(?:\.[^/?]+)?\.json(?:\?.*)?$/, route => route.fulfill({ json: { ...core, rows } }));
+      await page.route("**/data/venues_slim.manifest.json*", route => route.fulfill({ json: {
+        ...manifest, shards: [{ id: "cold-walk", core: true, partition: "grid", url: "/data/venues_slim.core.json",
+          count: rows.length, bbox: [-0.4, 51.3, 0.2, 51.8] }],
+      } }));
+      await page.route(`**/api/venue/${delayedId}*`, async route => {
+        requested = true;
+        await venueReady;
+        if (!page.isClosed()) await route.fulfill({ json: details[1] });
+      });
+      await page.route("**/api/walk-route?**", route => route.fulfill({
+        status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+      }));
+      try {
+        await page.goto(`/map?mode=build&pubs=venue-7tarkc,${delayedId}&sel=venue-7tarkc`);
+        const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+        await expect(close).toBeVisible();
+        await expect.poll(() => requested).toBe(true);
+        await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "0");
+        await expectMapLoadingFrameReleased(page);
+        await expect.poll(async () => {
+          const state = await readCamera(page);
+          return !state.moving && !state.settling;
+        }).toBe(true);
+        const selected = await readCamera(page);
+        if (moved) {
+          const canvas = page.locator(".maplibregl-canvas");
+          await canvas.focus();
+          await canvas.press("ArrowRight");
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            return !state.moving && Math.abs(state.center[0] - selected.center[0]) > 0.00001;
+          }).toBe(true);
+        }
+        const held = await readCamera(page);
+        await testInfo.attach("before-close", { body: await page.screenshot(), contentType: "image/png" });
+        if (exit === "close button") await close.click();
+        else await page.evaluate(event => window.dispatchEvent(new CustomEvent(event)), MOBILE_SHEET_DISMISS_EVENT);
+        await expect(close).not.toBeVisible();
+        const resolved = page.waitForResponse(response => response.url().includes(`/api/venue/${delayedId}`) && response.ok());
+        releaseVenue();
+        await (await resolved).finished();
+        await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "2");
+        await expect.poll(() => page.evaluate(() => (window as typeof window & {
+          __pubmaxPaintedMapTapPoints?: { state?: () => { sourceLoaded: Record<string, boolean | null> } };
+        }).__pubmaxPaintedMapTapPoints?.state?.().sourceLoaded["route-stops"])).toBe(true);
+        if (moved) {
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            return !state.moving && !state.settling;
+          }).toBe(true);
+          const after = await readCamera(page);
+          expect(after.center[0]).toBeCloseTo(held.center[0], 7);
+          expect(after.center[1]).toBeCloseTo(held.center[1], 7);
+          expect(after.zoom).toBeCloseTo(held.zoom, 7);
+        } else {
+          // The two published stop coordinates must fill the useful map band.
+          // A camera that remains at the selected venue cannot meet both bounds.
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            const points = await Promise.all([
+              projectOnMap(page, [-0.134383, 51.5113]), projectOnMap(page, [-0.135402, 51.5108]),
+            ]);
+            return !state.moving && !state.settling && points.every(point =>
+              point.x >= 72 && point.x <= 1368 && point.y >= 300 && point.y <= 720)
+              && Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y) >= 160;
+          }).toBe(true);
+        }
+        await testInfo.attach("after-resolution", { body: await page.screenshot(), contentType: "image/png" });
+      } finally {
+        releaseVenue();
+      }
+    });
+  }
 }
 
 async function readCamera(page: Page): Promise<CameraReading> {

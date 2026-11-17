@@ -15,6 +15,7 @@ import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { currentCameraRequestToken, nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus, type MapCameraFocus } from "@/lib/mapCameraFocus";
+import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
 import type { Venue } from "@/lib/venues";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -998,6 +999,74 @@ describe("query camera with contextual price pins", () => {
 });
 
 describe("closing a route stop", () => {
+  it.each([
+    ["home", false], ["home", true], ["direct dismiss", false], ["direct dismiss", true],
+  ] as const)("recovers a cold mapped walk after %s and its remaining venue resolves, reader moved: %s", async (exit, moved) => {
+    const fitRoute = vi.fn();
+    const restoreCamera = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    let resolveVenues!: () => void;
+    const selectedToken = nextCameraRequestToken();
+    window.history.replaceState(null, "", "/map?mode=build&pubs=soho-west,soho-east&sel=soho-west");
+    function Journey() {
+      const [venues, setVenues] = useState(soho.slice(0, 1));
+      const [selected, setSelected] = useState("soho-west");
+      const [closeToken, setCloseToken] = useState(0);
+      const presentation = useMapPlanPresentation({ mode: "build", builtIds: soho.map(pub => pub.id),
+        routeMapped: true, suggestedRoute: [], activePlanRoute: [],
+        venueById: new Map(venues.map(pub => [pub.id, pub])) });
+      resolveVenues = () => setVenues(soho);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: window.location.search, surfaceId: selected ? "venue" : "none", surfaceTitle: "Stop",
+        surfaceState: { ...EMPTY_MAP_SURFACE_STATE, venueId: selected }, selectionHint: "",
+        mappedRouteActive: presentation.routeForMap.length >= 2,
+        mappedRoutePending: presentation.routePending,
+        selectedVenueRequestToken: selectedToken, onVenueClose: setCloseToken,
+        onRestore: entry => setSelected(entry?.id === "venue" ? entry.state?.venueId ?? "" : ""),
+        onReturnToMap: restoreCamera, onHome: () => setSelected(""), onSurfaceClose: () => {},
+      });
+      useRouteCameraFraming({ mapReady: true, routeKey: presentation.routeForMap.map(pub => pub.id).join(">"),
+        routePending: presentation.routePending, selectedVenueId: selected, closeRequestToken: closeToken,
+        gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    await act(async () => root.render(createElement(Journey)));
+    if (moved) gesture.current.movementSerial += 1;
+    await act(async () => {
+      const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
+      if (exit === "direct dismiss") window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT));
+      else navigation.home();
+      await landed;
+    });
+    expect(fitRoute).not.toHaveBeenCalled();
+    act(() => resolveVenues());
+    expect(restoreCamera).not.toHaveBeenCalled();
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", selectedToken);
+  });
+
+  it.each(["direct dismiss", "no-walk clear"])("does not retain a selection marker after %s without a walk", (exit) => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    let routeKey = "";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey, selectedVenueId: selected,
+        closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    if (exit === "direct dismiss") closeToken = nextCameraRequestToken();
+    render();
+    fitRoute.mockClear();
+    routeKey = "a>b";
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("automatic", 0);
+  });
+
   // The ownership contract requires the newest deliberate request to win,
   // even when route data or map readiness delays both requests.
   it.each([

@@ -84,6 +84,11 @@ export function useRouteCameraFraming({
         movementSerial: selectedVenueId ? movementSerial : previous.movementSerial };
     }
     if (!mapReady || routePending) return;
+    if (!selectedVenueId && !routeKey.includes(">")) {
+      selection.current = { id: "", movementSerial: null };
+      consumedClose.current = closeRequestToken;
+      return;
+    }
     const userOwned = consumedRequest.current !== requestToken;
     consumedRequest.current = requestToken;
     const closed = consumedClose.current !== closeRequestToken;
