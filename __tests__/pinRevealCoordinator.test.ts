@@ -29,10 +29,12 @@ function harness({
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
   requiresBasemapPaint = true,
+  preferLocalPins = false,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
   compositeConfirmFrames?: number;
   requiresBasemapPaint?: boolean;
+  preferLocalPins?: boolean;
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
@@ -53,6 +55,7 @@ function harness({
     hasBasemapPainted: () => basemapPainted,
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
+    preferLocalPins,
     confirmVisibleFrameBeforeReveal,
     compositeConfirmFrames,
     scheduleFrame: (callback) => {
@@ -435,6 +438,25 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
 
     expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("reveals a fixed walk only after its local pins and composite paint, without waiting for tiles", () => {
+    const h = harness({ preferLocalPins: true });
+    h.setPinsPaintable(false);
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.visibility).toEqual([false]);
+    expect(h.reveals).toEqual([]);
+
+    h.setPinsPaintable(true);
+    h.fireRender();
+    expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([]);
+    h.fireRender();
+    h.fireFrame();
+    expect(h.reveals).toEqual([]);
+    h.fireFrame();
     expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
   });
 
