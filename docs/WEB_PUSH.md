@@ -36,10 +36,10 @@ notification action. A subscription rejection, denied permission, or failed
 token request can still produce an error.
 
 The permission dialog also has no time limit. Service-worker readiness and the
-existing-subscription read share a 10-second limit. The token request has a
-separate 10-second limit. Leaving the control cancels the app's wait and prevents
-a late subscription result from registering a token. Cancellation does not stop
-the browser's own subscription work. Regression coverage is in
+existing-subscription read share a 10-second limit. The default public token
+request has a separate 10-second limit. Leaving the control cancels the app's
+wait and prevents a late subscription result from registering a token.
+Cancellation does not stop the browser's own subscription work. Regression coverage is in
 `__tests__/webPush.test.ts` and `__tests__/webPushPending.test.tsx`.
 
 ## Message alerts
@@ -56,6 +56,7 @@ without adding a public-broadcast registration. The browser subscription can
 still be shared with existing public alerts. The
 [permission matrix](security/PERMISSION_MATRIX.md) owns account, session,
 subscription-secret and preview access rules.
+Private registration and settings writes use a three-second request limit.
 
 Stored sends schedule `lib/messageNotifications.server.ts` alongside Realtime
 signalling. Delivery failure does not fail the message send.
@@ -67,8 +68,10 @@ while its presence is less than 30 seconds old.
 
 The inbox and navigation badge share account-scoped reads and a private inbox
 subscription. Arrival and read signals invalidate the shared result. Visible
-tabs retain fallback polling when Realtime is unavailable and a slower safety
-poll when it is live. Hidden tabs stop polling and refresh when shown again.
+tabs poll every 15 seconds when Realtime is unavailable and every 60 seconds
+when it is live. Hidden tabs stop polling, cancel pending badge reads and
+refresh when shown again. A completed message read replaces a pending badge
+read. Aborted reads and replies from a previous account cannot update the badge.
 
 Transport payloads contain generic text and routing IDs. A preview-enabled
 worker asks an open client for its current authorisation, then resolves the

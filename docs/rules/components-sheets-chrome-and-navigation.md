@@ -57,18 +57,16 @@ The phone story chip reserves the attribution lane's measured height, including 
 
 `e2e/battle-ledger-chrome.spec.ts` checks the Ledger warning's hit target and the existing Ledger actions.
 
-The Messages and Activity badges refresh every 60 seconds while the tab is
-visible. A hidden tab stops both timers and aborts pending badge reads.
-Returning to the tab refreshes the counts. Timer and focus events reuse a
-pending read instead of starting another.
+The [message delivery reference](../WEB_PUSH.md#message-alerts) owns inbox and
+Messages badge refresh behaviour.
 
-Replies from aborted or replaced
-reads cannot change the counts, including after sign-out or an account change.
-A completed message read immediately replaces a pending Messages badge read
-while the tab is visible. `lib/visiblePolling.ts` owns the timer and visibility
-subscriptions. The badge components own request cancellation and reply checks.
-Regression checks: `__tests__/navBadgePolling.test.tsx` and
-`__tests__/messagesLinkUnread.test.tsx`.
+The Activity badge refreshes every 60 seconds while the tab is visible.
+A hidden tab stops its timer and aborts pending reads. Returning to the tab
+refreshes the count. Timer and focus events reuse a pending read.
+Replies from aborted or replaced reads cannot change the count, including
+after sign-out or an account change. `lib/visiblePolling.ts` owns the timer
+and visibility subscriptions. `NotificationBell` owns request cancellation
+and reply checks. Regression coverage: `__tests__/navBadgePolling.test.tsx`.
 
 <a id="the-pub-pal-is-a-door-in-the-top-bar-and-on-the-map-edge-never-a-tab"></a>
 
