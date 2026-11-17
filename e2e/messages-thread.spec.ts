@@ -1517,6 +1517,65 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   });
 }
 
+for (const width of [641, 768, 1023]) {
+  test(`thread keyboard geometry clears unanswered consent at ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+    await storeThemeChoice(page, "dark");
+    await installThread(page, fixture().slice(-3));
+    await page.addInitScript(() => {
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, writable: true, value: 844 },
+        offsetTop: { configurable: true, writable: true, value: 0 },
+      });
+    });
+    await page.goto("/messages/c1");
+    const card = page.getByLabel("Anonymous analytics choice");
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await expect(card).toBeVisible();
+    const expectConsentClearance = async () => {
+      await expect(async () => {
+        const [dock, cardBox] = await Promise.all([box(page, ".composerDock"), card.boundingBox()]);
+        expect(Math.abs(dock.bottom - cardBox!.y)).toBeLessThanOrEqual(1);
+      }).toPass();
+      await expectComposerInView(page);
+      await expectMessageInView(page, "Bring cash, card machine is dodgy");
+    };
+    await expectConsentClearance();
+    await field.focus();
+    const dockBottom = await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 480 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+      return document.querySelector(".composerDock")!.getBoundingClientRect().bottom;
+    });
+    expect(Math.abs(dockBottom - 480)).toBeLessThanOrEqual(1);
+    await expect(card).toBeHidden();
+    await expectComposerInView(page);
+    await field.fill("See you there");
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    expect(await send.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+    await field.blur();
+    await expect(card).toBeHidden();
+    await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 844 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expect(card).toBeVisible();
+    await expectConsentClearance();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+    await page.screenshot({ path: testInfo.outputPath(`tablet-consent-${width}.png`), scale: "css" });
+    await card.getByRole("button", { name: "No thanks", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    expect(Math.abs((await box(page, ".composerDock")).bottom - 844)).toBeLessThanOrEqual(1);
+  });
+}
+
 for (const action of ["Cancel", "Attach poll"]) {
   test(`expanded poll keeps ${action} and the composer reachable above the keyboard`, async ({ page }, testInfo) => {
     await page.setViewportSize(PHONE);

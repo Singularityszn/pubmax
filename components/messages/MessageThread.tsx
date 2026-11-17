@@ -638,7 +638,7 @@ export default function MessageThread({
 
   useLayoutEffect(() => {
     followingNewestRef.current = true;
-  }, [conversationId]);
+  }, [conversationId, accountRevision]);
 
   useLayoutEffect(() => {
     if (followingNewestRef.current) scrollToNewest();

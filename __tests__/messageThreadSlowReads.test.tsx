@@ -254,6 +254,37 @@ it("never draws a delayed read from the previous conversation, even on the way b
   expect(host.textContent).not.toContain("B content");
 });
 
+it.each(["account", "conversation"] as const)("opens at newest after a %s change while reading history", async (change) => {
+  const listHeight = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
+  const listViewport = vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  try {
+    await render();
+    await answer(thread("First reader"));
+    const list = host.querySelector<HTMLUListElement>(".threadMessages")!;
+    expect(list.scrollTop).toBe(976);
+    await act(async () => {
+      list.scrollTop = 100;
+      list.dispatchEvent(new Event("scroll"));
+    });
+    await poll();
+    await answer(thread("New message while reading history"));
+    expect(list.scrollTop).toBe(100);
+
+    const conversationId = change === "conversation" ? "conversation-b" : "conversation-a";
+    if (change === "account") {
+      viewer.current = { user: { id: "account-b" }, handle: "bob", accountRevision: 2 };
+      window.localStorage.setItem("pubmax_handle", "bob");
+    }
+    await render(conversationId);
+    await answer(thread("New identity newest message", conversationId));
+    expect(host.textContent).toContain("New identity newest message");
+    expect(host.querySelector<HTMLUListElement>(".threadMessages")?.scrollTop).toBe(976);
+  } finally {
+    listHeight.mockRestore();
+    listViewport.mockRestore();
+  }
+});
+
 it("keeps the page still through a cold failure and its recovery", async () => {
   await render();
   await answer(outage());

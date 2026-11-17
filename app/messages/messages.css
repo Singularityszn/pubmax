@@ -407,7 +407,7 @@ a.threadWith:active {
 
 /* The desktop split owns its bounds. The phone shell owns the visible viewport. */
 .messageThreadShell {
-  --composer-clearance: 0px;
+  --composer-clearance: var(--thread-tabbar-clearance, 0px);
 
   display: contents;
 }
@@ -1513,32 +1513,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   /* The dock clears the page's reserved chrome lane. A keyboard inset
      replaces that lane instead of adding to it. */
   .messageThreadShell {
-    --composer-clearance: var(--chrome-bottom-clearance);
-  }
-
-  .messageThreadShell[data-keyboard-open],
-  .messageThreadShell[data-viewport-reduced] {
-    --composer-clearance: 0px;
-  }
-
-  /* The analytics consent card parks in the lane above the tab bar
-     (app/globals.css, --analytics-consent-reserve), so while it is
-     mounted the composer clears the card as well as the bar: the newest
-     message and the field are on screen whatever overlays are up, and the
-     card never covers the field. With the keyboard up the card steps aside
-     instead, because a person typing has answered nothing yet and the field
-     comes first. */
-  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) {
-    --composer-clearance: calc(
-      var(--tabbar-h, 64px)
-        + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
-    );
-  }
-
-  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
-    visibility: hidden;
-    pointer-events: none;
+    --thread-tabbar-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
   }
 
   .composerPhotoDesktop {
@@ -2145,6 +2120,23 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 
 @media (max-width: 1023px) {
+  .messageThreadShell[data-keyboard-open],
+  .messageThreadShell[data-viewport-reduced] {
+    --composer-clearance: 0px;
+  }
+
+  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) {
+    --composer-clearance: calc(
+      var(--thread-tabbar-clearance, 0px)
+        + var(--analytics-consent-reserve, var(--analytics-consent-clearance, 72px))
+    );
+  }
+
+  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
+  }
+
   html:has(.messagesMainThread .messageThreadShell) {
     overscroll-behavior-y: none;
   }
@@ -2201,7 +2193,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 @media (min-width: 641px) and (max-width: 1023px) {
-  .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) .composerDock {
+  body:not(:has(.analyticsConsentPrompt)) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) .composerDock {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
   }
 }
