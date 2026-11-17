@@ -10,8 +10,8 @@ async function seedSignedIn(page: Page, account: "A" | "B"): Promise<void> {
   await expect(page.getByRole("button", { name: "Sign in", exact: true }).or(page.getByRole("link", { name: "Sign in", exact: true })).first()).toBeVisible();
 }
 
-async function pushRuntime(page: Page): Promise<void> {
-  await page.addInitScript(() => {
+async function pushRuntime(page: Page, legacy = false): Promise<void> {
+  await page.addInitScript((legacy) => {
     let requests = 0;
     let closed = 0;
     let unsubscribed = 0;
@@ -24,7 +24,7 @@ async function pushRuntime(page: Page): Promise<void> {
     const events = new EventTarget();
     const subscription = { unsubscribe: async () => { unsubscribed++; return true; }, toJSON: () => ({ endpoint: "https://web.push.apple.com/message-e2e", keys: { p256dh: "e2ePublicKey_material", auth: "e2eAuthKey_material" } }) };
     const registration = {
-      active: { scriptURL: `${location.origin}/sw.js?message-previews=1`, postMessage(_data: unknown, ports: MessagePort[]) { ports[0].postMessage({ ok: true }); } },
+      active: { scriptURL: `${location.origin}/sw.js${legacy ? "" : "?message-previews=1"}`, postMessage(_data: unknown, ports: MessagePort[]) { ports[0].postMessage({ ok: true }); } },
       pushManager: { getSubscription: async () => (window as unknown as { __hangMessageSubscription?: boolean }).__hangMessageSubscription ? new Promise(() => {}) : subscription, subscribe: async () => subscription },
       getNotifications: async () => (window as unknown as { __hangMessageTray?: boolean }).__hangMessageTray ? new Promise(() => {}) : [{ data: { recipientId: "previous-account" }, close() { closed++; } }],
     };
@@ -37,7 +37,7 @@ async function pushRuntime(page: Page): Promise<void> {
     Object.defineProperty(window, "__closedNotifications", { get: () => closed });
     Object.defineProperty(window, "__receiveMessage", { value: (recipientId: string) => events.dispatchEvent(new MessageEvent("message", { data: { type: "pubmax:message-arrival", recipientId } })) });
     Object.defineProperty(navigator, "standalone", { configurable: true, value: true });
-  });
+  }, legacy);
 }
 
 test("a recipient can choose message alerts without enabling public broadcasts", async ({ page, browserName }, testInfo) => {
@@ -281,9 +281,10 @@ test(`account switching and sign-out recover with ${stall} access`, async ({ pag
   await page.evaluate(method => { Object.assign(window, { __hangMessageRegistration: method === "registration", __hangMessageTray: method === "tray" }); }, stall);
   await page.getByRole("button", { name: "Sign out of @karan", exact: true }).click();
   await expect(page.getByRole("button", { name: /Account options for Karan M/ })).toBeVisible();
-  await page.evaluate(() => { Object.assign(window, { __hangMessageRegistration: false, __hangMessageTray: false }); });
+  await page.evaluate(() => { Object.assign(window, { __hangMessageRegistration: false }); });
   expect(await page.evaluate(() => (window as unknown as { __unsubscribedPush: number }).__unsubscribedPush)).toBe(0);
   await expect.poll(() => owner).toBe("B");
+  await page.evaluate(() => { Object.assign(window, { __hangMessageTray: false }); });
   await page.screenshot({ path: testInfo.outputPath("offline-sign-out-completed.png") });
   await page.getByRole("button", { name: /Account options for Karan M/ }).click();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
@@ -304,6 +305,29 @@ test(`account switching and sign-out recover with ${stall} access`, async ({ pag
 });
 }
 
+
+test("slow detach still closes private notices on a final sign-out", async ({ page }, testInfo) => {
+  await pushRuntime(page, true);
+  const auth = await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  await auth.signedInAs("A");
+  let bound = false;
+  await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [] } }));
+  await page.route("**/api/message-notifications**", async route => {
+    if (route.request().method() === "DELETE") return;
+    if (route.request().method() === "POST") bound = true;
+    await route.fulfill({ json: { enabled: true, preview: true, muted: false, bound: true, sessionId: "11111111-1111-4111-8111-111111111111" } });
+  });
+  await page.goto("/messages");
+  await expect.poll(() => bound).toBe(true);
+  const closedBefore = await page.evaluate(() => (window as unknown as { __closedNotifications: number }).__closedNotifications);
+  await page.getByRole("button", { name: "Account options for Karan", exact: true }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true }).or(page.getByRole("link", { name: "Sign in", exact: true })).first()).toBeVisible();
+  expect(await page.evaluate(() => (window as unknown as { __closedNotifications: number }).__closedNotifications)).toBeGreaterThan(closedBefore);
+  expect(await page.evaluate(() => (window as unknown as { __unsubscribedPush: number }).__unsubscribedPush)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("slow-detach-notices-closed.png"), scale: "css" });
+});
 
 test("iPhone setup explains installation and requires a tap before permission", async ({ page }, testInfo) => {
   await pushRuntime(page);

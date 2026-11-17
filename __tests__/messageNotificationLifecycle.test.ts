@@ -33,6 +33,40 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it("closes legacy private notifications while a detach waits for its deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubGlobal("fetch", vi.fn((_url, init: RequestInit) => new Promise<Response>((_resolve, reject) => {
+      init.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    })));
+    try {
+      const departure = releaseMessagePush();
+      await vi.advanceTimersByTimeAsync(3_000);
+      await departure;
+      expect(close).toHaveBeenCalledOnce();
+      expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toHaveLength(1);
+    } finally { vi.useRealTimers(); }
+  });
+  it("binds even while notification tray access remains unavailable", async () => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(milliseconds => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), milliseconds);
+      return controller.signal;
+    });
+    const registration = (await navigator.serviceWorker.getRegistration())!;
+    vi.spyOn(registration, "getNotifications").mockImplementation(() => new Promise(() => {}));
+    vi.spyOn(navigator.serviceWorker, "getRegistration").mockResolvedValue(registration);
+    account.active = "B";
+    account.owner = "A";
+    account.enabled = true;
+    const restoring = restoreMessagePushAccount(new AbortController().signal, "B").catch(() => undefined);
+    try {
+      await vi.advanceTimersByTimeAsync(3_000);
+      await restoring;
+      expect(account.owner).toBe("B");
+      expect(unsubscribe).not.toHaveBeenCalled();
+    } finally { vi.restoreAllMocks(); timeout.mockRestore(); vi.useRealTimers(); }
+  });
   it.each([
     ["restore", "registration"], ["restore", "tray"],
     ["release", "registration"], ["release", "tray"],
