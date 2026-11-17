@@ -155,6 +155,10 @@ describe("summon price", () => {
     ["an unlabelled other measure", { measure: "other" }],
     ["a half sold under a pint", { pint_name: "Half of Amstel" }],
     ["a bottle sold under a pint", { pint_name: "Amstel 330ml bottle" }],
+    ["a bottle labelled as a half", { measure: "half", pint_name: "Amstel 330ml bottle" }],
+    ["a mismatched wine volume", { measure: "125ml", pint_name: "White wine 330ml" }],
+    ["a mismatched half volume", { measure: "half", pint_name: "Amstel 568ml" }],
+    ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
     ["no drink", { pint_name: " " }],
     ["no listing text", { price_text: "" }],
     ["a listing for another amount", { price_text: "£6.00" }],
@@ -168,6 +172,13 @@ describe("summon price", () => {
     ["no figure", { price_gbp: null, price_text: "", estimated_average_price_text: "£5.28" }],
   ])("omits the price for %s", (_label, overrides) => {
     expect(selectSummonPrice(pub(row(overrides as Partial<VenuePrice>)), NOW)).toBeNull();
+  });
+
+  it.each([
+    ["half", "Amstel 284ml"],
+    ["175ml", "White wine 175ml"],
+  ] as const)("preserves a matching explicit %s serving", (measure, pint_name) => {
+    expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
   });
 
   it("never quotes a superseded row, a non-pub or a drinker's logged figure", () => {
