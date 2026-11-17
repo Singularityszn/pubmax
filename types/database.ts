@@ -3647,6 +3647,13 @@ export type Database = {
             referencedRelation: "private_social_accounts";
             referencedColumns: ["id"];
           },
+          {
+            foreignKeyName: "private_social_crew_write_receipts_subject_user_id_fkey";
+            columns: ["subject_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
         ];
       };
       private_social_staff_roles: {
@@ -7688,6 +7695,18 @@ export type Database = {
           recorded_by: string;
         };
       };
+      _social_crew_attendance_finish: {
+        Args: {
+          p_actor: string | null;
+          p_operation: string | null;
+          p_key: string | null;
+          p_digest: string | null;
+          p_response: Json;
+          p_subject_user: string | null;
+          p_expires_at: string | null;
+        };
+        Returns: Json;
+      };
       _social_crew_attendance_markable: {
         Args: {
           p_crew: string | null;
@@ -7695,6 +7714,19 @@ export type Database = {
           p_subject: string | null;
         };
         Returns: boolean;
+      };
+      _social_crew_attendance_refuse: {
+        Args: {
+          p_replay: boolean | null;
+          p_actor: string | null;
+          p_operation: string | null;
+          p_key: string | null;
+          p_digest: string | null;
+          p_code: string | null;
+          p_subject_user?: string | null;
+          p_expires_at?: string | null;
+        };
+        Returns: Json;
       };
       _social_crew_attendance_window: {
         Args: {
