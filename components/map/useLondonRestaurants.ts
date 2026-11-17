@@ -4,11 +4,15 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   loadLondonRestaurants,
+  londonRestaurantLayerMode,
+  londonRestaurantPackWanted,
   type LondonRestaurant,
   type LondonRestaurantStatus,
 } from "@/lib/londonRestaurants";
 
 export type LondonRestaurantsState = {
+  mode: ReturnType<typeof londonRestaurantLayerMode>;
+  layerAvailable: boolean;
   status: LondonRestaurantStatus;
   restaurants: readonly LondonRestaurant[];
   byId: ReadonlyMap<string, LondonRestaurant>;
@@ -16,38 +20,65 @@ export type LondonRestaurantsState = {
 
 const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
 
-/**
- * The London restaurant pack, read the first time `wanted` turns true and held
- * for the rest of the visit (lib/londonRestaurants.ts
- * `londonRestaurantPackWanted`). A failed read is asked for again the next
- * time `wanted` turns true, rather than on every render.
- */
-export function useLondonRestaurants(wanted: boolean): LondonRestaurantsState {
+type LondonRestaurantLayerInput = Omit<Parameters<typeof londonRestaurantLayerMode>[0], "selectedVenueId" | "restaurantKindVisible">
+  & Omit<Parameters<typeof londonRestaurantPackWanted>[0], "shown">
+  & { restaurantKindVisible: boolean | undefined };
+
+export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonRestaurantsState {
+  const { selectedVenueId } = input;
+  const mode = londonRestaurantLayerMode({
+    ...input,
+    restaurantKindVisible: input.restaurantKindVisible ?? false,
+    selectedVenueId: input.selectedIsCafe ? undefined : selectedVenueId,
+  });
+  const wanted = londonRestaurantPackWanted({ ...input, shown: mode !== "off" });
+  const scope = mode === "selection" ? selectedVenueId : "all";
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
   const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
-  const requested = useRef(false);
+  const [settledRead, setSettledRead] = useState<{ scope: string; selectedVenueId: string } | null>(null);
+  const requested = useRef<{ scope: string; selectedVenueId: string; settled: boolean } | null>(null);
+
+  useEffect(() => () => {
+    if (!requested.current?.settled) requested.current = null;
+  }, [scope]);
 
   useEffect(() => {
-    if (!wanted || requested.current) return;
-    requested.current = true;
+    if (!wanted) {
+      queueMicrotask(() => setStatus(current => current === "failed" ? "idle" : current));
+      return;
+    }
+    if (requested.current?.scope === "all" || requested.current?.scope === scope) {
+      requested.current.selectedVenueId = selectedVenueId;
+      return;
+    }
+    const request = { scope, selectedVenueId, settled: false };
+    requested.current = request;
     queueMicrotask(() => setStatus("loading"));
-    loadLondonRestaurants().then(
+    loadLondonRestaurants(fetch, scope === "all" ? undefined : selectedVenueId).then(
       (loaded) => {
+        if (request !== requested.current) return;
+        request.settled = true;
         setRestaurants(loaded);
+        setSettledRead({ scope, selectedVenueId: request.selectedVenueId });
         setStatus("ready");
       },
       () => {
-        requested.current = false;
+        if (request !== requested.current) return;
+        requested.current = null;
+        setSettledRead({ scope, selectedVenueId: request.selectedVenueId });
         setStatus("failed");
       },
     );
-  }, [wanted]);
+  }, [wanted, selectedVenueId, scope]);
 
   const byId = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant] as const)),
     [restaurants],
   );
-  return { status, restaurants, byId };
+  const changingScope = settledRead !== null && !(settledRead.scope === "all" && status === "ready")
+    && (settledRead.scope !== scope || settledRead.selectedVenueId !== selectedVenueId);
+  const layerAvailable = londonRestaurantLayerMode({ ...input, restaurantKindVisible: true }) === "layer";
+  return { mode, layerAvailable, status: changingScope ? "loading" : status, restaurants, byId };
 }
 
 /**

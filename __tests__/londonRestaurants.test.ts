@@ -9,7 +9,7 @@ import { PUB_FIRST_LAYERS, wireClickRouting } from "@/components/map/canvas/inte
 import {
   LONDON_RESTAURANT_MIN_ZOOM,
   LONDON_RESTAURANT_PACK_PATH,
-  londonRestaurantLayerShown,
+  londonRestaurantLayerMode,
   londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsToGeoJSON,
@@ -43,11 +43,11 @@ const FURNIVAL_ROW = [
 
 function pack(rows: unknown[][], overrides: Record<string, unknown> = {}) {
   return {
-    version: 2,
+    version: 3,
     kind: "restaurant",
     layer: "/data/london_venues/packs/0123456789abcdef/",
     count: rows.length,
-    venues: rows,
+    venues: rows.map(row => row.length === 7 ? [...row, "", ""] : row),
     ...overrides,
   };
 }
@@ -80,6 +80,16 @@ describe("parseLondonRestaurantPack", () => {
     ]);
   });
 
+  it("keeps only the cuisine and hours explicitly tagged by OSM", () => {
+    const rows = parseLondonRestaurantPack(pack([
+      [...RULES_ROW, "british", "Mo-Sa 12:00-22:00"],
+      [...FURNIVAL_ROW, "", ""],
+    ], { version: 3, observedAt: "2026-11-16T00:00:00Z" }));
+    expect(rows?.[0]).toMatchObject({ cuisine: "british", openingHours: "Mo-Sa 12:00-22:00", observedAt: "2026-11-16T00:00:00Z" });
+    expect(rows?.[1]?.cuisine).toBeUndefined();
+    expect(rows?.[1]?.openingHours).toBeUndefined();
+  });
+
   it("refuses a row that names no borough, as a pack cut before boroughs would", () => {
     expect(parseLondonRestaurantPack(pack([FURNIVAL_ROW.slice(0, 6)]))).toBeNull();
     expect(parseLondonRestaurantPack(pack([[...FURNIVAL_ROW.slice(0, 6), null]]))).toBeNull();
@@ -103,12 +113,31 @@ describe("parseLondonRestaurantPack", () => {
 });
 
 describe("loadLondonRestaurants", () => {
-  it("reads the one pack and nothing else", async () => {
-    const fetchImpl = vi.fn(async () => Response.json(pack([RULES_ROW, FURNIVAL_ROW])));
-    const loaded = await loadLondonRestaurants(fetchImpl as unknown as typeof fetch);
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
-    expect(fetchImpl).toHaveBeenCalledWith(LONDON_RESTAURANT_PACK_PATH);
-    expect(loaded.map((venue) => venue.name)).toEqual(["Rules", "26 Furnival Street"]);
+  it("reads only the matching bounded chunk for an explicit shared link", async () => {
+    const prefix = "/data/london_restaurants/packs/0123456789abcdef/";
+    const manifest = { version: 3, kind: "restaurant", urlPrefix: prefix, count: 2,
+      shards: [{ id: "0", count: 1, firstId: "n101", lastId: "n101" }, { id: "1", count: 1, firstId: "n25496840", lastId: "n25496840" }] };
+    const read = vi.fn(async (input: RequestInfo | URL) => Response.json(input === LONDON_RESTAURANT_PACK_PATH
+      ? manifest : pack(input === `${prefix}0.json` ? [RULES_ROW] : [FURNIVAL_ROW])));
+    const loaded = await loadLondonRestaurants(read, "venue-osm-n25496840");
+    expect(loaded.map(row => row.name)).toEqual(["26 Furnival Street"]);
+    expect(read.mock.calls.map(([url]) => url)).toEqual([LONDON_RESTAURANT_PACK_PATH, `${prefix}1.json`]);
+    read.mockClear();
+    expect(await loadLondonRestaurants(read, "venue-osm-w999")).toEqual([]);
+    expect(read).toHaveBeenCalledTimes(1);
+  });
+
+  it("loads bounded chunks and refuses incomplete or off-site manifests", async () => {
+    const prefix = "/data/london_restaurants/packs/0123456789abcdef/";
+    const manifest = { version: 3, kind: "restaurant", urlPrefix: prefix, count: 2,
+      shards: [{ id: "0", count: 1, firstId: "n101", lastId: "n101" }, { id: "1", count: 1, firstId: "n25496840", lastId: "n25496840" }] };
+    const read = async (input: RequestInfo | URL) => Response.json(input === LONDON_RESTAURANT_PACK_PATH
+      ? manifest : pack(input === `${prefix}0.json` ? [RULES_ROW] : [FURNIVAL_ROW]));
+    expect((await loadLondonRestaurants(read)).map((row) => row.name)).toEqual(["Rules", "26 Furnival Street"]);
+    await expect(loadLondonRestaurants(async (input) => Response.json(input === LONDON_RESTAURANT_PACK_PATH
+      ? { ...manifest, count: 3 } : pack([RULES_ROW])))).rejects.toThrow(/count|malformed/);
+    await expect(loadLondonRestaurants(async () => Response.json({ ...manifest, urlPrefix: "https://example.org/" })))
+      .rejects.toThrow(/malformed/);
   });
 
   it("rejects a failed or malformed read rather than drawing no restaurants", async () => {
@@ -123,7 +152,16 @@ describe("loadLondonRestaurants", () => {
   });
 });
 
+it("limits an explicit selection to one restaurant under a drink lane even when opted in", () => {
+  expect(londonRestaurantLayerMode({ isLondon: true, restaurantKindVisible: true,
+    experienceLens: "all", lensOwnsMap: true, selectedVenueId: "venue-osm-n101" })).toBe("selection");
+});
+
 describe("londonRestaurantsWithoutCuratedTwin", () => {
+  it("keeps an explicitly selected OSM twin so its shared link can locate it", () => {
+    const row = restaurant({ id: "venue-osm-n101", name: "The Anchor", lat: 51.5076, lng: -0.0948 });
+    expect(londonRestaurantsWithoutCuratedTwin([row], [curated("The Anchor", 51.5076, -0.0948)], row.id)).toEqual([row]);
+  });
   const curated = (name: string, latitude: number, longitude: number) => ({
     name,
     latitude,
@@ -177,7 +215,7 @@ describe("londonRestaurantsWithoutCuratedTwin", () => {
   });
 });
 
-describe("londonRestaurantLayerShown", () => {
+describe("londonRestaurantLayerMode", () => {
   const base = {
     isLondon: true,
     restaurantKindVisible: true,
@@ -185,23 +223,28 @@ describe("londonRestaurantLayerShown", () => {
     lensOwnsMap: false,
   };
 
+  it("opens an explicit restaurant link while the type starts off", () => {
+    expect(londonRestaurantLayerMode({ isLondon: true, restaurantKindVisible: false,
+      experienceLens: "all", lensOwnsMap: true, selectedVenueId: "venue-osm-n101" })).toBe("selection");
+  });
+
   it("shows on the London pint map with restaurants on in the filter", () => {
-    expect(londonRestaurantLayerShown(base)).toBe(true);
+    expect(londonRestaurantLayerMode(base)).toBe("layer");
   });
 
   it("hides outside London and when the kind filter hides restaurants", () => {
-    expect(londonRestaurantLayerShown({ ...base, isLondon: false })).toBe(false);
-    expect(londonRestaurantLayerShown({ ...base, restaurantKindVisible: false })).toBe(false);
+    expect(londonRestaurantLayerMode({ ...base, isLondon: false })).toBe("off");
+    expect(londonRestaurantLayerMode({ ...base, restaurantKindVisible: false })).toBe("off");
   });
 
   it("gives the map to a drink lane or the no-alcohol view, but shows under food", () => {
-    expect(londonRestaurantLayerShown({ ...base, lensOwnsMap: true })).toBe(false);
+    expect(londonRestaurantLayerMode({ ...base, lensOwnsMap: true })).toBe("off");
     expect(
-      londonRestaurantLayerShown({ ...base, experienceLens: "no-alcohol", lensOwnsMap: true }),
-    ).toBe(false);
+      londonRestaurantLayerMode({ ...base, experienceLens: "no-alcohol", lensOwnsMap: true }),
+    ).toBe("off");
     expect(
-      londonRestaurantLayerShown({ ...base, experienceLens: "food", lensOwnsMap: true }),
-    ).toBe(true);
+      londonRestaurantLayerMode({ ...base, experienceLens: "food", lensOwnsMap: true }),
+    ).toBe("layer");
   });
 });
 
@@ -234,6 +277,12 @@ describe("londonRestaurantsPassingMapFilters", () => {
       ...overrides,
       filters: { ...initialFilters, ...filters },
     }).map((place) => place.id);
+
+  it("draws only the linked restaurant while the optional layer is off", () => {
+    expect(londonRestaurantsPassingMapFilters(both, {
+      ...base, restaurantKindVisible: false, selectedVenueId: rules.id,
+    })).toEqual([rules]);
+  });
 
   it("lets every restaurant through while no filter narrows the map", () => {
     expect(pass({})).toEqual([dishoom.id, rules.id]);

@@ -10,6 +10,8 @@
 //   data/osm/uk/venue_counts.json                          (kind + London/UK counts)
 //
 // Usage:
+//   npm run fetch:uk-venues -- --london-restaurants # Geofabrik extract, requires osmium-tool
+//   npm run fetch:uk-venues -- --london-restaurants --from-pbf=/absolute/london.osm.pbf # offline replay
 //   npm run fetch:uk-venues                     # full pull, resumes by default
 //   npm run fetch:uk-venues -- --scope=work     # retry one lane of the taxonomy
 //   npm run fetch:uk-venues -- --refresh        # refetch every chunk
@@ -36,16 +38,25 @@
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
-import { access, mkdir, readFile, readdir, stat } from "node:fs/promises";
+import { access, mkdir, readFile, readdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
+import { execFile } from "node:child_process";
+import { createWriteStream } from "node:fs";
+import { Readable } from "node:stream";
+import { pipeline } from "node:stream/promises";
+import { promisify } from "node:util";
 import { fileURLToPath } from "node:url";
+import { openDataSourceUrl } from "../lib/harvest/sourcePolicy.ts";
+import { normalizeOsmVenueElement } from "./lib/osmPubNormalizer.mjs";
 
 import {
   COMMIT_SIZE_LIMIT_BYTES,
   INTER_CHUNK_DELAY_MS,
   INTER_CHUNK_DELAY_STALE_MS,
   MAX_SOURCE_AGE_MS,
+  MAX_FUTURE_CLOCK_SKEW_MS,
   QUERY_TIMEOUT_S,
+  USER_AGENT,
   fetchOverpass,
   formatMb,
   isFreshOverpassSnapshot,
@@ -134,6 +145,114 @@ export function runArtifactPlan(scope, { missingChunks = 0 } = {}) {
 export function inGreaterLondon(venue) {
   const [south, west, north, east] = GREATER_LONDON_BBOX;
   return venue.lat >= south && venue.lat <= north && venue.lng >= west && venue.lng <= east;
+}
+
+export function londonRestaurantSeed(raw, { allowStale = false } = {}) {
+  const stamp = Date.parse(raw?.osm3s?.timestamp_osm_base ?? "");
+  if (!parseOverpassRawText(JSON.stringify(raw)) || !Number.isFinite(stamp)
+    || stamp > Date.now() + MAX_FUTURE_CLOCK_SKEW_MS
+    || (!allowStale && !isFreshOverpassSnapshot(raw))) {
+    throw new Error("The London restaurant snapshot is incomplete or stale.");
+  }
+  const venues = new Map();
+  for (const element of raw.elements) {
+    if (element.tags?.amenity !== "restaurant") continue;
+    const venue = normalizeOsmVenueElement(element, { kind: "restaurant", taxonomyKey: "restaurant" });
+    if (!venue || !inGreaterLondon(venue)) continue;
+    const { osmId, name, amenity, lat, lng, address, cuisine, openingHours, kind } = venue;
+    venues.set(osmId, { osmId, name, amenity, lat, lng, address, cuisine, openingHours, kind });
+  }
+  if (!venues.size) throw new Error("The London snapshot holds no named restaurants.");
+  return {
+    source: "OpenStreetMap", license: "ODbL", attribution: "© OpenStreetMap contributors",
+    fetchedAt: raw.osm3s.timestamp_osm_base, bbox: GREATER_LONDON_BBOX,
+    venues: [...venues.values()].sort((a, b) => a.osmId.localeCompare(b.osmId)),
+  };
+}
+
+export function restaurantElementsFromGeoJSON(features) {
+  return features.flatMap((feature) => {
+    const tags = feature?.properties;
+    if (tags?.amenity !== "restaurant") return [];
+    const type = tags["@type"];
+    const id = tags["@id"];
+    if (!["node", "way", "relation"].includes(type) || !Number.isSafeInteger(id) || id <= 0) {
+      throw new Error("A restaurant has no original OSM identity.");
+    }
+    let minLon = Infinity;
+    let maxLon = -Infinity;
+    let minLat = Infinity;
+    let maxLat = -Infinity;
+    function visit(coordinates) {
+      if (!Array.isArray(coordinates)) throw new Error(`Invalid restaurant geometry: ${type}/${id}`);
+      if (typeof coordinates[0] === "number") {
+        const [lon, lat] = coordinates;
+        if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+          throw new Error(`Invalid restaurant geometry: ${type}/${id}`);
+        }
+        minLon = Math.min(minLon, lon);
+        maxLon = Math.max(maxLon, lon);
+        minLat = Math.min(minLat, lat);
+        maxLat = Math.max(maxLat, lat);
+      } else {
+        for (const position of coordinates) visit(position);
+      }
+    }
+    visit(feature.geometry?.coordinates);
+    if (!Number.isFinite(minLon)) throw new Error(`Empty restaurant geometry: ${type}/${id}`);
+    return [{ type, id, tags, center: { lat: (minLat + maxLat) / 2, lon: (minLon + maxLon) / 2 } }];
+  });
+}
+
+async function fetchLondonRestaurants(fromPbfPath) {
+  const run = promisify(execFile);
+  const rawDir = path.join(RAW_ROOT, "london-restaurants");
+  await mkdir(rawDir, { recursive: true });
+  try {
+    await run("osmium", ["--version"]);
+  } catch (error) {
+    if (error.code === "ENOENT") throw new Error("Install the PBF reader with brew install osmium-tool.");
+    throw error;
+  }
+  const url = openDataSourceUrl("osm-geofabrik-london-restaurants", "");
+  const pbf = fromPbfPath ?? path.join(rawDir, "greater-london-latest.osm.pbf");
+  if (!path.isAbsolute(pbf)) throw new Error("--from-pbf requires an absolute path.");
+  if (!fromPbfPath) {
+    const partial = `${pbf}.partial`;
+    try {
+      console.log(`Downloading ${url.href}`);
+      let downloadUrl = url;
+      let response;
+      for (let hop = 0; hop < 4; hop += 1) {
+        response = await fetch(downloadUrl, {
+          redirect: "manual", signal: AbortSignal.timeout(300_000), headers: { "User-Agent": USER_AGENT },
+        });
+        if (response.status < 300 || response.status >= 400) break;
+        const location = response.headers.get("location");
+        await response.body?.cancel();
+        if (!location) throw new Error("Geofabrik redirect has no destination.");
+        downloadUrl = openDataSourceUrl("osm-geofabrik-london-restaurants", new URL(location, downloadUrl).href);
+      }
+      if (!response.ok || !response.body) throw new Error(`Geofabrik extract answered ${response.status}`);
+      await pipeline(Readable.fromWeb(response.body), createWriteStream(partial));
+      await rename(partial, pbf);
+    } finally {
+      await rm(partial, { force: true });
+    }
+  }
+  const { stdout } = await run("osmium", ["fileinfo", "-g", "header.option.osmosis_replication_timestamp", pbf]);
+  const extractedAt = stdout.trim();
+  const filtered = path.join(rawDir, "restaurants.osm.pbf");
+  const geojson = path.join(rawDir, "restaurants.geojson");
+  await run("osmium", ["tags-filter", pbf, "nwr/amenity=restaurant", "--overwrite", "-o", filtered]);
+  await run("osmium", ["export", filtered, "--attributes=type,id", "--stop-on-error", "--overwrite", "-o", geojson]);
+  const features = JSON.parse(await readFile(geojson, "utf8")).features;
+  const elements = restaurantElementsFromGeoJSON(features);
+  const seed = londonRestaurantSeed({ elements, osm3s: { timestamp_osm_base: extractedAt } }, { allowStale: Boolean(fromPbfPath) });
+  seed.source = "OpenStreetMap via Geofabrik";
+  seed.extract = { url: url.href, timestamp: extractedAt };
+  await writeCompact(path.join(UK_DIR, "london_osm_restaurants.json"), seed);
+  console.log(`London OSM restaurants: ${seed.venues.length} named rows, Geofabrik snapshot ${extractedAt}`);
 }
 
 function parseArgs(argv) {
@@ -280,6 +399,14 @@ async function collect(scope, grid, targets, options) {
 }
 
 async function main() {
+  if (process.argv.slice(2).includes("--london-restaurants")) {
+    const args = process.argv.slice(2);
+    const replay = args.find((arg) => arg.startsWith("--from-pbf="));
+    if (replay === "--from-pbf=") throw new Error("--from-pbf requires an absolute path.");
+    if (args.length !== (replay ? 2 : 1)) throw new Error("--london-restaurants accepts only --from-pbf=<absolute path>.");
+    await fetchLondonRestaurants(replay?.slice("--from-pbf=".length));
+    return;
+  }
   const options = parseArgs(process.argv.slice(2));
   const grid = buildGrid();
 

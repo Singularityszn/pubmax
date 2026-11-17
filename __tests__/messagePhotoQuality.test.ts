@@ -18,8 +18,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   MESSAGE_PHOTO_ASPECT_RATIO,
-  MESSAGE_PHOTO_OUTPUT_HEIGHT,
-  MESSAGE_PHOTO_OUTPUT_WIDTH,
 } from "@/lib/messageAttachments";
 import { prepareMessagePhoto } from "@/lib/messagePhotoMedia.server";
 
@@ -89,14 +87,28 @@ describe("a DM photo is stored at phone resolution, not a 1080 box", () => {
     // The stored pixels, not the constants: the retired pipeline answered
     // 1080x1350 here, which is what made a photograph look soft in a thread.
     expect({ width: decoded.width, height: decoded.height }).toEqual({
-      width: MESSAGE_PHOTO_OUTPUT_WIDTH,
-      height: MESSAGE_PHOTO_OUTPUT_HEIGHT,
+      width: 1638,
+      height: 2048,
     });
     expect(decoded.height).toBe(2_048);
     expect(decoded.height).toBeGreaterThan(RETIRED_BOX.height);
     // And it is still the thread's portrait column, never a landscape tile.
     expect(decoded.width! / decoded.height!).toBeCloseTo(MESSAGE_PHOTO_ASPECT_RATIO, 3);
   }, 60_000);
+
+  // The message-photo contract specifies a 2048px edge in either orientation.
+  // A portrait-only resize box would reduce a landscape below that edge.
+  it.each([
+    [4032, 3024, 2048, 1536],
+    [3024, 4032, 1536, 2048],
+    [3000, 3000, 2048, 2048],
+  ])("preserves the full %ix%i frame as %ix%i", async (width, height, expectedWidth, expectedHeight) => {
+    const source = await sharp({ create: { width, height, channels: 3, background: "#a85b32" } }).jpeg().toBuffer();
+    const prepared = await prepareMessagePhoto(asFile(source));
+    const decoded = await sharp(prepared.bytes).metadata();
+    expect([decoded.width, decoded.height]).toEqual([expectedWidth, expectedHeight]);
+    expect([prepared.width, prepared.height]).toEqual([expectedWidth, expectedHeight]);
+  });
 
   it("lands closer to the picture the sender chose than the retired box did", async () => {
     const source = await phonePhoto();

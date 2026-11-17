@@ -73,7 +73,7 @@ export function osmPubFactsFromRow(row: unknown): OsmPubFacts | null {
 const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** `2024-05-03` reads "3 May 2024", and a month-only check date `2024-05` reads "May 2024". */
-function dayLabel(value: string): string | null {
+export function dayLabel(value: string): string | null {
   const match = CHECK_DATE.exec(value);
   if (!match) return null;
   const [, year = "", month = "", day] = match;
