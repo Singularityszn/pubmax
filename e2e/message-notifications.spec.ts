@@ -57,12 +57,15 @@ test("a recipient can choose message alerts without enabling public broadcasts",
       unread: 1,
     }],
   } }));
-  let preferences = { enabled: false, preview: false, muted: false };
+  let preferences = { enabled: false, preview: false, muted: false, registered: false };
   const actions: string[] = [];
+  let stallNextSave = false;
   await page.route("**/api/message-notifications**", async (route) => {
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       actions.push(body.action);
+      if (body.action === "preferences" && stallNextSave) { stallNextSave = false; return; }
+      if (body.action === "subscribe") preferences.registered = true;
       if (body.action === "preferences") preferences = { ...preferences, enabled: body.enabled, preview: body.preview };
       await route.fulfill({ json: { ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } });
     } else await route.fulfill({ json: preferences });
@@ -90,7 +93,12 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await page.screenshot({ path: testInfo.outputPath("permission-enabled.png"), fullPage: true });
   for (const theme of ["light", "dark"] as const) {
     const toggle = page.getByRole("button", { name: `Switch to ${theme} theme`, exact: true });
-    if (await toggle.count()) await toggle.click();
+    if (await toggle.count()) {
+      await toggle.click();
+      await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveCount(0);
+      await page.getByRole("button", { name: "Message notifications", exact: true }).click();
+      await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");
+    }
     for (const width of [390, 768, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       const panel = page.getByRole("region", { name: "Message alerts", exact: true });
@@ -102,6 +110,17 @@ test("a recipient can choose message alerts without enabling public broadcasts",
       await page.screenshot({ path: testInfo.outputPath(`alerts-${theme}-${width}.png`), scale: "css" });
     }
   }
+  const preview = page.getByRole("checkbox", { name: /Show the sender/ });
+  stallNextSave = true;
+  await preview.uncheck();
+  await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "true");
+  await expect(page.getByText("Could not save message alerts. Try again.", { exact: true })).toBeVisible();
+  await expect(preview).toBeChecked();
+  await expect(preview).toBeFocused();
+  await page.screenshot({ path: testInfo.outputPath("stalled-save-recovered.png"), scale: "css" });
+  await preview.uncheck();
+  await expect.poll(() => preferences.preview).toBe(false);
+  await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");
   await page.getByRole("button", { name: "Turn off alerts on all devices", exact: true }).click();
   await expect.poll(() => preferences.enabled).toBe(false);
 });

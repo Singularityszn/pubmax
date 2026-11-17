@@ -111,7 +111,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
               {support === "unsupported" ? <p className="messageAlertsHint">On iPhone, open PubMaxxing in Safari, choose Share, then Add to Home Screen. Open the installed app to enable alerts.</p> : null}
               {support === "blocked" ? <p className="messageAlertsHint">Notifications are blocked. Allow them in this browser’s site settings.</p> : null}
             </>}
-            {settings.enabled && !settings.registered ? <Button variant="secondary" className="pressable" aria-disabled={pending} onClick={() => void change("enabled", false)}>Turn off alerts on all devices</Button> : null}
+            {settings.enabled && !settings.registered && !pending ? <Button variant="secondary" className="pressable" aria-disabled={pending} onClick={() => void change("enabled", false)}>Turn off alerts on all devices</Button> : null}
           </>}
         </> : !error ? <p role="status">Loading message alerts…</p> : null}
         {error ? <><p role="status">{error}</p><Button variant="secondary" aria-disabled={pending} onClick={() => { if (!pending) setRetry((value) => value + 1); }}>Try again</Button></> : null}
