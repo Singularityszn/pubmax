@@ -85,21 +85,45 @@ function listingStatesAmount(listing: string, amount: number): boolean {
   return false;
 }
 
-function servingMatches(drink: string, measure: DrinkMeasure): boolean {
-  if (measure === "pint") return isComparablePintServing({ measure, cheapestPint: drink });
-  if (/\b(?:cans?|canned)\b/i.test(drink)) return false;
-  if (measure !== "bottle" && /\b(?:bottles?|bottled|cans?|canned)\b/i.test(drink)) return false;
-  const spirit = /\b(single|double)(?=\s+(?:shot|measure|of)\b|\s*\)?$)/i.exec(drink)?.[1]?.toLowerCase();
-  if (spirit && spirit !== measure) return false;
-  const expectedMl = measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
+/**
+ * A spirit pour a text states: "single" or "double" ending the text or followed
+ * by a pour or spirit word. A brand or style word ("Double IPA", "Single Malt")
+ * is not a pour, so it names nothing here.
+ */
+const SPIRIT_POUR =
+  /\b(single|double)\b(?=\s+(?:shots?|measures?|of|gin|vodka|rum|whisk(?:e)?y|tequila|brandy|cognac|bourbon|scotch|spirits?|g\s*&\s*t)\b|\s*\)?\s*$)/gi;
+/** A can the text names as a serving. A listing's bare "can" is often the verb, so it needs a serving word beside it. */
+const DRINK_CAN = /\b(?:cans?|canned)\b/i;
+const LISTING_CAN = /\b(?:canned|cans)\b|\b(?:\d+(?:\.\d+)?\s*(?:ml|cl|l)|per|a)\s+can\b/i;
+const BOTTLE = /\b(?:bottles?|bottled)\b/i;
+const VOLUME = /\b(\d+(?:\.\d+)?)\s*(ml|cl|litres?|l)\b/gi;
+
+function millilitres(amount: string, unit: string): number {
+  const lower = unit.toLowerCase();
+  return Number(amount) * (lower === "ml" ? 1 : lower === "cl" ? 10 : 1000);
+}
+
+/**
+ * True when a text states a serving other than the row's measure. The drink
+ * name and the quoted listing are both read, because either one is printed
+ * beside the measure. A serving the text does not state is never inferred.
+ */
+function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">, kind: "drink" | "listing"): boolean {
+  for (const pour of text.matchAll(SPIRIT_POUR)) {
+    if (pour[1]!.toLowerCase() !== measure) return true;
+  }
+  if ((kind === "drink" ? DRINK_CAN : LISTING_CAN).test(text)) return true;
+  if (measure !== "bottle" && BOTTLE.test(text)) return true;
+  const expectedMl =
+    measure === "pint" ? 568 : measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
   if (expectedMl !== null) {
-    for (const size of drink.matchAll(/\b(\d+(?:\.\d+)?)\s*(ml|cl|litres?|l)\b/gi)) {
-      const ml = Number(size[1]) * (size[2]!.toLowerCase() === "ml" ? 1 : size[2]!.toLowerCase() === "cl" ? 10 : 1000);
-      if (ml !== expectedMl) return false;
+    for (const size of text.matchAll(VOLUME)) {
+      if (millilitres(size[1]!, size[2]!) !== expectedMl) return true;
     }
   }
-  const named = measureNamedInDrinkText(drink);
-  return named === null || named === measure;
+  const named = measureNamedInDrinkText(text);
+  if (measure === "pint") return named !== null || (kind === "drink" && !isComparablePintServing({ measure, cheapestPint: text }));
+  return named !== null && named !== measure;
 }
 
 function anyFutureRead(row: VenuePrice, nowMs: number): boolean {
@@ -119,12 +143,13 @@ function evidenceFromRow(venueId: string, row: VenuePrice, amount: number, nowMs
   const drink = cleanLine(row.pint_name);
   const measure = statedDrinkMeasure(row.measure);
   if (!rowId || !drink || drink.length > DRINK_MAX || !measure || measure === "other") return null;
-  if (!servingMatches(drink, measure)) return null;
+  if (servingConflicts(drink, measure, "drink")) return null;
 
   const priceText = cleanLine(row.price_text);
   if (!priceText || priceText.length > SUMMON_PRICE_STATEMENT_MAX) return null;
   const scalar = SCALAR_LISTING.exec(priceText);
   if (scalar ? !sameAmount(Number(scalar[1]), amount) : !listingStatesAmount(priceText, amount)) return null;
+  if (!scalar && servingConflicts(priceText, measure, "listing")) return null;
 
   const source = namedLegacyPintPriceSource(row);
   if (!source || source.url.length > SOURCE_URL_MAX || /\s/.test(source.url) || UNSAFE_TEXT.test(source.url) || UNSAFE_TEXT.test(source.label)) {
@@ -173,9 +198,14 @@ export function selectSummonPrice(venue: Venue | null | undefined, nowMs: number
   return row ? evidenceFromRow(venue.id, row, amount, nowMs) : null;
 }
 
-/** "Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: <url>" */
-export function summonPriceLine(price: SummonPriceEvidence): string {
+/** "Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026." The line without its source link. */
+export function summonPriceSentence(price: SummonPriceEvidence): string {
   const figure = price.statement === null ? `at ${formatGbp(price.amountGbp)}` : `as "${price.statement}"`;
   const day = formatObservedDate(new Date(`${price.readDay}T12:00:00Z`));
-  return `${price.sourceLabel} listed ${price.drink} (${MEASURE_WORD[price.measure]}) ${figure}, read ${day}. Source: ${price.sourceUrl}`;
+  return `${price.sourceLabel} listed ${price.drink} (${MEASURE_WORD[price.measure]}) ${figure}, read ${day}.`;
+}
+
+/** The sentence, then the publisher's own page in full. */
+export function summonPriceLine(price: SummonPriceEvidence): string {
+  return `${summonPriceSentence(price)} Source: ${price.sourceUrl}`;
 }

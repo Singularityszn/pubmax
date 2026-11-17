@@ -54,10 +54,21 @@ export function summonText(pubName: string, time: string, price?: SummonPriceEvi
   return price ? `${invite} ${summonPriceLine(price)}` : invite;
 }
 
-/** The shared text: the invite, where the pub is, then any dated price. */
-export function summonShareText(pubName: string, time: string, price?: SummonPriceEvidence | null): string {
-  const shared = `${summonText(pubName, time)} It's on the PUBMAXX map.`;
-  return price ? `${shared} ${summonPriceLine(price)}` : shared;
+/**
+ * The shared text: the invite and where the pub is. A priced share names the
+ * PUBMAXX link before the publisher's page, so a chat that previews the first
+ * link previews the pub, and every fallback keeps that order.
+ */
+export function summonShareText(
+  pubName: string,
+  time: string,
+  price?: SummonPriceEvidence | null,
+  mapUrl?: string,
+): string {
+  const invite = summonText(pubName, time);
+  if (!price) return `${invite} It's on the PUBMAXX map.`;
+  const where = mapUrl ? `It's on the PUBMAXX map: ${mapUrl}` : "It's on the PUBMAXX map.";
+  return `${invite} ${where} ${summonPriceLine(price)}`;
 }
 
 /** The pub's map link with the summon's time beside it. */
