@@ -3366,7 +3366,7 @@ export default function PubMap({
   // Pals walk together: the crew's opted-in Pals walk only the plan's own
   // route, never a crawl the reader is building beside it.
   const crewPals = useCrewPals();
-  const { route, routePending, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+  const { route, routePending, routeMappedActive, routeForMap, routeForMapLegs, walkForMap } = useMapPlanPresentation({
     mode,
     builtIds,
     routeMapped,
@@ -3377,7 +3377,7 @@ export default function PubMap({
   });
   // Tonight's plan is the route on the map, not a crawl the reader is building,
   // and the Pal waits at its next stop.
-  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
+  const { routeIsActivePlan, activePlanHref, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
   const {
@@ -4633,7 +4633,7 @@ export default function PubMap({
   );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
   const [areaFocus, setAreaFocus] = useState<MapCameraFocus | null>(null);
-  const { selectRouteStop, selectedWalkStopId, selectedWalkStopToken } = useCuratedWalkFocus(curatedWalk, selectVenue, setAreaFocus, setPlannerSheetSnap);
+  const { selectRouteStop, selectedWalkStopId, selectedWalkStopToken } = useCuratedWalkFocus(curatedWalk, selectVenue, setAreaFocus, setPlannerSheetSnap, retireMapSurfaces);
   /**
    * The ONE way the camera is deliberately moved to another place.
    *
@@ -6159,13 +6159,13 @@ export default function PubMap({
         }
         planOpen={planningOpen}
         planActive={routeMappedActive || activePlanRoute.length >= 2}
-        planStopCount={routeMappedActive ? routeForMap.length : activePlanRoute.length}
-        fixedWalk={Boolean(curatedWalk)}
+        planStopCount={routeForMap.length}
+        fixedWalk={Boolean(walkForMap)}
         builtStopCount={builtStopCountFor({ mode, routeMappedActive, builtCount: builtIds.length })}
         planInteractive={mobileViewport && !ukPlaceArrival}
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
-        onPlan={openPlanning}
+        onPlan={activePlanHref && builtStopCountFor({ mode, routeMappedActive, builtCount: builtIds.length }) === 0 ? () => window.location.assign(activePlanHref) : openPlanning}
         peek={mapPeek}
         onPeekOpenVenue={selectVenue}
         onPeekOpenList={openVenueListFromPeek}
@@ -6578,7 +6578,7 @@ export default function PubMap({
         venueDataReady={venueDataReady}
         nationalBrowse={ukNationalBrowse}
         route={routeForMap}
-        walk={routeMappedActive ? curatedWalk : undefined}
+        walk={walkForMap}
         walkPanelOpen={Boolean(curatedWalk && planningOpen)}
         selectedRouteStopId={selectedWalkStopId}
         routeRequestToken={routeRequestToken}

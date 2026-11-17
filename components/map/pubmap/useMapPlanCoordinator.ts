@@ -189,6 +189,7 @@ export function useMapPlanPresentation({
     && builtIds.some((id) => !venueById.has(canonicalBundledVenueId(id)) && !settledBuiltStopIds?.has(id));
   const walk = mode === "build" ? activeCrawl?.walk : undefined;
   const routeMappedActive = routeMapped && (walk ? walk.stops.length >= 2 : route.length >= 2);
+  const walkForMap = routeMappedActive ? walk : undefined;
   const routeForMap = useMemo<MapRouteStop[]>(
     () => routeMappedActive ? walk?.stops ?? route : activePlanRoute,
     [activePlanRoute, route, routeMappedActive, walk],
@@ -200,5 +201,5 @@ export function useMapPlanPresentation({
     return { ...summary, totalKm, totalMinutes: curatedWalkMinutes(walk) };
   }, [activePlanRoute, route, routeMappedActive, walk]);
 
-  return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs };
+  return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs, walkForMap };
 }

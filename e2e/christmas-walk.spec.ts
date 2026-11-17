@@ -106,6 +106,7 @@ test("the crawl directory previews and opens the seasonal walk", async ({ page }
 
 for (const theme of ["light", "dark"] as const) {
   test(`a direct Christmas walk link renders all thirteen stops in ${theme}`, async ({ page, browserName }, testInfo) => {
+    await page.clock.setFixedTime(new Date("2027-06-01T15:30:00Z"));
     await storeThemeChoice(page, theme);
     if (browserName === "webkit") await installNativeShell(page);
     await page.goto("/map?mode=build&crawl=london-christmas-walk&style=balanced");
