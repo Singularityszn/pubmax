@@ -505,7 +505,7 @@ it("polls only the head, retains older pages and reports background failures pol
     const retry = [...host.querySelectorAll("button")].find(button => button.textContent === "Retry")!;
     await act(async () => retry.click());
     expect(announcements()).toHaveLength(1);
-    expect(announcements()[0].getAttribute("role")).toBe("status");
+    expect(announcements()[0]?.getAttribute("role")).toBe("status");
     fail = false;
     await act(async () => retry.click());
     expect(host.querySelector(".socialFeedInlineError")).toBeNull();
