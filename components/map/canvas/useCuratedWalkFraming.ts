@@ -2,12 +2,11 @@
 
 import { useEffect } from "react";
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
-import { whenWalkPanelSettles } from "./useMapCamera";
 
-export function useCuratedWalkFraming(open: boolean, ready: boolean, frame: (owner: "user", requestToken: number) => void) {
+export function useCuratedWalkFraming(open: boolean, ready: boolean, frame: (owner: "user", requestToken: number, waitForPanel: boolean) => void | (() => void)) {
   useEffect(() => {
     if (!open || !ready) return;
     const requestToken = nextCameraRequestToken();
-    return whenWalkPanelSettles(() => frame("user", requestToken), true);
+    return frame("user", requestToken, true);
   }, [open, ready, frame]);
 }

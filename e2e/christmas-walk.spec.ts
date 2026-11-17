@@ -142,10 +142,10 @@ for (const theme of ["light", "dark"] as const) {
     await expectLayoutSettled(stops);
     await expect(stops.getByRole("button").first()).toBeInViewport();
     await expectCameraRest(page);
+    await expectWholeWalkVisible(page);
     const stopsShot = testInfo.outputPath(`stops-${theme}.png`);
     await page.screenshot({ path: stopsShot });
     await testInfo.attach(`stops-${theme}`, { path: stopsShot, contentType: "image/png" });
-    await expectWholeWalkVisible(page);
   });
   test(`a Christmas walk keeps focused stops visible in ${theme}`, async ({ page }) => {
     await storeThemeChoice(page, theme);

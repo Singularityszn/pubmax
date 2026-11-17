@@ -556,7 +556,7 @@ export function useMapCamera(refs: CameraRefs) {
     }));
   }, [mapRef, reducedRef, scheduleCamera]);
 
-  const fitRoute = useCallback((owner: CameraIntentOwner = "automatic", requestToken = owner === "user" ? nextCameraRequestToken() : 0) => {
+  const fitRoute = useCallback((owner: CameraIntentOwner = "automatic", requestToken = owner === "user" ? nextCameraRequestToken() : 0, waitForPanel = false) => {
     if (!claimCamera(owner, requestToken)) return;
     const current = routeRef.current;
     if (current.length < 2) {
@@ -601,23 +601,27 @@ export function useMapCamera(refs: CameraRefs) {
       });
     }, requestToken);
     if (routeLineRef.current.features.some((feature) => feature.properties?.source === "curated")
-      && document.querySelector('.mobileSheetPortal[data-sheet-exiting="true"] .curatedWalkPanel')) {
+      && (waitForPanel || document.querySelector('.mobileSheetPortal[data-sheet-exiting="true"] .curatedWalkPanel'))) {
+      routeWaitRef.current?.();
       const requestVersion = userRequestRef.current;
       sheetWaitsRef.current += 1;
       if (owner === "user") pendingOwnerRef.current = owner;
       let waiting = true;
+      let cancelWait: (() => void) | undefined;
       const release = () => {
         if (!waiting) return;
         waiting = false;
         sheetWaitsRef.current -= 1;
-        routeWaitRef.current = null;
+        if (routeWaitRef.current === cancelWait) routeWaitRef.current = null;
         if (requestVersion === userRequestRef.current && pendingOwnerRef.current === owner) pendingOwnerRef.current = null;
       };
       const cancel = whenWalkPanelSettles(() => {
         release();
         if (requestVersion === userRequestRef.current) scheduleFit();
-      });
-      routeWaitRef.current = () => { cancel(); release(); };
+      }, waitForPanel);
+      cancelWait = () => { cancel(); release(); };
+      if (waiting) routeWaitRef.current = cancelWait;
+      return cancelWait;
     } else scheduleFit();
   }, [claimCamera, gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
