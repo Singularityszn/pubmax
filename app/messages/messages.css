@@ -977,7 +977,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   color: var(--muted);
 }
 
-.composer:focus-within {
+.composer:has(.composerInput:focus) {
   outline: 2px solid var(--brass);
   outline-offset: -1px;
   border-color: var(--brass);
