@@ -15,6 +15,7 @@ import {
 import { clearEarlyFairPint, setFairPintSession, supportsFairPint } from "@/lib/fairPint";
 import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { getCity, type CityId } from "@/lib/cities";
+import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 import type { MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -104,7 +105,7 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
     const schedule = () => {
       const early = window.__pubmaxEarlyFairPint;
       if (idle !== undefined || timer !== undefined || early?.dragging || early?.closed) return;
-      if (typeof requestIdleCallback === "function") idle = requestIdleCallback(load);
+      if (typeof requestIdleCallback === "function") idle = requestIdleCallback(load, { timeout: 300 });
       else timer = window.setTimeout(load, 0);
     };
     schedule();
@@ -130,16 +131,7 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
     queued.current = {};
   }, [bridge]);
   const view = getCity(cityId).mapView;
-  const width = typeof window === "undefined" ? 390 : innerWidth;
-  const height = typeof window === "undefined" ? 844 : innerHeight;
-  const dx = (width * 180) / (512 * 2 ** view.zoom);
-  const dy = (height * 180 * 1.4) / (512 * 2 ** view.zoom);
-  const bounds = bridge?.bounds ?? {
-    west: view.center[0] - dx,
-    east: view.center[0] + dx,
-    south: view.center[1] - dy,
-    north: view.center[1] + dy,
-  };
+  const bounds = bridge?.bounds ?? boundsForOpeningView(view);
   return (
     <MapConnection.Provider value={setBridge}>
       {children}

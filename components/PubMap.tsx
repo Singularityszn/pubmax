@@ -1,4 +1,5 @@
 "use client";
+import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 
 import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
 
@@ -997,20 +998,6 @@ type UserLocation = {
 };
 
 const LOCATION_FIRST_ZOOM = 15;
-function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
-  const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
-  const height = typeof window === "undefined" ? 844 : Math.max(window.innerHeight, 1);
-  const scale = 512 * 2 ** viewport.zoom;
-  const longitudeDelta = (width * 180) / scale;
-  const latitudeDelta = (height * 180 * 1.4) / scale;
-  const [lng, lat] = viewport.center;
-  return {
-    west: lng - longitudeDelta,
-    south: Math.max(-85, lat - latitudeDelta),
-    east: lng + longitudeDelta,
-    north: Math.min(85, lat + latitudeDelta),
-  };
-}
 
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
