@@ -22,3 +22,15 @@ export function runArtifactPlan(
 ): UkVenueRunArtifactPlan;
 
 export function inGreaterLondon(venue: { lat: number; lng: number }): boolean;
+
+export function londonRestaurantSeed(raw: unknown, options?: { allowStale?: boolean }): {
+  source: string; license: string; attribution: string; fetchedAt: string;
+  bbox: readonly number[];
+  venues: Array<{ osmId: string; name: string; amenity: string; lat: number; lng: number;
+    address: string | null; cuisine: string | null; openingHours: string | null; kind: string }>;
+};
+
+export function restaurantElementsFromGeoJSON(features: unknown[]): Array<{
+  type: string; id: number; tags: Record<string, unknown>;
+  center: { lat: number; lon: number };
+}>;

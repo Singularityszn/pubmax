@@ -1576,3 +1576,8 @@ html:has(.appShell) {
 .mobileSheetPortal[data-sheet-exiting="true"] * {
   pointer-events: none;
 }
+
+.mapDrawer:has([data-london-restaurant]),
+.mobileSheetPortal[data-sheet-kind="filters"] .mapDrawer {
+  --sheet-material: var(--sheet-material-solid);
+}

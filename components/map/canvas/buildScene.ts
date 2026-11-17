@@ -1204,9 +1204,7 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
- * London restaurants that serve alcohol (lib/londonRestaurants.ts). The source
- * is empty unless their layer is shown, which needs London, restaurants on in
- * the kind filter and no drink lane or view other than food owning the map.
+ * OSM restaurant loading and visibility follow lib/londonRestaurants.ts.
  *
  * A restaurant wears the curated restaurant's own fork, in the unpriced fill,
  * at the base layer's size and opacity: it is the same kind of place as a

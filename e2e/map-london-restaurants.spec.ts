@@ -1,11 +1,11 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { mobileMapShellControl, openMobileFilterRefinements } from "./helpers/mobileMapShell";
 
-// London restaurants that serve alcohol, asserted in a real browser with a real
+// London OSM amenity=restaurant places, asserted in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project):
 //
-//   1. DRAWN. A normal London entry reads the one restaurant pack, never the
-//      London venue shards, and paints restaurant pins.
+//   1. OPTED IN. A normal entry reads no restaurants. Its toggle lazily reads
+//      bounded restaurant chunks, never the whole London venue layer.
 //   2. OPENED. Tapping a painted restaurant opens its sheet by its own
 //      `venue-osm-` id, with no price on it.
 //   3. SHARED. A cold `?sel=venue-osm-…` link opens the same sheet.
@@ -15,7 +15,7 @@ import { mobileMapShellControl } from "./helpers/mobileMapShell";
 // (components/map/canvas/paintedPinProbe.ts) names the ones MapLibre placed.
 
 const VIEWPORT = { width: 390, height: 844 };
-const PACK_PATH = "/data/london_restaurants/restaurants.json";
+const PACK_PATH = "/data/london_restaurants/manifest.json";
 
 type PaintedMark = { kind: "pin" | "cluster"; id: string; x: number; y: number };
 
@@ -42,6 +42,14 @@ function londonDataReads(page: Page): string[] {
   return paths;
 }
 
+async function enableRestaurants(page: Page): Promise<void> {
+  await (await mobileMapShellControl(page, "filters")).click();
+  const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  await openMobileFilterRefinements(sheet);
+  await sheet.getByRole("button", { name: "More restaurants (unpriced)", exact: true }).click();
+  await sheet.getByRole("button", { name: "Close Prices and places", exact: true }).click();
+}
+
 test.beforeEach(async ({ page }) => {
   await page.setViewportSize(VIEWPORT);
   await page.addInitScript(() => {
@@ -54,22 +62,26 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("a London entry draws restaurants from one pack, and a tap opens one", async ({ page }) => {
-  test.setTimeout(180_000);
+test("a London entry reads restaurants only after opt-in, and a painted tap opens one", async ({ page }) => {
   const reads = londonDataReads(page);
 
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
   const wrap = page.locator(".mapCanvasWrap");
   await expect(wrap).toBeVisible({ timeout: 20_000 });
+  await (await mobileMapShellControl(page, "filters")).waitFor({ state: "visible" });
+  await expect(wrap).toHaveAttribute("data-london-restaurant-count", "0");
+  expect(reads.filter((path) => path.startsWith("/data/london_restaurants/"))).toEqual([]);
+  await enableRestaurants(page);
   await expect
     .poll(async () => Number(await wrap.getAttribute("data-london-restaurant-count")), {
       timeout: 60_000,
     })
     .toBeGreaterThan(500);
 
-  // One read of the pack, and not one London venue shard.
+  // One manifest and six bounded chunks, without a London venue shard.
   expect(reads.filter((path) => path === PACK_PATH)).toHaveLength(1);
+  expect(reads.filter((path) => path.startsWith("/data/london_restaurants/packs/"))).toHaveLength(6);
   expect(reads.filter((path) => path.startsWith("/data/london_venues/"))).toEqual([]);
 
   const sheet = page.locator(".londonRestaurant");
@@ -85,7 +97,6 @@ test("a London entry draws restaurants from one pack, and a tap opens one", asyn
         const mark = restaurants[attempt % restaurants.length];
         attempt += 1;
         await page.mouse.click(mark.x, mark.y);
-        await page.waitForTimeout(400);
         if ((await sheet.count()) === 0) return null;
         return new URL(page.url()).searchParams.get("sel");
       },
@@ -94,7 +105,7 @@ test("a London entry draws restaurants from one pack, and a tap opens one", asyn
     .toMatch(/^venue-osm-/);
 
   await expect(sheet).toContainText("Restaurant");
-  await expect(sheet).toContainText("A restaurant that serves alcohol.");
+  await expect(sheet.getByRole("link", { name: "View on OpenStreetMap" })).toHaveAttribute("href", /^https:\/\/www\.openstreetmap\.org\/(node|way|relation)\/\d+$/);
   await expect(sheet).not.toContainText("£");
   await expect(
     sheet.getByRole("link", { name: "OpenStreetMap contributors" }),
@@ -102,8 +113,7 @@ test("a London entry draws restaurants from one pack, and a tap opens one", asyn
 });
 
 test("a shared restaurant link opens its sheet on a cold load", async ({ page }) => {
-  test.setTimeout(180_000);
-  // 26 Furnival Street: in the pack because its own website states alcohol.
+  // 26 Furnival Street is tagged amenity=restaurant in the OSM snapshot.
   const response = await page.goto("/map?sel=venue-osm-n25496840");
   expect(response?.status()).toBe(200);
 
@@ -112,12 +122,13 @@ test("a shared restaurant link opens its sheet on a cold load", async ({ page })
   await expect(page.locator(".mobileSharedSheetHeader h2")).toHaveText("26 Furnival Street");
   await expect(sheet).toContainText("26, Furnival Street, London, EC4A 1JS");
   expect(new URL(page.url()).searchParams.get("sel")).toBe("venue-osm-n25496840");
+  await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-london-restaurant-count", "1");
 });
 
 test("List view gives a keyboard reader every restaurant in view", async ({ page }) => {
-  test.setTimeout(180_000);
   const response = await page.goto("/map");
   expect(response?.status()).toBe(200);
+  await enableRestaurants(page);
   const wrap = page.locator(".mapCanvasWrap");
   await expect
     .poll(async () => Number(await wrap.getAttribute("data-london-restaurant-count")), {
