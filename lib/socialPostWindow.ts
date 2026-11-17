@@ -1,7 +1,12 @@
 import type { SocialPostDTO } from "@/lib/socialPosts";
 
-export type SocialPostPage = { posts: SocialPostDTO[]; nextCursor: string | null };
-export type SocialPostWindow = SocialPostPage & { pages: number };
+export type SocialPostPosition = Pick<SocialPostDTO, "id" | "createdAt">;
+export type SocialPostPage = {
+  posts: SocialPostDTO[];
+  nextCursor: string | null;
+  scannedThrough: SocialPostPosition | null;
+};
+export type SocialPostWindow = Pick<SocialPostPage, "posts" | "nextCursor"> & { pages: number };
 export const SOCIAL_REFRESH_PAGE_CAP = 3;
 export const SOCIAL_POST_PAGE_SIZE = 20;
 
@@ -18,12 +23,17 @@ function samePostValue(left: unknown, right: unknown): boolean {
     keys.every(key => Object.hasOwn(b, key) && samePostValue(a[key], b[key]));
 }
 
-function comparePosts(left: SocialPostDTO, right: SocialPostDTO): number {
-  return Date.parse(right.createdAt) - Date.parse(left.createdAt) || right.id.localeCompare(left.id);
+export function compareSocialPostPositions(left: SocialPostPosition, right: SocialPostPosition): number {
+  const byMilliseconds = Date.parse(right.createdAt) - Date.parse(left.createdAt);
+  if (byMilliseconds) return byMilliseconds;
+  const fraction = (timestamp: string) => (timestamp.match(/\.(\d+)/)?.[1] ?? "").padEnd(6, "0");
+  const leftFraction = fraction(left.createdAt), rightFraction = fraction(right.createdAt);
+  if (leftFraction !== rightFraction) return leftFraction < rightFraction ? 1 : -1;
+  return left.id === right.id ? 0 : left.id < right.id ? 1 : -1;
 }
 
 export function chronological(posts: SocialPostDTO[]): SocialPostDTO[] {
-  return [...posts].sort(comparePosts);
+  return [...posts].sort(compareSocialPostPositions);
 }
 
 export async function readSocialPostWindow(
@@ -49,26 +59,28 @@ export async function readSocialPostHead(
   read: (cursor: string | null) => Promise<SocialPostPage>,
   current: SocialPostWindow,
 ): Promise<{ head: SocialPostPage; contiguous: boolean }> {
-  const held = new Set(current.posts.map(post => post.id));
   const posts = new Map<string, SocialPostDTO>();
   const cursors = new Set<string>();
   let nextCursor: string | null = null;
+  let scannedThrough: SocialPostPosition | null = null;
   for (let page = 0; page < SOCIAL_REFRESH_PAGE_CAP; page++) {
     const head = await read(nextCursor);
     for (const post of head.posts) posts.set(post.id, post);
     nextCursor = head.nextCursor;
-    const contiguous = !held.size || !nextCursor || head.posts.some(post => held.has(post.id));
-    if (contiguous) return { head: { posts: chronological([...posts.values()]), nextCursor }, contiguous: true };
+    scannedThrough = head.scannedThrough;
+    const contiguous = !current.posts.length || !nextCursor || Boolean(scannedThrough &&
+      current.posts.some(post => compareSocialPostPositions(post, scannedThrough!) <= 0));
+    if (contiguous) return { head: { posts: chronological([...posts.values()]), nextCursor, scannedThrough }, contiguous: true };
     if (cursors.has(nextCursor!)) throw new Error("Social feed repeated its cursor");
     cursors.add(nextCursor!);
   }
-  return { head: { posts: chronological([...posts.values()]), nextCursor }, contiguous: false };
+  return { head: { posts: chronological([...posts.values()]), nextCursor, scannedThrough }, contiguous: false };
 }
 
 export function mergeSocialPostHead(current: SocialPostWindow, head: SocialPostPage): SocialPostWindow {
-  const boundary = chronological(head.posts).at(-1);
+  const boundary = head.scannedThrough;
   const retained = head.nextCursor
-    ? current.posts.filter(post => !boundary || comparePosts(post, boundary) > 0) : [];
+    ? current.posts.filter(post => boundary && compareSocialPostPositions(post, boundary) > 0) : [];
   const currentById = new Map(current.posts.map(post => [post.id, post]));
   const byId = new Map(retained.map(post => [post.id, post]));
   for (const post of head.posts) {

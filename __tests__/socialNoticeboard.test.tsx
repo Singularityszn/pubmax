@@ -27,7 +27,7 @@ vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onP
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { clearSurfaceCache, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
-import { mergeSocialPostHead, readSocialPostWindow, type SocialPostWindow } from "@/lib/socialPostWindow";
+import { mergeSocialPostHead, readSocialPostHead, readSocialPostWindow, type SocialPostWindow } from "@/lib/socialPostWindow";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostsShellState } from "@/lib/socialShell";
 
@@ -40,6 +40,10 @@ const feedPost = (body: string, hour: number): SocialPostDTO => ({
   nameHidden: false, moderationState: "approved", featureRequest: null, revision: 0,
   mutationVersion: 0, editedAt: null, updatedAt: `2026-11-16T${hour}:00:00Z`,
 });
+function feedResponse<T extends { posts: Pick<SocialPostDTO, "id" | "createdAt">[]; nextCursor: string | null }>(page: T): Response {
+  const last = page.posts.at(-1);
+  return Response.json({ scannedThrough: last ? { id: last.id, createdAt: last.createdAt } : null, ...page });
+}
 async function mountFeed(initialState: SocialPostsShellState = { valid: true, tab: "posts", feed: "following", area: null }): Promise<void> {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   host = document.createElement("div");
@@ -64,7 +68,7 @@ it("announces a cold feed failure once and recovers through Retry", async () => 
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
-    return failed ? Response.json({}, { status: 503 }) : Response.json({ posts: [feedPost("Recovered post", 12)], nextCursor: null });
+    return failed ? Response.json({}, { status: 503 }) : feedResponse({ posts: [feedPost("Recovered post", 12)], nextCursor: null });
   });
   await mountFeed();
   const announcements = [...host.querySelectorAll('.socialFeed [role="status"], .socialFeed [role="alert"]')]
@@ -80,7 +84,8 @@ it("announces a cold feed failure once and recovers through Retry", async () => 
 it("bounds a deep refresh and keeps the fresh continuation reachable", async () => {
   const window = await readSocialPostWindow(async cursor => {
     const index = cursor ? Number(cursor) : 0;
-    return { posts: [feedPost(`Post ${index}`, 12)], nextCursor: String(index + 1) };
+    const post = feedPost(`Post ${index}`, 12);
+    return { posts: [post], nextCursor: String(index + 1), scannedThrough: post };
   }, 20);
   expect(window.pages).toBe(3);
   expect(window.posts).toHaveLength(3);
@@ -93,7 +98,7 @@ it("keeps a four-page window during automatic refresh and offers an explicit ref
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     const cursor = new URL(href, "http://localhost").searchParams.get("cursor");
     const index = Number(cursor ?? 0);
-    return Response.json({ posts: [feedPost(`Page ${index + 1}`, 12)], nextCursor: String(index + 1) });
+    return feedResponse({ posts: [feedPost(`Page ${index + 1}`, 12)], nextCursor: String(index + 1) });
   });
   await mountFeed();
   for (let page = 0; page < 3; page += 1) {
@@ -117,7 +122,7 @@ it.each(["view", "remount"])("retains a four-page window and its continuation af
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-    return Response.json({ posts: [feedPost(`Page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
+    return feedResponse({ posts: [feedPost(`Page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
   });
   await mountFeed();
   for (let page = 0; page < 3; page += 1) {
@@ -152,7 +157,7 @@ it.each(["nearby", "discover"])("expires a detached deep window after visiting %
       if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
       if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
       const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-      return Response.json({ posts: [feedPost(`${version} page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
+      return feedResponse({ posts: [feedPost(`${version} page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
     });
     await mountFeed();
     for (let page = 0; page < 3; page += 1) {
@@ -190,7 +195,7 @@ it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all fo
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (refreshing) return new Promise<Response>(resolve => { finish = resolve; });
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-    return Response.json({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
+    return feedResponse({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
   });
   await mountFeed();
   for (let page = 0; page < 3; page += 1) {
@@ -207,7 +212,7 @@ it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all fo
     else host.querySelector<HTMLButtonElement>(".socialPostCard button")!.click();
   });
   if (action === "edit during refresh") {
-    await act(async () => finish(Response.json({ posts: [feedPost("Stale response", 16)], nextCursor: null })));
+    await act(async () => finish(feedResponse({ posts: [feedPost("Stale response", 16)], nextCursor: null })));
   }
 
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
@@ -232,7 +237,7 @@ for (const door of ["card", "Outbox"] as const) {
       if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
       if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
       const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-      return Response.json({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"], ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
+      return feedResponse({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"], ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
     });
     await mountFeed(state);
     for (let page = 0; page < 3; page += 1) {
@@ -276,7 +281,7 @@ for (const door of ["unselected Outbox", "active Outbox", "active card"] as cons
       if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
       if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
       const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-      return Response.json({ posts: [index === 3 ? post : { ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"] }], nextCursor: String(index + 1) });
+      return feedResponse({ posts: [index === 3 ? post : { ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"] }], nextCursor: String(index + 1) });
     });
     await mountFeed(state);
     const more = async () => act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
@@ -317,7 +322,7 @@ it.each([
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
     const row = index === 3 ? post : { ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public" };
-    return Response.json({ posts: row.visibility === "private" ? [] : [row], nextCursor: String(index + 1) });
+    return feedResponse({ posts: row.visibility === "private" ? [] : [row], nextCursor: String(index + 1) });
   });
   const state: SocialPostsShellState = { valid: true, tab: "posts", feed: "discover", area: null };
   await mountFeed(state);
@@ -359,7 +364,7 @@ it.each([
     const rows = params.get("lane") === "following"
       ? Array.from({ length: 20 }, (_, offset) => feedPost(`Following ${start + offset}`, 12))
       : [{ ...feedPost("Origin post", 12), visibility: "public", ownedByViewer: true }];
-    return Response.json({ posts: rows, nextCursor: String(start + 20) });
+    return feedResponse({ posts: rows, nextCursor: String(start + 20) });
   });
   const current: SocialPostsShellState = { valid: true, tab: "posts", feed: "following", area: null };
   const origin: SocialPostsShellState = { valid: true, tab: "posts", feed: "discover", area: null };
@@ -405,7 +410,7 @@ it("ignores an edit acknowledgement from a previous committed actor", async () =
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: actor.id });
     if (hold) return new Promise<Response>(() => {});
-    return Response.json({ posts: [feedPost(`${actor.id} row`, 12)], nextCursor: null, items: [] });
+    return feedResponse({ posts: [feedPost(`${actor.id} row`, 12)], nextCursor: null, items: [] });
   });
   await mountFeed();
   const pendingSave = composer.outbox!;
@@ -436,7 +441,7 @@ it.each(["pagination", "edit"])("does not renew the first page's age after %s", 
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (hold) return new Promise<Response>(() => {});
     const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-    return Response.json({ posts: [feedPost(index ? `Older post ${index}` : "First post", 12 - index)], nextCursor: String(index + 1) });
+    return feedResponse({ posts: [feedPost(index ? `Older post ${index}` : "First post", 12 - index)], nextCursor: String(index + 1) });
   });
   try {
     await mountFeed();
@@ -469,9 +474,9 @@ it("lets pagination supersede a held background head without a stale rewind", as
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
-    if (href.includes("cursor=")) return Response.json({ posts: [feedPost("Older post", 11)], nextCursor: "page-three" });
+    if (href.includes("cursor=")) return feedResponse({ posts: [feedPost("Older post", 11)], nextCursor: "page-three" });
     if (++reads > 1) return new Promise<Response>(resolve => { finish = resolve; });
-    return Response.json({ posts: [feedPost("Original post", 12)], nextCursor: "older" });
+    return feedResponse({ posts: [feedPost("Original post", 12)], nextCursor: "older" });
   });
   await mountFeed();
   await act(async () => window.dispatchEvent(new Event("focus")));
@@ -479,7 +484,7 @@ it("lets pagination supersede a held background head without a stale rewind", as
   expect(more.disabled).toBe(false);
   await act(async () => more.click());
   expect(host.textContent).toContain("Older post");
-  await act(async () => finish(Response.json({ posts: [feedPost("Stale head", 13)], nextCursor: null })));
+  await act(async () => finish(feedResponse({ posts: [feedPost("Stale head", 13)], nextCursor: null })));
   expect(host.textContent).toContain("Older post");
   expect(host.textContent).not.toContain("Stale head");
 });
@@ -495,10 +500,10 @@ it("polls only the head, retains older pages and reports background failures pol
       if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
       if (href.includes("cursor=")) {
         tails++;
-        return Response.json({ posts: [feedPost(`Older ${tails}`, 12 - tails)], nextCursor: `older-${tails}` });
+        return feedResponse({ posts: [feedPost(`Older ${tails}`, 12 - tails)], nextCursor: `older-${tails}` });
       }
       heads++;
-      return fail ? Response.json({}, { status: 503 }) : Response.json({ posts: [feedPost("Head", 12)], nextCursor: "older" });
+      return fail ? Response.json({}, { status: 503 }) : feedResponse({ posts: [feedPost("Head", 12)], nextCursor: "older" });
     });
     await mountFeed();
     for (let n = 0; n < 2; n++) await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
@@ -537,7 +542,7 @@ it("keeps an accepted edit when its revalidation fails", async () => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (++reads > 1) return new Promise<Response>(resolve => { finish = resolve; });
-    return Response.json({ posts: [{ ...feedPost("Original post", 12), ownedByViewer: true }], nextCursor: null });
+    return feedResponse({ posts: [{ ...feedPost("Original post", 12), ownedByViewer: true }], nextCursor: null });
   });
   await mountFeed();
 
@@ -555,7 +560,7 @@ it("keeps the warm Following window while visiting a view with no feed request",
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (++reads > 1) return new Promise<Response>(() => {});
-    return Response.json({ posts: [feedPost("A warm post", 12)], nextCursor: null });
+    return feedResponse({ posts: [feedPost("A warm post", 12)], nextCursor: null });
   });
   await mountFeed();
   await act(async () => root.render(createElement(SocialPageClient, {
@@ -575,11 +580,11 @@ it("explicitly revalidates loaded pages through fresh cursors and removes a dele
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     const cursor = new URL(href, "http://localhost").searchParams.get("cursor");
-    if (!changed) return Response.json(cursor
+    if (!changed) return feedResponse(cursor
       ? { posts: [feedPost("Deleted older post", 10)], nextCursor: null }
       : { posts: [feedPost("Original first post", 11)], nextCursor: "old-cursor" });
     if (cursor === "old-cursor") throw new Error("A stale cursor skipped the new posts");
-    return Response.json(cursor
+    return feedResponse(cursor
       ? { posts: [feedPost("Original first post", 11)], nextCursor: "fresh-continuation" }
       : { posts: [feedPost("New first post", 12)], nextCursor: "fresh-second-page" });
   });
@@ -601,7 +606,7 @@ it.each([401, 403, 503])("releases an error body once and preserves only authori
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (href.includes("cursor=")) return new Response(new ReadableStream({ cancel }), { status });
-    return Response.json({ posts: [feedPost("Protected post", 12)], nextCursor: "older" });
+    return feedResponse({ posts: [feedPost("Protected post", 12)], nextCursor: "older" });
   });
   await mountFeed();
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
@@ -633,7 +638,7 @@ it("keeps posts after a failed next page and reads new posts on focus without a 
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (href.includes("cursor=")) return Response.json({ error: "Unavailable" }, { status: 503 });
-    if (href.startsWith("/api/social/posts")) return Response.json({
+    if (href.startsWith("/api/social/posts")) return feedResponse({
       posts: [post("First post", "2026-11-16T10:00:00Z"), ...(newest ? [post("New post", "2026-11-16T11:00:00Z")] : [])], nextCursor: "older",
     });
     return Response.json({ items: [] });
@@ -693,9 +698,9 @@ it.each(["following", "discover"] as const)("hides an empty %s feed and keeps fi
 it("keeps unchanged record identities and the browsing cursor on head reconciliation", () => {
   const first = feedPost("Head", 12), older = feedPost("Older", 11);
   const window = { posts: [first, older], nextCursor: "third-page", pages: 2 };
-  expect(mergeSocialPostHead(window, { posts: [{ ...first }], nextCursor: "ignored" })).toBe(window);
+  expect(mergeSocialPostHead(window, { posts: [{ ...first }], nextCursor: "ignored", scannedThrough: first })).toBe(window);
   const edited = { ...first, body: "Changed", revision: 1 };
-  const merged = mergeSocialPostHead(window, { posts: [edited, feedPost("New", 13)], nextCursor: "ignored" });
+  const merged = mergeSocialPostHead(window, { posts: [edited, feedPost("New", 13)], nextCursor: "ignored", scannedThrough: first });
   expect(merged.posts.map(post => post.body)).toEqual(["New", "Changed", "Older"]);
   expect(merged.posts[2]).toBe(older);
   expect(merged.nextCursor).toBe("third-page");
@@ -705,7 +710,7 @@ it("keeps unchanged record identities and the browsing cursor on head reconcilia
 it("accounts for automatically accumulated rows when protecting a deep window", () => {
   const batch = (n: number) => Array.from({ length: 20 }, (_, i) => feedPost(`Batch ${n} row ${i}`, 12 + n));
   let window: SocialPostWindow = { posts: batch(0), pages: 1, nextCursor: "original-continuation" };
-  for (let n = 1; n <= 3; n++) window = mergeSocialPostHead(window, { posts: batch(n), nextCursor: `head-${n}` });
+  for (let n = 1; n <= 3; n++) window = mergeSocialPostHead(window, { posts: batch(n), nextCursor: `head-${n}`, scannedThrough: batch(n).at(-1)! });
   expect(window.posts).toHaveLength(80);
   expect(window.pages).toBe(4);
   expect(window.nextCursor).toBe("original-continuation");
@@ -713,11 +718,11 @@ it("accounts for automatically accumulated rows when protecting a deep window", 
 
 it.each([null, "old-continuation"])("removes withdrawn posts and exhausted continuation %s", nextCursor => {
   const current = { posts: [feedPost("Withdrawn", 12), feedPost("Deleted", 11)], pages: 2, nextCursor };
-  const empty = mergeSocialPostHead(current, { posts: [], nextCursor: null });
+  const empty = mergeSocialPostHead(current, { posts: [], nextCursor: null, scannedThrough: null });
   expect(empty.posts).toEqual([]);
   expect(empty.nextCursor).toBeNull();
   const remaining = feedPost("Remaining", 11);
-  const exhausted = mergeSocialPostHead(current, { posts: [remaining], nextCursor: null });
+  const exhausted = mergeSocialPostHead(current, { posts: [remaining], nextCursor: null, scannedThrough: remaining });
   expect(exhausted.posts).toEqual([remaining]);
   expect(exhausted.nextCursor).toBeNull();
 });
@@ -726,7 +731,7 @@ it.each([null, "older-continuation"])("reconciles timestamp ties while preservin
   const first = feedPost("z", 12), withdrawn = feedPost("y", 12), boundary = feedPost("m", 12);
   const olderTie = feedPost("a", 12), older = feedPost("Older", 11);
   const current = { posts: [first, withdrawn, boundary, olderTie, older], pages: 3, nextCursor };
-  const merged = mergeSocialPostHead(current, { posts: [{ ...first }, { ...boundary }], nextCursor: "head-continuation" });
+  const merged = mergeSocialPostHead(current, { posts: [{ ...first }, { ...boundary }], nextCursor: "head-continuation", scannedThrough: boundary });
   expect(merged.posts).toEqual([first, boundary, olderTie, older]);
   expect(merged.posts[0]).toBe(first);
   expect(merged.posts[2]).toBe(olderTie);
@@ -737,21 +742,89 @@ it.each([null, "older-continuation"])("reconciles timestamp ties while preservin
 it("uses the head continuation when the refreshed range covers the held window", () => {
   const first = feedPost("First", 12), withdrawn = feedPost("Withdrawn", 13);
   const merged = mergeSocialPostHead({ posts: [withdrawn, first], pages: 1, nextCursor: null }, {
-    posts: [first], nextCursor: "fresh-continuation",
+    posts: [first], nextCursor: "fresh-continuation", scannedThrough: first,
   });
   expect(merged.posts).toEqual([first]);
   expect(merged.nextCursor).toBe("fresh-continuation");
 });
 
-it("retains rows when an unexhausted empty page gives no refreshed boundary", () => {
-  const current = { posts: [feedPost("Held", 12)], pages: 1, nextCursor: "held-continuation" };
-  expect(mergeSocialPostHead(current, { posts: [], nextCursor: "scan-continuation" })).toBe(current);
+it.each([false, true])("removes a filtered scanned tail, including an empty page %s", empty => {
+  const first = feedPost("Head", 13), tail = feedPost("Withdrawn tail", 12), older = feedPost("Untouched", 11);
+  const current = { posts: [first, tail, older], pages: 2, nextCursor: "held-continuation" };
+  const merged = mergeSocialPostHead(current, {
+    posts: empty ? [] : [first], nextCursor: "scan-continuation", scannedThrough: tail,
+  });
+  expect(merged.posts).toEqual(empty ? [older] : [first, older]);
+  expect(merged.posts.at(-1)).toBe(older);
+  expect(merged.nextCursor).toBe("held-continuation");
+  expect(merged.pages).toBe(2);
+});
+
+it.each(["2026-11-16T12:00:00.123900Z", "2026-11-16T12:00:00.1239+00:00"])("preserves older microsecond rows below %s", createdAt => {
+  const boundary = { ...feedPost("Boundary", 12), id: "11111111-1111-4111-8111-111111111111", createdAt };
+  const older = { ...feedPost("Untouched", 12), id: "ffffffff-ffff-4fff-8fff-ffffffffffff", createdAt: "2026-11-16T12:00:00.123100Z" };
+  const current = { posts: [boundary, older], pages: 2, nextCursor: "held-continuation" };
+  const merged = mergeSocialPostHead(current, { posts: [{ ...boundary }], nextCursor: "scan", scannedThrough: boundary });
+  expect(merged).toBe(current);
+});
+
+it("recognises a scanned overlap without returning a visible held row", async () => {
+  const first = feedPost("Withdrawn head", 13), tail = feedPost("Withdrawn tail", 12), older = feedPost("Untouched", 11);
+  const current = { posts: [first, tail, older], pages: 2, nextCursor: "held-continuation" };
+  const cursors: Array<string | null> = [];
+  const result = await readSocialPostHead(async cursor => {
+    cursors.push(cursor);
+    return { posts: [], nextCursor: "scan-continuation", scannedThrough: tail };
+  }, current);
+  expect(cursors).toEqual([null]);
+  expect(result.contiguous).toBe(true);
+  expect(result.head.scannedThrough).toBe(tail);
+  expect(mergeSocialPostHead(current, result.head).posts).toEqual([older]);
+});
+
+it("carries the final scanned range across a disjoint head and an empty filtered page", async () => {
+  const incoming = feedPost("Incoming", 13), withdrawn = feedPost("Withdrawn", 12), older = feedPost("Untouched", 11);
+  const current = { posts: [withdrawn, older], pages: 2, nextCursor: "held-continuation" };
+  const cursors: Array<string | null> = [];
+  const result = await readSocialPostHead(async cursor => {
+    cursors.push(cursor);
+    return cursor === null
+      ? { posts: [incoming], nextCursor: "second", scannedThrough: incoming }
+      : { posts: [], nextCursor: "third", scannedThrough: withdrawn };
+  }, current);
+  expect(cursors).toEqual([null, "second"]);
+  expect(result.contiguous).toBe(true);
+  expect(result.head.scannedThrough).toBe(withdrawn);
+  const merged = mergeSocialPostHead(current, result.head);
+  expect(merged.posts).toEqual([incoming, older]);
+  expect(merged.nextCursor).toBe("held-continuation");
+});
+
+it.each(["following", "nearby", "discover"] as const)("reconciles an empty scanned %s page without losing older rows", async feed => {
+  const head = feedPost("Withdrawn head", 13);
+  const tail = { ...feedPost("Withdrawn tail", 12), id: "11111111-1111-4111-8111-111111111111", createdAt: "2026-11-16T12:00:00.123900Z" };
+  const older = { ...feedPost("Untouched older row", 12), id: "ffffffff-ffff-4fff-8fff-ffffffffffff", createdAt: "2026-11-16T12:00:00.123100Z" };
+  let withdrawn = false;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    if (href.includes("cursor=")) return feedResponse({ posts: [older], nextCursor: null });
+    return feedResponse({ posts: withdrawn ? [] : [head, tail], nextCursor: "older", scannedThrough: tail });
+  });
+  await mountFeed({ valid: true, tab: "posts", feed, area: feed === "nearby" ? "camden" : null });
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(3);
+  withdrawn = true;
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  expect([...host.querySelectorAll(".socialPostCard")].map(card => card.textContent)).toEqual(["Untouched older row"]);
+  expect(host.querySelector(".socialFeedInlineError")).toBeNull();
+  expect([...host.querySelectorAll("button")].find(button => button.textContent === "Load more")).toBeUndefined();
 });
 
 it("accepts authoritative same-version venue redaction and nested profile changes", () => {
   const previous = { ...feedPost("Known post", 12), venueProjected: true, venueId: "known-pub", venueName: "Known pub" };
   const fresh = { ...previous, venueProjected: false, venueId: null, venueName: null, author: { handle: "new-handle" } };
-  const merged = mergeSocialPostHead({ posts: [previous], pages: 1, nextCursor: null }, { posts: [fresh], nextCursor: null });
+  const merged = mergeSocialPostHead({ posts: [previous], pages: 1, nextCursor: null }, { posts: [fresh], nextCursor: null, scannedThrough: fresh });
   expect(merged.posts[0]).toBe(fresh);
   expect(merged.posts[0]?.venueId).toBeNull();
   expect(merged.posts[0]?.author.handle).toBe("new-handle");
@@ -763,7 +836,7 @@ it("retains equal DTO identities regardless of JSON object field order", () => {
   fresh.author = { ...previous.author };
   fresh.hashtags = [...previous.hashtags];
   const window = { posts: [previous], pages: 1, nextCursor: null };
-  expect(mergeSocialPostHead(window, { posts: [fresh], nextCursor: null })).toBe(window);
+  expect(mergeSocialPostHead(window, { posts: [fresh], nextCursor: null, scannedThrough: fresh })).toBe(window);
 });
 
 it("keeps a known empty feed failure polite and offers recovery", async () => {
@@ -771,7 +844,7 @@ it("keeps a known empty feed failure polite and offers recovery", async () => {
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
-    return failed ? Response.json({}, { status: 503 }) : Response.json({ posts: [], nextCursor: null });
+    return failed ? Response.json({}, { status: 503 }) : feedResponse({ posts: [], nextCursor: null });
   });
   await mountFeed();
   expect(host.querySelector(".socialFeed")).toBeNull();
@@ -794,7 +867,7 @@ it.each(["cold", "populated", "empty"])("keeps %s Retry focused and coalesces pe
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (phase === "held") return new Promise<Response>(resolve => pending.push({ resolve, signal: init.signal as AbortSignal }));
     if (phase === "failure") return Response.json({}, { status: 503 });
-    return Response.json({ posts: surface === "empty" && phase === "initial" ? [] : [feedPost("Recovered post", 12)], nextCursor: null });
+    return feedResponse({ posts: surface === "empty" && phase === "initial" ? [] : [feedPost("Recovered post", 12)], nextCursor: null });
   });
   await mountFeed();
   if (surface !== "cold") {
@@ -837,7 +910,7 @@ it.each([30, 200])("keeps a feed contiguous after %s posts arrive between heads"
     const cursor = new URL(href, "http://localhost").searchParams.get("cursor");
     const offset = cursor ? Number(cursor) : incoming ? 0 : arrival;
     reads.push(offset);
-    return Response.json({ posts: rows.slice(offset, offset + 20), nextCursor: String(offset + 20) });
+    return feedResponse({ posts: rows.slice(offset, offset + 20), nextCursor: String(offset + 20) });
   });
   await mountFeed();
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
@@ -868,7 +941,7 @@ it("keeps pagination reachable when a background head populates an empty feed", 
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     const offset = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
-    return Response.json({ posts: published ? Array.from({ length: 20 }, (_, i) => feedPost(`New report ${offset + i}`, 12)) : [], nextCursor: published ? String(offset + 20) : null });
+    return feedResponse({ posts: published ? Array.from({ length: 20 }, (_, i) => feedPost(`New report ${offset + i}`, 12)) : [], nextCursor: published ? String(offset + 20) : null });
   });
   await mountFeed();
   expect(host.querySelector(".socialFeed")).toBeNull();

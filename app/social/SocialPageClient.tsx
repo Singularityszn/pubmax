@@ -177,8 +177,11 @@ function parsePostPage(value: unknown): SocialPostPage | null {
     posts.push(candidate as SocialPostDTO);
   }
   const nextCursor = value.nextCursor;
-  if (nextCursor !== null && typeof nextCursor !== "string") return null;
-  return { posts, nextCursor: nextCursor as string | null };
+  if (nextCursor === null) return { posts, nextCursor, scannedThrough: null };
+  const boundary = value.scannedThrough;
+  if (typeof nextCursor !== "string" || !isRecord(boundary) || typeof boundary.id !== "string" || !boundary.id ||
+    typeof boundary.createdAt !== "string" || !Number.isFinite(Date.parse(boundary.createdAt))) return null;
+  return { posts, nextCursor, scannedThrough: { id: boundary.id, createdAt: boundary.createdAt } };
 }
 
 const ACTIVITY_KINDS = new Set<SocialActivityItem["kind"]>([
