@@ -411,15 +411,16 @@ describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () =>
     expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
   });
 
-  it("the correction ledger stays with the Crew-bound Plan and goes when that Plan is deleted", () => {
-    const host = person(), ana = person(), xav = person();
-    const crew = crewWith(host, [ana, xav]);
+  it("the correction ledger keeps its row through the person's deletion and goes with its crew", () => {
+    const host = person(), xav = person();
+    const crew = crewWith(host);
+    db().sql(`select public._activate_social_crew_member('${crew}','${xav.account}')`);
     const removedMember = memberId(crew, xav);
     remove(host, crew, xav);
     correct(crew, removedMember);
     db().sql(deleteAccount(xav));
     expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("1");
-    db().sql(`delete from public.plans where id=(select plan_id from public.social_crews where id='${crew}')`);
+    db().sql(`delete from public.social_crews where id='${crew}'`);
     expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
   });
 });
