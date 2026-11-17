@@ -743,11 +743,12 @@ export function reactiveLogIntentActive(
  * suggestion waits until the reader opens the planner or maps one themselves.
  */
 export function suggestedRouteWanted(input: {
+  hasFixedWalk?: boolean;
   hasReactiveLogIntent: boolean;
   planningOpen: boolean;
   routeMapped: boolean;
 }): boolean {
-  return !input.hasReactiveLogIntent || input.planningOpen || input.routeMapped;
+  return !input.hasFixedWalk && (!input.hasReactiveLogIntent || input.planningOpen || input.routeMapped);
 }
 
 /**

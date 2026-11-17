@@ -3342,7 +3342,7 @@ export default function PubMap({
   });
 
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
-    hasReactiveLogIntent,
+    hasFixedWalk: Boolean(curatedWalk), hasReactiveLogIntent,
     planningOpen,
     routeMapped,
   });
