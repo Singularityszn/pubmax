@@ -682,6 +682,7 @@ export function AuthProvider({
     markPubmaxTiming("pubmax:auth-provider-mounted");
     const clientTurn = authClientTurn(window, {
       storedSession: hasStoredBrowserSession(browserLocalStorage()),
+      storedSessionNow: () => hasStoredBrowserSession(browserLocalStorage()),
       pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
       pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
       callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
@@ -692,19 +693,24 @@ export function AuthProvider({
     // No stored session, no durable cookie and no callback is a signed-out
     // reader. Say so now, so the sign-in invitation shows before the pins
     // although the client loads after them. The bootstrap repeats the answer.
-    if (clientTurn.waiting) {
+    let clientWaiting = clientTurn.waiting;
+    void clientTurn.ready.then(() => { clientWaiting = false; });
+    const checkDeferredSession = (retry = false) => {
+      if (!clientWaiting) return;
+      if (retry) resumeHint = null;
       void Promise.all([callbackCapture, readResumeHint()]).then(([captured, hint]) => {
-        if (!active || captured?.attempt || hint.status !== "absent") return;
-        if (readProviderAuthState("supabase") !== "unresolved") return;
-        const signedOutState = resolveSupabaseAuthState(
-          "bootstrap",
-          false,
-          sessionTransitions.current.currentUserId(),
-        );
-        if (signedOutState) setProviderAuthState("supabase", signedOutState);
+        if (!active || !clientWaiting) return;
+        if (captured?.attempt || hint.status === "present") {
+          clientTurn.releaseForSignIn();
+          return;
+        }
+        const state = readProviderAuthState("supabase");
+        if (state === "authenticated" || state === "signed-out") return;
+        setProviderAuthState("supabase", hint.status === "absent" ? "signed-out" : "unavailable");
         setSessionLoading(false);
       }, () => {});
-    }
+    };
+    checkDeferredSession();
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
@@ -1051,6 +1057,7 @@ export function AuthProvider({
 
     const retryBootstrap = () => {
       if (!active) return;
+      checkDeferredSession(true);
       if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
       if (clientLoadInFlight || sessionRestoreInFlight.current) {
         bootstrapRetryPending = true;

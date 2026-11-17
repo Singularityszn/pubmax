@@ -130,6 +130,17 @@ describe("when the browser auth client may load", () => {
     expect(await settled(turn.ready)).toBe(true);
   });
 
+  it("restores a session created in another tab without loading for unrelated storage changes", async () => {
+    const win = fakeWindow("/about");
+    let stored = false;
+    const turn = authClientTurn(win, { ...SIGNED_OUT, storedSessionNow: () => stored });
+    win.dispatchEvent(new Event("storage"));
+    expect(await settled(turn.ready)).toBe(false);
+    stored = true;
+    win.dispatchEvent(new Event("storage"));
+    expect(await settled(turn.ready)).toBe(true);
+  });
+
   it("never loads after the provider has gone", async () => {
     const win = fakeWindow("/map");
     const turn = authClientTurn(win, SIGNED_OUT);

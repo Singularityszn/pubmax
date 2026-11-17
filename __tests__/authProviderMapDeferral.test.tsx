@@ -133,7 +133,7 @@ describe("a signed-out reader opening the map", () => {
     expect(h.loads).toBe(0);
 
     await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-    await vi.waitFor(() => expect(h.loads).toBe(1));
+    expect(h.loads).toBe(0);
     expect(container.textContent).toBe("settled:signed-out");
   });
 
@@ -157,14 +157,14 @@ describe("a signed-out reader opening the map", () => {
         await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
         expect(h.loads).toBe(0);
         await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-        await vi.waitFor(() => expect(h.loads).toBe(1));
+        expect(h.loads).toBe(0);
       }
     } finally {
       Object.defineProperty(window, "localStorage", storage);
     }
   });
 
-  it.each([429, 503, "timeout"] as const)("keeps auth unresolved until pins when the resume probe fails with %s", async (failure) => {
+  it.each([429, 503, "timeout"] as const)("reports an unavailable resume probe without fetching the SDK for %s", async (failure) => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (String(input) === "/api/auth/session") {
         if (failure === "timeout") throw new DOMException("Request timed out", "TimeoutError");
@@ -175,12 +175,13 @@ describe("a signed-out reader opening the map", () => {
     await mount();
 
     expect(h.loads).toBe(0);
-    expect(container.textContent).toBe("loading:unresolved");
-
+    expect(container.textContent).toBe("settled:unavailable");
     await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-
-    await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
-    expect(h.loads).toBe(1);
+    expect(h.loads).toBe(0);
+    vi.mocked(fetch).mockImplementation(async () => Response.json({ hint: null }));
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
+    expect(h.loads).toBe(0);
   });
 
   it.each([
@@ -199,7 +200,7 @@ describe("a signed-out reader opening the map", () => {
     };
     try {
       await mount();
-      expect(container.textContent).toBe("loading:unresolved");
+      expect(container.textContent).toBe("settled:unavailable");
       expect(h.loads).toBe(0);
       if (pending) {
         expect(beginAuthAttempt(window.location.href, undefined, {
@@ -216,7 +217,7 @@ describe("a signed-out reader opening the map", () => {
         expect(container.textContent).toBe("settled:signed-out");
       } else {
         expect(h.loads).toBe(0);
-        expect(container.textContent).toBe("loading:unresolved");
+        expect(container.textContent).toBe("settled:unavailable");
       }
     } finally {
       visibility.mockRestore();
@@ -224,11 +225,11 @@ describe("a signed-out reader opening the map", () => {
     }
   });
 
-  it.each(["/", "/tonight", "/mapping"])("settles unresolved auth after leaving the map for %s", async (pathname) => {
+  it.each(["/login", "/auth/reset-password", "/auth/callback"])("permits client loading after navigating to %s", async (pathname) => {
     vi.mocked(fetch).mockImplementation(async () => new Response("{}", { status: 503 }));
     await mount();
     expect(h.loads).toBe(0);
-    expect(container.textContent).toBe("loading:unresolved");
+    expect(container.textContent).toBe("settled:unavailable");
 
     window.history.pushState(null, "", "/map/manchester");
     await mount();
