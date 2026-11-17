@@ -5181,7 +5181,7 @@ export default function PubMap({
     onRestore: restoreMapSurface,
     onReturnToMap: moveMapCameraTo,
     mappedRouteActive: routeForMap.length >= 2,
-    onVenueReturnToMap: () => setCloseVenueRequestToken(nextCameraRequestToken()),
+    onVenueClose: () => setCloseVenueRequestToken(nextCameraRequestToken()),
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,

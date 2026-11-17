@@ -1,12 +1,13 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useEffect, useRef } from "react";
+import { act, createElement, useEffect, useRef, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
@@ -996,6 +997,81 @@ describe("query camera with contextual price pins", () => {
 });
 
 describe("closing a route stop", () => {
+  it.each([
+    ["home", false], ["home", true],
+    ["back", false], ["back", true],
+    ["browser back", false], ["browser back", true],
+    ["parent home", false], ["parent home", true],
+  ] as const)("keeps walk camera ownership through %s, reader moved: %s", async (exit, moved) => {
+    const fitRoute = vi.fn();
+    const restoreCamera = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let navigation: ReturnType<typeof useMapSurfaceNavigation>;
+    let mapWalk: () => void;
+    let openStop: () => void;
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [mapped, setMapped] = useState(false);
+      const [selected, setSelected] = useState("");
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "",
+        mappedRouteActive: mapped,
+        onRestore: (entry) => setSelected(entry?.id === "venue" ? entry.state?.venueId ?? "" : ""),
+        onReturnToMap: restoreCamera,
+        onVenueClose: () => setCloseToken(nextCameraRequestToken()),
+        onHome: () => setSelected(""), onSurfaceClose: () => {},
+      });
+      mapWalk = () => setMapped(true);
+      openStop = () => {
+        navigation.open({ id: "venue", title: "Stop", state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "b" } });
+        setSelected("b");
+      };
+      useRouteCameraFraming({
+        mapReady: true, routeKey: mapped ? "a>b" : "", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute,
+      });
+      return null;
+    }
+    async function traverse(action: () => void) {
+      await act(async () => {
+        const landed = new Promise<void>((resolve) => {
+          window.addEventListener("popstate", () => resolve(), { once: true });
+        });
+        action();
+        await landed;
+      });
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({
+      id: "planner", title: "Plan",
+      state: { ...EMPTY_MAP_SURFACE_STATE, returnCamera: { center: [-0.14, 51.54], zoom: 14 } },
+    }));
+    act(() => mapWalk());
+    act(() => openStop());
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+
+    await traverse(() => {
+      if (exit === "home") navigation.home();
+      else if (exit === "browser back") window.history.back();
+      else navigation.back();
+    });
+    expect(restoreCamera).not.toHaveBeenCalled();
+    expect(fitRoute).toHaveBeenCalledTimes(moved ? 0 : 1);
+    if (!moved) expect(fitRoute).toHaveBeenCalledWith("user", expect.any(Number));
+
+    if (exit !== "home") {
+      await traverse(() => {
+        if (exit === "parent home") navigation.home();
+        else navigation.back();
+      });
+    }
+    expect(restoreCamera).not.toHaveBeenCalled();
+    expect(fitRoute).toHaveBeenCalledTimes(moved ? 0 : 1);
+  });
+
   it("does not claim the camera when there is no walk", () => {
     const fitRoute = vi.fn();
     const gesture = { current: { active: false, endedAt: null as number | null, movementSerial: 0 } };

@@ -167,7 +167,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   let navigation: ReturnType<typeof useMapSurfaceNavigation>;
   const onRestore = vi.fn();
   const onReturnToMap = vi.fn();
-  const onVenueReturnToMap = vi.fn();
+  const onVenueClose = vi.fn();
   const onHome = vi.fn();
 
   let assembledState: MapSurfaceState;
@@ -192,7 +192,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
       onRestore,
       onReturnToMap,
       mappedRouteActive,
-      onVenueReturnToMap,
+      onVenueClose,
       onHome,
       onSurfaceClose: () => {},
     });
@@ -232,7 +232,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     onRestore.mockClear();
     onReturnToMap.mockClear();
-    onVenueReturnToMap.mockClear();
+    onVenueClose.mockClear();
     onHome.mockClear();
     window.history.replaceState(null, "", "/map");
     container = document.createElement("div");
@@ -279,7 +279,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
 
   it.each(["back", "browser back", "home"])("requests walk recovery once when %s closes a venue to the map", async (exit) => {
     openSurfaces(venue);
-    expect(onVenueReturnToMap).not.toHaveBeenCalled();
+    expect(onVenueClose).not.toHaveBeenCalled();
 
     await traverse(() => {
       if (exit === "browser back") window.history.back();
@@ -288,20 +288,20 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     });
 
     expect(onRestore).toHaveBeenLastCalledWith(null);
-    expect(onVenueReturnToMap).toHaveBeenCalledTimes(1);
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
     await traverse(() => window.history.forward());
     expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
-    expect(onVenueReturnToMap).toHaveBeenCalledTimes(1);
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
   });
 
-  it("does not request walk recovery when a venue returns to its parent sheet", async () => {
-    openSurfaces(planner, venue);
+  it.each(["planner", "venue-list", "landmark", "layers", "choose-area"])("requests walk recovery when a venue returns to %s", async (parent) => {
+    openSurfaces({ id: parent, title: "Parent" }, venue);
     await traverse(() => navigation.back());
-    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "planner" }));
-    expect(onVenueReturnToMap).not.toHaveBeenCalled();
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: parent }));
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
     await traverse(() => navigation.back());
     expect(onRestore).toHaveBeenLastCalledWith(null);
-    expect(onVenueReturnToMap).not.toHaveBeenCalled();
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
   });
 
   it.each(["back", "home"])("does not restore an older area over a mapped walk after %s", async (exit) => {
@@ -320,7 +320,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
 
     expect(onRestore).toHaveBeenLastCalledWith(null);
     expect(onReturnToMap).not.toHaveBeenCalled();
-    expect(onVenueReturnToMap).toHaveBeenCalledTimes(exit === "home" ? 1 : 0);
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
 
     await act(async () => root.render(createElement(Harness, { mappedRouteActive: false })));
     await traverse(() => window.history.go(2));
