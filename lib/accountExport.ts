@@ -276,6 +276,17 @@ export type AccountExportCrewRemovalCorrection = {
   state: "left";
 };
 
+/** A host or moderator's mark of this account on a crew's night, without who recorded it or why. */
+export type AccountExportCrewAttendance = {
+  id: string;
+  crewId: string;
+  revision: number;
+  state: "attended" | "absent";
+  recordedAt: string;
+  recordedBy: "host" | "moderator";
+  expiresAt: string;
+};
+
 export type AccountExport = {
   version: typeof ACCOUNT_EXPORT_VERSION;
   /** ISO 8601, server clock. */
@@ -317,6 +328,7 @@ export type AccountExport = {
   /** "Ask the pub for a table" requests the account sent: its own name, crew, day, time, note and the contact it gave, and whether the email to the pub went. Nothing about the operator. */
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
   crewRemovalCorrections: AccountExportLane<AccountExportCrewRemovalCorrection>;
+  crewAttendance: AccountExportLane<AccountExportCrewAttendance>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   leagues: AccountExportLane<LeagueExportRecord>;
   nearbyVisits: AccountExportLane<NearbyVisit>;
@@ -350,6 +362,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "kitchenReports",
   "tableRequests",
   "crewRemovalCorrections",
+  "crewAttendance",
   "pubListNightDrafts",
   "leagues",
   "nearbyVisits",

@@ -5000,6 +5000,69 @@ export type Database = {
           },
         ];
       };
+      social_crew_attendance: {
+        Row: {
+          id: string;
+          crew_id: string;
+          subject_account_id: string;
+          subject_user_id: string;
+          revision: number;
+          state: string;
+          actor_kind: string;
+          attester_account_id: string | null;
+          staff_role_id: string | null;
+          staff_display_name: string | null;
+          reason: string | null;
+          created_at: string;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          crew_id: string;
+          subject_account_id: string;
+          subject_user_id: string;
+          revision: number;
+          state: string;
+          actor_kind: string;
+          attester_account_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string | null;
+          reason?: string | null;
+          created_at?: string;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          crew_id?: string;
+          subject_account_id?: string;
+          subject_user_id?: string;
+          revision?: number;
+          state?: string;
+          actor_kind?: string;
+          attester_account_id?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string | null;
+          reason?: string | null;
+          created_at?: string;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_attendance_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: false;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_crew_attendance_subject_user_id_fkey";
+            columns: ["subject_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_crew_invitations: {
         Row: {
           id: string;
@@ -7607,6 +7670,37 @@ export type Database = {
         };
         Returns: boolean;
       };
+      _social_crew_attendance_current: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: {
+          revision: number;
+          state: string;
+          recorded_at: string;
+          recorded_by: string;
+        };
+      };
+      _social_crew_attendance_markable: {
+        Args: {
+          p_crew: string | null;
+          p_actor: string | null;
+          p_subject: string | null;
+        };
+        Returns: boolean;
+      };
+      _social_crew_attendance_window: {
+        Args: {
+          p_crew: string | null;
+        };
+        Returns: {
+          opens_at: string;
+          closes_at: string;
+          expires_at: string;
+          cancelled: boolean;
+        };
+      };
       _social_crew_begin_write: {
         Args: {
           p_actor: string | null;
@@ -7808,6 +7902,18 @@ export type Database = {
           post_id: string;
           review_state: string;
         }[];
+      };
+      attest_social_crew_attendance_atomic: {
+        Args: {
+          p_actor_account_id: string | null;
+          p_crew_id: string | null;
+          p_member_id: string | null;
+          p_state: string | null;
+          p_expected_revision: number | null;
+          p_idempotency_key: string | null;
+          p_payload_digest: string | null;
+        };
+        Returns: Json;
       };
       charge_round_price_line: {
         Args: {
@@ -8072,6 +8178,17 @@ export type Database = {
         Args: {
           p_nonce_hash: string | null;
           p_provider: string | null;
+        };
+        Returns: Json;
+      };
+      correct_social_crew_attendance_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_crew_id: string | null;
+          p_member_id: string | null;
+          p_state: string | null;
+          p_expected_revision: number | null;
+          p_reason: string | null;
         };
         Returns: Json;
       };
@@ -8469,6 +8586,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      export_social_crew_attendance: {
+        Args: {
+          p_user_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       finalize_social_post_media_cleanup: {
         Args: {
           p_media_id: string | null;
@@ -8824,6 +8948,12 @@ export type Database = {
           handle: string;
         }[];
       };
+      purge_expired_social_crew_attendance: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: Json;
+      };
       qualify_referral_from_contribution: {
         Args: {
           p_invitee_user_id: string | null;
@@ -8944,6 +9074,14 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      read_social_crew_attendance: {
+        Args: {
+          p_viewer_account_id: string | null;
+          p_viewer_profile_id: string | null;
+          p_crew_id: string | null;
+        };
+        Returns: Json;
       };
       read_social_crew_join_requests: {
         Args: {

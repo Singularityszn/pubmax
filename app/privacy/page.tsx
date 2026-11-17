@@ -618,6 +618,15 @@ export default function PrivacyPage() {
           Deleting your account removes its correction records.
         </p>
         <p className="legalBody">
+          On an open Crew night, the host or a co-host can mark you Here or Not
+          here. It&rsquo;s their word, not a check, and it earns no points. The
+          record names the Crew, you, who marked you, the mark, its time and
+          each change. It holds no location and nothing you bought. Only you and
+          the Crew&rsquo;s hosts can see it. After the night closes, only a
+          moderator who is not a host of that Crew can change it, with a reason.
+          Your data export includes your marks, without who recorded them or why.
+        </p>
+        <p className="legalBody">
           After account deletion, we free your guest places and cancel the
           Crew nights you own. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
@@ -1038,7 +1047,10 @@ export default function PrivacyPage() {
             out, unless a legal or security hold applies. Crew removal correction
             records are deleted with the affected account. Your data export includes
             the correction outcome and date, without private review notes or
-            staff identities.
+            staff identities. Crew attendance marks and their corrections
+            expire 30 days after the night closes. From then nobody can read
+            them, and an operator cleanup deletes them. Deleting your account
+            deletes them at once.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

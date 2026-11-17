@@ -410,3 +410,25 @@
   font-size: var(--text-xs);
   font-variant-numeric: tabular-nums;
 }
+
+/* Host attendance (0247): the mark and the actions stack under each name. */
+.crews__attendance {
+  justify-self: stretch;
+  margin-top: 0;
+}
+
+.crews__attendance .crews__member {
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1) var(--space-2);
+}
+
+.crews__attendance .crews__memberRole {
+  white-space: normal;
+}
+
+.crews__attendanceActions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

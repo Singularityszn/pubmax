@@ -96,9 +96,45 @@ select public.release_departed_social_crew_places(100);
 
 The sweep locks the selected crew rows in ID order before it changes any Plan. It skips busy crews. A `"crews": 0` answer can therefore mean pending crews are busy. Check the pending query after each call. Cleanup is complete when that query returns no rows. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
+## Host attendance (0247)
+
+A host or co-host of an open crew marks each accepted guest Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for this. The moderator must not be the guest, and must not be or have been an owner or co-host of that crew, or have marked anyone in it. So a reported host never decides their own dispute.
+
+```sql
+select member.id as member_id, member.state, profile.handle
+from public.social_crew_members member
+join public.private_social_accounts account on account.id = member.social_account_id
+join public.profiles profile on profile.id = account.profile_id
+where member.crew_id = '<crew id>';
+
+set role service_role;
+select public.read_social_crew_attendance('<owner account id>', '<owner profile id>', '<crew id>');
+select public.correct_social_crew_attendance_admin(
+  '<staff role id>', '<crew id>', '<member id>', 'attended' or 'absent', <current revision>, '<reason>'
+);
+```
+
+| Answer | Meaning |
+| --- | --- |
+| `corrected` | A new revision records the mark, the moderator and the reason. No one is notified. |
+| `unchanged` | The mark already has that state. |
+| `stale` | The revision is not the current one. Read it again. |
+| `forbidden` | The moderator is the guest, a host of that crew or someone who marked in it. Ask another moderator. |
+| `expired` | The record is past its 30 days. |
+| `not_found`, `gone`, `invalid` | No such accepted member, the account was deleted, or the reason or state is not valid. |
+
+Marks and corrections expire 30 days after the close. Reads and exports hide them at once. Nothing schedules their deletion. To delete expired rows, run this until it answers `"deleted": 0`. Each call deletes at most 1,000.
+
+```sql
+set role service_role;
+select public.purge_expired_social_crew_attendance(1000);
+```
+
+Deleting a guest's account deletes their marks in the same transaction. Rolling back 0247 deletes every mark. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
+
 ## Rollback
 
-Roll back 0246 before 0245.
+Roll back 0247 before 0246, and 0246 before 0245.
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 

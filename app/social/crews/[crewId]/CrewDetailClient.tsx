@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import CrewAttendance from "@/components/social/CrewAttendance";
 import ReportPerson from "@/components/social/ReportPerson";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import { liveShareCrewStopSeat, subscribeLiveShare } from "@/lib/planLiveLocationShare";
@@ -706,6 +707,7 @@ export default function CrewDetailClient({
         {crew.visibility === "open" && crew.arrival ? (
           <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />
         ) : null}
+        {crew.visibility === "open" ? <CrewAttendance crewId={crew.crewId} members={crew.members} identityKey={identityKey} /> : null}
 
         <section aria-labelledby="crew-members-title">
           <h2 id="crew-members-title" className="crews__title">
