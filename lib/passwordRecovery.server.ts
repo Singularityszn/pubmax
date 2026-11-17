@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient } from "@supabase/supabase-js";
+import { log } from "@/lib/log";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 import { PASSWORD_RECOVERY_PATH } from "@/lib/passwordRecovery";
 import { siteOrigin } from "@/lib/siteUrl";
@@ -11,7 +12,7 @@ export async function sendPasswordRecoveryEmail(email: string, currentUrl: strin
     { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" });
   const origin = siteOrigin(currentUrl);
   if (!config || !origin) {
-    console.warn("[password-recovery] Email configuration is unavailable.");
+    log("error", "auth.password_recovery.configuration_unavailable");
     return;
   }
   const client = createClient(config.url, config.key, {
@@ -21,5 +22,5 @@ export async function sendPasswordRecoveryEmail(email: string, currentUrl: strin
   const { error } = await client.auth.resetPasswordForEmail(email, {
     redirectTo: new URL(PASSWORD_RECOVERY_PATH, origin).toString(),
   });
-  if (error) console.warn("[password-recovery] Email delivery was refused.", { code: error.code, status: error.status });
+  if (error) log("error", "auth.password_recovery.delivery_refused", { code: error.code, status: error.status });
 }

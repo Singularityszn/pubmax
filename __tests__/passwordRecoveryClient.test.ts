@@ -67,3 +67,32 @@ it("keeps the saved password locked while session cleanup needs another attempt"
   expect(pending).toEqual({ status: "securing", error: "retry" });
   expect(recoveryFormTransition({ status: "complete" }, { type: "submit" })).toEqual({ status: "complete" });
 });
+
+it.each(["unmount", "replacement"])("does not start a password update when %s cancels pending verification", async () => {
+  const auth = fixture();
+  let release!: (value: Awaited<ReturnType<typeof auth.verifyOtp>>) => void;
+  auth.verifyOtp.mockImplementation(() => new Promise(resolve => { release = resolve; }));
+  let current = true;
+  const finish = passwordRecoveryFinisher(auth, "token");
+  const result = finish("London123!", () => current);
+  current = false;
+  release({ data: { session, user: session.user }, error: null });
+  expect(await result).toMatchObject({ status: "retry", passwordSaved: false });
+  expect(auth.updateUser).not.toHaveBeenCalled();
+  expect(auth.signOut).not.toHaveBeenCalled();
+});
+
+it("does not start revocation after cancellation during an already-sent password update", async () => {
+  const auth = fixture();
+  let release!: (value: Awaited<ReturnType<typeof auth.updateUser>>) => void;
+  let reached!: () => void;
+  const updating = new Promise<void>(resolve => { reached = resolve; });
+  auth.updateUser.mockImplementation(() => { reached(); return new Promise(resolve => { release = resolve; }); });
+  let current = true;
+  const result = passwordRecoveryFinisher(auth, "token")("London123!", () => current);
+  await updating;
+  current = false;
+  release({ data: { user: session.user }, error: null });
+  expect(await result).toMatchObject({ status: "retry", passwordSaved: true });
+  expect(auth.signOut).not.toHaveBeenCalled();
+});

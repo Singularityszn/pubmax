@@ -1,4 +1,5 @@
 import { after } from "next/server";
+import { log } from "@/lib/log";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isCrossSiteRequest } from "@/lib/crossSiteRequest";
@@ -35,7 +36,7 @@ export async function POST(request: Request): Promise<Response> {
       if (await isLimited(key, key, 3, 60 * 60_000, { failClosed: true })) return;
       await sendPasswordRecoveryEmail(email, request.url);
     } catch {
-      console.warn("[password-recovery] Email delivery did not finish.");
+      log("error", "auth.password_recovery.delivery_failed");
     }
   });
   return jsonNoStore({ message: PASSWORD_RECOVERY_MESSAGE });

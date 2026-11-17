@@ -434,7 +434,7 @@ header.loginPageHead {
 
 .loginPageHandlePasswordField {
   display: grid;
-  gap: 0.35rem;
+  gap: var(--space-3);
   font-size: var(--text-sm);
   font-weight: 650;
   color: var(--ink-soft);
@@ -453,15 +453,17 @@ header.loginPageHead {
 .loginPagePasswordLabel {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   flex-wrap: wrap;
   gap: var(--space-2);
 }
 
 .loginPagePasswordLabel a {
   display: inline-flex;
-  align-items: flex-end;
+  align-items: center;
   min-height: 44px;
+  padding-block: var(--space-3);
+  margin-block: calc(-1 * var(--space-3));
 }
 
 /* Shown under EVERY failure, never only for an account with no password: a

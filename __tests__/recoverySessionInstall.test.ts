@@ -29,10 +29,10 @@ it.each(["account-switch", "same-account-switch", "replacement-link", "unmount"]
     }
     return Response.json(b.user);
   });
-  const { ensureSupabaseBrowser, installRecoveredSession } = await import("@/lib/authClient");
+  const { ensureSupabaseBrowser, captureRecoverySessionBaseline, installRecoveredSession } = await import("@/lib/authClient");
   const client = await ensureSupabaseBrowser();
   if (!client) throw new Error("Missing fixture client");
-  const installing = installRecoveredSession(a, () => current);
+  const installing = installRecoveredSession(a, () => current, captureRecoverySessionBaseline());
   await started;
   current = false;
   if (mode.includes("switch")) await client.auth.setSession(b);
@@ -48,7 +48,7 @@ it("rolls back a cancelled save before publishing identity, and keeps a valid sa
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_event");
   const a = session("recovering-a");
   vi.stubGlobal("fetch", async () => Response.json(a.user));
-  const { ensureSupabaseBrowser, installRecoveredSession, ignoreStaleRecoverySessionEvent } = await import("@/lib/authClient");
+  const { ensureSupabaseBrowser, captureRecoverySessionBaseline, installRecoveredSession, ignoreStaleRecoverySessionEvent } = await import("@/lib/authClient");
   const client = await ensureSupabaseBrowser();
   if (!client) throw new Error("Missing fixture client");
   let current = true;
@@ -59,11 +59,11 @@ it("rolls back a cancelled save before publishing identity, and keeps a valid sa
     if (cancel) current = false;
     if (!ignoreStaleRecoverySessionEvent(value)) { published.push(value.user.id); current = false; }
   });
-  expect(await installRecoveredSession(a, () => current)).toBe(false);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(false);
   expect((await client.auth.getSession()).data.session).toBeNull();
   expect(published).toEqual([]);
   current = true; cancel = false;
-  expect(await installRecoveredSession(a, () => current)).toBe(true);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(true);
   expect(published).toEqual([a.user.id]);
   registration.data.subscription.unsubscribe();
   await client.auth.stopAutoRefresh();
@@ -79,7 +79,7 @@ it("does not renew and install a cancelled recovery after a suspended tab resume
   const a = session("recovering-a");
   const request = vi.fn(async () => Response.json(session("recovering-a", "refreshed")));
   vi.stubGlobal("fetch", request);
-  const { ensureSupabaseBrowser, installRecoveredSession } = await import("@/lib/authClient");
+  const { ensureSupabaseBrowser, captureRecoverySessionBaseline, installRecoveredSession } = await import("@/lib/authClient");
   const client = await ensureSupabaseBrowser();
   if (!client) throw new Error("Missing fixture client");
   await client.auth.initialize();
@@ -91,8 +91,25 @@ it("does not renew and install a cancelled recovery after a suspended tab resume
     current = false;
     return install(tokens);
   });
-  expect(await installRecoveredSession(a, () => current)).toBe(false);
+  expect(await installRecoveredSession(a, () => current, captureRecoverySessionBaseline())).toBe(false);
   expect((await client.auth.getSession()).data.session).toBeNull();
   expect(request).not.toHaveBeenCalled();
+  await client.auth.stopAutoRefresh();
+});
+
+it("preserves a same-user login completed after submission but before recovery installation starts", async () => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://recovery-baseline-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_baseline");
+  const initial = session("same-user", "initial"), recovered = session("same-user", "recovered"), concurrent = session("same-user", "concurrent");
+  vi.stubGlobal("fetch", async () => Response.json(initial.user));
+  const { ensureSupabaseBrowser, captureRecoverySessionBaseline, installRecoveredSession } = await import("@/lib/authClient");
+  const client = await ensureSupabaseBrowser();
+  if (!client) throw new Error("Missing fixture client");
+  await client.auth.setSession(initial);
+  const baseline = captureRecoverySessionBaseline();
+  await client.auth.setSession(concurrent);
+  expect(await installRecoveredSession(recovered, () => true, baseline)).toBe(false);
+  expect((await client.auth.getSession()).data.session?.refresh_token).toBe(concurrent.refresh_token);
   await client.auth.stopAutoRefresh();
 });

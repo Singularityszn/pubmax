@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
 import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
-import { installRecoveredSession, preloadPasswordRecoveryAuth } from "@/lib/authClient";
+import { captureRecoverySessionBaseline, installRecoveredSession, preloadPasswordRecoveryAuth } from "@/lib/authClient";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { parseEmail, MAX_EMAIL_LENGTH } from "@/lib/emailAddress";
 import { PASSWORD_RECOVERY_MESSAGE, recoveryFormTransition, recoveryToken, type RecoveryFormState } from "@/lib/passwordRecovery";
@@ -33,6 +33,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   const [visible, setVisible] = useState(false);
   const token = useRef<string | null>(null);
   const captured = useRef(false);
+  const markedReady = useRef(false);
   const mounted = useRef(false);
   const operation = useRef<symbol | null>(null);
   const passwordSaved = useRef(false);
@@ -43,6 +44,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   const main = useRef<HTMLElement | null>(null);
   const busy = state.status === "busy";
   const securing = state.status === "securing";
+  const invalidField = state.status === "editing" ? state.field : undefined;
   const error = state.status === "editing" || state.status === "securing" ? state.error : null;
 
   useEffect(() => {
@@ -63,7 +65,10 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
       window.history.replaceState(window.history.state, "", window.location.pathname);
       dispatch({ type: "link" });
       if (!token.current) dispatch({ type: "invalid" });
-      else preloadPasswordRecoveryAuth();
+      else {
+        performance.mark?.("pubmax:password-recovery:proof-captured");
+        preloadPasswordRecoveryAuth();
+      }
     };
     if (!captured.current) {
       captured.current = true;
@@ -82,17 +87,23 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
     };
   }, [reset]);
 
+  useEffect(() => {
+    if (!configured || state.status !== "editing" || markedReady.current) return;
+    markedReady.current = true;
+    performance.mark?.(reset ? "pubmax:password-recovery:reset-ready" : "pubmax:password-recovery:request-ready");
+  }, [configured, reset, state.status]);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (operation.current || !configured) return;
     if (!reset && !parseEmail(email)) {
-      dispatch({ type: "failed", message: "Enter a valid email address." });
+      dispatch({ type: "failed", message: "Enter a valid email address.", field: "email" });
       return;
     }
     if (reset && !passwordSaved.current) {
       const check = checkPassword(password);
       if (!check.ok || password !== confirm) {
-        dispatch({ type: "failed", message: check.ok ? "Passwords do not match." : check.message });
+        dispatch({ type: "failed", message: check.ok ? "Passwords do not match." : check.message, field: check.ok ? "confirm" : "password" });
         return;
       }
     }
@@ -100,6 +111,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
     operation.current = owner;
     const operationToken = token.current;
     const ownsOperation = () => mounted.current && operation.current === owner && token.current === operationToken;
+    const baseline = reset ? captureRecoverySessionBaseline() : null;
     const accountSignal = readProviderAccountSignal();
     dispatch({ type: "submit" });
     try {
@@ -110,12 +122,13 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
         });
         if (!response.ok) throw new Error();
       } else {
+        if (!baseline) throw new Error();
         if (!token.current) { dispatch({ type: "invalid" }); return; }
         finisher.current ??= createPasswordRecoveryFinisher(token.current).catch(error => {
           finisher.current = null;
           throw error;
         });
-        const result = await (await finisher.current)(password);
+        const result = await (await finisher.current)(password, () => ownsOperation() && !accountSignal.aborted && baseline.matches());
         if (!ownsOperation()) return;
         if (result.status === "invalid") { dispatch({ type: "invalid", expired: true }); return; }
         passwordSaved.current = result.status === "saved" || result.passwordSaved;
@@ -125,7 +138,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
           return;
         }
         if (accountSignal.aborted) throw new Error();
-        const installed = await installRecoveredSession(result.session, () => ownsOperation() && !accountSignal.aborted);
+        const installed = await installRecoveredSession(result.session, () => ownsOperation() && !accountSignal.aborted, baseline);
         if (!installed) throw new Error();
       }
       if (ownsOperation()) {
@@ -150,7 +163,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
     <main className="passwordRecoveryPage" ref={main} tabIndex={-1} aria-labelledby={titleId}>
       <div className="passwordRecoveryInner">
         <Screen className="passwordRecoveryHead" kicker="PUBMAXX" title={title} titleId={titleId} />
-        {state.status === "checking" ? <p role="status">Checking your reset link…</p> : invalid ? (
+        {state.status === "checking" ? <p role="status">Opening your reset link…</p> : invalid ? (
           <>
             <p role="alert">{state.status === "invalid" && state.expired
               ? "This reset link has expired or was already used. Ask for a new one."
@@ -159,12 +172,12 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
           </>
         ) : complete ? (
           <>
-            <p role="status">{reset ? "You're signed in. Your other sessions are signed out." : PASSWORD_RECOVERY_MESSAGE}</p>
+            <p role="status">{reset ? "Your password is saved. You're signed in." : PASSWORD_RECOVERY_MESSAGE}</p>
             {!reset ? <p>Check your inbox and spam folder. Each link works once.</p> : null}
             {reset ? <Button asChild><Link href="/map">Back to the map</Link></Button> : null}
           </>
         ) : (
-          <form onSubmit={submit} method="post" aria-label={reset ? "Reset password" : "Request password reset"} aria-busy={busy}>
+          <form onSubmit={submit} noValidate method="post" aria-label={reset ? "Reset password" : "Request password reset"} aria-busy={busy}>
             {reset ? (
               <>
                 <div className="passwordRecoveryLabel">
@@ -174,12 +187,12 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
                   </button>
                 </div>
                 <input id="recovery-password" type={visible ? "text" : "password"} autoComplete="new-password"
-                  minLength={MIN_PASSWORD_LENGTH} required aria-describedby={`${hintId}${error ? ` ${errorId}` : ""}`} disabled={busy || securing}
+                  minLength={MIN_PASSWORD_LENGTH} required aria-invalid={invalidField === "password"} aria-describedby={`${hintId}${error ? ` ${errorId}` : ""}`} readOnly={busy || securing}
                   value={password} onChange={event => setPassword(event.target.value)} />
                 <PasswordPolicyHint value={password} id={hintId} />
                 <label htmlFor="recovery-confirm">Confirm new password</label>
                 <input id="recovery-confirm" type={visible ? "text" : "password"} autoComplete="new-password"
-                  minLength={MIN_PASSWORD_LENGTH} required aria-describedby={error ? errorId : undefined} disabled={busy || securing}
+                  minLength={MIN_PASSWORD_LENGTH} required aria-invalid={invalidField === "confirm"} aria-describedby={error ? errorId : undefined} readOnly={busy || securing}
                   value={confirm} onChange={event => setConfirm(event.target.value)} />
               </>
             ) : (
@@ -187,13 +200,13 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
                 <p>We&apos;ll send a reset link to the email on your account.</p>
                 <label htmlFor="recovery-email">Account email</label>
                 <input id="recovery-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
-                  required maxLength={MAX_EMAIL_LENGTH} disabled={busy} value={email} onChange={event => setEmail(event.target.value)} />
+                  required aria-invalid={invalidField === "email"} aria-describedby={error ? errorId : undefined} maxLength={MAX_EMAIL_LENGTH} disabled={busy} value={email} onChange={event => setEmail(event.target.value)} />
               </>
             )}
+            {error ? <p role="alert" id={errorId}>{error}</p> : null}
             <Button type="submit" disabled={busy || !configured}>
               {busy ? "Working…" : securing ? "Finish securing account" : reset ? "Save new password" : "Send reset link"}
             </Button>
-            {error ? <p role="alert" id={errorId}>{error}</p> : null}
             {!configured ? <p role="status">Password recovery is unavailable on this build.</p> : null}
           </form>
         )}

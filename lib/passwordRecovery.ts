@@ -8,7 +8,7 @@ export function isPasswordRecoveryUrl(value: string): boolean {
 
 export type RecoveryFormState =
   | { status: "checking" }
-  | { status: "editing"; error?: string }
+  | { status: "editing"; error?: string; field?: "email" | "password" | "confirm" }
   | { status: "busy" }
   | { status: "securing"; error: string }
   | { status: "complete" }
@@ -17,7 +17,7 @@ export type RecoveryFormState =
 export type RecoveryFormEvent =
   | { type: "link" }
   | { type: "submit" }
-  | { type: "failed"; message: string; passwordSaved?: boolean }
+  | { type: "failed"; message: string; passwordSaved?: boolean; field?: "email" | "password" | "confirm" }
   | { type: "complete" }
   | { type: "invalid"; expired?: boolean };
 
@@ -28,7 +28,7 @@ export function recoveryFormTransition(state: RecoveryFormState, event: Recovery
     case "submit": return { status: "busy" };
     case "failed": return event.passwordSaved
       ? { status: "securing", error: event.message }
-      : { status: "editing", error: event.message };
+      : { status: "editing", error: event.message, ...(event.field ? { field: event.field } : {}) };
     case "complete": return { status: "complete" };
     case "invalid": return { status: "invalid", expired: event.expired === true };
   }

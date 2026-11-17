@@ -18,15 +18,20 @@ export async function createPasswordRecoveryFinisher(tokenHash: string) {
 export function passwordRecoveryFinisher(auth: RecoveryAuth, tokenHash: string) {
   let session: Session | null = null;
   let passwordSaved = false;
-  return async (password: string): Promise<RecoveryResult> => {
+  return async (password: string, current: () => boolean = () => true): Promise<RecoveryResult> => {
     const retry = (message: string): RecoveryResult => ({ status: "retry", passwordSaved, message });
+    const cancelled = () => retry(passwordSaved
+      ? "Your password is saved. Sign in with it to continue."
+      : "Your sign-in changed. Ask for a new reset link.");
     try {
+      if (!current()) return cancelled();
       if (!passwordSaved) {
         const check = checkPassword(password);
         if (!check.ok) return retry(check.message);
       }
       if (!session) {
         const verified = await auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+        if (!current()) return cancelled();
         if (verified.error?.code === "otp_expired") return { status: "invalid" };
         if (verified.error || !verified.data.session) return retry("Could not check your reset link. Try again.");
         session = verified.data.session;
@@ -36,11 +41,14 @@ export function passwordRecoveryFinisher(auth: RecoveryAuth, tokenHash: string) 
         if (updated.error) return retry(passwordUpdateErrorMessage(updated.error));
         passwordSaved = true;
       }
+      if (!current()) return cancelled();
       const revoked = await auth.signOut({ scope: "others" });
       if (revoked.error) return retry("Your password is saved. Try again to sign out your other sessions.");
-      const current = await auth.getSession();
-      if (current.error || !current.data.session) return retry("Your password is saved. Sign in with it to continue.");
-      return { status: "saved", session: current.data.session };
+      if (!current()) return cancelled();
+      const active = await auth.getSession();
+      if (!current()) return cancelled();
+      if (active.error || !active.data.session) return retry("Your password is saved. Sign in with it to continue.");
+      return { status: "saved", session: active.data.session };
     } catch {
       return retry(passwordSaved
         ? "Your password is saved. Try again to finish securing your account."

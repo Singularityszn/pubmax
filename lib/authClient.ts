@@ -92,16 +92,30 @@ export async function installNativeSession(
   }
 }
 
-export async function installRecoveredSession(session: Session, current: () => boolean): Promise<boolean> {
+export function captureRecoverySessionBaseline(): { value: string | null; matches: () => boolean } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (typeof window === "undefined" || !url || !isAuthConfigured()) return null;
+  const storage = windowLocalStorage();
+  if (!storage) return null;
+  const key = browserSessionStorageKey(url);
+  try {
+    const value = storage.getItem(key);
+    return { value, matches: () => {
+      try { return storage.getItem(key) === value; } catch { return false; }
+    } };
+  } catch { return null; }
+}
+
+export async function installRecoveredSession(
+  session: Session, current: () => boolean, baseline: ReturnType<typeof captureRecoverySessionBaseline>,
+): Promise<boolean> {
   const client = await ensureSupabaseBrowser();
-  if (!client || !canonicalStorage || !current() || nativeInstallation || recoveryInstallation) return false;
+  if (!client || !canonicalStorage || !current() || !baseline?.matches() || nativeInstallation || recoveryInstallation) return false;
   const initialized = await client.auth.initialize();
-  if (initialized.error || !current() || nativeInstallation || recoveryInstallation) return false;
+  if (initialized.error || !current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return false;
   if (typeof session.expires_at !== "number" || session.expires_at * 1000 <= Date.now() + 60_000) return false;
   const { storage, key } = canonicalStorage;
-  let previous: string | null;
-  try { previous = storage.getItem(key); } catch { return false; }
-  const pending = { session, current, previous, published: false };
+  const pending = { session, current, previous: baseline.value, published: false };
   recoveryInstallation = pending;
   try {
     const result = await client.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
@@ -165,7 +179,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     cached = createClient(config.url, config.key, {
       global: {
         fetch: withAuthFetchTimeout(async (input, init) => {
-          // A tab can suspend after the freshness check. Keep rotated tokens out of the canonical installer.
+          // recoverySessionInstall.test.ts pins the SDK request shape and suspended-tab refresh refusal.
           const recovering = recoveryInstallation;
           if (recovering && typeof init?.body === "string") {
             let refreshToken: unknown;

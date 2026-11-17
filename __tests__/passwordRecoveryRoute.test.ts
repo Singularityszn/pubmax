@@ -1,5 +1,6 @@
 import { beforeEach, expect, it, vi } from "vitest";
 
+vi.mock("@/lib/log", () => ({ log: vi.fn() }));
 const background = vi.hoisted(() => [] as Array<() => Promise<void>>);
 const limited = vi.hoisted(() => vi.fn<(key: string, durable: string, limit: number, window: number, opts: { failClosed: boolean }) => Promise<boolean>>(async () => false));
 const send = vi.hoisted(() => vi.fn(async () => {}));
