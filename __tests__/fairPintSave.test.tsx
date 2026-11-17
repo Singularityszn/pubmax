@@ -9,7 +9,7 @@ const share = vi.hoisted(() => vi.fn().mockResolvedValue("shared"));
 vi.mock("@/lib/shareSheet", () => ({ shareNightObject: share }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); localStorage.clear(); });
-const last: FairPintDrawn = { pence: 550, start: "2026-11-18T18:00", generated: { operationKey: "fair-pint-create-operation", groundingProof: "fixture-proof", inferredContext: inferNightContext("three stops in Camden").context, planningConfidence: { level: "low", score: 0, routeReady: false, missingEvidence: [], warnings: [], provenance: [] }, stops: [1, 2, 3].map((id) => ({ venueId: `venue-${id}`, venueName: `Pub ${id}` })) } };
+const last: FairPintDrawn = { pence: 550, start: "2026-11-18T18:00", startIso: "2026-11-18T18:00:00.000Z", generated: { operationKey: "fair-pint-create-operation", groundingProof: "fixture-proof", inferredContext: inferNightContext("three stops in Camden").context, planningConfidence: { level: "low", score: 0, routeReady: false, missingEvidence: [], warnings: [], provenance: [] }, stops: [1, 2, 3].map((id) => ({ venueId: `venue-${id}`, venueName: `Pub ${id}` })) } };
 it("retries an uncertain create once, prepares a join URL, and shares without another fetch", async () => {
   const id = "11111111-1111-4111-8111-111111111111", token = "a".repeat(32);
   const saved = new Map<string, unknown>(); let uncertain = true;
@@ -31,7 +31,8 @@ it("retries an uncertain create once, prepares a join URL, and shares without an
   act(() => root.render(createElement(Host)));
   await act(async () => { await hook.save("Alex", "london"); });
   expect(hook!.state.phase).toBe("editing");
-  await act(async () => { await hook.save("Alex", "london"); });
+  expect(hook!.nameLocked).toBe(true);
+  await act(async () => { await hook.save("Changed after uncertain create", "london"); });
   expect(saved.size).toBe(1);
   expect(saved.get(last.generated.operationKey)).toMatchObject({ creatorName: "Alex", groundingProof: last.generated.groundingProof, context: last.generated.inferredContext });
   expect(hook!.state.phase).toBe("locked");

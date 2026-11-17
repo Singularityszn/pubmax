@@ -1,13 +1,14 @@
 "use client";
 import dynamic from "next/dynamic";
 import { useEffect, useMemo, useState } from "react";
-import { useFairPintPlan } from "./useFairPintPlan";
+import { useFairPintPlan, warmFairPintTime } from "./useFairPintPlan";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
 import { createSlimShardLoader, type MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
-import { fairPence, readFairPint, setFairPintSession, writeFairPint } from "@/lib/fairPint";
+import { fairPence, readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
+import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { haptic } from "@/lib/nativeHaptics";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 
@@ -32,7 +33,9 @@ export default function FairPintFlow({
   onCommit,
   onRoute,
   mobile,
+  readerPosition = null,
 }: {
+  readerPosition?: { lat: number; lng: number } | null;
   mobile: boolean;
   cityId: CityId;
   bounds: MapBounds;
@@ -40,11 +43,12 @@ export default function FairPintFlow({
   onCommit: (pounds: number) => void;
   onRoute: (area: import("@/lib/nightAreas").NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
 }) {
-  const [start] = useState(readFairPint);
+  const [early] = useState(takeEarlyFairPint);
+  const [start] = useState(() => early?.pence ?? readFairPint());
   const [committed, setCommitted] = useState(start);
   const [now] = useState(Date.now);
   const loader = useMemo(() => createSlimShardLoader(cityId), [cityId]);
-  const [position, setPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [chosenPosition, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [locationOff, setLocationOff] = useState(false);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -60,14 +64,30 @@ export default function FairPintFlow({
     onRoute(
       generated.inferredContext.nightArea,
       generated.stops.map((stop) => stop.venueId),
-      data.rows,
+      data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     ),
   );
+  const position = chosenPosition === null ? null : (readerPosition ?? chosenPosition);
   const countBounds = position ? circleBounds(position.lat, position.lng, 0.8) : bounds;
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
   const countKey = JSON.stringify(countBounds),
     drawKey = JSON.stringify(drawBounds);
   useEffect(() => {
+    let mounted = true;
+    if (early?.releases) {
+      writeFairPint(early.pence);
+      onCommit(early.pence / 100);
+      for (let index = 0; index < early.releases; index++) void haptic("selection-kept");
+    }
+    void early?.location?.then((fix) => {
+      if (!mounted) return;
+      const position = fix ? mapReaderPositionFromGeolocation(fix) : null;
+      setPosition(position);
+      setLocationOff(!position);
+      if (position) latchMapReaderLocationWatch();
+    });
+    void warmFairPintTime().catch(() => {});
+    void import("./FairPintResult").catch(() => {});
     setFairPintSession(true, start);
     setMapFirstVisitArrivalCardVisible(true);
     const sync = () => setOffline(!navigator.onLine);
@@ -75,12 +95,15 @@ export default function FairPintFlow({
     window.addEventListener("online", sync);
     window.addEventListener("offline", sync);
     return () => {
+      mounted = false;
       setFairPintSession(false);
       setMapFirstVisitArrivalCardVisible(false);
       window.removeEventListener("online", sync);
       window.removeEventListener("offline", sync);
     };
-  }, [start]);
+    // The bootstrap handoff is consumed once for this mounted flow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, early]);
   useEffect(() => {
     let cancelled = false;
     const countBox: MapBounds = JSON.parse(countKey),
@@ -135,6 +158,8 @@ export default function FairPintFlow({
   if (plan.state.last && plan.state.phase !== "dial")
     return (
       <FairPintResult
+        onLineReady={plan.lineReady}
+        onEditStart={plan.editStart}
         cityId={cityId}
         onClose={close}
         mobile={mobile}
@@ -174,17 +199,22 @@ export default function FairPintFlow({
           }
           navigator.geolocation.getCurrentPosition(
             (value) => {
-              setPosition({ lat: value.coords.latitude, lng: value.coords.longitude });
-              setLocationOff(false);
+              const position = mapReaderPositionFromGeolocation(value);
+              setPosition(position);
+              setLocationOff(!position);
+              if (position) latchMapReaderLocationWatch();
             },
-            () => setLocationOff(true),
+            () => {
+              setPosition(null);
+              setLocationOff(true);
+            },
           );
         }}
         onRetry={() => setAttempt((held) => held + 1)}
         onClose={close}
         onDraw={(pence) => {
           if (plan.retrying) return;
-          void import("./FairPintResult");
+          void import("./FairPintResult").catch(() => {});
           void plan.draw(pence);
         }}
       />

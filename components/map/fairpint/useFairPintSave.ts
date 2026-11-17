@@ -14,6 +14,11 @@ export function useFairPintSave(last: FairPintDrawn) {
   const scope = last.generated.operationKey;
   const [stored, dispatch] = useReducer(transitionFairPintSave, { phase: "editing", scope, notice: "" });
   const state: FairPintSaveState = stored.scope === scope ? stored : { phase: "editing", scope, notice: "" };
+  const attempted = useRef<{
+    scope: string;
+    payload: ReturnType<typeof import("@/lib/planComposerHandoff").composerCreatePayload>;
+  } | null>(null);
+  const [attemptedScope, setAttemptedScope] = useState<string | null>(null);
   const pending = useRef<AbortController | null>(null);
   const [canShare] = useState(
     () => isNativeApp() || (typeof navigator !== "undefined" && typeof navigator.share === "function"),
@@ -26,10 +31,14 @@ export function useFairPintSave(last: FairPintDrawn) {
     [scope],
   );
   async function prepareLink(planId: string, token?: unknown) {
-    const readable = typeof token === "string" && token ? token : await refreshPlanInviteToken(planId);
-    if (typeof readable === "string") writePlanInviteToken(planId, readable);
-    const url = planInviteShareUrl(readable, window.location.href);
-    dispatch({ type: "link", scope, url });
+    try {
+      const readable = typeof token === "string" && token ? token : await refreshPlanInviteToken(planId);
+      if (typeof readable === "string") writePlanInviteToken(planId, readable);
+      const url = planInviteShareUrl(readable, window.location.href);
+      dispatch({ type: "link", scope, url });
+    } catch {
+      dispatch({ type: "link", scope, url: null });
+    }
   }
   async function save(name: string, cityId: CityId) {
     if (pending.current || state.phase !== "editing") return;
@@ -38,21 +47,22 @@ export function useFairPintSave(last: FairPintDrawn) {
     dispatch({ type: "save", scope });
     let savedId: string | null = null;
     try {
-      const [{ composerCreatePayload }, time] = await Promise.all([
-        import("@/lib/planComposerHandoff"),
-        import("@/lib/planIntake"),
-      ]);
-      const startTime = time.londonDateTimeInputToIso(last.start);
-      if (!startTime) throw new Error("Invalid start");
-      const payload = composerCreatePayload({
-        title: DEFAULT_PLAN_COMPOSER_TITLE,
-        creatorName: name,
-        startTime,
-        cityId,
-        stops: last.generated.stops,
-        groundingProof: last.generated.groundingProof,
-        context: last.generated.inferredContext,
-      });
+      const { composerCreatePayload } = await import("@/lib/planComposerHandoff");
+      const startTime = last.startIso;
+      const payload =
+        attempted.current?.scope === scope
+          ? attempted.current.payload
+          : composerCreatePayload({
+              title: DEFAULT_PLAN_COMPOSER_TITLE,
+              creatorName: name,
+              startTime,
+              cityId,
+              stops: last.generated.stops,
+              groundingProof: last.generated.groundingProof,
+              context: last.generated.inferredContext,
+            });
+      attempted.current = { scope, payload };
+      setAttemptedScope(scope);
       const response = await fetch("/api/plans", {
         method: "POST",
         signal: controller.signal,
@@ -103,6 +113,7 @@ export function useFairPintSave(last: FairPintDrawn) {
     state,
     url,
     canShare,
+    nameLocked: attemptedScope === scope,
     save,
     share,
     copy,

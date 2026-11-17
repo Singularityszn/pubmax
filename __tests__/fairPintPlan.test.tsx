@@ -14,7 +14,8 @@ it("keeps only the newest draw even if the cancelled request answers late", asyn
   const fetcher = vi.fn().mockImplementationOnce(() => { beganFirst(); return new Promise<Response>((resolve) => { first = resolve; }); }).mockImplementationOnce(() => { beganSecond(); return new Promise<Response>((resolve) => { second = resolve; }); });
   vi.stubGlobal("fetch", fetcher);
   let hook: ReturnType<typeof useFairPintPlan>;
-  function Host() { hook = useFairPintPlan("london", "camden", () => {}); return null; }
+  const onGenerated = vi.fn();
+  function Host() { hook = useFairPintPlan("london", "camden", onGenerated); return null; }
   const root = createRoot(document.createElement("div")); act(() => root.render(createElement(Host)));
   await act(async () => {
     const old = hook.draw(550); await firstStarted;
@@ -24,6 +25,11 @@ it("keeps only the newest draw even if the cancelled request answers late", asyn
   });
   expect(hook!.state.last?.generated.operationKey).toBe("latest-operation");
   expect(hook!.state.last?.pence).toBe(600);
+  act(() => hook!.lineReady("old-operation"));
+  expect(onGenerated).not.toHaveBeenCalled();
+  act(() => hook!.lineReady("latest-operation"));
+  expect(onGenerated).toHaveBeenCalledTimes(1);
+  expect(onGenerated.mock.calls[0]?.[0].operationKey).toBe("latest-operation");
   act(() => root.unmount());
 });
 it("keeps the last route but rejects a cleared first-pint time", async () => {

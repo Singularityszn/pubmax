@@ -1,7 +1,21 @@
-import { useEffect, useReducer, useRef, useState } from "react";
+import { holdFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
+import { startTransition, useEffect, useReducer, useRef, useState } from "react";
 import { fairPintRequest, transitionFairPintPlan, type FairPintGenerated } from "@/lib/fairPint";
 import { readApiJson, errorMessageFrom } from "@/lib/apiErrorMessage";
 import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
+let timeModule: typeof import("@/lib/planIntake") | null = null;
+let timeReady: Promise<typeof import("@/lib/planIntake")> | null = null;
+export function warmFairPintTime() {
+  return (timeReady ??= import("@/lib/planIntake")
+    .then((module) => {
+      timeModule = module;
+      return module;
+    })
+    .catch((error: unknown) => {
+      timeReady = null;
+      throw error;
+    }));
+}
 export function useFairPintPlan(cityId: string, area: string, onGenerated: (value: FairPintGenerated) => void) {
   const [state, dispatch] = useReducer(transitionFairPintPlan, {
     phase: "dial",
@@ -13,30 +27,49 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
   const [start, setStart] = useState("");
   const pending = useRef<AbortController | null>(null),
     sequence = useRef(0);
+  const release = useRef<(() => void) | null>(null);
+  const routePending = useRef<{ request: number; generated: FairPintGenerated } | null>(null);
+  const releaseDrawing = () => {
+    release.current?.();
+    release.current = null;
+  };
+  const lineReady = (operationKey: string) => {
+    const route = routePending.current;
+    if (!route || route.request !== sequence.current || route.generated.operationKey !== operationKey) return;
+    routePending.current = null;
+    releaseDrawing();
+    startTransition(() => onGenerated(route.generated));
+  };
   useEffect(
     () => () => {
       pending.current?.abort();
       sequence.current++;
+      release.current?.();
     },
     [],
   );
-  async function draw(pence: number, chosenStart?: string) {
+  async function draw(pence: number, chosenStart?: string, chosenArea = area) {
     pending.current?.abort();
+    routePending.current = null;
+    releaseDrawing();
+    release.current = holdFairPintDraw();
     const controller = new AbortController(),
       request = ++sequence.current;
     pending.current = controller;
     dispatch({ type: "draw", request });
+    let waitingForLine = false;
     try {
-      const time = await import("@/lib/planIntake");
+      const time = timeModule ?? (await warmFairPintTime());
       const input = chosenStart === undefined ? start || time.defaultLondonStartInput() : chosenStart;
       if (chosenStart === undefined && !start) setStart(input);
       const iso = time.resolveFutureLondonStartIso(input, null, new Date());
       if (!iso) throw new Error("Choose a valid future London start time.");
       const response = await fetch("/api/plans/generate", {
         method: "POST",
+        priority: "high",
         signal: controller.signal,
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(fairPintRequest(cityId, area, pence, iso)),
+        body: JSON.stringify(fairPintRequest(cityId, chosenArea, pence, iso)),
       });
       const body = await readApiJson(response);
       if (sequence.current !== request || controller.signal.aborted) return;
@@ -74,8 +107,9 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
         )
       )
         throw new Error("The route details could not be checked. Try again.");
-      dispatch({ type: "drawn", request, last: { generated, pence, start: input } });
-      onGenerated(generated);
+      dispatch({ type: "drawn", request, last: { generated, pence, start: input, startIso: iso } });
+      routePending.current = { request, generated };
+      waitingForLine = true;
     } catch (error) {
       if (controller.signal.aborted || sequence.current !== request) return;
       dispatch({
@@ -87,6 +121,8 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
             : "No connection. Your fair pint is saved. Try again.",
         retryAt: 0,
       });
+    } finally {
+      if (sequence.current === request && !controller.signal.aborted && !waitingForLine) releaseDrawing();
     }
   }
   const [retryReady, setRetryReady] = useState(0);
@@ -98,16 +134,28 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
   return {
     state,
     start,
+    lineReady,
+    editStart: (value: string) => {
+      pending.current?.abort();
+      sequence.current++;
+      routePending.current = null;
+      releaseDrawing();
+      setStart(value);
+    },
     retrying: state.retryAt > retryReady,
     draw,
     back: () => {
       pending.current?.abort();
       sequence.current++;
+      routePending.current = null;
+      releaseDrawing();
       dispatch({ type: "back" });
     },
     changeStart: (value: string) => {
       setStart(value);
-      return state.last ? draw(state.last.pence, value) : Promise.resolve();
+      return state.last
+        ? draw(state.last.pence, value, state.last.generated.inferredContext.nightArea ?? area)
+        : Promise.resolve();
     },
   };
 }

@@ -104,7 +104,7 @@ function showFinal(nodes: Nodes, layout: PintLineLayout): void {
 }
 
 /** Runs the glass down the line. Returns the cancel. */
-function play(nodes: Nodes, layout: PintLineLayout): () => void {
+function play(nodes: Nodes, layout: PintLineLayout, presentation = false, onDrawn?: () => void): () => void {
   const { section, line, glass, bob, lit, legs } = nodes;
   const total = line.getTotalLength();
   if (!(total > 0)) {
@@ -146,6 +146,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
   }
   segments.push({ from: previous, to: total, ms: Math.max(260, (travel * (total - previous)) / total), dwell: false });
 
+  const durationScale = presentation ? 200 / segments.reduce((sum, segment) => sum + segment.ms, 0) : 1;
   section.dataset.run = "running";
   for (const group of lit) for (const node of group) node.classList.remove("isLit");
   for (const node of legs) node.classList.remove("isLit");
@@ -157,7 +158,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
   let frame = 0;
   const started = performance.now();
   const tick = (now: number) => {
-    let elapsed = now - started;
+    let elapsed = (now - started) / durationScale;
     let at = total;
     let hop = 0;
     let tilt = 0;
@@ -191,7 +192,7 @@ function play(nodes: Nodes, layout: PintLineLayout): () => void {
       nextLeg += 1;
     }
     if (finished) {
-      showFinal(nodes, layout);
+      showFinal(nodes, layout); onDrawn?.();
       return;
     }
     frame = requestAnimationFrame(tick);
@@ -220,10 +221,12 @@ function Glass() {
   );
 }
 
-export default function PintLine({ crawl, presentation = false }: { crawl: WildCrawl; presentation?: boolean }) {
+export default function PintLine({ crawl, presentation = false, onDrawn }: { crawl: WildCrawl; presentation?: boolean; onDrawn?: () => void }) {
   const uid = useId();
   const titleId = `${uid}-title`;
   const drawingId = `${uid}-drawing`;
+  const drawnCallback = useRef(onDrawn);
+  useLayoutEffect(() => { drawnCallback.current = onDrawn; });
   const sectionRef = useRef<HTMLElement>(null);
   const stageRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(0);
@@ -286,13 +289,17 @@ export default function PintLine({ crawl, presentation = false }: { crawl: WildC
     if (!layout) return;
     const nodes = readNodes(sectionRef.current, layout.stations.length);
     if (!nodes) return;
-    if (presentation || played.current === run || prefersReducedMotion()) {
+    const done = () => {
+      if (!presentation) return;
+      void document.fonts?.ready.then(() => requestAnimationFrame(() => drawnCallback.current?.()));
+    };
+    if (played.current === run || prefersReducedMotion()) {
       played.current = run;
-      showFinal(nodes, layout);
+      showFinal(nodes, layout); done();
       return;
     }
     played.current = run;
-    return play(nodes, layout);
+    return play(nodes, layout, presentation, done);
     // layoutKey stands for the layout: a new object with the same geometry is not a new line.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layoutKey, run, presentation]);

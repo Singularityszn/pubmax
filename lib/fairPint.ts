@@ -88,7 +88,7 @@ export function fairPintRequest(cityId: string, nightArea: string, pence: number
     ...(planStartIso ? { planStartIso } : {}),
   };
 }
-export type FairPintDrawn = { generated: FairPintGenerated; pence: number; start: string };
+export type FairPintDrawn = { generated: FairPintGenerated; pence: number; start: string; startIso: string };
 export type FairPintPlanState = {
   phase: "dial" | "drawing" | "result";
   request: number;

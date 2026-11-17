@@ -15,6 +15,7 @@ import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { WildCrawl } from "@/lib/wildPintLineCrawl";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
+import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
 import "./fairPint.css";
 type ResultProps = {
@@ -25,6 +26,8 @@ type ResultProps = {
   error: string;
   mobile: boolean;
   cityId: CityId;
+  onLineReady: (operationKey: string) => void;
+  onEditStart: (value: string) => void;
   onStart: (value: string) => void;
   onBack: () => void;
   onClose: () => void;
@@ -34,6 +37,13 @@ function ResultActions({ children }: { children: ReactNode }) {
   const actions = <div className="fairPintResultActions">{children}</div>;
   return footer ? createPortal(actions, footer) : actions;
 }
+const readDay = (iso: string) =>
+  new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date(iso));
 export default function FairPintResult({
   last,
   venues,
@@ -41,6 +51,8 @@ export default function FairPintResult({
   busy,
   error,
   onStart,
+  onEditStart,
+  onLineReady,
   onBack,
   onClose,
   mobile,
@@ -64,6 +76,7 @@ export default function FairPintResult({
   useEffect(() => {
     queueMicrotask(() => heading.current?.focus());
   }, []);
+
   const stops = generated.stops.map((stop) => ({
     ...stop,
     listed:
@@ -91,11 +104,11 @@ export default function FairPintResult({
           pint: listed
             ? {
                 priceGbp: price.pence! / 100,
-                drink: "Beer",
+                drink: isDrinkCategory(stop.priceCategory) ? categoryLabel(stop.priceCategory) : "Pint",
                 band: null,
                 source: price.source!.label,
-                readDay: price.source!.observedAt.slice(0, 10),
-                readDayLabel: price.source!.observedAt.slice(0, 10),
+                readDay: readDay(price.source!.observedAt),
+                readDayLabel: readDay(price.source!.observedAt),
               }
             : null,
         };
@@ -168,7 +181,12 @@ export default function FairPintResult({
             Locked in.
           </p>
         ) : null}
-        <PintLine crawl={crawl} presentation />
+        <PintLine
+          key={generated.operationKey}
+          crawl={crawl}
+          presentation
+          onDrawn={() => onLineReady(generated.operationKey)}
+        />
         <p className="fairPintStamp">
           {priced.length === stops.length
             ? `${stops.length} stops · Listed cost: ${formatPence(total)}, one pint per stop`
@@ -186,7 +204,10 @@ export default function FairPintResult({
               <strong>{stop.venueName}</strong>
               {stop.listed ? (
                 <>
-                  <span>Beer · pint · {formatPence(stop.listed.pence!)}</span>
+                  <span>
+                    {isDrinkCategory(stop.priceCategory) ? categoryLabel(stop.priceCategory) : "Pint"} · pint ·{" "}
+                    {formatPence(stop.listed.pence!)}
+                  </span>
                   <a href={stop.listed.source!.url} target="_blank" rel="noopener noreferrer">
                     {stop.listed.source!.label}
                   </a>
@@ -210,24 +231,29 @@ export default function FairPintResult({
         {generated.planningConfidence.missingEvidence.includes("opening_hours") ? (
           <p>Opening times are not checked.</p>
         ) : null}
-        <ul className="fairPintWarnings" aria-label="Route warnings">
-          {generated.planningConfidence.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
+        {generated.planningConfidence.warnings.length ? (
+          <ul className="fairPintWarnings" aria-label="Route warnings">
+            {generated.planningConfidence.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        ) : null}
         <label htmlFor="fair-pint-start">First pint</label>
         <input
           id="fair-pint-start"
           type="datetime-local"
           disabled={locked || save.state.phase === "saving"}
           value={start}
-          onChange={(event) => onStart(event.target.value)}
+          onChange={(event) => onEditStart(event.target.value)}
+          onBlur={(event) => {
+            if (event.target.value !== last.start) onStart(event.target.value);
+          }}
         />
         <label htmlFor="fair-pint-name">Your name</label>
         <input
           id="fair-pint-name"
           ref={nameField}
-          disabled={locked || save.state.phase === "saving"}
+          disabled={locked || save.nameLocked || save.state.phase === "saving"}
           value={name}
           onChange={(event) => setName(event.target.value)}
           aria-describedby="fair-pint-name-hint"
