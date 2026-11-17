@@ -394,12 +394,11 @@ for (const platform of ["android", "ios"] as const) {
 // every door keeps a 44px square and the accessible name stays on the link.
 test("320px large text: five dock doors keep 44px targets and lose no name", async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 844 });
-  await page.addInitScript(() => {
-    document.documentElement.setAttribute("data-text-scale", "large");
-  });
   await page.goto("/tonight");
-  await page.evaluate(() => document.documentElement.setAttribute("data-text-scale", "large"));
   const dock = page.getByRole("navigation", { name: "Primary" });
+  await expect(dock).toBeVisible();
+  await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+  await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
   const tabs = dock.locator(".mobileTab");
   await expect(tabs).toHaveCount(5);
   expect(
@@ -446,8 +445,10 @@ test("Android chrome and checkbox labels have 48px touch targets", async ({ page
     expect(box!.width).toBeGreaterThanOrEqual(48);
     expect(box!.height).toBeGreaterThanOrEqual(48);
     await page.touchscreen.tap(box!.x + box!.width / 2, box!.y + box!.height / 2);
-    await expect(page.locator(".mobileMapSavedOnly label")).toBeVisible({ timeout: 1_000 });
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="filters"]')).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
+  const refinements = page.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   const saved = page.locator(".mobileMapSavedOnly label");
   const box = await saved.boundingBox();
   expect(box!.height).toBeGreaterThanOrEqual(48);

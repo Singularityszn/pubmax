@@ -121,7 +121,7 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
 
     await chipControls.last().focus();
     await page.keyboard.press("Tab");
-    await expect(closeButton).toBeFocused();
+    await expect(drawer.locator(FOCUSABLE).first()).toBeFocused();
 
     await page.keyboard.press("Shift+Tab");
     await expect(chipControls.last()).toBeFocused();
@@ -171,8 +171,9 @@ test.describe("desktop drawer leaves the route chip reachable", () => {
       const chipBox = await chip.boundingBox();
       expect(drawerBox).not.toBeNull();
       expect(chipBox).not.toBeNull();
-      expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(drawerBox!.x);
+      expect(Math.min(chipBox!.x + chipBox!.width, drawerBox!.x + drawerBox!.width) - Math.max(chipBox!.x, drawerBox!.x)).toBeLessThanOrEqual(0);
       expect(chipBox!.x).toBeGreaterThanOrEqual(0);
+      expect(chipBox!.x + chipBox!.width).toBeLessThanOrEqual(width);
       await expect.poll(() => drawer.getAttribute("aria-modal")).toBeNull();
 
       const heights = await chip

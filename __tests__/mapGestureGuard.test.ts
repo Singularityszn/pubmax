@@ -85,6 +85,20 @@ describe("the reactive set is closed", () => {
 
 
 describe("map contact ownership", () => {
+  it("records reader camera movement without counting a tap or a programmatic move", () => {
+    const container = document.createElement("div");
+    const state = { current: idleGestureCameraState() };
+    const guard = installMapGestureGuard(container, state, () => {});
+    container.dispatchEvent(Object.assign(new Event("pointerdown"), { pointerId: 1 }));
+    window.dispatchEvent(Object.assign(new Event("pointerup"), { pointerId: 1 }));
+    expect(state.current.movementSerial ?? 0).toBe(0);
+    guard.begin("zoom")({});
+    expect(state.current.movementSerial ?? 0).toBe(0);
+    guard.begin("drag")({ originalEvent: new Event("pointermove") });
+    guard.end("drag")();
+    expect(state.current.movementSerial).toBe(1);
+    guard.dispose();
+  });
   describe.each([1, 2])("touches on %s detached targets", (targetCount) => {
     it.each(["touchend", "touchcancel"])("releases detached targets on %s without releasing other touches", (release) => {
       const container = document.createElement("div");

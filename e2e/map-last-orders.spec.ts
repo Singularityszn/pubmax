@@ -59,6 +59,8 @@ test("the map arrives with Last orders on and narrows to pubs still open (390x84
   // Turning it off gives every pin back. The night theme is the whole
   // page's, not the filter's, so the map stays dark.
   await choice.click();
+  const refinements = sheet.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   await expect(choice).toHaveAttribute("aria-pressed", "false");
   await expect(filtersButton).not.toHaveAttribute("aria-label", /last orders/);
   await expect(page.locator("html")).toHaveAttribute("data-night-theme", "1");
@@ -94,16 +96,19 @@ test("the desktop filters offer Last orders with its caption (1280x800)", async 
 test.describe("with the hours held back", () => {
   test.use({ serviceWorkers: "block" });
 
-  async function holdHours(page: import("@playwright/test").Page): Promise<() => void> {
+  async function holdHours(page: import("@playwright/test").Page) {
     let release: () => void = () => {};
+    let markRequested: () => void = () => {};
+    const requested = new Promise<void>((resolve) => { markRequested = resolve; });
     const gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     await page.route("**/data/last_orders/london_hours.json", async (route) => {
+      markRequested();
       await gate;
       await route.continue();
     });
-    return release;
+    return { release, requested };
   }
 
   async function openFilters(page: import("@playwright/test").Page) {
@@ -112,6 +117,8 @@ test.describe("with the hours held back", () => {
     await filtersButton.click();
     const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
     await expect(sheet).toBeVisible();
+    const refinements = sheet.locator(".mobileFilterDisclosure");
+    if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
     return sheet;
   }
 
@@ -119,13 +126,12 @@ test.describe("with the hours held back", () => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.clock.setFixedTime(FRIDAY_2245);
-    const release = await holdHours(page);
+    const { release, requested } = await holdHours(page);
     await page.goto("/map?lastOrders=1");
     const sheet = await openFilters(page);
     await expect(sheet.getByRole("button", { name: "Last orders", exact: true })).toHaveAttribute("aria-pressed", "true");
     await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
-    // Held for a while: still loading, still no count.
-    await page.waitForTimeout(3_000);
+    await requested;
     await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
     release();
     const status = sheet.getByRole("status").filter({ hasText: /matching places? loaded/ });
@@ -138,12 +144,12 @@ test.describe("with the hours held back", () => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.clock.setFixedTime(FRIDAY_2245);
-    const release = await holdHours(page);
+    const { release, requested } = await holdHours(page);
     await page.goto("/map");
     const sheet = await openFilters(page);
     await sheet.getByRole("button", { name: "Last orders", exact: true }).click();
     await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
-    await page.waitForTimeout(3_000);
+    await requested;
     await expect(sheet.getByRole("status").filter({ hasText: /matching|Loading/ })).toHaveText("Loading matching places…");
     release();
     await expect(sheet.getByRole("status").filter({ hasText: /matching places? loaded/ })).toBeVisible({ timeout: 30_000 });
