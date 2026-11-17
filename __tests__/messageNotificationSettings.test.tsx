@@ -49,7 +49,7 @@ afterEach(() => {
 it("shows a muted thread before its settings panel opens", async () => {
   state.fetch.mockResolvedValue(Response.json({ ...settings, muted: true }));
   await act(async () => root.render(createElement(MessageNotificationSettings, { conversationId: "thread" })));
-  expect(toggle().getAttribute("aria-description")).toMatch(/muted/);
+  expect(toggle().getAttribute("aria-label")).toMatch(/muted/);
   expect(host.querySelector(".messageAlertsPanel")).toBeNull();
 });
 

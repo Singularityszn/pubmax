@@ -15,18 +15,21 @@ function validDeviceToken(value: unknown): value is string {
 }
 function bindingAction(value: unknown): boolean { return value === "subscribe" || value === "restore"; }
 
-async function conversationAccess(userId: string, id: string): Promise<boolean> {
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return false;
-  const handle = await profileStore().getHandleByUserId(userId);
-  return Boolean(handle && (await messagesStore().membership(id))?.handles.includes(handle));
+async function conversationAccess(userId: string, id: string): Promise<string | null> {
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id)) return null;
+  const [handle, membership] = await Promise.all([profileStore().getHandleByUserId(userId), messagesStore().membership(id)]);
+  return handle && membership?.handles.includes(handle) ? handle : null;
 }
 
 export async function GET(request: Request): Promise<Response> {
   const userId = await callerUserId(request);
   if (!userId) return publicApiError("Sign in to manage message alerts.", "UNAUTHENTICATED", 401);
-  const conversationId = new URL(request.url).searchParams.get("conversationId");
+  const params = new URL(request.url).searchParams;
+  const conversationId = params.get("conversationId");
+  const settingsOnly = params.get("settingsOnly") === "1";
   try {
-    if (conversationId && !await conversationAccess(userId, conversationId)) {
+    const handle = conversationId ? await conversationAccess(userId, conversationId) : null;
+    if (conversationId && !handle) {
       return publicApiError("Conversation not found.", "NOT_FOUND", 404);
     }
     const store = messageNotificationStore();
@@ -34,16 +37,17 @@ export async function GET(request: Request): Promise<Response> {
       store.preferences(userId), conversationId ? store.muted(userId, conversationId) : false,
     ]);
     let quiet = !preferences.enabled || muted;
-    if (conversationId && !quiet) {
-      const handle = await profileStore().getHandleByUserId(userId);
-      const recipient = handle ? await profileStore().getByHandle(handle) : null;
-      const latest = handle ? (await messagesStore().listMessages(conversationId, handle, { latestOnly: true }))?.[0] : null;
+    if (conversationId && handle && !quiet && !settingsOnly) {
+      const [recipient, messages] = await Promise.all([
+        profileStore().getByHandle(handle), messagesStore().listMessages(conversationId, handle, { latestOnly: true }),
+      ]);
+      const latest = messages?.[0];
       const sender = latest ? await profileStore().getByHandle(latest.senderHandle) : null;
-      quiet = !sender || !recipient || !await messageNotificationSenderAllowed(sender, recipient);
+      quiet = !sender || !recipient || recipient.userId !== userId || !await messageNotificationSenderAllowed(sender, recipient);
     }
     const fingerprint = request.headers.get("x-message-push-fingerprint");
     const registered = Boolean(fingerprint && /^[a-f0-9]{64}$/.test(fingerprint) && await store.registered(userId, fingerprint));
-    return jsonNoStore({ ...preferences, muted, quiet, registered });
+    return jsonNoStore({ ...preferences, muted, registered, ...(!settingsOnly ? { quiet } : {}) });
   } catch {
     return publicApiError("Message alerts are unavailable. Try again.", "UNAVAILABLE", 503, { retryable: true });
   }

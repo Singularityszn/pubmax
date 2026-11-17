@@ -9,7 +9,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
 import type { ConversationDTO } from "@/lib/messages";
-import { subscribeToInbox } from "@/lib/messagesRealtime";
+import { announceInboxArrival, subscribeToInbox } from "@/lib/messagesRealtime";
 import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
 import { MESSAGE_PUSH_DEPARTURE, releaseMessagePush, flushMessagePushReleases, queueMessagePushOperation, currentMessagePushToken } from "@/lib/messageNotificationLifecycle";
 import { getAccessToken } from "@/lib/authClient";
@@ -124,9 +124,9 @@ export default function MessagesLink(): React.JSX.Element | null {
     const stop = subscribeToInbox(effectiveHandle, () => void refresh(true), { poll: () => void refresh() });
     const onVisibility = () => {
       if (document.visibilityState === "hidden") abortRef.current?.abort();
-      else void refresh();
+      else { invalidateMessagesInbox(effectiveHandle, false); void refresh(); }
     };
-    const onFocus = () => void refresh();
+    const onFocus = () => { invalidateMessagesInbox(effectiveHandle, false); void refresh(); };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onFocus);
     const onPush = (event: MessageEvent) => {
@@ -138,7 +138,7 @@ export default function MessagesLink(): React.JSX.Element | null {
             reply.postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
           }).catch(() => reply.postMessage({ token: null }));
       }
-      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) { invalidateMessagesInbox(effectiveHandle); void refresh(true); }
+      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) { announceInboxArrival(effectiveHandle); }
     };
     navigator.serviceWorker?.addEventListener("message", onPush);
     // A completed thread read supersedes an older unread-count request.
@@ -188,7 +188,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       ) : null}
       <NavPendingIndicator />
     </Link>
-    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} onDismiss={dismissArrival} /> : null}
+    {arrival?.userId === user.id && pathname !== `/messages/${arrival.conversation.id}` ? <MessageArrivalNotice key={`${arrival.conversation.id}:${arrival.conversation.lastAt}`} conversation={arrival.conversation} inbox={pathname === "/messages"} onDismiss={dismissArrival} /> : null}
     </>
   );
 }

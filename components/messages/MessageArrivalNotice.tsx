@@ -9,7 +9,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import "./messageArrivalNotice.css";
 
-export default function MessageArrivalNotice({ conversation, onDismiss }: { conversation: ConversationDTO; onDismiss: () => void }): React.JSX.Element | null {
+export default function MessageArrivalNotice({ conversation, onDismiss, inbox = false }: { conversation: ConversationDTO; onDismiss: () => void; inbox?: boolean }): React.JSX.Element | null {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [allowed, setAllowed] = useState(false);
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function MessageArrivalNotice({ conversation, onDismiss }: { conv
     return () => clearTimeout(timeout);
   }, [allowed, interacting, onDismiss]);
   if (!host) return null;
-  return createPortal(<div className={allowed ? "messageArrival" : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
+  return createPortal(<div className={allowed ? `messageArrival${inbox ? " messageArrival--inbox" : ""}` : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
     {allowed ? <>
     <Link href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>Open your conversation</span></Link>
     <button type="button" aria-label="Dismiss message notification" onClick={onDismiss}><X size={18} aria-hidden="true" /></button>

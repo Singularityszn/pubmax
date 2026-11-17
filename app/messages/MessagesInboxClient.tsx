@@ -17,6 +17,7 @@ import Screen from "@/components/ui/screen";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import { IconButton } from "@/components/ui/icon-button";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
@@ -284,7 +285,7 @@ export default function MessagesInboxClient({
     if (paneHidden) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => refresh(controller.signal));
-    const onFocus = () => void refresh();
+    const onFocus = () => { invalidateMessagesInbox(undefined, false); void refresh(); };
     window.addEventListener("focus", onFocus);
     return () => {
       controller.abort();
@@ -353,9 +354,9 @@ export default function MessagesInboxClient({
         ) : (
           <div className="messagesInboxActions">
             <MessageNotificationSettings compact />
-            <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
-              <SquarePen size={24} aria-hidden="true" />
-            </button>
+            <IconButton variant="ghost" className="pressable" type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
+              <SquarePen size={20} aria-hidden="true" />
+            </IconButton>
           </div>
         )
       }

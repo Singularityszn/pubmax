@@ -84,7 +84,7 @@ export function readMessagesInbox(userId: string, handle: string, signal?: Abort
       throw new DOMException("The inbox account changed.", "AbortError");
     }
     entry.settled = true;
-    if (!response.ok) onDeparture();
+    if (!response.ok || result.degraded) onDeparture();
     else expiry = setTimeout(onDeparture, 250);
     return result;
   }).catch((error: unknown) => {

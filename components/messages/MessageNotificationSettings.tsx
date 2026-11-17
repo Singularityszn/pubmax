@@ -5,6 +5,7 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
+import { IconButton } from "@/components/ui/icon-button";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { currentMessagePushToken, messagePushFingerprint, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
 import { isNativeApp } from "@/lib/nativePlatform";
@@ -15,6 +16,16 @@ import "./messageNotificationSettings.css";
 type Settings = { enabled: boolean; preview: boolean; muted: boolean; registered?: boolean };
 type Props = { conversationId?: string; compact?: boolean };
 
+async function readSettings(conversationId: string | undefined, signal: AbortSignal): Promise<Settings> {
+  const token = await currentMessagePushToken().catch(() => null);
+  const fingerprint = token ? await messagePushFingerprint(token).catch(() => null) : null;
+  const response = await authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}&settingsOnly=1` : ""}`, {
+    signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
+  }, { requiresIdentity: true });
+  if (!response.ok) throw new Error("Could not read message alerts.");
+  return response.json() as Promise<Settings>;
+}
+
 export default function MessageNotificationSettings({ conversationId, compact }: Props): React.JSX.Element | null {
   const { user } = useAuth();
   return user ? <AccountMessageNotificationSettings key={`${user.id}:${conversationId ?? "inbox"}`} userId={user.id} conversationId={conversationId} compact={compact} /> : null;
@@ -23,7 +34,8 @@ export default function MessageNotificationSettings({ conversationId, compact }:
 function AccountMessageNotificationSettings({ userId, conversationId, compact }: Props & { userId: string }): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState<Settings | null>(null);
-  const [pending, setPending] = useState(false);
+  const [saving, setSaving] = useState<"enabled" | "preview" | "muted" | null>(null);
+  const pending = saving !== null;
   const [error, setError] = useState("");
   const [retry, setRetry] = useState(0);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -37,7 +49,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
 
   useEffect(() => {
     if (!open) return;
-    const outside = (event: PointerEvent) => { if (event.target instanceof Node && !rootRef.current?.contains(event.target)) dismiss(); };
+    const outside = (event: PointerEvent) => { if (event.target instanceof Node && !rootRef.current?.contains(event.target)) setOpen(false); };
     document.addEventListener("pointerdown", outside);
     return () => document.removeEventListener("pointerdown", outside);
   }, [open, dismiss]);
@@ -46,14 +58,9 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
     if (!open && (!conversationId || loadedRef.current)) return;
     const controller = new AbortController();
     controllerRef.current = controller;
-    void currentMessagePushToken().then((token) => token ? messagePushFingerprint(token) : null).catch(() => null).then((fingerprint) => authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : ""}`, {
-      signal: controller.signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
-    }, { requiresIdentity: true }))
-      .then(async (response) => {
-        if (!response.ok) throw new Error();
-        const body = await response.json() as Settings;
-        if (!controller.signal.aborted) { loadedRef.current = true; setSettings(body); setError(""); }
-      }).catch(() => { if (!controller.signal.aborted) setError("Could not load message alerts. Try again."); });
+    void readSettings(conversationId, controller.signal).then((body) => {
+      if (!controller.signal.aborted) { loadedRef.current = true; setSettings(body); setError(""); }
+    }).catch(() => { if (!controller.signal.aborted) setError("Could not load message alerts. Try again."); });
     return () => controller.abort();
   }, [open, userId, conversationId, retry]);
 
@@ -64,7 +71,7 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
     controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
-    setPending(true);
+    setSaving(kind);
     setError("");
     let next = { ...settings, [kind]: kind === "enabled" ? enabled ?? !(settings.enabled && settings.registered) : !settings[kind] };
     setSettings(next);
@@ -81,13 +88,29 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
         ? { action: "mute", conversationId, muted: next.muted }
         : { action: "preferences", enabled: next.enabled, preview: next.preview }, controller.signal);
       if (!controller.signal.aborted) setSettings(next);
-    } catch {
-      if (!controller.signal.aborted) {
+    } catch (error) {
+      if (!controller.signal.aborted && typeof error === "object" && error !== null && "name" in error && error.name === "TimeoutError") {
+        const confirmation = new AbortController();
+        controllerRef.current = confirmation;
+        const deadline = setTimeout(() => confirmation.abort(new DOMException("The read timed out.", "TimeoutError")), 3_000);
+        try {
+          const confirmed = await readSettings(conversationId, confirmation.signal);
+          if (!confirmation.signal.aborted) setSettings(confirmed);
+        } catch {
+          if (!confirmation.signal.aborted || confirmation.signal.reason?.name === "TimeoutError") setSettings(null);
+        } finally {
+          clearTimeout(deadline);
+          if (!confirmation.signal.aborted || confirmation.signal.reason?.name === "TimeoutError") {
+            setError("Could not confirm your change. Check the setting and try again.");
+            setSaving(null);
+          }
+        }
+      } else if (!controller.signal.aborted) {
         setSettings(settings);
         setError(webPushSupport() === "blocked" ? "Allow notifications in this browser’s site settings to enable alerts." : "Could not save message alerts. Try again.");
       }
     } finally {
-      if (!controller.signal.aborted) setPending(false);
+      if (controllerRef.current === controller && !controller.signal.aborted) setSaving(null);
     }
   }
 
@@ -95,16 +118,16 @@ function AccountMessageNotificationSettings({ userId, conversationId, compact }:
   const onThisDevice = settings?.enabled && settings.registered;
   return (
     <div ref={rootRef} className={`messageAlerts${compact ? " messageAlerts--compact" : ""}`}>
-      <button ref={toggleRef} className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? "Chat notifications" : "Message notifications"} aria-description={settings?.muted ? "This chat is muted." : undefined} aria-controls={panelId} aria-expanded={open} aria-busy={pending} aria-disabled={pending && !open} onClick={() => { if (!pending || open) setOpen(!open); }}>
-        {settings?.muted ? <BellOff size={18} aria-hidden="true" /> : <Bell size={18} aria-hidden="true" />}
+      <IconButton variant="ghost" ref={toggleRef} className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? `Chat notifications${settings?.muted ? ", muted" : ""}` : "Message notifications"} aria-description={settings?.muted ? "This chat is muted." : undefined} aria-controls={panelId} aria-expanded={open} aria-busy={pending} aria-disabled={pending && !open} onClick={() => { if (!pending || open) setOpen(!open); }}>
+        {settings?.muted ? <BellOff size={20} aria-hidden="true" /> : <Bell size={20} aria-hidden="true" />}
         {!conversationId && !compact ? "Message notifications" : null}
-      </button>
+      </IconButton>
       {open ? <div id={panelId} className="messageAlertsPanel" role="region" aria-label="Message alerts" aria-busy={pending || (!settings && !error)}>
         <p>Message alerts</p>
         {settings ? <>
           {conversationId ? <Button variant="secondary" className="pressable" aria-disabled={pending} onClick={() => void change("muted")}>{settings.muted ? "Unmute this chat" : "Mute this chat"}</Button> : <>
             {native ? <p className="messageAlertsHint">Message alerts outside the app aren’t available yet. Unread badges and chat mutes still work.</p> : <>
-              <Button className="pressable" disabled={!onThisDevice && support !== "supported"} aria-disabled={pending} onClick={() => void change("enabled")}>{pending ? "Saving…" : onThisDevice ? "Turn off alerts on all devices" : settings.enabled ? "Turn on alerts on this device" : "Turn on message alerts"}</Button>
+              <Button className="pressable" disabled={!onThisDevice && support !== "supported"} aria-disabled={pending} onClick={() => void change("enabled")}>{saving === "enabled" ? "Saving…" : onThisDevice ? "Turn off alerts on all devices" : settings.enabled ? "Turn on alerts on this device" : "Turn on message alerts"}</Button>
               <label><input type="checkbox" checked={settings.preview} aria-disabled={pending} onClick={(event) => { if (pending) event.preventDefault(); }} onChange={() => void change("preview")} /> Show the sender and a short preview while PubMaxxing is open in the background</label>
               <p className="messageAlertsHint">Closed-app alerts never show message text. Muted chats stay quiet.</p>
               {settings.preview ? <p className="messageAlertsHint">A preview can stay in a notification after a message is unsent.</p> : null}

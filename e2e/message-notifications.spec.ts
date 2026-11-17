@@ -40,7 +40,7 @@ async function pushRuntime(page: Page): Promise<void> {
   });
 }
 
-test("a recipient can choose message alerts without enabling public broadcasts", async ({ page }, testInfo) => {
+test("a recipient can choose message alerts without enabling public broadcasts", async ({ page, browserName }, testInfo) => {
   await storeThemeChoice(page, "light");
   await page.emulateMedia({ reducedMotion: "reduce" });
   const auth = await installAuthDoubles(page);
@@ -116,7 +116,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await expect(preview).toBeFocused();
   await preview.press("Space");
   await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "true");
-  await expect(page.getByText("Could not save message alerts. Try again.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Could not confirm your change. Check the setting and try again.", { exact: true })).toBeVisible();
   await expect(preview).toBeChecked();
   await expect(preview).toBeFocused();
   await page.screenshot({ path: testInfo.outputPath("stalled-save-recovered.png"), scale: "css" });
@@ -125,7 +125,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");
   const disable = page.getByRole("button", { name: "Turn off alerts on all devices", exact: true });
   await disable.focus();
-  await disable.press("Tab");
+  await disable.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
   await expect(preview).toBeFocused();
   await disable.click();
   await expect.poll(() => preferences.enabled).toBe(false);
@@ -139,8 +139,13 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
   let unread = 1;
   let body = "See you at seven";
   let stamp = "2026-11-16T21:00:00Z";
+  let inboxReads = 0;
+  const pendingInbox = new Set<unknown>();
+  page.on("request", (request) => { if (request.url().includes("/api/messages?")) pendingInbox.add(request); });
+  page.on("requestfinished", (request) => pendingInbox.delete(request));
+  page.on("requestfailed", (request) => pendingInbox.delete(request));
   const rows = () => [{ id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: body, lastAt: stamp, lastFromMe: false, unread }];
-  await page.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: rows() } }));
+  await page.route("**/api/messages?**", (route) => { inboxReads++; return route.fulfill({ json: { conversations: rows() } }); });
   await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
   await page.route(`**/api/messages/${THREAD}**`, (route) => route.fulfill({ json: { messages: [{ id: "m1", conversationId: THREAD, senderHandle: ACCOUNTS.A.handle, body, createdAt: "2026-11-16T22:00:00Z", read: true, flagged: false }] } }));
   const senderContext = await browser.newContext({ baseURL });
@@ -168,8 +173,13 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
     await expect(sender.locator(".threadMessages").getByText("The Lamb works for me", { exact: true })).toBeVisible();
     await sender.screenshot({ path: testInfo.outputPath("sender-sent.png"), fullPage: true });
     await page.bringToFront();
+    await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+    await expect.poll(() => pendingInbox.size).toBe(0);
+    const readsBeforeArrival = inboxReads;
     await page.evaluate((id) => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
     await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeVisible();
+    await expect(page.locator(`a.conversationLink[href="/messages/${THREAD}"] .conversationUnread`)).toHaveAttribute("aria-label", "2 unread");
+    expect(inboxReads).toBe(readsBeforeArrival + 1);
     await expect(page.locator(".messageArrival")).toBeVisible();
     await page.locator(".messageArrival a").focus();
     for (const width of [390, 768, 1440]) {
@@ -180,6 +190,9 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
         return navBox && toastBox ? toastBox.y - navBox.y - navBox.height : -Infinity;
       }).toBeGreaterThanOrEqual(0);
       await expect(page.getByRole("button", { name: "Dismiss message notification", exact: true })).toBeInViewport({ ratio: 1 });
+      const compose = await page.getByRole("button", { name: "New message", exact: true }).boundingBox();
+      const notice = await page.locator(".messageArrival").boundingBox();
+      expect(notice!.y).toBeGreaterThanOrEqual(compose!.y + compose!.height + 12);
       await page.screenshot({ path: testInfo.outputPath(`recipient-arrival-${width}.png`), scale: "css" });
     }
     await page.screenshot({ path: testInfo.outputPath("recipient-arrival.png"), fullPage: true });

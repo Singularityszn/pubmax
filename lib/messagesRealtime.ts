@@ -319,6 +319,12 @@ type InboxListener = { signal: LiveSignal; options?: MessagesSubscribeOptions };
 type SharedInbox = { listeners: Set<InboxListener>; stop: Unsubscribe; status: MessagesLiveStatus | null };
 const inboxSubscriptions = new Map<string, SharedInbox>();
 
+export function announceInboxArrival(handle: string): void {
+  invalidateMessagesInbox(handle);
+  const entry = inboxSubscriptions.get(messagesInboxTopic(handle));
+  if (entry) for (const reader of [...entry.listeners]) reader.signal();
+}
+
 /** One SDK channel per topic, retained until its last reader leaves. */
 export function subscribeToInbox(
   handle: string,
@@ -337,8 +343,7 @@ export function subscribeToInbox(
     shared = entry;
     inboxSubscriptions.set(topic, entry);
     entry.stop = subscribeBroadcast(topic, ["message"], () => {
-      invalidateMessagesInbox(handle);
-      for (const reader of [...entry.listeners]) reader.signal();
+      announceInboxArrival(handle);
     }, INBOX_CADENCE, {
       poll: () => { invalidateMessagesInbox(handle, false); for (const reader of [...entry.listeners]) reader.options?.poll?.(); },
       onStatus: (status) => {

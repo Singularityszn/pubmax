@@ -104,6 +104,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
   return {
     ...actual,
     authedActionFetch: (input: string, init: RequestInit, options: import("@/lib/authedFetch").AuthActionOptions) => {
+      if (String(input).startsWith("/api/message-notifications")) return Promise.resolve(Response.json({ enabled: false, preview: false, muted: false, registered: false }));
       const method = init?.method ?? "GET";
       if (method === "POST" && fetchLog.useRealWrites) return actual.authedActionFetch(input, init, options);
       fetchLog.calls.push({

@@ -7,3 +7,5 @@
 .messageArrival button:active:not(:focus-visible) { transform: scale(.97); }
 @media (prefers-reduced-transparency: reduce) { .messageArrival { background: var(--paper); backdrop-filter: none; } }
 @media (prefers-reduced-motion: reduce) { .messageArrival { transition: opacity 180ms ease-out; transform: none; } .messageArrival a, .messageArrival button { transition: opacity 160ms ease-out; } .messageArrival a:active:not(:focus-visible), .messageArrival button:active:not(:focus-visible) { transform: none; opacity: .7; } @starting-style { .messageArrival { transform: none; } } }
+
+.messageArrival--inbox { top: auto; bottom: calc(var(--chrome-bottom-clearance, 0px) + 16px); }
