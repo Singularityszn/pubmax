@@ -488,6 +488,11 @@ describe.skipIf(skipReason !== null)("after 0243: races", () => {
   });
 });
 
+/** The three references into member and seat rows, as PostgreSQL prints them. */
+const memberReferences = () => db().sql(`select pg_get_constraintdef(oid) from pg_constraint
+  where conname in ('social_crew_members_plan_member_id_fkey','social_crew_invitations_invited_by_member_id_fkey',
+    'social_crew_join_requests_decided_by_member_id_fkey') order by 1`);
+
 describe.skipIf(skipReason !== null)("rollback and reapply", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
@@ -507,8 +512,18 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
     expect(remove(host, crew, xav)).toMatchObject({ ok: true, code: "removed" });
     admit(host, crew, xav);
     expect(call(suspendCall(xav))).toMatchObject({ ok: true, code: "suspended" });
+    expect(memberReferences()).toBe([
+      "FOREIGN KEY (decided_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (invited_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (plan_member_id) REFERENCES plan_crew_members(id) ON DELETE RESTRICT",
+    ].join("\n"));
 
     stageTo("after");
+    expect(memberReferences()).toBe([
+      "FOREIGN KEY (decided_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (invited_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (plan_member_id) REFERENCES plan_crew_members(id) DEFERRABLE INITIALLY DEFERRED",
+    ].join("\n"));
     const bea = person();
     const again = crewWith(host, [ana]);
     block(bea, ana);
