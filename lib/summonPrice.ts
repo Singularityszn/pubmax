@@ -9,7 +9,7 @@
 import { isComparablePintServing } from "@/lib/comparablePint.mjs";
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { statedDrinkMeasure, type DrinkMeasure } from "@/lib/drinkMeasure";
-import { measureNamedInDrinkText } from "@/lib/drinkMeasureText.mjs";
+import { measureNamedInDrinkText, NON_PINT_MEASURE_PATTERNS } from "@/lib/drinkMeasureText.mjs";
 import { formatGbp } from "@/lib/formatGbp";
 import { legacyPintPriceObservedAt, namedLegacyPintPriceSource } from "@/lib/legacyPriceEvidence.mjs";
 import { isLivePriceRow } from "@/lib/priceRowEligibility.mjs";
@@ -97,6 +97,20 @@ const DRINK_CAN = /\b(?:cans?|canned)\b/i;
 const LISTING_CAN = /\b(?:canned|cans)\b|\b(?:\d+(?:\.\d+)?\s*(?:ml|cl|l)|per|a)\s+can\b/i;
 const BOTTLE = /\b(?:bottles?|bottled)\b/i;
 const VOLUME = /\b(\d+(?:\.\d+)?)\s*(ml|cl|litres?|l)\b/gi;
+const LISTING_MEASURES = [
+  ...NON_PINT_MEASURE_PATTERNS,
+  { word: "schooners", measure: "other" },
+  { word: "halfpint", measure: "half" },
+  { word: "halfpints", measure: "half" },
+  { word: "single", measure: "single" },
+  { word: "singles", measure: "single" },
+  { word: "double", measure: "double" },
+  { word: "doubles", measure: "double" },
+].map(({ word, measure }) => {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const boundary = `\\p{L}\\p{N}\\p{M}_${word.includes("/") ? "/" : ""}`;
+  return { measure, pattern: new RegExp(`(^|[^${boundary}])${escaped}(?=$|[^${boundary}])`, "iu") };
+});
 
 function millilitres(amount: string, unit: string): number {
   const lower = unit.toLowerCase();
@@ -119,10 +133,10 @@ function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">,
   }
   if ((kind === "drink" ? DRINK_CAN : LISTING_CAN).test(text)) return true;
   if (measure !== "bottle" && BOTTLE.test(text)) return true;
-  // Ambiguous half wording in a listing omits the price. Its named drink is not a condition.
-  if (kind === "listing" && measure !== "half") {
+  // A listing's serving words apply even before conditions. Its complete drink name is excluded.
+  if (kind === "listing") {
     const servingText = drinkName ? withoutDrinkName(text, drinkName) : text;
-    if (/\bhal(?:f|ves)\b/i.test(servingText)) return true;
+    if (LISTING_MEASURES.some((entry) => entry.measure !== measure && entry.pattern.test(servingText))) return true;
   }
   const expectedMl =
     measure === "pint" ? 568 : measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
