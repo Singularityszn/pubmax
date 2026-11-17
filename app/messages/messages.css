@@ -476,15 +476,8 @@ a.threadWith:active {
   gap: 2px;
 }
 
-/* A SHORT THREAD HUGS THE COMPOSER. The list is the thread's tall flex child,
-   and its rows used to sit at the TOP of it, so a one-message thread on a
-   phone laid its bubble under the head and 600px of nothing over the
-   composer; with the analytics consent card mounted (every new account) the
-   body reserves the card's lane, the page gains that much scroll, opening
-   scrolls to the foot, and the bubble left the screen entirely (bubble y -26
-   to 34 at 390, verify-preview-4 RED 1). An auto top margin on the first row
-   pushes the rows to the foot while the list still scrolls when it overflows,
-   which `justify-content: flex-end` on a scroller does not. */
+/* The auto margin keeps short threads above the composer without making
+   overflowing rows unreachable, as justify-content: flex-end can. */
 .threadMessages > :first-child {
   margin-top: auto;
 }
