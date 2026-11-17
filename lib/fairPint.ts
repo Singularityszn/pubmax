@@ -11,7 +11,7 @@ export const FAIR_PINT_INTENT_PARAMS = [
 ];
 export const fairPintSearchSuppresses = (search: string) => searchHasArrivalParam(search, FAIR_PINT_INTENT_PARAMS);
 
-export type FairPintEvidence = readonly [unknown, unknown, unknown];
+type FairPintEvidence = readonly [unknown, unknown, unknown];
 export type FairPintPin = { fairPint?: FairPintEvidence };
 export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
