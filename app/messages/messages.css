@@ -910,31 +910,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   border-top: 0;
 }
 
-.messageThreadShell .composerDock:has(.composerPickerRegion) {
-  min-height: 0;
-  flex-shrink: 1;
-}
-
-.composerDock:has(.composerPickerRegion) > :not(.composerPickerRegion) {
-  flex-shrink: 0;
-}
-
-.messageThreadShell:has(.composerPickerRegion) .threadMessages {
-  flex-basis: 0;
-  padding-block: 0;
-}
-
-.messageThreadShell:has(.composerPickerRegion) .threadMessages::before,
-.messageThreadShell:has(.composerPickerRegion) .threadMessages::after {
-  content: "";
-  flex: 0 0 0.75rem;
-}
-
-.messageThreadShell:has(.composerPickerRegion) .threadMessages::after {
-  flex-basis: 0.5rem;
-}
-
 .composerPickerRegion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
   min-height: 0;
   padding-bottom: 1px;
   overflow-y: auto;
@@ -949,6 +928,7 @@ html[data-theme="dark"] .messageBubblePhoto {
    grows, and everything else sits on the field's bottom line so a three-line
    message keeps the buttons where a thumb left them. */
 .composer {
+  min-height: calc(44px + 0.4rem + 2px);
   display: flex;
   align-items: flex-end;
   gap: 0.25rem;
@@ -966,6 +946,8 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .composerField {
   flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
@@ -974,6 +956,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .composerInput {
+  flex: 1 1 auto;
   width: 100%;
   /* The height is set by the field's own content (see MessageThread), so a
      drag handle would fight it. */
@@ -1165,6 +1148,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* The counter appears only inside the last hundred characters. */
 .composerCount {
+  flex-shrink: 0;
   align-self: flex-end;
   padding-right: 0.5rem;
   font-size: var(--text-xs);
@@ -2136,6 +2120,26 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 
+.messageThreadShell .composerDock {
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+.messageThreadShell .threadMessages {
+  flex-basis: 0;
+  padding-block: 0;
+}
+
+.messageThreadShell .threadMessages::before,
+.messageThreadShell .threadMessages::after {
+  content: "";
+  flex: 0 0 0.75rem;
+}
+
+.messageThreadShell .threadMessages::after {
+  flex-basis: 0.5rem;
+}
+
 @media (max-width: 1023px) {
   .messageThreadShell[data-keyboard-open],
   .messageThreadShell[data-viewport-reduced] {
@@ -2208,7 +2212,6 @@ html[data-theme="dark"] .messageBubblePhoto {
 
   .messageThreadShell .composerDock {
     position: static;
-    flex-shrink: 0;
     margin: 0;
     padding-bottom: 0.5rem;
     padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));

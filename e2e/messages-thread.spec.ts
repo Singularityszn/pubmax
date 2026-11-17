@@ -818,6 +818,84 @@ test.describe("the message thread at 320", () => {
   });
 });
 
+for (const reducedMotion of ["no-preference", "reduce"] as const) {
+  for (const width of [844, 1180]) {
+    test(`thread keyboard geometry bounds tall drafts and attachment errors at ${width} with ${reducedMotion}`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.setViewportSize({ width, height: 390 });
+      await storeThemeChoice(page, "dark");
+      await page.addInitScript(() => {
+        window.localStorage.setItem("pubmax-tour-v1-done", "1");
+        window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+        Object.defineProperties(window.visualViewport!, {
+          height: { configurable: true, writable: true, value: 390 },
+          offsetTop: { configurable: true, writable: true, value: 0 },
+        });
+      });
+      await page.route("**/today", (route) => route.fulfill({ contentType: "text/html", body: "<html></html>" }));
+      await installThread(page, fixture());
+      await page.unroute("**/today");
+      await page.goto("/messages/c1");
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      const send = page.getByRole("button", { name: "Send", exact: true });
+      await field.fill(Array.from({ length: 8 }, () => "One more line").join("\n"));
+      await page.evaluate((width) => {
+        Object.assign(window.visualViewport!, { height: 200, offsetTop: width >= 1024 ? 200 : 0 });
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+      }, width);
+      const visibleFoot = width >= 1024 ? 400 : 200;
+      const expectReachable = async () => {
+        await expect(async () => {
+          const header = await box(page, ".threadHeader");
+          const dock = await box(page, ".composerDock");
+          const input = await field.boundingBox();
+          const button = await send.boundingBox();
+          expect(dock.top).toBeGreaterThanOrEqual(header.bottom);
+          expect(dock.bottom).toBeLessThanOrEqual(visibleFoot);
+          expect(Math.abs(dock.bottom - visibleFoot)).toBeLessThanOrEqual(1);
+          expect(input!.y).toBeGreaterThanOrEqual(header.bottom);
+          expect(input!.height).toBeGreaterThanOrEqual(44);
+          expect(input!.y + input!.height).toBeLessThanOrEqual(visibleFoot);
+          expect(button!.height).toBeGreaterThanOrEqual(44);
+          expect(button!.y + button!.height).toBeLessThanOrEqual(visibleFoot);
+        }).toPass();
+        for (const target of [field, send]) {
+          expect(await target.evaluate((element) => {
+            const rect = element.getBoundingClientRect();
+            return [rect.top + 1, rect.bottom - 1].every((y) =>
+              element.contains(document.elementFromPoint(rect.left + rect.width / 2, y)),
+            );
+          })).toBe(true);
+        }
+        expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      };
+      await expectReachable();
+      expect(await field.evaluate((element: HTMLTextAreaElement) => element.scrollHeight > element.clientHeight)).toBe(true);
+      await page.screenshot({ path: testInfo.outputPath("tall-draft.png"), scale: "css" });
+      await field.fill("Short");
+      await expectReachable();
+      await page.getByRole("button", { name: "More to attach", exact: true }).click();
+      await page.getByRole("button", { name: "Start a poll", exact: true }).click();
+      const poll = page.getByRole("group", { name: "Start a poll", exact: true });
+      await poll.getByRole("textbox", { name: "Question", exact: true }).fill("Where tonight?");
+      await poll.getByRole("textbox", { name: "Option 1", exact: true }).fill("The Lamb");
+      await poll.getByRole("textbox", { name: "Option 2", exact: true }).fill("The Crown");
+      await poll.getByRole("button", { name: "Attach poll", exact: true }).click();
+      await field.fill(Array.from({ length: 8 }, () => "One more line").join("\n"));
+      await expectReachable();
+      await page.route("**/api/messages/c1", (route) => route.fulfill({ status: 503, json: { error: "Try again later" } }));
+      await send.click();
+      await expect(page.locator(".composerDock").getByRole("alert")).toBeVisible();
+      await expectReachable();
+      await page.screenshot({ path: testInfo.outputPath("pending-and-error.png"), scale: "css" });
+      await field.fill("x".repeat(910) + "\n".repeat(8));
+      await expectReachable();
+      const counter = await box(page, ".composerCount");
+      expect(counter.bottom).toBeLessThanOrEqual(visibleFoot);
+    });
+  }
+}
+
 test.describe("the inbox on a phone", () => {
   test("filters conversations and starts a pub plan without sending it", async ({ page }, testInfo) => {
     await page.setViewportSize(PHONE);

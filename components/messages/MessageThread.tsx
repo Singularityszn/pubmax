@@ -1084,12 +1084,13 @@ export default function MessageThread({
     return (
       <div className="composerDock">
         <MessagePhotoRecoveryNotice activeConversationId={conversationId} />
+        {visibleError || preparationProgress || picking || pending ? <div className="composerPickerRegion">
         {visibleError ? <div className="threadError" role="alert">{visibleError}
           {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
         </div> : null}
         {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
 
-        {picking ? <div className="composerPickerRegion">{renderPicker()}</div> : null}
+        {picking ? renderPicker() : null}
 
         {pending ? (
           <div className="composerPending">
@@ -1107,6 +1108,8 @@ export default function MessageThread({
             </button>
           </div>
         ) : null}
+
+        </div> : null}
 
         <div className="composer">
           <div className="composerControls">
