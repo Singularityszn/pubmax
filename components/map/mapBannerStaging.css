@@ -9,8 +9,8 @@
    lib/promptBudget.ts. Keying CSS staging on element presence avoids lifting
    each banner's private data eligibility.
 
-   Desktop only (min-width:641px), matching where these banners mount, so the
-   mobile map shell and its own Tonight pill are never affected.
+   The ambient banner cascade starts at min-width:641px, matching where these
+   banners mount. Panel and walk exceptions follow below.
 
    Policy:
    1. Location owns first paint while available, so onboarding eligibility
