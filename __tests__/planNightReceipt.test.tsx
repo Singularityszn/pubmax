@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -22,14 +22,15 @@ vi.mock("@/components/auth/AuthProvider", () => ({
       : null,
     identityResolved: auth.identityResolved,
     loading: false,
+    getCurrentUserId: () => auth.account?.id ?? null,
   }),
 }));
-vi.mock("@/lib/planSessionCapability", () => ({
-  parsePlanCapabilitySnapshot: () => ({ token: "", collaborationAuthorized: true, role: planSession.role }),
-  planCapabilityEvent: (id: string) => `pubmax:plan-capability:${id}`,
+vi.mock("@/lib/planSessionCapability", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/planSessionCapability")>()),
   readPlanCapabilitySnapshot: () => (planSession.role ? `|1|${planSession.role}` : "|0|"),
 }));
 
+import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import PlanNightReceipt from "@/components/plan/PlanNightReceipt";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -58,6 +59,7 @@ type Answer = (call: Call) => Promise<Response>;
 
 let calls: Call[];
 let receiptAnswer: Answer;
+let claimAnswer: Answer;
 let root: Root;
 let container: HTMLDivElement;
 let bodyRead: Promise<unknown>;
@@ -98,6 +100,7 @@ beforeEach(() => {
   calls = [];
   bodyRead = Promise.resolve();
   receiptAnswer = ownerOnly;
+  claimAnswer = async () => refused();
   planSession.role = "host";
   auth.account = ACCOUNT_A;
   auth.identityResolved = true;
@@ -107,6 +110,7 @@ beforeEach(() => {
     calls.push(call);
     if (url === `/api/plans/${PLAN_ID}`) return Promise.resolve(json(COMPLETED_PLAN));
     if (url === `/api/plans/${PLAN_ID}?view=receipt`) return receiptAnswer(call);
+    if (url === `/api/plans/${PLAN_ID}/session`) return claimAnswer(call);
     return Promise.resolve(json({}, 404));
   }));
   container = document.createElement("div");
@@ -121,6 +125,41 @@ afterEach(async () => {
 });
 
 describe("the private Night Receipt on the Plan page", () => {
+  it("reads again when the first host account claim finishes after an initial refusal", async () => {
+    let finishClaim!: (response: Response) => void;
+    let bound = false;
+    claimAnswer = () => new Promise<Response>((resolve) => { finishClaim = resolve; });
+    receiptAnswer = async () => bound ? json({ receipt: RECEIPT }) : refused();
+    await act(async () => {
+      root.render(createElement(Fragment, null,
+        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+      ));
+    });
+    await settle();
+    expect(receiptOnScreen()).toBeNull();
+    expect(receiptReads()).toHaveLength(1);
+
+    bound = true;
+    await act(async () => { finishClaim(json({ ok: true })); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+    expect(receiptReads()).toHaveLength(2);
+  });
+
+  it("does not repeat a refused receipt read after a failed account claim", async () => {
+    receiptAnswer = async () => refused();
+    await act(async () => {
+      root.render(createElement(Fragment, null,
+        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+      ));
+    });
+    await settle();
+    expect(receiptOnScreen()).toBeNull();
+    expect(receiptReads()).toHaveLength(1);
+  });
+
   it("shows the bound host account its receipt from the account-bound read", async () => {
     await show();
 
