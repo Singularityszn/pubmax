@@ -1580,6 +1580,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 @media (max-width: 640px) {
   .messageThreadShell {
     --thread-tabbar-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
+
   }
 
   .composerPhotoDesktop {

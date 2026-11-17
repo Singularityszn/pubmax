@@ -1169,8 +1169,10 @@ function SocialPageAccountState({
               aria-busy={feedStatus === "loading" || loadingMore || refreshing}
             >
               {feedHeading}
-              {loadedPages > 0 ? <div className="socialFeedControls"><Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button></div> : null}
-              {newPostsWaiting ? <p className="socialFeedNewPosts" role="status">New posts are waiting. Refresh to see them.</p> : null}
+              {loadedPages > 0 ? <div className="socialFeedControls">
+                {newPostsWaiting ? <p className="socialFeedNewPosts" role="status">New posts are waiting. Refresh to see them.</p> : null}
+                <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button>
+              </div> : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1181,12 +1183,14 @@ function SocialPageAccountState({
                   ? `Loading ${surfaceName} posts…`
                   : loadingMore
                     ? `Loading more ${surfaceName} posts…`
-                    : feedStatus === "error"
-                      ? `${surfaceName} posts are unavailable right now.`
-                      : `${posts.length} ${surfaceName} posts loaded.`}
+                    : quietFeedFailure || (feedStatus === "error" && posts.length > 0)
+                      ? ""
+                      : feedStatus === "error"
+                        ? `${surfaceName} posts are unavailable right now.`
+                        : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
               {quietFeedFailure || (feedStatus === "error" && posts.length > 0) ? (
-                <p className="socialFeedInlineError" role={quietFeedFailure ? "status" : "alert"}>
+                <p className="socialFeedInlineError" role="status">
                   Couldn&rsquo;t refresh these posts. They show what loaded last.
                   <Button type="button" variant="secondary" onClick={requestExplicitFeedRefresh}>Retry</Button>
                 </p>

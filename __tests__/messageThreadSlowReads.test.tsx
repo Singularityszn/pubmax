@@ -612,6 +612,28 @@ it("coalesces repeated manual recovery while its read is pending", async () => {
   expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.disabled).toBe(false);
 });
 
+it.each(["conversation", "reader"])("does not let the previous %s retry unlock a new pending retry", async change => {
+  await render();
+  await answer(thread("Previous history"));
+  await poll();
+  await answer(outage());
+  await click(".threadReadRecovery button");
+  const conversation = change === "conversation" ? "conversation-b" : "conversation-a";
+  if (change === "reader") viewer.current = { user: { id: "account-b" }, handle: "bridget", accountRevision: 2 };
+  await render(conversation);
+  await answerLatest(thread("Current history", conversation));
+  await poll();
+  await answerLatest(outage());
+  await click(".threadReadRecovery button");
+  expect(transport.reads).toHaveLength(2);
+  await answer(thread("Obsolete response"));
+  expect(host.querySelector<HTMLButtonElement>(".threadReadRecovery button")!.disabled).toBe(true);
+  expect(host.textContent).not.toContain("Obsolete response");
+  await answer(thread("Current recovery", conversation));
+  expect(host.querySelector(".threadReadRecovery")).toBeNull();
+  expect(host.textContent).toContain("Current recovery");
+});
+
 it("lands an intentional send at the newest position after reading older history", async () => {
   await render();
   await answer(thread("Earlier history"));

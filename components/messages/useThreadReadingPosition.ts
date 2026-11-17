@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
 type ReadingPosition = { scope: string | null; newest: boolean; outbox: Set<string> };
 
 export function useThreadReadingPosition({
-  listRef, scope, ready, current, history, outbox, keyboardOpen,
+  listRef, scope, ready, current, history, outbox, keyboardOpen, recovery,
 }: {
   listRef: RefObject<HTMLUListElement | null>;
   scope: string | null;
@@ -14,6 +14,7 @@ export function useThreadReadingPosition({
   history: readonly unknown[];
   outbox: readonly { id: string }[];
   keyboardOpen: boolean;
+  recovery: boolean;
 }) {
   const enabled = ready && current;
   const position = useRef<ReadingPosition | null>(null);
@@ -40,7 +41,7 @@ export function useThreadReadingPosition({
       outbox: new Set(outbox.map(row => row.id)),
     };
     scrollToNewest();
-  }, [enabled, scope, history, outbox, keyboardOpen, listRef, scrollToNewest]);
+  }, [enabled, scope, history, outbox, keyboardOpen, recovery, listRef, scrollToNewest]);
 
   useEffect(() => {
     const list = listRef.current;

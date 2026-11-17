@@ -39,6 +39,7 @@ import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import { useThreadViewportFit } from "@/components/messages/useThreadViewportFit";
 import { useThreadReadingPosition } from "@/components/messages/useThreadReadingPosition";
+import { useThreadReadRetry } from "@/components/messages/useThreadReadRetry";
 import MessageVenuePicker from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
@@ -191,11 +192,13 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
   );
 }
 
-function ThreadReadRecovery({ visible, onRetry }: { visible: boolean; onRetry: () => void }) {
+function ThreadReadRecovery({ visible, pending, onRetry }: { visible: boolean; pending: boolean; onRetry: () => void }) {
   if (!visible) return null;
   return <p className="inboxStaleNotice threadReadRecovery" role="status">
     Couldn&rsquo;t refresh these messages. They show what loaded last.
-    <button type="button" className="threadRetryBtn" onClick={onRetry}>Try again</button>
+    <button type="button" className="threadRetryBtn" disabled={pending} aria-busy={pending} onClick={onRetry}>
+      {pending ? "Trying again…" : "Try again"}
+    </button>
   </p>;
 }
 
@@ -606,10 +609,13 @@ export default function MessageThread({
   }, [conversationId, refresh]);
 
   const { attachViewport } = useThreadViewportFit();
+  const manualRead = useThreadReadRetry(snapshotKey, refresh);
+
   useThreadReadingPosition({
     listRef, scope: snapshotKey,
     ready: state === "ready", current: sameThreadReadKey(viewRevision, conversationId, accountRevision),
     history: messages, outbox, keyboardOpen,
+    recovery: sameThreadReadKey(failedRead, conversationId, accountRevision),
   });
 
 
@@ -1207,7 +1213,8 @@ export default function MessageThread({
 
       <ThreadReadRecovery
         visible={sameThreadReadKey(failedRead, conversationId, accountRevision)}
-        onRetry={() => void refresh()}
+        pending={manualRead.pending}
+        onRetry={() => void manualRead.retry()}
       />
       </div>
       {state === "loading" ? (
