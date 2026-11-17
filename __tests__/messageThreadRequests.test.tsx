@@ -32,6 +32,8 @@ const fetchLog = vi.hoisted(() => ({
   calls: [] as Array<{ url: string; method: string; body: string }>,
   pendingPosts: [] as Array<(response: Response) => void>,
   holdPosts: false,
+  holdReads: false,
+  pendingReads: [] as Array<{ resolve: (response: Response) => void; reject: (error: Error) => void }>,
   useRealWrites: false,
   /** What the thread read answers. An empty list is an EMPTY thread. */
   threadRows: [] as Array<Record<string, unknown>>,
@@ -92,7 +94,9 @@ vi.mock("@/components/messages/MessagePollComposer", () => ({
   default: ({ onPick }: { onPick: (poll: { question: string; options: string[] }) => void }) =>
     createElement("button", { "data-pick": true, onClick: () => onPick({ question: selection.value, options: ["Yes", "No"] }) }, "Pick"),
 }));
-vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
+vi.mock("@/components/messages/MessagePhoto", () => ({
+  default: ({ previewUrl }: { previewUrl?: string }) => createElement("img", { "data-stored-photo": true, src: previewUrl, alt: "Stored photo" }),
+}));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
 vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
@@ -119,6 +123,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
           }
           return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
         }
+        if (fetchLog.holdReads) return new Promise<Response>((resolve, reject) => fetchLog.pendingReads.push({ resolve, reject }));
         if (fetchLog.threadMissing) return Promise.resolve(Response.json({ error: "Not found" }, { status: 404 }));
         return Promise.resolve(
           Response.json({
@@ -206,6 +211,8 @@ beforeEach(() => {
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
+  fetchLog.holdReads = false;
+  fetchLog.pendingReads = [];
   fetchLog.useRealWrites = false;
   fetchLog.threadRows = [...ONE_ROW];
   fetchLog.inboxRows = [
@@ -235,6 +242,54 @@ afterEach(async () => {
 });
 
 describe("message thread request budget", () => {
+  it.each(["snapshot", "notfound", "signedout", "offline", "partial-batch"])("keeps acknowledged photo previews after an older %s read", async outcome => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    let nextUrl = 0;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return `blob:retained-${nextUrl++}`; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.files = [1, 2].map(value => {
+      const bytes = new Uint8Array([value]);
+      const file = new File([bytes], `photo-${value}.jpg`, { type: "image/jpeg" });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.buffer });
+      return file;
+    });
+    await mount();
+    fetchLog.holdReads = true;
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(fetchLog.pendingReads).toHaveLength(1);
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    await typeAndSend("caption");
+    const saved = [0, 1].map(index => ({
+      ...ONE_ROW[0]!, id: `saved-${index}`, senderHandle: "ken", body: index === 0 ? "caption" : "",
+      attachment: { kind: "photo", url: `/api/messages/c1/photo/saved-${index}`, width: 1200, height: 800 },
+    }));
+    for (const index of [0, 1]) {
+      await act(async () => {
+        fetchLog.pendingPosts[index]!(outcome === "partial-batch" && index === 1
+          ? Response.json({ error: "interrupted" }, { status: 503 })
+          : Response.json({ message: saved[index] }));
+      });
+    }
+    const expected = outcome === "partial-batch" ? 1 : 2;
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(expected);
+    await act(async () => {
+      const read = fetchLog.pendingReads[0]!;
+      if (outcome === "offline") read.reject(new TypeError("offline"));
+      else read.resolve(Response.json({ messages: ONE_ROW }, { status: outcome === "notfound" ? 404 : outcome === "signedout" ? 401 : 200 }));
+    });
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(expected);
+    expect(container.querySelector("[data-stored-photo]")?.getAttribute("src")).toBe("blob:retained-0");
+    expect(revoke).not.toHaveBeenCalled();
+    if (outcome === "partial-batch") expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(1);
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await act(async () => { fetchLog.pendingReads[1]!.resolve(Response.json({ messages: ONE_ROW })); });
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(0);
+    expect(revoke).toHaveBeenCalledWith("blob:retained-0");
+  });
+
   it("retries only the unsent photos after part of a batch succeeds", async () => {
     fetchLog.holdPosts = true;
     const revoke = vi.fn();

@@ -503,6 +503,7 @@ export default function MessageThread({
   );
 
   const onStored = useCallback((stored: MessageDTO) => {
+    readFloorRef.current = requestGenerationRef.current + 1;
     setMessages(rows => rows.some(row => row.id === stored.id) ? rows : [...rows, stored]);
   }, []);
   const onSignedOut = useCallback(() => setState("signedout"), []);

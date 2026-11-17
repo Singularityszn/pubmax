@@ -340,6 +340,50 @@ describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments",
     }
   });
 
+  it("enforces photo ownership, attachment shape and nonempty message content", async () => {
+    const session = requireDatabase();
+    const id = "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee";
+    const insert = (body: string, kind: string, key: string, venue: string = "null", width: string = "800") =>
+      `insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_object_key, attachment_width, attachment_height, attachment_venue_id)
+       values ('${id}', '${DM}', 'sam', '${body}', ${kind}, ${key}, ${width}, 600, ${venue});`;
+    const key = `'messages/${DM}/${id}.jpg'`;
+    for (const statement of [
+      insert("", "'photo'", key),
+      message(", attachment_kind, attachment_venue_id", ", 'venue', 'venue-1'"),
+    ]) {
+      expect((await session.attempt(`begin; set local role service_role; ${statement} rollback;`)).ok).toBe(true);
+    }
+    for (const statement of [
+      insert("", "'photo'", `'messages/${GROUP}/${id}.jpg'`),
+      insert("", "'photo'", `'messages/${DM}/${id}.staging.jpg'`),
+      insert("", "'photo'", `'messages/${DM}/${SAM}.jpg'`),
+      insert("", "'photo'", "null"),
+      insert("", "'photo'", key, "'venue-1'"),
+      insert("", "'photo'", key, "null", "0"),
+      insert("x".repeat(1001), "'photo'", key),
+      message("", ""),
+      message(", attachment_kind", ", 'unknown'"),
+      message(", attachment_kind, attachment_object_key", `, 'venue', ${key}`),
+    ]) {
+      const result = await session.attempt(`begin; set local role service_role; ${statement} rollback;`);
+      expect(result.ok, statement).toBe(false);
+      expect(result.said).toContain("23514");
+    }
+  });
+
+  it("exposes no message rows to browser roles and pins the deletion trigger search path", async () => {
+    const session = requireDatabase();
+    for (const role of ["anon", "authenticated"]) {
+      const result = await session.attempt(`begin; set local role ${role}; select * from public.messages; rollback;`);
+      if (result.ok) {
+        expect(session.sql(`begin; set local role ${role}; select count(*) from public.messages; rollback;`)).toBe("0");
+      } else expect(result.said).toContain("42501");
+    }
+    expect(session.sql(`select option_value from pg_proc p,
+      lateral pg_options_to_table(p.proconfig) where p.oid = 'public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure
+      and option_name = 'search_path';`)).toBe("public, storage");
+  });
+
   it("holds a ballot to two options and no more than six", async () => {
     const session = requireDatabase();
     const one = await session.attempt(
@@ -535,5 +579,30 @@ describe.skipIf(skipReason !== null)("the way back out", () => {
     ).toBe("1");
     expect(joinsTopic(threadTopic(DM), SAM)).toBe(1);
     expect(joinsTopic(threadTopic(DM), MAL)).toBe(0);
+  });
+});
+
+describe.skipIf(skipReason !== null)("0102 attachment rollback at its historical schema", () => {
+  it("preserves words, fills photo-only bodies and restores the body rule", async () => {
+    const session = await startPostgres({ label: "attachment-rollback", database: "pubmax_attachment_rollback" });
+    try {
+      session.applyFile(SESSION_FIXTURE);
+      for (const path of PREREQUISITES.filter(path => path <= join(MIGRATIONS, "20260810180000_0102_message_attachments.sql"))) session.applyFile(path);
+      session.sql(`insert into public.conversations (id, handle_a, handle_b) values ('${DM}', 'ken', 'sam');
+        insert into public.messages (id, conversation_id, sender_handle, body, attachment_kind, attachment_object_key, attachment_width, attachment_height)
+        values ('${KEN}', '${DM}', 'ken', '', 'photo', 'messages/${DM}/${KEN}.jpg', 800, 600);
+        insert into public.messages (id, conversation_id, sender_handle, body) values ('${SAM}', '${DM}', 'sam', 'See you tonight');`);
+      session.applyFile(join(MIGRATIONS, "rollback/20260810180000_0102_message_attachments_rollback.sql"));
+      expect(session.sql(`select body from public.messages where id = '${KEN}';`)).toBe("Photo removed.");
+      expect(session.sql(`select body from public.messages where id = '${SAM}';`)).toBe("See you tonight");
+      expect((await session.attempt(`insert into public.messages (conversation_id, sender_handle, body) values ('${DM}', 'ken', '');`)).ok).toBe(false);
+      expect(session.sql(`select count(*) from information_schema.columns where table_schema = 'public' and table_name = 'messages'
+        and column_name in ('attachment_kind','attachment_object_key','attachment_width','attachment_height','attachment_venue_id');`)).toBe("0");
+      expect(session.sql(`select option_value from pg_proc p,
+        lateral pg_options_to_table(p.proconfig) where p.oid = 'public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure
+        and option_name = 'search_path';`)).toBe("public, storage");
+    } finally {
+      await session.stop();
+    }
   });
 });

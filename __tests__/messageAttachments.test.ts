@@ -12,9 +12,7 @@
 //     the durable and the in-memory backend read.
 
 import type { Route } from "next";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { beforeEach, describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   isMessagePhotoServingKey,
@@ -39,11 +37,13 @@ import { cleanAttachedBody, cleanBody } from "@/lib/messages";
 import { __resetMemoryMessages, memoryMessagesStore } from "@/lib/messagesStore";
 import { defined } from "@/__tests__/helpers/defined";
 
-const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
-
-const MIGRATION = "supabase/migrations/20260810180000_0102_message_attachments.sql";
-const ROLLBACK =
-  "supabase/migrations/rollback/20260810180000_0102_message_attachments_rollback.sql";
+vi.mock("@/lib/venueIndex", () => ({
+  lookupCanonicalVenue: async () => ({
+    status: "found", canonicalId: "v1",
+    venue: { id: "v1", name: "The Coach and Horses", borough: "Soho", lat: 51.514, lng: -0.132 },
+    slimVenue: { kind: "pub", cheapestPrice: 5.4, lat: 51.514, lng: -0.132 },
+  }),
+}));
 
 describe("the attachment set is closed at five", () => {
   it("names exactly a photo, a pub, a contact, an event and a poll", () => {
@@ -89,17 +89,18 @@ describe("a pub card holds a pub, never a place", () => {
     expect(isMessageVenueId("x".repeat(65))).toBe(false);
   });
 
-  it("carries no latitude, longitude or viewer point anywhere in the module", () => {
-    // Comments stripped first: the header EXPLAINS the rule in these words, and
-    // a fence that read prose would forbid saying what it forbids.
-    const code = read("lib/messageAttachments.ts")
-      .replace(/\/\*[\s\S]*?\*\//g, " ")
-      .replace(/\/\/.*$/gm, " ")
-      .toLowerCase();
-    for (const forbidden of ["lat", "lng", "latitude", "longitude", "coord", "point"]) {
-      expect(code, `message attachments must not carry ${forbidden}`).not.toMatch(
-        new RegExp(`\\b${forbidden}\\b`),
-      );
+  it("serializes a shared pub without coordinates from the input or resolved venue", async () => {
+    __resetMemoryMessages();
+    const conversationId = (await memoryMessagesStore.openConversation("ken", "sam"))!;
+    const attachment = { kind: "venue" as const, venueId: "v1", lat: 51.514, lng: -0.132, point: [51.514, -0.132] };
+    const sent = await memoryMessagesStore.send(conversationId, "ken", "", attachment);
+    const { attachMessageAttachmentCards } = await import("@/lib/messageAttachmentCards.server");
+    for (const messages of [[sent!.message], (await memoryMessagesStore.listMessages(conversationId, "sam"))!]) {
+      const resolved = await attachMessageAttachmentCards(messages);
+      expect(JSON.parse(JSON.stringify(resolved[0]!.attachment))).toEqual({
+        kind: "venue", venueId: "v1",
+        card: { venueId: "v1", name: "The Coach and Horses", area: "Soho", priceGbp: 5.4, mapUrl: "/map?sel=v1" },
+      });
     }
   });
 
@@ -202,73 +203,6 @@ describe("a reported message stops carrying its photo", () => {
     expect(
       await memoryMessagesStore.photoObjectKey(conversationId!, "no-such-message", "sam"),
     ).toBeNull();
-  });
-});
-
-describe("0102 message_attachments", () => {
-  const sql = read(MIGRATION);
-  const rollback = read(ROLLBACK);
-
-  it("closes the kind set in the database too", () => {
-    expect(sql).toMatch(/attachment_kind in \('photo', 'venue'\)/);
-  });
-
-  it("says the same sentence about a serving key that the code says", () => {
-    expect(sql).toMatch(
-      /attachment_object_key = \('messages\/' \|\| conversation_id::text \|\| '\/' \|\| id::text \|\| '\.jpg'\)/,
-    );
-    expect(messagePhotoServingKey("C", "I")).toBe("messages/C/I.jpg");
-  });
-
-  it("gives each kind its own columns and nothing else's", () => {
-    expect(sql).toMatch(/messages_attachment_shape_chk/);
-    expect(sql).toMatch(/attachment_kind = 'venue'[\s\S]{0,200}attachment_object_key is null/);
-    expect(sql).toMatch(/attachment_kind = 'photo'[\s\S]{0,200}attachment_venue_id is null/);
-  });
-
-  it("stores no coordinate for a shared pub", () => {
-    expect(sql).not.toMatch(/attachment_(lat|lng|latitude|longitude)/);
-  });
-
-  it("lets a photo be a message without words, and still refuses an empty one", () => {
-    expect(sql).toMatch(/char_length\(body\) <= 1000/);
-    expect(sql).toMatch(/char_length\(body\) >= 1 or attachment_kind is not null/);
-    // The old constraint would have refused a caption-free photo.
-    expect(sql).toMatch(/drop constraint if exists messages_body_len_chk/);
-  });
-
-  it("adds no RLS policy to a deny-all table", () => {
-    expect(sql).not.toMatch(/create policy/i);
-    expect(sql).toMatch(/Never add a public-read policy to this table/);
-  });
-
-  it("takes a leaving account's photos and leaves the conversation's words", () => {
-    expect(sql).toMatch(/delete from storage\.objects o[\s\S]{0,400}public\.messages m/);
-    expect(sql).toMatch(/attachment_object_key is not null/);
-    expect(sql).toMatch(/set body = case when char_length\(m\.body\) >= 1 then m\.body/);
-    // The words are never deleted, only the picture.
-    expect(sql).not.toMatch(/delete from public\.messages/);
-  });
-
-  it("restates the definer's search_path, which create-or-replace would drop", () => {
-    expect(sql).toMatch(/set search_path = public, storage/);
-    expect(rollback).toMatch(/set search_path = public, storage/);
-  });
-
-  it("rolls back to 0019's body rule without leaving a row that breaks it", () => {
-    // A photo-only message has an empty body; restoring `between 1 and 1000`
-    // over it would fail the migration.
-    expect(rollback).toMatch(/set body = 'Photo removed\.'/);
-    expect(rollback).toMatch(/char_length\(body\) between 1 and 1000/);
-    for (const column of [
-      "attachment_kind",
-      "attachment_object_key",
-      "attachment_width",
-      "attachment_height",
-      "attachment_venue_id",
-    ]) {
-      expect(rollback).toMatch(new RegExp(`drop column if exists ${column}`));
-    }
   });
 });
 

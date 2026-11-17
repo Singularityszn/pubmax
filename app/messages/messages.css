@@ -670,7 +670,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageRow[data-revealed] .messageMeta,
-.messageLine:focus-within .messageMeta {
+.messageLine:has(:focus-visible) .messageMeta {
   max-height: max(2.75rem, 44px);
   opacity: 1;
   margin-top: 0.2rem;
@@ -724,7 +724,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   .messageRow[data-revealed] .messageMeta,
-  .messageLine:focus-within .messageMeta,
+  .messageLine:has(:focus-visible) .messageMeta,
   .messageLine:hover .messageMeta {
     max-height: none;
     margin-top: 0;

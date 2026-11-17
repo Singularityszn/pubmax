@@ -114,6 +114,16 @@ test.describe("photo action and pinch regression", () => {
     await expect(page.locator(".messagePhotoButton")).toHaveCount(2);
   });
 
+  test("keyboard focus reveals photo message actions", async ({ page }) => {
+    const opener = page.locator(".messagePhotoButton").first();
+    await opener.focus();
+    await page.keyboard.press("Tab");
+    const unsend = page.getByRole("button", { name: "Unsend", exact: true });
+    await expect(unsend).toBeFocused();
+    await expect(unsend).toBeInViewport();
+    await expect(unsend.locator(".." )).toHaveCSS("opacity", "1");
+  });
+
   test("photo viewer consumes shared native Escape and restores opener focus", async ({ page }) => {
     const opener = page.locator(".messagePhotoButton").first();
     await opener.tap();
@@ -846,11 +856,83 @@ test.describe("the message thread on a desktop", () => {
   });
 });
 
+test("an older poll preserves acknowledged photos until stored bytes decode", async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 768, height: 900 });
+  await storeThemeChoice(page, "light");
+  const rows = fixture();
+  await installThread(page, rows);
+  const sharp = (await import("sharp")).default;
+  const bytes = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
+  let holdRead = false;
+  let releaseRead!: () => void;
+  const media: Array<() => void> = [];
+  let sent = 0;
+  await page.route("**/api/messages/c1**", async route => {
+    if (new URL(route.request().url()).pathname.includes("/media/")) {
+      await new Promise<void>(resolve => { media.push(resolve); });
+      await route.fulfill({ contentType: "image/jpeg", body: bytes });
+    } else if (route.request().method() === "POST") {
+      const message = {
+        id: `saved-photo-${sent++}`, conversationId: "c1", senderHandle: ME, body: "", createdAt: new Date().toISOString(), read: false, flagged: false,
+        attachment: { kind: "photo", url: `/api/messages/c1/media/saved-${sent}`, width: 1200, height: 800 },
+      };
+      rows.push(message);
+      await route.fulfill({ json: { message } });
+    } else {
+      const snapshot = [...rows];
+      if (holdRead) {
+        holdRead = false;
+        await new Promise<void>(resolve => { releaseRead = resolve; });
+      }
+      await route.fulfill({ json: { messages: snapshot } });
+    }
+  });
+  await page.goto("/messages/c1");
+  await expect(page.locator(".composerInput")).toBeVisible();
+  holdRead = true;
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(() => expect(releaseRead).toBeDefined()).toPass();
+  await page.locator("#message-photo-file").setInputFiles([1, 2].map(index => ({ name: `photo-${index}.jpg`, mimeType: "image/jpeg", buffer: bytes })));
+  await expect(page.locator(".composerPendingThumb")).toHaveCount(2);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const photos = page.locator(".messagePhotoButton .messagePhoto");
+  await expect(photos).toHaveCount(2);
+  await expect(() => expect(media).toHaveLength(2)).toPass();
+  const previews = await photos.evaluateAll(images => images.map(image => image.getAttribute("src")));
+  const stale = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/messages/c1");
+  releaseRead();
+  await stale;
+  await expect(photos).toHaveCount(2);
+  await expect(async () => expect(await photos.evaluateAll(images => images.map(image => image.getAttribute("src")))).toEqual(previews)).toPass();
+  await expect(page.locator(".messagePhotoPending")).toHaveCount(0);
+  const path = testInfo.outputPath("delayed-poll-previews.png");
+  await page.screenshot({ path });
+  await testInfo.attach("previews after the older poll", { path, contentType: "image/png" });
+  for (const release of media) release();
+  await expect(async () => expect(await photos.evaluateAll(images => images.map(image => image.getAttribute("src")))).not.toEqual(previews)).toPass();
+  await expect(photos).toHaveCount(2);
+});
+
+for (const pointer of ["coarse", "fine"] as const) test.describe(`photo frame with ${pointer} pointer`, () => {
+  test.use({ hasTouch: pointer === "coarse", isMobile: pointer === "coarse" });
+
 for (const width of [390, 768, 1440]) for (const native of [false, true]) {
   for (const size of [{ width: 128, height: 2048 }, { width: 2048, height: 128 }]) {
     for (const largeText of [false, true]) {
       test(`photo selection frame stays stable at ${width}px, ${size.width}x${size.height}, native ${native}, large text ${largeText}`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 900 });
+        await page.addInitScript(({ native, largeText }) => {
+          const apply = () => {
+            if (!document.documentElement) return false;
+            document.documentElement.toggleAttribute("data-native-shell", native);
+            document.documentElement.style.fontSize = largeText ? "32px" : "16px";
+            return true;
+          };
+          if (!apply()) {
+            const observer = new MutationObserver(() => { if (apply()) observer.disconnect(); });
+            observer.observe(document, { childList: true });
+          }
+        }, { native, largeText });
         await page.emulateMedia({ reducedMotion: largeText ? "reduce" : "no-preference" });
         await storeThemeChoice(page, largeText ? "dark" : "light");
         const rows = fixture();
@@ -887,6 +969,7 @@ for (const width of [390, 768, 1440]) for (const native of [false, true]) {
           document.documentElement.style.fontSize = largeText ? "32px" : "16px";
         }, { native, largeText });
         await configureFrame();
+        expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(pointer === "coarse");
         const frame = page.locator(".messagePhotoFigure");
         const photo = frame.locator(".messagePhoto");
         const opener = frame.locator(".messagePhotoButton");
@@ -987,6 +1070,8 @@ for (const width of [390, 768, 1440]) for (const native of [false, true]) {
     }
   }
 }
+
+});
 
 for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
