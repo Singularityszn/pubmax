@@ -193,11 +193,11 @@ export function momentFitBox(natural: MomentPhotoBox, longEdge: number): MomentP
  * each quality, best first. An edge the photo is already smaller than is
  * tried once, at its own size, because drawing it larger buys nothing.
  */
-export function planMomentFitAttempts(natural: MomentPhotoBox): MomentFitAttempt[] {
+export function planMomentFitAttempts(natural: MomentPhotoBox, maxEdge: number = MOMENT_FIT_LONG_EDGES[0]!): MomentFitAttempt[] {
   const naturalLong = Math.max(natural.width, natural.height);
   const edges: number[] = [];
   for (const edge of MOMENT_FIT_LONG_EDGES) {
-    const drawn = positive(naturalLong) ? Math.min(edge, Math.round(naturalLong)) : edge;
+    const drawn = positive(naturalLong) ? Math.min(edge, maxEdge, Math.round(naturalLong)) : Math.min(edge, maxEdge);
     if (!edges.includes(drawn)) edges.push(drawn);
   }
   const attempts: MomentFitAttempt[] = [];

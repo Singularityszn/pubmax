@@ -1,0 +1,107 @@
+.composerPhotoPreviews {
+  display: flex;
+  gap: 0.35rem;
+  max-width: 45%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.composerPhotoPreviews .composerPendingThumb { flex: 0 0 44px; }
+.composerPreparing { margin: 0; padding: 0.5rem; color: var(--muted); }
+.messagePhotoRecoveryNotice { margin: 0; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--ink); overflow-wrap: anywhere; }
+.messagePhotoRecoveryNotice a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; }
+.messageThread .composerInput { font-size: max(16px, 1rem); }
+.messagePhotoPending { margin: 0; flex-direction: column; gap: 0.5rem; }
+.messagePhotoRetry {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+}
+.messagePhotoViewer {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: #111;
+  color: #fff;
+  overflow: hidden;
+  touch-action: none;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.messagePhotoZoomLevel { align-self: center; font-variant-numeric: tabular-nums; }
+.messagePhotoViewer[open] { display: flex; flex-direction: column; }
+.messagePhotoViewer::backdrop { background: #111; }
+.messagePhotoViewerToolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) 0.5rem max(0.5rem, env(safe-area-inset-left));
+}
+.messagePhotoViewerToolbar button, .messagePhotoPending button, .messagePhotoRetry button {
+  min-height: 44px;
+  min-width: 44px;
+  padding: 0.4rem 0.65rem;
+  border: 1px solid currentColor;
+  border-radius: var(--radius);
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+}
+.messagePhotoRetry button, .messagePhotoFailed button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+}
+.messagePhotoViewerClose { margin-inline-start: auto; }
+.messagePhotoViewerStage {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: none;
+  overscroll-behavior: contain;
+}
+.messagePhotoViewerImage {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.messageReadState progress {
+  width: 3rem;
+  height: 0.3rem;
+  accent-color: var(--ink);
+}
+
+.composerPhotoRetry {
+  min-height: 44px;
+  margin-inline-start: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 0.3rem 0.7rem;
+  color: var(--ink);
+  background: var(--panel);
+  font: inherit;
+}
+
+.messageThread :is(button, a) {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .composerPhotoRetry:hover { background: var(--panel-raised); }
+}

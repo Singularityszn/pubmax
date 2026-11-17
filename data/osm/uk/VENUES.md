@@ -26,6 +26,10 @@ that lane's pack and its own `venue_chunks_<scope>.json`, and leaves the other
 packs, `venue_counts.json` and the extract report untouched. Rerun without
 `--scope` to refresh those.
 
+London restaurant publication uses a separate snapshot rather than this UK taxonomy.
+See the [London restaurant pack contract](../../../public/data/london_restaurants/README.md)
+for its source, membership and rebuild commands.
+
 ## What earns a row
 
 Each pack's own `taxonomy` array records the table it was built with. The

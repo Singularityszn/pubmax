@@ -189,6 +189,7 @@ const MessageAttachmentPicker = forwardRef<
         }}
         id="message-photo-file"
         type="file"
+        multiple
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
         className="composerFileInput"
         aria-label="Choose a photo from your library"
@@ -212,6 +213,7 @@ const MessageAttachmentPicker = forwardRef<
         }}
         id="message-document-file"
         type="file"
+        multiple
         accept={PROFILE_IMAGE_PICKER_ACCEPT}
         className="composerFileInput"
         aria-label="Choose a photo file"

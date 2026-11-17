@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
 import TonightArcChips from "@/components/map/TonightArcChips";
+import { useLondonRestaurants } from "@/components/map/useLondonRestaurants";
+import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import {
   defaultVenueKindVisibility,
   filterVenuesByKind,
@@ -49,7 +51,51 @@ function chip(label: string) {
   return button;
 }
 
+function RestaurantJourney({ variant, experienceLens, lensOwnsMap, isLondon = true }: {
+  variant: "popover" | "sheet";
+  experienceLens: MapExperienceLens;
+  lensOwnsMap: boolean;
+  isLondon?: boolean;
+}) {
+  const [visibility, setVisibility] = useState(defaultVenueKindVisibility("london"));
+  const read = useLondonRestaurants({
+    isLondon, experienceLens, lensOwnsMap, restaurantKindVisible: visibility.osmRestaurants,
+    selectedVenueId: "venue-osm-n1784593689", selectedIsCafe: false, held: true, zoom: 13,
+  });
+  return <>
+    <TonightArcChips visibility={visibility} variant={variant} restaurantLayerAvailable={read.layerAvailable} onChange={setVisibility} />
+    <output>{read.mode}</output>
+    <ul>{filterVenuesByKind(venues, visibility).map(venue => <li key={venue.id}>{venue.id}</li>)}</ul>
+  </>;
+}
+
 for (const variant of ["popover", "sheet"] as const) {
+  it(`offers an actionable optional layer and remembers it through unavailable ${variant} views`, () => {
+    // The layer contract permits food over a price owner, but only a shared selection in other owned views.
+    const render = (experienceLens: MapExperienceLens, lensOwnsMap: boolean, isLondon = true) =>
+      act(() => root.render(<RestaurantJourney {...{ variant, experienceLens, lensOwnsMap, isLondon }} />));
+    render("all", false);
+    act(() => chip("More restaurants (unpriced)").click());
+    expect(host.querySelector("output")?.textContent).toBe("layer");
+    expect(rows()).toContain("restaurant");
+    for (const lens of ["all", "no-alcohol"] as const) {
+      render(lens, true);
+      expect([...host.querySelectorAll("button")].some(button => button.textContent?.includes("More restaurants"))).toBe(false);
+      expect(host.querySelector("output")?.textContent).toBe("selection");
+    }
+    render("food", true);
+    expect(chip("More restaurants (unpriced)").getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector("output")?.textContent).toBe("layer");
+    render("all", false);
+    expect(chip("More restaurants (unpriced)").getAttribute("aria-pressed")).toBe("true");
+    act(() => chip("More restaurants (unpriced)").click());
+    expect(host.querySelector("output")?.textContent).toBe("selection");
+    expect(rows()).toContain("restaurant");
+    render("all", false, false);
+    expect([...host.querySelectorAll("button")].some(button => button.textContent?.includes("More restaurants"))).toBe(false);
+    expect(host.querySelector("output")?.textContent).toBe("off");
+  });
+
   it(`hides every visible kind through the ${variant} controls`, () => {
     act(() => root.render(<Journey initial={defaultVenueKindVisibility()} variant={variant} />));
     expect(rows()).toEqual(["pub", "bar", "club", "food", "restaurant"]);

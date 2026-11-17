@@ -151,6 +151,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   Your drink choice in **Tune details** on `/plan` can appear in **Near me** on the same city's map. Choose **Show Wine on the map**, for example, to apply it. The map stays unchanged until you choose the action. Default pints and choices the map already shows need no action. A saved account alcohol-free preference takes priority over the device choice. See the [preference storage limits](docs/API_CONTRACTS_THE_LOCAL.md#9-getput-apimenight-profile) for device and account differences.
 
 - **No alcohol and food views** - open **Filters**, then use **Show me** to narrow the map. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues. The food view includes pubs and bars with recorded food service, plus late-food and restaurant venues. A recorded absence of food service excludes a venue. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
+- **London restaurants** - open **Filters**, then enable **More restaurants (unpriced)** to add unpriced OpenStreetMap restaurant pins from zoom 12. On a phone, open **More filters** to reach this choice. This optional layer starts off. **Restaurants** controls curated restaurant pins separately. A shared restaurant link opens its sheet even when the optional layer is off. See the [restaurant data contract](public/data/london_restaurants/README.md) for sources and loading rules.
 - **Pub Pal** - typed chat starts with a greeting. Ask for four pubs in Soho to get grounded choices beside a map of those pubs. Follow with "Same area, under £6 a pint" to refine the budget. Open a result and return to continue the [current conversation](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md). **New conversation** clears the chat without deleting approved memories.
 
   <a id="pub-pal-new-picks"></a>
@@ -468,7 +469,19 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
-  If a send fails, check the restored draft before choosing **Send** again. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+  Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. During preparation, a counter shows completed photos and the batch total. **Cancel** stops preparation. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
+
+  On a short screen or with large text, scroll within the composer to reach its controls.
+
+  If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread.
+
+  If you leave the thread with unsent photos, choose **Return to your photos** to reopen the draft. Returning to a draft does not count as a failed send. Review it and choose **Send**. A failed send keeps its error when you return and offers **Retry send**.
+
+  This recovery works within the same tab and account session. Reloading or closing the tab loses unsent photos. Signing out or changing accounts clears them. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+
+  Open a sent photo to view its full frame in a full-screen viewer. Pinch or use the zoom controls to zoom. Drag a zoomed photo to move it. **Reset zoom** restores the full frame. **Close** or Escape returns to the thread and restores focus to the photo button. If a photo cannot load, choose **Retry photo**.
+
+  If a text send fails, check the restored draft before choosing **Send** again.
 
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
 

@@ -111,6 +111,7 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSourcesOfKind("open-data").map((source) => source.id).sort()).toEqual([
       "fsa-fhrs-api",
       "historic-england-nhle",
+      "osm-geofabrik-london-restaurants",
       "wikidata-query-service",
     ]);
     for (const source of harvestSourcesOfKind("open-data")) {
@@ -127,6 +128,11 @@ describe("every source is a decision with evidence", () => {
     expect(openDataSourceUrl("wikidata-query-service", "?format=json&query=ASK%7B%7D").href).toBe(
       "https://query.wikidata.org/sparql?format=json&query=ASK%7B%7D",
     );
+    expect(openDataSourceUrl("osm-geofabrik-london-restaurants", "").href).toBe(
+      "https://download.geofabrik.de/europe/united-kingdom/england/greater-london-latest.osm.pbf",
+    );
+    expect(() => openDataSourceUrl("osm-geofabrik-london-restaurants", "https://example.com/london.pbf"))
+      .toThrow(/is not osm-geofabrik-london-restaurants/);
     expect(() => openDataSourceUrl("fsa-fhrs-api", "//example.com/x")).toThrow(/is not fsa-fhrs-api/);
     expect(() => openDataSourceUrl("fsa-fhrs-api", "http://api.ratings.food.gov.uk/x")).toThrow(/is not/);
     expect(() => openDataSourceUrl("wikidata-query-service", "https://evil.example/sparql")).toThrow(/is not/);
