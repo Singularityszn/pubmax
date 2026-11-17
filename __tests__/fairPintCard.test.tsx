@@ -60,11 +60,11 @@ it("dismisses for this session when persistent storage rejects the close", async
   expect(arrival.hasDismissedMapFirstVisitArrival()).toBe(true);
   write.mockRestore();
 });
-it("keeps an early HTML gesture until the live flow takes ownership", async () => {
+it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-chat", "/map?max=5.3"])("keeps an early HTML gesture until the live flow takes ownership (%s)", async (path) => {
   const { bootFairPintCard, takeEarlyFairPint, validFairPint } = await import("@/lib/fairPint");
   const { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling, writeBudgetChoice } = await import("@/lib/onboardingFlow");
   const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
-  localStorage.clear(); history.replaceState(null, "", "/map"); writeBudgetChoice("seven");
+  localStorage.clear(); history.replaceState(null, "", path); writeBudgetChoice("seven");
   const host = document.createElement("aside"); host.dataset.fairPrelude = "true"; host.hidden = true;
   host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
   document.body.append(host);

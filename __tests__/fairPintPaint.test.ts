@@ -1,6 +1,6 @@
 import { afterEach, expect, it, vi } from "vitest";
 import type { Map as MapLibreMap } from "maplibre-gl";
-import { fairPintOpacity, wireFairPintPaint } from "@/components/map/fairpint/fairPintPaint";
+import { fairPintOpacity, setPintPaint, wireFairPintPaint } from "@/components/map/fairpint/fairPintPaint";
 import { setFairPintSession } from "@/lib/fairPint";
 
 afterEach(() => { setFairPintSession(false); vi.unstubAllGlobals(); });
@@ -33,7 +33,10 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
   expect(paint).not.toHaveBeenCalled();
   expect(state.mock.calls.map((call) => call[0].id)).toEqual([1, 2]);
   expect(state.mock.calls.map((call) => call[1])).toEqual(Array(2).fill({ fairPintOpacity: 1 }));
+  setPintPaint(map, "pubs-point", "icon-opacity", 0.6);
+  expect(values.get("pubs-pointicon-opacity")).toEqual(["coalesce", ["feature-state", "fairPintOpacity"], 0.25]);
   setFairPintSession(false);
+  expect(values.get("pubs-pointicon-opacity")).toBe(0.6);
   paint("pubs-point", "icon-opacity", 0.6); paint.mockClear();
   listeners.get("idle")!();
   expect(paint).not.toHaveBeenCalled();
