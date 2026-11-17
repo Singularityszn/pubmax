@@ -26,11 +26,11 @@ async function pushRuntime(page: Page): Promise<void> {
     const registration = {
       active: { scriptURL: `${location.origin}/sw.js?message-previews=1`, postMessage(_data: unknown, ports: MessagePort[]) { ports[0].postMessage({ ok: true }); } },
       pushManager: { getSubscription: async () => (window as unknown as { __hangMessageSubscription?: boolean }).__hangMessageSubscription ? new Promise(() => {}) : subscription, subscribe: async () => subscription },
-      getNotifications: async () => [{ data: { recipientId: "previous-account" }, close() { closed++; } }],
+      getNotifications: async () => (window as unknown as { __hangMessageTray?: boolean }).__hangMessageTray ? new Promise(() => {}) : [{ data: { recipientId: "previous-account" }, close() { closed++; } }],
     };
     Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
       addEventListener: events.addEventListener.bind(events), removeEventListener: events.removeEventListener.bind(events),
-      getRegistration: async () => registration, register: async () => registration, ready: Promise.resolve(registration),
+      getRegistration: async () => (window as unknown as { __hangMessageRegistration?: boolean }).__hangMessageRegistration ? new Promise(() => {}) : registration, register: async () => registration, ready: Promise.resolve(registration),
     } });
     Object.defineProperty(window, "__permissionRequests", { get: () => requests });
     Object.defineProperty(window, "__unsubscribedPush", { get: () => unsubscribed });
@@ -251,7 +251,8 @@ test("chat mutes can be changed at every supported width", async ({ page }, test
   await expect.poll(() => muted).toBe(false);
 });
 
-test("account switching and sign-out release and restore this device", async ({ page }, testInfo) => {
+for (const stall of ["none", "registration", "tray"] as const) {
+test(`account switching and sign-out recover with ${stall} access`, async ({ page }, testInfo) => {
   await pushRuntime(page);
   const auth = await installAuthDoubles(page);
   let owner = "";
@@ -277,8 +278,10 @@ test("account switching and sign-out release and restore this device", async ({ 
   await expect.poll(() => owner).toBe("A");
   await page.screenshot({ path: testInfo.outputPath("returned-to-account-a.png"), scale: "css" });
   offlineDetach = true;
+  await page.evaluate(method => { Object.assign(window, { __hangMessageRegistration: method === "registration", __hangMessageTray: method === "tray" }); }, stall);
   await page.getByRole("button", { name: "Sign out of @karan", exact: true }).click();
   await expect(page.getByRole("button", { name: /Account options for Karan M/ })).toBeVisible();
+  await page.evaluate(() => { Object.assign(window, { __hangMessageRegistration: false, __hangMessageTray: false }); });
   expect(await page.evaluate(() => (window as unknown as { __unsubscribedPush: number }).__unsubscribedPush)).toBe(0);
   await expect.poll(() => owner).toBe("B");
   await page.screenshot({ path: testInfo.outputPath("offline-sign-out-completed.png") });
@@ -299,6 +302,7 @@ test("account switching and sign-out release and restore this device", async ({ 
   expect(await page.evaluate(() => (window as unknown as { __closedNotifications: number }).__closedNotifications)).toBeGreaterThan(0);
   await page.screenshot({ path: testInfo.outputPath("account-a-signed-out.png"), scale: "css" });
 });
+}
 
 
 test("iPhone setup explains installation and requires a tap before permission", async ({ page }, testInfo) => {

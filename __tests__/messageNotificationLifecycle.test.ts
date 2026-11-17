@@ -33,6 +33,49 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it.each([
+    ["restore", "registration"], ["restore", "tray"],
+    ["release", "registration"], ["release", "tray"],
+  ] as const)("recovers the queue after %s stalls on %s access", async (operation, method) => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation(milliseconds => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), milliseconds);
+      return controller.signal;
+    });
+    const registration = (await navigator.serviceWorker.getRegistration())!;
+    let unblock!: () => void;
+    let started!: () => void;
+    const entered = new Promise<void>(resolve => { started = resolve; });
+    const stalled = new Promise<void>(resolve => { unblock = resolve; });
+    const intercept = method === "registration"
+      ? vi.spyOn(navigator.serviceWorker, "getRegistration").mockImplementationOnce(async () => { started(); await stalled; return registration; })
+      : vi.spyOn(registration, "getNotifications").mockImplementationOnce(async () => { started(); await stalled; return []; });
+    if (method === "tray") vi.spyOn(navigator.serviceWorker, "getRegistration").mockResolvedValue(registration);
+    account.active = "A";
+    account.enabled = true;
+    account.owner = "A";
+    const first = (operation === "restore" ? restoreMessagePushAccount(new AbortController().signal, "A") : releaseMessagePush()).catch(() => undefined);
+    await entered;
+    const departure = operation === "restore" ? releaseMessagePush() : first;
+    account.active = "B";
+    let rebound = false;
+    const next = restoreMessagePushAccount(new AbortController().signal, "B").then(() => { rebound = true; });
+    try {
+      await vi.advanceTimersByTimeAsync(3_000);
+      await departure;
+      expect(rebound).toBe(true);
+      expect(account.owner).toBe("B");
+      expect(unsubscribe).not.toHaveBeenCalled();
+    } finally {
+      unblock();
+      await Promise.allSettled([first, departure, next]);
+      intercept.mockRestore();
+      vi.restoreAllMocks();
+      timeout.mockRestore();
+      vi.useRealTimers();
+    }
+  });
   it("ends a stalled preference save within three seconds and preserves caller cancellation", async () => {
     vi.useFakeTimers();
     const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => {
