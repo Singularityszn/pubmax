@@ -1,10 +1,7 @@
-// npm audit that fails on real high/critical vulnerabilities but tolerates
-// primary registry outages. Plain `npm audit` exits non-zero for BOTH findings
-// and infrastructure errors (e.g. the advisory endpoint returning 503), which
-// turns an npm-registry incident into a build failure with zero signal.
-// Here: findings -> exit 1; primary registry/endpoint failure -> warn + exit 0.
-// Once a waiver is needed, an unavailable production-only audit fails closed
-// because the waiver's dev-only scope cannot be proven.
+// The temporary development-only exception requires complete audit evidence.
+// Findings and unavailable or malformed audit responses fail closed. The named
+// exception expires automatically; an outage cannot extend it. Strict outage
+// handling remains until the configured exception is removed.
 //
 // A finding may additionally be WAIVED, but only under the narrow terms in
 // WAIVED_ADVISORIES below: one named advisory, dev dependencies only, and
@@ -22,20 +19,17 @@ const AUDIT_LEVELS = ["high", "critical"];
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
 //
-// picomatch is dev-only through Next ESLint, fast-glob, knip and vitest, and
-// is not shipped in the production bundle. No fixed release existed on
-// 2026-11-17. https://github.com/Singularityszn/pubmax/issues/2976 tracks it.
-// Remove this waiver when a fixed picomatch is published. It expires on
-// 2026-12-17 even if the dependency has not been fixed.
-export function waivedAdvisories(now = Date.now()) {
-  return new Map(
-    now < Date.parse("2026-12-17T00:00:00Z")
-      ? [["https://github.com/advisories/GHSA-fc5q-39xc-vjpf", "high"]]
-      : [],
-  );
-}
-
-export const WAIVED_ADVISORIES = waivedAdvisories();
+// GHSA-fc5q-39xc-vjpf has no patched release as of 2026-11-17.
+// The lockfile reaches it only through development tools. Every audit must
+// still prove production is clean. Remove this exception when a fix ships.
+const CONFIGURED_EXCEPTIONS = new Map([
+  ["https://github.com/advisories/GHSA-fc5q-39xc-vjpf", {
+    severity: "high", expiresAt: "2026-11-24T00:00:00Z",
+  }],
+]);
+export const WAIVED_ADVISORIES = new Map([...CONFIGURED_EXCEPTIONS]
+  .filter(([, rule]) => Date.now() < Date.parse(rule.expiresAt))
+  .map(([url, rule]) => [url, rule.severity]));
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
@@ -52,8 +46,12 @@ function runAudit(extraArgs = []) {
   return { result, stdout, report };
 }
 
-function hasVulnerabilities(report) {
-  return Boolean(report && report.metadata && report.metadata.vulnerabilities);
+function hasCompleteAudit(report) {
+  const counts = report?.metadata?.vulnerabilities;
+  return report?.vulnerabilities !== null && typeof report?.vulnerabilities === "object"
+    && !Array.isArray(report.vulnerabilities)
+    && AUDIT_LEVELS.every((level) => Number.isSafeInteger(counts?.[level]) && counts[level] >= 0
+      && counts[level] === Object.values(report.vulnerabilities).filter((entry) => entry?.severity === level).length);
 }
 
 // `via` holds either advisory objects (the root cause) or the names of other
@@ -61,13 +59,13 @@ function hasVulnerabilities(report) {
 function collectAdvisories(name, vulnerabilities, seen = new Set()) {
   if (seen.has(name)) return [];
   seen.add(name);
-  const entry = vulnerabilities[name];
-  if (!entry) return [];
+  const entry = Object.hasOwn(vulnerabilities, name) ? vulnerabilities[name] : null;
+  if (!entry) return [null];
   const advisories = [];
   for (const via of entry.via ?? []) {
     if (typeof via === "string") {
       advisories.push(...collectAdvisories(via, vulnerabilities, seen));
-    } else if (via && via.url) {
+    } else {
       advisories.push(via);
     }
   }
@@ -81,19 +79,23 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   const waivedNames = [];
   const unwaivedNames = [];
   for (const [name, entry] of Object.entries(vulnerabilities)) {
-    if (!AUDIT_LEVELS.includes(entry.severity)) continue;
+    if (!AUDIT_LEVELS.includes(entry?.severity)) continue;
     const advisories = collectAdvisories(name, vulnerabilities);
     const fullyWaived =
-      advisories.length > 0 && advisories.every((a) => waived.get(a.url) === a.severity);
+      advisories.length > 0 && advisories.every((a) => a?.url && waived.get(a.url) === a.severity);
     (fullyWaived ? waivedNames : unwaivedNames).push(name);
   }
   return { waived: waivedNames, unwaived: unwaivedNames };
 }
 
+export function auditFailureExitCode(report, exceptionsConfigured) {
+  return exceptionsConfigured || report?.metadata?.vulnerabilities ? 1 : 0;
+}
+
 function main() {
   const { result, stdout, report } = runAudit();
 
-  if (hasVulnerabilities(report)) {
+  if (hasCompleteAudit(report)) {
     const counts = report.metadata.vulnerabilities;
     const flagged = AUDIT_LEVELS.reduce((n, level) => n + (counts[level] ?? 0), 0);
 
@@ -115,7 +117,7 @@ function main() {
     // Everything flagged is waived, but a waiver only covers dev dependencies.
     // Re-audit production-only and fail if the same advisory reaches shipped code.
     const prod = runAudit(["--omit=dev"]);
-    if (!hasVulnerabilities(prod.report)) {
+    if (!hasCompleteAudit(prod.report)) {
       console.error(
         "[resilient-audit] cannot confirm the waived advisories are dev-only (production audit unavailable) - failing closed.",
       );
@@ -138,12 +140,16 @@ function main() {
     return 0;
   }
 
-  // No parseable report: npm itself failed (registry outage, ENOAUDIT, proxy).
-  // The audit is advisory infrastructure, so do not fail the build on its absence.
+  // This also fails after expiry, so unavailable evidence cannot prolong the exception.
   const stderr = (result.stderr ?? "").slice(0, 2000);
-  console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
-  if (stderr) console.warn(stderr);
-  return 0;
+  if (auditFailureExitCode(report, CONFIGURED_EXCEPTIONS.size > 0) === 0) {
+    console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
+    if (stderr) console.warn(stderr);
+    return 0;
+  }
+  console.error("[resilient-audit] audit unavailable or malformed - failing closed.");
+  if (stderr) console.error(stderr);
+  return 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

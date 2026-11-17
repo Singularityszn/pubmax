@@ -18,10 +18,12 @@ minimatch 3.
 
 [[IgnoredVulns]]
 id = "GHSA-fc5q-39xc-vjpf"
-ignoreUntil = 2026-12-17
+ignoreUntil = 2026-11-24T00:00:00Z
 reason = """
-picomatch is a dev-only dependency through Next ESLint, fast-glob, knip and
-vitest. It is not shipped in the production bundle. No fixed release existed
-on 2026-11-17. Tracked at https://github.com/Singularityszn/pubmax/issues/2976.
-Remove this ignore when a fixed picomatch is published.
+Temporary development-only exception while picomatch has no patched release.
+The security job audits every tracked npm lockfile through resilient-audit.mjs.
+That guard permits only this named High advisory in development dependencies,
+requires a clean production-only audit, and fails closed on an unavailable audit.
+The npm exception expires at 2026-11-24T00:00:00Z. Remove both entries when a
+patched picomatch release is available. No production dependency is exempted.
 """
