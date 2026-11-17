@@ -208,18 +208,23 @@ for (const exit of ["close button", "direct dismiss"] as const) {
           expect(after.center[1]).toBeCloseTo(held.center[1], 7);
           expect(after.zoom).toBeCloseTo(held.zoom, 7);
         } else {
-          // The two published stop coordinates must fill the useful map band.
-          // A camera that remains at the selected venue cannot meet both bounds.
+          // Compare with the settled venue camera as well as the route band.
+          // Two visible projected stops alone do not prove recovery occurred.
           await expect.poll(async () => {
             const state = await readCamera(page);
             const points = await Promise.all([
               projectOnMap(page, [-0.134383, 51.5113]), projectOnMap(page, [-0.135402, 51.5108]),
             ]);
-            return !state.moving && !state.settling && points.every(point =>
+            return !state.moving && !state.settling
+              && (Math.abs(state.zoom - held.zoom) > 0.1
+                || Math.hypot(state.center[0] - held.center[0], state.center[1] - held.center[1]) > 0.0001)
+              && points.every(point =>
               point.x >= 72 && point.x <= 1368 && point.y >= 300 && point.y <= 720)
               && Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y) >= 160;
           }).toBe(true);
         }
+        await testInfo.attach("camera-transition", { body: JSON.stringify({ selected, held, after: await readCamera(page) }),
+          contentType: "application/json" });
         await testInfo.attach("after-resolution", { body: await page.screenshot(), contentType: "image/png" });
       } finally {
         releaseVenue();

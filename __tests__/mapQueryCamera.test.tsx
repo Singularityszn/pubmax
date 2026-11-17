@@ -786,25 +786,27 @@ describe("query camera with contextual price pins", () => {
     expect(camera.cameraLanePending()).toBe(false);
   });
 
-  it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s with the inspector open", (change) => {
-    const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
-    mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
-      undefined, undefined, undefined, undefined, { current: soho[0]!.id });
-    camera.fitPalPicks(1, picks);
-    flush();
-    act(() => {
-      if (change === "hide") planRef.current!.hideRoute();
-      else {
-        planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
-        planRef.current!.mapRoute();
-      }
+  describe.each([false, true])("with inspector open: %s", (inspectorOpen) => {
+    it.each(["one stop", "clear", "hide"] as const)("releases Pal ownership after route %s", (change) => {
+      const planRef: { current: ReturnType<typeof useMapPlanCoordinator> | null } = { current: null };
+      mount({ current: soho }, soho, undefined, undefined, undefined, false, planRef,
+        undefined, undefined, undefined, undefined, { current: inspectorOpen ? soho[0]!.id : "" });
+      camera.fitPalPicks(1, picks);
+      flush();
+      act(() => {
+        if (change === "hide") planRef.current!.hideRoute();
+        else {
+          planRef.current!.setBuiltIds(change === "clear" ? [] : [soho[0]!.id]);
+          planRef.current!.mapRoute();
+        }
+      });
+      flush();
+      camera.fitQueryVenues();
+      flush();
+      expect(fitBounds).toHaveBeenCalledTimes(2);
+      expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
     });
-    flush();
-    camera.fitQueryVenues();
-    flush();
-    expect(fitBounds).toHaveBeenCalledTimes(2);
-    expect((fitBounds.mock.calls.at(-1)![0] as LngLatBounds).toArray())
-      .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
   });
 
   it("blocks mounted restoration updates while Pal owns the camera", () => {
@@ -1033,12 +1035,15 @@ describe("closing a route stop", () => {
     }
     await act(async () => root.render(createElement(Journey)));
     if (moved) gesture.current.movementSerial += 1;
-    await act(async () => {
-      const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
-      if (exit === "direct dismiss") window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT));
-      else navigation.home();
-      await landed;
-    });
+    if (exit === "direct dismiss") {
+      act(() => window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT)));
+    } else {
+      await act(async () => {
+        const landed = new Promise<void>(resolve => window.addEventListener("popstate", () => resolve(), { once: true }));
+        navigation.home();
+        await landed;
+      });
+    }
     expect(fitRoute).not.toHaveBeenCalled();
     act(() => resolveVenues());
     expect(restoreCamera).not.toHaveBeenCalled();

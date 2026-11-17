@@ -84,13 +84,14 @@ export function useRouteCameraFraming({
         movementSerial: selectedVenueId ? movementSerial : previous.movementSerial };
     }
     if (!mapReady || routePending) return;
+    const userOwned = consumedRequest.current !== requestToken;
+    consumedRequest.current = requestToken;
     if (!selectedVenueId && !routeKey.includes(">")) {
       selection.current = { id: "", movementSerial: null };
       consumedClose.current = closeRequestToken;
+      if (userOwned) fitRoute("user", requestToken);
       return;
     }
-    const userOwned = consumedRequest.current !== requestToken;
-    consumedRequest.current = requestToken;
     const closed = consumedClose.current !== closeRequestToken;
     if (!selectedVenueId && previous.movementSerial !== null) {
       if (userOwned && requestToken > closeRequestToken) {

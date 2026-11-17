@@ -12,6 +12,7 @@ import {
 } from "@/lib/mapSurfaceHistory";
 import { backSurface, openSurface, type SurfaceEntry, type SurfaceStack } from "@/lib/surfaceStack";
 import { buildMapSeed } from "@/lib/pubMap";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
@@ -246,6 +247,25 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { label: "a venue", entries: [venue] },
+    { label: "a planner's venue", entries: [planner, venue] },
+    { label: "a venue's planner", entries: [venue, planner] },
+    { label: "a planner", entries: [planner] },
+  ])("dismisses $label before a primary tab without queuing traversal", async ({ entries }) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(...entries);
+    const go = vi.spyOn(window.history, "go").mockImplementation(() => {});
+    act(() => requestMobileSheetDismiss());
+    expect(go).not.toHaveBeenCalled();
+    expect(onHome).toHaveBeenCalledOnce();
+    expect(trail()).toEqual([]);
+    expect(new URLSearchParams(window.location.search).has("sel")).toBe(false);
+    expect(navigation.holdsSurface("venue")).toBe(false);
+    expect(navigation.holdsSurface("planner")).toBe(false);
+    expect(onVenueClose).toHaveBeenCalledTimes(entries.some(entry => entry.id === "venue") ? 1 : 0);
   });
 
   it("completes an area choice before opening a pub, so Back returns to the map", async () => {

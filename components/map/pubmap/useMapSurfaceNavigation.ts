@@ -542,12 +542,19 @@ export function useMapSurfaceNavigation({
 
   useEffect(() => {
     const onDismiss = () => {
-      if (stackRef.current.some((entry) => entry.id === "venue")) home();
-      else onHomeRef.current();
+      const root = ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>;
+      const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
+      publishStack(root);
+      window.history.replaceState(
+        stampMapSurfaceHistory(window.history.state, root, "", above),
+        "",
+        urlForStack(root, ""),
+      );
+      onHomeRef.current();
     };
     window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
     return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
-  }, [home]);
+  }, [publishStack]);
 
   /** Close `id` through Back when it is the top entry, otherwise with `close`. */
   const leave = useCallback((id: MapSurfaceId, close: () => void) => {
