@@ -96,8 +96,12 @@ describe("featured open table selection", () => {
     expect(store.readShareCard).not.toHaveBeenCalled();
   });
 
+  it("refuses a malformed crew id", async () => {
+    await expect(loadFeaturedOpenTable({ ...SELECTION, crewId: "crew-1" }, NOW)).resolves.toEqual({ status: "missing" });
+  });
+
   it.each([
-    ["a malformed crew id", { crewId: "crew-1" }],
+    ["an empty crew id", { crewId: "" }],
     ["an empty host", { hostHandle: "" }],
     ["an empty pub", { meetingVenueId: "" }],
     ["an unparseable start", { startsAt: "next Thursday" }],

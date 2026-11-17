@@ -54,6 +54,7 @@ import {
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostLane } from "@/lib/socialPostReason";
+import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
@@ -124,6 +125,7 @@ type SocialPageClientProps = {
    */
   londonLaneOpen?: boolean;
   publicAlternatives?: SocialAlternatives;
+  featuredOpenTable?: FeaturedOpenTableResult;
 };
 
 type SocialPostPage = {
@@ -412,6 +414,7 @@ function SocialPageAccountState({
   friendsLaunchEnabled = true,
   londonLaneOpen = false,
   publicAlternatives,
+  featuredOpenTable,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, identityResolved, identityUnavailable, retryIdentity } = useAuth();
@@ -850,7 +853,7 @@ function SocialPageAccountState({
           <div className="socialDoor">
             {switcher}
             {logInPublicSection}
-            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
+            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {londonLane ? (
               <SocialLondonLane />
             ) : (
@@ -910,7 +913,7 @@ function SocialPageAccountState({
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
             {logInPublicSection}
-            {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
+            {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>

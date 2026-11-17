@@ -40,6 +40,9 @@ export type OpenCrawlShareCardResult =
       card: OpenCrawlShareCard;
       meetingPoint: OutOpenPlanMeetingPoint;
       stillTrue: StillTruePublicFacts | null;
+      /** Server-only stored ids from the same snapshot. Never sent to a client. */
+      meetingVenueId: string;
+      singleStopVenueId: string | null;
     }
   | { ok: false; reason: "missing" | "unavailable" };
 
@@ -210,5 +213,7 @@ async function loadOpenCrawl(
       spendBand: shareSpendBand(prices),
     },
     stillTrue: includeStillTrue ? await stillTrueFacts(source, prices[0] ?? null) : null,
+    meetingVenueId: source.meetingVenueId,
+    singleStopVenueId: stillTrueVenueId(source.stopVenueIds),
   };
 }
