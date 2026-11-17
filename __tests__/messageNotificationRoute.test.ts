@@ -24,6 +24,41 @@ const request = (body: unknown, method = "POST") => new Request("https://pubmaxx
 beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
+  it("subscribes without requiring previously enabled preferences", async () => {
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/subscribe", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
+    const response = await POST(request({ action: "subscribe", token }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, bound: true, sessionId: SESSION });
+    expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
+    expect(release).not.toHaveBeenCalled();
+  });
+  it.each([true, false])("sets a member's conversation mute to %s", async (muted) => {
+    const response = await POST(request({ action: "mute", conversationId: THREAD, muted }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(setMuted).toHaveBeenCalledWith("owner", THREAD, muted);
+  });
+  it.each([
+    null,
+    [],
+    {},
+    { action: "unknown" },
+    { action: "toString" },
+    { action: "__proto__" },
+    { action: "preferences", enabled: true, preview: "true" },
+    { action: "mute", conversationId: THREAD, muted: "true" },
+    { action: "subscribe", token: "invalid" },
+    { action: "restore", token: "invalid" },
+    { action: "presence", token: "invalid", conversationId: null, activityId: 1, revision: 1 },
+  ])("rejects malformed notification changes: %j", async (body) => {
+    expect((await POST(request(body))).status).toBe(400);
+    for (const write of [savePreferences, setMuted, saveToken, release, presence]) expect(write).not.toHaveBeenCalled();
+  });
+  it("maps a dispatched storage failure to the existing unavailable response", async () => {
+    savePreferences.mockRejectedValueOnce(new Error("unavailable"));
+    const response = await POST(request({ action: "preferences", enabled: true, preview: false }));
+    expect(response.status).toBe(503);
+  });
   it("scopes ordered presence to the verified session", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/presence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
     expect((await POST(request({ action: "presence", token, conversationId: THREAD, activityId: 1, revision: 2, sessionId: "asserted" }))).status).toBe(200);
