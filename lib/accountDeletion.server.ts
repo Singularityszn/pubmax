@@ -70,6 +70,22 @@ import { requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 /** One page of a Storage API folder listing. */
 const LIST_PAGE = 1000;
 
+/** The most crews one deletion's release sweep processes. */
+const CREW_RELEASE_LIMIT = 20;
+
+type CrewReleaseAnswer = { crews: number; released: number };
+
+const isCount = (value: unknown): value is number => Number.isInteger(value) && (value as number) >= 0;
+
+/** The sweep's answer, or a throw when it is not one the release would give. */
+function crewReleaseAnswer(answer: unknown): CrewReleaseAnswer {
+  const candidate = (answer ?? {}) as { ok?: unknown; crews?: unknown; released?: unknown };
+  if (candidate.ok !== true || !isCount(candidate.crews) || !isCount(candidate.released)) {
+    throw new Error("crew release gave an unexpected answer");
+  }
+  return { crews: candidate.crews, released: candidate.released };
+}
+
 /**
  * Codes and messages GoTrue answers with when the account is already gone.
  *
@@ -157,9 +173,10 @@ export type AccountDeletionDeps = {
    * (migration 0246). It runs after the auth row is gone, in its own
    * transaction, because the delete holds account locks that a crew lock must
    * never follow. Each bounded pass advances pending cleanup across deleted
-   * accounts. Later deletes or operator calls continue it. Throws when refused.
+   * accounts. Later deletes or operator calls continue it. Answers the RPC's
+   * data as sent. Throws when refused.
    */
-  releaseDepartedCrewPlaces(): Promise<void>;
+  releaseDepartedCrewPlaces(limit: number): Promise<unknown>;
 };
 
 function supabaseDeps(): AccountDeletionDeps {
@@ -257,9 +274,10 @@ function supabaseDeps(): AccountDeletionDeps {
       const { error } = await admin().auth.admin.deleteUser(userId);
       return { error };
     },
-    async releaseDepartedCrewPlaces() {
-      const { error } = await admin().rpc("release_departed_social_crew_places", { p_limit: 20 });
+    async releaseDepartedCrewPlaces(limit) {
+      const { data, error } = await admin().rpc("release_departed_social_crew_places", { p_limit: limit });
       if (error) throw new Error(error.message);
+      return data;
     },
   };
 }
@@ -344,8 +362,17 @@ export async function deleteOwnAccount(
   // The account is gone, so its crew places are freed now. A failure here is
   // logged for an operator and finished by the next sweep (any later delete, any
   // admission into that crew, or the runbook call); the answer stays the auth row's.
+  // A full batch does not prove more crews are pending, only that some may be.
   try {
-    await deps.releaseDepartedCrewPlaces();
+    const { crews, released } = crewReleaseAnswer(await deps.releaseDepartedCrewPlaces(CREW_RELEASE_LIMIT));
+    if (crews >= CREW_RELEASE_LIMIT) {
+      log("warn", "account.delete_crew_release_batch_full", {
+        stage: "crew_release",
+        crews,
+        released,
+        limit: CREW_RELEASE_LIMIT,
+      });
+    }
   } catch (err) {
     log("error", "account.delete_crew_release_failed", { stage: "crew_release", reason: failureReason(err) });
   }

@@ -5,6 +5,8 @@
 -- invitation acceptance bodies, the 0114 host queue body, the 0092 provisioning body
 -- and the 0224 suspension body, then drops the social_blocks trigger, the helpers, the removal
 -- correction function and its ledger.
+-- Roll back 0246 first. 0246 calls helpers this rollback drops, so while 0246's
+-- release function exists this rollback stops before it locks or changes anything.
 -- Rollback discloses nothing, but it removes protections. A removed person can request
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
@@ -12,7 +14,7 @@
 -- THE auth.users TRIGGER STAYS. The migration role does not own auth.users, so it
 -- cannot drop a trigger there. The rollback makes the trigger function return at once.
 --
--- THE LEDGER IS NOT DROPPED SILENTLY. Before anything else, the rollback locks
+-- THE LEDGER IS NOT DROPPED SILENTLY. Before it changes anything, the rollback locks
 -- social_crew_removal_corrections against writers and checks its exact exported snapshot.
 -- When there are rows, set pubmax.crew_removal_corrections_exported to the count:SHA256
 -- acknowledgement produced in the same query as the exported records (see the runbook).
@@ -20,6 +22,14 @@
 
 begin;
 set local time zone 'UTC';
+
+do $$
+begin
+  if to_regprocedure('public.release_departed_social_crew_places(integer)') is not null then
+    raise exception 'Rollback 0245 refused: migration 0246 is still applied. Run the 0246 rollback first.';
+  end if;
+end;
+$$;
 
 -- Locks. auth.users comes first, while this rollback holds nothing, so waiting for it
 -- cannot close a cycle: a correction, admission, deletion or plan join that holds an
