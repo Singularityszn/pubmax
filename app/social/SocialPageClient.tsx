@@ -468,13 +468,17 @@ function SocialPageAccountState({
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
-  const feedController = useRef<AbortController | null>(null);
+  const explicitFeedRefreshKey = useRef<string | null>(null);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
   );
   const feedSnapshotKey = user && feedHref
     ? `social-posts:${user.id}:${accountRevision}:${feedHref}` : null;
+  const requestExplicitFeedRefresh = useCallback(() => {
+    explicitFeedRefreshKey.current = feedSnapshotKey;
+    setFeedAttempt(value => value + 1);
+  }, [feedSnapshotKey]);
   const denyFeed = useCallback(() => {
     if (feedSnapshotKey) forgetSurfaceSnapshot(feedSnapshotKey);
     feedData.current = null;
@@ -600,6 +604,8 @@ function SocialPageAccountState({
   useEffect(() => {
     moreController.current?.abort();
     const requestId = ++feedRequestId.current;
+    const replaceDeepWindow = explicitFeedRefreshKey.current === feedSnapshotKey;
+    explicitFeedRefreshKey.current = null;
     if (access !== "verified" || !feedHref || !feedSnapshotKey) {
       if (["preview", "sign_in_required", "age_verification_required", "suspended"].includes(access) && feedData.current) {
         forgetSurfaceSnapshot(feedData.current.key);
@@ -617,15 +623,22 @@ function SocialPageAccountState({
       return;
     }
 
+    const previous = feedData.current?.key === feedSnapshotKey
+      ? feedData.current.page : readSurfaceSnapshot<SocialPostWindow>(feedSnapshotKey);
+    const keepDeepWindow = (previous?.pages ?? 0) > SOCIAL_REFRESH_PAGE_CAP && !replaceDeepWindow;
     const controller = new AbortController();
-    feedController.current = controller;
-    feedPending.current = true;
+    feedPending.current = !keepDeepWindow;
+    const cancel = () => {
+      controller.abort();
+      feedPending.current = false;
+      moreController.current?.abort();
+      moreController.current = null;
+    };
     void Promise.resolve().then(() => {
       if (feedRequestId.current !== requestId) return;
       const sameWindow = feedData.current?.key === feedSnapshotKey;
       if (feedData.current?.key !== feedSnapshotKey) {
-        const held = readSurfaceSnapshot<SocialPostWindow>(feedSnapshotKey);
-        feedData.current = held ? { key: feedSnapshotKey, page: held } : null;
+        feedData.current = previous ? { key: feedSnapshotKey, page: previous } : null;
       }
       const held = feedData.current?.page;
       setPosts(held?.posts ?? []);
@@ -633,11 +646,10 @@ function SocialPageAccountState({
       setLoadedPages(held?.pages ?? 0);
       setFeedStatus(current => held ? (sameWindow && current === "error" ? "error" : "ready") : "loading");
       setLoadingMore(false);
-      setRefreshing(true);
+      setRefreshing(!keepDeepWindow);
       if (!sameWindow) setMoreFailed(false);
     });
-    const previous = feedData.current?.key === feedSnapshotKey
-      ? feedData.current.page : readSurfaceSnapshot<SocialPostWindow>(feedSnapshotKey);
+    if (keepDeepWindow) return cancel;
     readSocialPostWindow(async cursor => {
       const href = cursor ? socialFeedRequestHref(initialState, cursor) : feedHref;
       if (!href) throw new Error("Social feed unavailable");
@@ -667,13 +679,7 @@ function SocialPageAccountState({
           setRefreshing(false);
         }
       });
-    return () => {
-      controller.abort();
-      if (feedController.current === controller) feedController.current = null;
-      feedPending.current = false;
-      moreController.current?.abort();
-      moreController.current = null;
-    };
+    return cancel;
   }, [access, feedAttempt, feedHref, feedSnapshotKey, initialState, denyFeed]);
 
   useEffect(() => {
@@ -742,16 +748,7 @@ function SocialPageAccountState({
 
   const refreshAfterSave = useCallback(() => {
     feedRequestId.current += 1;
-    if ((feedData.current?.page.pages ?? 0) <= SOCIAL_REFRESH_PAGE_CAP) {
-      setFeedAttempt(value => value + 1);
-      return;
-    }
-    feedController.current?.abort();
-    moreController.current?.abort();
-    moreController.current = null;
-    feedPending.current = false;
-    setLoadingMore(false);
-    setRefreshing(false);
+    setFeedAttempt(value => value + 1);
   }, []);
 
   const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
@@ -1088,7 +1085,7 @@ function SocialPageAccountState({
               aria-busy={feedStatus === "loading" || loadingMore || refreshing}
             >
               {feedHeading}
-              {loadedPages > SOCIAL_REFRESH_PAGE_CAP ? <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={() => setFeedAttempt(value => value + 1)}>Refresh posts</Button> : null}
+              {loadedPages > SOCIAL_REFRESH_PAGE_CAP ? <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button> : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1106,7 +1103,7 @@ function SocialPageAccountState({
               {feedStatus === "error" && posts.length > 0 ? (
                 <p className="socialFeedInlineError" role="alert">
                   Couldn&rsquo;t refresh these posts. They show what loaded last.
-                  <Button type="button" variant="secondary" onClick={() => setFeedAttempt(value => value + 1)}>Retry</Button>
+                  <Button type="button" variant="secondary" onClick={requestExplicitFeedRefresh}>Retry</Button>
                 </p>
               ) : null}
               {feedStatus === "loading" && posts.length === 0 ? (
@@ -1118,7 +1115,7 @@ function SocialPageAccountState({
                     action={
                       <button
                         type="button"
-                        onClick={() => setFeedAttempt((value) => value + 1)}
+                        onClick={requestExplicitFeedRefresh}
                       >
                         Retry
                       </button>
