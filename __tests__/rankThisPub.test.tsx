@@ -309,6 +309,22 @@ describe("RankThisPub", () => {
     expect(net.read).toHaveBeenCalledOnce();
   });
 
+  it("retires a pub's checkpoint when the mounted action moves to another pub", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    await act(async () => root!.render(<RankThisPub venueId="lamb" venueName="The Lamb" returnTo="/pubs/lamb" />));
+    expect(rankButton()?.textContent).toBe("Rank it");
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    expect(compare()).toBe("lamb:lamb");
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #1");
+  });
+
   it("reconciles a closed write after its promise rejects", async () => {
     net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
     await render();
