@@ -1,17 +1,21 @@
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The audit gate may waive named advisories (see WAIVED_ADVISORIES in the
 // script). These tests pin the blast radius of that mechanism: a waiver
 // covers exactly the advisory named, and a finding that mixes a waived
-// advisory with anything else still fails. The live map is empty;
-// classifyFindings is exercised with a local map so the machinery stays
-// pinned independently of any live waiver.
+// advisory with anything else still fails. Generic classification uses a local
+// map. CLI cases exercise the approved exception and its production audit.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
-import { WAIVED_ADVISORIES, classifyFindings } from "../scripts/resilient-audit.mjs";
+import { auditFailureExitCode, classifyFindings } from "../scripts/resilient-audit.mjs";
 
 const WAIVED_URL = "https://github.com/advisories/GHSA-xxxx-waived-zzzz";
 const OTHER_URL = "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz";
+const PICOMATCH_URL = "https://github.com/advisories/GHSA-fc5q-39xc-vjpf";
 
 const EXAMPLE_WAIVERS = new Map([[WAIVED_URL, "high"]]);
 
@@ -19,9 +23,100 @@ function advisory(url: string, severity = "high") {
   return { source: 1, name: "pkg", dependency: "pkg", title: "t", url, severity };
 }
 
+function auditReport(url?: string, severity = "high") {
+  return JSON.stringify({
+    vulnerabilities: url ? { picomatch: { name: "picomatch", severity, via: [advisory(url, severity)] } } : {},
+    metadata: { vulnerabilities: { high: url && severity === "high" ? 1 : 0, critical: url && severity === "critical" ? 1 : 0 } },
+  });
+}
+
+function withHighCount(report: string, high: number) {
+  const parsed = JSON.parse(report);
+  parsed.metadata.vulnerabilities.high = high;
+  return JSON.stringify(parsed);
+}
+
+function runGate(full: string, production: string, now = "2026-11-23T23:59:59.999Z") {
+  const folder = mkdtempSync(join(tmpdir(), "pubmax-audit-waiver-"));
+  try {
+    writeFileSync(join(folder, "clock.mjs"), "Date.now = () => Number(process.env.AUDIT_NOW);\n");
+    writeFileSync(join(folder, "npm"), `#!/usr/bin/env node
+const raw = process.argv.includes("--omit=dev") ? process.env.AUDIT_PRODUCTION : process.env.AUDIT_FULL;
+process.stdout.write(raw);
+try {
+  const counts = JSON.parse(raw).metadata.vulnerabilities;
+  process.exit(counts.high || counts.critical ? 1 : 0);
+} catch { process.exit(1); }
+`, { mode: 0o755 });
+    return spawnSync(process.execPath, ["--import", join(folder, "clock.mjs"), "scripts/resilient-audit.mjs"], {
+      cwd: process.cwd(), encoding: "utf8",
+      env: { ...process.env, PATH: `${folder}:${process.env.PATH}`, AUDIT_NOW: String(Date.parse(now)), AUDIT_FULL: full, AUDIT_PRODUCTION: production },
+    });
+  } finally { rmSync(folder, { recursive: true, force: true }); }
+}
+
 describe("resilient-audit waivers", () => {
-  it("ships with no live waivers", () => {
-    expect([...WAIVED_ADVISORIES]).toEqual([]);
+  it("permits the approved development advisory only when production is clean", () => {
+    expect(runGate(auditReport(PICOMATCH_URL), auditReport()).status).toBe(0);
+  });
+
+  it.each(["2026-11-24T00:00:00.000Z", "2026-11-25T00:00:00.000Z"])("expires the exception at %s", (now) => {
+    expect(runGate(auditReport(PICOMATCH_URL), auditReport(), now).status).toBe(1);
+  });
+
+  it("does not accept unavailable evidence when the exception expires", () => {
+    expect(runGate("registry unavailable", auditReport(), "2026-11-24T00:00:00.000Z").status).toBe(1);
+  });
+
+  it.each([
+    ["production exposure", auditReport(PICOMATCH_URL), auditReport(PICOMATCH_URL)],
+    ["another advisory", auditReport(OTHER_URL), auditReport()],
+    ["changed severity", auditReport(PICOMATCH_URL, "critical"), auditReport()],
+    ["unavailable production evidence", auditReport(PICOMATCH_URL), "registry unavailable"],
+    ["unavailable full evidence", "registry unavailable", auditReport()],
+    ["incomplete production evidence", auditReport(PICOMATCH_URL), JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } })],
+    ["incomplete full evidence", JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } }), auditReport()],
+  ])("fails closed for %s", (_label, full, production) => {
+    expect(runGate(full, production).status).toBe(1);
+  });
+
+  it.each(["2026-11-23T23:59:59.999Z", "2026-11-24T00:00:00.000Z"])(
+    "rejects full reports with inconsistent counts at %s", (now) => {
+      expect(runGate(withHighCount(auditReport(), 1), auditReport(), now).status).toBe(1);
+      expect(runGate(withHighCount(auditReport(PICOMATCH_URL), 0), auditReport(), now).status).toBe(1);
+    },
+  );
+
+  it.each([
+    withHighCount(auditReport(), 1),
+    withHighCount(auditReport(PICOMATCH_URL), 0),
+  ])("rejects a production report with inconsistent counts", (production) => {
+    expect(runGate(auditReport(PICOMATCH_URL), production).status).toBe(1);
+  });
+
+  it.each([
+    { severity: "high", title: "unknown advisory" },
+    "missing-package",
+    "constructor",
+  ])("rejects unresolved evidence mixed with a waived advisory", (unknownAdvisory) => {
+    const report = {
+      vulnerabilities: {
+        mixed: { severity: "high", via: [advisory(WAIVED_URL), unknownAdvisory] },
+      },
+    };
+    expect(classifyFindings(report, EXAMPLE_WAIVERS).unwaived).toEqual(["mixed"]);
+  });
+
+  it.each([
+    JSON.parse(withHighCount(auditReport(OTHER_URL), 2)),
+    JSON.parse(withHighCount(auditReport(OTHER_URL), 0)),
+  ])("rejects inconsistent metadata after the exception is removed", (report) => {
+    expect(auditFailureExitCode(report, false)).toBe(1);
+  });
+
+  it("restores only primary outage tolerance after configuration removal", () => {
+    expect(auditFailureExitCode(null, false)).toBe(0);
+    expect(auditFailureExitCode(null, true)).toBe(1);
   });
 
   it("waives a finding whose only advisory is waived", () => {
