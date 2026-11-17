@@ -195,3 +195,21 @@ describe("where to meet on the invite", () => {
     expect(meet?.querySelector(".invite__meetAddress")).toBeNull();
   });
 });
+
+it.each([false, true])("shows the drawn £15 total only with all three listed prices (missing=%s)", async (missing) => {
+  plan.stops = [
+    { venueId: "venue-17m0t8h", venueName: "McGlynn's Free House", position: 0 },
+    { venueId: "venue-1ar7s8w", venueName: "The Boot", position: 1 },
+    { venueId: missing ? "venue-not-in-the-index" : "venue-1706y8z", venueName: "The Harrison", position: 2 },
+  ];
+  const root = document.createElement("div");
+  root.innerHTML = renderToStaticMarkup(await InvitePage({ params: Promise.resolve({ token: "pint-receipt" }) }));
+  const stamp = [...root.querySelectorAll(".invite__spend")].find((node) => node.textContent?.includes("Listed cost:"));
+  if (missing) {
+    expect(stamp).toBeUndefined();
+  } else {
+    // The drawn night has listed pints at 520p, 480p and 500p.
+    expect(stamp?.textContent).toBe("3 stops · Listed cost: £15.00, one pint per stop");
+    expect(root.querySelector(".invite__spend")?.textContent).toBe("£4.80–£5.20 per pint");
+  }
+});
