@@ -166,6 +166,9 @@ describe("summon price", () => {
     ["a mismatched half volume", { measure: "half", pint_name: "Amstel 568ml" }],
     ["a can labelled as a bottle", { measure: "bottle", pint_name: "Amstel 330ml can" }],
     ["a double labelled as a single", { measure: "single", pint_name: "Gin double" }],
+    ["a pint name labelled as a half", { measure: "half", pint_name: "Amstel pint" }],
+    ["a pint listing labelled as a half", { measure: "half", price_text: "£5.50 per pint" }],
+    ["a mixed half and pint listing labelled as a half", { measure: "half", price_text: "Half pint £5.50 per pint" }],
     ["a single labelled as a double", { measure: "double", pint_name: "Gin single" }],
     ["a leading double labelled as a single", { measure: "single", pint_name: "Double gin and tonic" }],
     ["a spirit double labelled as a pint", { measure: "pint", pint_name: "Gin double" }],
@@ -192,6 +195,9 @@ describe("summon price", () => {
 
   it.each([
     ["half", "Amstel 284ml"],
+    ["half", "Amstel half pint"],
+    ["half", "Amstel half of a pint"],
+    ["half", "Amstel ½ pint"],
     ["175ml", "White wine 175ml"],
     ["bottle", "Amstel 330ml bottle"],
     ["single", "Gin single"],
