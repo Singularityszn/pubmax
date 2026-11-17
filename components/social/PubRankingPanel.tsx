@@ -2,13 +2,21 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import ReviewStars from "@/components/social/ReviewStars";
 import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedFetch } from "@/lib/authedFetch";
+import { panelMineOutcome, type PanelPart } from "@/lib/pubRankingPanelRead";
+import {
+  heldRanking,
+  startRankingCheckpoint,
+  transitionRankingCheckpoint,
+  type RankingCheckpointEvent,
+  type RankingReadOutcome,
+} from "@/lib/rankingCheckpoint";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
 import {
   SOCIAL_PUB_BAND_LABEL,
@@ -46,15 +54,24 @@ function comparedRows(entries: SocialPubRankingEntry[]): Row[] {
   }));
 }
 
-class RankingReadError extends Error {
-  constructor(readonly kind: "refused" | "unavailable") { super(kind); }
+type Loaded = { scope: Scope; rows: Row[]; compared: SocialPubRankingEntry[] };
+
+/** One read, as what it proves: a value, an outage, or a refusal of this account. */
+async function readPart<T>(url: string, signal: AbortSignal, pick: (body: unknown) => T | null): Promise<PanelPart<T>> {
+  try {
+    const response = await authedFetch(url, { credentials: "same-origin", signal }, { requiresIdentity: true });
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) return { kind: socialPubRankingReadFailure(response.status, body) };
+    const value = pick(body);
+    return value === null ? { kind: "unavailable" } : { kind: "ok", value };
+  } catch {
+    return { kind: "unavailable" };
+  }
 }
 
-async function readJson<T>(url: string, signal: AbortSignal): Promise<T> {
-  const response = await authedFetch(url, { credentials: "same-origin", signal }, { requiresIdentity: true });
-  const body = await response.json().catch(() => null);
-  if (!response.ok) throw new RankingReadError(socialPubRankingReadFailure(response.status, body));
-  return body as T;
+function entriesOf<T>(body: unknown): T[] | null {
+  const entries = body !== null && typeof body === "object" ? (body as { entries?: unknown }).entries : undefined;
+  return Array.isArray(entries) ? entries as T[] : null;
 }
 
 /**
@@ -73,110 +90,109 @@ export default function PubRankingPanel(props: { refreshKey?: string }) {
 function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
   const sampled = useIsSample();
   const [scope, setScope] = useState<Scope>("mine");
-  const [loaded, setLoaded] = useState<{ scope: Scope; rows: Row[]; compared: SocialPubRankingEntry[] } | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const [comparing, setComparing] = useState(false);
-  const [revision, setRevision] = useState(0);
-  const [phase, setPhase] = useState<"checking" | "retrying" | "ready" | "unavailable" | "refused">("checking");
+  const [state, setState] = useState(startRankingCheckpoint<Loaded>);
+  const current = useRef(state);
+  const send = useCallback((event: RankingCheckpointEvent<Loaded>) => {
+    const next = transitionRankingCheckpoint(current.current, event);
+    if (next === current.current) return;
+    current.current = next;
+    setState(next);
+  }, []);
   const pendingWrite = useRef<Promise<void> | undefined>(undefined);
-  const generation = useRef(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const sectionRef = useRef<HTMLElement>(null);
-  const focusAfterRead = useRef(false);
-  // A refusal that reaches a reader inside the section keeps a heading for
-  // their focus. A refusal on arrival shows nothing.
-  const [retired, setRetired] = useState(false);
+  const triggers = useRef({ refreshKey, scope });
+  const scopeRef = useRef(scope);
+  useEffect(() => { scopeRef.current = scope; }, [scope]);
 
+  // A refresh from outside or a new scope reads again.
   useEffect(() => {
-    if (phase !== "refused" || !retired) return;
-    // A closing comparison hands the page back in a microtask.
-    queueMicrotask(() => headingRef.current?.focus());
-  }, [phase, retired]);
+    if (triggers.current.refreshKey === refreshKey && triggers.current.scope === scope) return;
+    triggers.current = { refreshKey, scope };
+    send({ type: "read", retrying: false });
+  }, [refreshKey, scope, send]);
 
-  useLayoutEffect(() => {
-    if (phase === "ready" && focusAfterRead.current) headingRef.current?.focus();
-    if (phase !== "checking" && phase !== "retrying") focusAfterRead.current = false;
-  }, [phase]);
-
+  // A read lives as long as its request, past early rows, so a late refusal still lands.
+  const request = state.request;
   useEffect(() => {
-    if (sampled) return;
-    const requestGeneration = ++generation.current;
+    if (sampled || current.current.phase !== "reading") return;
+    const readScope = scopeRef.current;
     const controller = new AbortController();
-    function refuse(error: unknown): never {
-      if (error instanceof RankingReadError && error.kind === "refused" &&
-        !controller.signal.aborted && generation.current === requestGeneration) {
-        setRetired(Boolean(sectionRef.current?.contains(document.activeElement)));
-        setLoaded(null);
-        setComparing(false);
-        setPhase("refused");
-        controller.abort();
-      }
-      throw error;
-    }
+    const answer = (outcome: RankingReadOutcome<Loaded>) => {
+      if (!controller.signal.aborted) send({ type: "answered", request, outcome });
+    };
+    const refusal = (): RankingReadOutcome<Loaded> => ({
+      kind: "refused",
+      readerInside: Boolean(sectionRef.current?.contains(document.activeElement)),
+    });
     void (async () => {
+      // A save the dialog never confirmed settles before the list is read.
       await pendingWrite.current;
       if (controller.signal.aborted) return;
-      if (scope === "lot") {
-        const lot = await readJson<{ entries?: SocialLotRankingEntry[] }>("/api/social/reviews?limit=50&scope=lot", controller.signal);
-        if (controller.signal.aborted || generation.current !== requestGeneration) return;
-        if (!Array.isArray(lot?.entries)) throw new RankingReadError("unavailable");
-        setLoaded({ scope, rows: starRows(lot.entries), compared: [] });
-        setRetired(false);
-        setPhase("ready");
+      if (readScope === "lot") {
+        const lot = await readPart("/api/social/reviews?limit=50&scope=lot", controller.signal, entriesOf<SocialLotRankingEntry>);
+        if (lot.kind === "ok") answer({ kind: "data", data: { scope: readScope, rows: starRows(lot.value), compared: [] } });
+        else if (lot.kind === "refused") answer(refusal());
+        else if (lot.kind === "unavailable") answer({ kind: "unavailable" });
         return;
       }
-      const [compared, stars] = await Promise.allSettled([
-        readJson<unknown>("/api/social/rankings", controller.signal).then((body) => {
-          const entries = socialPubRankingPayload(body);
-          if (!entries) throw new RankingReadError("unavailable");
-          if (entries.length > 0 && !controller.signal.aborted && generation.current === requestGeneration) {
-            setLoaded({ scope, rows: comparedRows(entries), compared: entries });
-            setRetired(false);
-            setPhase("ready");
+      let rankings: PanelPart<SocialPubRankingEntry[]> = { kind: "pending" };
+      let reviews: PanelPart<StarEntry[]> = { kind: "pending" };
+      const settle = () => {
+        const outcome = panelMineOutcome(rankings, reviews);
+        switch (outcome.kind) {
+          case "wait":
+            return;
+          case "refused":
+            answer(refusal());
+            return;
+          case "unavailable":
+            answer({ kind: "unavailable" });
+            return;
+          case "compared":
+            answer({ kind: "data", data: { scope: readScope, rows: comparedRows(outcome.entries), compared: outcome.entries } });
+            return;
+          case "stars":
+            answer({ kind: "data", data: { scope: readScope, rows: starRows(outcome.stars), compared: [] } });
+            return;
+          default: {
+            const unreachable: never = outcome;
+            return unreachable;
           }
-          return entries;
-        }).catch(refuse),
-        readJson<{ entries?: StarEntry[] }>("/api/social/reviews?limit=50&scope=mine", controller.signal).catch(refuse),
-      ]);
-      if (controller.signal.aborted || generation.current !== requestGeneration) return;
-      if (compared.status !== "fulfilled") throw new RankingReadError("unavailable");
-      const comparedEntries = compared.value;
-      if (comparedEntries.length > 0) return;
-      if (stars.status !== "fulfilled" || !Array.isArray(stars.value?.entries)) throw new RankingReadError("unavailable");
-      setLoaded({
-        scope,
-        rows: starRows(stars.value.entries),
-        compared: comparedEntries,
-      });
-      setRetired(false);
-      setPhase("ready");
-    })().catch((error: unknown) => {
-      if (controller.signal.aborted || generation.current !== requestGeneration) return;
-      const next = error instanceof RankingReadError ? error.kind : "unavailable";
-      if (next === "refused") {
-        setRetired(Boolean(sectionRef.current?.contains(document.activeElement)));
-        setLoaded(null);
-        setComparing(false);
-      }
-      setPhase(next);
-    });
-    return () => { controller.abort(); generation.current += 1; };
-  }, [refreshKey, scope, revision, sampled]);
+        }
+      };
+      void readPart("/api/social/rankings", controller.signal, socialPubRankingPayload).then((part) => { rankings = part; settle(); });
+      void readPart("/api/social/reviews?limit=50&scope=mine", controller.signal, entriesOf<StarEntry>).then((part) => { reviews = part; settle(); });
+    })();
+    return () => controller.abort();
+  }, [request, sampled, send]);
 
-  const rows = sampled ? [] : loaded?.scope === scope ? loaded.rows : null;
-  const visible = rows ? (showAll ? rows : rows.slice(0, SHOWN)) : [];
-  function refresh(retrying = false) {
-    setPhase(retrying ? "retrying" : "checking");
-    setRevision((value) => value + 1);
-  }
-  if (phase === "refused") {
-    return retired ? (
+  const afterRetry = state.phase === "ready" && state.afterRetry ? state.request : null;
+  useLayoutEffect(() => {
+    if (afterRetry !== null) headingRef.current?.focus();
+  }, [afterRetry]);
+
+  const retired = state.phase === "refused" && state.retired ? state.request : null;
+  useEffect(() => {
+    if (retired === null) return;
+    // A closing comparison hands the page back in a microtask.
+    queueMicrotask(() => headingRef.current?.focus());
+  }, [retired]);
+
+  if (state.phase === "refused") {
+    return state.retired ? (
       <section className="pubRanking" aria-labelledby="pub-ranking-title">
         <h2 id="pub-ranking-title" ref={headingRef} tabIndex={-1}>Your pubs, ranked</h2>
         <p className="pubRanking__empty" role="status">Your ranking is not available to this account right now.</p>
       </section>
     ) : null;
   }
+  const phase = state.phase;
+  const held = heldRanking(state);
+  const retrying = phase === "reading" && state.retrying;
+  const rows = sampled ? [] : held?.scope === scope ? held.rows : null;
+  const visible = rows ? (showAll ? rows : rows.slice(0, SHOWN)) : [];
   return (
     <section ref={sectionRef} className="pubRanking" aria-labelledby="pub-ranking-title">
       <h2 id="pub-ranking-title" ref={headingRef} tabIndex={-1}>{scope === "mine" ? "Your pubs, ranked" : "Your lot's pubs"}</h2>
@@ -187,7 +203,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
             type="button"
             role="radio"
             aria-checked={scope === option}
-            onClick={() => { if (scope !== option) { focusAfterRead.current = false; setPhase("checking"); setScope(option); } setShowAll(false); }}
+            onClick={() => { if (scope !== option) setScope(option); setShowAll(false); }}
           >
             {option === "mine" ? "Yours" : "Your lot's"}
           </button>
@@ -196,10 +212,8 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
       <p className={!sampled && phase !== "ready" ? "pubRanking__empty" : "sr-only"} role="status">
         {sampled || phase === "ready" ? "" : phase === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…"}
       </p>
-      {phase === "unavailable" || phase === "retrying" ? (
-        <>
-          <button type="button" className="pubRanking__more" aria-disabled={phase === "retrying"} onClick={() => { if (phase === "unavailable") { focusAfterRead.current = true; refresh(true); } }}>Try again</button>
-        </>
+      {phase === "unavailable" || retrying ? (
+        <button type="button" className="pubRanking__more" aria-disabled={retrying} onClick={() => { if (phase === "unavailable") send({ type: "read", retrying: true }); }}>Try again</button>
       ) : null}
       {rows && rows.length === 0 ? (
         <p className="pubRanking__empty">
@@ -233,32 +247,19 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
           {showAll ? "Show the top 5" : `Show all ${rows.length}`}
         </button>
       ) : null}
-      {scope === "mine" && (sampled || loaded?.scope === "mine") ? (
-        <button type="button" className="pubRanking__rank" aria-disabled={phase !== "ready" || sampled} onClick={() => { if (phase === "ready" && !sampled) setComparing(true); }}>
+      {scope === "mine" && (sampled || held?.scope === "mine") ? (
+        <button type="button" className="pubRanking__rank" aria-disabled={phase !== "ready" || sampled} onClick={() => { if (phase === "ready" && !sampled) send({ type: "session_opened" }); }}>
           Rank a pub
         </button>
       ) : null}
-      {comparing && loaded ? (
+      {state.session !== "none" && held ? (
         <ComparePubFlow
-          entries={loaded.compared}
-          onClose={(pending, reason) => {
-            setComparing(false);
-            if (reason === "refused") {
-              generation.current += 1;
-              setLoaded(null);
-              setRetired(true);
-              setPhase("refused");
-              return;
-            }
-            pendingWrite.current = pending;
-            refresh();
+          entries={held.compared}
+          onClose={(refresh, reason) => {
+            if (reason !== "refused") pendingWrite.current = refresh;
+            send({ type: "session_closed", refresh: refresh !== undefined, refused: reason === "refused" });
           }}
-          onSaved={(saved) => {
-            // The server's own answer is the checkpoint: no read can beat it.
-            generation.current += 1;
-            setLoaded({ scope: "mine", rows: comparedRows(saved), compared: saved });
-            setPhase("ready");
-          }}
+          onSaved={(saved) => send({ type: "session_saved", data: { scope: "mine", rows: comparedRows(saved), compared: saved } })}
         />
       ) : null}
     </section>

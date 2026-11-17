@@ -133,17 +133,21 @@ it("still retires comparison entries when the reviews read refuses access", asyn
   expect(button("Rank a pub")).toBeUndefined();
 });
 
-it("makes a confirmed save the checkpoint at once and keeps it through an outage", async () => {
+it("makes a confirmed save the checkpoint at once, closes without a read, and keeps it through an outage", async () => {
   await mount();
   await act(async () => button("Rank a pub").click());
   const reads = net.get.mock.calls.length;
   status = 503;
   net.confirmed = [entry("lamb"), entry("crown")];
   await act(async () => button("Confirm save").click());
+  expect(host.textContent).toContain("The lamb");
+  // The save answered with the whole list, so closing has nothing left to read.
+  await act(async () => button("Close while saving").click());
   expect(net.get.mock.calls.length).toBe(reads);
   expect(host.textContent).toContain("The lamb");
-  await act(async () => button("Close while saving").click());
-  // Closing still checks the list once; the outage keeps the confirmed rows.
+  expect(button("Rank a pub")?.getAttribute("aria-disabled")).toBe("false");
+  // A refresh from outside still reads, and an outage keeps the confirmed rows.
+  await act(async () => root.render(<PubRankingPanel refreshKey="posted" />));
   expect(net.get.mock.calls.filter(([url]) => url === "/api/social/rankings").length).toBe(2);
   expect(host.textContent).toContain("The lamb");
   expect(button("Try again")).toBeDefined();
