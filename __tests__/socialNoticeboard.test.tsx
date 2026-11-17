@@ -25,7 +25,7 @@ vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onPostChanged: (post: SocialPostDTO) => void }) => { composer.outbox = onPostChanged; return null; } }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
-import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+import { clearSurfaceCache, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { readSocialPostWindow } from "@/lib/socialPostWindow";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostsShellState } from "@/lib/socialShell";
@@ -200,21 +200,75 @@ for (const door of ["card", "Outbox"] as const) {
   });
 }
 
-it("does not renew the first page's age by loading another page", async () => {
+const inactiveEditCases: { label: string; state: SocialPostsShellState; edit: Partial<SocialPostDTO> }[] = [
+  { label: "Across town private post", state: { valid: true, tab: "posts", feed: "discover", area: null }, edit: { visibility: "private" } },
+  { label: "Nearby moved post", state: { valid: true, tab: "posts", feed: "nearby", area: "camden" }, edit: { area: "balham" } },
+  { label: "Across town removed hashtag", state: { valid: true, tab: "posts", feed: "discover", area: null, tag: "garden" }, edit: { hashtags: [] } },
+  { label: "Across town changed body", state: { valid: true, tab: "posts", feed: "discover", area: null }, edit: { body: "New body" } },
+];
+
+for (const door of ["unselected Outbox", "active Outbox", "active card"] as const) {
+  it.each(inactiveEditCases)(`discards an inactive $label snapshot after an edit through ${door}`, async ({ state, edit }) => {
+    const post = { ...feedPost("Page 4", 13), ownedByViewer: true, visibility: "public" as const, area: "camden" as const, hashtags: ["garden"] };
+    const otherAccountKey = "social-posts:alice-other:1:/api/social/posts?lane=discover&limit=20";
+    writeSurfaceSnapshot(otherAccountKey, { posts: [post], pages: 4, nextCursor: "4" }, Date.now(), { persist: false });
+    transport.request.mockImplementation(async (href: string) => {
+      if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+      if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+      const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+      return Response.json({ posts: [index === 3 ? post : { ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public", area: "camden", hashtags: ["garden"] }], nextCursor: String(index + 1) });
+    });
+    await mountFeed(state);
+    const more = async () => act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    for (let page = 0; page < 3; page += 1) await more();
+    await act(async () => root.render(createElement(SocialPageClient, {
+      initialState: { valid: true, tab: "posts", feed: door === "unselected Outbox" ? "nearby" : "following", area: null }, rivalry: [], heritageCrawls: [],
+    })));
+    if (door !== "unselected Outbox") {
+      for (let page = 0; page < 3; page += 1) await more();
+    }
+    composer.edit = { body: "Accepted edit", ...edit };
+    await act(async () => {
+      if (door === "active card") host.querySelector<HTMLButtonElement>(".socialPostCard button")!.click();
+      else composer.outbox!({ ...post, ...composer.edit });
+    });
+    if (door !== "unselected Outbox") {
+      expect(host.querySelectorAll(".socialPostCard")).toHaveLength(edit.visibility === "private" ? 3 : 4);
+      await more();
+      expect(host.textContent).toContain("Page 5");
+    }
+    await act(async () => root.render(createElement(SocialPageClient, { initialState: state, rivalry: [], heritageCrawls: [] })));
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
+    expect(host.textContent).not.toContain("Page 4");
+    await more();
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(2);
+    expect(host.textContent).toContain("Page 2");
+    expect(readSurfaceSnapshot(otherAccountKey)).toEqual({ posts: [post], pages: 4, nextCursor: "4" });
+  });
+}
+
+it.each(["pagination", "edit"])("does not renew the first page's age after %s", async action => {
   const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
   let hold = false;
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
     if (hold) return new Promise<Response>(() => {});
-    const cursor = new URL(href, "http://localhost").searchParams.get("cursor");
-    return Response.json({ posts: [feedPost(cursor ? "Older post" : "First post", cursor ? 11 : 12)], nextCursor: cursor ? null : "older" });
+    const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+    return Response.json({ posts: [feedPost(index ? `Older post ${index}` : "First post", 12 - index)], nextCursor: String(index + 1) });
   });
   try {
     await mountFeed();
     clock.mockReturnValue(299_000);
-    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
-    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(2);
+    for (let page = 0; page < 3; page += 1) {
+      await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    }
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
+    if (action === "edit") {
+      hold = true;
+      await act(async () => composer.outbox!({ ...feedPost("Older post 3", 9), body: "Edited older post" }));
+      expect(host.textContent).toContain("Edited older post");
+    }
     await act(async () => root.unmount());
     host.remove();
     clock.mockReturnValue(301_001);
@@ -224,6 +278,7 @@ it("does not renew the first page's age by loading another page", async () => {
 
     expect(host.textContent).not.toContain("First post");
     expect(host.textContent).not.toContain("Older post");
+    expect(host.textContent).not.toContain("Edited older post");
   } finally { clock.mockRestore(); }
 });
 

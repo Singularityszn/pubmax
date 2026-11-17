@@ -58,7 +58,7 @@ import type { SocialPostDTO } from "@/lib/socialPosts";
 import { matchesSocialPostFeedSelection } from "@/lib/socialPostFeedMembership";
 import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
-import { forgetSurfaceSnapshot, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { forgetSurfaceSnapshot, forgetSurfaceSnapshots, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { chronological, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
 
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
@@ -474,8 +474,9 @@ function SocialPageAccountState({
     () => socialFeedRequestHref(initialState),
     [initialState],
   );
-  const feedSnapshotKey = user && feedHref
-    ? `social-posts:${user.id}:${accountRevision}:${feedHref}` : null;
+  const feedSnapshotPrefix = user ? `social-posts:${user.id}:` : null;
+  const feedSnapshotKey = feedSnapshotPrefix && feedHref
+    ? `${feedSnapshotPrefix}${accountRevision}:${feedHref}` : null;
   const requestExplicitFeedRefresh = useCallback(() => {
     explicitFeedRefreshKey.current = feedSnapshotKey;
     setFeedAttempt(value => value + 1);
@@ -754,6 +755,12 @@ function SocialPageAccountState({
 
   const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
     if (updated) {
+      if (feedSnapshotPrefix) {
+        forgetSurfaceSnapshots(feedSnapshotPrefix, feedSnapshotKey);
+        if (feedData.current?.key !== feedSnapshotKey && feedData.current?.key.startsWith(feedSnapshotPrefix)) {
+          feedData.current = null;
+        }
+      }
       const next = chronological(postsRef.current.map(item => item.id === updated.id
         ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
         : item).filter(item => initialState.tab !== "posts" || matchesSocialPostFeedSelection(item, initialState.feed, initialState.area, initialState.tag)));
@@ -766,7 +773,7 @@ function SocialPageAccountState({
       }
     }
     refreshAfterSave();
-  }, [feedSnapshotKey, initialState, refreshAfterSave]);
+  }, [feedSnapshotPrefix, feedSnapshotKey, initialState, refreshAfterSave]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;

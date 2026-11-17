@@ -132,6 +132,19 @@ export function forgetSurfaceSnapshot(key: string): void {
   if (storage) removePersistentSnapshot(storage, key);
 }
 
+export function forgetSurfaceSnapshots(prefix: string, exceptKey: string | null = null): void {
+  const keys = new Set(store.keys());
+  const storage = getSessionStorage();
+  if (storage) {
+    for (const key of listNamespacedKeys(storage)) {
+      if (key.startsWith(SURFACE_CACHE_NAMESPACE)) keys.add(key.slice(SURFACE_CACHE_NAMESPACE.length));
+    }
+  }
+  for (const key of keys) {
+    if (key.startsWith(prefix) && key !== exceptKey) forgetSurfaceSnapshot(key);
+  }
+}
+
 function persistedEntryBytes(serialized: string): number {
   try {
     return new TextEncoder().encode(serialized).byteLength;
