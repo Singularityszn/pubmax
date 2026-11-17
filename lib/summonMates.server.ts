@@ -139,11 +139,12 @@ export async function sendSummon(
 
   const mutuals = new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle));
   const candidates = asked.filter((handle) => mutuals.has(handle));
+  if (candidates.length === 0) return { status: "no_mates" };
+  const price = await deps.lookupPrice(pub.venueId).catch(() => null);
   const allowed = await Promise.all(candidates.map((handle) => summonable(viewer, handle, deps)));
   const mates = candidates.filter((_, index) => allowed[index]);
   if (mates.length === 0) return { status: "no_mates" };
 
-  const price = await deps.lookupPrice(pub.venueId).catch(() => null);
   const body = summonBody(pub.name, input.time, price);
   const sent: string[] = [];
   const failed: string[] = [];

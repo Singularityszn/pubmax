@@ -87,7 +87,10 @@ function listingStatesAmount(listing: string, amount: number): boolean {
 
 function servingMatches(drink: string, measure: DrinkMeasure): boolean {
   if (measure === "pint") return isComparablePintServing({ measure, cheapestPint: drink });
+  if (/\b(?:cans?|canned)\b/i.test(drink)) return false;
   if (measure !== "bottle" && /\b(?:bottles?|bottled|cans?|canned)\b/i.test(drink)) return false;
+  const spirit = /\b(single|double)(?=\s+(?:shot|measure|of)\b|\s*\)?$)/i.exec(drink)?.[1]?.toLowerCase();
+  if (spirit && spirit !== measure) return false;
   const expectedMl = measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
   if (expectedMl !== null) {
     for (const size of drink.matchAll(/\b(\d+(?:\.\d+)?)\s*(ml|cl|litres?|l)\b/gi)) {
