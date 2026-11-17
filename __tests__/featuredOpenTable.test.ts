@@ -210,6 +210,25 @@ describe("the selected upcoming night", () => {
 });
 
 describe("reads that cannot answer", () => {
+  it("shows the night without a price when its optional detail read stalls", async () => {
+    vi.useFakeTimers();
+    try {
+      venues.lookupVenueDetail.mockImplementation(() => new Promise(() => {}));
+      const answer = vi.fn();
+      void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
+
+      await vi.advanceTimersByTimeAsync(1499);
+      expect(answer).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(answer).toHaveBeenCalledWith(expect.objectContaining({
+        status: "upcoming",
+        table: expect.objectContaining({ price: null, placesLeft: 5 }),
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("says unavailable when the crew read fails, and never substitutes a night", async () => {
     store.readShareCard.mockRejectedValue(new SocialCrewStoreError("UNAVAILABLE", 503, "down"));
     await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toEqual({ status: "unavailable" });
