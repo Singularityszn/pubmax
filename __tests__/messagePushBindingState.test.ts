@@ -18,6 +18,12 @@ const departing: MessagePushBindingState = { phase: "departing", revision: 4, pe
 const pending: MessagePushBindingState = { phase: "pending-release", revision: 4, pending: [a, c] };
 
 describe("private push binding transitions", () => {
+  it.each([unbound, bound, departing, pending])("preserves identity for unchanged storage results and release hydration: $phase", state => {
+    expect(transitionMessagePushBinding(state, { type: "storage-result", target: "binding", saved: true }).state).toBe(state);
+    expect(transitionMessagePushBinding(state, { type: "releases-loaded", bindings: state.pending.map(binding => ({ ...binding })) }).state).toBe(state);
+    const dirty = { ...state, unsaved: ["releases"] as const };
+    expect(transitionMessagePushBinding(dirty, { type: "storage-result", target: "releases", saved: false }).state).toBe(dirty);
+  });
   it("keeps an unpersisted departure authoritative over readable empty storage", () => {
     let state = transitionMessagePushBinding(bound, { type: "departure-started", storedBinding: b, storedReleases: [] }).state;
     state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: false }).state;

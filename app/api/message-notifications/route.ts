@@ -13,7 +13,7 @@ import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
 function validDeviceToken(value: unknown): value is string {
   return typeof value === "string" && value.length <= 2048 && Boolean(decodeWebPushSubscription(value));
 }
-type NotificationAction = "preferences" | "mute" | "subscribe" | "restore" | "presence";
+type NotificationAction = "preferences" | "mute" | "subscribe" | "restore" | "presence" | "presence-start";
 type NotificationChange = {
   request: Request;
   userId: string;
@@ -23,7 +23,7 @@ type NotificationChange = {
 type NotificationHandler = (change: NotificationChange) => Promise<Response>;
 
 function notificationAction(value: unknown): value is NotificationAction {
-  return value === "preferences" || value === "mute" || value === "subscribe" || value === "restore" || value === "presence";
+  return value === "preferences" || value === "mute" || value === "subscribe" || value === "restore" || value === "presence" || value === "presence-start";
 }
 
 const conversationIdPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -86,8 +86,15 @@ async function bindNotification({ request, userId, body, store }: NotificationCh
   return jsonNoStore({ ok: true, bound: enabled, sessionId: enabled ? sessionId : null });
 }
 
+async function startNotificationPresence({ request, userId, body, store }: NotificationChange): Promise<Response> {
+  if (!validDeviceToken(body.token)) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
+  const sessionId = messageNotificationSessionId(request, userId);
+  if (!sessionId || !await store.sessionActive(userId, sessionId)) return publicApiError("Sign in again to enable message alerts.", "UNAUTHENTICATED", 401);
+  return jsonNoStore({ activityId: await store.startPresence(userId, body.token, sessionId) });
+}
+
 async function updateNotificationPresence({ request, userId, body, store }: NotificationChange): Promise<Response> {
-  if (!validDeviceToken(body.token) || (body.conversationId !== null && typeof body.conversationId !== "string")
+  if (body.presenceVersion !== 2 || !validDeviceToken(body.token) || (body.conversationId !== null && typeof body.conversationId !== "string")
     || typeof body.activityId !== "number" || !Number.isSafeInteger(body.activityId) || body.activityId <= 0
     || typeof body.revision !== "number" || !Number.isSafeInteger(body.revision) || body.revision <= 0) {
     return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
@@ -105,6 +112,7 @@ const notificationHandlers: Record<NotificationAction, NotificationHandler> = {
   subscribe: bindNotification,
   restore: bindNotification,
   presence: updateNotificationPresence,
+  "presence-start": startNotificationPresence,
 };
 
 export async function POST(request: Request): Promise<Response> {
@@ -122,7 +130,7 @@ export async function POST(request: Request): Promise<Response> {
   } catch {
     return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
   }
-  if (body.action !== "presence" && body.action !== "restore" && await isLimited(key, key, 60, 60 * 60 * 1000)) {
+  if (body.action !== "presence" && body.action !== "presence-start" && body.action !== "restore" && await isLimited(key, key, 60, 60 * 60 * 1000)) {
     return publicApiError("Too many changes. Try again later.", "RATE_LIMITED", 429, { retryable: true });
   }
   try {

@@ -69,7 +69,16 @@ The sender must remain eligible, the message must remain visible, and the
 recipient must have alerts enabled without a chat mute, sender mute or block.
 Each recipient/message pair is claimed before delivery. A failed delivery is
 not retried through that claim. A device viewing that conversation is excluded
-while its presence is less than 30 seconds old.
+while its presence is less than 30 seconds old. Visible clients renew every
+20 seconds. Each visible heartbeat, including a new client lifetime, reserves
+its activity number through
+`presence-start`, scoped to the verified account, session and exact subscription.
+The server allocates this number beyond its stored ordering floor without
+changing current presence. Heartbeats and clears carry `presenceVersion: 2`.
+Older installed clients without this protocol receive 400 for presence writes.
+They retain message delivery, consent and preview settings, but need a client
+update for foreground suppression. The new client fails closed until migration
+0243 is applied and its activity reservation succeeds.
 
 The inbox and navigation badge share account-scoped reads and a private inbox
 subscription. Arrival and read signals invalidate the shared result. Visible

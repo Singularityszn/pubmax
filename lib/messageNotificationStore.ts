@@ -18,6 +18,7 @@ type Store = {
   tokens(userId: string): Promise<string[]>;
   registered(userId: string, fingerprint: string): Promise<boolean>;
   targets(userId: string, conversationId: string): Promise<string[]>;
+  startPresence(userId: string, token: string, sessionId: string): Promise<number | null>;
   presence(userId: string, token: string, conversationId: string | null, sessionId: string, activityId: number, revision: number): Promise<void>;
   release(token: string, sessionId?: string): Promise<void>;
   previewAllowed(token: string, userId: string, messageId: string, sessionId: string): Promise<boolean>;
@@ -84,6 +85,13 @@ const durableMessageNotificationStore: Store = {
     if (error) throw error;
     return Boolean(data);
   },
+  async startPresence(userId, token, sessionId) {
+    const { data, error } = await admin().rpc("message_notification_presence_start", {
+      p_user_id: userId, p_session_id: sessionId, p_endpoint_hash: endpointHash(token), p_token: token,
+    });
+    if (error) throw error;
+    return typeof data === "number" && Number.isSafeInteger(data) && data > 0 ? data : null;
+  },
   async presence(userId, token, conversationId, sessionId, activityId, revision) {
     const { error } = await admin().rpc("message_notification_presence", {
       p_user_id: userId, p_endpoint_hash: endpointHash(token), p_token: token, p_session_id: sessionId,
@@ -121,7 +129,7 @@ const durableMessageNotificationStore: Store = {
 };
 
 const preferences = new Map<string, MessageNotificationPreferences>();
-const tokens = new Map<string, { userId: string; token: string; sessionId: string; conversationId?: string | null; lastSeen?: number; activityId?: number; revision?: number }>();
+const tokens = new Map<string, { userId: string; token: string; sessionId: string; conversationId?: string | null; lastSeen?: number; activityId?: number; revision?: number; generation?: number }>();
 const mutes = new Set<string>();
 const claims = new Set<string>();
 export const memoryMessageNotificationStore: Store = {
@@ -147,10 +155,18 @@ export const memoryMessageNotificationStore: Store = {
   async tokens(userId) { return [...tokens.values()].filter((row) => row.userId === userId).map((row) => row.token).slice(-20); },
   async targets(userId, conversationId) { return [...tokens.values()].filter((row) => row.userId === userId && (row.conversationId !== conversationId || (row.lastSeen ?? 0) < Date.now() - 30_000)).map((row) => row.token).slice(-20); },
   async registered(userId, fingerprint) { return tokens.get(fingerprint)?.userId === userId; },
+  async startPresence(userId, token, sessionId) {
+    const row = tokens.get(endpointHash(token));
+    if (row?.userId !== userId || row.token !== token || row.sessionId !== sessionId) return null;
+    const next = Math.max(row.generation ?? 0, row.activityId ?? 0) + 1;
+    if (!Number.isSafeInteger(next)) return null;
+    row.generation = next;
+    return next;
+  },
   async presence(userId, token, conversationId, sessionId, activityId, revision) {
     const row = tokens.get(endpointHash(token));
     if (row?.userId !== userId || row.token !== token || row.sessionId !== sessionId || !Number.isSafeInteger(activityId) || !Number.isSafeInteger(revision) || activityId <= 0 || revision <= 0
-      || activityId < (row.activityId ?? 0) || (activityId === row.activityId && revision <= (row.revision ?? 0))) return;
+      || activityId > (row.generation ?? 0) || activityId < (row.activityId ?? 0) || (activityId === row.activityId && revision <= (row.revision ?? 0))) return;
     row.revision = revision;
     row.activityId = activityId;
     row.conversationId = conversationId;

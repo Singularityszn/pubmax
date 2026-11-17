@@ -3,6 +3,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
 import { startPostgres, type PostgresSession } from "./helpers/postgres";
 
+import { exercisePresenceOrdering } from "./helpers/messagePresenceVectors";
+
 let database: PostgresSession;
 const OWNER = "a0000000-0000-4000-8000-000000000001";
 const SESSION = "d0000000-0000-4000-8000-000000000001";
@@ -20,7 +22,7 @@ beforeAll(async () => {
 afterAll(async () => { await database?.stop(); });
 
 describe("message notification privacy migration", () => {
-  it("adds durable consent and claims without granting browser access, then rolls back", () => {
+  it("adds durable consent and claims without granting browser access, then rolls back", async () => {
     expect(database.sql("select to_regclass('public.message_push_subscriptions') is null")).toBe("t");
     database.applyFile(join(process.cwd(), "supabase/migrations/20261116220000_0242_message_notifications.sql"));
     expect(database.sql("select to_regprocedure('public.message_notification_presence(uuid,uuid,text,text,uuid,bigint,bigint)') is null")).toBe("t");
@@ -38,11 +40,32 @@ describe("message notification privacy migration", () => {
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
     expect(database.sql(`select enabled, preview from public.message_notification_preferences where user_id='${OWNER}'`)).toBe("t|t");
     const presence = (conversation: string | null, activity: number, revision: number, session = SESSION) => database.sql(`set role service_role; select public.message_notification_presence('${OWNER}', '${session}', 'hash', 'private-token', ${conversation ? `'${conversation}'` : "null"}, ${activity}, ${revision}); reset role;`);
+    await exercisePresenceOrdering({
+      start: async scope => {
+        const result = await database.sqlAsync(`set role service_role; select public.message_notification_presence_start(
+          '${scope === "other-user" ? "a0000000-0000-4000-8000-000000000002" : OWNER}',
+          '${scope === "other-session" ? "d0000000-0000-4000-8000-000000000002" : SESSION}',
+          '${scope === "other-device" ? "other-hash" : "hash"}', '${scope === "wrong-secret" ? "wrong-token" : "private-token"}'); reset role;`);
+        return result ? Number(result) : null;
+      },
+      write: async (thread, activity, revision, scope) => {
+        database.sql(`set role service_role; select public.message_notification_presence(
+          '${scope === "other-user" ? "a0000000-0000-4000-8000-000000000002" : OWNER}',
+          '${scope === "other-session" ? "d0000000-0000-4000-8000-000000000002" : SESSION}',
+          '${scope === "other-device" ? "other-hash" : "hash"}', '${scope === "wrong-secret" ? "wrong-token" : "private-token"}',
+          ${thread ? `'${thread}'` : "null"}, ${activity}, ${revision}); reset role;`);
+      },
+      suppressed: async () => database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`) === "",
+    });
+    database.sql(`update public.message_push_subscriptions set presence_activity_id=0, presence_revision=0, presence_generation=0`);
+    const start = () => database.sql(`set role service_role; select public.message_notification_presence_start('${OWNER}', '${SESSION}', 'hash', 'private-token'); reset role;`);
+    start();
     const otherThread = "b0000000-0000-4000-8000-000000000002";
     const activityA = 1;
     const activityB = 2;
     database.sql(`insert into public.conversations values ('${otherThread}')`);
     presence(THREAD, activityA, 1);
+    start();
     presence(otherThread, activityB, 3);
     presence(null, activityA, 4);
     presence(THREAD, activityA, 2);
@@ -56,6 +79,7 @@ describe("message notification privacy migration", () => {
     presence(THREAD, activityB, 7);
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
     presence(null, activityB, 20);
+    start();
     presence(THREAD, 3, 1);
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
     database.sql(`update public.message_push_subscriptions set active_conversation_id='${THREAD}',last_seen=now()`);
@@ -89,6 +113,7 @@ describe("message notification privacy migration", () => {
     expect(database.sql("select active_conversation_id is null and last_seen is null from public.message_push_subscriptions where endpoint_hash='hash'")).toBe("t");
     database.applyFile(join(process.cwd(), "supabase/migrations/20261117100000_0243_message_notification_presence_order.sql"));
     expect(database.sql(`set role service_role; select public.message_notification_bind('${OWNER}', '${SESSION}', 'hash', 'private-token'); reset role;`)).toBe("t");
+    start();
     presence(THREAD, 1, 1);
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
     expect(database.sql("select has_function_privilege('service_role', 'public.message_notification_presence(uuid,uuid,text,text,uuid,bigint,bigint)', 'EXECUTE')")).toBe("t");
@@ -107,6 +132,7 @@ describe("message notification privacy migration", () => {
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_session_active(uuid,uuid)', 'EXECUTE')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_targets(uuid,uuid)', 'EXECUTE')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_bind(uuid,uuid,text,text)', 'EXECUTE')`)).toBe("f");
+    for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_presence_start(uuid,uuid,text,text)', 'EXECUTE')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_presence(uuid,uuid,text,text,uuid,bigint,bigint)', 'EXECUTE')`)).toBe("f");
     database.sql(`delete from auth.users where id='${OWNER}'`);
     expect(database.sql("select count(*) from public.message_push_subscriptions")).toBe("0");

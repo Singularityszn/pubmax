@@ -2,6 +2,7 @@
 -- Preserves message alert consent, subscriptions, mutes, claims and current presence.
 begin;
 
+drop function public.message_notification_presence_start(uuid, uuid, text, text);
 drop function public.message_notification_presence(uuid, uuid, text, text, uuid, bigint, bigint);
 
 create or replace function public.message_notification_bind(p_user_id uuid, p_session_id uuid, p_endpoint_hash text, p_token text)
@@ -26,6 +27,7 @@ grant execute on function public.message_notification_bind(uuid, uuid, text, tex
 
 alter table public.message_push_subscriptions
   drop column presence_activity_id,
-  drop column presence_revision;
+  drop column presence_revision,
+  drop column presence_generation;
 
 commit;

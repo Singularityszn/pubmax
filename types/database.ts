@@ -1205,6 +1205,7 @@ export type Database = {
           last_seen: string | null;
           updated_at: string;
           presence_activity_id: number;
+          presence_generation: number;
           presence_revision: number;
         };
         Insert: {
@@ -1216,6 +1217,7 @@ export type Database = {
           last_seen?: string | null;
           updated_at?: string;
           presence_activity_id?: number;
+          presence_generation?: number;
           presence_revision?: number;
         };
         Update: {
@@ -1227,6 +1229,7 @@ export type Database = {
           last_seen?: string | null;
           updated_at?: string;
           presence_activity_id?: number;
+          presence_generation?: number;
           presence_revision?: number;
         };
         Relationships: [
@@ -8683,6 +8686,15 @@ export type Database = {
           p_revision: number | null;
         };
         Returns: undefined;
+      };
+      message_notification_presence_start: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+        };
+        Returns: number;
       };
       message_notification_session_active: {
         Args: {

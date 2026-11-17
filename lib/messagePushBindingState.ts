@@ -33,6 +33,7 @@ function detached(revision: number, pending: readonly MessagePushBinding[], unsa
   return unsaved?.length ? { ...state, unsaved } : state;
 }
 function withPending(state: MessagePushBindingState, pending: readonly MessagePushBinding[]): MessagePushBindingState {
+  if (pending.length === state.pending.length && pending.every((binding, index) => key(binding) === key(state.pending[index]!))) return state;
   switch (state.phase) {
     case "bound":
     case "departing":
@@ -45,6 +46,14 @@ function withPending(state: MessagePushBindingState, pending: readonly MessagePu
       return unreachable;
     }
   }
+}
+
+function storageResult(state: MessagePushBindingState, event: Extract<MessagePushBindingEvent, { type: "storage-result" }>): MessagePushBindingState {
+  if (Boolean(state.unsaved?.includes(event.target)) === !event.saved) return state;
+  const { unsaved: previous = [], ...rest } = state;
+  const unsaved = previous.filter(target => target !== event.target);
+  if (!event.saved) unsaved.push(event.target);
+  return unsaved.length ? { ...rest, unsaved } : rest;
 }
 
 export function transitionMessagePushBinding(state: MessagePushBindingState, event: MessagePushBindingEvent): MessagePushBindingTransition {
@@ -83,12 +92,8 @@ export function transitionMessagePushBinding(state: MessagePushBindingState, eve
       return state.phase === "departing" && event.revision === state.revision
         ? { state: detached(state.revision, state.pending, state.unsaved), effects: [] }
         : { state, effects: [] };
-    case "storage-result": {
-      const { unsaved: previous = [], ...rest } = state;
-      const unsaved = previous.filter(target => target !== event.target);
-      if (!event.saved) unsaved.push(event.target);
-      return { state: unsaved.length ? { ...rest, unsaved } : rest, effects: [] };
-    }
+    case "storage-result":
+      return { state: storageResult(state, event), effects: [] };
     default: {
       const unreachable: never = event;
       return unreachable;
