@@ -92,7 +92,7 @@ export function createCrewAttendanceStore(dependencies: CrewAttendanceDependenci
   };
 }
 
-export type CrewAttendanceExportRecord = {
+type CrewAttendanceExportRecord = {
   id: string;
   crewId: string;
   subjectUserId: string;

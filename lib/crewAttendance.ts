@@ -2,14 +2,14 @@
 // vocabulary and the one parser for the read, shared by the store and the crew page.
 // A host mark is a practical signal from the host, not a check of who was there.
 
-export const CREW_ATTENDANCE_STATES = ["attended", "absent"] as const;
+const CREW_ATTENDANCE_STATES = ["attended", "absent"] as const;
 export type CrewAttendanceState = (typeof CREW_ATTENDANCE_STATES)[number];
 
 export function isCrewAttendanceState(value: unknown): value is CrewAttendanceState {
   return CREW_ATTENDANCE_STATES.includes(value as CrewAttendanceState);
 }
 
-export type CrewAttendanceItem = {
+type CrewAttendanceItem = {
   memberId: string;
   /** Null with revision 0 when nobody has marked this person. */
   state: CrewAttendanceState | null;
