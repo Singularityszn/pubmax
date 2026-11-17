@@ -170,7 +170,7 @@ describe("summon price", () => {
     expect(selectSummonPrice(pub(row(overrides as Partial<VenuePrice>)), NOW)).toBeNull();
   });
 
-  it("never quotes a superseded row, a non-pub or a figure the pub does not list", () => {
+  it("never quotes a superseded row, a non-pub or a drinker's logged figure", () => {
     const superseded = row({
       app_price_id: "old",
       price_gbp: 3.5,
@@ -187,7 +187,10 @@ describe("summon price", () => {
     const live = pub(row());
     expect(selectSummonPrice({ ...live, prices: [superseded, ...live.prices] }, NOW)?.rowId).toBe("app_price_lamb_1");
     expect(selectSummonPrice({ ...live, kind: "bar" }, NOW)).toBeNull();
-    expect(selectSummonPrice({ ...live, cheapestPrice: 4.2, latestContributorPrice: 4.2 }, NOW)).toBeNull();
+    expect(selectSummonPrice({ ...live, cheapestPrice: 4.2, latestContributorPrice: 4.2 }, NOW)).toMatchObject({
+      rowId: "app_price_lamb_1",
+      amountGbp: 5.5,
+    });
     expect(selectSummonPrice(null, NOW)).toBeNull();
   });
 });

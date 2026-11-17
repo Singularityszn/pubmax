@@ -155,8 +155,9 @@ export function selectSummonPrice(venue: Venue | null | undefined, nowMs: number
       isLivePriceRow(row) && typeof row.price_gbp === "number" && Number.isFinite(row.price_gbp) && row.price_gbp > 0,
   );
   if (live.length === 0) return null;
+  // The listed figure is the lowest live row, the rule the detail grouping uses.
+  // A drinker's logged price is another lane and never stands in for it.
   const amount = Math.min(...live.map((row) => row.price_gbp));
-  if (typeof venue.cheapestPrice !== "number" || !sameAmount(venue.cheapestPrice, amount)) return null;
   const row = live.find((candidate) => candidate.price_gbp === amount);
   return row ? evidenceFromRow(venue.id, row, amount, nowMs) : null;
 }
