@@ -51,6 +51,82 @@ it("publishes the view count while draw-area cells are still pending", async () 
   await vi.dynamicImportSettled();
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
+
+it.each(["pan", "retry"])("keeps loaded prices and draw readiness after %s", async (scenario) => {
+  const shards = await import("@/lib/slimShards");
+  const { offlineCache } = await import("@/lib/offlineCache");
+  const loader = shards.createSlimShardLoader("london", { bypassInFlight: true });
+  const factory = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue(loader);
+  const cached = vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+  const mirror = vi.spyOn(offlineCache, "set").mockResolvedValue(true);
+  let manifestReads = 0, cellReads = 0;
+  let finishCell!: (response: Response) => void;
+  const cell = new Promise<Response>((resolve) => { finishCell = resolve; });
+  const rows = [1, 2, 3].map((id) => ({
+    id: `soho-${id}`, name: `Listed pub ${id}`, cheapestPrice: 5, borough: "Westminster",
+    lat: 51.514, lng: -0.13,
+    fairPint: [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()],
+  }));
+  const fetch = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
+    const path = String(input).split("?")[0];
+    if (path === "/data/venues_slim.manifest.json") {
+      manifestReads++;
+      if (scenario === "retry" && manifestReads === 1) throw new Error("No connection");
+      return Response.json({
+        version: 2, grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
+        shards: [
+          { id: "soho", core: true, url: "/data/fair-pint-soho.json", count: 3, bbox: [-0.14, 51.50, -0.12, 51.52] },
+          { id: "north", core: false, url: "/data/fair-pint-north.json", count: 0, bbox: [-0.14, 51.64, -0.12, 51.67] },
+        ],
+      });
+    }
+    if (path === "/data/fair-pint-soho.json") { cellReads++; return cell; }
+    if (path === "/data/fair-pint-north.json") return Response.json([]);
+    throw new Error(`Unexpected request: ${path}`);
+  });
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const host = document.createElement("div"), root = createRoot(host);
+  const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const props = {
+    mobile: true, cityId: "london" as const, center: [-0.13, 51.514] as [number, number],
+    bounds: { west: -0.135, east: -0.125, south: 51.51, north: 51.518 },
+    onCommit: () => {}, onRoute: () => {},
+  };
+  const draw = () => [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Draw my night"))!;
+  localStorage.clear(); writeFairPint(550);
+  try {
+    await act(async () => root.render(createElement(Flow, props)));
+    if (scenario === "pan") {
+      expect(host.textContent).toContain("Loading prices");
+      const north = { ...props, bounds: { west: -0.135, east: -0.125, south: 51.65, north: 51.66 }, center: [-0.13, 51.655] as [number, number] };
+      await act(async () => root.render(createElement(Flow, north)));
+      expect(host.textContent).toContain("No pubs in view");
+      await act(async () => finishCell(Response.json(rows)));
+      expect(host.textContent).toContain("No pubs in view");
+      expect(draw().disabled).toBe(true);
+      await act(async () => root.render(createElement(Flow, props)));
+    } else {
+      expect(host.textContent).toContain("Could not load prices. Try again.");
+      expect(draw().disabled).toBe(true);
+      const slider = host.querySelector("input")!;
+      act(() => { slider.value = "530"; slider.dispatchEvent(new Event("input", { bubbles: true })); });
+      act(() => slider.dispatchEvent(new Event("change", { bubbles: true })));
+      await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+      await act(async () => finishCell(Response.json(rows)));
+      expect(host.querySelector("output")?.textContent).toBe("£5.30");
+      expect(readFairPint()).toBe(530);
+    }
+    expect(host.textContent).toContain("3 pubs in view list a pint");
+    expect(draw().disabled).toBe(false);
+    expect(cellReads).toBe(1);
+    expect(manifestReads).toBe(scenario === "pan" ? 1 : 2);
+  } finally {
+    await act(async () => { finishCell(Response.json(rows)); root.unmount(); });
+    await vi.dynamicImportSettled();
+    mark.mockRestore(); fetch.mockRestore(); factory.mockRestore(); cached.mockRestore(); mirror.mockRestore();
+    localStorage.clear();
+  }
+});
 it("dismisses for this session when persistent storage rejects the close", async () => {
   const arrival = await import("@/lib/mapFirstVisitArrival");
   localStorage.clear();

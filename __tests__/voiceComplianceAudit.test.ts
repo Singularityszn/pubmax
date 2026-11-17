@@ -12,6 +12,8 @@ import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
+import { areaCoverageLabel } from "@/lib/areaButton";
+import { getNightArea } from "@/lib/nightAreas";
 import { provenanceLabel } from "@/lib/tonight";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -495,20 +497,13 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
   });
 
   it("names area coverage in pub words, not evidence stages or score bands", () => {
-    const areaButton = read("lib/areaButton.ts");
-    const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
-
-    for (const source of [areaButton, mobilePlan]) {
-      expect(source).not.toContain("Low confidence");
-      expect(source).not.toContain("Higher confidence");
-      expect(source).not.toContain("Plan with warnings");
-      expect(source).not.toContain("Plan with checks");
-      expect(source).not.toContain("Review expired");
+    const now = new Date("2026-07-13T12:00:00.000Z");
+    for (const [coverageStatus, label] of [
+      ["captured", "Not all checked"], ["reviewed", "Not all checked"],
+      ["discovered", "Rough guess"], ["paused", "Gone stale"],
+    ] as const) {
+      expect(areaCoverageLabel({ ...getNightArea("clapham"), coverageStatus }, now)?.label).toBe(label);
     }
-    // The replacement set is one vocabulary across all three call sites.
-    expect(areaButton).toContain("Rough guess");
-    expect(areaButton).toContain("Not all checked");
-    expect(areaButton).toContain("Gone stale");
     expect(planningConfidenceLabel("high")).toBe("Prices checked");
 
     const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));

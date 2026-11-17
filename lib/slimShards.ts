@@ -724,6 +724,7 @@ export function createSlimShardLoader(
         loadedUrls.clear();
         settledManifest = parsed;
         manifestAnswered = true;
+        if (!parsed) manifestPromise = null;
         return parsed;
       });
     }

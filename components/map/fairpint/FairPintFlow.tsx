@@ -119,15 +119,16 @@ export default function FairPintFlow({
       drawBox: MapBounds = JSON.parse(drawKey);
     const load = async (box: MapBounds, kind: "count" | "draw") => {
       const rows = await loader.inBounds(box);
-      if (cancelled) return;
       const ready = loader.coverageComplete(box);
       setData((held) => ({
         ...held,
-        [kind + "Key"]: kind === "count" ? countKey : drawKey,
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
-        [kind]: ready ? "ready" : "failed",
+        ...(!cancelled ? {
+          [kind + "Key"]: kind === "count" ? countKey : drawKey,
+          [kind]: ready ? "ready" : "failed",
+        } : {}),
       }));
-      if (kind === "count" && ready) performance.mark("fair_pint_ready");
+      if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
     };
     void load(countBox, "count");
     void load(drawBox, "draw");

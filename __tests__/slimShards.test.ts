@@ -293,6 +293,31 @@ describe("createSlimShardLoader (London)", () => {
     vi.restoreAllMocks();
   });
 
+  it("retries an unavailable manifest and retains cells across later reads", async () => {
+    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+    installFetch({ "/data/venues_slim.manifest.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const core = { west: -0.15, east: -0.05, south: 51.48, north: 51.52 };
+    const outer = { west: 0.01, east: 0.09, south: 51.47, north: 51.51 };
+    await expect(Promise.all([loader.inBounds(core), loader.inBounds(outer)]))
+      .resolves.toEqual([[], []]);
+    expect(fetched).toEqual(["/data/venues_slim.manifest.json"]);
+    expect(loader.coverageComplete(core)).toBe(false);
+
+    installFetch();
+    await expect(loader.inBounds(core)).resolves.toEqual(BODIES["/data/venues_slim.core.json"]);
+    expect(loader.coverageComplete(core)).toBe(true);
+    await expect(loader.inBounds(outer)).resolves.toEqual(BODIES["/data/venues_slim.greenwich.json"]);
+    await expect(loader.inBounds(core)).resolves.toEqual([]);
+    expect(loader.coverageComplete(core)).toBe(true);
+    expect(loader.coverageComplete(outer)).toBe(true);
+    expect(fetched).toEqual([
+      "/data/venues_slim.manifest.json",
+      "/data/venues_slim.core.json",
+      "/data/venues_slim.greenwich.json",
+    ]);
+  });
+
   it("bounds overlapping viewport and all reads without losing or duplicating shards", async () => {
     const shards = Array.from({ length: 9 }, (_, index) => ({
       id: `bounded-${index}`, core: index === 0,
