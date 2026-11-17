@@ -122,7 +122,7 @@ describe("the selected upcoming night", () => {
         hostHandle: "lambhost",
         meetingPubName: "The Lamb",
         startsAt: STARTS_AT,
-        placesLeft: 5,
+        placesLine: "5 places left",
         price: {
           sentence: "Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026.",
           sourceUrl: SOURCE,
@@ -219,7 +219,7 @@ describe("reads that cannot answer", () => {
       await vi.advanceTimersByTimeAsync(1500);
       expect(answer).toHaveBeenCalledWith(expect.objectContaining({
         status: "upcoming",
-        table: expect.objectContaining({ placesLeft: 5 }),
+        table: expect.objectContaining({ placesLine: "5 places left" }),
       }));
     } finally {
       vi.useRealTimers();
@@ -238,7 +238,7 @@ describe("reads that cannot answer", () => {
       await vi.advanceTimersByTimeAsync(1);
       expect(answer).toHaveBeenCalledWith(expect.objectContaining({
         status: "upcoming",
-        table: expect.objectContaining({ price: null, placesLeft: 5 }),
+        table: expect.objectContaining({ price: null, placesLine: "5 places left" }),
       }));
     } finally {
       vi.useRealTimers();
@@ -269,7 +269,7 @@ describe("reads that cannot answer", () => {
   it("keeps places left unknown when the member count is unread, and never derives it from capacity", async () => {
     store.readShareCard.mockResolvedValue({ ...shareSource, memberCount: null });
     const result = await loadFeaturedOpenTable(SELECTION, NOW);
-    expect(result).toMatchObject({ status: "upcoming", table: { placesLeft: null } });
+    expect(result).toMatchObject({ status: "upcoming", table: { placesLine: null } });
   });
 
   it.each([
@@ -286,7 +286,7 @@ describe("reads that cannot answer", () => {
   ])("shows the night without a price when %s", async (_label, arrange) => {
     arrange();
     const result = await loadFeaturedOpenTable(SELECTION, NOW);
-    expect(result).toMatchObject({ status: "upcoming", table: { price: null, placesLeft: 5 } });
+    expect(result).toMatchObject({ status: "upcoming", table: { price: null, placesLine: "5 places left" } });
   });
 
   it("quotes a conditional listing whole", async () => {
