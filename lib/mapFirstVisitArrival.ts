@@ -8,7 +8,7 @@ import {
   PLAN_DESCRIBE_PARAM,
   PLAN_OCCASION_PARAM,
   PLAN_QUERY_PARAM,
-} from "@/lib/planOccasion";
+} from "@/lib/mapArrivalParams";
 import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
 import { MAP_FIRST_VISIT_ARRIVAL_KEY, notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";

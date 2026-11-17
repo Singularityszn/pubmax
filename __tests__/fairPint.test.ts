@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { compactFairPintPayload, fairPintRequest, transitionFairPintPlan, isFairPint } from "@/lib/fairPint";
+import { compactFairPintPayload, fairPintRequest, transitionFairPintPlan, isFairPint, fairPintSearchSuppresses } from "@/lib/fairPint";
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
@@ -72,4 +72,11 @@ it("ignores superseded draw results and keeps the last route on failure", () => 
   const failed = transitionFairPintPlan(revalidating, { type: "failed", request: 3, error: "No connection", retryAt: 0 });
   expect(failed.last).toBe(last);
   expect(failed.phase).toBe("result");
+});
+
+it.each(["sel=a", "log=1", "q=Camden", "%71=Camden", "plan=night", "occasion=birthday", "place=pub", "uk=pub", "mode=build"])("preserves the explicit arrival for %s", (search) => {
+  expect(fairPintSearchSuppresses("?" + search)).toBe(true);
+});
+it.each(["", "?max=5.3", "?utm_source=group-chat", "?max=5.3&utm_campaign=night"])("keeps the fair-pint arrival for %s", (search) => {
+  expect(fairPintSearchSuppresses(search)).toBe(false);
 });

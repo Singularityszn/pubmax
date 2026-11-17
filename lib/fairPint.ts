@@ -1,8 +1,15 @@
 import { budgetCeiling, readBudgetChoice } from "@/lib/budgetChoice";
 import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { CRAWL_ARRIVAL_PARAMS, PLAN_HANDOFF_PARAMS, searchHasArrivalParam, TRUSTED_HANDOFF_ARRIVAL_PARAMS } from "@/lib/mapArrivalParams";
 
 export const supportsFairPint = (cityId: string) => cityId === "london";
+export const FAIR_PINT_PATH_PATTERN = "^/map(?:/london)?/?$";
+export const FAIR_PINT_INTENT_PARAMS = [
+  ...CRAWL_ARRIVAL_PARAMS.filter((key) => key !== "max"),
+  ...TRUSTED_HANDOFF_ARRIVAL_PARAMS, ...PLAN_HANDOFF_PARAMS, "place", "uk",
+];
+export const fairPintSearchSuppresses = (search: string) => searchHasArrivalParam(search, FAIR_PINT_INTENT_PARAMS);
 
 export type FairPintEvidence = readonly [unknown, unknown, unknown];
 export type FairPintPin = { fairPint?: FairPintEvidence };
@@ -140,11 +147,14 @@ export function bootFairPintCard(
     dismissalKey: string;
     changeEvent: string;
     budgets: Record<string, number>;
+    pathPattern: string;
+    intentKeys: readonly string[];
   },
   valid: (value: unknown) => value is number,
+  suppresses: (search: string, keys: readonly string[]) => boolean,
 ) {
   const card = document.querySelector<HTMLElement>("[data-fair-prelude]");
-  if (!card || !/^\/map\/?$/.test(location.pathname) || location.search) return;
+  if (!card || !new RegExp(config.pathPattern).test(location.pathname) || suppresses(location.search, config.intentKeys)) return;
   try {
     const store = localStorage;
     if (store.getItem(config.dismissalKey) !== null) return;

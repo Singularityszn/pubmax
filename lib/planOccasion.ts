@@ -7,6 +7,8 @@ import {
 } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { cleanText } from "@/lib/textClean";
+import { PLAN_DESCRIBE_PARAM, PLAN_OCCASION_PARAM, PLAN_QUERY_PARAM } from "@/lib/mapArrivalParams";
+export { PLAN_DESCRIBE_PARAM, PLAN_OCCASION_PARAM, PLAN_QUERY_PARAM } from "@/lib/mapArrivalParams";
 
 /** Closed occasion ids for soft-social plan deep links. */
 export const SOFT_PLAN_OCCASION_IDS = ["quiet", "af", "coffee", "chill"] as const;
@@ -32,11 +34,6 @@ export const TONIGHT_SOFT_PLAN_CHIPS: ReadonlyArray<{
   { id: "af", label: "Alcohol-free outing" },
   { id: "chill", label: "Chill afternoon" },
 ];
-
-export const PLAN_DESCRIBE_PARAM = "describe";
-export const PLAN_OCCASION_PARAM = "occasion";
-/** Pub Pal route handoff: any grounded ask text, not only shipped chips. */
-export const PLAN_QUERY_PARAM = "query";
 
 function isSoftPlanOccasionId(value: unknown): value is SoftPlanOccasionId {
   return typeof value === "string" && (SOFT_PLAN_OCCASION_IDS as readonly string[]).includes(value);

@@ -46,7 +46,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
   act(() => mounted.render(createElement(Flow, { mobile: true, cityId: "london", bounds: { west: -0.13, east: -0.12, south: 51.53, north: 51.54 }, center: [-0.125, 51.535], onCommit: () => {}, onRoute: () => {} })));
   await act(async () => { viewReady = true; finishView([{ id: "priced", name: "Listed pub", cheapestPrice: 5, borough: "Camden", lat: 51.535, lng: -0.125, fairPint: [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] }]); });
-  expect(host.textContent).toContain("1 pubs in view list a pint");
+  expect(host.textContent).toContain("1 pub in view lists a pint");
   expect(host.textContent).toContain("Checking prices in");
   await vi.dynamicImportSettled();
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
@@ -61,7 +61,8 @@ it("dismisses for this session when persistent storage rejects the close", async
   write.mockRestore();
 });
 it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-chat", "/map?max=5.3"])("keeps an early HTML gesture until the live flow takes ownership (%s)", async (path) => {
-  const { bootFairPintCard, takeEarlyFairPint, validFairPint } = await import("@/lib/fairPint");
+  const { bootFairPintCard, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN } = await import("@/lib/fairPint");
+  const { searchHasArrivalParam } = await import("@/lib/mapArrivalParams");
   const { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling, writeBudgetChoice } = await import("@/lib/onboardingFlow");
   const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
   localStorage.clear(); history.replaceState(null, "", path); writeBudgetChoice("seven");
@@ -69,7 +70,7 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
   document.body.append(host);
   bootFairPintCard({ priceKey: FAIR_PINT_KEY, budgetKey: BUDGET_KEY, dismissalKey: MAP_FIRST_VISIT_ARRIVAL_KEY, changeEvent: "pubmax:map-first-visit-arrival",
-    budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint);
+    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam);
   const slider = host.querySelector("input")!;
   expect(host.hidden).toBe(false); expect(slider.value).toBe("700");
   slider.value = "530"; slider.dispatchEvent(new Event("input"));

@@ -11,6 +11,7 @@ import {
   earlyFairPintDragging,
   setFairPintSession,
   clearEarlyFairPint,
+  fairPintSearchSuppresses,
 } from "@/lib/fairPint";
 import {
   shouldShowMapFirstVisitArrival,
@@ -43,7 +44,7 @@ export default function FairPintGate(props: ComponentProps<typeof FairPintFlow>)
       !earlyFairPintClosed() &&
       !earlyFairPintDragging() &&
       supportsFairPint(props.cityId) &&
-      shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: location.search }),
+      !fairPintSearchSuppresses(location.search) && shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: "" }),
     () => false,
   );
   const active = useSyncExternalStore(subscribeFairPintActive, fairPintActive, () => false);
