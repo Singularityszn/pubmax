@@ -1,7 +1,7 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import { authedActionJson, authedFetch } from "@/lib/authedFetch";
@@ -67,7 +67,7 @@ export default function ComparePubFlow({
   startVenue?: Venue | null;
   /** A session's own count, announced politely as it moves. */
   progress?: string;
-  onClose: () => void;
+  onClose: (pendingWrite?: Promise<void>) => void;
   onSaved: (entries: SocialPubRankingEntry[]) => void;
 }) {
   const dialogRef = useRef<HTMLDivElement>(null);
@@ -86,8 +86,16 @@ export default function ComparePubFlow({
   const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   const [openedRevision] = useState(accountRevision);
   const mounted = useRef(false);
+  const closing = useRef(false);
+  const pendingWrite = useRef<Promise<void> | undefined>(undefined);
   const reads = useRef<AbortController | null>(null);
-  useDismissOnEscape(true, onClose, dialogRef);
+  const sameAccount = useCallback(() => mounted.current && !closing.current && readProviderAccountRevision() === openedRevision, [openedRevision]);
+  const close = useCallback(() => {
+    if (closing.current) return;
+    closing.current = true;
+    onClose(pendingWrite.current);
+  }, [onClose]);
+  useDismissOnEscape(true, close, dialogRef);
 
   useEffect(() => {
     mounted.current = true;
@@ -100,12 +108,8 @@ export default function ComparePubFlow({
   }, []);
 
   useEffect(() => {
-    if (accountRevision !== openedRevision) onClose();
-  }, [accountRevision, openedRevision, onClose]);
-
-  function sameAccount(): boolean {
-    return readProviderAccountRevision() === openedRevision;
-  }
+    if (accountRevision !== openedRevision) close();
+  }, [accountRevision, openedRevision, close]);
 
   // Before the heading takes focus, so the trap keeps the opener to hand back.
   useFocusTrap(true, dialogRef, "strict-modal");
@@ -121,14 +125,16 @@ export default function ComparePubFlow({
     const timer = window.setTimeout(() => {
       void authedFetch(`/api/social/venues?q=${encodeURIComponent(text)}`, { credentials: "same-origin", signal: controller.signal }, { requiresIdentity: true })
         .then((response) => (response.ok ? response.json() : { venues: [] }))
-        .then((body: { venues?: Venue[] }) => setResults(body.venues ?? []))
+        .then((body: { venues?: Venue[] }) => {
+          if (!controller.signal.aborted && sameAccount()) setResults(body.venues ?? []);
+        })
         .catch(() => {});
     }, 200);
     return () => {
       window.clearTimeout(timer);
       controller.abort();
     };
-  }, [query, step]);
+  }, [query, step, sameAccount]);
 
   function begin(nextBand: SocialPubBand, from = list) {
     if (!venue) return;
@@ -150,8 +156,8 @@ export default function ComparePubFlow({
   }
 
   function acknowledge(subjectId: string, saved: SocialPubRankingEntry[]) {
+    if (!sameAccount()) return;
     onSaved(saved);
-    if (!mounted.current) return;
     setUnsettled(null);
     setList(saved);
     setPlaced(saved.find((entry) => entry.venueId === subjectId) ?? null);
@@ -181,7 +187,7 @@ export default function ComparePubFlow({
       begin(open.band, fresh);
       return;
     }
-    setNotice("That ranking did not save. Choose how it went again.");
+    setNotice("We could not confirm that ranking. Choose how it went again.");
     setStep("band");
   }
 
@@ -194,7 +200,7 @@ export default function ComparePubFlow({
     const lost: Unsettled = { kind: "lost", band: chosenBand, neighbours };
     let saved: { response: Response; body: SaveBody };
     try {
-      saved = await authedActionJson<SaveBody>(
+      const request = authedActionJson<SaveBody>(
         "/api/social/rankings",
         {
           method: "POST",
@@ -204,6 +210,8 @@ export default function ComparePubFlow({
         },
         { requiresIdentity: true },
       );
+      pendingWrite.current = request.then(() => undefined, () => undefined);
+      saved = await request;
     } catch (cause) {
       if (!sameAccount()) return;
       // A session still waking never sent the save.
@@ -242,7 +250,7 @@ export default function ComparePubFlow({
   return createPortal(
     <div className="comparePub__scrim">
       <div ref={dialogRef} className="comparePub" role="dialog" aria-modal="true" aria-labelledby="compare-pub-title">
-        <button type="button" className="comparePub__close" onClick={onClose} aria-label="Close">
+        <button type="button" className="comparePub__close" onClick={close} aria-label="Close">
           <X size={20} aria-hidden="true" />
         </button>
 
@@ -317,7 +325,7 @@ export default function ComparePubFlow({
                 : "It changed in another tab, and the new list did not load. Check again before the next question."}
             </p>
             <div className="comparePub__actions">
-              <button type="button" onClick={onClose}>Close</button>
+              <button type="button" onClick={close}>Close</button>
               <button type="button" className="comparePub__primary" onClick={() => void reconcile(unsettled)}>Check again</button>
             </div>
           </>
@@ -335,7 +343,7 @@ export default function ComparePubFlow({
             ) : null}
             <div className="comparePub__actions">
               <button type="button" onClick={() => { setVenue(null); setQuery(""); setResults([]); setStep("pick"); }}>Rank another</button>
-              <button type="button" className="comparePub__primary" onClick={onClose}>Done</button>
+              <button type="button" className="comparePub__primary" onClick={close}>Done</button>
             </div>
           </>
         ) : null}

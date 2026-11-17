@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -124,42 +124,78 @@ function PassportRanked({ handle }: { handle: string }) {
   const [revision, setRevision] = useState(0);
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const [refresh, setRefresh] = useState<"ready" | "checking" | "unavailable">("ready");
+  const generation = useRef(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusAfterRead = useRef(false);
+
+  useLayoutEffect(() => {
+    if (refresh === "ready" && focusAfterRead.current) {
+      focusAfterRead.current = false;
+      headingRef.current?.focus();
+    }
+  }, [refresh]);
 
   useEffect(() => {
     if (!account) return;
+    const requestGeneration = ++generation.current;
     const controller = new AbortController();
     void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response): Promise<RankedRead | null> => {
-        const body = (await response.json().catch(() => ({}))) as { entries?: SocialPubRankingEntry[]; code?: unknown };
+        const body = (await response.json().catch(() => ({}))) as { entries?: SocialPubRankingEntry[]; code?: unknown; retryable?: unknown };
         if (response.ok) return Array.isArray(body.entries) ? { account, entries: body.entries } : { account, unavailable: true };
-        return rankingReadFailure(response.status, body.code) === "refused" ? null : { account, unavailable: true };
+        return rankingReadFailure(response.status, body.code, body.retryable) === "refused" ? null : { account, unavailable: true };
       })
       .catch((): RankedRead => ({ account, unavailable: true }))
       .then((next) => {
-        if (controller.signal.aborted) return;
+        if (controller.signal.aborted || generation.current !== requestGeneration) return;
         if (!next) {
           setRead(null);
+          setRefresh("ready");
           return;
         }
+        setRefresh("unavailable" in next ? "unavailable" : "ready");
         // A list already read stays up when a later read fails.
         setRead((current) => ("unavailable" in next && current?.account === account && "entries" in current ? current : next));
       });
     return () => controller.abort();
   }, [account, revision]);
 
+  function retry() {
+    generation.current += 1;
+    focusAfterRead.current = true;
+    setRefresh("checking");
+    setRevision((value) => value + 1);
+  }
+
+  function closed(pendingWrite?: Promise<void>) {
+    const closedGeneration = ++generation.current;
+    setRefresh("checking");
+    void Promise.resolve(pendingWrite).then(() => {
+      if (generation.current === closedGeneration) setRevision((value) => value + 1);
+    });
+  }
+
   if (!read || read.account !== account) return null;
+  const retryStatus = refresh !== "ready" ? (
+    <>
+      <p className="passportQuiet" role="status">
+        {refresh === "checking" ? "Checking your ranking…" : "Your ranking is unavailable right now."}
+      </p>
+      <p className="passportQuiet">
+        <Button type="button" variant="ghost" disabled={refresh === "checking"} onClick={retry}>
+          Try again
+        </Button>
+      </p>
+    </>
+  ) : null;
   if ("unavailable" in read) {
     return (
       <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
-        <h2 id="passport-ranked-title" className="passportSectionTitle">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
         </h2>
-        <p className="passportQuiet" role="status">Your ranking is unavailable right now.</p>
-        <p className="passportQuiet">
-          <Button type="button" variant="ghost" onClick={() => setRevision((value) => value + 1)}>
-            Try again
-          </Button>
-        </p>
+        {retryStatus}
       </section>
     );
   }
@@ -196,7 +232,7 @@ function PassportRanked({ handle }: { handle: string }) {
   return (
     <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
       <div className="passportSectionHead">
-        <h2 id="passport-ranked-title" className="passportSectionTitle">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
         </h2>
         {entries.length ? (
@@ -206,6 +242,7 @@ function PassportRanked({ handle }: { handle: string }) {
         ) : null}
       </div>
       <p className="passportQuiet">{PASSPORT_COPY.rankedLine}</p>
+      {retryStatus}
       {shareLine ? (
         <p className="passportQuiet" role="status">
           {shareLine}
@@ -226,8 +263,14 @@ function PassportRanked({ handle }: { handle: string }) {
       <FirstTenRanking
         key={account}
         entries={read.entries}
-        onSaved={(saved) => setRead({ account, entries: saved })}
-        onClosed={() => setRevision((value) => value + 1)}
+        disabled={refresh !== "ready"}
+        completionFocusRef={headingRef}
+        onSaved={(saved) => {
+          generation.current += 1;
+          setRead({ account, entries: saved });
+          setRefresh("ready");
+        }}
+        onClosed={closed}
       />
     </section>
   );

@@ -139,6 +139,13 @@ function firstTen(): HTMLElement | null {
   return document.querySelector<HTMLElement>("[role=group][aria-labelledby]");
 }
 
+async function openFirstTen() {
+  await act(async () => {
+    firstTen()!.querySelector("button")!.click();
+    await import("@/components/social/ComparePubFlow");
+  });
+}
+
 describe("first ten ranking on the owner's profile", () => {
   it("counts the saved pubs and offers to keep going", async () => {
     auth.user = { id: "owner-account" };
@@ -192,7 +199,7 @@ describe("first ten ranking on the owner's profile", () => {
     auth.user = { id: "owner-account" };
     rankingReads(rankingJson({ entries: ranked(2) }), rankingJson({ code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" }, 403));
     const host = await renderOwner();
-    await act(async () => firstTen()!.querySelector("button")!.click());
+    await openFirstTen();
     await act(async () => document.querySelector<HTMLButtonElement>("[aria-label=Close]")!.click());
     expect(host.textContent).not.toContain("The Pub 1");
     expect(firstTen()).toBeNull();
@@ -203,7 +210,7 @@ describe("first ten ranking on the owner's profile", () => {
     setProviderIdentity("supabase", "owner-account");
     rankingReads(rankingJson({ entries: ranked(2) }));
     const host = await renderOwner();
-    await act(async () => firstTen()!.querySelector("button")!.click());
+    await openFirstTen();
     expect(document.querySelector("[role=dialog]")).not.toBeNull();
 
     auth.user = { id: "other-account" };

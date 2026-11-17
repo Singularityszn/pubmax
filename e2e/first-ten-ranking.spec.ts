@@ -128,10 +128,8 @@ function dialog(page: Page) {
 }
 
 async function startSession(page: Page): Promise<void> {
-  await expect(async () => {
-    await card(page).getByRole("button", { name: /ranking/ }).click();
-    await expect(dialog(page)).toBeVisible({ timeout: 1_000 });
-  }).toPass();
+  await card(page).getByRole("button", { name: /ranking/ }).click();
+  await expect(dialog(page)).toBeVisible();
 }
 
 async function pickPub(page: Page, search: string, name: string): Promise<void> {
@@ -240,7 +238,7 @@ test.describe("first ten ranking", () => {
     await pickPub(page, "lamb", "The Lamb");
     fixture.next.POST = (route) => route.abort("failed");
     await dialog(page).getByRole("button", { name: "It was fine" }).click();
-    await expect(dialog(page)).toContainText("That ranking did not save.");
+    await expect(dialog(page).getByRole("heading", { name: "How was The Lamb?" })).toBeVisible();
     await expect(dialog(page).getByRole("button", { name: "It was fine" })).toBeVisible();
     await dialog(page).getByRole("button", { name: "It was fine" }).click();
     await expect(dialog(page).getByRole("heading", { name: "The Lamb is in" })).toBeVisible();
@@ -287,6 +285,9 @@ test.describe("first ten ranking", () => {
     await expect(dialog(page).getByRole("status").filter({ hasText: "Saving your ranking…" })).toBeVisible();
     await dialog(page).getByRole("button", { name: "Close", exact: true }).click();
     await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeDisabled();
+    await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeFocused();
+    await page.keyboard.press("Enter");
+    await expect(dialog(page)).toHaveCount(0);
     await finish();
     await expect(card(page)).toContainText("2 of 10 ranked");
     await expect(card(page).getByRole("button", { name: "Keep ranking" })).toBeEnabled();

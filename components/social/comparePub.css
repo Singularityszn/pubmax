@@ -166,7 +166,7 @@
   font-size: var(--text-sm);
 }
 
-@container (max-width: 26rem) {
+@container (max-width: 17rem) {
   .comparePub__pair {
     grid-template-columns: minmax(0, 1fr);
   }

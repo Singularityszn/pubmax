@@ -6,29 +6,45 @@
 // what was saved, and stopping short of ten is a normal end. A save here only
 // ranks: no visit, points, post or follow, and it never tells anyone.
 
-import { useId, useState } from "react";
+import dynamic from "next/dynamic";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 
-import ComparePubFlow from "@/components/social/ComparePubFlow";
 import { Button } from "@/components/ui/button";
 import { FIRST_TEN_GOAL, firstTenCount, firstTenProgressLine } from "@/lib/firstTenRankingSession";
 import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 import "./firstTenRanking.css";
 
+const ComparePubFlow = dynamic(() => import("@/components/social/ComparePubFlow"), {
+  loading: () => <p role="status">Opening your ranking…</p>,
+});
+
 export default function FirstTenRanking({
   entries,
   onSaved,
   onClosed,
+  disabled,
+  completionFocusRef,
 }: {
   /** The list the server last answered for this account. */
   entries: SocialPubRankingEntry[];
   onSaved: (entries: SocialPubRankingEntry[]) => void;
   /** The session ended. The owner reads the list again. */
-  onClosed: () => void;
+  onClosed: (pendingWrite?: Promise<void>) => void;
+  disabled: boolean;
+  completionFocusRef: RefObject<HTMLHeadingElement | null>;
 }): React.JSX.Element | null {
   const titleId = useId();
   const [open, setOpen] = useState(false);
+  const completedOnClose = useRef(false);
   const count = firstTenCount(entries);
+  useEffect(() => {
+    if (!open && completedOnClose.current) {
+      completedOnClose.current = false;
+      // The modal releases background inertness in its cleanup microtask.
+      queueMicrotask(() => completionFocusRef.current?.focus());
+    }
+  }, [open, completionFocusRef]);
   if (count >= FIRST_TEN_GOAL && !open) return null;
 
   return (
@@ -41,7 +57,7 @@ export default function FirstTenRanking({
         <p className="firstTen__count">
           <span className="firstTen__figure">{Math.min(count, FIRST_TEN_GOAL)}</span> of {FIRST_TEN_GOAL} ranked
         </p>
-        <Button type="button" variant="secondary" onClick={() => setOpen(true)}>
+        <Button type="button" variant="secondary" aria-disabled={disabled} onClick={() => { if (!disabled) setOpen(true); }}>
           {count === 0 ? "Start ranking" : "Keep ranking"}
         </Button>
       </div>
@@ -49,9 +65,10 @@ export default function FirstTenRanking({
         <ComparePubFlow
           entries={entries}
           progress={firstTenProgressLine(count)}
-          onClose={() => {
+          onClose={(pendingWrite) => {
+            completedOnClose.current = count >= FIRST_TEN_GOAL;
             setOpen(false);
-            onClosed();
+            onClosed(pendingWrite);
           }}
           onSaved={onSaved}
         />

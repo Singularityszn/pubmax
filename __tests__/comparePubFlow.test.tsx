@@ -91,6 +91,7 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   document.body.innerHTML = "";
+  vi.useRealTimers();
 });
 
 describe("a lost save answer", () => {
@@ -120,13 +121,13 @@ describe("a lost save answer", () => {
     expect(net.post).toHaveBeenCalledTimes(1);
   });
 
-  it("treats a server failure as unknown and a different placement as not saved", async () => {
+  it("treats a server failure and a different placement as unknown", async () => {
     await open(list(["crown", "loved"]));
     net.post.mockResolvedValueOnce(answer({ code: "RANKING_UNAVAILABLE", error: "Your ranking is unavailable right now." }, 503));
     // The pub is there, but not where this save put it: that is not this save.
     net.get.mockResolvedValueOnce(reply({ entries: list(["crown", "loved"], ["swan", "fine"], ["lamb", "fine"]) }));
     await click("It was fine");
-    expect(dialog().textContent).toContain("That ranking did not save.");
+    expect(button("It was fine")).toBeDefined();
     expect(onSaved).not.toHaveBeenCalled();
     // The next question is asked against the list just read.
     await click("It was fine");
@@ -198,21 +199,27 @@ describe("an account switch", () => {
 
 describe("an account switch during search", () => {
   it("closes the flow while a search is still out", async () => {
+    vi.useFakeTimers();
     root = createRoot(host);
     await act(async () => {
       root!.render(<ComparePubFlow entries={[]} onClose={onClose} onSaved={onSaved} />);
     });
-    net.get.mockReturnValueOnce(new Promise(() => {}));
+    let finish!: (response: Response) => void;
+    net.get.mockReturnValueOnce(new Promise<Response>((resolve) => { finish = resolve; }));
     const input = dialog().querySelector("input")!;
     await act(async () => {
       const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
       setValue.call(input, "lamb");
       input.dispatchEvent(new Event("input", { bubbles: true }));
     });
+    await act(async () => { await vi.advanceTimersByTimeAsync(200); });
+    expect(net.get).toHaveBeenCalledOnce();
     await act(async () => {
       setProviderIdentity("supabase", "account-b");
     });
     expect(onClose).toHaveBeenCalled();
+    await act(async () => finish(reply({ venues: [{ id: "lamb", name: "Private search answer" }] })));
+    expect(dialog().textContent).not.toContain("Private search answer");
     expect(net.post).not.toHaveBeenCalled();
   });
 });
