@@ -67,7 +67,7 @@ import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
 
 // The Product Hunt log in public day (lib/logInPublicDay.ts): that day's real
-// Pint Drops, above the posts. Its chunk loads only on the day.
+// Pint Drops, after the Social layout. Its chunk loads only on the day.
 const LogInPublicDay = dynamic(() => import("@/components/pintdrop/LogInPublicDay"), {
   ssr: false,
   loading: () => null,
@@ -849,7 +849,6 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {logInPublicSection}
             {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {londonLane ? (
               <SocialLondonLane />
@@ -909,7 +908,6 @@ function SocialPageAccountState({
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
-            {logInPublicSection}
             {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
@@ -1114,6 +1112,7 @@ function SocialPageAccountState({
         </div>
         </>
         )}
+        {logInPublicSection}
         </Screen>
       </main>
     </>

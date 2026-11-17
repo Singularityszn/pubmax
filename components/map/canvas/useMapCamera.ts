@@ -12,6 +12,7 @@ import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeM
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
 export function latestMapCameraRequestToken({
+  closeVenueRequestToken = 0,
   routeRequestToken,
   nearbyRequestToken,
   searchRecoveryToken,
@@ -19,6 +20,7 @@ export function latestMapCameraRequestToken({
   selectedVenueRequestToken,
   focusPoint,
 }: {
+  closeVenueRequestToken?: number;
   routeRequestToken?: number;
   nearbyRequestToken: number;
   searchRecoveryToken?: number;
@@ -27,6 +29,7 @@ export function latestMapCameraRequestToken({
   focusPoint?: MapCameraFocus | null;
 }) {
   return Math.max(
+    closeVenueRequestToken,
     routeRequestToken ?? 0,
     nearbyRequestToken,
     searchRecoveryToken ?? 0,
@@ -59,6 +62,7 @@ function desktopStatusSize(style: CSSStyleDeclaration | null) {
 
 export function useRouteCameraFraming({
   mapReady, routeKey, selectedVenueId, requestToken = 0, routePending = false, fitRoute,
+  closeRequestToken = 0, gestureCameraRef,
 }: {
   mapReady: boolean;
   routeKey: string;
@@ -66,15 +70,47 @@ export function useRouteCameraFraming({
   requestToken?: number;
   routePending?: boolean;
   fitRoute: ReturnType<typeof useMapCamera>["fitRoute"];
+  closeRequestToken?: number;
+  gestureCameraRef?: MutableRefObject<GestureCameraState>;
 }) {
   const consumedRequest = useRef(0);
+  const consumedClose = useRef(0);
+  const selection = useRef<{ id: string; movementSerial: number | null }>({ id: "", movementSerial: null });
   useEffect(() => {
+    const movementSerial = gestureCameraRef?.current.movementSerial ?? 0;
+    const previous = selection.current;
+    if (selectedVenueId !== previous.id) {
+      selection.current = { id: selectedVenueId,
+        movementSerial: selectedVenueId ? movementSerial : previous.movementSerial };
+    }
     if (!mapReady || routePending) return;
     const userOwned = consumedRequest.current !== requestToken;
     consumedRequest.current = requestToken;
+    if (!selectedVenueId && !routeKey.includes(">")) {
+      selection.current = { id: "", movementSerial: null };
+      consumedClose.current = closeRequestToken;
+      if (userOwned) fitRoute("user", requestToken);
+      return;
+    }
+    const closed = consumedClose.current !== closeRequestToken;
+    if (!selectedVenueId && previous.movementSerial !== null) {
+      if (userOwned && requestToken > closeRequestToken) {
+        selection.current = { id: "", movementSerial: null };
+        fitRoute("user", requestToken);
+      } else if (closed) {
+        consumedClose.current = closeRequestToken;
+        selection.current = { id: "", movementSerial: null };
+        if (routeKey.includes(">") && previous.movementSerial === movementSerial) fitRoute("user", closeRequestToken);
+      }
+      return;
+    }
+    if (!selectedVenueId && closed) {
+      consumedClose.current = closeRequestToken;
+      if (!userOwned) return;
+    }
     if (selectedVenueId && !userOwned) return;
     fitRoute(userOwned ? "user" : "automatic", requestToken);
-  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken, routePending]);
+  }, [routeKey, mapReady, fitRoute, selectedVenueId, requestToken, routePending, closeRequestToken, gestureCameraRef]);
 }
 
 export function useNearbyCameraFraming({
@@ -137,10 +173,21 @@ function routeFitPadding(
   const attributionBounds = isPhone
     ? container.querySelector(".maplibregl-ctrl-attrib")?.getBoundingClientRect()
     : null;
+  const palInsets = Array.from(document.querySelectorAll(".palSummon, .palVoiceBar"))
+    .reduce((inset, element) => {
+      const bounds = element.getBoundingClientRect();
+      if (!bounds.width || !bounds.height || getComputedStyle(element).visibility === "hidden") return inset;
+      if (shortLandscape && element.matches(".palSummon")) {
+        return { ...inset, right: Math.max(inset.right, container.getBoundingClientRect().right - bounds.left + 24) };
+      }
+      // Tilt projects the lower stops beyond the flat bounds. Reserve the
+      // full disc diameter as well as the Pal's measured berth.
+      return { ...inset, bottom: Math.max(inset.bottom, container.getBoundingClientRect().bottom - bounds.top + 48) };
+    }, { bottom: 0, right: 0 });
   const padding = isPhone
     ? { ...PHONE_ROUTE_PADDING,
         // Names extend beyond their discs. Keep them above the credit control.
-        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, attributionBounds?.height
+        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palInsets.bottom, attributionBounds?.height
           ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
         // Keep the full numbered disc clear of Near me and transport controls.
         right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
@@ -148,7 +195,8 @@ function routeFitPadding(
         top: Math.max(PHONE_ROUTE_PADDING.top,
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
-    : { top: desktopTop, right: 72, bottom: desktopBottom, left: 72 };
+    : { top: desktopTop, right: Math.max(72, palInsets.right),
+        bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 };
   const verticalScale = Math.min(
     1,
     Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)

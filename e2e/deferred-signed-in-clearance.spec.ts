@@ -139,19 +139,21 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.locator(".planRouteMiniMap__canvas")).toBeVisible();
     await expect(page.locator(".analyticsConsentPrompt")).toBeVisible();
     const map = page.locator(".planRouteMiniMap--clickable");
-    await map.scrollIntoViewIfNeeded();
-    const geometry = await map.evaluate((element) => {
-      const card = element.getBoundingClientRect();
-      const consent = document.querySelector(".analyticsConsentPrompt")!.getBoundingClientRect();
-      return {
-        clearance: consent.top - card.bottom,
-        height: card.height,
-        hit: element.contains(document.elementFromPoint(card.x + card.width / 2, card.y + card.height / 2)),
-      };
-    });
-    expect(geometry.clearance).toBeGreaterThanOrEqual(12);
-    expect(geometry.height).toBeGreaterThanOrEqual(44);
-    expect(geometry.hit).toBe(true);
+    await expect(async () => {
+      await map.scrollIntoViewIfNeeded();
+      const geometry = await map.evaluate((element) => {
+        const card = element.getBoundingClientRect();
+        const consent = document.querySelector(".analyticsConsentPrompt")!.getBoundingClientRect();
+        return {
+          clearance: consent.top - card.bottom,
+          height: card.height,
+          hit: element.contains(document.elementFromPoint(card.x + card.width / 2, card.y + card.height / 2)),
+        };
+      });
+      expect(geometry.clearance).toBeGreaterThanOrEqual(12);
+      expect(geometry.height).toBeGreaterThanOrEqual(44);
+      expect(geometry.hit).toBe(true);
+    }).toPass();
     await map.focus();
     await expect(map).toBeFocused();
     await page.keyboard.press("Enter");

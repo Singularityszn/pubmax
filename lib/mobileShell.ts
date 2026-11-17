@@ -111,9 +111,16 @@ export const MOBILE_MAP_SESSION_KEY = "pubmaxx.mobile-map-session.v1";
 /** Fired before primary-tab navigation so open map sheets can dismiss first. */
 export const MOBILE_SHEET_DISMISS_EVENT = "pubmax:mobile-sheet-dismiss";
 
-export function requestMobileSheetDismiss(): void {
-  if (typeof window === "undefined") return;
-  window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT));
+/**
+ * Returns true when a listener takes responsibility for navigation.
+ * The caller must then prevent its default navigation.
+ */
+export function requestMobileSheetDismiss(navigate: () => void): boolean {
+  if (typeof window === "undefined") return false;
+  return !window.dispatchEvent(new CustomEvent(MOBILE_SHEET_DISMISS_EVENT, {
+    cancelable: true,
+    detail: navigate,
+  }));
 }
 
 const RESTORABLE_SHEETS = new Set<MapSheetKind>([

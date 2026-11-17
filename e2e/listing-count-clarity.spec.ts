@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { ICON_SIZE } from "../lib/iconScale";
 
 test.use({ launchOptions: { args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"] } });
@@ -23,6 +23,8 @@ function listing(index: number, pubMatched = false) {
 async function openTonightLens(page: Page, count: number) {
   await (await mobileMapShellControl(page, "filters", 30_000)).click();
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]:visible');
+  const disclosure = sheet.locator(".mobileFilterDisclosure");
+  if (await disclosure.getAttribute("open") === null) await disclosure.locator(":scope > summary").click();
   const lens = sheet.getByRole("button", { name: `Pub listings tonight: ${count} via What's-on in London`, exact: true });
   await expect(lens).toBeVisible({ timeout: 30_000 });
   return lens;
@@ -42,6 +44,7 @@ test("the phone map names listing rows and keeps the label readable", async ({ p
   for (const width of [320, 390, 430]) {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/map");
+    await expectMobileMapShellReady(page);
     const drink = page.locator(".mobileMapDrinkChipLabel");
     await expect(drink).toHaveText("Pints");
     const drinkBounds = await drink.evaluate((element) => ({
@@ -96,6 +99,7 @@ test("the longest drink lanes keep a three-digit Tonight count whole on a 320px 
     for (const lane of lanes) {
       const where = `${lane.drink} at ${width}px`;
       await page.goto(`/map?drink=${lane.drink}`);
+      await expectMobileMapShellReady(page);
       await expect(page.locator(".mobileMapDrinkChipLabel"), where).toHaveText(lane.label);
       const drinkParts = await page.evaluate(() => {
         const read = (selector: string) => {

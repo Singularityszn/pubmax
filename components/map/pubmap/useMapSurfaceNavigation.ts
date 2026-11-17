@@ -30,7 +30,7 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import { mapSurfaceSearch } from "@/lib/mapSurfaceState";
-import type { MapOverlay, MapViewportSnapshot } from "@/lib/mobileShell";
+import { MOBILE_SHEET_DISMISS_EVENT, type MapOverlay, type MapViewportSnapshot } from "@/lib/mobileShell";
 import type { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
@@ -170,6 +170,10 @@ export function useMapSurfaceNavigation({
   selectionHint,
   onRestore,
   onReturnToMap,
+  mappedRouteActive = false,
+  mappedRoutePending = false,
+  selectedVenueRequestToken = 0,
+  onVenueClose,
   onHome,
   onSurfaceClose,
   landedEntry = 0,
@@ -181,11 +185,16 @@ export function useMapSurfaceNavigation({
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
+  mappedRouteActive?: boolean;
+  mappedRoutePending?: boolean;
+  selectedVenueRequestToken?: number;
+  onVenueClose?: (requestToken: number) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
   landedEntry?: number;
 }) {
+  const mappedWalk = mappedRouteActive || mappedRoutePending;
   const [stack, setStack] = useState<SurfaceStack<MapSurfaceState>>(
     ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>,
   );
@@ -195,12 +204,19 @@ export function useMapSurfaceNavigation({
   const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
-  const onReturnToMapRef = useRef(onReturnToMap);
+  const onReturnToMapRef = useRef(mappedWalk ? undefined : onReturnToMap);
+  const venueCloseRef = useRef({ mappedWalk, selectedVenueRequestToken, onVenueClose });
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
+  const pendingNavigationRef = useRef<(() => void) | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
+    const { mappedWalk, selectedVenueRequestToken, onVenueClose } = venueCloseRef.current;
+    if (mappedWalk && stackRef.current.some((entry) => entry.id === "venue")
+      && !next.some((entry) => entry.id === "venue")) {
+      onVenueClose?.(selectedVenueRequestToken);
+    }
     stackRef.current = next;
     setStack(next);
   }, []);
@@ -211,11 +227,12 @@ export function useMapSurfaceNavigation({
 
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
-    onReturnToMapRef.current = onReturnToMap;
+    onReturnToMapRef.current = mappedWalk ? undefined : onReturnToMap;
+    venueCloseRef.current = { mappedWalk, selectedVenueRequestToken, onVenueClose };
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onReturnToMap, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, mappedWalk, selectedVenueRequestToken, onVenueClose, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
@@ -390,6 +407,8 @@ export function useMapSurfaceNavigation({
       const closingHome = pendingHomeRef.current !== null;
       const previous = pendingHomeRef.current ?? stackRef.current;
       pendingHomeRef.current = null;
+      const navigate = pendingNavigationRef.current;
+      pendingNavigationRef.current = null;
       if (landed !== null && !selectedVenueId(next)) {
         const url = urlForStack(next, "");
         if (currentBrowserUrl() !== url) window.history.replaceState(window.history.state, "", url);
@@ -413,6 +432,9 @@ export function useMapSurfaceNavigation({
       onRestoreRef.current(currentSurface(next));
       if (next.length === 0 && rootStateRef.current?.returnCamera) {
         onReturnToMapRef.current?.(rootStateRef.current.returnCamera);
+      }
+      if (window.location.pathname === ownedPathRef.current && landed !== null && next.length === 0) {
+        navigate?.();
       }
     };
     window.addEventListener("popstate", onPop);
@@ -522,6 +544,22 @@ export function useMapSurfaceNavigation({
     if (typeof window === "undefined") return;
     const above = readEntriesAboveRoot(window.history.state) ?? held.length;
     if (above > 0) window.history.go(-above);
+  }, [publishStack]);
+
+  useEffect(() => {
+    const onDismiss = (event: Event) => {
+      const above = readEntriesAboveRoot(window.history.state) ?? stackRef.current.length;
+      if (above === 0) return;
+      event.preventDefault();
+      pendingNavigationRef.current = (event as CustomEvent<() => void>).detail;
+      if (pendingHomeRef.current !== null) return;
+      pendingHomeRef.current = stackRef.current;
+      publishStack(ROOT_SURFACE_STACK as SurfaceStack<MapSurfaceState>);
+      onHomeRef.current();
+      window.history.go(-above);
+    };
+    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
+    return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
   }, [publishStack]);
 
   /** Close `id` through Back when it is the top entry, otherwise with `close`. */

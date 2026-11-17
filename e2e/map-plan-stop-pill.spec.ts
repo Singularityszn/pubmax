@@ -33,6 +33,7 @@ async function preparePage(page: Page): Promise<void> {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -76,8 +77,6 @@ test("phone 390: in a crawl in progress, Plan stop adds the pub and In plan take
   // Close the sheet: the pill names ONE picked stop, never the suggested six.
   await venuePortal.locator(".surfaceNavHome").click();
   await expect(venuePortal).toHaveCount(0);
-  await page.getByRole("complementary", { name: "Anonymous analytics choice" })
-    .getByRole("button", { name: "No thanks", exact: true }).click();
   const pill = page.locator(".mobilePlanActivation");
   await expect(pill).toBeVisible({ timeout: MOBILE_MAP_SHELL_READY_MS });
   await expect(pill).toContainText("1 stop picked");
