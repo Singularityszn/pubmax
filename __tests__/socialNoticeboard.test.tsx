@@ -286,6 +286,35 @@ for (const door of ["unselected Outbox", "active Outbox", "active card"] as cons
   });
 }
 
+it.each([
+  { visibility: "private" as const },
+  { body: "Accepted body after navigation" },
+])("discards the departed deep window when a pending Outbox edit completes: %j", async edit => {
+  let post = { ...feedPost("Page 4", 13), ownedByViewer: true, visibility: "public" as SocialPostDTO["visibility"] };
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+    const row = index === 3 ? post : { ...feedPost(`Page ${index + 1}`, 16 - index), visibility: "public" };
+    return Response.json({ posts: row.visibility === "private" ? [] : [row], nextCursor: String(index + 1) });
+  });
+  const state: SocialPostsShellState = { valid: true, tab: "posts", feed: "discover", area: null };
+  await mountFeed(state);
+  const more = async () => act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  for (let page = 0; page < 3; page += 1) await more();
+  const pendingSave = composer.outbox!;
+  await act(async () => root.render(createElement(SocialPageClient, {
+    initialState: { valid: true, tab: "posts", feed: "nearby", area: null }, rivalry: [], heritageCrawls: [],
+  })));
+  post = { ...post, ...edit };
+  await act(async () => pendingSave(post));
+  await act(async () => root.render(createElement(SocialPageClient, { initialState: state, rivalry: [], heritageCrawls: [] })));
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
+  for (let page = 0; page < 3; page += 1) await more();
+  if (edit.visibility === "private") expect(host.textContent).not.toContain("Page 4");
+  else expect(host.textContent).toContain("Accepted body after navigation");
+});
+
 it.each(["pagination", "edit"])("does not renew the first page's age after %s", async action => {
   const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
   let hold = false;

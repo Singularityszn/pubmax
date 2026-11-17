@@ -756,7 +756,7 @@ function SocialPageAccountState({
   const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
     if (updated) {
       if (feedSnapshotPrefix) {
-        forgetSurfaceSnapshots(feedSnapshotPrefix, feedSnapshotKey);
+        forgetSurfaceSnapshots(feedSnapshotPrefix, feedData.current?.key === feedSnapshotKey ? feedSnapshotKey : null);
         if (feedData.current?.key !== feedSnapshotKey && feedData.current?.key.startsWith(feedSnapshotPrefix)) {
           feedData.current = null;
         }
