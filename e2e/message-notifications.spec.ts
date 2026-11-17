@@ -326,3 +326,44 @@ test("iPhone setup explains installation and requires a tap before permission", 
   expect(await page.evaluate(() => (window as unknown as { __permissionRequests: number }).__permissionRequests)).toBe(0);
   await page.screenshot({ path: testInfo.outputPath("iphone-denied-permission.png") });
 });
+
+
+test("an arrival from another chat clears the active header and composer", async ({ page }, testInfo) => {
+  const reading = "33333333-3333-4333-8333-333333333333";
+  await pushRuntime(page);
+  const auth = await installAuthDoubles(page);
+  await seedSignedIn(page, "B");
+  await auth.signedInAs("B");
+  let unread = 1;
+  let lastAt = "2026-11-17T09:00:00Z";
+  await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [
+    { id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: "A message from the other chat", lastAt, lastFromMe: false, unread },
+    { id: reading, otherHandle: "maeve", lastBody: "The chat you are reading", lastAt, lastFromMe: false, unread: 0 },
+  ] } }));
+  await page.route("**/api/message-notifications**", route => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false, registered: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
+  for (const id of [THREAD, reading]) await page.route(`**/api/messages/${id}**`, route => route.fulfill({ json: { messages: [{ id: "message", conversationId: id, senderHandle: id === THREAD ? ACCOUNTS.A.handle : "maeve", body: id === THREAD ? "A message from the other chat" : "The chat you are reading", createdAt: lastAt, read: true, flagged: false }] } }));
+  await page.goto(`/messages/${reading}`);
+  await expect(page.locator(".threadMessages").getByText("The chat you are reading", { exact: true })).toBeVisible();
+  unread = 2;
+  lastAt = "2026-11-17T09:01:00Z";
+  await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
+  await expect(page.locator(".messageArrival")).toBeVisible();
+  await page.locator(".messageArrival a").focus();
+  for (const width of [390, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.screenshot({ path: testInfo.outputPath(`other-chat-${width}.png`), scale: "css" });
+    await expect.poll(async () => {
+      const header = await page.locator(".threadHeader").boundingBox();
+      const notice = await page.locator(".messageArrival").boundingBox();
+      return header && notice ? notice.y - header.y - header.height : -Infinity;
+    }).toBeGreaterThanOrEqual(12);
+    const notice = (await page.locator(".messageArrival").boundingBox())!;
+    const composer = (await page.locator(".composerDock").boundingBox())!;
+    expect(notice.y + notice.height).toBeLessThanOrEqual(composer.y - 12);
+    await expect(page.getByRole("button", { name: "Dismiss message notification", exact: true })).toBeInViewport({ ratio: 1 });
+  }
+  await expect(page.locator(".messageArrival")).toContainText(`@${ACCOUNTS.A.handle}`);
+  await page.locator(".messageArrival a").click();
+  await expect(page).toHaveURL(new RegExp(`/messages/${THREAD}$`));
+  await expect(page.locator(".threadMessages").getByText("A message from the other chat", { exact: true })).toBeVisible();
+});
