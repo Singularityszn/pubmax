@@ -119,7 +119,7 @@ function RankIt({ venueId, venueName }: Props) {
       <button type="button" className="pubPage__action" onClick={() => void open()} aria-busy={state.kind === "loading"} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
         {placed ? `Ranked #${placed.place}` : state.kind === "failed" ? "Try ranking again" : "Rank it"}
       </button>
-      <p className={state.kind === "failed" || state.kind === "refused" || (state.kind === "loading" && state.origin === "closed") ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
+      <p className={`pubPage__rankingStatus ${state.kind === "failed" || state.kind === "refused" || (state.kind === "loading" && state.origin === "closed") ? "pubPage__note" : "sr-only"}`} role="status">
         {state.kind === "failed" || state.kind === "refused" ? state.message : state.kind === "loading" ? "Checking your ranking…" : ""}
       </p>
       {state.kind === "comparing" ? (

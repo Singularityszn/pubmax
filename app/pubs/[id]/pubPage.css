@@ -93,6 +93,12 @@
 .pubPage__action[aria-disabled="true"] {
   opacity: 0.6;
   cursor: progress;
+  --shared-press-scale: 1;
+}
+
+.pubPage__rankingStatus {
+  order: 1;
+  flex-basis: 100%;
 }
 
 .pubPage__action:focus-visible,
