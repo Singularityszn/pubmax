@@ -142,6 +142,11 @@ export function socialPubRankingPayload(body: unknown): SocialPubRankingEntry[] 
   return valid ? entries as SocialPubRankingEntry[] : null;
 }
 
-export function socialPubRankingReadFailure(_status: number, _body: unknown): "refused" | "unavailable" {
+export function socialPubRankingReadFailure(status: number, body: unknown): "refused" | "unavailable" {
+  if (status === 401 || status === 403) return "refused";
+  if (status === 503 && body && typeof body === "object" && !Array.isArray(body)) {
+    const failure = body as { code?: unknown; retryable?: unknown };
+    if (failure.code === "SOCIAL_ACCESS_UNAVAILABLE" && failure.retryable !== true) return "refused";
+  }
   return "unavailable";
 }
