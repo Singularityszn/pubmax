@@ -371,7 +371,7 @@ describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments",
     }
   });
 
-  it("exposes no message rows to browser roles and pins the deletion trigger search path", async () => {
+  it("exposes no message rows to browser roles and pins the 0156 deletion trigger search path", async () => {
     const session = requireDatabase();
     for (const role of ["anon", "authenticated"]) {
       const result = await session.attempt(`begin; set local role ${role}; select * from public.messages; rollback;`);
@@ -381,7 +381,7 @@ describe.skipIf(skipReason !== null)("0156 contact, event and poll attachments",
     }
     expect(session.sql(`select option_value from pg_proc p,
       lateral pg_options_to_table(p.proconfig) where p.oid = 'public.stamp_profile_tombstone_on_auth_user_delete()'::regprocedure
-      and option_name = 'search_path';`)).toBe("public, storage");
+      and option_name = 'search_path';`)).toBe("public");
   });
 
   it("holds a ballot to two options and no more than six", async () => {
