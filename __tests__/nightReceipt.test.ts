@@ -1,7 +1,33 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const auth = vi.hoisted(() => ({
+  status: "absent" as "absent" | "invalid" | "unavailable" | "verified",
+  userId: "",
+}));
+
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
+vi.mock("@/lib/storeBackend", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/storeBackend")>();
+  return { ...actual, isSupabaseConfigured: () => false };
+});
+vi.mock("@/lib/authServer", () => ({
+  verifyCallerAuth: async () => auth.status === "verified"
+    ? { status: "verified" as const, identity: { id: auth.userId, email: null, createdAt: null } }
+    : { status: auth.status },
+}));
+
+import { POST as CREATE } from "@/app/api/plans/route";
+import { GET } from "@/app/api/plans/[id]/route";
 import type { PlanMemberRole, PlanState } from "@/lib/plan";
 import { projectNightReceipt } from "@/lib/nightReceipt";
+import { claimPlanMembership } from "@/lib/planCrewIdentity";
+import { planMemberCookieName } from "@/lib/planMemberCapability";
+import { __resetMemoryPlans, memoryPlanStore, planMemberIdentity, planStore } from "@/lib/planStore";
 
 const MATE_NAME = "Priya the Pal";
 const HOST_NAME = "Sam Host";
@@ -154,5 +180,181 @@ describe("the private Night Receipt projection", () => {
     if (projection.kind !== "receipt") throw new Error("expected a receipt");
     expect(projection.receipt.plannedFor).toBeNull();
     expect(projection.receipt.ending).toBeNull();
+  });
+});
+
+const ACCOUNT_A = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+const ACCOUNT_B = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
+const GUEST_ACCOUNT = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
+
+async function hostedPlan({ completed = true } = {}) {
+  const created = await CREATE(new Request("http://localhost/api/plans", {
+    method: "POST",
+    headers: { "idempotency-key": `night-receipt-${crypto.randomUUID()}` },
+    body: JSON.stringify({
+      title: "Receipt night",
+      startTime: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      creatorName: HOST_NAME,
+      stops: [{ venueId: "venue-7tarkc" }, { venueId: "venue-122cuu1" }, { venueId: "venue-s2ppfm" }],
+    }),
+  }));
+  expect(created.status).toBe(201);
+  const host = await created.json() as { plan: { plan: { id: string } }; memberToken: string };
+  const planId = host.plan.plan.id;
+  const joined = await memoryPlanStore.join(planId, MATE_NAME);
+  if (!joined.ok) throw new Error("guest join failed");
+  if (completed) {
+    for (const status of ["ready", "active", "completed"] as const) {
+      expect((await planStore().update(planId, host.memberToken, { status })).ok).toBe(true);
+    }
+  }
+  return { planId, hostToken: host.memberToken, guestToken: joined.memberToken };
+}
+
+async function bindSeat(planId: string, token: string, userId: string) {
+  const seat = await planMemberIdentity(planId, token);
+  if (!seat) throw new Error("no seat");
+  expect(await claimPlanMembership(planId, seat.memberId, userId)).toBe("claimed");
+}
+
+function receiptRead(planId: string, capability: string | null, view = "receipt") {
+  return GET(new Request(`http://localhost/api/plans/${planId}?view=${view}`, {
+    headers: {
+      authorization: "Bearer account-session-jwt",
+      ...(capability ? { cookie: `${planMemberCookieName(planId)}=${encodeURIComponent(capability)}` } : {}),
+    },
+  }), ctx(planId));
+}
+
+function signedIn(userId: string) {
+  auth.status = "verified";
+  auth.userId = userId;
+}
+
+describe("the account-bound Night Receipt read", () => {
+  beforeEach(() => {
+    __resetMemoryPlans();
+    auth.status = "absent";
+    auth.userId = "";
+  });
+
+  it("gives the bound host account its private receipt and nothing about the crew", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    signedIn(ACCOUNT_A);
+
+    const response = await receiptRead(planId, hostToken);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    const body = await response.json() as { receipt: { title: string; stops: unknown[]; paid: string } };
+    expect(Object.keys(body)).toEqual(["receipt"]);
+    expect(body.receipt).toMatchObject({ title: "Receipt night", paid: "not_recorded" });
+    expect(body.receipt.stops).toHaveLength(3);
+    const text = JSON.stringify(body);
+    expect(text).not.toContain(MATE_NAME);
+    expect(text).not.toContain(HOST_NAME);
+    expect(text).not.toMatch(/arriv|attend|crew|total/i);
+  });
+
+  it("answers an unfinished Plan's bound host with no receipt", async () => {
+    const { planId, hostToken } = await hostedPlan({ completed: false });
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    signedIn(ACCOUNT_A);
+
+    const response = await receiptRead(planId, hostToken);
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ receipt: null });
+  });
+
+  it("refuses every reader who cannot prove the host account, with one neutral answer", async () => {
+    const { planId, hostToken, guestToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    await bindSeat(planId, guestToken, GUEST_ACCOUNT);
+
+    const refusals: Array<[string, () => Promise<Response>]> = [
+      ["account B holding account A's host cookie", async () => { signedIn(ACCOUNT_B); return receiptRead(planId, hostToken); }],
+      ["a signed-out reader holding the host cookie", async () => { auth.status = "absent"; return receiptRead(planId, hostToken); }],
+      ["an invalid account token with the host cookie", async () => { auth.status = "invalid"; return receiptRead(planId, hostToken); }],
+      ["the guest's own account with the guest cookie", async () => { signedIn(GUEST_ACCOUNT); return receiptRead(planId, guestToken); }],
+      ["the guest's account holding the host cookie", async () => { signedIn(GUEST_ACCOUNT); return receiptRead(planId, hostToken); }],
+      ["the host account with no Plan capability", async () => { signedIn(ACCOUNT_A); return receiptRead(planId, null); }],
+      ["the host account on a Plan that does not exist", async () => { signedIn(ACCOUNT_A); return receiptRead(crypto.randomUUID(), hostToken); }],
+    ];
+    const answers = [];
+    for (const [label, read] of refusals) {
+      const response = await read();
+      expect(response.status, label).toBe(403);
+      expect(response.headers.get("cache-control"), label).toBe("no-store");
+      answers.push(await response.json());
+    }
+    expect(answers[0]).not.toHaveProperty("receipt");
+    expect(JSON.stringify(answers[0])).not.toContain("Receipt night");
+    for (const answer of answers) expect(answer).toEqual(answers[0]);
+  });
+
+  it("refuses an unclaimed host, even to a signed-in account holding its cookie", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    signedIn(ACCOUNT_A);
+
+    const response = await receiptRead(planId, hostToken);
+    expect(response.status).toBe(403);
+    expect(await response.json()).not.toHaveProperty("receipt");
+  });
+
+  it("reads the Plan capability from its cookie only, never from the account bearer", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    signedIn(ACCOUNT_A);
+
+    const response = await GET(new Request(`http://localhost/api/plans/${planId}?view=receipt`, {
+      headers: { authorization: `Bearer ${hostToken}` },
+    }), ctx(planId));
+    expect(response.status).toBe(403);
+  });
+
+  it("fails closed and retryable while account verification is unavailable", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    auth.status = "unavailable";
+
+    const response = await receiptRead(planId, hostToken);
+    expect(response.status).toBe(503);
+    const body = await response.json();
+    expect(body).toMatchObject({ retryable: true });
+    expect(body).not.toHaveProperty("receipt");
+  });
+
+  it("refuses a view the Plan read does not offer", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    signedIn(ACCOUNT_A);
+
+    const response = await receiptRead(planId, hostToken, "crew");
+    expect(response.status).toBe(400);
+    expect(await response.json()).not.toHaveProperty("stops");
+  });
+
+  it("leaves the ordinary capability read unchanged", async () => {
+    const { planId, hostToken } = await hostedPlan();
+    await bindSeat(planId, hostToken, ACCOUNT_A);
+    signedIn(ACCOUNT_B);
+
+    const byCookie = await GET(new Request(`http://localhost/api/plans/${planId}`, {
+      headers: { cookie: `${planMemberCookieName(planId)}=${encodeURIComponent(hostToken)}` },
+    }), ctx(planId));
+    const byBearer = await GET(new Request(`http://localhost/api/plans/${planId}`, {
+      headers: { authorization: `Bearer ${hostToken}` },
+    }), ctx(planId));
+    const preview = await GET(new Request(`http://localhost/api/plans/${planId}`), ctx(planId));
+    for (const response of [byCookie, byBearer]) {
+      expect(response.status).toBe(200);
+      const body = await response.json() as PlanState & { inviteToken?: string };
+      expect(body.crew.map((member) => member.name)).toContain(MATE_NAME);
+      expect(body.inviteToken).toMatch(/^[0-9a-f]{32}$/);
+      expect(body).not.toHaveProperty("receipt");
+    }
+    expect(preview.status).toBe(200);
+    expect(await preview.json()).toMatchObject({ visibility: "preview" });
   });
 });
