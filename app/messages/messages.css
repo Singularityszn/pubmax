@@ -921,6 +921,17 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messageThreadShell:has(.composerPickerRegion) .threadMessages {
   flex-basis: 0;
+  padding-block: 0;
+}
+
+.messageThreadShell:has(.composerPickerRegion) .threadMessages::before,
+.messageThreadShell:has(.composerPickerRegion) .threadMessages::after {
+  content: "";
+  flex: 0 0 0.75rem;
+}
+
+.messageThreadShell:has(.composerPickerRegion) .threadMessages::after {
+  flex-basis: 0.5rem;
 }
 
 .composerPickerRegion {
@@ -2137,6 +2148,14 @@ html[data-theme="dark"] .messageBubblePhoto {
   body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
     visibility: hidden;
     pointer-events: none;
+  }
+
+  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .mobileTabBar {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
+    transition-property: none;
   }
 
   html:has(.messagesMainThread .messageThreadShell) {

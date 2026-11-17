@@ -1613,6 +1613,11 @@ for (const action of ["Cancel", "Attach poll"]) {
       }, viewport);
       expect(Math.abs(geometry.bottom - viewport.height - viewport.offsetTop)).toBeLessThanOrEqual(1);
       expect(geometry.top).toBeGreaterThanOrEqual(geometry.headerBottom);
+      const listHeight = (await box(page, ".threadMessages")).height;
+      const lineHeight = await page.locator(".messageBubble").last().evaluate((element) =>
+        parseFloat(getComputedStyle(element).lineHeight),
+      );
+      expect(listHeight === 0 || listHeight >= lineHeight, "the list collapses without a clipped line").toBe(true);
       await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
       const button = poll.getByRole("button", { name: action, exact: true });
       await button.scrollIntoViewIfNeeded();
@@ -1765,17 +1770,37 @@ test.describe("thread keyboard geometry", () => {
         expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
         expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
         if (width < 1024) {
+          await field.fill("Next round?");
           await field.blur();
           await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
           await expect(async () => {
             expect(Math.abs((await box(page, ".composerDock")).bottom - 500)).toBeLessThanOrEqual(1);
           }).toPass();
+          await expect(send).toBeEnabled();
+          await expect(async () => {
+            for (const target of [field, send]) {
+              expect(await target.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+              })).toBe(true);
+            }
+            if (width <= 640) {
+              const [dock, bar] = await Promise.all([box(page, ".composerDock"), box(page, ".mobileTabBar")]);
+              expect(bar.top).toBeGreaterThanOrEqual(dock.bottom);
+            }
+          }).toPass();
+          expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+          expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
           if (shell === "android") await page.setViewportSize({ width, height: 844 });
           await page.evaluate(() => {
             Object.assign(window.visualViewport!, { height: 844, offsetTop: 0 });
             window.visualViewport!.dispatchEvent(new Event("resize"));
           });
           await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
+          await expectComposerInView(page);
+          if (width <= 640) {
+            await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+          }
           await expectMessageInView(page, "See you there");
         }
       });
