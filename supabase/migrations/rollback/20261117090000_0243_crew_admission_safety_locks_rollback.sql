@@ -3,11 +3,14 @@
 -- row and participant-account locks in one order.
 -- It restores the 0110 join request and decision bodies, the 0075 invitation and
 -- invitation acceptance bodies, the 0114 host queue body, the 0092 provisioning body
--- and the 0224 suspension body, then drops both triggers, the helpers, the removal
+-- and the 0224 suspension body, then drops the social_blocks trigger, the helpers, the removal
 -- correction function and its ledger.
 -- Rollback discloses nothing, but it removes protections. A removed person can request
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
+--
+-- THE auth.users TRIGGER STAYS. The migration role does not own auth.users, so it
+-- cannot drop a trigger there. The rollback makes the trigger function return at once.
 --
 -- THE LEDGER IS NOT DROPPED SILENTLY. Before anything else, the rollback locks
 -- social_crew_removal_corrections against new corrections and counts its rows. When
@@ -481,9 +484,16 @@ begin
 end;
 $$;
 
-drop trigger if exists lock_social_accounts_on_auth_user_delete on auth.users;
+-- The migration role does not own auth.users, so it cannot drop this trigger. The
+-- trigger stays and its function, which this role owns, takes no lock any more.
+create or replace function public._lock_social_auth_user_accounts()
+returns trigger language plpgsql security definer set search_path=''
+as $$
+begin
+  return old;
+end;
+$$;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
-drop function if exists public._lock_social_auth_user_accounts();
 drop function if exists public._lock_social_block_participants();
 drop function if exists public._social_crew_admission_refused(uuid,uuid);
 drop function if exists public._social_crew_admission_ineligible(uuid,uuid);

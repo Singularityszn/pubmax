@@ -93,3 +93,5 @@ Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, adm
 3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
 
 The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.
+
+The migration role does not own `auth.users`, so it cannot drop a trigger there. The rollback leaves `lock_social_accounts_on_auth_user_delete` in place and makes its function return at once, so account deletion takes no account lock. Reapplying 0243 reuses that trigger only when it is exactly the 0243 trigger. When a different trigger has that name, the reapply stops, and the owner of `auth.users` must remove it.

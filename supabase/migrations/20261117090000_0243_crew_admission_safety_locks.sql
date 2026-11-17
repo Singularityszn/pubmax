@@ -68,9 +68,11 @@
 --    the Plan row, then deletes the Plan (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md).
 --    An admission locks the crew row before the Plan row, so this order matches it.
 --
--- Rollback restores the 0110, 0114, 0075, 0092 and 0224 function bodies and drops
--- the triggers, helpers, correction function and ledger, and restores the RESTRICT
--- seat reference. It waits for auth.users while holding nothing, then takes every
+-- Rollback restores the 0110, 0114, 0075, 0092 and 0224 function bodies, drops the
+-- social_blocks trigger, helpers, correction function and ledger, and restores the
+-- RESTRICT seat reference. The migration role does not own auth.users and cannot drop
+-- a trigger there, so the rollback leaves lock_social_accounts_on_auth_user_delete in
+-- place and makes its function return at once. Reapplying checks and reuses it. It waits for auth.users while holding nothing, then takes every
 -- other lock without waiting, and stops while the ledger holds rows, unless the session
 -- names their exact exported count.
 begin;
@@ -174,7 +176,9 @@ for each row execute function public._lock_social_block_participants();
 
 -- Named to fire before profiles_tombstone_on_auth_user_delete: BEFORE triggers run
 -- in name order, so the account lock comes before the tombstone's row writes.
-create function public._lock_social_auth_user_accounts()
+-- create or replace: a rollback leaves this function, inert, because the migration
+-- role does not own auth.users and so cannot drop the trigger that calls it.
+create or replace function public._lock_social_auth_user_accounts()
 returns trigger language plpgsql security definer set search_path=''
 as $$
 begin
@@ -186,9 +190,27 @@ begin
 end;
 $$;
 
-create trigger lock_social_accounts_on_auth_user_delete
-before delete on auth.users
-for each row execute function public._lock_social_auth_user_accounts();
+-- Create the trigger, or reuse the one a rollback left only when it is exactly this
+-- one: BEFORE DELETE, FOR EACH ROW, enabled, no condition, no arguments, this function.
+do $$
+declare v_trigger record;
+begin
+  select t.tgfoid, t.tgtype, t.tgenabled, t.tgisinternal, t.tgnargs, t.tgqual,
+         pg_catalog.cardinality(t.tgattr::int2[]) as attrs
+    into v_trigger
+    from pg_catalog.pg_trigger t
+   where t.tgrelid = 'auth.users'::regclass and t.tgname = 'lock_social_accounts_on_auth_user_delete';
+  if not found then
+    create trigger lock_social_accounts_on_auth_user_delete
+    before delete on auth.users
+    for each row execute function public._lock_social_auth_user_accounts();
+  elsif v_trigger.tgfoid <> 'public._lock_social_auth_user_accounts()'::regprocedure
+    or v_trigger.tgtype <> 11 or v_trigger.tgenabled <> 'O' or v_trigger.tgisinternal
+    or v_trigger.tgnargs <> 0 or v_trigger.tgqual is not null or v_trigger.attrs <> 0 then
+    raise exception '0243 found a different trigger named lock_social_accounts_on_auth_user_delete on auth.users. Its owner must remove it first.';
+  end if;
+end;
+$$;
 
 create or replace function public.request_social_crew_join_atomic(
   p_actor_account_id uuid,p_crew_id uuid,p_action text,p_idempotency_key text,p_payload_digest text
