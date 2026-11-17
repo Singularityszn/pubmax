@@ -103,6 +103,11 @@ function millilitres(amount: string, unit: string): number {
   return Number(amount) * (lower === "ml" ? 1 : lower === "cl" ? 10 : 1000);
 }
 
+function withoutDrinkName(text: string, drinkName: string): string {
+  const escaped = drinkName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return text.replace(new RegExp(`(^|[^\\p{L}\\p{N}\\p{M}_])${escaped}(?=$|[^\\p{L}\\p{N}\\p{M}_])`, "giu"), "$1");
+}
+
 /**
  * True when a text states a serving other than the row's measure. The drink
  * name and the quoted listing are both read, because either one is printed
@@ -114,9 +119,11 @@ function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">,
   }
   if ((kind === "drink" ? DRINK_CAN : LISTING_CAN).test(text)) return true;
   if (measure !== "bottle" && BOTTLE.test(text)) return true;
-  // A quoted drink name such as "Half Moon IPA" is not a serving instruction.
-  const servingText = drinkName ? text.toLowerCase().replaceAll(drinkName.toLowerCase(), "") : text;
-  if (measure !== "half" && /\b(?:per|a)\s+half(?=\s|$|[,.!?;:])/i.test(servingText)) return true;
+  // Ambiguous half wording in a listing omits the price. Its named drink is not a condition.
+  if (kind === "listing" && measure !== "half") {
+    const servingText = drinkName ? withoutDrinkName(text, drinkName) : text;
+    if (/\bhal(?:f|ves)\b/i.test(servingText)) return true;
+  }
   const expectedMl =
     measure === "pint" ? 568 : measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
   if (expectedMl !== null) {
