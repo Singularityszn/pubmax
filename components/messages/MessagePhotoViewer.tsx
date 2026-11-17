@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import { clampPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
+import { clampPhotoView, rubberbandPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
+import { releaseVelocity, springTo } from "@/lib/springAnimate";
+import { projectMomentum } from "@/lib/springMotion";
 
 type Point = { x: number; y: number };
 type Props = { url: string; alt: string; width: number; height: number; onClose: () => void; onError: () => void };
@@ -15,42 +17,75 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
   const view = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
   const pointers = useRef(new Map<number, Point>());
   const start = useRef({ points: [] as Point[], view: { scale: 1, x: 0, y: 0 } });
+  const sample = useRef({ view: view.current, time: 0, velocity: { x: 0, y: 0 } });
+  const animations = useRef<Array<() => void>>([]);
   const [zoomLevel, setZoomLevel] = useState(100);
   const announceZoom = useCallback(() => setZoomLevel(Math.round(view.current.scale * 100)), []);
 
   const draw = useCallback((next: PhotoView) => {
     const frame = stage.current;
     if (!frame || !image.current) return;
-    view.current = clampPhotoView(next, frame.getBoundingClientRect(), { width, height });
-    const { scale, x, y } = view.current;
+    view.current = next;
+    const { scale, x, y } = rubberbandPhotoView(next, frame.getBoundingClientRect(), { width, height });
     image.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     frame.dataset.scale = String(scale);
   }, [width, height]);
+
+  const cancelMotion = useCallback(() => {
+    animations.current.forEach(cancel => cancel());
+    animations.current = [];
+  }, []);
+  const begin = useCallback((time: number) => {
+    start.current = { points: [...pointers.current.values()], view: { ...view.current } };
+    sample.current = { view: view.current, time, velocity: { x: 0, y: 0 } };
+  }, []);
+  const changeView = useCallback((next: PhotoView) => {
+    cancelMotion();
+    const frame = stage.current;
+    if (!frame) return;
+    draw(clampPhotoView(next, frame.getBoundingClientRect(), { width, height }));
+    begin(performance.now());
+  }, [cancelMotion, draw, begin, width, height]);
+  const settle = (velocity: Point) => {
+    const frame = stage.current;
+    if (!frame) return;
+    cancelMotion();
+    const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches === true;
+    const target = clampPhotoView({ ...view.current,
+      x: projectMomentum(view.current.x, reduced ? 0 : velocity.x, 0.998),
+      y: projectMomentum(view.current.y, reduced ? 0 : velocity.y, 0.998),
+    }, frame.getBoundingClientRect(), { width, height });
+    for (const axis of ["x", "y"] as const) {
+      animations.current.push(springTo(view.current[axis], velocity[axis] * 1000, target[axis],
+        { response: 0.34, dampingRatio: 1 },
+        value => draw({ ...view.current, [axis]: value }), () => {}));
+    }
+  };
 
   useEffect(() => {
     const element = dialog.current;
     const overflow = document.documentElement.style.overflow;
     try { element?.showModal(); document.documentElement.style.overflow = "hidden"; }
     catch { onError(); }
-    const resize = () => draw(view.current);
+    const resize = () => changeView(view.current);
     const wheel = (event: WheelEvent) => {
       if (!event.ctrlKey) return;
       event.preventDefault();
-      draw({ ...view.current, scale: view.current.scale * Math.exp(-event.deltaY * 0.01) });
+      changeView({ ...view.current, scale: view.current.scale * Math.exp(-event.deltaY * 0.01) });
       announceZoom();
     };
     window.addEventListener("resize", resize);
     element?.addEventListener("wheel", wheel, { passive: false });
-    return () => { element?.close(); document.documentElement.style.overflow = overflow; window.removeEventListener("resize", resize); element?.removeEventListener("wheel", wheel); };
-  }, [draw, onError, announceZoom]);
+    return () => { cancelMotion(); element?.close(); document.documentElement.style.overflow = overflow; window.removeEventListener("resize", resize); element?.removeEventListener("wheel", wheel); };
+  }, [changeView, cancelMotion, onError, announceZoom]);
 
-  const begin = () => { start.current = { points: [...pointers.current.values()], view: { ...view.current } }; };
   const pointerDown = (event: PointerEvent<HTMLDivElement>) => {
     if (event.pointerType === "mouse" && event.button !== 0) return;
     if (pointers.current.size === 2) return;
+    cancelMotion();
     event.currentTarget.setPointerCapture(event.pointerId);
     pointers.current.set(event.pointerId, { x: event.clientX, y: event.clientY });
-    begin();
+    begin(event.timeStamp);
   };
   const pointerMove = (event: PointerEvent<HTMLDivElement>) => {
     if (!pointers.current.has(event.pointerId)) return;
@@ -67,14 +102,27 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
       x: after.x - rect.left - rect.width / 2 - (before.x - rect.left - rect.width / 2 - initial.view.x) * applied,
       y: after.y - rect.top - rect.height / 2 - (before.y - rect.top - rect.height / 2 - initial.view.y) * applied,
     });
+    const elapsed = event.timeStamp - sample.current.time;
+    if (elapsed > 0) {
+      sample.current = { view: view.current, time: event.timeStamp, velocity: {
+        x: (view.current.x - sample.current.view.x) / elapsed,
+        y: (view.current.y - sample.current.view.y) / elapsed,
+      } };
+    }
   };
   const pointerUp = (event: PointerEvent<HTMLDivElement>) => {
-    pointers.current.delete(event.pointerId);
-    begin();
+    const previous = pointers.current.get(event.pointerId);
+    if (event.type === "pointerup" && previous && (previous.x !== event.clientX || previous.y !== event.clientY)) pointerMove(event);
+    if (!pointers.current.delete(event.pointerId)) return;
+    if (pointers.current.size > 0) begin(event.timeStamp);
+    else settle({
+      x: event.type === "pointerup" ? releaseVelocity(sample.current.velocity.x, sample.current.time, event.timeStamp) : 0,
+      y: event.type === "pointerup" ? releaseVelocity(sample.current.velocity.y, sample.current.time, event.timeStamp) : 0,
+    });
     announceZoom();
   };
-  const zoom = (amount: number) => { draw({ ...view.current, scale: view.current.scale + amount }); announceZoom(); };
-  const reset = () => { draw({ scale: 1, x: 0, y: 0 }); announceZoom(); };
+  const zoom = (amount: number) => { changeView({ ...view.current, scale: view.current.scale + amount }); announceZoom(); };
+  const reset = () => { changeView({ scale: 1, x: 0, y: 0 }); announceZoom(); };
 
   return <dialog ref={dialog} className="messagePhotoViewer" aria-label="Photo viewer" onClose={() => { if (!dialog.current?.open) onClose(); }} onClick={event => { event.stopPropagation(); if (event.target === event.currentTarget) onClose(); }}>
     <div className="messagePhotoViewerToolbar">
@@ -92,7 +140,7 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
         if (key === "+" || key === "=") zoom(0.5);
         else if (key === "-") zoom(-0.5);
         else if (key === "Home") reset();
-        else if (key.startsWith("Arrow")) draw({ ...view.current, x: view.current.x + (key === "ArrowLeft" ? 40 : key === "ArrowRight" ? -40 : 0), y: view.current.y + (key === "ArrowUp" ? 40 : key === "ArrowDown" ? -40 : 0) });
+        else if (key.startsWith("Arrow")) changeView({ ...view.current, x: view.current.x + (key === "ArrowLeft" ? 40 : key === "ArrowRight" ? -40 : 0), y: view.current.y + (key === "ArrowUp" ? 40 : key === "ArrowDown" ? -40 : 0) });
         else return;
         event.preventDefault();
       }}>

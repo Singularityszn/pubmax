@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { transitionComposerActivity, type ComposerActivity } from "@/lib/messageComposer";
-import { clampPhotoView } from "@/lib/messagePhotoViewer";
+import { clampPhotoView, rubberbandPhotoView } from "@/lib/messagePhotoViewer";
 import { rememberMessagePhotos, readMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 
 import {
@@ -38,6 +38,23 @@ describe("photo preparation and sending scope", () => {
     const photo = { width: 1200, height: 600 };
     expect(clampPhotoView({ scale: 0.5, x: 50, y: 50 }, frame, photo)).toEqual({ scale: 1, x: 0, y: 0 });
     expect(clampPhotoView({ scale: 6, x: 1000, y: -1000 }, frame, photo)).toEqual({ scale: 4, x: 585, y: -40 });
+  });
+
+  it.each([1, -1])("uses each frame dimension to resist %s-direction overflow of a fitted landscape photo", direction => {
+    const frame = { width: 390, height: 700 };
+    const photo = { width: 1200, height: 600 };
+    const landscape = rubberbandPhotoView({ scale: 4, x: direction * 685, y: direction * 140 }, frame, photo);
+    expect(landscape.x).toBeCloseTo(direction * 633.202247);
+    expect(landscape.y).toBeCloseTo(direction * 90.993377);
+    const portrait = rubberbandPhotoView({ scale: 4, x: direction * 140, y: direction * 685 },
+      { width: 700, height: 390 }, { width: 600, height: 1200 });
+    expect(portrait).toEqual({ scale: 4, x: landscape.y, y: landscape.x });
+    expect(rubberbandPhotoView({ scale: 4, x: 30, y: -30 }, frame, photo)).toEqual({ scale: 4, x: 30, y: -30 });
+  });
+
+  it("keeps a temporarily collapsed viewer transform finite", () => {
+    expect(rubberbandPhotoView({ scale: 2, x: 0, y: 0 }, { width: 0, height: 0 }, { width: 800, height: 800 }))
+      .toEqual({ scale: 2, x: 0, y: 0 });
   });
 });
 

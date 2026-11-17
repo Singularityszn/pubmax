@@ -21,6 +21,7 @@ vi.mock("@/lib/authedFetch", async importOriginal => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import MessagePhotoViewer from "@/components/messages/MessagePhotoViewer";
 import { discardMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 
 let container: HTMLDivElement;
@@ -51,7 +52,7 @@ beforeEach(() => {
   Element.prototype.scrollIntoView = () => {};
   container = document.createElement("div"); document.body.append(container); root = createRoot(container);
 });
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.unstubAllGlobals(); });
+afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("choosing a DM photo preserves its frame and the composer's focus", () => {
   it("shows preparation immediately, then offers the whole photo without a crop dialog", async () => {
@@ -98,5 +99,188 @@ describe("choosing a DM photo preserves its frame and the composer's focus", () 
     expect(createUrl).not.toHaveBeenCalled();
     expect(container.querySelector(".composerPendingThumb")).toBeNull();
     expect(container.querySelector(".composerPreparing")).toBeNull();
+  });
+});
+
+describe("photo viewer pan release", () => {
+  let frames: Map<number, FrameRequestCallback>;
+  let reducedMotion: boolean;
+  let stage: HTMLDivElement;
+  let photo: HTMLImageElement;
+  const showModal = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "showModal");
+  const close = Object.getOwnPropertyDescriptor(HTMLDialogElement.prototype, "close");
+
+  beforeEach(async () => {
+    Object.defineProperties(HTMLDialogElement.prototype, {
+      showModal: { configurable: true, value(this: HTMLDialogElement) { this.setAttribute("open", ""); } },
+      close: { configurable: true, value(this: HTMLDialogElement) { this.removeAttribute("open"); } },
+    });
+    frames = new Map();
+    reducedMotion = false;
+    let frameId = 0;
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      frames.set(++frameId, callback);
+      return frameId;
+    });
+    vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
+    vi.stubGlobal("matchMedia", () => ({ matches: reducedMotion }));
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 400, 400));
+    await act(async () => root.render(createElement(MessagePhotoViewer, {
+      url: "blob:photo", alt: "A pub", width: 800, height: 800, onClose: vi.fn(), onError: vi.fn(),
+    })));
+    stage = container.querySelector<HTMLDivElement>(".messagePhotoViewerStage")!;
+    photo = container.querySelector<HTMLImageElement>(".messagePhotoViewerImage")!;
+    stage.setPointerCapture = vi.fn();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("[aria-label='Zoom in']")!.click();
+      container.querySelector<HTMLButtonElement>("[aria-label='Zoom in']")!.click();
+    });
+  });
+
+  afterEach(async () => {
+    await act(async () => root.render(null));
+    for (const [key, descriptor] of [["showModal", showModal], ["close", close]] as const) {
+      if (descriptor) Object.defineProperty(HTMLDialogElement.prototype, key, descriptor);
+      else Reflect.deleteProperty(HTMLDialogElement.prototype, key);
+    }
+  });
+
+  function pointer(type: string, x: number, y: number, time: number, pointerId = 1) {
+    const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
+    Object.defineProperties(event, {
+      pointerId: { value: pointerId }, pointerType: { value: "touch" }, timeStamp: { value: time },
+    });
+    act(() => { stage.dispatchEvent(event); });
+  }
+
+  function position() {
+    const values = photo.style.transform.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)!.map(Number);
+    return { x: values[0]!, y: values[1]! };
+  }
+
+  function frame(time: number) {
+    const callbacks = [...frames.values()];
+    frames.clear();
+    act(() => { callbacks.forEach(callback => callback(time)); });
+  }
+
+  it.each([1, -1])("hands a %s-direction diagonal flick to momentum and lands at the photo edges", direction => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 200 + direction * 20, 200 + direction * 20, 10);
+    expect(position()).toEqual({ x: direction * 20, y: direction * 20 });
+    pointer("pointerup", 200 + direction * 20, 200 + direction * 20, 10);
+    frame(16);
+    expect(position().x * direction).toBeGreaterThan(45);
+    expect(position().y * direction).toBeGreaterThan(45);
+    expect(position().x * direction).toBeLessThan(200);
+    frame(5_000);
+    expect(position()).toEqual({ x: direction * 200, y: direction * 200 });
+    expect(frames.size).toBe(0);
+  });
+
+  it.each([1, -1])("resists %s-direction overscroll on both axes and settles without crossing the edge", direction => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 200 + direction * 300, 200 + direction * 300, 100);
+    expect(position().x).toBeCloseTo(direction * 248.351648);
+    expect(position().y).toBeCloseTo(direction * 248.351648);
+    pointer("pointerup", 200 + direction * 300, 200 + direction * 300, 200);
+    frame(16);
+    expect(position().x * direction).toBeGreaterThanOrEqual(200);
+    expect(position().x * direction).toBeLessThan(248.351648);
+    frame(5_000);
+    expect(position()).toEqual({ x: direction * 200, y: direction * 200 });
+  });
+
+  it("keeps a short flick's projected landing point inside the pan limits", () => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 202, 198, 10);
+    pointer("pointerup", 202, 198, 10);
+    frame(5_000);
+    expect(position().x).toBeCloseTo(101.8);
+    expect(position().y).toBeCloseTo(-101.8);
+  });
+
+  it("includes the final pointer-up position when no move event delivered it", () => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointerup", 202, 198, 10);
+    expect(position()).toEqual({ x: 2, y: -2 });
+    frame(5_000);
+    expect(position().x).toBeCloseTo(101.8);
+    expect(position().y).toBeCloseTo(-101.8);
+  });
+
+  it.each(["pointercancel", "lostpointercapture", "rest"])("settles a %s without a stale fling", end => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 220, 220, 10);
+    pointer(end === "rest" ? "pointerup" : end, 220, 220, end === "rest" ? 100 : 10);
+    expect(position()).toEqual({ x: 20, y: 20 });
+    expect(frames.size).toBe(0);
+  });
+
+  it("continues from the live position when a new drag catches a spring beyond an edge", () => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 500, 500, 10);
+    pointer("pointerup", 500, 500, 10);
+    frame(16);
+    const live = position();
+    pointer("pointerdown", 100, 100, 30);
+    expect(frames.size).toBe(0);
+    pointer("pointermove", 100, 100, 40);
+    expect(position()).toEqual(live);
+    pointer("pointermove", 90, 90, 50);
+    expect(position().x).toBeLessThan(live.x);
+    expect(position().y).toBeLessThan(live.y);
+  });
+
+  it("continues a pinch as a single-pointer pan and ignores duplicate capture-loss events", () => {
+    act(() => container.querySelector<HTMLButtonElement>("button:nth-child(2)")!.click());
+    pointer("pointerdown", 100, 200, 0, 1);
+    pointer("pointerdown", 300, 200, 0, 2);
+    pointer("pointermove", 0, 200, 10, 1);
+    pointer("pointermove", 400, 200, 20, 2);
+    expect(stage.dataset.scale).toBe("2");
+    pointer("pointerup", 0, 200, 20, 1);
+    pointer("pointermove", 420, 220, 30, 2);
+    expect(position()).toEqual({ x: 20, y: 20 });
+    pointer("pointerup", 420, 220, 30, 2);
+    pointer("lostpointercapture", 420, 220, 30, 2);
+    frame(5_000);
+    expect(position()).toEqual({ x: 200, y: 200 });
+  });
+
+  it.each(["button", "keyboard", "wheel", "resize", "unmount"])("cancels release motion when interrupted by %s", async action => {
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 220, 220, 10);
+    pointer("pointerup", 220, 220, 10);
+    expect(frames.size).toBeGreaterThan(0);
+    await act(async () => {
+      if (action === "button") container.querySelector<HTMLButtonElement>("button:nth-child(2)")!.click();
+      if (action === "keyboard") stage.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
+      if (action === "wheel") stage.dispatchEvent(new WheelEvent("wheel", { ctrlKey: true, deltaY: 20, bubbles: true }));
+      if (action === "resize") window.dispatchEvent(new Event("resize"));
+      if (action === "unmount") root.render(null);
+    });
+    expect(frames.size).toBe(0);
+    const stopped = position();
+    frame(5_000);
+    expect(position()).toEqual(stopped);
+    if (action === "button") expect(position()).toEqual({ x: 0, y: 0 });
+    if (action === "keyboard") expect(position()).toEqual({ x: 60, y: 20 });
+  });
+
+  it("keeps direct tracking but removes momentum and animated settling for reduced motion", () => {
+    reducedMotion = true;
+    pointer("pointerdown", 200, 200, 0);
+    pointer("pointermove", 220, 220, 10);
+    expect(position()).toEqual({ x: 20, y: 20 });
+    pointer("pointerup", 220, 220, 10);
+    expect(position()).toEqual({ x: 20, y: 20 });
+    pointer("pointerdown", 200, 200, 20);
+    pointer("pointermove", 500, 500, 30);
+    expect(position().x).toBeGreaterThan(200);
+    pointer("pointerup", 500, 500, 30);
+    expect(position()).toEqual({ x: 200, y: 200 });
+    expect(frames.size).toBe(0);
   });
 });
