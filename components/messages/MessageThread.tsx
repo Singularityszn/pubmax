@@ -1092,7 +1092,7 @@ export default function MessageThread({
         </div> : null}
         {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
 
-        {renderPicker()}
+        {picking ? <div className="composerPickerRegion">{renderPicker()}</div> : null}
 
         {pending ? (
           <div className="composerPending">

@@ -1517,6 +1517,77 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   });
 }
 
+for (const action of ["Cancel", "Attach poll"]) {
+  test(`expanded poll keeps ${action} and the composer reachable above the keyboard`, async ({ page }, testInfo) => {
+    await page.setViewportSize(PHONE);
+    await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+    await storeThemeChoice(page, "dark");
+    await page.addInitScript(() => {
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, writable: true, value: 844 },
+        offsetTop: { configurable: true, writable: true, value: 0 },
+      });
+    });
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    await page.getByRole("button", { name: "Add an attachment", exact: true }).click();
+    await page.getByRole("button", { name: "Start a poll", exact: true }).click();
+    const poll = page.getByRole("group", { name: "Start a poll", exact: true });
+    await poll.getByRole("textbox", { name: "Question", exact: true }).fill("Where tonight?");
+    for (let index = 0; index < 4; index += 1) {
+      await poll.getByRole("button", { name: "Add an option", exact: true }).click();
+    }
+    for (let index = 1; index <= 6; index += 1) {
+      await poll.getByRole("textbox", { name: `Option ${index}`, exact: true }).fill(`Pub ${index}`);
+    }
+    const option = poll.getByRole("textbox", { name: "Option 6", exact: true });
+    await option.blur();
+    await expectComposerInView(page);
+    await option.focus();
+    for (const viewport of [{ height: 480, offsetTop: 0 }, { height: 320, offsetTop: 120 }]) {
+      const geometry = await page.evaluate((next) => {
+        Object.assign(window.visualViewport!, next);
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+        const dock = document.querySelector(".composerDock")!.getBoundingClientRect();
+        const header = document.querySelector(".threadHeader")!.getBoundingClientRect();
+        return { bottom: dock.bottom, top: dock.top, headerBottom: header.bottom };
+      }, viewport);
+      expect(Math.abs(geometry.bottom - viewport.height - viewport.offsetTop)).toBeLessThanOrEqual(1);
+      expect(geometry.top).toBeGreaterThanOrEqual(geometry.headerBottom);
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+      const button = poll.getByRole("button", { name: action, exact: true });
+      await button.scrollIntoViewIfNeeded();
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox!.y).toBeGreaterThanOrEqual(geometry.top);
+      expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(viewport.height + viewport.offsetTop);
+      expect(await button.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+      })).toBe(true);
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await expect(field).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole("button", { name: "Send", exact: true })).toBeInViewport({ ratio: 1 });
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`expanded-poll-${action}.png`), scale: "css" });
+    await poll.getByRole("button", { name: action, exact: true }).click();
+    await expect(poll).toHaveCount(0);
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await field.fill("See you there");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expectMessageInView(page, "See you there");
+    await field.blur();
+    await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 844, offsetTop: 0 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expectComposerInView(page);
+    await expectMessageInView(page, "See you there");
+  });
+}
+
 test.describe("thread keyboard geometry", () => {
   for (const layout of [
     { width: 390, shell: "web" }, { width: 768, shell: "web" }, { width: 1440, shell: "web" },

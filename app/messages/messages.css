@@ -915,8 +915,19 @@ html[data-theme="dark"] .messageBubblePhoto {
   border-top: 0;
 }
 
-.composerDock > * {
+.messageThreadShell .composerDock:has(.composerPickerRegion) {
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+.composerDock:has(.composerPickerRegion) > :not(.composerPickerRegion) {
   flex-shrink: 0;
+}
+
+.composerPickerRegion {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
 }
 
 /* One row: the attachments, the field, Send. The field is the only thing that
