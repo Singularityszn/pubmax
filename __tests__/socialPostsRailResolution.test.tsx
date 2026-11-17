@@ -172,7 +172,11 @@ describe("Social Posts account resolution", () => {
     calendar.day = "2026-11-17";
     await renderSocial();
     await act(async () => { await vi.dynamicImportSettled(); });
-    expect(door.querySelector(".socialLogInPublic")).not.toBeNull();
+    const promotion = door.querySelector(".socialLogInPublic");
+    expect(promotion).not.toBeNull();
+    expect(promotion!.getAttribute("aria-busy")).toBe("false");
+    expect(promotion!.querySelector(".logInPublicEmpty")).not.toBeNull();
+    expect(promotion!.querySelector("button")).toBeNull();
 
     expect(door.querySelector('section[aria-label="Social posts"]')).toBe(slot);
     expect(slot!.querySelector(".emptyState")!.parentElement).toBe(content);
@@ -192,6 +196,7 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
+    // The promotion's hydration shift is tracked separately in issue 2970.
     const stableChildren = Array.from(door.children).filter((child) => !child.matches(".socialLogInPublic"));
     expect(stableChildren.slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
   });
