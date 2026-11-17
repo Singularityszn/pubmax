@@ -16,4 +16,3 @@ export const buttonVariants = cva("uiButton", {
   },
   defaultVariants: { variant: "primary", size: "default" },
 });
-

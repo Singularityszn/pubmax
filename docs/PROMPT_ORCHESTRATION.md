@@ -76,8 +76,10 @@ The review proved two independent defects:
    value), so it only ever loses the budget race passively — no ordering code
    needed for it.
 
-3. **The tour is map-scoped and claims like the rest.** It renders only on
-   `/map` load, before any plan action, so it rarely co-renders with the
+3. **The tour is map-scoped and claims like the rest.** The
+   [fair-pint arrival policy](rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival)
+   owns its additional suppression rule. Otherwise, it renders only on `/map`
+   load, before any plan action, so it rarely co-renders with the
    plan-tap surfaces — but it is still budgeted, so a returning-day session that
    is also A2HS/identity/push-eligible sees exactly one prompt. This is
    implemented on `main` by this PR (below).

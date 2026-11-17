@@ -1,7 +1,7 @@
 import { fairPintActive } from "@/lib/fairPint";
 // First-visit map arrival policy. See the quiet window and storage
 // compatibility rules below.
-// Pure policy: eligibility, planner-param suppression, dismiss storage, and
+// Arrival policy: eligibility, planner-param suppression, dismiss storage, and
 // the consent gate the analytics prompt must wait behind.
 
 import {
@@ -57,10 +57,9 @@ export function searchSuppressesMapFirstVisitArrival(search: string): boolean {
 /**
  * Whether the ask has been answered inside its quiet window.
  *
- * The stored value is `dismissed:<epoch ms>`. A bare `dismissed` is the value
- * every earlier build wrote: it carries no date, so it never expires, rather
- * than putting the ask back in front of every existing reader on one deploy.
- * An unreadable date is treated as answered, never as a reason to ask again.
+ * A timed location-card dismissal can expire. A permanent fair-pint dismissal
+ * and the legacy bare value carry no date, so neither expires. An unreadable
+ * date also counts as answered, never as a reason to ask again.
  */
 export function hasDismissedMapFirstVisitArrival(
   storage?: Storage | null,

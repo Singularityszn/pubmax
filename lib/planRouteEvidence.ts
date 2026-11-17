@@ -215,4 +215,3 @@ export function assessOpeningSchedule(
     warning: "Listed recurring hours cover this visit, but holiday and one-off exceptions may differ; check before relying on it.",
   };
 }
-

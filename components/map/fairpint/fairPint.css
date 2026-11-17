@@ -115,6 +115,11 @@ body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivatio
 .pintLine[data-presentation] .pintLine__note {
   display: none;
 }
+.pintLine[data-presentation] .pintLine__stop,
+.pintLine[data-presentation] .pintLine__label,
+.pintLine[data-presentation] .pintLine__leg {
+  transition: none;
+}
 .fairPintStops {
   padding-left: 22px;
   margin: 0;

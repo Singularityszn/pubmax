@@ -42,4 +42,3 @@ export function writeBudgetChoice(id: BudgetChoiceId, storage?: Storage | null):
     // Storage full or blocked: the answer still counts for this visit.
   }
 }
-
