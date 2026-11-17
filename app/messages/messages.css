@@ -1211,12 +1211,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   object-fit: cover;
 }
 
-/* Crop step inside the thread: a card over the composer, not a full-screen page.
-   It is a modal, so it sits ABOVE the phone tab bar (--z-tabbar, 1350) and below
-   the splash takeover (1400). At z-index 30 the bar painted its opaque pill over
-   the card's own Use photo / Cancel row, so the two controls were untappable on
-   the one surface this card exists for. The phone rule below also reserves the
-   bar's lane, so the card is never merely painted on top of it. */
 .messageCropOverlay {
   position: fixed;
   inset: 0;

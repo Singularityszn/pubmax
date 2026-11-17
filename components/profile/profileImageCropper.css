@@ -5,7 +5,7 @@
    comments below call load-bearing - and a third host would have made three.
 
    A host owns only the geometry that is genuinely its own: where the step sits
-   and how wide it may be (`.messageCropCard`, `.profilePage .profileCropStep-avatar`).
+   and how wide it may be (for example, `.profilePage .profileCropStep-avatar`).
    A host override must be MORE SPECIFIC than the rule it replaces rather than
    merely later, because stylesheet order across imported files is not a contract. */
 

@@ -468,7 +468,15 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
-  If a send fails, check the restored draft before choosing **Send** again. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+  Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
+
+  If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread. If you leave the thread, **Return to your photos** opens the unsent batch.
+
+  This recovery works within the same tab and account session. Reloading or closing the tab loses unsent photos. Signing out or changing accounts clears them. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+
+  Open a sent photo to view its full frame in a full-screen viewer. Pinch or use the zoom controls to zoom. Drag a zoomed photo to move it. **Reset zoom** restores the full frame. **Close** or Escape returns to the thread and restores focus to the photo button. If a photo cannot load, choose **Retry photo**.
+
+  If a text send fails, check the restored draft before choosing **Send** again.
 
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
 

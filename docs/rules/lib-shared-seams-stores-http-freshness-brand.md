@@ -63,7 +63,9 @@ schema change is required.
 
 <a id="message-retries"></a>
 
-`MessageThread` retains one failed attempt's `clientMessageId` in component memory. It reuses the key when the conversation, sender account, handle, trimmed text and outgoing attachment values match. Photo equality compares file bytes and media type, so selecting the same image again does not rotate the key. A changed payload receives a new key. Success clears the cached attempt, so a later deliberate send receives a new key. Unmounting the thread loses this retry state.
+`useMessageComposer` retains one failed attempt's `clientMessageId` in a ref. It reuses the key when the conversation, sender account, handle, trimmed text and outgoing attachment values match. Photo equality compares file bytes and media type, so selecting the same image again does not rotate the key. A changed payload receives a new key. Success clears the cached attempt, so a later deliberate send receives a new key.
+
+`lib/messagePhotoRecovery.ts` keeps an unsent photo batch and its current retry attempt in tab memory across thread unmounts. Entries belong to an account revision and conversation. The provider account signal removes them when that account session ends. Text-only attempts remain local to the mounted composer. The [Messages guide](../../README.md#features) owns recovery instructions and persistence limits.
 
 The send captures `readProviderAccountSignal()` before reading photo bytes and passes that signal to both POST formats. An account change during the read cannot send the previous account's draft with the new account's credentials.
 
