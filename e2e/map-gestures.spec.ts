@@ -1,5 +1,7 @@
 import { expect, test, type CDPSession, type Locator, type Page } from "@playwright/test";
 
+import recordedSohoWalk from "./fixtures/soho-walk-route.json";
+
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
@@ -92,25 +94,57 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
-  test(`a short landscape walk keeps Ask and every stop tappable at ${width}px in ${theme}`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 390 });
+for (const { width, height, delayedRoad, southEast = false } of [
+  { width: 768, height: 390, delayedRoad: false }, { width: 844, height: 390, delayedRoad: false },
+  { width: 844, height: 390, delayedRoad: true }, { width: 768, height: 1024, delayedRoad: true },
+  { width: 844, height: 390, delayedRoad: true, southEast: true },
+  { width: 390, height: 844, delayedRoad: true },
+]) for (const theme of ["light", "dark"]) {
+  test(`a ${height > width ? "portrait" : "short landscape"} walk keeps Ask and every stop tappable at ${width}px in ${theme}${delayedRoad ? " after a held road and resize" : ""}${southEast ? " with a southeast stop" : ""}`, async ({ page }, testInfo) => {
+    const stopIds = southEast ? ["venue-nyowgc", "venue-xiesdn", "venue-15i2wst"]
+      : ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"];
+    const coordinates: [number, number][] = southEast
+      ? [[-0.137432, 51.5149], [-0.132014, 51.514], [-0.131572, 51.5125]]
+      : [[-0.134383, 51.5113], [-0.135402, 51.5108], [-0.135301, 51.5106]];
+    const openingViewport = height > width ? { width: 844, height: 390 } : { width, height };
+    await page.setViewportSize(openingViewport);
     await page.emulateMedia({ reducedMotion: "reduce" });
     await holdLondonAfternoon(page);
     await page.addInitScript(theme => {
       localStorage.setItem("pubmax-theme", theme);
       localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
     }, theme);
-    if (width === 844) await installNativeShell(page, "ios");
+    if (width === 844 || width === 390) await installNativeShell(page, "ios");
     await installDeterministicMapBasemap(page);
-    await page.route("**/api/walk-route?**", route => route.fulfill({
-      status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
-    }));
-    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm");
+    await page.route("**/api/citymcp/status**", route => route.fulfill({ json: {
+      asOf: null, weather: null, tubeLines: [], signals: [],
+    } }));
+    await page.route("**/api/whats-on**", route => route.fulfill({ json: {
+      servedAt: "2026-10-30T14:00:00Z", rows: [], asOf: null,
+      sourceObservedAt: null, sourceFreshnessKind: "unknown",
+    } }));
+    await page.route("**/api/citymcp/things-to-do**", route => route.fulfill({ json: { opportunities: [] } }));
+    let releaseRoad = () => {};
+    const roadGate = new Promise<void>(resolve => { releaseRoad = resolve; });
+    page.on("close", releaseRoad);
+    await page.route("**/api/walk-route?**", async route => {
+      if (delayedRoad) {
+        await roadGate;
+        await route.fulfill({ json: southEast ? { line: { type: "FeatureCollection", features: [{
+          type: "Feature", properties: { source: "straight" },
+          geometry: { type: "LineString", coordinates },
+        }] }, source: "straight" } : recordedSohoWalk });
+      } else await route.fulfill({
+        status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+      });
+    });
+    await page.goto(`/map?mode=build&pubs=${stopIds.join(",")}`);
     await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
     await expectMapLoadingFrameReleased(page);
     await expect(page.locator(".palSummonSignIn")).toBeVisible();
-    const readStops = () => page.evaluate(() => {
+    const readStops = () => page.evaluate(coordinates => {
       const camera = (window as typeof window & {
         __pubmaxMapCamera: { read(): CameraReading; project(point: [number, number]): { x: number; y: number } };
       }).__pubmaxMapCamera;
@@ -118,15 +152,14 @@ for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
       // The route disc has a 16px radius and a 2.5px stroke. Sample its rim,
       // since a clear centre alone allows chrome to cover the numbered stop.
       const offsets = [[0, 0], [-22, 0], [22, 0], [0, -22], [0, 22], [-16, -16], [16, -16], [-16, 16], [16, 16]];
-      const points = ([[-0.134383, 51.5113], [-0.135402, 51.5108], [-0.135301, 51.5106]] as [number, number][])
-        .map(coordinate => camera.project(coordinate));
+      const points = coordinates.map(coordinate => camera.project(coordinate));
       const state = camera.read();
-      return { settled: !state.moving && !state.settling, zoom: state.zoom, points,
+      return { settled: !state.moving && !state.settling, zoom: state.zoom, center: state.center, points,
         obstructions: points.map(point => offsets.map(([x, y]) => {
           const hit = document.elementFromPoint(point.x + x!, point.y + y!);
           return hit === canvas ? null : hit?.className ?? "outside viewport";
         }).filter(Boolean)) };
-    });
+    }, coordinates);
     const expectClearStops = async (stage: string) => {
       await expect.poll(async () => (await readStops()).settled).toBe(true);
       await testInfo.attach(`${stage}-geometry`, { body: JSON.stringify(await readStops()), contentType: "application/json" });
@@ -161,11 +194,23 @@ for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
     const exerciseAsk = async (stage: "initial" | "recovered") => {
       await ask.tap();
       await expect(dialog).toBeVisible();
+      if (delayedRoad && stage === "initial") {
+        const initialZoom = (await readStops()).zoom;
+        const response = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
+        releaseRoad();
+        await response;
+        if (!southEast) await expect.poll(async () => Math.abs((await readStops()).zoom - initialZoom)).toBeGreaterThan(0.001);
+        const roadZoom = (await readStops()).zoom;
+        const refitViewport = width <= 640 ? openingViewport : { width, height };
+        await page.setViewportSize({ width: refitViewport.width - 10, height: refitViewport.height - 10 });
+        await expect.poll(async () => Math.abs((await readStops()).zoom - roadZoom)).toBeGreaterThan(0.001);
+        await expect.poll(async () => (await readStops()).settled).toBe(true);
+      }
       await page.screenshot({ path: testInfo.outputPath(`${stage}-ask-open.png`) });
       const close = dialog.getByRole("button", { name: "Close ask", exact: true });
       await expectUncovered(close);
       const examples = dialog.locator(".mapConciergeAskChip");
-      await expect(examples).toHaveCount(stage === "initial" ? 4 : 0);
+      await expect(examples).toHaveCount(stage === "initial" || width <= 640 ? 4 : 0);
       for (const example of await examples.all()) await expectUncovered(example);
       if (await examples.count()) {
         const request = page.waitForRequest(request => request.url().endsWith("/api/ask") && request.method() === "POST");
@@ -188,14 +233,30 @@ for (const width of [768, 844]) for (const theme of ["light", "dark"]) {
       await expect(ask).toBeVisible();
     };
     await exerciseAsk("initial");
+    // Ask belongs to the wider shell. Phone portrait restores its own chrome.
+    if (width <= 640) await page.setViewportSize({ width, height });
+    await expectClearStops("after-ask");
     // Each disc must select its own venue, including the close Soho pair.
-    for (const [index, id] of ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"].entries()) {
-      const stop = (await readStops()).points[index]!;
+    for (const [index, id] of stopIds.entries()) {
+      const walk = await readStops();
+      const stop = walk.points[index]!;
       await page.touchscreen.tap(stop.x, stop.y);
       await expect(page).toHaveURL(new RegExp(`sel=${id}`));
-      await page.getByRole("button", { name: "Close pub detail", exact: true }).tap();
+      const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+      await expect(close).toBeVisible();
+      await expect.poll(async () => Math.hypot(...(await readStops()).center.map((value, axis) => value - walk.center[axis]!))).toBeGreaterThan(0.0000001);
+      await expect.poll(async () => (await readStops()).settled).toBe(true);
+      const selected = await readStops();
+      await close.tap();
       await expect(page).not.toHaveURL(/sel=/);
+      await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+      await expect.poll(async () => Math.hypot(...(await readStops()).center.map((value, axis) => value - selected.center[axis]!))).toBeGreaterThan(0.0000001);
       await expectClearStops(`recovered-${index + 1}`);
+    }
+    if (height > width) {
+      await page.setViewportSize(openingViewport);
+      await page.getByRole("button", { name: "Show whole walk", exact: true }).tap();
+      await expectClearStops("landscape-return");
     }
     await exerciseAsk("recovered");
   });

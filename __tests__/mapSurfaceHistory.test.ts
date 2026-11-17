@@ -317,6 +317,40 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     expect(window.location.pathname).toBe("/social");
   });
 
+  it("discards a pending primary tab when traversal lands outside the map", () => {
+    openSurfaces(venue);
+    vi.spyOn(window.history, "go").mockImplementation(() => {});
+    const navigate = vi.fn();
+    act(() => { expect(requestMobileSheetDismiss(navigate)).toBe(true); });
+    act(() => {
+      window.history.replaceState(null, "", "/about");
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    act(() => {
+      const state = stampMapSurfaceHistory(null, [], "");
+      window.history.replaceState(state, "", "/map");
+      window.dispatchEvent(new PopStateEvent("popstate", { state }));
+    });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/map");
+  });
+
+  it("discards a pending primary tab after an interrupted traversal lands on a parent", () => {
+    openSurfaces(planner, venue);
+    vi.spyOn(window.history, "go").mockImplementation(() => {});
+    const navigate = vi.fn();
+    act(() => { expect(requestMobileSheetDismiss(navigate)).toBe(true); });
+    for (const stack of [[planner], []]) {
+      act(() => {
+        const state = stampMapSurfaceHistory(null, stack, "");
+        window.history.replaceState(state, "", "/map");
+        window.dispatchEvent(new PopStateEvent("popstate", { state }));
+      });
+    }
+    expect(navigate).not.toHaveBeenCalled();
+    expect(trail()).toEqual([]);
+  });
+
   it("completes an area choice before opening a pub, so Back returns to the map", async () => {
     openSurfaces({ id: "choose-area", title: "Choose area" });
     act(() => navigation.complete("choose-area"));
