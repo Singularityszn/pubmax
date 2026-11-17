@@ -11,6 +11,8 @@
 .curatedWalkCopyStatus { font-size: var(--text-sm); margin: 0; }
 .curatedWalkCopyStatus:not(:empty) { margin-bottom: 12px; }
 .curatedWalkStops { margin-top: 12px; }
+.curatedWalkStops li > button { grid-template-columns: max-content minmax(0, 1fr); }
+.curatedWalkStops .stopNumber { width: max(28px, 1.75em); }
 .curatedWalkSources { margin-top: 16px; font-size: var(--text-sm); color: var(--muted); }
 .curatedWalkSources summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
 .curatedWalkSources a { color: var(--ink); text-decoration: underline; }
