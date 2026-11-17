@@ -5,9 +5,10 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
+const actor = vi.hoisted(() => ({ id: "alice", revision: 1 }));
 const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void), outbox: null as null | ((post: SocialPostDTO) => void), edit: null as null | Partial<SocialPostDTO> }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "alice" }, accountRevision: 1, identityResolved: true }) }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: actor.id }, accountRevision: actor.revision, identityResolved: true }) }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedIn: true, signedOut: false }) }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request }));
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
@@ -54,6 +55,8 @@ afterEach(async () => {
   host?.remove();
   clearSurfaceCache();
   composer.edit = null;
+  actor.id = "alice";
+  actor.revision = 1;
 });
 
 it("bounds a deep refresh and keeps the fresh continuation reachable", async () => {
@@ -315,6 +318,98 @@ it.each([
   else expect(host.textContent).toContain("Accepted body after navigation");
 });
 
+it.each([
+  { label: "unrelated private origin post", target: "Origin post", visibility: "private" as const, count: 80 },
+  { label: "unrelated public origin post", target: "Origin post", visibility: "public" as const, count: 80 },
+  { label: "current friends post", target: "Following 60", visibility: "friends" as const, count: 80 },
+  { label: "current private post", target: "Following 60", visibility: "private" as const, count: 79 },
+])("applies a departed save to the current deep selection: $label", async ({ target, visibility, count }) => {
+  // The selected contract retains known rows, cursor 80 and their original age.
+  const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
+  const otherKey = "social-posts:other:1:/api/social/posts?lane=following&limit=20";
+  const otherPage = { posts: [feedPost("Other actor", 12)], pages: 4, nextCursor: "80" };
+  writeSurfaceSnapshot(otherKey, otherPage, 1_000, { persist: false });
+  const reads: string[] = [];
+  let hold = false;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    reads.push(href);
+    if (hold) return new Promise<Response>(() => {});
+    const params = new URL(href, "http://localhost").searchParams;
+    const start = Number(params.get("cursor") ?? 0);
+    const rows = params.get("lane") === "following"
+      ? Array.from({ length: 20 }, (_, offset) => feedPost(`Following ${start + offset}`, 12))
+      : [{ ...feedPost("Origin post", 12), visibility: "public", ownedByViewer: true }];
+    return Response.json({ posts: rows, nextCursor: String(start + 20) });
+  });
+  const current: SocialPostsShellState = { valid: true, tab: "posts", feed: "following", area: null };
+  const origin: SocialPostsShellState = { valid: true, tab: "posts", feed: "discover", area: null };
+  const render = async (state: SocialPostsShellState) => act(async () => root.render(createElement(SocialPageClient, { initialState: state, rivalry: [], heritageCrawls: [] })));
+  const more = async () => act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  try {
+    await mountFeed(current);
+    for (let page = 0; page < 3; page += 1) await more();
+    await render(origin);
+    const pendingSave = composer.outbox!;
+    await render(current);
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(80);
+    clock.mockReturnValue(299_000);
+    const readsBeforeSave = reads.length;
+    await act(async () => pendingSave({ ...feedPost(target, 12), visibility, body: "Accepted departed edit", ownedByViewer: true }));
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count);
+    expect(host.textContent).toContain("Following 0");
+    expect(host.textContent).toContain("Following 79");
+    expect(host.textContent?.includes("Accepted departed edit")).toBe(target === "Following 60" && visibility === "friends");
+    expect(reads).toHaveLength(readsBeforeSave);
+    expect(readSurfaceSnapshot(otherKey)).toEqual(otherPage);
+    await more();
+    expect(new URL(reads.at(-1)!, "http://localhost").searchParams.get("cursor")).toBe("80");
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count + 20);
+    // Returning to the inactive origin must read it again.
+    await render(origin);
+    expect(reads).toHaveLength(readsBeforeSave + 2);
+    await render(current);
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(count + 20);
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    clock.mockReturnValue(301_001);
+    hold = true;
+    await render(current);
+    expect(host.querySelectorAll(".socialPostList:not(.sampleSkeleton) .socialPostCard")).toHaveLength(0);
+  } finally {
+    clock.mockRestore();
+  }
+});
+
+it("ignores an edit acknowledgement from a previous committed actor", async () => {
+  let hold = false;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: actor.id });
+    if (hold) return new Promise<Response>(() => {});
+    return Response.json({ posts: [feedPost(`${actor.id} row`, 12)], nextCursor: null, items: [] });
+  });
+  await mountFeed();
+  const pendingSave = composer.outbox!;
+  actor.id = "other";
+  actor.revision = 2;
+  await act(async () => root.render(createElement(SocialPageClient, { initialState: { valid: true, tab: "posts", feed: "following", area: null }, rivalry: [], heritageCrawls: [] })));
+  const key = "social-posts:other:2:/api/social/posts?lane=following&limit=20";
+  const before = readSurfaceSnapshot(key);
+  expect(before).not.toBeNull();
+  const departedKey = "social-posts:alice:1:/api/social/posts?lane=discover&limit=20";
+  writeSurfaceSnapshot(departedKey, { posts: [feedPost("Alice detached row", 12)] }, Date.now(), { persist: false });
+  const departedBefore = readSurfaceSnapshot(departedKey);
+  hold = true;
+  const requestsBeforeSave = transport.request.mock.calls.length;
+  await act(async () => pendingSave({ ...feedPost("other row", 12), body: "Previous actor acknowledgement" }));
+  expect(transport.request.mock.calls.length).toBe(requestsBeforeSave);
+  expect(host.textContent).toContain("other row");
+  expect(host.textContent).not.toContain("Previous actor acknowledgement");
+  expect(readSurfaceSnapshot(key)).toEqual(before);
+  expect(readSurfaceSnapshot(departedKey)).toEqual(departedBefore);
+});
+
 it.each(["pagination", "edit"])("does not renew the first page's age after %s", async action => {
   const clock = vi.spyOn(Date, "now").mockReturnValue(1_000);
   let hold = false;
@@ -436,11 +531,12 @@ it("revalidates loaded pages through fresh cursors and removes a deleted older p
   expect([...host.querySelectorAll("button")].some(button => button.textContent === "Load more")).toBe(true);
 });
 
-it.each([401, 403])("removes protected posts when loading more is denied with %s", async status => {
+it.each([401, 403, 503])("releases an error body once and preserves only authorised posts after %s", async status => {
+  const cancel = vi.fn();
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
-    if (href.includes("cursor=")) return Response.json({ error: "Denied" }, { status });
+    if (href.includes("cursor=")) return new Response(new ReadableStream({ cancel }), { status });
     return Response.json({ posts: [feedPost("Protected post", 12)], nextCursor: "older" });
   });
   await mountFeed();
@@ -448,9 +544,19 @@ it.each([401, 403])("removes protected posts when loading more is denied with %s
 
   await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
 
-  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(0);
-  expect(host.textContent).not.toContain("Protected post");
+  expect(cancel).toHaveBeenCalledTimes(1);
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(status === 503 ? 1 : 0);
+  expect(host.textContent?.includes("Protected post")).toBe(status === 503);
   expect(host.textContent).not.toContain("No posts here yet");
+});
+
+it("refuses a malformed successful feed response", async () => {
+  transport.request.mockImplementation(async (href: string) => href === "/api/social/access"
+    ? Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" })
+    : Response.json({ posts: "untrusted", nextCursor: null, items: [] }));
+  await mountFeed();
+  expect(host.querySelector(".socialFeedError")).not.toBeNull();
+  expect(host.querySelectorAll(".socialPostList:not(.sampleSkeleton) .socialPostCard")).toHaveLength(0);
 });
 
 it("keeps posts after a failed next page and reads new posts on focus without a reload", async () => {

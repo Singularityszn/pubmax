@@ -219,8 +219,9 @@ async function readPostPage(href: string, signal: AbortSignal): Promise<SocialPo
   }, { requiresIdentity: true });
   if (!response.ok) {
     discardBody(response);
-    if ([401, 403].includes(response.status)) throw new SocialFeedDenied();
-    throw new Error("Social feed unavailable");
+    throw [401, 403].includes(response.status)
+      ? new SocialFeedDenied()
+      : new Error("Social feed unavailable");
   }
   const page = parsePostPage(await response.json());
   if (!page) throw new Error("Social feed malformed");
@@ -477,6 +478,22 @@ function SocialPageAccountState({
   const feedSnapshotPrefix = user ? `social-posts:${user.id}:` : null;
   const feedSnapshotKey = feedSnapshotPrefix && feedHref
     ? `${feedSnapshotPrefix}${accountRevision}:${feedHref}` : null;
+  const committedFeed = useRef<{
+    actor: string | null;
+    revision: number;
+    prefix: string | null;
+    key: string | null;
+    selection: SocialShellState;
+    editable: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    committedFeed.current = {
+      actor: user?.id ?? null, revision: accountRevision,
+      prefix: feedSnapshotPrefix, key: feedSnapshotKey, selection: initialState,
+      editable: access === "verified" && identityResolved,
+    };
+    return () => { committedFeed.current = null; };
+  }, [user?.id, accountRevision, feedSnapshotPrefix, feedSnapshotKey, initialState, access, identityResolved]);
   const requestExplicitFeedRefresh = useCallback(() => {
     explicitFeedRefreshKey.current = feedSnapshotKey;
     setFeedAttempt(value => value + 1);
@@ -754,26 +771,30 @@ function SocialPageAccountState({
   }, []);
 
   const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
+    const current = committedFeed.current;
+    if (!current?.editable || current.actor !== user?.id || current.revision !== accountRevision) return;
     if (updated) {
-      if (feedSnapshotPrefix) {
-        forgetSurfaceSnapshots(feedSnapshotPrefix, feedData.current?.key === feedSnapshotKey ? feedSnapshotKey : null);
-        if (feedData.current?.key !== feedSnapshotKey && feedData.current?.key.startsWith(feedSnapshotPrefix)) {
-          feedData.current = null;
-        }
-      }
-      const next = chronological(postsRef.current.map(item => item.id === updated.id
-        ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
-        : item).filter(item => initialState.tab !== "posts" || matchesSocialPostFeedSelection(item, initialState.feed, initialState.area, initialState.tag)));
-      postsRef.current = next;
-      setPosts(next);
-      if (feedSnapshotKey && feedData.current?.key === feedSnapshotKey) {
-        const page = { ...feedData.current.page, posts: next };
-        feedData.current = { key: feedSnapshotKey, page };
-        writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false, preserveAge: true });
+      setSubmittedPost(updated);
+      const active = feedData.current?.key === current.key ? feedData.current : null;
+      if (current.prefix) forgetSurfaceSnapshots(current.prefix, active?.key ?? null);
+      feedData.current = active;
+      const selection = current.selection;
+      if (active && selection.tab === "posts") {
+        const next = chronological(postsRef.current.flatMap(item => {
+          if (item.id !== updated.id) return [item];
+          const edited = { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos };
+          return matchesSocialPostFeedSelection(edited, selection.feed, selection.area, selection.tag)
+            ? [edited] : [];
+        }));
+        postsRef.current = next;
+        setPosts(next);
+        const page = { ...active.page, posts: next };
+        feedData.current = { key: active.key, page };
+        writeSurfaceSnapshot(active.key, page, Date.now(), { persist: false, preserveAge: true });
       }
     }
     refreshAfterSave();
-  }, [feedSnapshotPrefix, feedSnapshotKey, initialState, refreshAfterSave]);
+  }, [user?.id, accountRevision, refreshAfterSave]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;
@@ -1018,10 +1039,7 @@ function SocialPageAccountState({
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
             ) : null}
             {showViewerCards && viewerHandle ? <PintDropRecovery handle={viewerHandle} /> : null}
-            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
-              if (updated) setSubmittedPost(updated);
-              acceptPostEdit(updated);
-            }} /> : null}
+            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={acceptPostEdit} /> : null}
 
           {!friendsLaunchEnabled ? (
             <SocialAccessBoundary

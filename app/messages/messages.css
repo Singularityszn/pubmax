@@ -981,6 +981,16 @@ html[data-theme="dark"] .messageBubblePhoto {
   gap: var(--composer-field-gap);
 }
 
+.composerDockLoading {
+  margin-top: auto;
+}
+
+.composerPlaceholderField {
+  min-height: 44px;
+  height: calc(1.35em + 1.3rem);
+  border-radius: 22px;
+}
+
 .composerInput {
   flex: 1 1 auto;
   width: 100%;
@@ -1505,6 +1515,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     max-height: none;
     margin: 0;
     padding: var(--composer-dock-padding) 0.75rem;
+
   }
 
   .messagesThreadPane > .conversationPreview,

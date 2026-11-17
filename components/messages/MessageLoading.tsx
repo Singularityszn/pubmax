@@ -37,15 +37,30 @@ export function ThreadLoading() {
 
 export function ThreadLoadingShell() {
   return <div className="messageThread">
-    <div className="threadHeader">
-      <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
-        <ChevronLeft size={24} aria-hidden="true" />
-      </Link>
-      <SampleSkeleton label="Loading conversation" className="threadWith">
-        <span className="messageAvatar" style={{ width: 36, height: 36 }} data-sample-block="" />
-        <span className="threadWithHandle">Conversation</span>
-      </SampleSkeleton>
+    <div className="messageThreadShell">
+      <div className="threadHeader">
+        <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
+          <ChevronLeft size={24} aria-hidden="true" />
+        </Link>
+        <SampleSkeleton label="Loading conversation" className="threadWith">
+          <span className="messageAvatar" style={{ width: 36, height: 36 }} data-sample-block="" />
+          <span className="threadWithHandle">Conversation</span>
+        </SampleSkeleton>
+      </div>
+      <ThreadLoading />
+      <div className="composerDock composerDockLoading">
+        <SampleSkeleton label="Loading message composer" className="composer">
+          <span className="composerControls">
+            <span className="composerAttach" data-sample-block="" />
+            <span className="composerAttach composerPhotoDesktop" data-sample-block="" />
+            <span className="composerAttach" data-sample-block="" />
+          </span>
+          <span className="composerField">
+            <span className="composerPlaceholderField" data-sample-block="" />
+          </span>
+          <span className="composerAttach" data-sample-block="" />
+        </SampleSkeleton>
+      </div>
     </div>
-    <ThreadLoading />
   </div>;
 }
