@@ -146,14 +146,23 @@ describe("successful photo handoff", () => {
     await act(async () => root.render(null));
     expect(revoke).toHaveBeenCalledWith("blob:stored");
   });
-  it("keeps the sender's preview readable when stored media fails and retries", async () => {
+  it.each(["request", "decode"])("keeps the sender's preview readable after a stored %s failure and retry", async failure => {
     await sendPhoto();
-    await act(async () => release(new Response(null, { status: 503 })));
+    if (failure === "request") await act(async () => release(new Response(null, { status: 503 })));
+    else {
+      await act(async () => release(new Response("broken", { headers: { "Content-Type": "image/jpeg" } })));
+      await act(async () => container.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("error")));
+    }
     expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
     expect(revoke).not.toHaveBeenCalledWith("blob:local");
-    const retry = Array.from(container.querySelectorAll("button")).find(button => button.textContent === "Retry photo")!;
+    const retry = container.querySelector<HTMLButtonElement>('[aria-label="Retry photo"]')!;
     await act(async () => retry.click());
     expect(visiblePhoto()?.getAttribute("src")).toBe("blob:local");
+    await act(async () => release(new Response("stored", { headers: { "Content-Type": "image/jpeg" } })));
+    await act(async () => container.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("load")));
+    expect(visiblePhoto()?.getAttribute("src")).toBe("blob:stored");
+    expect(revoke).toHaveBeenCalledWith("blob:local");
+    expect(container.querySelector('[aria-label="Retry photo"]')).toBeNull();
   });
   it.each(["account", "revision", "handle", "conversation", "unmount"])("drops borrowed bytes on %s without accepting a stale media response", async boundary => {
     await sendPhoto();

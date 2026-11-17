@@ -114,8 +114,14 @@ export default function MessagePhoto({
   } as React.CSSProperties;
 
   const shownUrl = failed && !previewUrl ? null : loaded ? objectUrl : previewUrl;
-  const retry = <div className="messagePhotoPending messagePhotoFailed"><span>{MESSAGE_PHOTO_UNREADABLE_LINE}</span>
-    <button type="button" onClick={() => { setAttempt(value => value + 1); }}>Retry photo</button>
+  const failureLine = previewUrl ? "Could not finish loading photo." : MESSAGE_PHOTO_UNREADABLE_LINE;
+  const retry = <div className={shownUrl ? "messagePhotoRetry" : "messagePhotoPending messagePhotoFailed"}>
+    <span className="sr-only" role="status">{failureLine}</span>
+    <button type="button" aria-label="Retry photo" title={`${failureLine} Retry photo`} onClick={() => { setAttempt(value => value + 1); }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M20 4v6h-6M4 20v-6h6M6.5 6.5a8 8 0 0 1 13 2M4.5 15.5a8 8 0 0 0 13 2" />
+      </svg>
+    </button>
   </div>;
   const preload = objectUrl && !loaded && !failed ? (
     // eslint-disable-next-line @next/next/no-img-element -- authenticated bytes are decoded before replacing a borrowed preview

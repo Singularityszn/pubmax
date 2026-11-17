@@ -12,6 +12,14 @@
 .messagePhotoRecoveryNotice a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
 .messageThread .composerInput { font-size: max(16px, 1rem); }
 .messagePhotoPending { margin: 0; flex-direction: column; gap: 0.5rem; }
+.messagePhotoRetry {
+  position: absolute;
+  top: 0;
+  right: 0;
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+}
 .messagePhotoViewer {
   position: fixed;
   inset: 0;
@@ -37,7 +45,7 @@
   gap: 0.5rem;
   padding: max(0.5rem, env(safe-area-inset-top)) max(0.5rem, env(safe-area-inset-right)) 0.5rem max(0.5rem, env(safe-area-inset-left));
 }
-.messagePhotoViewerToolbar button, .messagePhotoPending button {
+.messagePhotoViewerToolbar button, .messagePhotoPending button, .messagePhotoRetry button {
   min-height: 44px;
   min-width: 44px;
   padding: 0.4rem 0.65rem;
@@ -47,6 +55,13 @@
   background: transparent;
   font: inherit;
   cursor: pointer;
+}
+.messagePhotoRetry button, .messagePhotoFailed button {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
 }
 .messagePhotoViewerClose { margin-inline-start: auto; }
 .messagePhotoViewerStage {

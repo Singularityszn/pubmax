@@ -805,14 +805,22 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePhotoFigure {
   --message-photo-max-height: min(40dvh, 240px);
 
+  position: relative;
   margin: 0;
-  width: calc(var(--message-photo-max-height) * var(--message-photo-aspect, 0.8));
+  width: max(44px, calc(var(--message-photo-max-height) * var(--message-photo-aspect, 0.8)));
+  min-width: 44px;
   max-width: 100%;
+  aspect-ratio: var(--message-photo-aspect, 0.8);
+  min-height: 44px;
+  max-height: var(--message-photo-max-height);
 }
 
 .messagePhotoButton {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
+  height: 100%;
   padding: 0;
   border: none;
   background: none;
@@ -823,43 +831,30 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePhoto {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: var(--message-photo-aspect, 0.8);
+  height: 100%;
   border-radius: var(--radius);
   /* `contain`, never `cover`: if a stored dimension ever disagreed with the
      bytes, a photograph letterboxes rather than being silently cut. */
   object-fit: contain;
 }
 
-/* The reserved box. Same width as the figure, same aspect as the photograph. */
 .messagePhotoPending {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: var(--message-photo-aspect, 0.8);
+  height: 100%;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   font-size: var(--text-xs);
   color: var(--muted);
 }
 
-/* The photo the sender chose, drawn from its local preview while the bytes
-   are on their way, under the same cap the stored tile takes. */
 .messagePhotoSending {
-  display: block;
-  max-width: 100%;
-  max-height: min(40dvh, 240px);
-  border-radius: var(--radius);
-  object-fit: contain;
-}
-
-.messagePhotoFailed {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: var(--text-xs);
-  color: var(--muted);
+  position: absolute;
+  inset: 0;
 }
 
 /* A pub card: name, area, and only the figure this pub is allowed to say. */

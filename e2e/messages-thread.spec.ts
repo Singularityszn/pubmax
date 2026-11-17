@@ -846,6 +846,148 @@ test.describe("the message thread on a desktop", () => {
   });
 });
 
+for (const width of [390, 768, 1440]) for (const native of [false, true]) {
+  for (const size of [{ width: 128, height: 2048 }, { width: 2048, height: 128 }]) {
+    for (const largeText of [false, true]) {
+      test(`photo selection frame stays stable at ${width}px, ${size.width}x${size.height}, native ${native}, large text ${largeText}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await page.emulateMedia({ reducedMotion: largeText ? "reduce" : "no-preference" });
+        await storeThemeChoice(page, largeText ? "dark" : "light");
+        const rows = fixture();
+        await installThread(page, rows);
+        const sharp = (await import("sharp")).default;
+        const bytes = await sharp({ create: { ...size, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
+        let releaseSend!: () => void;
+        let releaseMedia!: (result: "request-error" | "decode-error" | "success") => void;
+        let mediaRequests = 0;
+        await page.route("**/api/messages/c1**", async route => {
+          if (new URL(route.request().url()).pathname.includes("/media/")) {
+            mediaRequests++;
+            const result = await new Promise<"request-error" | "decode-error" | "success">(resolve => { releaseMedia = resolve; });
+            if (result === "request-error") await route.fulfill({ status: 503, body: "Unavailable" });
+            else await route.fulfill({ contentType: "image/jpeg", body: result === "success" ? bytes : Buffer.from("broken image") });
+            return;
+          }
+          if (route.request().method() !== "POST") {
+            await route.fulfill({ json: { messages: rows } });
+            return;
+          }
+          await new Promise<void>(resolve => { releaseSend = resolve; });
+          const message = {
+            id: "extreme-photo", conversationId: "c1", senderHandle: ME, body: "", createdAt: new Date().toISOString(), read: false, flagged: false,
+            attachment: { kind: "photo", url: "/api/messages/c1/media/extreme-photo", ...size },
+          };
+          rows.push(message);
+          await route.fulfill({ json: { message } });
+        });
+        await page.goto("/messages/c1");
+        await expect(page.locator(".composerInput")).toBeVisible();
+        const configureFrame = () => page.evaluate(({ native, largeText }) => {
+          document.documentElement.toggleAttribute("data-native-shell", native);
+          document.documentElement.style.fontSize = largeText ? "32px" : "16px";
+        }, { native, largeText });
+        await configureFrame();
+        const frame = page.locator(".messagePhotoFigure");
+        const photo = frame.locator(".messagePhoto");
+        const opener = frame.locator(".messagePhotoButton");
+        const retry = frame.getByRole("button", { name: "Retry photo", exact: true });
+        const geometry = async () => frame.evaluate(element => {
+          const rect = element.getBoundingClientRect();
+          const image = element.querySelector<HTMLImageElement>(".messagePhoto")!;
+          const box = image.getBoundingClientRect();
+          const scale = Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight);
+          return {
+            width: rect.width, height: rect.height,
+            paintX: box.x - rect.x + (box.width - image.naturalWidth * scale) / 2,
+            paintY: box.y - rect.y + (box.height - image.naturalHeight * scale) / 2,
+            paintWidth: image.naturalWidth * scale, paintHeight: image.naturalHeight * scale,
+          };
+        });
+        const shot = async (step: string) => {
+          const path = testInfo.outputPath(`${step}.png`);
+          await page.screenshot({ path });
+          await testInfo.attach(step, { path, contentType: "image/png" });
+        };
+        await page.locator("#message-photo-file").setInputFiles({ name: "extreme.jpg", mimeType: "image/jpeg", buffer: bytes });
+        await expect(page.locator(".composerPendingThumb")).toBeVisible();
+        await page.getByRole("button", { name: "Send", exact: true }).click();
+        await expect(page.locator(".messagePhotoSending")).toBeVisible();
+        await expect(photo).toHaveJSProperty("naturalWidth", size.width);
+        const original = await geometry();
+        expect(original.width).toBeGreaterThanOrEqual(44);
+        expect(original.height).toBeGreaterThanOrEqual(44);
+        expect(original.height).toBeLessThanOrEqual(240);
+        expect(original.paintWidth / original.paintHeight).toBeCloseTo(size.width / size.height, 4);
+        await shot("optimistic");
+        await expect(() => expect(releaseSend).toBeDefined()).toPass();
+        releaseSend();
+        await expect(opener).toBeVisible();
+        await expect(() => expect(mediaRequests).toBe(1)).toPass();
+        const localUrl = await photo.getAttribute("src");
+        const stable = async () => {
+          const current = await geometry();
+          for (const key of Object.keys(original) as Array<keyof typeof original>) expect(current[key]).toBeCloseTo(original[key], 1);
+          expect(await photo.evaluate(image => getComputedStyle(image).objectFit)).toBe("contain");
+          expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+          const target = (await opener.boundingBox())!;
+          expect(target.width).toBeGreaterThanOrEqual(44);
+          expect(target.height).toBeGreaterThanOrEqual(44);
+        };
+        await stable();
+        for (const [index, result] of (["request-error", "decode-error"] as const).entries()) {
+          releaseMedia(result);
+          await expect(retry).toBeVisible();
+          expect(await photo.getAttribute("src")).toBe(localUrl);
+          await stable();
+          const retryBox = (await retry.boundingBox())!;
+          const frameBox = (await frame.boundingBox())!;
+          expect(retryBox.width).toBeGreaterThanOrEqual(44);
+          expect(retryBox.height).toBeGreaterThanOrEqual(44);
+          expect(retryBox.x).toBeGreaterThanOrEqual(frameBox.x);
+          expect(retryBox.y).toBeGreaterThanOrEqual(frameBox.y);
+          expect(retryBox.x + retryBox.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1);
+          expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
+          expect(await retry.evaluate(button => button.scrollWidth <= button.clientWidth && button.scrollHeight <= button.clientHeight)).toBe(true);
+          await shot(result);
+          await opener.click({ position: { x: 2, y: frameBox.height - 2 } });
+          await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+          await page.getByRole("button", { name: "Close", exact: true }).click();
+          await expect(opener).toBeFocused();
+          await retry.click();
+          await expect(() => expect(mediaRequests).toBe(index + 2)).toPass();
+          await stable();
+        }
+        releaseMedia("success");
+        await expect(photo).not.toHaveAttribute("src", localUrl!);
+        await expect(photo).toHaveJSProperty("naturalWidth", size.width);
+        await expect(retry).toHaveCount(0);
+        await stable();
+        await shot("stored");
+        await page.reload();
+        await configureFrame();
+        await expect(frame.locator(".messagePhotoPending")).toBeVisible();
+        const reserved = (await frame.boundingBox())!;
+        expect(reserved.width).toBeCloseTo(original.width, 1);
+        expect(reserved.height).toBeCloseTo(original.height, 1);
+        await expect(() => expect(mediaRequests).toBe(4)).toPass();
+        releaseMedia("request-error");
+        await expect(retry).toBeVisible();
+        expect(await photo.count()).toBe(0);
+        const failed = (await frame.boundingBox())!;
+        expect(failed.width).toBeCloseTo(reserved.width, 1);
+        expect(failed.height).toBeCloseTo(reserved.height, 1);
+        await shot("remote-only-error");
+        await retry.click();
+        await expect(() => expect(mediaRequests).toBe(5)).toPass();
+        releaseMedia("success");
+        await expect(opener).toBeVisible();
+        await stable();
+        await expectNoHorizontalOverflow(page, width);
+      });
+    }
+  }
+}
+
 for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
