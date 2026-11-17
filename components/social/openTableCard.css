@@ -3,8 +3,9 @@
 }
 
 .socialOpenTable .openTableSource {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  width: fit-content;
   min-height: 44px;
-  margin-block: min(0px, calc((1lh - 44px) / 2));
+  margin-block: var(--space-2) 0;
 }
