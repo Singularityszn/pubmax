@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, expect, it } from "vitest";
-import { fairPintRouteInsets } from "@/components/map/fairpint/fairPintRouteInsets";
+import { fairPintNeedsPeek, fairPintRouteInsets } from "@/components/map/fairpint/fairPintRouteInsets";
 
 function rect(element: HTMLElement, top: number, bottom: number) {
   element.getBoundingClientRect = () => ({
@@ -35,4 +35,18 @@ it("uses the actual sheet edge rather than an entrance-height estimate", () => {
   rect(sheet, 310, 593);
   Object.defineProperty(sheet, "offsetHeight", { value: 365 });
   expect(fairPintRouteInsets(map, true, { top: 160, right: 28, bottom: 200, left: 28 }).bottom).toBe(378);
+});
+
+it("requests peek only when the measured map band cannot hold the route", () => {
+  document.body.innerHTML = '<div id="map"></div><header class="mobileMapTopbar"></header><section class="mobileSharedSheet"><form id="fair-pint-lock-form"></form></section>';
+  const map = document.querySelector<HTMLElement>("#map")!;
+  rect(map, 0, 664);
+  rect(document.querySelector(".mobileMapTopbar")!, 12, 112);
+  const sheet = document.querySelector<HTMLElement>(".mobileSharedSheet")!;
+  rect(sheet, 228, 593);
+  expect(fairPintNeedsPeek(map)).toBe(false);
+  rect(sheet, 195, 593);
+  expect(fairPintNeedsPeek(map)).toBe(true);
+  rect(sheet, 440, 593);
+  expect(fairPintNeedsPeek(map)).toBe(false);
 });

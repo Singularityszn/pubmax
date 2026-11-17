@@ -18,6 +18,8 @@ import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
 import FairPintStops, { listedFairPintStops } from "./FairPintStops";
+import { whenBottomSheetSettles } from "@/components/map/canvas/bottomSheetGeometry";
+import { fairPintNeedsPeek } from "./fairPintRouteInsets";
 import "./fairPint.css";
 type ResultProps = {
   last: FairPintDrawn;
@@ -64,10 +66,26 @@ export default function FairPintResult({
   const nameField = useRef<HTMLInputElement>(null),
     lockedLine = useRef<HTMLParagraphElement>(null);
   const [nameAttempted, setNameAttempted] = useState(false);
+  const [diagramReady, setDiagramReady] = useState(false);
+  const [snap, setSnap] = useState<"half" | "peek">("half");
   const [typedName, setName] = useState<string | null>(null);
   const name = typedName ?? handle ?? "";
   const { generated } = last;
   const save = useFairPintSave(last);
+  useEffect(() => {
+    if (!mobile) {
+      if (diagramReady) onLineReady(generated.operationKey);
+      return;
+    }
+    return whenBottomSheetSettles(0, () => {
+      const container = document.querySelector<HTMLElement>(".maplibreMap");
+      if (container && snap !== "peek" && fairPintNeedsPeek(container)) {
+        setSnap("peek");
+        return;
+      }
+      if (diagramReady) onLineReady(generated.operationKey);
+    }, { waitForSheet: true });
+  }, [mobile, snap, diagramReady, generated.operationKey, onLineReady]);
   const saveState = save.state;
   const locked = saveState.phase === "locked";
   const close = locked ? onClose : onBack;
@@ -180,7 +198,7 @@ export default function FairPintResult({
           key={generated.operationKey}
           crawl={crawl}
           presentation
-          onDrawn={() => onLineReady(generated.operationKey)}
+          onDrawn={() => setDiagramReady(true)}
         />
         <p className="fairPintStamp">
           {priced.length === stops.length
@@ -235,7 +253,7 @@ export default function FairPintResult({
     </>
   );
   return mobile ? (
-    <Sheet kind="planner" surface="solid" title="Your Pint Line" initialSnap="half" onClose={close} backLabel="Back" onBack={close}>
+    <Sheet kind="planner" surface="solid" title="Your Pint Line" initialSnap="half" requestedSnap={snap} onClose={close} backLabel="Back" onBack={close}>
       {content}
     </Sheet>
   ) : (
