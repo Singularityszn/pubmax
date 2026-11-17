@@ -119,18 +119,18 @@
 
 @media (prefers-reduced-motion: reduce) {
   [data-london-restaurant] a,
-[data-london-restaurant] summary {
+  [data-london-restaurant] summary {
     transition: opacity var(--duration-press) var(--ease-out-strong);
   }
 
   [data-london-restaurant] a:active,
-[data-london-restaurant] summary:active {
+  [data-london-restaurant] summary:active {
     transform: none;
     opacity: 0.7;
   }
 
   [data-london-restaurant] a:focus-visible,
-[data-london-restaurant] summary:focus-visible {
+  [data-london-restaurant] summary:focus-visible {
     opacity: 1;
     transition: none;
   }

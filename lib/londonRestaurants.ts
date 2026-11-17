@@ -24,7 +24,7 @@
 //    curated pin whose address or borough names it. Near me keeps the
 //    restaurants inside its walk ring. A filter that asks what a row cannot
 //    answer (a price, Open now, Saved only, an amenity, a drink, a zone) hides
-//    every restaurant while it is on.
+//    unselected restaurants while it is on. An explicit selection stays visible.
 
 import { haversineMeters } from "@/lib/greatCircle.mjs";
 import {
@@ -41,9 +41,9 @@ export const LONDON_RESTAURANT_PACK_PATH = "/data/london_restaurants/manifest.js
 const LONDON_RESTAURANT_PACK_VERSION = 3;
 
 /**
- * The zoom the layer draws from, and the zoom the map first asks for the pack
- * at. The same floor as every unclustered pin layer (`PIN_MIN_ZOOM` in
- * components/map/canvas/buildScene.ts, held equal by
+ * The zoom the layer draws from and opt-in starts loading. Explicit links can
+ * load a sheet below this zoom. The same floor as unclustered pin layers
+ * (`PIN_MIN_ZOOM` in components/map/canvas/buildScene.ts, held equal by
  * __tests__/londonRestaurants.test.ts). It lives here so the map shell can
  * read it without loading the canvas module.
  */
@@ -252,10 +252,7 @@ export function londonRestaurantsWithoutCuratedTwin<T extends LondonVenue>(
 }
 
 /**
- * Whether the map shows this layer. London only, because the pack is London's.
- * The optional layer must be enabled. A drink lane or a view owns the
- * map otherwise, and this layer has no price for one to read, except the food
- * view, which is the question a restaurant answers.
+ * Loading and visibility contract: public/data/london_restaurants/README.md.
  */
 export function londonRestaurantLayerMode(input: {
   isLondon: boolean;

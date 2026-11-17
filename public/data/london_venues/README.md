@@ -41,7 +41,9 @@ mistake a cafe for either a curated venue or an unpriced pub.
 Name, address, position and kind: the four things OpenStreetMap stated. No
 price, no band, no opening claim, no curated ownership.
 
-Restaurant membership requires OSM `amenity=restaurant`. It does not require an alcohol tag or a website statement. `manifest.restaurantSnapshot` records the source path, extract timestamp and row count. `isPubVenueKind` answers false for every non-pub kind here, so no row reaches a price band, cheapest bucket or Pint Index.
+`manifest.restaurantSnapshot` records the restaurant source path, extract timestamp and row count.
+See the [restaurant pack contract](../london_restaurants/README.md) for membership and provenance.
+`isPubVenueKind` answers false for every non-pub kind here, so no row reaches a price band, cheapest bucket or Pint Index.
 
 An absent address is `""`, never invented.
 
@@ -56,8 +58,8 @@ re-measured, not raised.
 
 The map draws this layer's restaurants, and reads them from
 [`public/data/london_restaurants/`](../london_restaurants/README.md), not from
-these shards: the shards a phone at zoom 12 covers are mostly cafes, and the
-restaurant-only chunks are read only when enabled. `npm run build:london-venues` writes that
+these shards. The restaurant pack contract owns its loading rules.
+`npm run build:london-venues` writes that
 pack after every publish, so it is never a generation behind.
 
 ## Desk pack
@@ -72,5 +74,3 @@ a file kept beside the shards would be deleted by the next rebuild.
 OSM data is © OpenStreetMap contributors, ODbL 1.0. The credit is attached to
 the map itself (`OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`), not to
 one optional source.
-
-Restaurant membership comes from `data/osm/uk/london_osm_restaurants.json`, collected through `npm run fetch:uk-venues -- --london-restaurants`. See [the restaurant pack](../london_restaurants/README.md) for Geofabrik provenance, replay commands and optional tagged facts.

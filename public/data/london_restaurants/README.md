@@ -2,7 +2,11 @@
 
 The map reads `manifest.json` and its immutable chunks only after the reader enables
 **All restaurants**, or opens an explicit restaurant link. Existing curated restaurant
-pins keep their separate Restaurants filter. Priced pins paint before this layer loads.
+pins keep their separate Restaurants filter. Loading waits for the map's initial pin hold
+to end. The layer draws from zoom 12. Explicit links can load a sheet below this zoom.
+A drink view suppresses the layer except for an explicit restaurant selection.
+Without a full-layer request, an explicit link reads only the chunk whose OSM id range contains the selection.
+Selecting another place preserves a pending full-layer read and can retry a failed read.
 
 ## Rebuild
 
@@ -42,8 +46,8 @@ OSM facts and appends a borough, cuisine and opening-hours value:
 the existing polygon lookup. No row carries a price or an alcohol claim. The manifest
 and chunks use version 3. `observedAt` is the extract timestamp. `layer` identifies
 the parent venue generation. Each response stays below 192 KiB, and the whole generated
-layer stays below the existing venue layer ceiling of 5 MiB. The current 8,971-row
-snapshot produces six chunks, totalling 1,153,689 bytes before compression. The initial
+layer stays below the existing venue layer ceiling of 5 MiB. The generated
+[`manifest.json`](manifest.json) owns the current row count and chunk list. The initial
 map requests none of them. Opt-in loads the chunks concurrently after the manifest.
 
 The sheet shows only tagged facts, the snapshot date and the original OSM element link.

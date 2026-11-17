@@ -65,8 +65,7 @@ export async function kindRowsFromLayer(manifest, readShard, kind) {
 }
 
 /**
- * The pack body: the layer generation it was cut from, and the rows, each the
- * shard row with its borough after it.
+ * Published tuple and metadata: public/data/london_restaurants/README.md.
  */
 export function restaurantPackBody(manifest, rows, facts = new Map()) {
   return {

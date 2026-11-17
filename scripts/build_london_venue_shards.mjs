@@ -1,6 +1,6 @@
 // Build the LONDON VENUE shards - the kind-tagged base layer of everywhere in
 // Greater London a drinker or a laptop could sit - from the UK-wide OSM venue
-// packs (data/osm/uk/uk_osm_venues_*.json).
+// packs and the London restaurant snapshot (public/data/london_venues/README.md).
 //
 // WHY A SECOND SHARD SET AND NOT THE PUB ONE. `public/data/uk_base/` is the
 // country-wide amenity=pub layer, its row tuple ends in a curated venue id, and
@@ -175,8 +175,7 @@ async function main() {
         dropped += 1;
         continue;
       }
-      // The three packs are already OSM-id-unique among themselves, but a run
-      // that rebuilt one pack alone could repeat a row here.
+      // Separately refreshed inputs can repeat an OSM id.
       if (seen.has(venue.osmId)) continue;
       seen.add(venue.osmId);
       byKind[venue.kind] = (byKind[venue.kind] ?? 0) + 1;
