@@ -147,8 +147,9 @@ export default function TableRequestDialog({
   useDismissOnEscape(gate === null, onClose);
   useFocusTrap(gate === null, dialogRef, "strict-modal");
   useEffect(() => {
-    dialogRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (gate) return;
+    queueMicrotask(() => dialogRef.current?.focus({ preventScroll: true }));
+  }, [gate]);
 
   const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 

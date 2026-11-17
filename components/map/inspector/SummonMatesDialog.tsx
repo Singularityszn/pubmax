@@ -101,8 +101,9 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
   useDismissOnEscape(!gate, onClose);
   useFocusTrap(!gate, dialogRef, "strict-modal");
   useEffect(() => {
-    dialogRef.current?.focus({ preventScroll: true });
-  }, []);
+    if (gate) return;
+    queueMicrotask(() => dialogRef.current?.focus({ preventScroll: true }));
+  }, [gate]);
 
   useEffect(() => {
     if (getWarmedVenue(venue.id)) return;
