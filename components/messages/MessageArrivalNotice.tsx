@@ -5,15 +5,12 @@ import { X } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
-import { discardBody } from "@/lib/responseBody";
 import "./messageArrivalNotice.css";
 
 export default function MessageArrivalNotice({ conversation, onDismiss, inbox = false, currentPath = "" }: { conversation: ConversationDTO; onDismiss: () => void; inbox?: boolean; currentPath?: string }): React.JSX.Element | null {
   const noticeRef = useRef<HTMLDivElement>(null);
   const [host, setHost] = useState<HTMLElement | null>(null);
-  const [allowed, setAllowed] = useState(false);
   useEffect(() => {
     let active = true;
     void Promise.resolve().then(() => { if (active) setHost(document.body); });
@@ -21,27 +18,16 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
   }, []);
   const [interacting, setInteracting] = useState(false);
   useEffect(() => {
-    if (!host) return;
-    const controller = new AbortController();
-    void authedActionFetch(`/api/message-notifications?conversationId=${encodeURIComponent(conversation.id)}`, { signal: controller.signal }, { requiresIdentity: true })
-      .then(async (response) => {
-        if (!response.ok) { discardBody(response); return; }
-        const settings = await response.json() as { quiet?: boolean };
-        if (!controller.signal.aborted && settings.quiet === false) setAllowed(true);
-      }).catch(() => undefined);
-    return () => controller.abort();
-  }, [host, conversation.id]);
-  useEffect(() => {
-    if (!allowed || interacting) return;
+    if (interacting) return;
     const timeout = setTimeout(onDismiss, 6_000);
     return () => clearTimeout(timeout);
-  }, [allowed, interacting, onDismiss]);
+  }, [interacting, onDismiss]);
   useLayoutEffect(() => {
     const notice = noticeRef.current;
     if (!notice) return;
     const reset = () => { for (const property of ["top", "inset-inline-start", "inset-inline-end", "margin-inline"]) notice.style.removeProperty(property); };
     reset();
-    if (!host || !allowed || inbox) return;
+    if (!host || inbox) return;
     const header = document.querySelector<HTMLElement>(".threadHeader");
     if (!header) return;
     const pane = header.closest<HTMLElement>(".messagesThreadPane");
@@ -63,15 +49,13 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
     window.addEventListener("resize", measure);
     window.addEventListener("scroll", onScroll, { capture: true, passive: true });
     return () => { observer.disconnect(); window.removeEventListener("resize", measure); window.removeEventListener("scroll", onScroll, true); if (frame !== null) cancelAnimationFrame(frame); reset(); };
-  }, [host, allowed, inbox, currentPath]);
+  }, [host, inbox, currentPath]);
   const destination = conversation.kind === "group"
     ? conversation.title || "your group"
     : conversation.otherDisplayName || `@${conversation.otherHandle}`;
   if (!host) return null;
-  return createPortal(<div ref={noticeRef} className={allowed ? `messageArrival${inbox ? " messageArrival--inbox" : ""}` : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
-    {allowed ? <>
+  return createPortal(<div ref={noticeRef} className={`messageArrival${inbox ? " messageArrival--inbox" : ""}`} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
     <Link className="pressable" href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>{destination}</span></Link>
     <button type="button" aria-label="Dismiss message notification" onClick={onDismiss}><X size={20} aria-hidden="true" /></button>
-    </> : null}
   </div>, host);
 }

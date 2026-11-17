@@ -5,6 +5,7 @@
 // with nothing left in it until the next poll or a reload.
 
 import { act, createElement } from "react";
+import type { ConversationDTO } from "@/lib/messages";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -16,6 +17,9 @@ const inbox = vi.hoisted(() => ({
   kind: "direct",
   pathname: "/messages",
   quiet: false,
+  rows: null as ConversationDTO[] | null,
+  quietIds: [] as string[],
+  policyReads: [] as string[],
   degraded: false,
   reads: 0,
   // One object for the life of the file: the link keys its poll on the user.
@@ -34,12 +38,17 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }))
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: inbox.unresolved }) }));
 vi.mock("@/lib/messageNotificationClient", () => ({ restoreMessagePushAccount: async () => undefined }));
 vi.mock("@/lib/messageNotificationLifecycle", () => ({ MESSAGE_PUSH_DEPARTURE: "departure", releaseMessagePush: inbox.release }));
-vi.mock("@/lib/authedFetch", () => ({
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authedFetch")>(),
   authedActionFetch: (url: string) => {
-    if (url.startsWith("/api/message-notifications")) return Promise.resolve(Response.json({ quiet: inbox.quiet }));
+    if (url.startsWith("/api/message-notifications")) {
+      const id = new URL(url, "https://pubmaxxing.com").searchParams.get("conversationId")!;
+      inbox.policyReads.push(id);
+      return Promise.resolve(Response.json({ quiet: inbox.quiet || inbox.quietIds.includes(id) }));
+    }
     inbox.reads += 1;
     return Promise.resolve(
-      Response.json({ status: inbox.degraded ? "degraded" : "ready", conversations: [{ id: "c1", otherHandle: "sam", unread: inbox.unread, lastMessageId: inbox.lastMessageId, lastAt: inbox.lastAt, lastFromMe: inbox.lastFromMe, kind: inbox.kind }] }),
+      Response.json({ status: inbox.degraded ? "degraded" : "ready", conversations: inbox.rows ?? [{ id: "c1", otherHandle: "sam", unread: inbox.unread, lastMessageId: inbox.lastMessageId, lastAt: inbox.lastAt, lastFromMe: inbox.lastFromMe, kind: inbox.kind }] }),
     );
   },
 }));
@@ -68,6 +77,9 @@ beforeEach(async () => {
   inbox.kind = "direct";
   inbox.pathname = "/messages";
   inbox.quiet = false;
+  inbox.rows = null;
+  inbox.quietIds = [];
+  inbox.policyReads = [];
   inbox.degraded = false;
   inbox.reads = 0;
   inbox.auth.user = { id: "user-ken" };
@@ -84,6 +96,30 @@ beforeEach(async () => {
 });
 
 describe("MessagesLink arrival notices", () => {
+  it.each(["open", "muted", "blocked", "sender", "read"])("does not let a %s candidate hide a later eligible arrival", async (reason) => {
+    const row = (id: string, message: string): ConversationDTO => ({ id, otherHandle: "sam", lastAt: inbox.lastAt, lastMessageId: message, unread: 1 });
+    inbox.rows = [row("c1", "old-a"), row("c2", "old-b"), row("c3", "old-c")];
+    await act(async () => inbox.onIncoming());
+    await act(async () => document.querySelector<HTMLButtonElement>(".messageArrival button")?.click());
+    inbox.policyReads = [];
+    inbox.rows = [row("c1", "new-a"), row("c2", "new-b"), row("c3", "new-c")];
+    if (reason === "open") {
+      inbox.pathname = "/messages/c1";
+      await act(async () => root.render(createElement(MessagesLink)));
+    }
+    if (reason === "muted" || reason === "blocked") inbox.quietIds = ["c1"];
+    if (reason === "sender") inbox.rows[0].lastFromMe = true;
+    if (reason === "read") inbox.rows[0].unread = 0;
+    await act(async () => inbox.onIncoming());
+    expect(document.querySelectorAll(".messageArrival")).toHaveLength(1);
+    expect(document.querySelector(".messageArrival a")?.getAttribute("href")).toBe("/messages/c2");
+    expect(inbox.policyReads).toEqual(reason === "muted" || reason === "blocked" ? ["c1", "c2"] : ["c2"]);
+    expect(document.querySelector(".messageArrival")?.textContent).not.toContain("new-b");
+    await act(async () => document.querySelector<HTMLButtonElement>(".messageArrival button")!.click());
+    await act(async () => inbox.onIncoming());
+    expect(document.querySelector(".messageArrival")).toBeNull();
+  });
+
   it.each(["direct", "group"])("notifies a new %s message when another device reads the old unread message", async (kind) => {
     inbox.kind = kind;
     inbox.lastMessageId = "message-2";

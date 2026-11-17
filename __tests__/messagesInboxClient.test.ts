@@ -103,3 +103,50 @@ it("does not mark a read begun before visibility as the visibility result", asyn
   expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "after" }]);
   expect(state.fetch).toHaveBeenCalledTimes(2);
 });
+
+it.each(["response", "body"])("expires a shared stalled %s and rejects late data after recovery", async (stage) => {
+  let finish!: () => void;
+  let requestSignal!: AbortSignal;
+  const response = Response.json({ conversations: [{ id: "late" }] });
+  const json = vi.spyOn(response, "json");
+  state.fetch.mockImplementationOnce((_url, init) => {
+    requestSignal = init.signal;
+    if (stage === "response") return new Promise<Response>((resolve) => {
+      finish = () => resolve(Response.json({ conversations: [{ id: "late" }] }));
+    });
+    json.mockImplementationOnce(() => new Promise((resolve) => {
+      finish = () => resolve({ conversations: [{ id: "late" }] });
+    }));
+    return Promise.resolve(response);
+  });
+  const departed = new AbortController();
+  const first = readMessagesInbox("A", "reader");
+  const second = readMessagesInbox("A", "reader");
+  const cancelled = readMessagesInbox("A", "reader", departed.signal);
+  const outcome = Promise.allSettled([first, second]);
+  departed.abort();
+  await expect(cancelled).rejects.toMatchObject({ name: "AbortError" });
+  expect(requestSignal.aborted).toBe(false);
+  await vi.advanceTimersByTimeAsync(2_999);
+  if (stage === "body") expect(json).toHaveBeenCalledOnce();
+  let completed = false;
+  void outcome.then(() => { completed = true; });
+  expect(completed).toBe(false);
+  invalidateMessagesInbox("reader", false);
+  const joined = readMessagesInbox("A", "reader");
+  const joinedOutcome = Promise.allSettled([joined]);
+  expect(state.fetch).toHaveBeenCalledOnce();
+  await vi.advanceTimersByTimeAsync(1);
+  expect(await outcome).toEqual([
+    { status: "rejected", reason: expect.objectContaining({ name: "TimeoutError" }) },
+    { status: "rejected", reason: expect.objectContaining({ name: "TimeoutError" }) },
+  ]);
+  expect(await joinedOutcome).toEqual([{ status: "rejected", reason: expect.objectContaining({ name: "TimeoutError" }) }]);
+  expect(requestSignal.aborted).toBe(true);
+  state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "recovered" }] }));
+  expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "recovered" }]);
+  finish();
+  await Promise.resolve();
+  expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "recovered" }]);
+  expect(state.fetch).toHaveBeenCalledTimes(2);
+});

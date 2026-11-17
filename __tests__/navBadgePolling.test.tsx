@@ -18,7 +18,7 @@ vi.mock("next/link", () => ({
 vi.mock("next/navigation", () => ({ usePathname: () => "/messages", useRouter: () => ({ prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: (url: string, init: RequestInit) => state.fetch(url, init) }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authedFetch")>(), authedActionFetch: (url: string, init: RequestInit) => state.fetch(url, init) }));
 
 import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -77,7 +77,7 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
       window.dispatchEvent(new Event("focus"));
-      await vi.advanceTimersByTimeAsync(60_000);
+      await vi.advanceTimersByTimeAsync(_name === "messages" ? 2_999 : 60_000);
     });
     expect(state.fetch).toHaveBeenCalledTimes(initial);
     await act(async () => { finish?.(Response.json({ unread: 3, conversations: [{ unread: 3 }] })); });
@@ -125,4 +125,19 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("4 unread");
   });
+});
+
+
+it("recovers the messages badge on focus after a stalled shared read expires", async () => {
+  let finish!: (response: Response) => void;
+  state.fetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+  await mount(MessagesLink);
+  expect(state.fetch).toHaveBeenCalledOnce();
+  await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+  state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ unread: 4 }] }));
+  await act(async () => { window.dispatchEvent(new Event("focus")); });
+  expect(state.fetch).toHaveBeenCalledTimes(2);
+  expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Messages, 4 unread");
+  await act(async () => { finish(Response.json({ conversations: [{ unread: 99 }] })); });
+  expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Messages, 4 unread");
 });

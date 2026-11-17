@@ -3,6 +3,7 @@ import { abortReason } from "@/lib/abortableDelay";
 import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import type { ConversationDTO } from "@/lib/messages";
 import { discardBody } from "@/lib/responseBody";
+import { waitForWebPushWork } from "@/lib/webPush";
 
 export type MessagesInboxRead = { status: number; conversations: ConversationDTO[]; degraded: boolean };
 type Entry = {
@@ -66,15 +67,17 @@ export function readMessagesInbox(userId: string, handle: string, signal?: Abort
     promise: Promise.resolve({ status: 0, conversations: [], degraded: false }),
   };
   let expiry: ReturnType<typeof setTimeout> | undefined;
+  const deadline = setTimeout(() => controller.abort(new DOMException("The inbox read timed out.", "TimeoutError")), 3_000);
   const onDeparture = () => { if (current === entry) current = null; entry.dispose(); };
   entry.dispose = () => {
     clearTimeout(expiry);
+    clearTimeout(deadline);
     provider.removeEventListener("abort", onDeparture);
     if (!entry.settled) controller.abort();
   };
   provider.addEventListener("abort", onDeparture, { once: true });
   current = entry;
-  entry.promise = authedActionFetch(`/api/messages?handle=${encodeURIComponent(handle)}`, {
+  entry.promise = waitForWebPushWork(authedActionFetch(`/api/messages?handle=${encodeURIComponent(handle)}`, {
     signal: controller.signal,
   }, { requiresIdentity: true }).then(async (response) => {
     if (provider.aborted || controller.signal.aborted || revision !== readProviderAccountRevision()) {
@@ -92,11 +95,12 @@ export function readMessagesInbox(userId: string, handle: string, signal?: Abort
     if (provider.aborted || controller.signal.aborted || revision !== readProviderAccountRevision()) {
       throw new DOMException("The inbox account changed.", "AbortError");
     }
+    clearTimeout(deadline);
     entry.settled = true;
     if (!response.ok || result.degraded) onDeparture();
     else expiry = setTimeout(onDeparture, 250);
     return result;
-  }).catch((error: unknown) => {
+  }), controller.signal).catch((error: unknown) => {
     onDeparture();
     throw error;
   });

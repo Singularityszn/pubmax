@@ -16,6 +16,7 @@ import { getAccessToken } from "@/lib/authClient";
 import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageArrivalNotice from "@/components/messages/MessageArrivalNotice";
+import { selectMessageArrival } from "@/lib/messageArrival";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -99,13 +100,15 @@ export default function MessagesLink(): React.JSX.Element | null {
       const rows = read.conversations;
       const total = rows.reduce((sum, c) => sum + (c.unread || 0), 0);
       const previous = previousRef.current?.userId === user.id ? previousRef.current.rows : null;
-      const incoming = !read.degraded && previous && rows.find((row) => {
+      const candidates = !read.degraded && previous ? rows.filter((row) => {
         const old = previous.find((item) => item.id === row.id);
         return row.lastMessageId && !row.lastFromMe && (row.unread ?? 0) > 0 && row.lastMessageId !== old?.lastMessageId;
-      });
-      if (!read.degraded) previousRef.current = { userId: user.id, rows };
-      if (incoming && pathnameRef.current !== `/messages/${incoming.id}`) setArrival({ userId: user.id, conversation: incoming });
+      }) : [];
       setUnreadResult({ userId: user.id, handle: h, count: total });
+      const incoming = await selectMessageArrival(candidates, controller.signal, (row) => pathnameRef.current === `/messages/${row.id}`);
+      if (controller.signal.aborted || abortRef.current !== controller) return;
+      if (!read.degraded) previousRef.current = { userId: user.id, rows };
+      if (incoming) setArrival({ userId: user.id, conversation: incoming });
     } catch {
       // aborted / offline — leave the badge as-is; the nav never breaks on this.
     } finally {
