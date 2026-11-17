@@ -28,6 +28,9 @@ import { isPubVenueKind } from "@/lib/venueKindFilters";
 /** The verified Social account summoning. */
 export type SummonViewer = MateViewer;
 
+/** How long a send waits for the optional price before it goes without one. */
+export const SUMMON_PRICE_READ_MS = 1_500;
+
 /** The most mutuals one list read checks, so a large follow graph stays a bounded read. */
 const SUMMON_MUTUALS_CHECKED = 60;
 

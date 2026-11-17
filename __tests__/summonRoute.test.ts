@@ -39,6 +39,7 @@ vi.mock("@/lib/venueDetailIndex", () => ({
 
 import { GET, POST } from "@/app/api/summon/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
+import { SUMMON_PRICE_READ_MS } from "@/lib/summonMates.server";
 import { __resetMemoryMessages, messagesStore } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
@@ -307,6 +308,48 @@ describe("POST /api/summon", () => {
     const response = await pending;
     expect(await inbox("summon_ann_12")).toHaveLength(0);
     expect(response.status).toBe(400);
+  });
+
+  it("honours an unfollow made while the optional price read is pending", async () => {
+    await mate("summon_ann_12");
+    await mate("summon_bo_12");
+    let entered!: () => void;
+    const reading = new Promise<void>((resolve) => { entered = resolve; });
+    let release!: (detail: ReturnType<typeof lambDetail>) => void;
+    routeState.detail = () => {
+      entered();
+      return new Promise((resolve) => { release = resolve; });
+    };
+    const pending = summon({ venueId: PUB, time: "19:00", mates: ["summon_ann_12", "summon_bo_12"] });
+    await reading;
+    await followStore().unfollow("summon_ann_12", ME);
+    release(lambDetail());
+    const response = await pending;
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({ sent: ["summon_bo_12"], failed: [] });
+    expect(await inbox("summon_ann_12")).toEqual([]);
+  });
+
+  it("sends the price-free invite when the optional price read never answers", async () => {
+    vi.useFakeTimers({ toFake: ["Date", "setTimeout", "clearTimeout"] });
+    vi.setSystemTime(NOW);
+    await mate("summon_ann_12");
+    let entered!: () => void;
+    const reading = new Promise<void>((resolve) => { entered = resolve; });
+    routeState.detail = () => {
+      entered();
+      return new Promise(() => {});
+    };
+    let settled = false;
+    const pending = summon({ venueId: PUB, time: "19:00", mates: ["summon_ann_12"] }).finally(() => { settled = true; });
+    await reading;
+    await vi.advanceTimersByTimeAsync(SUMMON_PRICE_READ_MS - 1);
+    expect(settled).toBe(false);
+    expect(await inbox("summon_ann_12")).toEqual([]);
+    await vi.advanceTimersByTimeAsync(1);
+    const response = await pending;
+    expect(response.status).toBe(201);
+    expect((await inbox("summon_ann_12"))[0]?.body).toBe("Come to The Lamb at 7pm?");
   });
 
   it("refuses when nobody named can be summoned, and sends nothing", async () => {

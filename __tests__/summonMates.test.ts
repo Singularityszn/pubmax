@@ -111,9 +111,15 @@ describe("summon price", () => {
     expect(summonText("The Lamb", "20:00", selectSummonPrice(venue, NOW))).toBe(
       `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
     );
-    expect(summonShareText("The Lamb", "20:00", selectSummonPrice(venue, NOW))).toBe(
-      `Come to The Lamb at 8pm? It's on the PUBMAXX map. Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
+  });
+
+  it("puts the PUBMAXX link before the publisher's page in a priced share", () => {
+    const map = "https://pubmaxxing.com/map?sel=pub-lamb&meet=20%3A00";
+    const shared = summonShareText("The Lamb", "20:00", selectSummonPrice(pub(row()), NOW), map);
+    expect(shared).toBe(
+      `Come to The Lamb at 8pm? It's on the PUBMAXX map: ${map} Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
     );
+    expect(shared.indexOf(map)).toBeLessThan(shared.indexOf(SOURCE));
   });
 
   it("keeps the price-free invite when no price is given", () => {
@@ -161,6 +167,13 @@ describe("summon price", () => {
     ["a can labelled as a bottle", { measure: "bottle", pint_name: "Amstel 330ml can" }],
     ["a double labelled as a single", { measure: "single", pint_name: "Gin double" }],
     ["a single labelled as a double", { measure: "double", pint_name: "Gin single" }],
+    ["a leading double labelled as a single", { measure: "single", pint_name: "Double gin and tonic" }],
+    ["a spirit double labelled as a pint", { measure: "pint", pint_name: "Gin double" }],
+    ["a spirit double listing labelled as a pint", { measure: "pint", pint_name: "Gordon's gin", price_text: "£5.50 double measure" }],
+    ["a bottle listing labelled as a pint", { price_gbp: 5.5, price_text: "£5.50 per 330ml bottle" }],
+    ["a half listing labelled as a pint", { price_text: "£5.50 a half" }],
+    ["a can listing labelled as a bottle", { measure: "bottle", price_text: "£5.50 per 440ml can" }],
+    ["a single listing labelled as a double", { measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 single measure" }],
     ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
     ["no drink", { pint_name: " " }],
     ["no listing text", { price_text: "" }],
@@ -183,8 +196,19 @@ describe("summon price", () => {
     ["bottle", "Amstel 330ml bottle"],
     ["single", "Gin single"],
     ["double", "Gin double"],
-  ] as const)("preserves a matching explicit %s serving", (measure, pint_name) => {
+    ["double", "Double gin and tonic"],
+    ["double", "Single Malt Whisky"],
+    ["pint", "Double IPA"],
+    ["pint", "Double Chocolate Stout"],
+  ] as const)("preserves a matching explicit %s serving for %s", (measure, pint_name) => {
     expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
+  });
+
+  it("preserves a listing that states the same serving as its measure", () => {
+    expect(selectSummonPrice(pub(row({ measure: "bottle", pint_name: "Peroni", price_text: "£5.50 per 330ml bottle" })), NOW))
+      .toMatchObject({ measure: "bottle", statement: "£5.50 per 330ml bottle" });
+    expect(selectSummonPrice(pub(row({ measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 double measure" })), NOW))
+      .toMatchObject({ measure: "double" });
   });
 
   it("never quotes a superseded row, a non-pub or a drinker's logged figure", () => {

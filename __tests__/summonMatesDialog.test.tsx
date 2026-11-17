@@ -39,8 +39,10 @@ vi.mock("@/components/auth/useViewerSession", () => ({
   }),
 }));
 vi.mock("@/components/identity/ContributionGateDialog", () => ({
-  ContributionGateDialog: ({ mode, onAsserted }: { mode: string; onAsserted: () => void }) =>
-    createElement("button", { "data-gate": mode, onClick: onAsserted }, "Complete gate"),
+  ContributionGateDialog: ({ mode, onAsserted, onClose }: { mode: string; onAsserted: () => void; onClose: () => void }) =>
+    createElement("div", { "data-gate": mode },
+      createElement("button", { onClick: onAsserted }, "Complete gate"),
+      createElement("button", { onClick: onClose }, "Close gate")),
 }));
 vi.mock("@/lib/warmVenueDetail", () => ({
   getWarmedVenue: () => state.warm,
@@ -71,10 +73,11 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 const venue = { id: "pub-lamb", name: "The Lamb", kind: "pub" } as Venue;
 const SOURCE = "https://www.pint-prices.com/pub/94%20Lamb's%20Conduit%20Street/The%20Lamb";
 const STATEMENT = "£4.50 for members, Monday to Thursday before 7pm";
-const PRICE_LINE = `Pint Prices listed Amstel (pint) as "${STATEMENT}", read 9 November 2026. Source: ${SOURCE}`;
+const PRICE_SENTENCE = `Pint Prices listed Amstel (pint) as "${STATEMENT}", read 9 November 2026.`;
+const PRICE_LINE = `${PRICE_SENTENCE} Source: ${SOURCE}`;
 
 /** The Lamb as the public detail route answers it, with one conditional listed row. */
-function lambDetail(): Venue {
+function lambDetail(readAt = "2026-11-09T13:07:13+00:00"): Venue {
   const [grouped] = groupVenuePrices([{
     app_price_id: "app_price_lamb_1",
     pub_name: "The Lamb",
@@ -86,7 +89,7 @@ function lambDetail(): Venue {
     latitude: 51.5226,
     longitude: -0.1188,
     pub_url: SOURCE,
-    scraped_at_values: "2026-11-09T13:07:13+00:00",
+    scraped_at_values: readAt,
   } as VenuePrice]);
   return { ...grouped!, id: "pub-lamb" };
 }
@@ -282,22 +285,88 @@ describe("SummonMatesDialog", () => {
     expect(button(/^Sign in$/)).toBeTruthy();
   });
 
-  it("shows a signed-out reader the dated price from the public detail and shares it whole", async () => {
+  it("shows a signed-out reader a readable preview of the shared invite and shares it whole", async () => {
     state.phase = "signed-out";
     state.detail = { status: "found", venue: lambDetail() };
     await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
     await until(() => preview());
 
-    expect(preview()).toContain(PRICE_LINE);
+    const group = document.querySelector<HTMLElement>("[data-summon-preview]")!;
+    const label = document.getElementById(group.getAttribute("aria-labelledby") ?? "");
+    expect(label?.textContent).toBe("Your invite");
+    expect(preview()).toContain("It's on the PUBMAXX map: map link");
+    expect(preview()).toContain(`${PRICE_SENTENCE} Source: Pint Prices`);
+    expect(preview()).not.toContain("%20");
+    expect(group.querySelector<HTMLAnchorElement>('a[href^="https://www.pint-prices.com"]')?.href).toBe(SOURCE);
+    expect(group.querySelector<HTMLAnchorElement>('a[href*="/map?sel=pub-lamb"]')).not.toBeNull();
     await act(async () => button(/^Share a link$/).click());
 
     expect(state.reads).toBe(0);
-    expect(state.shared).toEqual([{
+    const shared = state.shared[0]!;
+    expect(shared).toEqual({
       title: "The Lamb",
       text: expect.stringContaining(PRICE_LINE),
       url: expect.stringMatching(/\/map\?sel=pub-lamb&meet=/),
-    }]);
-    expect(state.shared[0]!.text).toMatch(/^Come to The Lamb at \S+\? /);
+    });
+    expect(shared.text).toMatch(/^Come to The Lamb at \S+\? It's on the PUBMAXX map: /);
+    expect(shared.text.indexOf(shared.url)).toBeGreaterThan(-1);
+    expect(shared.text.indexOf(shared.url)).toBeLessThan(shared.text.indexOf(SOURCE));
+  });
+
+  it("drops a price that passes the 30-day line when the page resumes", async () => {
+    state.phase = "signed-out";
+    // 10:00 on 18 October in London: 30 London days before 17 November.
+    state.warm = lambDetail("2026-10-18T09:00:00Z");
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    expect(preview()).toContain("read 18 October 2026");
+
+    vi.setSystemTime(new Date("2026-11-18T00:30:00Z"));
+    await act(async () => { document.dispatchEvent(new Event("visibilitychange")); });
+    expect(preview()).toBeNull();
+  });
+
+  it("checks the price's age again when the reader shares", async () => {
+    state.phase = "signed-out";
+    state.warm = lambDetail("2026-10-18T09:00:00Z");
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    expect(preview()).toContain("read 18 October 2026");
+
+    vi.setSystemTime(new Date("2026-11-18T00:30:00Z"));
+    await act(async () => button(/^Share a link$/).click());
+    expect(state.shared[0]!.text).not.toContain("Pint Prices");
+    expect(preview()).toBeNull();
+  });
+
+  it("stands its modal claim down for a gate and returns focus to the control that opened it", async () => {
+    state.phase = "signed-out";
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    const dialog = document.querySelector<HTMLElement>("[data-summon-dialog]")!;
+    const signIn = button(/^Sign in$/);
+    await act(async () => {
+      signIn.focus();
+      signIn.click();
+    });
+    expect(document.querySelector("[data-gate]")).not.toBeNull();
+    expect(dialog.getAttribute("aria-modal")).toBeNull();
+
+    await act(async () => button(/^Close gate$/).click());
+    await act(async () => {});
+    expect(document.querySelector("[data-gate]")).toBeNull();
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(button(/^Sign in$/));
+  });
+
+  it("returns focus to the dialog when the gate had no opening control", async () => {
+    state.read = () => Promise.resolve(Response.json({
+      code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+      error: "Access required",
+      details: { gate: "adult_check_required" },
+    }, { status: 403 }));
+    await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
+    await until(() => document.querySelector("[data-gate]"));
+    await act(async () => button(/^Close gate$/).click());
+    await act(async () => {});
+    expect(document.activeElement).toBe(document.querySelector("[data-summon-dialog]"));
   });
 
   it("copies the whole invite and its link when no share sheet opens, and nothing on a cancel", async () => {
@@ -305,7 +374,7 @@ describe("SummonMatesDialog", () => {
     state.warm = lambDetail();
     state.shareOutcome = "cancelled";
     await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
-    expect(preview()).toContain(PRICE_LINE);
+    expect(preview()).toContain(PRICE_SENTENCE);
 
     await act(async () => button(/^Share a link$/).click());
     expect(state.copied).toEqual([]);
@@ -314,8 +383,9 @@ describe("SummonMatesDialog", () => {
     state.shareOutcome = "failed";
     await act(async () => button(/^Share a link$/).click());
     const shared = state.shared.at(-1)!;
-    expect(state.copied).toEqual([`${shared.text}\n${shared.url}`]);
+    expect(state.copied).toEqual([shared.text]);
     expect(state.copied[0]).toContain(PRICE_LINE);
+    expect(state.copied[0]!.indexOf(shared.url)).toBeLessThan(state.copied[0]!.indexOf(SOURCE));
     expect(document.querySelector('[role="status"]')?.textContent).toBe("Sharing didn't open, so we copied the invite and link.");
   });
 
@@ -335,7 +405,7 @@ describe("SummonMatesDialog", () => {
     state.warm = lambDetail();
     state.answer = { sent: ["ann"], failed: [] };
     await act(async () => root.render(createElement(SummonMatesDialog, { venue, onClose: () => {} })));
-    expect(preview()).toContain(PRICE_LINE);
+    expect(preview()).toContain(PRICE_SENTENCE);
     act(() => document.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
     await act(async () => button(/Send to 1 mate/).click());
 
