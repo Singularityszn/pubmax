@@ -282,13 +282,23 @@ export async function bootCrewAdmissionDatabase(label: string, start: Stage) {
 export async function stopCrewAdmissionDatabase() { await session?.stop(); session = null; }
 export const running = () => session !== null;
 
+export function correctionLedgerExport() {
+  return json(db().sql(asServiceRole(`set local time zone 'UTC';
+    with exported as (select coalesce(jsonb_agg(to_jsonb(correction) order by id), '[]'::jsonb) as records
+      from public.social_crew_removal_corrections correction)
+    select jsonb_build_object('records', records, 'acknowledgement', jsonb_array_length(records)::text || ':' ||
+      encode(sha256(convert_to(records::text, 'UTF8')), 'hex'))::text from exported;`))) as {
+    records: unknown[]; acknowledgement: string;
+  };
+}
+
 /**
- * The rollback file on its own named connection, with the ledger export count set
+ * The rollback file on its own named connection, with the ledger export acknowledgement set
  * first when one is given. It answers whether the database took it and what it said.
  */
-export function rollbackOutcome(application: string, exportedRows?: string) {
+export function rollbackOutcome(application: string, acknowledgement?: string) {
   const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`, "-c", `set role ${MIGRATOR}`];
-  if (exportedRows !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${exportedRows}'`);
+  if (acknowledgement !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${acknowledgement}'`);
   args.push(...ROLLBACK.flatMap((file) => ["-f", join(directory, file)]));
   return new Promise<{ ok: boolean; said: string }>((resolve) => {
     execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => {

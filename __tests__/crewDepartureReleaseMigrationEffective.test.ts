@@ -14,6 +14,7 @@ import {
   admit,
   bootCrewAdmissionDatabase,
   call,
+  correctionLedgerExport,
   crewWith,
   db,
   decide,
@@ -116,10 +117,12 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     expect(activeCount(crew)).toBe("4");
   });
 
-  it("a request into a night whose owner was deleted answers not found and stores nothing", () => {
+  it.each([false, true])("cancelled-night requests stay not found across fresh keys, sweep first: %s", (sweepFirst) => {
     const host = person(), ana = person(), bea = person();
     const crew = crewWith(host, [ana]);
     db().sql(deleteAccount(host));
+    if (sweepFirst) releaseAll();
+    expect(request(bea, crew)).toEqual(NOT_FOUND);
     expect(request(bea, crew)).toEqual(NOT_FOUND);
     expect(planStatus(crew)).toBe("abandoned");
     expect(db().sql(`select count(*) from public.social_crew_join_requests where crew_id='${crew}' and requester_account_id='${bea.account}'`)).toBe("0");
@@ -161,7 +164,7 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     const crew = crewWith(host, [ana, xav, yan]);
     db().sql(deleteAccount(xav));
     releaseAll();
-    const ledger = db().sql("select count(*) from public.social_crew_removal_corrections");
+    const ledger = correctionLedgerExport().acknowledgement;
     expect(await rollbackOutcome("rollback_0246", ledger)).toMatchObject({ ok: true });
     expect(db().sql("select to_regprocedure('public.release_departed_social_crew_places(integer)') is null")).toBe("t");
     expect(state(crew, xav)).toBe("left");

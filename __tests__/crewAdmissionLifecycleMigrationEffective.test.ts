@@ -21,6 +21,7 @@ import {
   call,
   correct,
   correctCall,
+  correctionLedgerExport,
   corrections,
   crewWith,
   db,
@@ -637,15 +638,32 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
   };
   const ledgerRows = () => db().sql("select count(*) from public.social_crew_removal_corrections");
 
-  it("rollback waits for a correction in flight, counts it, and the export count must then name every row", async () => {
+  it.each(["count", "snapshot"] as const)("rejects an equal-count row substitution acknowledged by %s", async (mode) => {
+    const first = removedAndCorrected();
+    expect(correct(first.crew, first.removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    const exported = correctionLedgerExport();
+    const count = ledgerRows();
+    db().sql(deleteAccount(first.xav));
+    const second = removedAndCorrected();
+    expect(correct(second.crew, second.removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    expect(ledgerRows()).toBe(count);
+    const rolled = await rollbackOutcome(`rollback_substitution_${mode}`, mode === "count" ? count : exported.acknowledgement);
+    try {
+      expect(rolled.ok).toBe(false);
+      expect(corrections(second.crew)).toBe("1");
+    } finally { if (rolled.ok) stageTo("after"); }
+  });
+
+  it("rollback waits for a correction in flight and requires the current exported snapshot", async () => {
     const first = removedAndCorrected();
     expect(correct(first.crew, first.removedMember)).toMatchObject({ ok: true, code: "corrected" });
     const exported = Number(ledgerRows());
+    const acknowledgement = correctionLedgerExport().acknowledgement;
     const second = removedAndCorrected();
     const correction = await holdRpc(correctCall(second.crew, second.removedMember));
     let rolling: Promise<{ ok: boolean; said: string }> | null = null;
     try {
-      rolling = rollbackOutcome("rollback_after_correction", String(exported));
+      rolling = rollbackOutcome("rollback_after_correction", acknowledgement);
       await expect.poll(() => waitsOnAnyLock("rollback_after_correction")).toBe("t");
     } finally { await correction.finish(); }
     const stale = await rolling;
@@ -654,7 +672,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     expect((await rollbackOutcome("rollback_without_export")).ok).toBe(false);
     expect(ledgerRows()).toBe(String(exported + 1));
 
-    expect(await rollbackOutcome("rollback_with_export", String(exported + 1))).toMatchObject({ ok: true });
+    expect(await rollbackOutcome("rollback_with_export", correctionLedgerExport().acknowledgement)).toMatchObject({ ok: true });
     expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
     stageTo("after");
     const bea = person();
@@ -674,7 +692,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
       const inFlight = await hold(statement(xav), "postgres");
       let rolling: Promise<{ ok: boolean; said: string }> | null = null;
       try {
-        rolling = rollbackOutcome(`rollback_after_${label}`, ledgerRows());
+        rolling = rollbackOutcome(`rollback_after_${label}`, correctionLedgerExport().acknowledgement);
         await expect.poll(() => waitsOnAnyLock(`rollback_after_${label}`)).toBe("t");
       } finally { await inFlight.finish(); }
       const rolled = await rolling;
@@ -689,7 +707,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     const crew = crewWith(host);
     const crewRow = await hold(`select id from public.social_crews where id='${crew}' for update`, "postgres");
     try {
-      const busy = await rollbackOutcome("rollback_beside_crew_row", ledgerRows());
+      const busy = await rollbackOutcome("rollback_beside_crew_row", correctionLedgerExport().acknowledgement);
       expect(busy.ok).toBe(false);
       expect(busy.said).toContain("could not obtain lock");
     } finally { await crewRow.finish(); }
@@ -697,7 +715,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
   });
 
   it("rollback leaves the auth.users trigger in place but inert, and reapplying makes it lock again", async () => {
-    expect(await rollbackOutcome("rollback_for_inert_trigger", ledgerRows())).toMatchObject({ ok: true });
+    expect(await rollbackOutcome("rollback_for_inert_trigger", correctionLedgerExport().acknowledgement)).toMatchObject({ ok: true });
     expect(db().sql(`select count(*) from pg_trigger where tgname='lock_social_accounts_on_auth_user_delete'`)).toBe("1");
     for (const role of ["anon", "authenticated", "service_role"]) {
       expect(db().sql(`select has_function_privilege('${role}','public._lock_social_auth_user_accounts()','execute')`), role).toBe("f");
@@ -721,7 +739,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
   });
 
   it("reapplying stops when a different trigger already has that name on auth.users", async () => {
-    expect(await rollbackOutcome("rollback_for_foreign_trigger", ledgerRows())).toMatchObject({ ok: true });
+    expect(await rollbackOutcome("rollback_for_foreign_trigger", correctionLedgerExport().acknowledgement)).toMatchObject({ ok: true });
     db().sql(`drop trigger lock_social_accounts_on_auth_user_delete on auth.users;
       create trigger lock_social_accounts_on_auth_user_delete after delete on auth.users
       for each row execute function public._lock_social_auth_user_accounts();`);
