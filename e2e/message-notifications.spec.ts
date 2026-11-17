@@ -154,6 +154,7 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
         const toastBox = await page.locator(".messageArrival").boundingBox();
         return navBox && toastBox ? toastBox.y - navBox.y - navBox.height : -Infinity;
       }).toBeGreaterThanOrEqual(0);
+      await expect(page.getByRole("button", { name: "Dismiss message notification", exact: true })).toBeInViewport({ ratio: 1 });
       await page.screenshot({ path: testInfo.outputPath(`recipient-arrival-${width}.png`), scale: "css" });
     }
     await page.screenshot({ path: testInfo.outputPath("recipient-arrival.png"), fullPage: true });
