@@ -237,8 +237,8 @@ type PinRevealCoordinatorOptions = {
   hasPinsPaintable: () => boolean;
   /** Phone can reveal local pins on their own frame while basemap tiles load. */
   requiresBasemapPaint?: boolean;
-  /** Require the local source, visible render and composite before revealing. */
-  preferLocalPins?: boolean;
+  /** Live because a curated route can arrive after map construction. */
+  preferLocalPins?: () => boolean;
   /**
    * Keep parent loading chrome up for one render after pin layers become
    * visible. The render that discovers source readiness was painted while
@@ -285,7 +285,7 @@ export function createPinRevealCoordinator({
   hasBasemapPainted,
   hasPinsPaintable,
   requiresBasemapPaint = true,
-  preferLocalPins = false,
+  preferLocalPins = () => false,
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
   scheduleFrame,
@@ -299,9 +299,7 @@ export function createPinRevealCoordinator({
   onPaintAfterTimeout,
   onReveal,
 }: PinRevealCoordinatorOptions) {
-  const needsBasemap = requiresBasemapPaint && !preferLocalPins;
-  const confirmVisibleFrame = confirmVisibleFrameBeforeReveal || preferLocalPins;
-  const visibleFrames = preferLocalPins ? Math.max(PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES, compositeConfirmFrames) : compositeConfirmFrames;
+  const needsBasemap = () => requiresBasemapPaint && !preferLocalPins();
   let generation = 0;
   let state:
     | "idle"
@@ -381,6 +379,9 @@ export function createPinRevealCoordinator({
     };
     const reveal = (reason: Exclude<PinRevealReason, "timeout">) => {
       if (!isCurrent()) return;
+      const localPins = preferLocalPins();
+      const confirmVisibleFrame = confirmVisibleFrameBeforeReveal || localPins;
+      const visibleFrames = localPins ? Math.max(PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES, compositeConfirmFrames) : compositeConfirmFrames;
       showPins();
       if (!confirmVisibleFrame) {
         finishReveal(reason);
@@ -419,7 +420,7 @@ export function createPinRevealCoordinator({
       if (
         !isCurrent() ||
         !hasPinsPaintable() ||
-        (needsBasemap && !hasBasemapPainted())
+        (needsBasemap() && !hasBasemapPainted())
       ) {
         return;
       }
@@ -427,7 +428,7 @@ export function createPinRevealCoordinator({
     };
 
     unsubscribeRender = subscribeRender(() =>
-      revealPainted(needsBasemap ? "tiles" : "pins"),
+      revealPainted(needsBasemap() ? "tiles" : "pins"),
     );
     unsubscribeIdle = subscribeIdle(() => revealPainted("idle"));
     // Short fallback: un-gate the local pins so they can't hang hidden. This

@@ -1154,7 +1154,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   );
   /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
   const ukBaseResidentPubsRef = useRef<UkBasePub[]>([]);
-  const initialWalkRef = useRef(Boolean(walk));
+  const curatedWalkRef = useRef(Boolean(walk));
+  useEffect(() => { curatedWalkRef.current = Boolean(walk); }, [walk]);
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -1625,7 +1626,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
-    const preferLocalPins = initialWalkRef.current && !nationalBrowseRef.current;
+    const preferLocalPins = () => curatedWalkRef.current && !nationalBrowseRef.current;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     performance.clearMarks("pubmax:pin-entrance-settled");
@@ -2412,7 +2413,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
-        pubsDeferredUntilZoom() || (!phoneFirstImpression && !preferLocalPins) || hasPinsPaintable(),
+        pubsDeferredUntilZoom() || (!phoneFirstImpression && !preferLocalPins()) || hasPinsPaintable(),
       // Phone and fixed walks reveal their local source while remote tiles
       // load. Basemap failures keep their independent retry lane. National
       // overviews wait for tiles because they have no local pubs to paint.
@@ -2476,8 +2477,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
-        // Lift parent chrome after the selected paint gate. Phone and initial
-        // fixed walks confirm their local source and composite frame. Ordinary
+        // Lift parent chrome after the selected paint gate. Phone and curated
+        // walks confirm their local source and composite frame. Ordinary
         // desktop maps retain the basemap gate. The ceiling degrades honestly
         // if a required signal never arrives.
         onMapReadyRef.current?.(true);
@@ -2928,7 +2929,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // Local readiness waits for a frame with visible map content. Starting
       // the opacity entrance after that frame would immediately blank those
       // pins again while the parent loading chrome retires.
-      if (reducedRef.current || phoneFirstImpression || preferLocalPins) {
+      if (reducedRef.current || phoneFirstImpression || preferLocalPins()) {
         markPinEntranceSettled();
         return;
       }

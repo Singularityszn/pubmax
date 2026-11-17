@@ -56,7 +56,7 @@ function harness({
     hasBasemapPainted: () => basemapPainted,
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
-    preferLocalPins: localPinsPreferred,
+    preferLocalPins: () => localPinsPreferred,
     confirmVisibleFrameBeforeReveal,
     compositeConfirmFrames,
     scheduleFrame: (callback) => {
