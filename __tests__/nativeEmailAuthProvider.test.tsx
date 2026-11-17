@@ -9,6 +9,7 @@ import type { AuthContextValue } from "@/components/auth/authContext";
 const h = vi.hoisted(() => ({
   platform: "ios" as "ios" | "android" | null,
   realIdentity: false,
+  identityUnavailable: false,
   realAuth: null as SupabaseClient | null, persist: vi.fn(), stopAutoRefresh: vi.fn(),
   navigate: vi.fn(), available: true, providerRefused: false, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
@@ -82,6 +83,10 @@ vi.mock("@/lib/identityClient", async (original) => {
       h.realIdentity ? actual.identityHandleForOwner(...args) : null,
     resolveCanonicalIdentity: async (...args: Parameters<typeof actual.resolveCanonicalIdentity>) =>
       h.realIdentity ? actual.resolveCanonicalIdentity(...args) : ({ ok: true, identity: null }),
+    handleClaimRouteAfterSignIn: async (...args: Parameters<typeof actual.handleClaimRouteAfterSignIn>) => {
+      if (h.identityUnavailable) throw new Error("identity helper unavailable");
+      return actual.handleClaimRouteAfterSignIn(...args);
+    },
   };
 });
 vi.mock("@/lib/authSessionResumeClient", async (original) => ({
@@ -107,6 +112,7 @@ beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
   h.platform = "ios"; h.realIdentity = false; h.session = null; h.realAuth = null; h.available = true; h.providerRefused = false; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
+  h.identityUnavailable = false;
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
@@ -214,6 +220,16 @@ function queueAuthLocks() {
 }
 
 describe("installed iPhone email link, relay and App consumer", () => {
+  it("retains the intended return when the identity helper cannot load", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", "/u/you")).status).toBe("sent"); });
+    h.identityUnavailable = true;
+
+    await openApp(await emailCallback());
+
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
+  });
+
   it("returns the email session into the initiating app instead of leaving it signed out", async () => {
     await act(async () => { expect((await actions.signInWithEmail(" Native@Example.Test ", "/u/you")).status).toBe("sent"); });
     const callback = new URL(h.callbackUrl);

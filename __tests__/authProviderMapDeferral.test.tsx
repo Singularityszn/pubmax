@@ -2,6 +2,7 @@
 // A signed-out reader opening the map, driven through the real AuthProvider.
 // Only the Supabase client and the network are fakes.
 import { act, createElement } from "react";
+import { performance as timing } from "node:perf_hooks";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,7 @@ const h = vi.hoisted(() => ({
   sessionRead: Promise.resolve({ data: { session: null }, error: null }),
   initialEvent: null as null | ((event: string, session: null) => void),
   emitInitial: true,
+  storedSession: false,
   signInWithOtp: vi.fn(async () => ({ error: null })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => window.location.pathname }));
@@ -40,6 +42,7 @@ vi.mock("@/lib/authClient", async (original) => {
     isAuthConfigured: () => true,
     ensureSupabaseBrowser: browser,
     ensureSupabaseBrowserForSession: () => h.built,
+    hasStoredBrowserSession: () => h.storedSession,
   };
 });
 vi.mock("@/lib/authProviderAvailability", () => ({
@@ -75,6 +78,7 @@ beforeEach(async () => {
   h.sessionRead = Promise.resolve({ data: { session: null }, error: null });
   h.initialEvent = null;
   h.emitInitial = true;
+  h.storedSession = false;
   h.signInWithOtp.mockClear();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     if (String(input) === "/api/auth/session") return new Response(JSON.stringify({ hint: h.hint }), { status: 200 });
@@ -95,6 +99,55 @@ async function mount() {
 }
 
 describe("a signed-out reader opening the map", () => {
+  it("does not repeat a confirmed negative resume probe on focus", async () => {
+    await mount();
+    expect(container.textContent).toBe("settled:signed-out");
+    const reads = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(reads);
+    expect(h.loads).toBe(0);
+  });
+
+  it("keeps a newly discovered session unavailable until a failed restore can retry", async () => {
+    await mount();
+    expect(container.textContent).toBe("settled:signed-out");
+
+    await act(async () => {
+      h.storedSession = true;
+      h.sessionRead = Promise.reject(new Error("session storage read failed"));
+      window.dispatchEvent(new Event("storage"));
+    });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
+
+    await act(async () => {
+      h.sessionRead = Promise.resolve({ data: { session: null }, error: null });
+      window.dispatchEvent(new Event("focus"));
+    });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
+  });
+
+  it("marks bootstrap only after the client session read finishes", async () => {
+    vi.stubGlobal("performance", timing);
+    timing.clearMarks("pubmax:auth-bootstrap-settled");
+    await mount();
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(0);
+    let finish!: () => void;
+    h.sessionRead = new Promise((resolve) => {
+      finish = () => resolve({ data: { session: null }, error: null });
+    });
+
+    window.history.pushState(null, "", "/login");
+    await mount();
+    expect(h.loads).toBe(1);
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(0);
+
+    await act(async () => { finish(); });
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(1);
+    timing.clearMarks("pubmax:auth-bootstrap-settled");
+  });
+
   it("retains the desktop email confirmation through deferred client initialisation", async () => {
     let finishSessionRead!: () => void;
     h.sessionRead = new Promise((resolve) => {
