@@ -178,6 +178,21 @@ describe("the private Night Receipt on the Plan page", () => {
     expect(receiptOnScreen()).toBeNull();
   });
 
+  it.each([
+    ["an invalid planned date", { ...RECEIPT, plannedFor: "not-a-date" }],
+    ["a missing pub name", { ...RECEIPT, stops: [{ position: 0, price: null }] }],
+    ["a missing price amount", { ...RECEIPT, stops: [{ position: 0, venueName: "The First Pub", price: {
+      drink: "White wine", source: "community", reportedAt: "2026-11-14T19:00:00.000Z",
+    } }] }],
+    ["an invalid price date", { ...RECEIPT, stops: [{ position: 0, venueName: "The First Pub", price: {
+      drink: "White wine", pence: 550, source: "community", reportedAt: "not-a-date",
+    } }] }],
+  ])("does not show a well-formed response containing %s", async (_label, receipt) => {
+    receiptAnswer = async () => json({ receipt });
+    await show();
+    expect(receiptOnScreen()).toBeNull();
+  });
+
   it("checks again when the app comes back into view", async () => {
     await show();
     receiptAnswer = async () => refused();
