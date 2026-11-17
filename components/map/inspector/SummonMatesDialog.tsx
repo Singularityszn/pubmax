@@ -8,6 +8,10 @@
 // The list is the server's answer: live mates with no block or mute either way
 // (lib/summonMates.server.ts). The receipt names only the mates the server says
 // it reached. Nothing here counts who is coming.
+//
+// A dated price rides along only when the pub's public detail proves it
+// (lib/summonPrice.ts). The preview shows it before anything leaves. The send
+// posts no price: the server reads its own.
 
 import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
@@ -30,12 +34,15 @@ import {
   SUMMON_SIGNED_OUT_LINE,
   summonSentLine,
   summonShareText,
+  summonText,
   venueSummonUrl,
 } from "@/lib/summonMates";
+import { selectSummonPrice, type SummonPriceEvidence } from "@/lib/summonPrice";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { Venue } from "@/lib/venues";
+import { getWarmedVenue, warmVenueDetail } from "@/lib/warmVenueDetail";
 
 import "./tableRequest.css";
 import "./summonMates.css";
@@ -87,12 +94,29 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [gate, setGate] = useState<ContributionGateStatus | null>(null);
   const [reload, setReload] = useState(0);
+  const [price, setPrice] = useState<SummonPriceEvidence | null>(() =>
+    selectSummonPrice(getWarmedVenue(venue.id), Date.now()),
+  );
 
   useDismissOnEscape(!gate, onClose);
   useFocusTrap(!gate, dialogRef, "strict-modal");
   useEffect(() => {
     dialogRef.current?.focus({ preventScroll: true });
   }, []);
+
+  useEffect(() => {
+    if (getWarmedVenue(venue.id)) return;
+    let live = true;
+    // The public detail read. A saved device copy is not a fresh read, so it lends no price.
+    void warmVenueDetail(venue.id).then((result) => {
+      if (live && result.status === "found" && !result.savedAt) {
+        setPrice(selectSummonPrice(result.venue, Date.now()));
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [venue.id]);
 
   useEffect(() => {
     if (signedOut || !identityResolved || readProviderAccountRevision() !== accountRevision) return;
@@ -190,19 +214,16 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
     setError(null);
     setShareNote(null);
     const url = new URL(venueSummonUrl(venue.id, validTime), window.location.origin).toString();
-    const outcome = await shareNightObject({
-      title: venue.name,
-      text: summonShareText(venue.name, validTime),
-      url,
-    });
+    const text = summonShareText(venue.name, validTime, price);
+    const outcome = await shareNightObject({ title: venue.name, text, url });
     if (outcome === "shared" || outcome === "cancelled") return;
     if (outcome === "whatsapp") {
       setShareNote("Opened WhatsApp to share the link.");
       return;
     }
     try {
-      await navigator.clipboard.writeText(url);
-      setShareNote("Sharing didn't open, so we copied the link.");
+      await navigator.clipboard.writeText(`${text}\n${url}`);
+      setShareNote("Sharing didn't open, so we copied the invite and link.");
     } catch {
       setError("Couldn't copy the link. Try Share again.");
     }
@@ -252,6 +273,11 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
                 {...(error === "Pick a time." ? { "aria-invalid": true, "aria-describedby": errorId } : {})}
               />
             </label>
+            {price && validTime ? (
+              <div className="tableRequestScript" role="group" aria-label="What your mates will read" data-summon-preview="">
+                <p>{summonText(venue.name, validTime, price)}</p>
+              </div>
+            ) : null}
             {listed.kind === "loading" ? (
               <p className="tableRequestHint" role="status">
                 Finding your mates…

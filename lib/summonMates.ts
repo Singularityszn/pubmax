@@ -6,10 +6,14 @@
 // direct message with the pub attached (lib/summonMates.server.ts). Anyone can
 // also share a link, `/map?sel=<id>&meet=<HH:MM>`, which opens the pub with the
 // time on its action card. Nothing here counts anyone or says who is coming.
+//
+// A summon may carry one dated price (lib/summonPrice.ts). The message reads
+// it from the server's own detail read and the share from the public detail,
+// so the price never comes from the request.
 
 import type { Route } from "next";
 
-import type { SummonPriceEvidence } from "@/lib/summonPrice";
+import { summonPriceLine, type SummonPriceEvidence } from "@/lib/summonPrice";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 /** The map parameter that carries a summon's time beside `sel`. */
@@ -44,14 +48,16 @@ export function formatSummonTime(time: string): string {
   return minutes === "00" ? `${hour12}${suffix}` : `${hour12}:${minutes}${suffix}`;
 }
 
-/** The words a mate receives, in a message and in a shared link alike. */
-export function summonText(pubName: string, time: string, _price?: SummonPriceEvidence | null): string {
-  return `Come to ${pubName} at ${formatSummonTime(time)}?`;
+/** The words a mate receives in a message: the invite, then any dated price. */
+export function summonText(pubName: string, time: string, price?: SummonPriceEvidence | null): string {
+  const invite = `Come to ${pubName} at ${formatSummonTime(time)}?`;
+  return price ? `${invite} ${summonPriceLine(price)}` : invite;
 }
 
-/** The shared text: the invite and where the pub is. */
-export function summonShareText(pubName: string, time: string, _price?: SummonPriceEvidence | null): string {
-  return `${summonText(pubName, time)} It's on the PUBMAXX map.`;
+/** The shared text: the invite, where the pub is, then any dated price. */
+export function summonShareText(pubName: string, time: string, price?: SummonPriceEvidence | null): string {
+  const shared = `${summonText(pubName, time)} It's on the PUBMAXX map.`;
+  return price ? `${shared} ${summonPriceLine(price)}` : shared;
 }
 
 /** The pub's map link with the summon's time beside it. */

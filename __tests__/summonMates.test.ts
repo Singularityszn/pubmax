@@ -112,7 +112,7 @@ describe("summon price", () => {
       `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
     );
     expect(summonShareText("The Lamb", "20:00", selectSummonPrice(venue, NOW))).toBe(
-      `Come to The Lamb at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE} It's on the PUBMAXX map.`,
+      `Come to The Lamb at 8pm? It's on the PUBMAXX map. Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${SOURCE}`,
     );
   });
 
