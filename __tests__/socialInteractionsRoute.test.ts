@@ -181,6 +181,36 @@ describe("Social interactions route", () => {
   });
 
   it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    [false, true].map((declaredLength) => ({ method, declaredLength })),
+  ))("bounds frozen $method bodies before private-control classification, declared length: $declaredLength", async ({ method, declaredLength }) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const route = await import("@/app/api/social/interactions/route");
+    const payload = JSON.stringify({ action: "block", targetHandle: "bob" }) + " ".repeat(64 * 1024);
+    const request = new Request(URL, {
+      method,
+      headers: declaredLength ? { "content-length": String(payload.length) } : {},
+      body: payload,
+    });
+    const response = await route[method](request);
+    expect(response.status).toBe(503);
+    expect(requireVerifiedSocialActor).not.toHaveBeenCalled();
+    expect(isLimited).not.toHaveBeenCalled();
+    expect(store.setBlock).not.toHaveBeenCalled();
+    if (declaredLength) expect(request.bodyUsed).toBe(false);
+  });
+
+  it("bounds ordinary POST bodies before acting on the parsed action", async () => {
+    const { POST } = await import("@/app/api/social/interactions/route");
+    const payload = JSON.stringify({ action: "comment", postId: "11111111-1111-4111-8111-111111111111", body: "Hello" }) + " ".repeat(64 * 1024);
+    const response = await POST(new Request(URL, {
+      method: "POST", headers: { "idempotency-key": "comment-body-cap-request" }, body: payload,
+    }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("MALFORMED_REQUEST");
+    expect(store.createComment).not.toHaveBeenCalled();
+  });
+
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
     (["block", "mute"] as const).flatMap((action) => [
       { method, action, target: { targetHandle: "bob" } },
       { method, action, target: { targetProfileId: "22222222-2222-4222-8222-222222222222" } },
