@@ -180,6 +180,24 @@ describe("first ten ranking on the owner's profile", () => {
     expect(firstTen()?.querySelector("button")?.textContent).toBe("Start ranking");
   });
 
+  it.each([{}, { entries: null }])("does not present an incomplete answer as an empty ranking: %j", async (body) => {
+    auth.user = { id: "owner-account" };
+    rankingReads(rankingJson(body));
+    const host = await renderOwner();
+    expect(host.querySelector("[role=status]")?.textContent).toContain("unavailable");
+    expect(firstTen()).toBeNull();
+  });
+
+  it("hides the saved list when a later read refuses access", async () => {
+    auth.user = { id: "owner-account" };
+    rankingReads(rankingJson({ entries: ranked(2) }), rankingJson({ code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" }, 403));
+    const host = await renderOwner();
+    await act(async () => firstTen()!.querySelector("button")!.click());
+    await act(async () => document.querySelector<HTMLButtonElement>("[aria-label=Close]")!.click());
+    expect(host.textContent).not.toContain("The Pub 1");
+    expect(firstTen()).toBeNull();
+  });
+
   it("closes an open session and drops the old read when the account changes", async () => {
     auth.user = { id: "owner-account" };
     setProviderIdentity("supabase", "owner-account");
