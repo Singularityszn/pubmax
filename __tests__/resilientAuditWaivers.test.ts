@@ -30,6 +30,12 @@ function auditReport(url?: string, severity = "high") {
   });
 }
 
+function withHighCount(report: string, high: number) {
+  const parsed = JSON.parse(report);
+  parsed.metadata.vulnerabilities.high = high;
+  return JSON.stringify(parsed);
+}
+
 function runGate(full: string, production: string, now = "2026-11-23T23:59:59.999Z") {
   const folder = mkdtempSync(join(tmpdir(), "pubmax-audit-waiver-"));
   try {
@@ -72,6 +78,32 @@ describe("resilient-audit waivers", () => {
     ["incomplete full evidence", JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } }), auditReport()],
   ])("fails closed for %s", (_label, full, production) => {
     expect(runGate(full, production).status).toBe(1);
+  });
+
+  it.each(["2026-11-23T23:59:59.999Z", "2026-11-24T00:00:00.000Z"])(
+    "rejects full reports with inconsistent counts at %s", (now) => {
+      expect(runGate(withHighCount(auditReport(), 1), auditReport(), now).status).toBe(1);
+      expect(runGate(withHighCount(auditReport(PICOMATCH_URL), 0), auditReport(), now).status).toBe(1);
+    },
+  );
+
+  it.each([
+    withHighCount(auditReport(), 1),
+    withHighCount(auditReport(PICOMATCH_URL), 0),
+  ])("rejects a production report with inconsistent counts", (production) => {
+    expect(runGate(auditReport(PICOMATCH_URL), production).status).toBe(1);
+  });
+
+  it.each([
+    { severity: "high", title: "unknown advisory" },
+    "missing-package",
+  ])("rejects unresolved evidence mixed with a waived advisory", (unknownAdvisory) => {
+    const report = {
+      vulnerabilities: {
+        mixed: { severity: "high", via: [advisory(WAIVED_URL), unknownAdvisory] },
+      },
+    };
+    expect(classifyFindings(report, EXAMPLE_WAIVERS).unwaived).toEqual(["mixed"]);
   });
 
   it("waives a finding whose only advisory is waived", () => {
