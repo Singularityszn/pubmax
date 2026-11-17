@@ -14,8 +14,13 @@
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-body:has(> .mobileSheetPortal:not([data-sheet-exiting])) .fairPintCard {
-  visibility: hidden;
+@media (max-width: 640px) {
+  body:has(> .mobileSheetPortal:not([data-sheet-exiting])) .fairPintCard:not(.fairPintResult) {
+    visibility: hidden;
+  }
+}
+body:has(.fairPintCard:not([hidden]), #fair-pint-lock-form) .mapToolbar .planBtn {
+  display: none;
 }
 body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
   visibility: hidden;
