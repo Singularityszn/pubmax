@@ -2,7 +2,7 @@
 // own module instance, so its own cluster and its own counters. A person's auth
 // user, profile and Social account IDs come from separate ranges.
 
-import { execFile, spawn } from "node:child_process";
+import { execFile, execFileSync, spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect } from "vitest";
@@ -10,7 +10,9 @@ import { asServiceRole, startPostgres, type PostgresSession } from "./postgres";
 
 const directory = join(process.cwd(), "supabase/migrations");
 const name = "20261117090000_0243_crew_admission_safety_locks.sql";
-const rollback = "rollback/20261117090000_0243_crew_admission_safety_locks_rollback.sql";
+/** The migrations under test, in apply order. Rollback runs them in reverse. */
+const FORWARD = [name, "20261117120000_0244_crew_departure_release.sql"];
+const ROLLBACK = FORWARD.map((file) => `rollback/${file.replace(/\.sql$/, "_rollback.sql")}`).reverse();
 
 export const DIGEST = "a".repeat(64);
 export const NOT_FOUND = { ok: false, code: "not_found" };
@@ -23,10 +25,54 @@ export const json = (value: string) => JSON.parse(value) as Record<string, unkno
 
 export type Stage = "before" | "after";
 let stage: Stage = "before";
+/**
+ * A synthetic copy of the production permissions that 0243 runs under. On Supabase,
+ * supabase_auth_admin owns auth.users. The migration role is not a superuser, owns the
+ * application objects and holds only SELECT, UPDATE, TRIGGER and REFERENCES on
+ * auth.users, so it cannot drop a trigger there. Only this cluster changes.
+ */
+function replicateSupabaseOwnership() {
+  db().sql(`create role supabase_auth_admin nologin;
+    create role ${MIGRATOR} nologin nosuperuser;
+    grant usage, create on schema public to ${MIGRATOR};
+    grant usage on schema auth, pubmax_private, extensions to ${MIGRATOR};
+    alter schema auth owner to supabase_auth_admin;
+    alter table auth.users owner to supabase_auth_admin;
+    grant select, update, trigger, references on auth.users to ${MIGRATOR};
+    do $$
+    declare item record;
+    begin
+      for item in select c.oid::regclass as name, c.relkind from pg_class c join pg_namespace n on n.oid=c.relnamespace
+        where n.nspname in ('public','pubmax_private') and c.relkind in ('r','p','v','m') loop
+        execute format('alter %s %s owner to ${MIGRATOR}',
+          case item.relkind when 'v' then 'view' when 'm' then 'materialized view' else 'table' end, item.name);
+      end loop;
+      for item in select c.oid::regclass as name from pg_class c join pg_namespace n on n.oid=c.relnamespace
+        where n.nspname in ('public','pubmax_private') and c.relkind='S'
+          and not exists (select 1 from pg_depend d where d.objid=c.oid and d.deptype in ('a','i')) loop
+        execute format('alter sequence %s owner to ${MIGRATOR}', item.name);
+      end loop;
+      for item in select p.oid::regprocedure as name, p.prokind from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname in ('public','pubmax_private') and p.prokind in ('f','p')
+          and not exists (select 1 from pg_depend d where d.objid=p.oid and d.deptype='e') loop
+        execute format('alter %s %s owner to ${MIGRATOR}', case item.prokind when 'p' then 'procedure' else 'function' end, item.name);
+      end loop;
+    end;
+    $$;
+    alter default privileges for role ${MIGRATOR} in schema public grant execute on functions to anon, authenticated, service_role;`);
+}
+export const MIGRATOR = "pubmax_migrator";
+
+/** Applies one 0243 file the way production does: as the migration role, not a superuser. */
+function applyAsMigrator(files: readonly string[]) {
+  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`,
+    ...files.flatMap((file) => ["-f", join(directory, file)])], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+}
+
 /** Moves the one database to a stage: the forward file applies 0243, the rollback file removes it. */
 export function stageTo(next: Stage) {
   if (stage === next) return;
-  db().applyFile(join(directory, next === "after" ? name : rollback));
+  applyAsMigrator(next === "after" ? FORWARD : ROLLBACK);
   stage = next;
 }
 
@@ -56,8 +102,23 @@ export const accountOf = (who: Person) =>
     from public.private_social_accounts where profile_id='${who.profile}'),'none')`);
 export const makeCohost = (crew: string, who: Person) =>
   db().sql(`update public.social_crew_members set role='cohost' where crew_id='${crew}' and social_account_id='${who.account}'`);
+export const receipts = (who: Person) =>
+  db().sql(`select count(*) from public.private_social_crew_write_receipts where actor_account_id='${who.account}'`);
+export const leaveCall = (crew: string, who: Person) =>
+  `leave_social_crew_atomic('${who.account}','${crew}','${key()}','${DIGEST}')`;
 export const corrections = (crew: string) =>
   db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`);
+/** The forward file as the migration role, answering whether the database took it and what it said. */
+export function forwardOutcome() {
+  try {
+    applyAsMigrator(FORWARD);
+    stage = "after";
+    return { ok: true, said: "" };
+  } catch (error) {
+    return { ok: false, said: String((error as { stderr?: unknown }).stderr ?? error) };
+  }
+}
+export const releaseCall = (limit = 20) => `release_departed_social_crew_places(${limit})`;
 export const revision = (crew: string) => db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
 export const mutual = (a: Person, b: Person) => db().sql(`insert into public.follows(follower_id,followee_id)
   values ('${a.profile}','${b.profile}'),('${b.profile}','${a.profile}') on conflict do nothing`);
@@ -210,6 +271,7 @@ export async function bootCrewAdmissionDatabase(label: string, start: Stage) {
     // Supabase grants EXECUTE on every new public function to these roles. The shared
     // fixture does not, so this cluster does, before 0243 creates its helpers.
     db().sql("alter default privileges in schema public grant execute on functions to anon, authenticated, service_role");
+    replicateSupabaseOwnership();
     const staff = person();
     db().sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role) values ('${STAFF_ROLE}','${staff.profile}','Moderator','moderator');`);
     stage = "before";
@@ -225,9 +287,9 @@ export const running = () => session !== null;
  * first when one is given. It answers whether the database took it and what it said.
  */
 export function rollbackOutcome(application: string, exportedRows?: string) {
-  const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`];
+  const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`, "-c", `set role ${MIGRATOR}`];
   if (exportedRows !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${exportedRows}'`);
-  args.push("-f", join(directory, rollback));
+  args.push(...ROLLBACK.flatMap((file) => ["-f", join(directory, file)]));
   return new Promise<{ ok: boolean; said: string }>((resolve) => {
     execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => {
       if (!error) stage = "before";

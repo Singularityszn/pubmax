@@ -58,6 +58,8 @@ type Fake = AccountDeletionDeps & {
   messageKeys: string[];
   messageKeysAskedWith: Array<[string, string]>;
   socialKeys: string[];
+  releases: number;
+  releaseThrows: boolean;
 };
 
 /** A bucket that lists by folder the way the Storage API does, and an auth that answers as GoTrue does. */
@@ -76,6 +78,12 @@ function fakeDeps(): Fake {
     messageKeys: [],
     messageKeysAskedWith: [],
     socialKeys: [],
+    releases: 0,
+    releaseThrows: false,
+    async releaseDepartedCrewPlaces() {
+      fake.releases += 1;
+      if (fake.releaseThrows) throw new Error("crew release unavailable");
+    },
     async profileForUser() {
       return fake.profile;
     },
@@ -328,6 +336,32 @@ describe("deleteOwnAccount", () => {
         "messages/conv-1/msg-1.jpg",
       ].sort(),
     );
+  });
+
+  it("frees the deleted account's crew places once the auth row is gone, and again on a repeated delete", async () => {
+    const fake = fakeDeps();
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+    expect(fake.releases).toBe(1);
+
+    fake.authError = { status: 404, code: "user_not_found", message: "User not found" };
+    expect(await deleteOwnAccount(USER, fake)).toBe("already-gone");
+    expect(fake.releases).toBe(2);
+  });
+
+  it("logs a crew release that failed for an operator, and the deleted account still answers deleted", async () => {
+    const fake = fakeDeps();
+    seedPhotos(fake);
+    fake.releaseThrows = true;
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+    expect(logged.events).toContainEqual({ event: "account.delete_crew_release_failed", stage: "crew_release" });
+    expect(fake.removed.length).toBeGreaterThan(0);
+  });
+
+  it("releases nothing when the auth row could not be deleted", async () => {
+    const fake = fakeDeps();
+    fake.authError = { status: 500, message: "database unavailable" };
+    expect(await deleteOwnAccount(USER, fake)).toBe("unavailable");
+    expect(fake.releases).toBe(0);
   });
 
   it("never reaches the seam for an empty id", async () => {

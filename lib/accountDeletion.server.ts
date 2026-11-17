@@ -152,6 +152,14 @@ export type AccountDeletionDeps = {
   removeObjects(keys: readonly string[]): Promise<void>;
   /** GoTrue's admin delete of the auth row. */
   deleteAuthUser(userId: string): Promise<{ error: unknown }>;
+  /**
+   * Frees deleted accounts' crew places and cancels the nights they owned
+   * (migration 0244). It runs after the auth row is gone, in its own
+   * transaction, because the delete holds account locks that a crew lock must
+   * never follow. It sweeps every deleted account, so a later delete or an
+   * operator call also finishes one that failed here. Throws when refused.
+   */
+  releaseDepartedCrewPlaces(): Promise<void>;
 };
 
 function supabaseDeps(): AccountDeletionDeps {
@@ -249,6 +257,10 @@ function supabaseDeps(): AccountDeletionDeps {
       const { error } = await admin().auth.admin.deleteUser(userId);
       return { error };
     },
+    async releaseDepartedCrewPlaces() {
+      const { error } = await admin().rpc("release_departed_social_crew_places", { p_limit: 20 });
+      if (error) throw new Error(error.message);
+    },
   };
 }
 
@@ -327,6 +339,15 @@ export async function deleteOwnAccount(
       log("error", "account.delete_failed", { stage: "auth", reason: failureReason(err) });
       return "unavailable";
     }
+  }
+
+  // The account is gone, so its crew places are freed now. A failure here is
+  // logged for an operator and finished by the next sweep (any later delete, any
+  // admission into that crew, or the runbook call); the answer stays the auth row's.
+  try {
+    await deps.releaseDepartedCrewPlaces();
+  } catch (err) {
+    log("error", "account.delete_crew_release_failed", { stage: "crew_release", reason: failureReason(err) });
   }
 
   // The account is gone. Every batch we can still remove is removed, and one

@@ -55,14 +55,50 @@ What the ledger does today:
 
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
 - When the subject deletes their account, their rows are deleted in the same transaction.
-- When the crew is deleted, its rows are deleted. A crew-bound Plan cannot be deleted today while its member rows reference seats.
+- When the crew is deleted, its rows are deleted. Deleting a crew-bound Plan deletes its crew (see below).
 - The subject's own-record export is built outside migration 0243. It is not live yet.
 
-Export, the Plan deletion change and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
+Export and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
+
+## Deleting a crew-bound Plan
+
+No app screen or route deletes a Plan. When an operator must delete one, use this one transaction and no other order. It locks the crew row, then the Plan row, then deletes the Plan. An admission also locks the crew row first, so the two wait for each other instead of deadlocking. A plain `delete from public.plans` can deadlock with an admission in flight.
+
+```sql
+begin;
+select id from public.social_crews where plan_id = '<plan id>' for update;
+select id from public.plans where id = '<plan id>' for update;
+delete from public.plans where id = '<plan id>';
+commit;
+```
+
+The delete removes the Plan's seats, its crew, member rows, join requests, invitations and correction rows. The seat reference from member rows is checked at commit, so this delete completes. A delete of one seat row that a member row still uses fails at commit. A delete of one member row that a request or invitation still names fails at once.
+
+## Deleted accounts' crew places
+
+When an account is deleted, migration 0244 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
+
+The deletion service runs the release right after the auth row is deleted, and again when the same delete is repeated. Each run also finishes any earlier deletion whose release failed. An admission or invitation into a crew first releases that crew's deleted members. When the service logs `account.delete_crew_release_failed`, check and finish the release:
+
+```sql
+select member.crew_id, member.role
+from public.social_crew_members member
+join public.social_crews crew on crew.id = member.crew_id
+join public.plans plan on plan.id = crew.plan_id
+join public.private_social_accounts account on account.id = member.social_account_id
+join public.profiles profile on profile.id = account.profile_id
+where member.state = 'active' and account.supabase_user_id is null and profile.tombstoned_at is not null
+  and (member.role <> 'owner' or plan.status in ('draft', 'ready', 'active', 'ending'));
+
+set role service_role;
+select public.release_departed_social_crew_places(100);
+```
+
+Run the call until it answers `"crews": 0`. Rolling back 0244 stops new releases. It does not restore freed places or cancelled nights.
 
 ## Rollback
 
-Rollback of 0243 first locks the crew tables, then `auth.users`, then the ledger, so sign-ins and Social writes wait until it commits. It counts the ledger rows. While the ledger has rows, the rollback stops.
+Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
 
 1. Export the rows and note how many there are.
 
@@ -77,3 +113,9 @@ Rollback of 0243 first locks the crew tables, then `auth.users`, then the ledger
    ```
 
 3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
+
+The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.
+
+Migration 0243 also deletes private Crew write receipts that belong to deleted accounts, both those left before it was applied and each one when an account is deleted later. The rollback cannot restore deleted receipts. After a rollback, account deletion leaves receipts behind again, which the published privacy text does not allow, so reapply 0243 or replace that protection before deletions resume.
+
+The migration role does not own `auth.users`, so it cannot drop a trigger there. The rollback leaves `lock_social_accounts_on_auth_user_delete` in place and makes its function return at once, so account deletion takes no account lock. Reapplying 0243 reuses that trigger only when it is exactly the 0243 trigger. When a different trigger has that name, the reapply stops, and the owner of `auth.users` must remove it.

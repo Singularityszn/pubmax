@@ -3,13 +3,16 @@
 -- row and participant-account locks in one order.
 -- It restores the 0110 join request and decision bodies, the 0075 invitation and
 -- invitation acceptance bodies, the 0114 host queue body, the 0092 provisioning body
--- and the 0224 suspension body, then drops both triggers, the helpers, the removal
+-- and the 0224 suspension body, then drops the social_blocks trigger, the helpers, the removal
 -- correction function and its ledger.
 -- Rollback discloses nothing, but it removes protections. A removed person can request
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
 --
--- THE LEDGER IS NOT DROPPED SILENTLY. The first statement locks
+-- THE auth.users TRIGGER STAYS. The migration role does not own auth.users, so it
+-- cannot drop a trigger there. The rollback makes the trigger function return at once.
+--
+-- THE LEDGER IS NOT DROPPED SILENTLY. Before anything else, the rollback locks
 -- social_crew_removal_corrections against new corrections and counts its rows. When
 -- there are rows, the rollback stops unless the session first ran
 -- set pubmax.crew_removal_corrections_exported = '<that exact row count>';
@@ -18,23 +21,22 @@
 
 begin;
 
--- Lock order: the crew tables, then auth.users, then the ledger. A correction takes a
--- crew row, then an auth row, then writes the ledger. An account deletion takes
--- auth.users, then cascades into the ledger. Dropping the auth.users trigger needs
--- ACCESS EXCLUSIVE there, so it is taken now, before the ledger. This rollback then
--- never holds one of these while it waits for another. Sign-ins and Social writes
--- wait until it commits.
-lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
-  public.social_crew_invitations in access exclusive mode;
+-- Locks. auth.users comes first, while this rollback holds nothing, so waiting for it
+-- cannot close a cycle: a correction, admission, deletion or plan join that holds an
+-- auth row finishes first. Every other lock is then taken without waiting. When one
+-- is busy, the rollback stops at once with "could not obtain lock" and releases
+-- auth.users; run it again. Sign-ins and Social writes wait while it runs.
 lock table auth.users in access exclusive mode;
+lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
+  public.social_crew_invitations, public.plan_crew_members, public.social_blocks,
+  public.private_social_accounts in access exclusive mode nowait;
 
 do $$
 declare v_rows bigint := 0;
 begin
   if to_regclass('public.social_crew_removal_corrections') is not null then
-    -- SHARE ROW EXCLUSIVE waits for every correction that has written a row, then
-    -- stops new ones until this rollback commits. So the count is what the drop removes.
-    lock table public.social_crew_removal_corrections in share row exclusive mode;
+    -- Held until commit, so no correction can add a row between this count and the drop.
+    lock table public.social_crew_removal_corrections in access exclusive mode nowait;
     select count(*) into v_rows from public.social_crew_removal_corrections;
   end if;
   if v_rows > 0
@@ -482,13 +484,40 @@ begin
 end;
 $$;
 
-drop trigger if exists lock_social_accounts_on_auth_user_delete on auth.users;
+-- The migration role does not own auth.users, so it cannot drop this trigger. The
+-- trigger stays and its function, which this role owns, takes no lock any more.
+create or replace function public._lock_social_auth_user_accounts()
+returns trigger language plpgsql security definer set search_path=''
+as $$
+begin
+  return old;
+end;
+$$;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
-drop function if exists public._lock_social_auth_user_accounts();
+-- Receipts deleted while 0243 was applied stay deleted. A rollback cannot restore them.
+drop trigger if exists social_account_unbind_purges_crew_receipts on public.private_social_accounts;
+drop function if exists public._purge_social_crew_receipts_on_unbind();
+create or replace function public._social_crew_finish_write(
+  p_actor uuid, p_operation text, p_key text, p_digest text, p_response jsonb
+) returns jsonb
+language plpgsql security definer set search_path = ''
+as $$
+begin
+  insert into public.private_social_crew_write_receipts(
+    actor_account_id,operation,idempotency_key,payload_digest,response
+  ) values(p_actor,p_operation,p_key,p_digest,p_response);
+  return p_response;
+end;
+$$;
+
 drop function if exists public._lock_social_block_participants();
 drop function if exists public._social_crew_admission_refused(uuid,uuid);
 drop function if exists public._social_crew_admission_ineligible(uuid,uuid);
 drop function if exists public._lock_social_participant_accounts(uuid[]);
+alter table public.social_crew_members
+  drop constraint social_crew_members_plan_member_id_fkey,
+  add constraint social_crew_members_plan_member_id_fkey
+    foreign key (plan_member_id) references public.plan_crew_members(id) on delete restrict;
 -- The ledger goes last. The lock taken at the top still holds it.
 drop function if exists public.correct_social_crew_removal_admin(uuid,uuid,uuid,text);
 drop table if exists public.social_crew_removal_corrections;

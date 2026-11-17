@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import {
   DIGEST,
+  MIGRATOR,
   NOT_FOUND,
   NO_CREW,
   type Person,
@@ -24,6 +25,7 @@ import {
   db,
   decide,
   decideCall,
+  deleteAccount,
   holdRpc,
   invite,
   inviteCall,
@@ -37,6 +39,7 @@ import {
   person,
   queueCall,
   queued,
+  receipts,
   remove,
   request,
   requestState,
@@ -58,6 +61,14 @@ afterAll(async () => { await stopCrewAdmissionDatabase(); });
 describe.skipIf(skipReason !== null)("before 0243", () => {
   beforeAll(() => { if (running()) stageTo("before"); });
 
+  it("as on Supabase, the migration role cannot drop a trigger on auth.users", async () => {
+    const refused = await db().attempt(`begin; set local role ${MIGRATOR};
+      drop trigger profiles_tombstone_on_auth_user_delete on auth.users; rollback;`);
+    expect(refused.ok).toBe(false);
+    expect(refused.said).toContain("must be owner of relation users");
+    expect(db().sql("select count(*) from pg_trigger where tgname='profiles_tombstone_on_auth_user_delete'")).toBe("1");
+  });
+
   it("this cluster grants EXECUTE on a new function to every Supabase role, as Supabase does", () => {
     db().sql("create function public._default_grant_probe_0243() returns int language sql as 'select 1'");
     try {
@@ -77,6 +88,24 @@ describe.skipIf(skipReason !== null)("before 0243", () => {
     admit(host, removed, xav);
     expect(remove(host, removed, xav)).toMatchObject({ ok: true, code: "removed" });
     admit(host, removed, xav);
+  });
+});
+
+describe.skipIf(skipReason !== null)("applying 0243 over earlier deletions", () => {
+  beforeAll(() => { if (running()) stageTo("before"); });
+
+  it("removes receipts left by accounts deleted before 0243, and keeps suspended and unbound legacy accounts' receipts", () => {
+    const host = person(), xav = person(), bea = person(), leo = person();
+    const crew = crewWith(host);
+    for (const who of [xav, bea, leo]) request(who, crew);
+    db().sql(`update public.private_social_accounts set supabase_user_id=null where id='${leo.account}'`);
+    expect(call(suspendCall(bea))).toMatchObject({ ok: true, code: "suspended" });
+    db().sql(deleteAccount(xav));
+    expect(receipts(xav)).toBe("1");
+    const kept = [host, bea, leo].map(receipts);
+    stageTo("after");
+    expect(receipts(xav)).toBe("0");
+    expect([host, bea, leo].map(receipts)).toEqual(kept);
   });
 });
 
@@ -299,7 +328,8 @@ describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpe
 
   it("no browser role and not the service role can call an internal lock, rule or trigger helper", () => {
     const helpers = ["_lock_social_participant_accounts(uuid[])", "_social_crew_admission_refused(uuid,uuid)",
-      "_social_crew_admission_ineligible(uuid,uuid)", "_lock_social_block_participants()", "_lock_social_auth_user_accounts()"];
+      "_social_crew_admission_ineligible(uuid,uuid)", "_lock_social_block_participants()", "_lock_social_auth_user_accounts()",
+      "_purge_social_crew_receipts_on_unbind()"];
     for (const role of ["anon", "authenticated", "service_role"]) {
       for (const helper of helpers) {
         expect(db().sql(`select has_function_privilege('${role}','public.${helper}','execute')`), `${role} ${helper}`).toBe("f");
@@ -488,6 +518,11 @@ describe.skipIf(skipReason !== null)("after 0243: races", () => {
   });
 });
 
+/** The three references into member and seat rows, as PostgreSQL prints them. */
+const memberReferences = () => db().sql(`select pg_get_constraintdef(oid) from pg_constraint
+  where conname in ('social_crew_members_plan_member_id_fkey','social_crew_invitations_invited_by_member_id_fkey',
+    'social_crew_join_requests_decided_by_member_id_fkey') order by 1`);
+
 describe.skipIf(skipReason !== null)("rollback and reapply", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
@@ -496,10 +531,10 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
     expect(db().sql(`select to_regprocedure('public._lock_social_participant_accounts(uuid[])') is null
       and to_regprocedure('public._social_crew_admission_refused(uuid,uuid)') is null
       and to_regprocedure('public._social_crew_admission_ineligible(uuid,uuid)') is null
-      and to_regprocedure('public._lock_social_auth_user_accounts()') is null
       and to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)') is null
       and to_regclass('public.social_crew_removal_corrections') is null
-      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','lock_social_accounts_on_auth_user_delete'))`)).toBe("t");
+      and to_regprocedure('public._purge_social_crew_receipts_on_unbind()') is null
+      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','social_account_unbind_purges_crew_receipts'))`)).toBe("t");
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana]);
     block(xav, ana);
@@ -507,8 +542,18 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
     expect(remove(host, crew, xav)).toMatchObject({ ok: true, code: "removed" });
     admit(host, crew, xav);
     expect(call(suspendCall(xav))).toMatchObject({ ok: true, code: "suspended" });
+    expect(memberReferences()).toBe([
+      "FOREIGN KEY (decided_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (invited_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (plan_member_id) REFERENCES plan_crew_members(id) ON DELETE RESTRICT",
+    ].join("\n"));
 
     stageTo("after");
+    expect(memberReferences()).toBe([
+      "FOREIGN KEY (decided_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (invited_by_member_id) REFERENCES social_crew_members(id) ON DELETE RESTRICT",
+      "FOREIGN KEY (plan_member_id) REFERENCES plan_crew_members(id) DEFERRABLE INITIALLY DEFERRED",
+    ].join("\n"));
     const bea = person();
     const again = crewWith(host, [ana]);
     block(bea, ana);
