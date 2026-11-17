@@ -10,7 +10,10 @@ export async function sendPasswordRecoveryEmail(email: string, currentUrl: strin
   const config = resolveSupabaseConfig(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" });
   const origin = siteOrigin(currentUrl);
-  if (!config || !origin) return;
+  if (!config || !origin) {
+    console.warn("[password-recovery] Email configuration is unavailable.");
+    return;
+  }
   const client = createClient(config.url, config.key, {
     auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
     global: { fetch: withAuthFetchTimeout(fetch) },
@@ -18,5 +21,5 @@ export async function sendPasswordRecoveryEmail(email: string, currentUrl: strin
   const { error } = await client.auth.resetPasswordForEmail(email, {
     redirectTo: new URL(PASSWORD_RECOVERY_PATH, origin).toString(),
   });
-  if (error) console.warn("[password-recovery] Email delivery was refused.");
+  if (error) console.warn("[password-recovery] Email delivery was refused.", { code: error.code, status: error.status });
 }

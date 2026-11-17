@@ -2,18 +2,19 @@ export const PASSWORD_RECOVERY_MESSAGE = "If an account matches, we sent a link"
 export const PASSWORD_RECOVERY_PATH = "/auth/reset-password";
 
 export type RecoveryFormState =
+  | { status: "checking" }
   | { status: "editing"; error?: string }
   | { status: "busy" }
   | { status: "securing"; error: string }
   | { status: "complete" }
-  | { status: "invalid" };
+  | { status: "invalid"; expired: boolean };
 
 export type RecoveryFormEvent =
   | { type: "link" }
   | { type: "submit" }
   | { type: "failed"; message: string; passwordSaved?: boolean }
   | { type: "complete" }
-  | { type: "invalid" };
+  | { type: "invalid"; expired?: boolean };
 
 export function recoveryFormTransition(state: RecoveryFormState, event: RecoveryFormEvent): RecoveryFormState {
   if (event.type === "link") return { status: "editing" };
@@ -24,7 +25,7 @@ export function recoveryFormTransition(state: RecoveryFormState, event: Recovery
       ? { status: "securing", error: event.message }
       : { status: "editing", error: event.message };
     case "complete": return { status: "complete" };
-    case "invalid": return { status: "invalid" };
+    case "invalid": return { status: "invalid", expired: event.expired === true };
   }
 }
 

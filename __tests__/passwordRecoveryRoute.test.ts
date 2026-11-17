@@ -31,7 +31,8 @@ it("answers before any account-dependent work starts, even when delivery never s
 
 it("keeps known, unknown, limited and failed delivery responses identical", async () => {
   const outcomes: unknown[] = [];
-  for (const email of ["known@example.com", "unknown@example.com"]) {
+  for (const email of ["known@example.com", "unknown@example.com", "failed@example.com"]) {
+    if (email === "failed@example.com") send.mockRejectedValueOnce(new Error("Delivery unavailable"));
     const response = await POST(request(email));
     outcomes.push([response.status, await response.json()]);
     await background.pop()!();
@@ -42,7 +43,8 @@ it("keeps known, unknown, limited and failed delivery responses identical", asyn
   expect(outcomes[0]).toEqual(outcomes[1]);
   expect(outcomes[1]).toEqual(outcomes[2]);
   expect(background).toHaveLength(0);
-  expect(send).toHaveBeenCalledTimes(2);
+  expect(outcomes[2]).toEqual(outcomes[3]);
+  expect(send).toHaveBeenCalledTimes(3);
 });
 
 it("silently refuses an exhausted account bucket and fails closed", async () => {
@@ -58,4 +60,13 @@ it("refuses cross-site requests and malformed addresses", async () => {
   expect((await POST(request("known@example.com", "cross-site"))).status).toBe(403);
   expect((await POST(request("not an email"))).status).toBe(400);
   expect(send).not.toHaveBeenCalled();
+});
+
+it("bounds accepted request bodies and does not parse an IP-limited body", async () => {
+  const large = new Request("http://localhost/api/auth/password-recovery", {
+    method: "POST", body: JSON.stringify({ email: "known@example.com", extra: "x".repeat(2048) }),
+  });
+  expect((await POST(large)).status).toBe(413);
+  limited.mockResolvedValue(true);
+  expect((await POST(new Request("http://localhost/api/auth/password-recovery", { method: "POST", body: "{" }))).status).toBe(200);
 });

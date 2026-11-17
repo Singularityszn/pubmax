@@ -1,7 +1,6 @@
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
-import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { createPasswordRecoveryAuth } from "@/lib/authClient";
 import { checkPassword, passwordUpdateErrorMessage } from "@/lib/passwordPolicy";
-import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 type RecoveryAuth = Pick<SupabaseClient["auth"], "verifyOtp" | "updateUser" | "signOut" | "getSession">;
 type RecoveryResult =
@@ -10,15 +9,9 @@ type RecoveryResult =
   | { status: "retry"; passwordSaved: boolean; message: string };
 
 export async function createPasswordRecoveryFinisher(tokenHash: string) {
-  const config = resolveSupabaseConfig(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-    { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" });
-  if (!config) throw new Error("Password recovery is unavailable. Try again shortly.");
-  const { createClient } = await import("@supabase/supabase-js");
-  const client = createClient(config.url, config.key, {
-    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-    global: { fetch: withAuthFetchTimeout(fetch) },
-  });
-  return passwordRecoveryFinisher(client.auth, tokenHash);
+  const auth = await createPasswordRecoveryAuth();
+  if (!auth) throw new Error("Password recovery is unavailable. Try again shortly.");
+  return Object.assign(passwordRecoveryFinisher(auth, tokenHash), { dispose: () => auth.dispose() });
 }
 
 // This private client keeps the recovery session off the device until the password and sessions are secured.
