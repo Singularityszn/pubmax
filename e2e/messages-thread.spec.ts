@@ -1073,6 +1073,75 @@ for (const width of [390, 768, 1440]) for (const native of [false, true]) {
 
 });
 
+for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) {
+  test(`photo drafts stay neutral and captions resize live at ${width}px in ${theme}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await installThread(page, fixture());
+    await storeThemeChoice(page, theme);
+    let sends = 0;
+    page.on("request", request => {
+      if (request.method() === "POST" && new URL(request.url()).pathname === "/api/messages/c1") sends += 1;
+    });
+    const sharp = (await import("sharp")).default;
+    const photo = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
+    await page.goto("/messages/c1");
+    await page.locator("#message-photo-file").setInputFiles({ name: "draft.jpg", mimeType: "image/jpeg", buffer: photo });
+    await expect(page.locator(".composerPendingThumb")).toBeVisible();
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    const caption = "The full photo with a caption that wraps onto several lines.";
+    await field.fill(caption);
+    for (const visit of [1, 2]) {
+      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      await expect(page).toHaveURL(/\/messages$/);
+      const notice = page.locator(".messagePhotoRecoveryNotice");
+      const link = page.getByRole("link", { name: "Return to your photos", exact: true });
+      await expect(link).toBeVisible();
+      expect(await link.evaluate(element => getComputedStyle(element).color)).toBe(await notice.evaluate(element => getComputedStyle(element).color));
+      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-recovery-${visit}.png`) });
+      await link.click();
+      await expect(page).toHaveURL(/\/messages\/c1$/);
+      await expect(page.locator(".composerPendingThumb")).toBeVisible();
+      await expect(field).toHaveValue(caption);
+      await expect(page.locator(".threadError")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Retry send", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+    }
+    expect(sends).toBe(0);
+    for (const text of ["", caption]) {
+      await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
+      await field.fill(text);
+      await expect(async () => {
+        expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+      }).toPass();
+      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+      await expect(async () => {
+        expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+      }).toPass();
+      await expect(field).toHaveValue(text);
+      const dock = (await page.locator(".composerDock").boundingBox())!;
+      expect(dock.y).toBeGreaterThanOrEqual(0);
+      expect(dock.y + dock.height).toBeLessThanOrEqual(900);
+      await expectNoHorizontalOverflow(page, width);
+      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-${text ? "caption" : "empty"}-large-text.png`) });
+    }
+    await page.setViewportSize({ width: width === 390 ? 768 : 390, height: 900 });
+    await expect(async () => {
+      expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
+    }).toPass();
+    await expect(field).toHaveValue(caption);
+    await page.setViewportSize({ width, height: 900 });
+    await field.fill("A long caption that must scroll. ".repeat(20));
+    const overflow = await field.evaluate(element => {
+      element.scrollTop = element.scrollHeight;
+      return { height: element.clientHeight, required: element.scrollHeight, maxHeight: parseFloat(getComputedStyle(element).maxHeight), scroll: element.scrollTop };
+    });
+    expect(overflow.height).toBeLessThanOrEqual(overflow.maxHeight + 1);
+    expect(overflow.required).toBeGreaterThan(overflow.height);
+    expect(overflow.scroll).toBeGreaterThan(0);
+  });
+}
+
 for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -1158,7 +1227,13 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
       await shot("paused-after-second-leave");
       await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
     } else release();
-    await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
+    const resumedUncertainSend = photoCount === 2 && width === 390;
+    const resend = page.getByRole("button", { name: resumedUncertainSend ? "Send" : "Retry send", exact: true });
+    await expect(resend).toBeEnabled();
+    if (resumedUncertainSend) {
+      await expect(page.locator(".threadError")).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "Retry send" })).toHaveCount(0);
+    }
     if (photoCount === 1 && width === 390) {
       await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
       await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
@@ -1167,7 +1242,7 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     }
     await readable(".composerPendingThumb", photoCount);
     await shot("failed-retry"); await scaleIsOne();
-    await page.getByRole("button", { name: "Retry send" }).click();
+    await resend.click();
     await expect(async () => expect(requests).toHaveLength(2)).toPass();
     if (browserName === "chromium") expect(requests[1]!.key).toBe(requests[0]!.key);
     release();
@@ -1225,12 +1300,23 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     await scaleIsOne();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    const dock = await page.locator(".composerDock").boundingBox();
-    expect(dock!.y).toBeGreaterThanOrEqual(0);
-    expect(dock!.y + dock!.height).toBeLessThanOrEqual(900);
-    await shot("large-text-reduced-motion");
+    for (const caption of ["", "The full photo with a caption that wraps onto several lines."]) {
+      await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
+      await page.getByRole("textbox", { name: "Message", exact: true }).fill(caption);
+      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+      await expect(async () => {
+        const field = await page.locator(".composerInput").evaluate((element: HTMLTextAreaElement) => ({
+          height: element.clientHeight, required: element.scrollHeight, value: element.value,
+        }));
+        expect(field.value).toBe(caption);
+        expect(field.height).toBeGreaterThanOrEqual(field.required - 1);
+      }).toPass();
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      const dock = await page.locator(".composerDock").boundingBox();
+      expect(dock!.y).toBeGreaterThanOrEqual(0);
+      expect(dock!.y + dock!.height).toBeLessThanOrEqual(900);
+      await shot(`large-text-${caption ? "caption" : "empty"}-reduced-motion`);
+    }
 
     const recipientContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width, height: 900 }, serviceWorkers: "block" });
     const recipient = await recipientContext.newPage();

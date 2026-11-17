@@ -8,8 +8,8 @@
 
 .composerPhotoPreviews .composerPendingThumb { flex: 0 0 44px; }
 .composerPreparing { margin: 0; padding: 0.5rem; color: var(--muted); }
-.messagePhotoRecoveryNotice { margin: 0; padding: 0.5rem; color: var(--ink); overflow-wrap: anywhere; }
-.messagePhotoRecoveryNotice a { display: inline-flex; align-items: center; min-height: 44px; text-decoration: underline; }
+.messagePhotoRecoveryNotice { margin: 0; padding: 0.5rem 0.75rem; border: 1px solid var(--line); border-radius: var(--radius); background: var(--panel); color: var(--ink); overflow-wrap: anywhere; }
+.messagePhotoRecoveryNotice a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; }
 .messageThread .composerInput { font-size: max(16px, 1rem); }
 .messagePhotoPending { margin: 0; flex-direction: column; gap: 0.5rem; }
 .messagePhotoRetry {

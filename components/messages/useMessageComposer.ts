@@ -112,7 +112,7 @@ export function useMessageComposer(options: Options) {
       unsentKey.current = recovery.attempt;
       setDraft(recovery.body);
       setPending({ kind: "photo", ...first, remaining: photos.slice(1) });
-      setError("Your unsent photos are ready to send.");
+      if (recovery.failure) setError(recovery.failure.message, recovery.failure.operation);
     });
   }, [owner, setError]);
 
@@ -120,8 +120,9 @@ export function useMessageComposer(options: Options) {
     const photos = messagePhotos(pending);
     if (photos.length) rememberMessagePhotos(owner, {
       photos: photos.map(({ file, width, height }) => ({ file, width, height })), body: draft, attempt: unsentKey.current,
+      failure: activity.phase === "failed" ? { message: activity.message, operation: activity.operation } : null,
     }, readProviderAccountSignal());
-  }, [owner, pending, draft]);
+  }, [owner, pending, draft, activity]);
 
   const abandon = useCallback(() => {
     scope.current += 1;
@@ -206,6 +207,7 @@ export function useMessageComposer(options: Options) {
     }));
     if (photos.length) rememberMessagePhotos(owner, {
       photos: photos.map(({ file, width, height }) => ({ file, width, height })), body: bodyText, attempt: unsentKey.current,
+      failure: null,
     }, signal);
     dispatch({ type: "send", scope: owner }); setError(""); setOutbox(rows); setDraft(""); setPending(null);
     let index = 0;
@@ -231,6 +233,7 @@ export function useMessageComposer(options: Options) {
         unsentKey.current = { key: clientMessageId, payload, photo: bytes };
         if (photos.length) rememberMessagePhotos(owner, {
           photos: photos.slice(index).map(({ file, width, height }) => ({ file, width, height })), body: row.body, attempt: unsentKey.current,
+          failure: null,
         }, signal);
         const keyedPost = { ...post, clientMessageId };
         const response = await postMessage(`/api/messages/${encodeURIComponent(conversationId)}`, keyedPost, attachment, signal);
@@ -251,6 +254,7 @@ export function useMessageComposer(options: Options) {
         unsentKey.current = null;
         if (photos.length) rememberMessagePhotos(owner, {
           photos: photos.slice(index + 1).map(({ file, width, height }) => ({ file, width, height })), body: "", attempt: null,
+          failure: null,
         }, signal);
       }
     } catch {

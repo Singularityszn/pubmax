@@ -28,6 +28,7 @@ import MessageEventCard from "@/components/messages/MessageEventCard";
 import MessageEventPicker from "@/components/messages/MessageEventPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
+import { useMessageInputSize } from "@/components/messages/useMessageInputSize";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
@@ -335,7 +336,6 @@ export default function MessageThread({
     accountRevisionRef.current = accountRevision;
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -511,6 +511,7 @@ export default function MessageThread({
     sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, error,
     selectPhotos, clearPending, cancelPreparation, abandon, send, retrySend,
   } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
+  const inputRef = useMessageInputSize(draft);
 
   useEffect(() => {
     for (const [id, sent] of Object.entries(sentPhotos)) {
@@ -593,16 +594,6 @@ export default function MessageThread({
       window.visualViewport?.removeEventListener("resize", onResize);
     };
   }, [scrollToNewest]);
-
-  // The field grows with what is typed and stops at the CSS max-height, where
-  // it starts scrolling. Measured off scrollHeight each change, because a row
-  // count cannot know how a line wrapped.
-  useEffect(() => {
-    const field = inputRef.current;
-    if (!field) return;
-    field.style.height = "auto";
-    field.style.height = `${field.scrollHeight}px`;
-  }, [draft]);
 
   const over = draft.length > MAX_MESSAGE_BODY;
   const hasSomething = draft.trim().length > 0 || pending !== null;
@@ -1040,7 +1031,7 @@ export default function MessageThread({
             ) : (
               <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
             )}
-            <span className="composerPendingLabel">{pendingMessageLabel(pending)}</span>
+            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
             <button type="button" className="composerPendingRemove" onClick={clearPending}>
               Remove
             </button>

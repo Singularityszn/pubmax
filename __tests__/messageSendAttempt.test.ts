@@ -12,7 +12,7 @@ import {
 describe("photo preparation and sending scope", () => {
   it("keeps recovery private to its account and removes it when that account ends", () => {
     const signal = new AbortController();
-    const value = { photos: [{ file: new File(["photo"], "photo.jpg"), width: 1200, height: 800 }], body: "caption", attempt: null };
+    const value = { photos: [{ file: new File(["photo"], "photo.jpg"), width: 1200, height: 800 }], body: "caption", attempt: null, failure: null };
     rememberMessagePhotos("alice:1:c1", value, signal.signal);
     expect(readMessagePhotoRecovery("bob:2:c1")).toBeNull();
     expect(readMessagePhotoRecovery("alice:1:c1")).toBe(value);

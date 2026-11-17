@@ -96,6 +96,11 @@ describe("choosing a DM photo preserves its frame and the composer's focus", () 
     expect(container.querySelector(".composerPhotoRetry")).toBeNull();
     expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo");
     expect(revoke).not.toHaveBeenCalled();
+    await act(async () => root.render(null));
+    await mount();
+    expect(container.querySelector(".threadError")?.textContent).toContain("Could not open that photo.");
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+    expect(container.querySelector(".composerPendingThumb")).not.toBeNull();
   });
 
   it("discards preparation that completes after the reader changes", async () => {

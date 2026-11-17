@@ -11,6 +11,6 @@ export default function MessagePhotoRecoveryNotice({ activeConversationId = "" }
   const conversationId = useSyncExternalStore(subscribeMessagePhotoRecovery, read, () => "");
   if (!conversationId) return null;
   return <p className="messagePhotoRecoveryNotice" role="status">
-    You have unsent photos. <Link href={`/messages/${encodeURIComponent(conversationId)}`}>Return to your photos</Link> to retry.
+    You have unsent photos. <Link href={`/messages/${encodeURIComponent(conversationId)}`}>Return to your photos</Link>.
   </p>;
 }

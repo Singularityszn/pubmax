@@ -1,7 +1,12 @@
 import type { MessageSendAttempt } from "@/lib/messageSendAttempt";
 import type { PreparedPhotoUpload } from "@/lib/preparePhotoUpload";
 
-type Recovery = { photos: PreparedPhotoUpload[]; body: string; attempt: MessageSendAttempt | null };
+type Recovery = {
+  photos: PreparedPhotoUpload[];
+  body: string;
+  attempt: MessageSendAttempt | null;
+  failure: { message: string; operation: "prepare" | "send" } | null;
+};
 type Entry = { value: Recovery; signal: AbortSignal; abort: () => void };
 const recoveries = new Map<string, Entry>();
 const listeners = new Set<() => void>();

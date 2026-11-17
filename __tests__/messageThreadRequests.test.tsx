@@ -317,6 +317,10 @@ describe("message thread request budget", () => {
     expect(revoke).not.toHaveBeenCalledWith("blob:photo-1");
     expect(revoke).not.toHaveBeenCalledWith("blob:photo-2");
     const failedKey = JSON.parse(posts()[1]!.body).clientMessageId;
+    await act(async () => root.unmount()); container.remove();
+    await mount();
+    expect(readMessagePhotoRecovery("user-ken:1:c1")?.photos.map(photo => photo.file.name)).toEqual(["photo-2.jpg", "photo-3.jpg"]);
+    expect(container.querySelector(".threadError")?.textContent).toContain("interrupted");
     await typeAndSend("");
     expect(posts()).toHaveLength(3);
     expect(JSON.parse(posts()[2]!.body)).toMatchObject({ clientMessageId: failedKey, body: "" });
@@ -840,6 +844,8 @@ describe("council photo send regressions", () => {
     await mount();
     expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
     expect(composerValue()).toBe("our photos");
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
     await act(async () => root.unmount()); container.remove();
     await mount();
@@ -865,6 +871,23 @@ describe("council pending recovery ownership", () => {
     await typeAndSend("caption");
     await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
   }
+  it("restores an untouched selection as a draft through repeated navigation", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await type("Unsent caption");
+    for (const visit of [1, 2]) {
+      await act(async () => root.unmount()); container.remove();
+      await mount();
+      expect(container.querySelectorAll(".composerPendingThumb"), `visit ${visit}`).toHaveLength(1);
+      expect(composerValue()).toBe("Unsent caption");
+      expect(container.querySelector(".threadError")).toBeNull();
+      expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+      expect(container.querySelector<HTMLButtonElement>(".composerSend")!.disabled).toBe(false);
+      expect(posts()).toHaveLength(0);
+    }
+    await typeAndSend("Unsent caption");
+    expect(JSON.parse(posts()[0]!.body)).toMatchObject({ body: "Unsent caption", clientMessageId: expect.any(String) });
+  });
   it("releases recovery and the reload warning after a confirmed send", async () => {
     await mount();
     await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
@@ -875,12 +898,29 @@ describe("council pending recovery ownership", () => {
   });
   it("keeps a refused photo, its caption and its warning across navigation", async () => {
     await failPhoto();
+    const failure = container.querySelector(".threadError")!.textContent;
+    expect(failure).toContain("Upload interrupted");
+    const key = JSON.parse(posts()[0]!.body).clientMessageId;
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
-    await act(async () => root.unmount()); container.remove();
-    await mount();
-    expect(container.querySelector(".composerPendingThumb")).not.toBeNull();
-    expect(composerValue()).toBe("caption");
+    for (const visit of [1, 2]) {
+      await act(async () => root.unmount()); container.remove();
+      await mount();
+      expect(container.querySelector(".composerPendingThumb"), `visit ${visit}`).not.toBeNull();
+      expect(composerValue()).toBe("caption");
+      expect(container.querySelector(".threadError")?.textContent).toBe(failure);
+      expect(container.querySelector(".composerPhotoRetry")).not.toBeNull();
+    }
     expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    await act(async () => container.querySelector<HTMLButtonElement>(".composerPhotoRetry")!.click());
+    expect(JSON.parse(posts()[1]!.body).clientMessageId).toBe(key);
+  });
+  it("does not restore one account's failed photo into another account", async () => {
+    await failPhoto();
+    authState.current = { user: { id: "user-sam" }, handle: "sam", accountRevision: 2 };
+    await act(async () => root.render(createElement(MessageThread, { conversationId: "c1" })));
+    expect(container.querySelector(".composerPendingThumb")).toBeNull();
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
   });
   it.each(["replace", "remove"] as const)("clears the old photo error on %s", async action => {
     await failPhoto();
