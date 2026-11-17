@@ -169,8 +169,15 @@ describe("summon price", () => {
     ["a parenthesised double labelled as a single", { measure: "single", pint_name: "Gin double (50ml)" }],
     ["a leading parenthesised double labelled as a single", { measure: "single", pint_name: "Double (50ml) gin" }],
     ["a bracketed double labelled as a single", { measure: "single", pint_name: "Gin double [50ml]" }],
+    ["a double label before a volume", { measure: "single", pint_name: "Gin (double) 50ml" }],
+    ["a double separated from its volume", { measure: "single", pint_name: "Gin double - 50ml" }],
+    ["a double before its mixer", { measure: "single", pint_name: "Gin double with tonic" }],
+    ["a hyphenated double gin", { measure: "single", pint_name: "Double-gin and tonic" }],
+    ["a double with a serving separator", { measure: "single", pint_name: "Gin double / soda" }],
     ["a halfpint drink labelled as a pint", { pint_name: "Amstel halfpint" }],
     ["plural halfpints labelled as a pint", { pint_name: "Amstel halfpints" }],
+    ["plural schooners in the drink name", { pint_name: "Amstel schooners" }],
+    ["a third with conditions in the drink name", { pint_name: "Amstel third before 7pm" }],
     ["a pint name labelled as a half", { measure: "half", pint_name: "Amstel pint" }],
     ["a pint listing labelled as a half", { measure: "half", price_text: "£5.50 per pint" }],
     ["a mixed half and pint listing labelled as a half", { measure: "half", price_text: "Half pint £5.50 per pint" }],
@@ -240,14 +247,10 @@ describe("summon price", () => {
     ["single", "Gin single"],
     ["double", "Gin double"],
     ["double", "Gin double (50ml)"],
+    ["double", "Gin (double) 50ml"],
+    ["double", "Gin double with tonic"],
     ["half", "Amstel halfpint"],
     ["double", "Double gin and tonic"],
-    ["double", "Single Malt Whisky"],
-    ["pint", "Double IPA"],
-    ["pint", "Double Chocolate Stout"],
-    ["pint", "Half Moon IPA"],
-    ["pint", "Other Half Green Diamond"],
-    ["pint", "A Half Decent Stout"],
   ] as const)("preserves a matching explicit %s serving for %s", (measure, pint_name) => {
     expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
   });
@@ -273,10 +276,17 @@ describe("summon price", () => {
       .toMatchObject({ measure, statement: price_text });
   });
 
-  it.each(["Half Moon IPA", "Other Half Green Diamond", "Half Moon (Cask)", "Small Beer Lager", "Third Wheel Bitter", "Double IPA"])("keeps %s as a drink name inside the listing", (pint_name) => {
+  it.each(["Amstel", "Neck Oil", "Landlord"])("keeps %s as a drink name inside the listing", (pint_name) => {
     const price_text = `£5.50 for a ${pint_name} before 7pm`;
     expect(selectSummonPrice(pub(row({ pint_name, price_text })), NOW))
       .toMatchObject({ measure: "pint", drink: pint_name, statement: price_text });
+  });
+
+  it.each([
+    "Half Moon IPA", "Other Half Green Diamond", "A Half Decent Stout", "Small Beer Lager",
+    "Third Wheel Bitter", "Double IPA", "Double Chocolate Stout", "Single Malt Whisky",
+  ])("omits an optional price when %s leaves serving wording ambiguous", (pint_name) => {
+    expect(selectSummonPrice(pub(row({ pint_name })), NOW)).toBeNull();
   });
 
   it("never quotes a superseded row, a non-pub or a drinker's logged figure", () => {
