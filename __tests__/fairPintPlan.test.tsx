@@ -45,3 +45,33 @@ it("keeps the last route but rejects a cleared first-pint time", async () => {
   expect(fetcher).toHaveBeenCalledTimes(1);
   act(() => root.unmount());
 });
+
+it.each(["pending", "failed"])("restores the validated time after a %s revalidation", async (mode) => {
+  let finish!: (response: Response) => void, began!: () => void;
+  const started = new Promise<void>((resolve) => { began = resolve; });
+  const response = new Promise<Response>((resolve) => { finish = resolve; });
+  const fetcher = vi.fn().mockResolvedValueOnce(Response.json(generated("validated"))).mockImplementationOnce(() => {
+    began();
+    return mode === "pending" ? response : Response.json({ error: "No route at this time." }, { status: 422 });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  let hook: ReturnType<typeof useFairPintPlan>;
+  function Host() { hook = useFairPintPlan("london", "camden", () => {}); return null; }
+  const root = createRoot(document.createElement("div"));
+  act(() => root.render(createElement(Host)));
+  await act(async () => { await hook.draw(550); });
+  const last = hook!.state.last!;
+  const later = new Date(new Date(`${last.start}:00Z`).getTime() + 3600000).toISOString().slice(0, 16);
+  let request!: Promise<void>;
+  await act(async () => {
+    hook.editStart(later); request = hook.changeStart(later); await started;
+    if (mode === "failed") await request;
+  });
+  act(() => hook!.editStart(last.start));
+  expect(hook!.start).toBe(last.start);
+  expect(hook!.state).toMatchObject({ phase: "result", error: "", last });
+  if (mode === "pending") await act(async () => { finish(Response.json(generated("superseded"))); await request; });
+  expect(hook!.state.last).toBe(last);
+  expect(fetcher).toHaveBeenCalledTimes(2);
+  act(() => root.unmount());
+});
