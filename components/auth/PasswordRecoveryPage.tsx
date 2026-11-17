@@ -13,6 +13,7 @@ import { parseEmail, MAX_EMAIL_LENGTH } from "@/lib/emailAddress";
 import { PASSWORD_RECOVERY_MESSAGE, recoveryFormTransition, recoveryToken, type RecoveryFormState } from "@/lib/passwordRecovery";
 import { createPasswordRecoveryFinisher } from "@/lib/passwordRecoveryClient";
 import { checkPassword, MIN_PASSWORD_LENGTH } from "@/lib/passwordPolicy";
+import { discardBody } from "@/lib/responseBody";
 import "./passwordRecovery.css";
 
 function disposeFinisher(pending: ReturnType<typeof createPasswordRecoveryFinisher> | null): void {
@@ -46,7 +47,7 @@ function RecoveryNotice({ state, reset }: { state: RecoveryFormState; reset: boo
   </>;
   if (state.status === "complete") return <>
     <p role="status">{reset ? "Your password is saved. You're signed in." : PASSWORD_RECOVERY_MESSAGE}</p>
-    {!reset ? <p>Check your inbox and spam folder. Each link works once.</p> : <Button asChild><Link href="/map">Back to the map</Link></Button>}
+    {!reset ? <p>Check your inbox and spam folder. Each link works once.</p> : <Button asChild><Link href="/map" prefetch={false}>Back to the map</Link></Button>}
   </>;
   return null;
 }
@@ -172,6 +173,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
           method: "POST", headers: { "content-type": "application/json" },
           body: JSON.stringify({ email: parseEmail(email) }), signal: AbortSignal.timeout(15_000),
         });
+        discardBody(response);
         if (!response.ok) throw new Error();
       } else {
         if (!token.current) { dispatch({ type: "invalid" }); return; }
