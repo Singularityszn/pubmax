@@ -12,6 +12,7 @@ import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeM
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
 
 export function latestMapCameraRequestToken({
+  closeVenueRequestToken = 0,
   routeRequestToken,
   nearbyRequestToken,
   searchRecoveryToken,
@@ -19,6 +20,7 @@ export function latestMapCameraRequestToken({
   selectedVenueRequestToken,
   focusPoint,
 }: {
+  closeVenueRequestToken?: number;
   routeRequestToken?: number;
   nearbyRequestToken: number;
   searchRecoveryToken?: number;
@@ -27,6 +29,7 @@ export function latestMapCameraRequestToken({
   focusPoint?: MapCameraFocus | null;
 }) {
   return Math.max(
+    closeVenueRequestToken,
     routeRequestToken ?? 0,
     nearbyRequestToken,
     searchRecoveryToken ?? 0,

@@ -799,7 +799,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     palNextStop,
     selectedVenueId,
     selectedVenueRequestToken,
-    closeVenueRequestToken = 0,
+    closeVenueRequestToken,
     onVenueClick,
     onReaderTouchedMap,
     onUkBasePubClick,
@@ -1483,14 +1483,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     fitNearby,
     fitPalPicks,
   } = useMapCamera({
-    latestRequestToken: Math.max(closeVenueRequestToken, latestMapCameraRequestToken({
+    latestRequestToken: latestMapCameraRequestToken({
+      closeVenueRequestToken,
       routeRequestToken,
       nearbyRequestToken,
       searchRecoveryToken,
       selectedVenueId,
       selectedVenueRequestToken,
       focusPoint,
-    })),
+    }),
     mapRef,
     reducedRef,
     cityViewRef,
