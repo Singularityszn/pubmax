@@ -488,8 +488,11 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       await expect(peek).toBeVisible({ timeout: 30_000 });
       let initialEstimate = "";
       if (fixture.shown === "pint") {
-        await expect(peek).toContainText(/est\. £\d+\.\d{2}/);
-        initialEstimate = (await peek.innerText()).match(/est\. £\d+\.\d{2}/)![0];
+        await expect(async () => {
+          const estimate = (await peek.innerText()).match(/est\. £\d+\.\d{2}/);
+          expect(estimate).not.toBeNull();
+          initialEstimate = estimate![0];
+        }).toPass();
       } else await expectLensEvidence();
       const otherRead = page.waitForResponse((response) => {
         const url = new URL(response.url());
