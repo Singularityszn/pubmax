@@ -689,9 +689,17 @@ export default function LoginPage({
       hasAuthSurface,
       returning,
     });
+  const markedFormReady = useRef(false);
+  useEffect(() => {
+    if (showForm && configured && supabaseAuthState !== "unavailable" && !markedFormReady.current) {
+      markedFormReady.current = true;
+      markPubmaxTiming("pubmax:auth-form-ready");
+    }
+  }, [configured, showForm, supabaseAuthState]);
+
   useEffect(() => {
     if (showForm && !loading && supabaseAuthState === "signed-out") {
-      markPubmaxTiming("pubmax:auth-form-ready");
+      markPubmaxTiming("pubmax:auth-bootstrap-settled");
     }
   }, [showForm, loading, supabaseAuthState]);
 
