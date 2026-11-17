@@ -5168,6 +5168,39 @@ export type Database = {
           },
         ];
       };
+      social_crew_removal_corrections: {
+        Row: {
+          id: string;
+          crew_id: string;
+          member_id: string;
+          social_account_id: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          crew_id: string;
+          member_id: string;
+          social_account_id: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          crew_id?: string;
+          member_id?: string;
+          social_account_id?: string;
+          reason?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
       social_crews: {
         Row: {
           id: string;
@@ -8015,6 +8048,15 @@ export type Database = {
         Args: {
           p_nonce_hash: string | null;
           p_provider: string | null;
+        };
+        Returns: Json;
+      };
+      correct_social_crew_removal_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_crew_id: string | null;
+          p_member_id: string | null;
+          p_reason: string | null;
         };
         Returns: Json;
       };

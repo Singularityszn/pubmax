@@ -5,7 +5,8 @@
 -- body, then drops both triggers and the four helpers.
 -- Rollback discloses nothing. A removed person can request that crew again, the host
 -- queue shows requests that acceptance refuses, and a requester whom the host has
--- since blocked cannot cancel their own request again.
+-- since blocked cannot cancel their own request again. The removal correction
+-- ledger is dropped with its rows, so export social_crew_removal_corrections first.
 begin;
 
 create or replace function public.request_social_crew_join_atomic(
@@ -363,6 +364,8 @@ begin
 end;
 $$;
 
+drop function if exists public.correct_social_crew_removal_admin(uuid,uuid,uuid,text);
+drop table if exists public.social_crew_removal_corrections;
 drop trigger if exists lock_social_accounts_on_auth_user_delete on auth.users;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
 drop function if exists public._lock_social_auth_user_accounts();

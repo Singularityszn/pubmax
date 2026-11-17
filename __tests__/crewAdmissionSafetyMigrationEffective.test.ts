@@ -609,6 +609,7 @@ describe.skipIf(skipReason !== null)("after 0243: account deletion", () => {
       await expect.poll(() => waitsOnAccountLock("seat_then_delete_approve")).toBe("t");
       deletion = outcome("seat_then_delete_delete", deleteAccount(xav), "postgres");
       await expect.poll(() => waitsOnAnyLock("seat_then_delete_delete")).toBe("t");
+      expect(await waitsOnAccountLock("seat_then_delete_delete")).toBe("f");
     } finally { await seatLock.finish(); }
     const [approved, deleted] = await Promise.all([approval, deletion]);
     for (const answer of [approved, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
