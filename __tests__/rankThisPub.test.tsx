@@ -60,6 +60,8 @@ vi.mock("@/components/social/ComparePubFlow", () => ({
 
 import { AuthActionSessionError } from "@/lib/authedFetch";
 import RankThisPub from "@/components/pubs/RankThisPub";
+import { initialPubPageRanking, transitionPubPageRanking } from "@/lib/pubPageRankingSession";
+import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -73,11 +75,7 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i += 1) {
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
+  await act(async () => {});
 }
 
 async function render() {
@@ -120,6 +118,91 @@ beforeEach(() => {
   session.userId = "account-a";
   net.read.mockReset();
   net.pending = undefined;
+});
+
+describe("pub-page ranking transitions", () => {
+  const scope = "account-a:seven-stars";
+  const entries: SocialPubRankingEntry[] = [{ ...ENTRY, venueId: "seven-stars", band: "loved", place: 3 }];
+
+  function comparing() {
+    const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
+    return transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries },
+    });
+  }
+
+  it("retains a confirmed checkpoint through a later outage", () => {
+    const comparison = comparing();
+    const saved = transitionPubPageRanking(comparison, {
+      type: "saved", scope, requestId: comparison.requestId, entries: [{ ...entries[0]!, place: 1 }],
+    });
+    const closed = transitionPubPageRanking(saved, { type: "close", scope, requestId: saved.requestId });
+    const reading = transitionPubPageRanking(closed, { type: "open" });
+    const unavailable = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "failed", message: "Unavailable" },
+    });
+    expect(closed.kind).toBe("idle");
+    expect(unavailable.kind).toBe("failed");
+    expect(unavailable.checkpoint?.place).toBe(1);
+  });
+
+  it.each(["reader", "comparison"] as const)("clears private checkpoint after %s refusal", (source) => {
+    const comparison = comparing();
+    let refused;
+    if (source === "reader") {
+      const closed = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId });
+      const reading = transitionPubPageRanking(closed, { type: "open" });
+      refused = transitionPubPageRanking(reading, {
+        type: "read", scope, requestId: reading.requestId, result: { kind: "refused", message: "Access refused" },
+      });
+    } else {
+      refused = transitionPubPageRanking(comparison, { type: "refused", scope, requestId: comparison.requestId, message: "Access refused" });
+    }
+    expect(refused.kind).toBe("refused");
+    expect(refused.checkpoint).toBeNull();
+    expect(transitionPubPageRanking(refused, { type: "saved", scope, requestId: comparison.requestId, entries })).toBe(refused);
+  });
+
+  it.each(["scope", "request", "phase"] as const)("ignores a read outside its current %s", (changed) => {
+    const comparison = comparing();
+    const reading = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId, pendingWrite: Promise.resolve() });
+    const state = changed === "phase" ? comparison : reading;
+    expect(transitionPubPageRanking(state, {
+      type: "read",
+      scope: changed === "scope" ? "account-b:seven-stars" : scope,
+      requestId: changed === "request" ? state.requestId - 1 : state.requestId,
+      result: { kind: "entries", entries: [] },
+    })).toBe(state);
+  });
+
+  it.each(["loading", "comparing"] as const)("ignores another open while %s", (kind) => {
+    const state = kind === "loading"
+      ? transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" })
+      : comparing();
+    expect(transitionPubPageRanking(state, { type: "open" })).toBe(state);
+  });
+
+  it("keeps an uncertain write with its read and closes after reconciliation", () => {
+    const comparison = comparing();
+    const pendingWrite = Promise.resolve();
+    const reading = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId, pendingWrite });
+    expect(reading.kind === "loading" && reading.origin === "closed" && reading.pendingWrite).toBe(pendingWrite);
+    expect(reading.checkpoint?.place).toBe(3);
+    const reconciled = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries: [{ ...entries[0]!, place: 2 }] },
+    });
+    expect(reconciled.kind).toBe("idle");
+    expect(reconciled.checkpoint?.place).toBe(2);
+  });
+
+  it("does not publish a different pub's position", () => {
+    const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
+    const opened = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries: [{ ...entries[0]!, venueId: "lamb" }] },
+    });
+    expect(opened.kind).toBe("comparing");
+    expect(opened.checkpoint).toBeNull();
+  });
 });
 
 afterEach(() => {
@@ -300,6 +383,48 @@ describe("RankThisPub", () => {
     await act(async () => close.click());
     expect(compare()).toBeNull();
     expect(net.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes an acknowledged comparison without another read and keeps the saved position", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledOnce();
+  });
+
+  it("retires a pub's checkpoint when the mounted action moves to another pub", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    await act(async () => root!.render(<RankThisPub venueId="lamb" venueName="The Lamb" returnTo="/pubs/lamb" />));
+    expect(rankButton()?.textContent).toBe("Rank it");
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    expect(compare()).toBe("lamb:lamb");
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #1");
+  });
+
+  it("reconciles a closed write after its promise rejects", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    let rejectWrite!: (error: Error) => void;
+    net.pending = new Promise<void>((_resolve, reject) => { rejectWrite = reject; });
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!.click());
+    expect(net.read).toHaveBeenCalledOnce();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await act(async () => rejectWrite(new Error("The answer was lost")));
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledTimes(2);
   });
 
   it("reads the saved position after the newer comparison's outstanding write settles", async () => {
