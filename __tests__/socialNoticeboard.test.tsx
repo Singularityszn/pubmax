@@ -706,3 +706,58 @@ it("retains equal DTO identities regardless of JSON object field order", () => {
   const window = { posts: [previous], pages: 1, nextCursor: null };
   expect(mergeSocialPostHead(window, { posts: [fresh], nextCursor: null })).toBe(window);
 });
+
+it("keeps a known empty feed failure polite and offers recovery", async () => {
+  let failed = false;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    return failed ? Response.json({}, { status: 503 }) : Response.json({ posts: [], nextCursor: null });
+  });
+  await mountFeed();
+  expect(host.querySelector(".socialFeed")).toBeNull();
+  failed = true;
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  expect(host.querySelector('[role="alert"]')).toBeNull();
+  expect(host.querySelector('.socialFeedInlineError[role="status"]')).not.toBeNull();
+  const retry = [...host.querySelectorAll("button")].find(button => button.textContent === "Retry")!;
+  expect(retry).toBeDefined();
+  failed = false;
+  await act(async () => retry.click());
+  expect(host.querySelector(".socialFeedInlineError")).toBeNull();
+});
+
+it.each([30, 200])("keeps a feed contiguous after %s posts arrive between heads", async arrival => {
+  let incoming = false;
+  const rows = Array.from({ length: arrival + 60 }, (_, i) => ({
+    ...feedPost(`Report ${i}`, 12), createdAt: new Date(Date.UTC(2026, 10, 17, 12) - i * 60_000).toISOString(),
+  }));
+  const reads: number[] = [];
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    const cursor = new URL(href, "http://localhost").searchParams.get("cursor");
+    const offset = cursor ? Number(cursor) : incoming ? 0 : arrival;
+    reads.push(offset);
+    return Response.json({ posts: rows.slice(offset, offset + 20), nextCursor: String(offset + 20) });
+  });
+  await mountFeed();
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
+  incoming = true;
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  if (arrival === 30) {
+    const more = [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!;
+    await act(async () => more.click());
+    expect([...host.querySelectorAll(".socialPostCard")].some(card => card.textContent === "Report 20")).toBe(true);
+    expect(reads).toEqual([30, 0, 20, 50]);
+  } else {
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
+    expect(host.querySelector('[role="status"].socialFeedNewPosts')).not.toBeNull();
+    expect(reads).toEqual([200, 0, 20, 40]);
+    const refresh = [...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!;
+    await act(async () => refresh.click());
+    expect(host.querySelector('[role="status"].socialFeedNewPosts')).toBeNull();
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
+    expect(host.textContent).toContain("Report 0");
+  }
+});
