@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 November 2026";
+const LAST_UPDATED = "17 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -611,6 +611,13 @@ export default function PrivacyPage() {
           safe retries and audit only. These write receipts are never public.
         </p>
         <p className="legalBody">
+          A moderator can correct a mistaken Crew removal. The private
+          correction record names the Crew, membership, account, reason,
+          moderator and date. Your data export includes your correction outcome
+          and date, but excludes private review notes and staff identities.
+          Deleting your account removes its correction records.
+        </p>
+        <p className="legalBody">
           Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
           disappearing. Invitations and Join Requests keep their final states
@@ -1026,7 +1033,10 @@ export default function PrivacyPage() {
             invitations and Join Requests stay with the Crew-bound Plan until
             that Plan is deleted. Private write receipts stay for safe retries
             and audit until the actor&rsquo;s account deletion request is carried
-            out, unless a legal or security hold applies.
+            out, unless a legal or security hold applies. Crew removal correction
+            records are deleted with the affected account. Its export includes
+            the correction outcome and date, without private review notes or
+            staff identities.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account
