@@ -14,7 +14,7 @@ vi.mock("@/lib/authedFetch", () => ({ authedFetch: net.get, authedActionJson: ne
 
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
-import { rankingReadFailure, rankingSaveLanded } from "@/lib/firstTenRankingSession";
+import { rankingSaveLanded } from "@/lib/firstTenRankingSession";
 import type { SocialPubBand, SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -112,6 +112,17 @@ describe("a lost save answer", () => {
     await click("Done");
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledWith(undefined);
+  });
+
+  it("closes an unconfirmed save with its write, so the owner refreshes first", async () => {
+    await open(list(["crown", "loved"]));
+    net.post.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    net.get.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    await click("It was fine");
+    expect(heading()).toBe("We lost the answer");
+    await click("Close");
+    expect(onClose).toHaveBeenCalledWith(expect.any(Promise));
+    await expect(onClose.mock.calls[0]![0]).resolves.toBeUndefined();
   });
 
   it("rereads the list and acknowledges a save that landed, without a second save", async () => {
@@ -278,14 +289,5 @@ describe("save recovery rules", () => {
     expect(rankingSaveLanded(fresh, "lamb", "loved", { aboveVenueId: null, belowVenueId: "crown" })).toBe(false);
     expect(rankingSaveLanded(fresh, "lamb", "fine", { aboveVenueId: null, belowVenueId: null })).toBe(false);
     expect(rankingSaveLanded(fresh, "anchor", "loved", { aboveVenueId: "lamb", belowVenueId: null })).toBe(false);
-  });
-
-  it("hides a refused read and shows a failed one as unavailable", () => {
-    expect(rankingReadFailure(403, "SOCIAL_ADULT_VERIFICATION_REQUIRED")).toBe("refused");
-    expect(rankingReadFailure(401, "SOCIAL_SIGN_IN_REQUIRED")).toBe("refused");
-    expect(rankingReadFailure(503, "SOCIAL_ACCESS_UNAVAILABLE")).toBe("refused");
-    expect(rankingReadFailure(503, "SOCIAL_ACCESS_UNAVAILABLE", true)).toBe("unavailable");
-    expect(rankingReadFailure(503, "RANKING_UNAVAILABLE")).toBe("unavailable");
-    expect(rankingReadFailure(0, undefined)).toBe("unavailable");
   });
 });

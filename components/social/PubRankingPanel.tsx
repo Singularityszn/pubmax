@@ -9,9 +9,13 @@ import ComparePubFlow from "@/components/social/ComparePubFlow";
 import ReviewStars from "@/components/social/ReviewStars";
 import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedFetch } from "@/lib/authedFetch";
-import { rankingReadFailure } from "@/lib/firstTenRankingSession";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
-import { SOCIAL_PUB_BAND_LABEL, socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import {
+  SOCIAL_PUB_BAND_LABEL,
+  socialPubRankingPayload,
+  socialPubRankingReadFailure,
+  type SocialPubRankingEntry,
+} from "@/lib/socialPubRankings";
 
 import "./pubRankingState.css";
 
@@ -49,7 +53,7 @@ class RankingReadError extends Error {
 async function readJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await authedFetch(url, { credentials: "same-origin", signal }, { requiresIdentity: true });
   const body = await response.json().catch(() => null);
-  if (!response.ok) throw new RankingReadError(rankingReadFailure(response.status, body?.code, body?.retryable));
+  if (!response.ok) throw new RankingReadError(socialPubRankingReadFailure(response.status, body));
   return body as T;
 }
 
@@ -92,6 +96,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
       if (error instanceof RankingReadError && error.kind === "refused" &&
         !controller.signal.aborted && generation.current === requestGeneration) {
         setLoaded(null);
+        setComparing(false);
         setPhase("refused");
         controller.abort();
       }
@@ -125,7 +130,10 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
     })().catch((error: unknown) => {
       if (controller.signal.aborted || generation.current !== requestGeneration) return;
       const next = error instanceof RankingReadError ? error.kind : "unavailable";
-      if (next === "refused") setLoaded(null);
+      if (next === "refused") {
+        setLoaded(null);
+        setComparing(false);
+      }
       setPhase(next);
     });
     return () => { controller.abort(); generation.current += 1; };

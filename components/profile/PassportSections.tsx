@@ -18,7 +18,6 @@ import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import { authedFetch } from "@/lib/authedFetch";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
-import { rankingReadFailure } from "@/lib/firstTenRankingSession";
 import {
   PASSPORT_COPY,
   TASTE_COPY,
@@ -29,7 +28,7 @@ import {
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
-import { socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { socialPubRankingPayload, socialPubRankingReadFailure, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import BeenCardShare from "./BeenCardShare";
@@ -143,12 +142,9 @@ function PassportRanked({ handle }: { handle: string }) {
     void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response): Promise<RankedRead | null> => {
         const payload: unknown = await response.json().catch(() => null);
-        const body = payload !== null && typeof payload === "object" && !Array.isArray(payload)
-          ? payload as { entries?: SocialPubRankingEntry[]; code?: unknown; retryable?: unknown }
-          : {};
         const entries = response.ok ? socialPubRankingPayload(payload) : null;
         if (response.ok) return entries ? { account, entries } : { account, unavailable: true };
-        return rankingReadFailure(response.status, body.code, body.retryable) === "refused" ? null : { account, unavailable: true };
+        return socialPubRankingReadFailure(response.status, payload) === "refused" ? null : { account, unavailable: true };
       })
       .catch((): RankedRead => ({ account, unavailable: true }))
       .then((next) => {

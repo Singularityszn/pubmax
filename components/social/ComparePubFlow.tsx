@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { discardBody } from "@/lib/responseBody";
 import { rankingSaveLanded } from "@/lib/firstTenRankingSession";
 import {
   answerSocialPubComparison,
@@ -33,7 +34,10 @@ type Unsettled = { kind: "lost"; band: SocialPubBand; neighbours: Neighbours } |
 async function readRankings(signal: AbortSignal): Promise<SocialPubRankingEntry[] | null> {
   try {
     const reply = await authedFetch("/api/social/rankings", { credentials: "same-origin", signal }, { requiresIdentity: true });
-    if (!reply.ok) return null;
+    if (!reply.ok) {
+      discardBody(reply);
+      return null;
+    }
     return socialPubRankingPayload(await reply.json());
   } catch {
     return null;
@@ -122,7 +126,11 @@ export default function ComparePubFlow({
     const controller = new AbortController();
     const timer = window.setTimeout(() => {
       void authedFetch(`/api/social/venues?q=${encodeURIComponent(text)}`, { credentials: "same-origin", signal: controller.signal }, { requiresIdentity: true })
-        .then((response) => (response.ok ? response.json() : { venues: [] }))
+        .then((response) => {
+          if (response.ok) return response.json();
+          discardBody(response);
+          return { venues: [] };
+        })
         .then((body: { venues?: Venue[] }) => {
           if (!controller.signal.aborted && sameAccount()) setResults(body.venues ?? []);
         })
@@ -155,6 +163,9 @@ export default function ComparePubFlow({
 
   function acknowledge(subjectId: string, saved: SocialPubRankingEntry[]) {
     if (!sameAccount()) return;
+    // The server has answered for this write, so closing need not wait on it.
+    // An unconfirmed write keeps its promise: closing then refreshes first.
+    pendingWrite.current = undefined;
     onSaved(saved);
     setUnsettled(null);
     setList(saved);

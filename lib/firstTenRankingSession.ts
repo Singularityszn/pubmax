@@ -31,13 +31,3 @@ export function rankingSaveLanded(
   if (index === -1) return false;
   return (inBand[index - 1] ?? null) === neighbours.aboveVenueId && (inBand[index + 1] ?? null) === neighbours.belowVenueId;
 }
-
-/**
- * A refused read hides the list. Only a read that may answer next time is
- * shown as unavailable, and neither is ever an empty list.
- */
-export function rankingReadFailure(status: number, code: unknown, retryable?: unknown): "refused" | "unavailable" {
-  if (status === 401 || status === 403) return "refused";
-  if (status === 503 && code === "SOCIAL_ACCESS_UNAVAILABLE" && retryable !== true) return "refused";
-  return "unavailable";
-}
