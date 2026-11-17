@@ -31,7 +31,7 @@
 .curatedWalkSummary > button { flex-shrink: 0; white-space: nowrap; }
 
 .curatedWalkCredit a { color: inherit; text-underline-offset: 2px; }
-.curatedWalkActions { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.curatedWalkActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .curatedWalkSummary { margin-top: 8px; }
 .curatedWalkActions > button { white-space: nowrap; }
 .mobileSharedSheet[data-surface="solid"] > .mobileSharedSheetHeader { padding-bottom: 0; }
