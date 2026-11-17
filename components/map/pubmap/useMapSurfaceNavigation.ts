@@ -170,6 +170,7 @@ export function useMapSurfaceNavigation({
   selectionHint,
   onRestore,
   onReturnToMap,
+  mappedRouteActive = false,
   onVenueReturnToMap,
   onHome,
   onSurfaceClose,
@@ -182,6 +183,7 @@ export function useMapSurfaceNavigation({
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
+  mappedRouteActive?: boolean;
   onVenueReturnToMap?: () => void;
   onHome: () => void;
   onSurfaceClose: () => void;
@@ -197,7 +199,7 @@ export function useMapSurfaceNavigation({
   const ownedPathRef = useRef<string | null>(null);
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
-  const onReturnToMapRef = useRef(onReturnToMap);
+  const onReturnToMapRef = useRef(mappedRouteActive ? undefined : onReturnToMap);
   const onVenueReturnToMapRef = useRef(onVenueReturnToMap);
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
@@ -217,12 +219,12 @@ export function useMapSurfaceNavigation({
 
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
-    onReturnToMapRef.current = onReturnToMap;
+    onReturnToMapRef.current = mappedRouteActive ? undefined : onReturnToMap;
     onVenueReturnToMapRef.current = onVenueReturnToMap;
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onReturnToMap, onVenueReturnToMap, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, mappedRouteActive, onVenueReturnToMap, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {

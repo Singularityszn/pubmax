@@ -173,9 +173,10 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   let assembledState: MapSurfaceState;
   const viewport = { center: [-0.134, 51.511] as [number, number], zoom: 14, pitch: 38, bearing: -8 };
 
-  function Harness({ selectionHint = "", cameraOwnership }: {
+  function Harness({ selectionHint = "", cameraOwnership, mappedRouteActive = false }: {
     selectionHint?: string;
     cameraOwnership?: ReturnType<typeof createMapCameraOwnership>;
+    mappedRouteActive?: boolean;
   }) {
     const [defaultCameraOwnership] = useState(() => createMapCameraOwnership());
     assembledState = useMapSurfaceState({
@@ -190,6 +191,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
       selectionHint,
       onRestore,
       onReturnToMap,
+      mappedRouteActive,
       onVenueReturnToMap,
       onHome,
       onSurfaceClose: () => {},
@@ -300,6 +302,30 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     await traverse(() => navigation.back());
     expect(onRestore).toHaveBeenLastCalledWith(null);
     expect(onVenueReturnToMap).not.toHaveBeenCalled();
+  });
+
+  it.each(["back", "home"])("does not restore an older area over a mapped walk after %s", async (exit) => {
+    act(() => navigation.open({
+      ...planner,
+      state: { ...EMPTY_MAP_SURFACE_STATE, returnCamera: { center: viewport.center, zoom: viewport.zoom } },
+    }));
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(venue);
+
+    await traverse(() => {
+      if (exit === "home") navigation.home();
+      else navigation.back();
+    });
+    if (exit === "back") await traverse(() => navigation.back());
+
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onReturnToMap).not.toHaveBeenCalled();
+    expect(onVenueReturnToMap).toHaveBeenCalledTimes(exit === "home" ? 1 : 0);
+
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: false })));
+    await traverse(() => window.history.go(2));
+    await traverse(() => navigation.home());
+    expect(onReturnToMap).toHaveBeenLastCalledWith({ center: viewport.center, zoom: viewport.zoom });
   });
 
   it("restores the outgoing journey camera after traversing an earlier area", async () => {

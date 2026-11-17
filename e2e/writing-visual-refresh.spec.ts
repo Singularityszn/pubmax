@@ -150,6 +150,7 @@ for (const width of [320, 390]) {
         await expect.poll(() => dock.locator(".mobileTabLabelText").first().evaluate(
           (element) => parseFloat(getComputedStyle(element).fontSize),
         )).toBeCloseTo(baselineFont * scale, 1);
+        if (scale === 2) await expect(page.locator("html")).toHaveAttribute("data-text-scale", "large");
         await page.evaluate(() => document.fonts.ready);
         const labels = await dock.locator(".mobileTabLabelText").evaluateAll((elements) => elements.map((element) => {
           const link = element.closest("a")!;
