@@ -5,7 +5,7 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const supportsFairPint = (cityId: string) => cityId === "london";
 
-export type FairPintEvidence = readonly [unknown, unknown, unknown];
+type FairPintEvidence = readonly [unknown, unknown, unknown];
 export type FairPintPin = { fairPint?: FairPintEvidence };
 export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
@@ -37,7 +37,7 @@ export function writeFairPint(pence: number, storage = safeLocalStorage()): void
   } catch {}
 }
 
-export { compactFairPintPayload, expandFairPintPin } from "@/lib/slimListingPrices.mjs";
+export { compactFairPintPayload } from "@/lib/slimListingPrices.mjs";
 
 let session = { active: false, pence: 550 };
 const activeListeners = new Set<() => void>();
