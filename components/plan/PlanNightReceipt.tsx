@@ -10,7 +10,7 @@ import { compositeActionSignal } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { formatPence } from "@/lib/formatGbp";
-import type { NightReceipt } from "@/lib/nightReceipt";
+import { readNightReceiptPayload, type NightReceipt } from "@/lib/nightReceipt";
 import type { CrawlEnding } from "@/lib/plan";
 import {
   parsePlanCapabilitySnapshot,
@@ -69,11 +69,6 @@ function usePlanCapabilitySnapshot(planId: string): string {
   );
 }
 
-function receiptFrom(body: unknown): NightReceipt | null {
-  const receipt = (body as { receipt?: Partial<NightReceipt> | null } | null)?.receipt;
-  return receipt && typeof receipt.title === "string" && Array.isArray(receipt.stops) ? receipt as NightReceipt : null;
-}
-
 /** The receipt this account may see, or null for any refusal or doubt. */
 async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signal: AbortSignal): Promise<NightReceipt | null> {
   try {
@@ -82,7 +77,7 @@ async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signa
       discardBody(response);
       return null;
     }
-    return receiptFrom(await response.json());
+    return readNightReceiptPayload(await response.json());
   } catch {
     return null;
   }

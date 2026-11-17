@@ -55,6 +55,38 @@ function isoOrNull(value: string): string | null {
   return Number.isFinite(time) ? new Date(time).toISOString() : null;
 }
 
+function receiptStop(value: unknown): value is NightReceiptStop {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const stop = value as Record<string, unknown>;
+  if (!Number.isSafeInteger(stop.position) || (stop.position as number) < 0
+    || typeof stop.venueName !== "string" || !stop.venueName.trim()) return false;
+  if (stop.price === null) return true;
+  if (!stop.price || typeof stop.price !== "object" || Array.isArray(stop.price)) return false;
+  const price = stop.price as Record<string, unknown>;
+  return typeof price.drink === "string" && price.drink.trim().length > 0
+    && Number.isSafeInteger(price.pence) && (price.pence as number) > 0
+    && price.source === "community" && typeof price.reportedAt === "string"
+    && isoOrNull(price.reportedAt) === price.reportedAt;
+}
+
+export function readNightReceiptPayload(value: unknown): NightReceipt | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const receipt = (value as { receipt?: unknown }).receipt;
+  if (!receipt || typeof receipt !== "object" || Array.isArray(receipt)) return null;
+  const row = receipt as Record<string, unknown>;
+  if (typeof row.title !== "string" || !row.title.trim() || row.paid !== "not_recorded"
+    || (row.plannedFor !== null && (typeof row.plannedFor !== "string" || isoOrNull(row.plannedFor) !== row.plannedFor))
+    || (row.ending !== null && !ENDINGS.includes(row.ending as CrawlEnding))
+    || !Array.isArray(row.stops) || !row.stops.every(receiptStop)) return null;
+  return {
+    title: row.title,
+    plannedFor: row.plannedFor,
+    stops: row.stops,
+    ending: row.ending as CrawlEnding | null,
+    paid: "not_recorded",
+  };
+}
+
 export function projectNightReceipt(input: {
   state: PlanState | null;
   role: PlanMemberRole | null;

@@ -60,8 +60,18 @@ let calls: Call[];
 let receiptAnswer: Answer;
 let root: Root;
 let container: HTMLDivElement;
+let bodyRead: Promise<unknown>;
 
-const json = (body: unknown, status = 200) => new Response(JSON.stringify(body), { status });
+const json = (body: unknown, status = 200) => {
+  const response = new Response(JSON.stringify(body), { status });
+  const decode = response.json.bind(response);
+  response.json = () => {
+    const consumed = decode();
+    bodyRead = consumed;
+    return consumed;
+  };
+  return response;
+};
 const refused = () => json({ error: "That receipt is private.", code: "PLAN_RECEIPT_FORBIDDEN", retryable: false }, 403);
 const ownerOnly: Answer = async ({ bearer }) => (bearer === `Bearer ${ACCOUNT_A.token}` ? json({ receipt: RECEIPT }) : refused());
 
@@ -81,15 +91,12 @@ async function show() {
 }
 
 async function settle() {
-  for (let turn = 0; turn < 5; turn += 1) {
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
+  await act(async () => { await bodyRead; });
 }
 
 beforeEach(() => {
   calls = [];
+  bodyRead = Promise.resolve();
   receiptAnswer = ownerOnly;
   planSession.role = "host";
   auth.account = ACCOUNT_A;
