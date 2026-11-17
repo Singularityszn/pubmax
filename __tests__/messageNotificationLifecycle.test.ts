@@ -2,12 +2,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
 const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: async (_url: string, init: RequestInit) => {
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authedFetch")>(), authedActionFetch: async (_url: string, init: RequestInit) => {
   if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
   return Response.json({ enabled: account.enabled });
 } }));
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
-import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
+import { restoreMessagePushAccount, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
 
 const unsubscribe = vi.fn(async () => true);
 const close = vi.fn();
@@ -33,6 +33,30 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it("ends a stalled preference save within three seconds and preserves caller cancellation", async () => {
+    vi.useFakeTimers();
+    const timeout = vi.spyOn(AbortSignal, "timeout").mockImplementation((milliseconds) => {
+      const controller = new AbortController();
+      setTimeout(() => controller.abort(new DOMException("Timed out", "TimeoutError")), milliseconds);
+      return controller.signal;
+    });
+    const controller = new AbortController();
+    const failed = vi.fn();
+    account.subscribe = (signal) => new Promise((_resolve, reject) => {
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+    const saving = saveMessageNotificationSetting({ action: "preferences", enabled: true, preview: false }, controller.signal).catch(failed);
+    try {
+      await vi.advanceTimersByTimeAsync(3_000);
+      expect(failed).toHaveBeenCalledWith(expect.objectContaining({ name: "TimeoutError" }));
+      expect(controller.signal.aborted).toBe(false);
+    } finally {
+      controller.abort();
+      await saving;
+      timeout.mockRestore();
+      vi.useRealTimers();
+    }
+  });
   it("restores ownership after A to B to A without another permission prompt", async () => {
     vi.stubGlobal("fetch", vi.fn(async () => { account.owner = ""; return Response.json({ ok: true }); }));
     account.enabled = true;
