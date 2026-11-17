@@ -132,6 +132,26 @@ describe("a signed-out reader opening the map", () => {
     await act(async () => { finish(); });
   });
 
+  it.each(["Tab", "Escape", "Shift", "ArrowDown"])("does not prepare sign-in while navigating with %s", async (key) => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    for (const control of container.querySelectorAll("input[type=email], .authProviders button")) {
+      await act(async () => control.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
+    }
+    expect(h.loads).toBe(0);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it.each(["Enter", " "])("prepares a provider button on %s activation", async (key) => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    await act(async () => container.querySelector(".authProviders button")!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
+    expect(h.loads).toBeGreaterThan(0);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
   it("does not repeat a confirmed negative resume probe on focus", async () => {
     await mount();
     expect(container.textContent).toBe("settled:signed-out");
