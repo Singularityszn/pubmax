@@ -344,7 +344,7 @@ test.describe("first ten ranking", () => {
     fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", error: "Unavailable." } });
     await openProfile(page, fixture);
     await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeVisible();
-    await expect(page.getByText("Your ranking is unavailable right now.")).toBeVisible();
+    await expect(page.locator("#passport-ranked").getByText("Your ranking is unavailable right now.")).toBeVisible();
     await expect(card(page)).toHaveCount(0);
     await page.getByRole("button", { name: "Try again" }).click();
     await expect(card(page)).toContainText("0 of 10 ranked");
