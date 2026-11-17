@@ -33,6 +33,7 @@ import {
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { GROUP_LEFT_LINE } from "@/lib/messageGroupThread";
 import {
   cleanPollOptions,
@@ -341,7 +342,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!sent) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
-  signalSent(id, sent.membership);
+  signalSent(id, sent.membership, sent.message);
   return jsonNoStore(
     { message: (await attachMessageAttachmentCards([sent.message]))[0] },
     { status: 201 },
@@ -549,10 +550,11 @@ const QUIET_WRITES: ReadonlyMap<
 function signalSent(
   conversationId: string,
   membership: ConversationMembership,
+  message?: import("@/lib/messages").MessageDTO,
 ): void {
-  deferMessagesSignal(() =>
-    broadcastMessageSent(conversationId, [...membership.handles]),
-  );
+  deferMessagesSignal(async () => {
+    await Promise.allSettled([broadcastMessageSent(conversationId, [...membership.handles]), ...(message ? [notifyMessageRecipients(message)] : [])]);
+  });
 }
 
 async function sendPhoto(
@@ -634,7 +636,7 @@ async function sendPhoto(
         });
       }
     }
-    signalSent(conversationId, sent.membership);
+    signalSent(conversationId, sent.membership, sent.message);
     return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {
     if (staged) {

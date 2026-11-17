@@ -54,7 +54,9 @@ vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }
 vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: (input: string, init?: RequestInit) =>
-    new Promise<Response>((resolve, reject) => {
+    String(input).startsWith("/api/message-notifications")
+      ? Promise.resolve(Response.json({ enabled: false, preview: false, muted: false, registered: false }))
+      : new Promise<Response>((resolve, reject) => {
       if (init?.method === "POST") transport.writes.push({ resolve, reject });
       else transport.reads.push({ url: String(input), resolve, reject });
     }),

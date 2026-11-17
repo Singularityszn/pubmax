@@ -3,12 +3,14 @@
 What each actor may do with a private Plan, a Social Crew, a private
 conversation and its attachment, a private Moment and its upload object, a
 photo tag, a save, a private league, a price observation and its confirmation,
-moderator actions, account deletion and the data export. The executable owner is
+moderator actions, account deletion and the data export. The core permission suite is
 `__tests__/permissionMatrixEffective.test.ts` (run by `npm run test:rls`): it
 boots PostgreSQL 16 plus PostgREST, applies every migration in production
-order, and asserts every cell below at the API route and, where a browser JWT
-could reach the table, at the table. Change a policy and change this file in
-the same commit.
+order, and checks API access and table access where a browser JWT could reach
+the table. Message-alert checks live in `__tests__/messageNotificationRoute.test.ts`,
+`__tests__/messageNotifications.test.ts` and
+`__tests__/messageNotificationsMigrationEffective.test.ts`.
+Change a policy and change this file in the same commit.
 
 **Why the route door carries the weight.** Astra's delta audit (6 September
 2026, F07) read the Supabase advisor and reported `rls_enabled_no_policy` on a
@@ -160,6 +162,10 @@ no side effect, as above.
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
+| Message alert preferences (`/api/message-notifications`) | 401 | own preferences only | own preferences only | n/a | own preferences only | n/a | A thread mute requires current membership. An asserted user id never selects the owner. |
+| Release a message device (`DELETE /api/message-notifications`) | denied without the complete subscription secret and binding session id | same | same | device secret and binding session id only | same | same | Possession releases only the exact stored token and session binding. It returns no account data. |
+| Resolve a notification preview (`PUT /api/message-notifications`) | no preview | live verified device session and exact subscription secret | same | current device binding only | same | same | The auth.sessions row, device session, recipient and delivery claim must match. Current consent, membership, message state, blocks and mutes are checked again. Transport payloads contain no private preview text. |
+| `message_notification_preferences`, `message_push_subscriptions`, `message_notification_mutes`, `message_notification_claims` at the table | denied | denied | denied | n/a | denied | denied | Service role only. Consent starts disabled. Account deletion removes subscriptions, preferences, mutes and claims. |
 | `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). |
 | Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
 | Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |

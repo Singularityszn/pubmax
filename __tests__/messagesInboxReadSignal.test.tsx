@@ -57,6 +57,8 @@ vi.mock("@/lib/authedFetch", () => ({
 import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -79,6 +81,7 @@ function mount(): Promise<void> {
 }
 
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   fetches.calls = 0;
   fetches.held = false;

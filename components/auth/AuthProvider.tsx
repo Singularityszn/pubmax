@@ -47,6 +47,8 @@ import {
   type AccountAuthSnapshot,
 } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
+import { releaseMessagePush } from "@/lib/messageNotificationLifecycle";
+import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
 import { stopLiveLocationBeforeAccountDeparture } from "@/lib/planLiveLocationShare";
 import { isUserSignUp } from "@/lib/userSignedUp";
 import {
@@ -1536,6 +1538,7 @@ export function AuthProvider({
   const signOut = useCallback(
     async (scope: SignOutScope = "account"): Promise<void> => {
       const departing = sessionTransitions.current.currentUserId();
+      await releaseMessagePush().catch(() => undefined);
       await stopLiveLocationBeforeAccountDeparture();
       releaseDeviceAccountOwner(browserLocalStorage(), browserSessionStorage());
       updateSession(null, "SIGNED_OUT");
@@ -1589,7 +1592,14 @@ export function AuthProvider({
       if (userId === sessionTransitions.current.currentUserId()) {
         return { status: "switched", userId };
       }
-      const outcome = await activateRememberedAccount(userId);
+      await releaseMessagePush().catch(() => undefined);
+      let outcome: DeviceAccountSwitchOutcome;
+      try {
+        outcome = await activateRememberedAccount(userId);
+      } finally {
+        const current = sessionTransitions.current.currentUserId();
+        if (current && current !== userId) void restoreMessagePushAccount(new AbortController().signal, current).catch(() => undefined);
+      }
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;
     },
