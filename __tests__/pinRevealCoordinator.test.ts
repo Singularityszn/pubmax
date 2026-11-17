@@ -38,6 +38,7 @@ function harness({
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
+  let localPinsPreferred = preferLocalPins;
   let nextId = 1;
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
@@ -55,7 +56,7 @@ function harness({
     hasBasemapPainted: () => basemapPainted,
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
-    preferLocalPins,
+    preferLocalPins: localPinsPreferred,
     confirmVisibleFrameBeforeReveal,
     compositeConfirmFrames,
     scheduleFrame: (callback) => {
@@ -104,6 +105,7 @@ function harness({
 
   return {
     coordinator,
+    setPreferLocalPins(value: boolean) { localPinsPreferred = value; },
     visibility,
     reveals,
     timeoutRecoveries,
@@ -456,6 +458,21 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
     h.fireFrame();
     expect(h.reveals).toEqual([]);
+    h.fireFrame();
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("adopts a fixed walk that arrives after map construction", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.setPreferLocalPins(true);
+    h.fireRender();
+    expect(h.visibility).toEqual([false, true]);
+    h.fireRender();
+    h.fireFrame();
     h.fireFrame();
     expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
   });
