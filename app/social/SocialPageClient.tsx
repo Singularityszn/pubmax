@@ -498,7 +498,10 @@ function SocialPageAccountState({
     return () => { committedFeed.current = null; };
   }, [user?.id, accountRevision, feedSnapshotPrefix, feedSnapshotKey, initialState, access, identityResolved]);
   const requestExplicitFeedRefresh = useCallback(() => {
+    if (!feedSnapshotKey || feedPending.current || moreController.current) return;
+    feedPending.current = true;
     explicitFeedRefreshKey.current = feedSnapshotKey;
+    setRefreshing(true);
     setFeedAttempt(value => value + 1);
   }, [feedSnapshotKey]);
   const denyFeed = useCallback(() => {
@@ -668,10 +671,10 @@ function SocialPageAccountState({
       setPosts(held?.posts ?? []);
       setNextCursor(held?.nextCursor ?? null);
       setLoadedPages(held?.pages ?? 0);
-      setFeedStatus(current => held ? (sameWindow && current === "error" ? "error" : "ready") : "loading");
+      setFeedStatus(current => (sameWindow || replaceDeepWindow) && current === "error" ? "error" : held ? "ready" : "loading");
       setLoadingMore(false);
       setRefreshing(!keepDeepWindow);
-      setQuietFeedFailure(false);
+      if (!sameWindow) setQuietFeedFailure(false);
       if (!sameWindow) setNewPostsWaiting(false);
       if (!sameWindow) setMoreFailed(false);
     });
@@ -690,6 +693,7 @@ function SocialPageAccountState({
         setLoadedPages(page.pages);
         if (!page.nextCursor || previous?.nextCursor !== page.nextCursor) setMoreFailed(false);
         setFeedStatus("ready");
+        setQuietFeedFailure(false);
         setNewPostsWaiting(false);
       })
       .catch((error: unknown) => {
@@ -697,7 +701,10 @@ function SocialPageAccountState({
           return;
         if (!controller.signal.aborted && feedRequestId.current === requestId) {
           if (error instanceof SocialFeedDenied) denyFeed();
-          else setFeedStatus("error");
+          else if (previous?.posts.length === 0) {
+            setQuietFeedFailure(true);
+            setFeedStatus("ready");
+          } else setFeedStatus("error");
         }
       })
       .finally(() => {
@@ -1190,7 +1197,7 @@ function SocialPageAccountState({
               {quietFeedFailure || (feedStatus === "error" && posts.length > 0) ? (
                 <p className="socialFeedInlineError" role="status">
                   Couldn&rsquo;t refresh these posts. They show what loaded last.
-                  <Button type="button" variant="secondary" onClick={requestExplicitFeedRefresh}>Retry</Button>
+                  <Button type="button" variant="secondary" aria-disabled={refreshing || loadingMore} aria-busy={refreshing} onClick={requestExplicitFeedRefresh}>Retry</Button>
                 </p>
               ) : null}
               {feedStatus === "loading" && posts.length === 0 ? (
@@ -1202,6 +1209,8 @@ function SocialPageAccountState({
                     action={
                       <button
                         type="button"
+                        aria-disabled={refreshing || loadingMore}
+                        aria-busy={refreshing}
                         onClick={requestExplicitFeedRefresh}
                       >
                         Retry

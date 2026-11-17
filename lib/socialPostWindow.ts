@@ -18,9 +18,12 @@ function samePostValue(left: unknown, right: unknown): boolean {
     keys.every(key => Object.hasOwn(b, key) && samePostValue(a[key], b[key]));
 }
 
+function comparePosts(left: SocialPostDTO, right: SocialPostDTO): number {
+  return Date.parse(right.createdAt) - Date.parse(left.createdAt) || right.id.localeCompare(left.id);
+}
+
 export function chronological(posts: SocialPostDTO[]): SocialPostDTO[] {
-  return [...posts].sort((left, right) =>
-    Date.parse(right.createdAt) - Date.parse(left.createdAt) || right.id.localeCompare(left.id));
+  return [...posts].sort(comparePosts);
 }
 
 export async function readSocialPostWindow(
@@ -63,15 +66,18 @@ export async function readSocialPostHead(
 }
 
 export function mergeSocialPostHead(current: SocialPostWindow, head: SocialPostPage): SocialPostWindow {
-  const byId = new Map(current.posts.map(post => [post.id, post]));
+  const boundary = chronological(head.posts).at(-1);
+  const retained = head.nextCursor
+    ? current.posts.filter(post => !boundary || comparePosts(post, boundary) > 0) : [];
+  const currentById = new Map(current.posts.map(post => [post.id, post]));
+  const byId = new Map(retained.map(post => [post.id, post]));
   for (const post of head.posts) {
-    const held = byId.get(post.id);
-    if (held && samePostValue(held, post)) continue;
-    byId.set(post.id, post);
+    const held = currentById.get(post.id);
+    byId.set(post.id, held && samePostValue(held, post) ? held : post);
   }
   const posts = chronological([...byId.values()]);
-  const nextCursor = current.posts.length ? current.nextCursor : head.nextCursor;
+  const nextCursor = retained.length ? current.nextCursor : head.nextCursor;
   if (nextCursor === current.nextCursor && posts.length === current.posts.length &&
     posts.every((post, index) => post === current.posts[index])) return current;
-  return { ...current, posts, nextCursor, pages: Math.max(current.pages, Math.ceil(posts.length / SOCIAL_POST_PAGE_SIZE)) };
+  return { ...current, posts, nextCursor, pages: Math.max(retained.length ? current.pages : 1, Math.ceil(posts.length / SOCIAL_POST_PAGE_SIZE)) };
 }

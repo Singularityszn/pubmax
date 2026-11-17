@@ -703,12 +703,49 @@ it("keeps unchanged record identities and the browsing cursor on head reconcilia
 });
 
 it("accounts for automatically accumulated rows when protecting a deep window", () => {
-  const batch = (n: number) => Array.from({ length: 20 }, (_, i) => feedPost(`Batch ${n} row ${i}`, 12));
+  const batch = (n: number) => Array.from({ length: 20 }, (_, i) => feedPost(`Batch ${n} row ${i}`, 12 + n));
   let window: SocialPostWindow = { posts: batch(0), pages: 1, nextCursor: "original-continuation" };
   for (let n = 1; n <= 3; n++) window = mergeSocialPostHead(window, { posts: batch(n), nextCursor: `head-${n}` });
   expect(window.posts).toHaveLength(80);
   expect(window.pages).toBe(4);
   expect(window.nextCursor).toBe("original-continuation");
+});
+
+it.each([null, "old-continuation"])("removes withdrawn posts and exhausted continuation %s", nextCursor => {
+  const current = { posts: [feedPost("Withdrawn", 12), feedPost("Deleted", 11)], pages: 2, nextCursor };
+  const empty = mergeSocialPostHead(current, { posts: [], nextCursor: null });
+  expect(empty.posts).toEqual([]);
+  expect(empty.nextCursor).toBeNull();
+  const remaining = feedPost("Remaining", 11);
+  const exhausted = mergeSocialPostHead(current, { posts: [remaining], nextCursor: null });
+  expect(exhausted.posts).toEqual([remaining]);
+  expect(exhausted.nextCursor).toBeNull();
+});
+
+it.each([null, "older-continuation"])("reconciles timestamp ties while preserving untouched older rows and cursor %s", nextCursor => {
+  const first = feedPost("z", 12), withdrawn = feedPost("y", 12), boundary = feedPost("m", 12);
+  const olderTie = feedPost("a", 12), older = feedPost("Older", 11);
+  const current = { posts: [first, withdrawn, boundary, olderTie, older], pages: 3, nextCursor };
+  const merged = mergeSocialPostHead(current, { posts: [{ ...first }, { ...boundary }], nextCursor: "head-continuation" });
+  expect(merged.posts).toEqual([first, boundary, olderTie, older]);
+  expect(merged.posts[0]).toBe(first);
+  expect(merged.posts[2]).toBe(olderTie);
+  expect(merged.nextCursor).toBe(nextCursor);
+  expect(merged.pages).toBe(3);
+});
+
+it("uses the head continuation when the refreshed range covers the held window", () => {
+  const first = feedPost("First", 12), withdrawn = feedPost("Withdrawn", 13);
+  const merged = mergeSocialPostHead({ posts: [withdrawn, first], pages: 1, nextCursor: null }, {
+    posts: [first], nextCursor: "fresh-continuation",
+  });
+  expect(merged.posts).toEqual([first]);
+  expect(merged.nextCursor).toBe("fresh-continuation");
+});
+
+it("retains rows when an unexhausted empty page gives no refreshed boundary", () => {
+  const current = { posts: [feedPost("Held", 12)], pages: 1, nextCursor: "held-continuation" };
+  expect(mergeSocialPostHead(current, { posts: [], nextCursor: "scan-continuation" })).toBe(current);
 });
 
 it("accepts authoritative same-version venue redaction and nested profile changes", () => {
@@ -747,6 +784,45 @@ it("keeps a known empty feed failure polite and offers recovery", async () => {
   failed = false;
   await act(async () => retry.click());
   expect(host.querySelector(".socialFeedInlineError")).toBeNull();
+});
+
+it.each(["cold", "populated", "empty"])("keeps %s Retry focused and coalesces pending recovery", async surface => {
+  let phase: "initial" | "failure" | "held" | "recovered" = surface === "cold" ? "failure" : "initial";
+  const pending: { resolve: (response: Response) => void; signal: AbortSignal }[] = [];
+  transport.request.mockImplementation(async (href: string, init: RequestInit) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    if (phase === "held") return new Promise<Response>(resolve => pending.push({ resolve, signal: init.signal as AbortSignal }));
+    if (phase === "failure") return Response.json({}, { status: 503 });
+    return Response.json({ posts: surface === "empty" && phase === "initial" ? [] : [feedPost("Recovered post", 12)], nextCursor: null });
+  });
+  await mountFeed();
+  if (surface !== "cold") {
+    phase = "failure";
+    await act(async () => window.dispatchEvent(new Event("focus")));
+  }
+  const retry = host.querySelector<HTMLButtonElement>(surface === "cold" ? ".socialFeedError button" : ".socialFeedInlineError button")!;
+  const notice = retry.parentElement;
+  retry.focus();
+  phase = "held";
+  await act(async () => { retry.click(); retry.click(); });
+  expect(pending).toHaveLength(1);
+  expect(retry.isConnected).toBe(true);
+  expect(document.activeElement).toBe(retry);
+  expect(retry.getAttribute("aria-disabled")).toBe("true");
+  await act(async () => retry.click());
+  expect(pending).toHaveLength(1);
+  expect(pending[0]!.signal.aborted).toBe(false);
+  await act(async () => pending[0]!.resolve(Response.json({}, { status: 503 })));
+  expect(retry.isConnected).toBe(true);
+  expect(retry.parentElement).toBe(notice);
+  expect(document.activeElement).toBe(retry);
+  expect(retry.getAttribute("aria-disabled")).toBe("false");
+  if (surface === "empty") expect(host.querySelector('.socialFeedInlineError[role="status"]')).not.toBeNull();
+  phase = "recovered";
+  await act(async () => retry.click());
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
+  expect(host.querySelector(".socialFeedInlineError, .socialFeedError")).toBeNull();
 });
 
 it.each([30, 200])("keeps a feed contiguous after %s posts arrive between heads", async arrival => {
