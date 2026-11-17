@@ -11,6 +11,7 @@ import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   parsePlanCapabilitySnapshot,
+  planAccountClaimEvent,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
   restorePlanCapability,
@@ -95,6 +96,9 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
           );
           const retryableStatus = response.status === 429 || response.status === 503;
           discardBody(response);
+          if (response.ok && !cancelled && !actionSignal.aborted) {
+            window.dispatchEvent(new Event(planAccountClaimEvent(id)));
+          }
           if (response.ok || !retryableStatus) return;
         } catch {
           // A session or network race gets the same bounded retry as a 503.

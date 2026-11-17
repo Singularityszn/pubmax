@@ -14,6 +14,7 @@ import { readNightReceiptPayload, type NightReceipt } from "@/lib/nightReceipt";
 import type { CrawlEnding } from "@/lib/plan";
 import {
   parsePlanCapabilitySnapshot,
+  planAccountClaimEvent,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
 } from "@/lib/planSessionCapability";
@@ -83,19 +84,22 @@ async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signa
   }
 }
 
-function useReturnCount(): number {
+function useRecheckCount(planId: string): number {
   const [count, setCount] = useState(0);
   useEffect(() => {
     const recheck = () => {
       if (document.visibilityState !== "hidden") setCount((current) => current + 1);
     };
     window.addEventListener("focus", recheck);
+    const claimed = planAccountClaimEvent(planId);
+    window.addEventListener(claimed, recheck);
     document.addEventListener("visibilitychange", recheck);
     return () => {
       window.removeEventListener("focus", recheck);
+      window.removeEventListener(claimed, recheck);
       document.removeEventListener("visibilitychange", recheck);
     };
-  }, []);
+  }, [planId]);
   return count;
 }
 
@@ -159,7 +163,7 @@ function Receipt({ receipt }: { receipt: NightReceipt }) {
 function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId: string; accessToken: string }) {
   const capability = usePlanCapabilitySnapshot(planId);
   const { role } = parsePlanCapabilitySnapshot(capability);
-  const returns = useReturnCount();
+  const returns = useRecheckCount(planId);
   const [shown, setShown] = useState<{ capability: string; receipt: NightReceipt } | null>(null);
   useEffect(() => {
     if (role !== "host") return;

@@ -80,6 +80,10 @@ export function planCapabilityEvent(planId: string): string {
   return `pubmax-plan-member-change:${planId}`;
 }
 
+export function planAccountClaimEvent(planId: string): string {
+  return `pubmax-plan-account-claim:${planId}`;
+}
+
 export function readPlanCapabilitySnapshot(planId: string): string {
   const fallback = volatile.get(planId);
   return fallback ? `${fallback.token}|${fallback.collaborationAuthorized ? "1" : "0"}|${fallback.role ?? ""}` : "|0|";

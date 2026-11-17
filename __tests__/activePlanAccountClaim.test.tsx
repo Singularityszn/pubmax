@@ -42,7 +42,8 @@ vi.mock("@/lib/authRedirect", () => ({
 vi.mock("@/lib/crewRealtime", () => ({
   subscribeToPlanCrew: vi.fn(() => () => {}),
 }));
-vi.mock("@/lib/planSessionCapability", () => ({
+vi.mock("@/lib/planSessionCapability", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/planSessionCapability")>()),
   parsePlanCapabilitySnapshot: () => ({
     token: "",
     collaborationAuthorized: true,
