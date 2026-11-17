@@ -55,13 +55,20 @@ async function londonPub(venueId: string): Promise<"listed" | "missing" | "unava
 }
 
 async function datedPrice(venueId: string, nowMs: number): Promise<FeaturedOpenTable["price"]> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    const detail = await lookupVenueDetail(venueId);
-    if (detail.status !== "found" || detail.venue.id !== venueId) return null;
+    // The detail reader cannot be cancelled. Its late answer must not delay Social.
+    const detail = await Promise.race([
+      lookupVenueDetail(venueId),
+      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 1500); }),
+    ]);
+    if (!detail || detail.status !== "found" || detail.venue.id !== venueId) return null;
     const evidence = selectSummonPrice(detail.venue, nowMs);
     return evidence ? { sentence: summonPriceSentence(evidence), sourceUrl: evidence.sourceUrl } : null;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -71,7 +78,7 @@ export async function loadFeaturedOpenTable(
 ): Promise<FeaturedOpenTableResult> {
   if (!selection) return { status: "not-configured" };
   if (!validSelection(selection)) return MISSING;
-  const preview = await loadOpenCrawlPublicPreview(selection.crewId);
+  const preview = await loadOpenCrawlPublicPreview(selection.crewId, { includePrices: false });
   if (!preview.ok) return preview.reason === "unavailable" ? UNAVAILABLE : MISSING;
 
   const { card, meetingVenueId, singleStopVenueId } = preview;

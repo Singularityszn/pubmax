@@ -167,8 +167,14 @@ export async function loadOpenCrawlShareCard(
   return loadOpenCrawl(crewId, dependencies, false);
 }
 
-export async function loadOpenCrawlPublicPreview(crewId: string): Promise<OpenCrawlShareCardResult> {
-  return loadOpenCrawl(crewId, DEFAULTS, true);
+export async function loadOpenCrawlPublicPreview(
+  crewId: string,
+  options: { includePrices?: boolean } = {},
+): Promise<OpenCrawlShareCardResult> {
+  const dependencies = options.includePrices === false
+    ? { ...DEFAULTS, listedPint: async () => null }
+    : DEFAULTS;
+  return loadOpenCrawl(crewId, dependencies, true);
 }
 
 async function loadOpenCrawl(
