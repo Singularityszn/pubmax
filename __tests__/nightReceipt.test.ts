@@ -7,9 +7,40 @@ const auth = vi.hoisted(() => ({
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+// A durable store whose rows the test sets. Off by default: the memory store runs.
+const durable = vi.hoisted(() => {
+  const state = {
+    configured: false,
+    seats: [] as Array<{ id: string; token_hash: string; joined_at: string; can_collaborate: boolean }>,
+    hostRead: { data: null, error: null } as { data: unknown; error: unknown },
+  };
+  const admin = () => ({
+    from: (table: string) => {
+      let columns = "";
+      const query = {
+        select: (selected: string) => { columns = selected; return query; },
+        eq: () => query,
+        is: () => query,
+        order: () => query,
+        limit: () => query,
+        maybeSingle: async () => table === "plans"
+          ? { data: { id: "plan" }, error: null }
+          : columns === "user_id" ? state.hostRead : { data: null, error: { message: `unexpected read ${columns}` } },
+        then: (resolve: (value: unknown) => unknown) => resolve({ data: state.seats, error: null }),
+      };
+      return query;
+    },
+  });
+  return { state, admin };
+});
+
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => durable.state.configured,
+    requireSupabaseAdmin: () => durable.admin(),
+  };
 });
 vi.mock("@/lib/storeBackend", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/storeBackend")>();
@@ -27,7 +58,7 @@ import type { PlanMemberRole, PlanState } from "@/lib/plan";
 import { projectNightReceipt } from "@/lib/nightReceipt";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberCookieName } from "@/lib/planMemberCapability";
-import { __resetMemoryPlans, memoryPlanStore, planMemberIdentity, planStore } from "@/lib/planStore";
+import { __resetMemoryPlans, hashPlanMemberToken, memoryPlanStore, planMemberIdentity, planStore } from "@/lib/planStore";
 
 const MATE_NAME = "Priya the Pal";
 const HOST_NAME = "Sam Host";
@@ -237,6 +268,7 @@ describe("the account-bound Night Receipt read", () => {
     __resetMemoryPlans();
     auth.status = "absent";
     auth.userId = "";
+    durable.state.configured = false;
   });
 
   it("gives the bound host account its private receipt and nothing about the crew", async () => {
@@ -356,5 +388,41 @@ describe("the account-bound Night Receipt read", () => {
     }
     expect(preview.status).toBe(200);
     expect(await preview.json()).toMatchObject({ visibility: "preview" });
+  });
+
+  describe("against the durable Plan store", () => {
+    const planId = "dddddddd-dddd-4ddd-8ddd-dddddddddddd";
+    const hostToken = "durable-host-capability";
+
+    beforeEach(() => {
+      durable.state.configured = true;
+      durable.state.seats = [{
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        token_hash: hashPlanMemberToken(hostToken),
+        joined_at: "2026-11-10T12:00:00.000Z",
+        can_collaborate: true,
+      }];
+      signedIn(ACCOUNT_A);
+    });
+
+    it("fails closed and retryable when the host account cannot be read", async () => {
+      durable.state.hostRead = { data: null, error: { message: "canceling statement due to statement timeout" } };
+
+      const response = await receiptRead(planId, hostToken);
+      expect(response.status).toBe(503);
+      expect(response.headers.get("cache-control")).toBe("no-store");
+      const body = await response.json();
+      expect(body).toMatchObject({ retryable: true });
+      expect(body).not.toHaveProperty("receipt");
+    });
+
+    it("still refuses an unclaimed host or another account's host seat", async () => {
+      for (const userId of [null, ACCOUNT_B]) {
+        durable.state.hostRead = { data: { user_id: userId }, error: null };
+        const response = await receiptRead(planId, hostToken);
+        expect(response.status, String(userId)).toBe(403);
+        expect(await response.json()).not.toHaveProperty("receipt");
+      }
+    });
   });
 });
