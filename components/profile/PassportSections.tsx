@@ -30,6 +30,9 @@ import {
 } from "@/lib/profilePassport";
 import {
   heldRanking,
+  retiredFocusRequest,
+  retryFocusRequest,
+  retryingRanking,
   startRankingCheckpoint,
   transitionRankingCheckpoint,
   type RankingCheckpointEvent,
@@ -177,12 +180,12 @@ function RankedSection({ account, handle }: { account: string; handle: string })
     return () => controller.abort();
   }, [request, send]);
 
-  const afterRetry = state.phase === "ready" && state.afterRetry ? state.request : null;
+  const afterRetry = retryFocusRequest(state);
   useLayoutEffect(() => {
     if (afterRetry !== null) headingRef.current?.focus();
   }, [afterRetry]);
 
-  const retired = state.phase === "refused" && state.retired ? state.request : null;
+  const retired = retiredFocusRequest(state);
   useEffect(() => {
     if (retired === null) return;
     // A closing comparison hands the page back in a microtask.
@@ -192,7 +195,7 @@ function RankedSection({ account, handle }: { account: string; handle: string })
   // Nothing read for one account is shown under another, even for one render.
   if ((user?.id ?? "") !== account) return null;
   const held = heldRanking(state);
-  const retrying = state.phase === "reading" && state.retrying;
+  const retrying = retryingRanking(state);
   // The first read of a page says nothing until it has something to say.
   const quiet = state.phase === "ready" || state.phase === "refused" || (state.phase === "reading" && held === null && !retrying);
   const statusText = quiet ? "" : state.phase === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…";

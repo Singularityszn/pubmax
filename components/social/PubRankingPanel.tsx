@@ -12,6 +12,9 @@ import { authedFetch } from "@/lib/authedFetch";
 import { panelMineOutcome, type PanelPart } from "@/lib/pubRankingPanelRead";
 import {
   heldRanking,
+  retiredFocusRequest,
+  retryFocusRequest,
+  retryingRanking,
   startRankingCheckpoint,
   transitionRankingCheckpoint,
   type RankingCheckpointEvent,
@@ -75,6 +78,76 @@ function entriesOf<T>(body: unknown): T[] | null {
 }
 
 /**
+ * Reads one scope of the panel and answers as soon as the reads prove
+ * something (lib/pubRankingPanelRead.ts). A later definite refusal still answers.
+ */
+function readPanel(
+  scope: Scope,
+  signal: AbortSignal,
+  answer: (outcome: RankingReadOutcome<Loaded>) => void,
+  refusal: () => RankingReadOutcome<Loaded>,
+): void {
+  if (scope === "lot") {
+    void readPart("/api/social/reviews?limit=50&scope=lot", signal, entriesOf<SocialLotRankingEntry>).then((lot) => {
+      if (lot.kind === "ok") answer({ kind: "data", data: { scope, rows: starRows(lot.value), compared: [] } });
+      else if (lot.kind === "refused") answer(refusal());
+      else if (lot.kind === "unavailable") answer({ kind: "unavailable" });
+    });
+    return;
+  }
+  let rankings: PanelPart<SocialPubRankingEntry[]> = { kind: "pending" };
+  let reviews: PanelPart<StarEntry[]> = { kind: "pending" };
+  const settle = () => {
+    const outcome = panelMineOutcome(rankings, reviews);
+    switch (outcome.kind) {
+      case "wait":
+        return;
+      case "refused":
+        answer(refusal());
+        return;
+      case "unavailable":
+        answer({ kind: "unavailable" });
+        return;
+      case "compared":
+        answer({ kind: "data", data: { scope, rows: comparedRows(outcome.entries), compared: outcome.entries } });
+        return;
+      case "stars":
+        answer({ kind: "data", data: { scope, rows: starRows(outcome.stars), compared: [] } });
+        return;
+      default: {
+        const unreachable: never = outcome;
+        return unreachable;
+      }
+    }
+  };
+  void readPart("/api/social/rankings", signal, socialPubRankingPayload).then((part) => { rankings = part; settle(); });
+  void readPart("/api/social/reviews?limit=50&scope=mine", signal, entriesOf<StarEntry>).then((part) => { reviews = part; settle(); });
+}
+
+function PanelRows({ rows, scope }: { rows: Row[]; scope: Scope }) {
+  return (
+    <ol>
+      {rows.map((row, index) => (
+        <li key={row.venueId}>
+          <span className="pubRanking__place" aria-hidden="true">{index + 1}</span>
+          <span className="pubRanking__what">
+            <Link prefetch={false} href={`/pubs/${encodeURIComponent(row.venueId)}` as Route} className="pubRanking__name">
+              {row.venueName ?? "A pub you ranked"}
+            </Link>
+            {row.note ? <span className="pubRanking__note">{row.note}</span> : null}
+          </span>
+          {row.score !== null ? (
+            <span className="pubRanking__score" aria-label={`${row.score.toFixed(1)} out of 10`}>{row.score.toFixed(1)}</span>
+          ) : row.stars !== null ? (
+            <ReviewStars rating={row.stars} size={14} label={scope === "lot" ? `Your lot average ${row.stars} out of 5` : undefined} />
+          ) : null}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+/**
  * Your pubs, ranked, the way a review app keeps them. Yours is the order you
  * built by answering "which did you prefer?", each pub with a 0-10 figure
  * from its band and place; until you have compared any, it falls back to the
@@ -129,51 +202,17 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
     void (async () => {
       // A save the dialog never confirmed settles before the list is read.
       await pendingWrite.current;
-      if (controller.signal.aborted) return;
-      if (readScope === "lot") {
-        const lot = await readPart("/api/social/reviews?limit=50&scope=lot", controller.signal, entriesOf<SocialLotRankingEntry>);
-        if (lot.kind === "ok") answer({ kind: "data", data: { scope: readScope, rows: starRows(lot.value), compared: [] } });
-        else if (lot.kind === "refused") answer(refusal());
-        else if (lot.kind === "unavailable") answer({ kind: "unavailable" });
-        return;
-      }
-      let rankings: PanelPart<SocialPubRankingEntry[]> = { kind: "pending" };
-      let reviews: PanelPart<StarEntry[]> = { kind: "pending" };
-      const settle = () => {
-        const outcome = panelMineOutcome(rankings, reviews);
-        switch (outcome.kind) {
-          case "wait":
-            return;
-          case "refused":
-            answer(refusal());
-            return;
-          case "unavailable":
-            answer({ kind: "unavailable" });
-            return;
-          case "compared":
-            answer({ kind: "data", data: { scope: readScope, rows: comparedRows(outcome.entries), compared: outcome.entries } });
-            return;
-          case "stars":
-            answer({ kind: "data", data: { scope: readScope, rows: starRows(outcome.stars), compared: [] } });
-            return;
-          default: {
-            const unreachable: never = outcome;
-            return unreachable;
-          }
-        }
-      };
-      void readPart("/api/social/rankings", controller.signal, socialPubRankingPayload).then((part) => { rankings = part; settle(); });
-      void readPart("/api/social/reviews?limit=50&scope=mine", controller.signal, entriesOf<StarEntry>).then((part) => { reviews = part; settle(); });
+      if (!controller.signal.aborted) readPanel(readScope, controller.signal, answer, refusal);
     })();
     return () => controller.abort();
   }, [request, sampled, send]);
 
-  const afterRetry = state.phase === "ready" && state.afterRetry ? state.request : null;
+  const afterRetry = retryFocusRequest(state);
   useLayoutEffect(() => {
     if (afterRetry !== null) headingRef.current?.focus();
   }, [afterRetry]);
 
-  const retired = state.phase === "refused" && state.retired ? state.request : null;
+  const retired = retiredFocusRequest(state);
   useEffect(() => {
     if (retired === null) return;
     // A closing comparison hands the page back in a microtask.
@@ -190,7 +229,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
   }
   const phase = state.phase;
   const held = heldRanking(state);
-  const retrying = phase === "reading" && state.retrying;
+  const retrying = retryingRanking(state);
   const rows = sampled ? [] : held?.scope === scope ? held.rows : null;
   const visible = rows ? (showAll ? rows : rows.slice(0, SHOWN)) : [];
   return (
@@ -222,26 +261,7 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
             : "When your lot score the pubs they post about, their favourites land here."}
         </p>
       ) : null}
-      {rows && rows.length > 0 ? (
-        <ol>
-          {visible.map((row, index) => (
-            <li key={row.venueId}>
-              <span className="pubRanking__place" aria-hidden="true">{index + 1}</span>
-              <span className="pubRanking__what">
-                <Link prefetch={false} href={`/pubs/${encodeURIComponent(row.venueId)}` as Route} className="pubRanking__name">
-                  {row.venueName ?? "A pub you ranked"}
-                </Link>
-                {row.note ? <span className="pubRanking__note">{row.note}</span> : null}
-              </span>
-              {row.score !== null ? (
-                <span className="pubRanking__score" aria-label={`${row.score.toFixed(1)} out of 10`}>{row.score.toFixed(1)}</span>
-              ) : row.stars !== null ? (
-                <ReviewStars rating={row.stars} size={14} label={scope === "lot" ? `Your lot average ${row.stars} out of 5` : undefined} />
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      ) : null}
+      {rows && rows.length > 0 ? <PanelRows rows={visible} scope={scope} /> : null}
       {rows && rows.length > SHOWN ? (
         <button type="button" className="pubRanking__more" onClick={() => setShowAll((value) => !value)}>
           {showAll ? "Show the top 5" : `Show all ${rows.length}`}

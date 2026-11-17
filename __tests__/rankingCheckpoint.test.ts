@@ -3,9 +3,13 @@ import { describe, expect, it } from "vitest";
 import { panelMineOutcome, type PanelPart } from "@/lib/pubRankingPanelRead";
 import {
   heldRanking,
+  retiredFocusRequest,
+  retryFocusRequest,
+  retryingRanking,
   startRankingCheckpoint,
   transitionRankingCheckpoint,
   type RankingCheckpoint,
+  type RankingCheckpointEvent,
 } from "@/lib/rankingCheckpoint";
 
 type List = string[];
@@ -77,7 +81,19 @@ describe("ranking checkpoint transitions", () => {
     ["opening a session while reading", reading, { type: "session_opened" }],
     ["opening a session that is open", open, { type: "session_opened" }],
   ] as const)("refuses %s with the same state", (_label, from, event) => {
-    expect(transitionRankingCheckpoint(from as RankingCheckpoint<List>, event)).toBe(from);
+    expect(transitionRankingCheckpoint(from as RankingCheckpoint<List>, event as RankingCheckpointEvent<List>)).toBe(from);
+  });
+});
+
+describe("ranking checkpoint selectors", () => {
+  it("names a retry in flight and each heading focus once, by request", () => {
+    const retry = transitionRankingCheckpoint(unavailable, { type: "read", retrying: true });
+    expect(retryingRanking(retry)).toBe(true);
+    expect(retryingRanking(reading)).toBe(false);
+    expect(retryFocusRequest(transitionRankingCheckpoint(retry, { type: "answered", request: 2, outcome: { kind: "data", data: [] } }))).toBe(2);
+    expect(retryFocusRequest(ready)).toBeNull();
+    expect(retiredFocusRequest({ phase: "refused", request: 3, retired: true })).toBe(3);
+    expect(retiredFocusRequest({ phase: "refused", request: 3, retired: false })).toBeNull();
   });
 });
 

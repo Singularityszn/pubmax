@@ -50,6 +50,21 @@ export function heldRanking<T>(state: RankingCheckpoint<T>): T | null {
   }
 }
 
+/** A read the reader asked for again, while it is out. */
+export function retryingRanking<T>(state: RankingCheckpoint<T>): boolean {
+  return state.phase === "reading" && state.retrying;
+}
+
+/** The request whose retry just answered with a list: its heading takes focus once. */
+export function retryFocusRequest<T>(state: RankingCheckpoint<T>): number | null {
+  return state.phase === "ready" && state.afterRetry ? state.request : null;
+}
+
+/** The refusal that reached a reader inside the section: its heading takes focus once. */
+export function retiredFocusRequest<T>(state: RankingCheckpoint<T>): number | null {
+  return state.phase === "refused" && state.retired ? state.request : null;
+}
+
 function refused<T>(state: RankingCheckpoint<T>, retired: boolean): RankingCheckpoint<T> {
   return { phase: "refused", request: state.request + 1, retired };
 }
