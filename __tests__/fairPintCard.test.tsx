@@ -81,3 +81,29 @@ it("keeps an early HTML gesture until the live flow takes ownership", async () =
   const handoff = takeEarlyFairPint(); expect(handoff).toMatchObject({ pence: 530, releases: 1 });
   expect(takeEarlyFairPint()).toBeNull(); host.remove(); localStorage.clear();
 });
+
+it("keeps an early release when Close arrives before the controller loads", async () => {
+  const { FairPintHost, FairPintMapBridge } = await import("@/components/map/fairpint/FairPintHost");
+  const { clearEarlyFairPint } = await import("@/lib/fairPint");
+  const native = await import("@/lib/nativeHaptics");
+  const haptic = vi.spyOn(native, "haptic").mockResolvedValue(undefined);
+  vi.stubGlobal("matchMedia", () => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} }));
+  vi.stubGlobal("requestIdleCallback", () => 1);
+  vi.stubGlobal("cancelIdleCallback", () => {});
+  writeFairPint(530);
+  window.__pubmaxEarlyFairPint = { pence: 530, releases: 1, closed: true };
+  const commit = vi.fn();
+  const host = document.createElement("div"), root = createRoot(host);
+  try {
+    await act(async () => root.render(createElement(FairPintHost, { cityId: "london", children: createElement(FairPintMapBridge, {
+      bounds: { west: -0.13, east: -0.12, south: 51.53, north: 51.54 }, center: [-0.125, 51.535], onCommit: commit, onRoute: () => {},
+    }) })));
+    await vi.dynamicImportSettled();
+    expect(commit).toHaveBeenCalledOnce();
+    expect(commit).toHaveBeenCalledWith(5.3);
+    expect(haptic).toHaveBeenCalledOnce();
+    expect(haptic).toHaveBeenCalledWith("selection-kept");
+  } finally {
+    act(() => root.unmount()); clearEarlyFairPint(); haptic.mockRestore(); vi.unstubAllGlobals();
+  }
+});
