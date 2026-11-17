@@ -71,6 +71,42 @@ afterEach(async () => {
 });
 
 describe("message inbox filters", () => {
+  it.each(["alice", "ALICE"])("preserves a pending inbox read across equivalent auth updates (%s)", async (handle) => {
+    let answer!: (response: Response) => void;
+    fixture.request.mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    await mount();
+    expect(fixture.request).toHaveBeenCalledOnce();
+    const signal = fixture.request.mock.calls[0]![1].signal as AbortSignal;
+
+    fixture.auth = { ...fixture.auth, user: { id: "alice-account" }, handle };
+    await mount();
+    expect(fixture.request).toHaveBeenCalledOnce();
+    expect(signal.aborted).toBe(false);
+
+    await act(async () => answer(Response.json({ conversations: rows })));
+    expect(names()).toEqual(["/messages/maisie", "/messages/tom", "/messages/friday"]);
+  });
+
+  it.each([
+    ["account revision", "alice-account", "alice", 2],
+    ["user ID", "bob-account", "alice", 1],
+    ["canonical handle", "alice-account", "bob", 1],
+  ])("replaces a pending inbox read when the %s changes", async (_change, userId, handle, accountRevision) => {
+    const pending: Array<(response: Response) => void> = [];
+    fixture.request.mockImplementation(() => new Promise<Response>((resolve) => pending.push(resolve)));
+    await mount();
+    const signal = fixture.request.mock.calls[0]![1].signal as AbortSignal;
+
+    fixture.auth = { user: { id: userId }, handle, accountRevision };
+    await mount();
+    expect(signal.aborted).toBe(true);
+    expect(fixture.request).toHaveBeenCalledTimes(2);
+
+    await act(async () => pending[1]!(Response.json({ conversations: rows.slice(0, 1) })));
+    await act(async () => pending[0]!(Response.json({ conversations: rows })));
+    expect(names()).toEqual(["/messages/maisie"]);
+  });
+
   it("shows all conversations, only unread conversations, and only groups", async () => {
     await mount();
     expect(names()).toEqual(["/messages/maisie", "/messages/tom", "/messages/friday"]);

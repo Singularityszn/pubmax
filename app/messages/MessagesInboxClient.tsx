@@ -107,6 +107,8 @@ export default function MessagesInboxClient({
 }): React.JSX.Element {
   const router = useRouter();
   const { accountRevision, user, handle: authHandle } = useAuth();
+  const activeUserId = user?.id;
+  const canonicalAuthHandle = normalizeHandle(authHandle ?? "");
   const viewerSession = useViewerSession();
   const isMobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -152,7 +154,7 @@ export default function MessagesInboxClient({
       requestGenerationRef.current += 1;
       pendingReadRef.current = null;
     };
-  }, [accountRevision, user, authHandle, paneHidden]);
+  }, [accountRevision, activeUserId, canonicalAuthHandle, paneHidden]);
 
   useEffect(() => {
     let active = true;
@@ -180,7 +182,7 @@ export default function MessagesInboxClient({
         !signal?.aborted &&
         generation === requestGenerationRef.current &&
         requestRevision === accountRevisionRef.current;
-      if (!user) {
+      if (!activeUserId) {
         if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
@@ -190,7 +192,7 @@ export default function MessagesInboxClient({
         setLoadedRevision(requestRevision);
         return;
       }
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = canonicalAuthHandle || readHandle();
       if (!h) {
         if (!stillCurrent()) return;
         setConversations([]);
@@ -208,7 +210,7 @@ export default function MessagesInboxClient({
       const promise = Promise.resolve().then(async () => {
         try {
           if (!stillCurrent()) return;
-          const read = await readMessagesInbox(user.id, h, controller.signal);
+          const read = await readMessagesInbox(activeUserId, h, controller.signal);
           if (!stillCurrent()) return;
           setHandleNotOwned(read.status === 403);
           if (read.status === 401 || read.status === 403) {
@@ -254,7 +256,7 @@ export default function MessagesInboxClient({
     // `handle` is deliberately NOT a dependency: the read derives the handle
     // itself, and re-keying on the state copy made every mount fetch the inbox
     // twice, once before the handle settled and once after.
-    [accountRevision, user, authHandle],
+    [accountRevision, activeUserId, canonicalAuthHandle],
   );
 
   const retry = useCallback(() => {

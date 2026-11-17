@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  auth: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" },
+  auth: { user: { id: "user-ken" } as { id: string } | null, handle: "ken", accountRevision: 1 },
   fetch: vi.fn<(url: string, init: RequestInit) => Promise<Response>>(),
 }));
 vi.mock("next/link", () => ({
@@ -38,7 +38,7 @@ beforeEach(() => {
   invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers();
-  state.auth = { user: { id: "user-ken" }, handle: "ken" };
+  state.auth = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
   state.fetch.mockReset().mockImplementation(async () => Response.json({ unread: 1, conversations: [{ unread: 1 }] }));
   visibility("visible");
   host = document.createElement("div");
@@ -89,7 +89,7 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     await mount(component);
     expect(state.fetch).not.toHaveBeenCalled();
     expect(host.querySelector("a")).toBeNull();
-    state.auth = { user: { id: "user-ken" }, handle: "ken" };
+    state.auth = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
     visibility("hidden");
     await mount(component);
     expect(state.fetch).not.toHaveBeenCalled();
@@ -115,7 +115,7 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("1 unread");
     let finish: ((response: Response) => void) | undefined;
     state.fetch.mockImplementation(() => new Promise<Response>((resolve) => { finish = resolve; }));
-    state.auth = { user: { id: userId }, handle };
+    state.auth = { user: { id: userId }, handle, accountRevision: 1 };
     await mount(component);
     expect(host.querySelector(".siteNavBellBadge")).toBeNull();
     expect(host.querySelector("a")?.getAttribute("aria-label")).not.toContain("unread");
@@ -125,6 +125,40 @@ describe.each([["messages", MessagesLink], ["activity", NotificationBell]] as co
     await act(async () => { await vi.advanceTimersByTimeAsync(60_000); });
     expect(host.querySelector("a")?.getAttribute("aria-label")).toContain("4 unread");
   });
+});
+
+it.each(["ken", "KEN"])("preserves a pending badge read across equivalent auth updates (%s)", async (handle) => {
+  let finish!: (response: Response) => void;
+  state.fetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { finish = resolve; }));
+  await mount(MessagesLink);
+  expect(state.fetch).toHaveBeenCalledOnce();
+  const signal = state.fetch.mock.calls[0]![1].signal!;
+
+  state.auth = { ...state.auth, user: { id: "user-ken" }, handle };
+  await mount(MessagesLink);
+  expect(state.fetch).toHaveBeenCalledOnce();
+  expect(signal.aborted).toBe(false);
+
+  await act(async () => { finish(Response.json({ conversations: [{ unread: 4 }] })); });
+  expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Messages, 4 unread");
+});
+
+it.each([
+  ["account revision", "user-ken", "ken", 2],
+  ["user ID", "user-bob", "ken", 1],
+  ["canonical handle", "user-ken", "bob", 1],
+])("replaces a pending badge read when the %s changes", async (_change, userId, handle, accountRevision) => {
+  const pending: Array<(response: Response) => void> = [];
+  state.fetch.mockImplementation(() => new Promise<Response>((resolve) => pending.push(resolve)));
+  await mount(MessagesLink);
+  const signal = state.fetch.mock.calls[0]![1].signal!;
+  state.auth = { user: { id: userId }, handle, accountRevision };
+  await mount(MessagesLink);
+  expect(signal.aborted).toBe(true);
+  expect(state.fetch).toHaveBeenCalledTimes(2);
+  await act(async () => { pending[1]!(Response.json({ conversations: [{ unread: 4 }] })); });
+  await act(async () => { pending[0]!(Response.json({ conversations: [{ unread: 99 }] })); });
+  expect(host.querySelector("a")?.getAttribute("aria-label")).toBe("Messages, 4 unread");
 });
 
 

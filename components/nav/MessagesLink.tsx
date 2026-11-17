@@ -32,7 +32,7 @@ export default function MessagesLink(): React.JSX.Element | null {
   const pathname = usePathname();
   const pathnameRef = useRef(pathname);
   useEffect(() => { pathnameRef.current = pathname; }, [pathname]);
-  const { user, handle: authHandle } = useAuth();
+  const { accountRevision, user, handle: authHandle } = useAuth();
   const viewerSession = useViewerSession();
   const activeUserId = user?.id;
   const [handle, setHandle] = useState("");
@@ -85,7 +85,7 @@ export default function MessagesLink(): React.JSX.Element | null {
   const refresh = useCallback(async (supersede = false) => {
     if (document.visibilityState === "hidden") return;
     if (abortRef.current && !abortRef.current.signal.aborted && !supersede) return;
-    if (!user) {
+    if (!activeUserId) {
       setUnreadResult(null);
       return;
     }
@@ -95,30 +95,30 @@ export default function MessagesLink(): React.JSX.Element | null {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const read = await readMessagesInbox(user.id, h, controller.signal);
+      const read = await readMessagesInbox(activeUserId, h, controller.signal);
       if (controller.signal.aborted || abortRef.current !== controller || read.status < 200 || read.status >= 300) return;
       const rows = read.conversations;
       const total = rows.reduce((sum, c) => sum + (c.unread || 0), 0);
-      const previous = previousRef.current?.userId === user.id ? previousRef.current.rows : null;
+      const previous = previousRef.current?.userId === activeUserId ? previousRef.current.rows : null;
       const candidates = !read.degraded && previous ? rows.filter((row) => {
         const old = previous.find((item) => item.id === row.id);
         return row.lastMessageId && !row.lastFromMe && (row.unread ?? 0) > 0 && row.lastMessageId !== old?.lastMessageId;
       }) : [];
-      setUnreadResult({ userId: user.id, handle: h, count: total });
+      setUnreadResult({ userId: activeUserId, handle: h, count: total });
       const incoming = await selectMessageArrival(candidates, controller.signal, (row) => pathnameRef.current === `/messages/${row.id}`);
       if (controller.signal.aborted || abortRef.current !== controller) return;
-      if (!read.degraded) previousRef.current = { userId: user.id, rows };
-      if (incoming) setArrival({ userId: user.id, conversation: incoming });
+      if (!read.degraded) previousRef.current = { userId: activeUserId, rows };
+      if (incoming) setArrival({ userId: activeUserId, conversation: incoming });
     } catch {
       // aborted / offline — leave the badge as-is; the nav never breaks on this.
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
     }
-  }, [effectiveHandle, user]);
+  }, [effectiveHandle, activeUserId]);
 
   useEffect(() => {
     // Never setState synchronously in the effect body (react-hooks/set-state-in-effect).
-    if (!user) {
+    if (!activeUserId) {
       void Promise.resolve().then(() => setUnreadResult(null));
       return;
     }
@@ -138,14 +138,14 @@ export default function MessagesLink(): React.JSX.Element | null {
     window.addEventListener("focus", onFocus);
     const onPush = (event: MessageEvent) => {
       const reply = event.ports[0];
-      if (event.data?.type === "pubmax:message-preview-auth" && event.data.recipientId === user.id && reply) {
+      if (event.data?.type === "pubmax:message-preview-auth" && event.data.recipientId === activeUserId && reply) {
         const revision = readProviderAccountRevision();
         void queueMessagePushOperation(async () => flushMessagePushReleases(AbortSignal.timeout(1_000), await currentMessagePushToken() ?? ""))
           .then(getAccessToken).then((token) => {
             reply.postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
           }).catch(() => reply.postMessage({ token: null }));
       }
-      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) { announceInboxArrival(effectiveHandle); }
+      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === activeUserId) { announceInboxArrival(effectiveHandle); }
     };
     navigator.serviceWorker?.addEventListener("message", onPush);
     // A completed thread read supersedes an older unread-count request.
@@ -159,7 +159,7 @@ export default function MessagesLink(): React.JSX.Element | null {
       navigator.serviceWorker?.removeEventListener("message", onPush);
       unsubscribeRead();
     };
-  }, [refresh, user, effectiveHandle]);
+  }, [refresh, accountRevision, activeUserId, effectiveHandle]);
 
   // A signed-out visitor has no inbox, so the link is not drawn for them at all
   // (Oct 2026 UX audit). It appears once a session exists.
