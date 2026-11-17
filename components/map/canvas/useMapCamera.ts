@@ -75,23 +75,32 @@ export function useRouteCameraFraming({
 }) {
   const consumedRequest = useRef(0);
   const consumedClose = useRef(0);
-  const selection = useRef({ id: "", movementSerial: 0 });
+  const selection = useRef<{ id: string; movementSerial: number | null }>({ id: "", movementSerial: null });
   useEffect(() => {
     const movementSerial = gestureCameraRef?.current.movementSerial ?? 0;
     const previous = selection.current;
-    if (selectedVenueId && selectedVenueId !== previous.id) {
-      selection.current = { id: selectedVenueId, movementSerial };
+    if (selectedVenueId !== previous.id) {
+      selection.current = { id: selectedVenueId,
+        movementSerial: selectedVenueId ? movementSerial : previous.movementSerial };
     }
     if (!mapReady || routePending) return;
     const userOwned = consumedRequest.current !== requestToken;
     consumedRequest.current = requestToken;
     const closed = consumedClose.current !== closeRequestToken;
-    consumedClose.current = closeRequestToken;
-    if (!selectedVenueId && previous.id) {
-      selection.current = { id: "", movementSerial };
-      if (userOwned && requestToken > closeRequestToken) fitRoute("user", requestToken);
-      else if (closed && routeKey.includes(">") && previous.movementSerial === movementSerial) fitRoute("user", closeRequestToken);
+    if (!selectedVenueId && previous.movementSerial !== null) {
+      if (userOwned && requestToken > closeRequestToken) {
+        selection.current = { id: "", movementSerial: null };
+        fitRoute("user", requestToken);
+      } else if (closed) {
+        consumedClose.current = closeRequestToken;
+        selection.current = { id: "", movementSerial: null };
+        if (routeKey.includes(">") && previous.movementSerial === movementSerial) fitRoute("user", closeRequestToken);
+      }
       return;
+    }
+    if (!selectedVenueId && closed) {
+      consumedClose.current = closeRequestToken;
+      if (!userOwned) return;
     }
     if (selectedVenueId && !userOwned) return;
     fitRoute(userOwned ? "user" : "automatic", requestToken);

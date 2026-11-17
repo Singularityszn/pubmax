@@ -278,6 +278,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   });
 
   it.each(["back", "browser back", "home"])("requests walk recovery once when %s closes a venue to the map", async (exit) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
     openSurfaces(venue);
     expect(onVenueClose).not.toHaveBeenCalled();
 
@@ -295,6 +296,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   });
 
   it.each(["planner", "venue-list", "landmark", "layers", "choose-area"])("requests walk recovery when a venue returns to %s", async (parent) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
     openSurfaces({ id: parent, title: "Parent" }, venue);
     await traverse(() => navigation.back());
     expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: parent }));
@@ -302,6 +304,22 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     await traverse(() => navigation.back());
     expect(onRestore).toHaveBeenLastCalledWith(null);
     expect(onVenueClose).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["back", "home"])("does not request walk recovery without a walk after %s", async (exit) => {
+    openSurfaces(venue);
+    await traverse(() => exit === "home" ? navigation.home() : navigation.back());
+    expect(onVenueClose).not.toHaveBeenCalled();
+  });
+
+  it("does not close a venue while another surface covers it", async () => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(venue, { id: "layers", title: "Layers" });
+    expect(onVenueClose).not.toHaveBeenCalled();
+    await traverse(() => navigation.back());
+    expect(onVenueClose).not.toHaveBeenCalled();
+    await traverse(() => navigation.back());
+    expect(onVenueClose).toHaveBeenCalledOnce();
   });
 
   it.each(["back", "home"])("does not restore an older area over a mapped walk after %s", async (exit) => {

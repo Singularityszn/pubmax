@@ -171,6 +171,7 @@ export function useMapSurfaceNavigation({
   onRestore,
   onReturnToMap,
   mappedRouteActive = false,
+  selectedVenueRequestToken = 0,
   onVenueClose,
   onHome,
   onSurfaceClose,
@@ -184,7 +185,8 @@ export function useMapSurfaceNavigation({
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
   mappedRouteActive?: boolean;
-  onVenueClose?: () => void;
+  selectedVenueRequestToken?: number;
+  onVenueClose?: (requestToken: number) => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
@@ -200,14 +202,16 @@ export function useMapSurfaceNavigation({
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onReturnToMapRef = useRef(mappedRouteActive ? undefined : onReturnToMap);
-  const onVenueCloseRef = useRef(onVenueClose);
+  const venueCloseRef = useRef({ mappedRouteActive, selectedVenueRequestToken, onVenueClose });
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
-    if (selectedVenueId(stackRef.current) && !selectedVenueId(next)) {
-      onVenueCloseRef.current?.();
+    const { mappedRouteActive, selectedVenueRequestToken, onVenueClose } = venueCloseRef.current;
+    if (mappedRouteActive && stackRef.current.some((entry) => entry.id === "venue")
+      && !next.some((entry) => entry.id === "venue")) {
+      onVenueClose?.(selectedVenueRequestToken);
     }
     stackRef.current = next;
     setStack(next);
@@ -220,11 +224,11 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
     onReturnToMapRef.current = mappedRouteActive ? undefined : onReturnToMap;
-    onVenueCloseRef.current = onVenueClose;
+    venueCloseRef.current = { mappedRouteActive, selectedVenueRequestToken, onVenueClose };
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onReturnToMap, mappedRouteActive, onVenueClose, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, mappedRouteActive, selectedVenueRequestToken, onVenueClose, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {

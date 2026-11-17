@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { latestMapCameraRequestToken, palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
+import { useNearMeRequests } from "@/components/map/pubmap/useNearMeRequests";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
@@ -1059,6 +1060,7 @@ describe("closing a route stop", () => {
     const restoreCamera = vi.fn();
     const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
     let navigation: ReturnType<typeof useMapSurfaceNavigation>;
+    const selectedToken = nextCameraRequestToken();
     let mapWalk: () => void;
     let openStop: () => void;
     window.history.replaceState(null, "", "/map");
@@ -1072,7 +1074,8 @@ describe("closing a route stop", () => {
         mappedRouteActive: mapped,
         onRestore: (entry) => setSelected(entry?.id === "venue" ? entry.state?.venueId ?? "" : ""),
         onReturnToMap: restoreCamera,
-        onVenueClose: () => setCloseToken(nextCameraRequestToken()),
+        selectedVenueRequestToken: selectedToken,
+        onVenueClose: setCloseToken,
         onHome: () => setSelected(""), onSurfaceClose: () => {},
       });
       mapWalk = () => setMapped(true);
@@ -1122,6 +1125,201 @@ describe("closing a route stop", () => {
     }
     expect(restoreCamera).not.toHaveBeenCalled();
     expect(fitRoute).toHaveBeenCalledTimes(moved ? 0 : 1);
+  });
+
+  it.each(["nearby", "search", "area"] as const)("keeps a newer queued %s camera move when the venue closes", async (action) => {
+    const selectedToken = nextCameraRequestToken();
+    let request = 0;
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    const refs = {
+      mapRef: { current: { stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
+        getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
+          getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
+      } as unknown as MapLibreMap },
+      reducedRef: { current: true }, cityViewRef: { current: {
+        center: [-0.13, 51.51] as [number, number], zoom: 12, pitch: 40, bearing: -8 } },
+      cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] as [[number, number], [number, number]] },
+      routeRef: { current: soho }, routeLineRef: { current: { type: "FeatureCollection", features: [] } as GeoJSON.FeatureCollection },
+      venuesRef: { current: soho }, queryVenuesRef: { current: soho.slice(0, 1) },
+      gestureCameraRef: { current: { active: false, endedAt: null, movementSerial: 0 } },
+    };
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [selected, setSelected] = useState("stop");
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "", mappedRouteActive: true,
+        selectedVenueRequestToken: selectedToken, onVenueClose: setCloseToken,
+        onHome: () => setSelected(""), onSurfaceClose: () => {},
+        onRestore: (entry) => setSelected(entry?.id === "venue" ? "stop" : ""),
+      });
+      camera = useMapCamera({ ...refs, latestRequestToken: Math.max(selectedToken, request, closeToken) });
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: refs.gestureCameraRef, fitRoute: camera.fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({ id: "venue", title: "Stop",
+      state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "stop" } }));
+    request = nextCameraRequestToken();
+    act(() => root.render(createElement(Journey)));
+    act(() => {
+      if (action === "nearby") camera.fitNearby({ lat: 51.52, lng: -0.12 }, soho, "user", request);
+      else if (action === "search") camera.fitQueryVenues("search-recovery", request);
+      else camera.cinematic({ center: [-0.12, 51.52], zoom: 14 }, "area", "user", request);
+    });
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => window.addEventListener("popstate", () => resolve(), { once: true }));
+      navigation.home();
+      await landed;
+    });
+    act(() => { pendingFrame?.(performance.now()); pendingFrame = undefined; });
+    if (action === "search") {
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.139, 51.514]]);
+    } else {
+      expect(fitBounds).not.toHaveBeenCalled();
+      expect(easeTo).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({ center: [-0.12, 51.52] }));
+    }
+  });
+
+  // Near me owns the latest deliberate request even if geolocation resolves
+  // after navigation. A close signal must not invalidate that pending request.
+  it.each([false, true])("honours delayed Near me when a venue closes, mapped walk: %s", async (mapped) => {
+    let resolveLocation!: PositionCallback;
+    vi.stubGlobal("navigator", { geolocation: {
+      getCurrentPosition: (success: PositionCallback) => { resolveLocation = success; },
+      watchPosition: vi.fn(),
+    } });
+    let navigation!: ReturnType<typeof useMapSurfaceNavigation>;
+    let runNearMe!: ReturnType<typeof useNearMeRequests>["runNearMe"];
+    const selectedToken = nextCameraRequestToken();
+    const location = vi.fn();
+    const nearbyToken = vi.fn();
+    window.history.replaceState(null, "", "/map");
+    function Journey() {
+      const [closeToken, setCloseToken] = useState(0);
+      navigation = useMapSurfaceNavigation({
+        arrivalSearch: "", surfaceId: "none", surfaceTitle: "",
+        surfaceState: EMPTY_MAP_SURFACE_STATE, selectionHint: "",
+        mappedRouteActive: mapped,
+        selectedVenueRequestToken: selectedToken,
+        onRestore: () => {}, onHome: () => {}, onSurfaceClose: () => {},
+        onVenueClose: setCloseToken,
+      });
+      ({ runNearMe } = useNearMeRequests({
+        cityId: "london", stopCount: 2, invalidatePrivateCamera: () => {},
+        setNearbyError: () => {}, setNearbyLoading: () => {}, setUserLocation: location,
+        setNearbyRequestToken: nearbyToken, setPendingNearMeRequest: () => {},
+        openChooseAreaRef: { current: () => {} },
+      }));
+      return createElement("output", null, closeToken);
+    }
+    act(() => root.render(createElement(Journey)));
+    act(() => navigation.open({ id: "venue", title: "Stop",
+      state: { ...EMPTY_MAP_SURFACE_STATE, venueId: "b" } }));
+    act(() => runNearMe("tap"));
+    const request = currentCameraRequestToken();
+    await act(async () => {
+      const landed = new Promise<void>((resolve) => window.addEventListener("popstate", () => resolve(), { once: true }));
+      navigation.home();
+      await landed;
+    });
+    expect(host.textContent).toBe(String(mapped ? selectedToken : 0));
+    expect(currentCameraRequestToken()).toBe(request);
+    act(() => resolveLocation({ coords: { latitude: 51.52, longitude: -0.12 } } as GeolocationPosition));
+    expect(location).toHaveBeenCalledExactlyOnceWith({ lat: 51.52, lng: -0.12 });
+    expect(nearbyToken).toHaveBeenCalledExactlyOnceWith(request);
+  });
+
+  // The close contract preserves reader movement across separate React commits.
+  // An automatic fit after the late signal would overwrite that movement.
+  it.each([false, true])("preserves movement when selection clears before the close signal: %s", (moved) => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    fitRoute.mockClear();
+    if (moved) gesture.current.movementSerial += 1;
+    selected = "";
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).not.toHaveBeenCalled();
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    if (moved) expect(fitRoute).not.toHaveBeenCalled();
+    else expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
+  });
+
+  it("honours another explicit route request when an earlier close signal arrives late", () => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    const venueToken = nextCameraRequestToken();
+    let requestToken = 0;
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        requestToken, closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    requestToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", requestToken);
+    fitRoute.mockClear();
+    closeToken = venueToken;
+    requestToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", requestToken);
+  });
+
+  it("captures a fresh movement baseline when the same venue opens again", () => {
+    const fitRoute = vi.fn();
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, gestureCameraRef: gesture, fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    render();
+    gesture.current.movementSerial += 1;
+    selected = "stop";
+    render();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    render();
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
+  });
+
+  it("retains a close signal that arrives before selection clears", () => {
+    const fitRoute = vi.fn();
+    let selected = "stop";
+    let closeToken = 0;
+    function Camera() {
+      useRouteCameraFraming({ mapReady: true, routeKey: "a>b", selectedVenueId: selected,
+        closeRequestToken: closeToken, fitRoute });
+      return null;
+    }
+    act(() => root.render(createElement(Camera)));
+    closeToken = nextCameraRequestToken();
+    act(() => root.render(createElement(Camera)));
+    selected = "";
+    act(() => root.render(createElement(Camera)));
+    expect(fitRoute).toHaveBeenCalledExactlyOnceWith("user", closeToken);
   });
 
   it("does not claim the camera when there is no walk", () => {

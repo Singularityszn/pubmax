@@ -169,6 +169,7 @@ test.describe("desktop toolbar beside the venue drawer", () => {
     const drawerBox = await desktopVenueDrawer(page).boundingBox();
     expect(trayBox).not.toBeNull();
     expect(drawerBox).not.toBeNull();
+    expect(trayBox!.x + trayBox!.width).toBeLessThanOrEqual(page.viewportSize()!.width);
     expect(Math.min(trayBox!.x + trayBox!.width, drawerBox!.x + drawerBox!.width) - Math.max(trayBox!.x, drawerBox!.x)).toBeLessThanOrEqual(0);
   });
 
