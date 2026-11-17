@@ -37,6 +37,12 @@
   color: var(--ink-soft);
   font: 650 0.7rem/1 var(--font-body);
   cursor: pointer;
+  transition: transform var(--duration-press) var(--ease-out-strong);
+}
+
+.tonightArcChip:active {
+  transform: scale(0.97);
+  --shared-press-scale: 1;
 }
 
 .tonightArcChip > svg {
@@ -128,9 +134,7 @@
   border: 0;
   background: transparent;
   color: var(--ink-soft);
-  transition:
-    background-color var(--duration-base) var(--ease-out),
-    color var(--duration-base) var(--ease-out);
+  transition: transform var(--duration-press) var(--ease-out-strong);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -155,8 +159,25 @@
   text-decoration-color: color-mix(in srgb, var(--ink-soft) 45%, transparent);
 }
 
+.tonightArcChip:focus-visible {
+  transform: none;
+  scale: 1;
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
+  .tonightArcChip,
   .tonightArcChipsSheet .tonightArcChip {
+    transition: opacity var(--duration-press) var(--ease-out-strong);
+  }
+
+  .tonightArcChip:active {
+    transform: none;
+    opacity: 0.7;
+  }
+
+  .tonightArcChip:focus-visible {
+    opacity: 1;
     transition: none;
   }
 }

@@ -140,9 +140,8 @@ export const REGENERATED_LANES = [
     inputs: [
       /^scripts\/build_london_venue_shards\.mjs$/,
       /^scripts\/lib\/ukBaseGrid\.mjs$/,
-      /^scripts\/lib\/londonRestaurantDrinks\.mjs$/,
       /^data\/osm\/uk\/uk_osm_venues_[a-z]+\.json$/,
-      /^data\/london_restaurant_drinks\/(?:evidence|exclusions)\.json$/,
+      /^data\/osm\/uk\/london_osm_restaurants\.json$/,
     ],
   },
   {
@@ -159,6 +158,7 @@ export const REGENERATED_LANES = [
     output: /^public\/data\/london_restaurants\/(?!README\.md$).+/,
     inputs: [
       /^scripts\/build_london_restaurant_pack\.mjs$/,
+      /^data\/osm\/uk\/london_osm_restaurants\.json$/,
       /^scripts\/lib\/boroughFromPoint\.mjs$/,
       /^lib\/londonBoroughPoint\.mjs$/,
       /^data\/london_boroughs_simplified\.json$/,

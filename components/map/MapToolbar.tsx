@@ -183,6 +183,7 @@ function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
 // behind an optional expand so phones keep map mid-field free.
 type MapToolbarProps = {
+  restaurantLayerAvailable?: boolean;
   query: string;
   onQueryChange: (query: string) => void;
   /**
@@ -263,6 +264,7 @@ type MapToolbarProps = {
 };
 
 export default function MapToolbar({
+  restaurantLayerAvailable,
   query,
   onQueryChange,
   searchProps,
@@ -488,6 +490,7 @@ export default function MapToolbar({
             because a phone reads the same toggles in its Filters sheet. */}
         {isMobile === false && venueKindVisibility && onVenueKindVisibilityChange ? (
           <MapVenueKindFilter
+            restaurantLayerAvailable={restaurantLayerAvailable}
             featureFilterCount={activeVenueFeatureCount(filters)}
             featureFilters={<VenueFeatureFilters filters={filters} onChange={onFiltersChange} resultCount={searchSettled ? filteredVenueCount : null} lastOrdersFailed={lastOrdersFailed} />}
             visibility={venueKindVisibility}

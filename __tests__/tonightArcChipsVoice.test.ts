@@ -1,4 +1,7 @@
-import { createElement } from "react";
+// @vitest-environment jsdom
+
+import { act, createElement, useState } from "react";
+import { createRoot } from "react-dom/client";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
@@ -31,5 +34,31 @@ describe("Venue-type chips — no component name reaches the reader", () => {
       expect(html).toContain("Pubs");
       expect(html).toContain("Restaurants");
     });
+  }
+});
+
+it("keeps optional restaurant state when the control is unavailable outside London", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  const host = document.createElement("div");
+  document.body.append(host);
+  const root = createRoot(host);
+  function Controls({ available }: { available: boolean }) {
+    const [visibility, setVisibility] = useState(defaultVenueKindVisibility("london"));
+    return createElement(TonightArcChips, { visibility, restaurantLayerAvailable: available, onChange: setVisibility });
+  }
+  const allRestaurants = () => [...host.querySelectorAll("button")].find(button => button.textContent?.includes("More restaurants (unpriced)"));
+  try {
+    await act(async () => root.render(createElement(Controls, { available: false })));
+    expect(allRestaurants()).toBeUndefined();
+    await act(async () => host.querySelector("button")?.click());
+    await act(async () => root.render(createElement(Controls, { available: true })));
+    expect(host.querySelector("button")?.getAttribute("aria-pressed")).toBe("false");
+    expect(allRestaurants()?.getAttribute("aria-pressed")).toBe("false");
+    await act(async () => allRestaurants()?.click());
+    expect(allRestaurants()?.getAttribute("aria-pressed")).toBe("true");
+    expect(host.querySelector("button")?.getAttribute("aria-pressed")).toBe("false");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
   }
 });
