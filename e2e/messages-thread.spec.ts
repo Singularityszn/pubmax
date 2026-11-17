@@ -1236,6 +1236,66 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
   });
 }
 
+test.describe("compact photo composer", () => {
+  test.use({ isMobile: false });
+
+  for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) {
+    test(`photo selection controls remain reachable with large text at ${width}px in ${theme}`, async ({ page }, testInfo) => {
+      await page.setViewportSize({ width, height: 900 });
+      await storeThemeChoice(page, theme);
+      await installThread(page, fixture());
+      let sends = 0;
+      await page.route("**/api/messages/c1", async route => {
+        const request = route.request();
+        if (request.method() === "POST" && request.headers()["content-type"]?.includes("multipart/form-data")) {
+          sends += 1;
+          await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } });
+        } else await route.fallback();
+      });
+      const sharp = (await import("sharp")).default;
+      const photo = await sharp({ create: { width: 1200, height: 900, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
+      await page.goto("/messages/c1");
+      await page.locator("#message-photo-file").setInputFiles({ name: "compact.jpg", mimeType: "image/jpeg", buffer: photo });
+      await expect(page.locator(".composerPendingThumb")).toBeVisible();
+      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      const caption = "A photo caption for a small viewport with large accessible text.";
+      await field.fill(caption);
+      await page.setViewportSize({ width, height: 480 });
+
+      const reachable = async (control: Locator, direction: number) => {
+        await expect(async () => {
+          const box = await page.locator(".composerDock").boundingBox();
+          expect(box).not.toBeNull();
+          const top = Math.max(80, box!.y);
+          const bottom = Math.min(460, box!.y + box!.height);
+          expect(bottom).toBeGreaterThan(top);
+          await page.mouse.move(box!.x + 4, (top + bottom) / 2);
+          await page.mouse.wheel(0, direction * 600);
+          await expect(control).toBeInViewport({ ratio: 0.99 });
+          expect(await control.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+          })).toBe(true);
+        }).toPass();
+      };
+      await reachable(page.getByRole("button", { name: "Remove", exact: true }), -1);
+      const send = page.getByRole("button", { name: "Send", exact: true });
+      await reachable(send, 1);
+      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-send.png`) });
+      await send.click();
+      const retry = page.getByRole("button", { name: "Retry send", exact: true });
+      await expect(retry).toBeEnabled();
+      await reachable(retry, -1);
+      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-retry.png`) });
+      expect(sends).toBe(1);
+      await expect(field).toHaveValue(caption);
+      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+      await expectNoHorizontalOverflow(page, width);
+    });
+  }
+});
+
 for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
   test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
