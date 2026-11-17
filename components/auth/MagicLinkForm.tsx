@@ -4,7 +4,7 @@ import { useCallback, useId, useState } from "react";
 import { Mail } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
-import { prepareBrowserSignIn } from "@/lib/prepareBrowserSignIn";
+import { prepareBrowserSignIn, prepareBrowserSignInFromKey } from "@/lib/prepareBrowserSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 
 function looksLikeEmail(value: string): boolean {
@@ -81,7 +81,7 @@ export default function MagicLinkForm({
           aria-invalid={status === "error"}
           aria-describedby={message ? messageId : undefined}
           onPointerDown={prepareBrowserSignIn}
-          onKeyDown={prepareBrowserSignIn}
+          onKeyDown={prepareBrowserSignInFromKey}
           onChange={(event) => {
             setEmail(event.target.value);
             if (status === "error" || status === "rate_limited") {
