@@ -11,8 +11,9 @@ const CASES = [
   { label: "desktop from map", width: 1280, height: 720, populated: false, fromMap: true },
 ] as const;
 
-for (const sample of CASES) {
-  test(`Social stays steady while access resolves: ${sample.label}`, async ({ page }, info) => {
+for (const day of ["2026-10-30", "2026-11-17"]) for (const sample of CASES) {
+  test(`Social stays steady while access resolves: ${sample.label} on ${day}`, async ({ page }, info) => {
+    await page.clock.setFixedTime(new Date(`${day}T14:00:00Z`));
     await page.setViewportSize({ width: sample.width, height: sample.height });
     const auth = await installAuthDoubles(page);
     await seedSignedIn(page, "A");
@@ -33,6 +34,7 @@ for (const sample of CASES) {
       }).observe({ type: "layout-shift", buffered: true });
     });
 
+    await page.route("**/api/pint-drops?city=london", (route) => route.fulfill({ json: { drops: [] } }));
     const protectedReads: string[] = [];
     page.on("request", (request) => {
       const path = new URL(request.url()).pathname;
@@ -73,6 +75,7 @@ for (const sample of CASES) {
         await installDeterministicMapBasemap(page);
         await page.goto("/map");
         await page.getByRole("navigation", { name: "Site navigation", exact: true }).getByRole("link", { name: "Social", exact: true }).click();
+        await page.waitForURL("**/social");
       } else {
         await page.goto("/social");
       }
@@ -96,11 +99,23 @@ for (const sample of CASES) {
     }
     await expect(page.getByText("No crews yet. Start one and your lot can join the night.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Rank a pub", exact: true })).toBeVisible();
+    if (day === "2026-11-17") {
+      await expect(page.getByText("No prices from today in these public results.", { exact: true })).toBeVisible();
+    } else {
+      await expect(page.locator(".socialLogInPublic")).toHaveCount(0);
+    }
     await page.screenshot({ path: info.outputPath("social-feed-ready.png") });
     const vitals = await readVitals(page);
     const shifts = await page.evaluate(() => (window as typeof window & { socialShiftSamples: unknown[] }).socialShiftSamples);
     await info.attach("layout-shifts", { body: JSON.stringify(shifts), contentType: "application/json" });
     await info.attach("web-vitals", { body: JSON.stringify(vitals), contentType: "application/json" });
+    const publicContentMoves = (shifts as Array<{ sources: Array<{
+      node?: string; previous: { y: number; height: number }; current: { y: number; height: number };
+    }> }>).flatMap((shift) => shift.sources)
+      .filter((source) => source.node === "socialLondonEmpty" && source.previous.height > 0 && source.current.height > 0)
+      .map((source) => Math.abs(source.current.y - source.previous.y));
+    expect(publicContentMoves.every((distance) => distance <= 1),
+      "The optional daily campaign must not displace the public Social content").toBe(true);
     expect(vitals.cls, "Access and feed results must not move the page past the CLS target").toBeLessThanOrEqual(0.1);
   });
 }
