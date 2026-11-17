@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import path from "node:path";
+import { mock } from "node:test";
 
 import next from "next";
 
@@ -11,8 +12,11 @@ import { latestPriceRowRead } from "../../lib/priceReadDay.mjs";
 const rows = JSON.parse(
   readFileSync(path.join(process.cwd(), "public", "data", PINT_DATASET_FILE), "utf8"),
 ) as { scraped_at_values?: unknown }[];
-const now = Math.max(PINT_DATASET_OBSERVED_AT.getTime(), latestPriceRowRead(rows) ?? 0) + 1_000;
-Date.now = () => now;
+const fixedDate = process.argv[2];
+const now = fixedDate ? Date.parse(fixedDate)
+  : Math.max(PINT_DATASET_OBSERVED_AT.getTime(), latestPriceRowRead(rows) ?? 0) + 1_000;
+if (fixedDate) mock.timers.enable({ apis: ["Date"], now });
+else Date.now = () => now;
 
 async function start() {
   const app = next({ dev: false, hostname: "127.0.0.1" });

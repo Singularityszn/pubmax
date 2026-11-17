@@ -223,7 +223,7 @@ export function useCrawlUrlSync(
     if (hold.current === undefined) {
       hold.current = holdCleanUrl ? { encodedAtMount: encoded } : null;
     }
-    if (crawlHold.current === undefined) {
+    if (crawlHold.current === undefined || (holdSeededCrawlParam && crawlHold.current === null)) {
       crawlHold.current = holdSeededCrawlParam ? { encodedAtMount: encoded } : null;
     }
     if (!crawlUrlWriteAllowed(hold.current, encoded)) {

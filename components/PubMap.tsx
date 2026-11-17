@@ -415,6 +415,8 @@ import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useCuratedCrawlHydration } from "@/components/map/pubmap/useCuratedCrawlHydration";
+import type { CuratedCrawlHydration } from "@/lib/mapSeedCrawl";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -1782,6 +1784,7 @@ export default function PubMap({
     routeMapped: seed.routeMapped,
     nightArea: restoredSession.nightArea,
     planningOpen: restoredSession.plannerOpen,
+    crawlId: seed.crawlId,
   }, reactiveAcceptanceSearch);
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
@@ -1852,84 +1855,19 @@ export default function PubMap({
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
   const [altStyle, setAltStyle] = useState<AltCrawlStyle>(seed.altStyle);
-  const planSnapshotRef = useRef({
-    mode,
-    builtIds,
-    activeCrawl,
-    filters,
-    altStyle,
-    routeMapped,
+  const applyCuratedCrawlHydration = useCallback((hydration: CuratedCrawlHydration) => {
+    setMode("build");
+    setBuiltIds(hydration.crawl.venueIds);
+    setRouteMapped(true);
+    setFilters(hydration.filters);
+    setAltStyle(hydration.altStyle);
+    setActiveCrawl(hydration.crawl);
+  }, [setActiveCrawl, setBuiltIds, setFilters, setMode, setRouteMapped]);
+  const crawlHydrationPending = useCuratedCrawlHydration({
+    arrivalSearch, cityId, seed, walkRequest,
+    snapshot: { mode, builtIds, activeCrawl, filters, altStyle, routeMapped },
+    onHydrate: applyCuratedCrawlHydration,
   });
-  useLayoutEffect(() => {
-    planSnapshotRef.current = {
-      mode,
-      builtIds,
-      activeCrawl,
-      filters,
-      altStyle,
-      routeMapped,
-    };
-  }, [activeCrawl, altStyle, builtIds, filters, mode, routeMapped]);
-  // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
-  // before paint so shared ?crawl= links still map-first.
-  const [crawlHydrationPending, setCrawlHydrationPending] = useState(() =>
-    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
-  );
-  useLayoutEffect(() => {
-    let cancelled = false;
-    if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
-      return;
-    }
-    const planSnapshot = {
-      mode: seed.mode,
-      builtIds: seed.builtIds,
-      activeCrawl: seed.activeCrawl,
-      filters: seed.filters,
-      altStyle: seed.altStyle,
-      routeMapped: seed.routeMapped,
-    };
-    void import("@/lib/mapSeedCrawl")
-      .then(
-        async ({
-          curatedCrawlHydrationFromSeed,
-          sameCuratedCrawlHydrationSnapshot,
-        }) => {
-          if (cancelled) return;
-          const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
-          if (cancelled) return;
-          if (
-            !hydration ||
-            !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
-          ) {
-            setCrawlHydrationPending(false);
-            return;
-          }
-          setMode("build");
-          setBuiltIds(hydration.crawl.venueIds);
-          setRouteMapped(true);
-          setFilters(hydration.filters);
-          setAltStyle(hydration.altStyle);
-          setActiveCrawl(hydration.crawl);
-          setCrawlHydrationPending(false);
-        },
-      )
-      .catch(() => {
-        if (!cancelled) setCrawlHydrationPending(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    arrivalSearch,
-    cityId,
-    seed,
-    setActiveCrawl,
-    setBuiltIds,
-    setCrawlHydrationPending,
-    setFilters,
-    setMode,
-    setRouteMapped,
-  ]);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);

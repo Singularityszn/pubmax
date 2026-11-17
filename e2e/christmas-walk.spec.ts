@@ -6,9 +6,44 @@ import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 import christmasWalk from "../data/curated-walks/london-christmas.json";
 import { writeFile } from "node:fs/promises";
+import { fork } from "node:child_process";
+import { once } from "node:events";
+import { resolve } from "node:path";
+import { E2E_SERVER_ENV } from "../playwright.config";
 
 type WalkMeasurements = { inputs: number[]; longTasks: number[]; landmarkMoves: number; supportedTypes: string[]; inputEvents: { name: string; duration: number; startTime: number; target: string | null }[] };
 type RouteTapPoint = { id: string; x: number; y: number; selected?: boolean };
+
+const promotionDate = "2026-11-17T15:30:00Z";
+const directoryTest = test.extend({
+  baseURL: async ({ baseURL: harnessURL }, provide, testInfo) => {
+    const server = fork(resolve("scripts/e2e/canonical-price-server.ts"), [promotionDate], {
+      execArgv: ["--import", "tsx"],
+      env: { ...process.env, ...E2E_SERVER_ENV, ANTHROPIC_API_KEY: "", NODE_ENV: "production" },
+      stdio: ["ignore", "inherit", "inherit", "ipc"],
+    });
+    const exited = once(server, "exit");
+    try {
+      const [ready] = await Promise.race([
+        once(server, "message"),
+        exited.then(([code]) => { throw new Error(`Christmas walk server exited before readiness (${code}).`); }),
+      ]) as [{ baseURL: string; now: number }];
+      expect(ready.now).toBe(Date.parse(promotionDate));
+      await testInfo.attach("seasonal-directory-server", {
+        body: JSON.stringify({ ...ready, ambientBaseURL: harnessURL }), contentType: "application/json",
+      });
+      await provide(ready.baseURL);
+    } finally {
+      server.kill();
+      await exited;
+    }
+  },
+  storageState: async ({ baseURL }, provide, testInfo) => {
+    const state = testInfo.project.use.storageState;
+    if (!state || typeof state === "string") throw new Error("The directory requires the harness browser state.");
+    await provide({ ...state, origins: state.origins.map((origin) => ({ ...origin, origin: baseURL! })) });
+  },
+});
 
 test.beforeEach(async ({ page, browserName }) => {
   if (browserName === "webkit") await installNativeShell(page);
@@ -88,8 +123,8 @@ test("the map leaves the seasonal walk out before its promotion window", async (
   await expect(page.getByRole("button", { name: "Map London Christmas walk with 13 stops", exact: true })).toHaveCount(0);
 });
 
-test("the crawl directory previews and opens the seasonal walk", async ({ page }, testInfo) => {
-  await page.clock.setFixedTime(new Date("2026-11-17T15:30:00Z"));
+directoryTest("the crawl directory previews and opens the seasonal walk", async ({ page }, testInfo) => {
+  await page.clock.setFixedTime(new Date(promotionDate));
   await storeThemeChoice(page, "light");
   await page.goto("/crawls");
   const link = page.getByRole("link", { name: "Map the Christmas walk", exact: true });

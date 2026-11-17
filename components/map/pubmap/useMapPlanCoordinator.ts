@@ -8,6 +8,7 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { buildMapSeed } from "@/lib/pubMap";
+import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { isPubVenue } from "@/lib/venueKindFilters";
@@ -21,6 +22,7 @@ type InitialPlanState = {
   routeMapped: boolean;
   planningOpen: boolean;
   nightArea: NightAreaSlug | null;
+  crawlId?: string;
 };
 
 type PlanRequest = Pick<InitialPlanState, "mode" | "builtIds" | "routeMapped">;
@@ -30,12 +32,14 @@ function canonicalMapStops(ids: string[]): string[] {
 }
 
 /** The ordered walk a map seed asks to draw, or "" when it asks for none. */
-function requestedWalk({ mode, builtIds, routeMapped }: PlanRequest): string {
-  return mode === "build" && routeMapped && builtIds.length >= 2 ? builtIds.join(",") : "";
+function requestedWalk({ mode, builtIds, routeMapped, crawlId }: PlanRequest & { crawlId?: string }): string {
+  if (mode !== "build") return "";
+  if (crawlId) return `crawl:${crawlId}`;
+  return routeMapped && builtIds.length >= 2 ? builtIds.join(",") : "";
 }
 
 /** How many walking-route links a mounted map adopted, and the pub the last one named. */
-export type WalkRequest = { count: number; selectedVenueId: string };
+export type WalkRequest = { count: number; selectedVenueId: string; search?: string };
 
 /** Owns mobile planning activation state so PubMap does not coordinate it piecemeal. */
 export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
@@ -77,7 +81,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   // sync never wrote; its own writes never overwrite the reader's stops or map
   // a walk they hid.
   const request = useMemo(() => buildMapSeed(search), [search]);
-  const requestKey = requestedWalk(request);
+  const requestKey = mapSeedNeedsCuratedCrawlLookup(search) ? requestedWalk(request) : "";
   const observedEntry = useRef<{ state: unknown; length: number; search: string } | null>(null);
   useEffect(() => {
     const entry = { state: window.history.state as unknown, length: window.history.length, search: window.location.search };
@@ -100,6 +104,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
       setWalkRequest((current) => ({
         count: current.count + 1,
         selectedVenueId: request.selectedVenueId,
+        search,
       }));
     });
     return () => {
