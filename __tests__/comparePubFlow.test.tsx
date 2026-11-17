@@ -10,9 +10,14 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const net = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
-vi.mock("@/lib/authedFetch", () => ({ authedFetch: net.get, authedActionJson: net.post }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
+  authedFetch: net.get,
+  authedActionJson: net.post,
+}));
 
 import ComparePubFlow from "@/components/social/ComparePubFlow";
+import { AuthActionJsonParseError } from "@/lib/authedFetch";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { rankingSaveLanded } from "@/lib/firstTenRankingSession";
 import type { SocialPubBand, SocialPubRankingEntry } from "@/lib/socialPubRankings";
@@ -184,6 +189,61 @@ describe("a lost save answer", () => {
     expect(dialog().textContent).toContain("Choose a pub from the search.");
     expect(button("It was fine")).toBeDefined();
     expect(net.get).not.toHaveBeenCalled();
+  });
+});
+
+describe("a save the server answered before writing", () => {
+  it.each([
+    [503, { code: "SOCIAL_FROZEN", error: "Social is paused for a moment." }],
+    [503, { code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social access checks are unavailable right now.", retryable: true }],
+    [503, { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue search is unavailable right now." }],
+    [429, { code: "RATE_LIMITED", error: "Too many changes for now. Try again later." }],
+  ])("keeps the server's own reason (%s) and asks for the band again", async (status, body) => {
+    await open(list(["crown", "loved"]));
+    net.post.mockResolvedValueOnce(answer(body, status));
+    await click("It was fine");
+    expect(dialog().textContent).toContain(body.error);
+    expect(dialog().textContent).not.toContain("may have saved");
+    expect(button("It was fine")).toBeDefined();
+    expect(net.get).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["an unreadable 503", () => Promise.reject(new AuthActionJsonParseError(503))],
+    ["an unreadable 409", () => Promise.reject(new AuthActionJsonParseError(409))],
+    ["an uncoded 502", () => Promise.resolve(answer(null, 502))],
+  ])("still checks the list after %s", async (_label, post) => {
+    await open(list(["crown", "loved"]));
+    net.post.mockImplementationOnce(post);
+    net.get.mockResolvedValueOnce(reply({ entries: list(["crown", "loved"], ["lamb", "fine"]) }));
+    await click("It was fine");
+    expect(heading()).toBe("The lamb is in");
+  });
+});
+
+describe("an account Social refuses", () => {
+  it.each([
+    ["a refused save", () => Promise.resolve(answer({ code: "SOCIAL_ADULT_VERIFICATION_REQUIRED", error: "Adult verification is needed for Social." }, 403))],
+    ["an unreadable 401 save", () => Promise.reject(new AuthActionJsonParseError(401))],
+    ["a closed Social save", () => Promise.resolve(answer({ code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Social is not open yet." }, 503))],
+  ])("retires the flow after %s, without a read or a retry", async (_label, post) => {
+    await open(list(["crown", "loved"]));
+    net.post.mockImplementationOnce(post);
+    await click("It was fine");
+    expect(onClose).toHaveBeenCalledWith(undefined, "refused");
+    expect(net.get).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
+  it("retires the flow when the check after a lost answer is refused", async () => {
+    await open(list(["crown", "loved"]));
+    net.post.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const refused = reply({ code: "SOCIAL_ACCOUNT_SUSPENDED", error: "Social access is suspended." }, 403);
+    net.get.mockResolvedValueOnce(refused);
+    await click("It was fine");
+    expect(onClose).toHaveBeenCalledWith(undefined, "refused");
+    expect(document.body.textContent).not.toContain("We lost the answer");
+    expect(refused.bodyUsed).toBe(true);
   });
 });
 

@@ -4,15 +4,20 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-const net = vi.hoisted(() => ({ get: vi.fn(), pending: undefined as Promise<void> | undefined }));
+const net = vi.hoisted(() => ({ get: vi.fn(), pending: undefined as Promise<void> | undefined, confirmed: [] as unknown[] }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: net.get }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "owner" } }) }));
 vi.mock("@/components/social/ComparePubFlow", () => ({
-  default: ({ entries, onClose, onSaved }: { entries: Array<{ venueName: string }>; onClose: (pending?: Promise<void>) => void; onSaved: () => void }) => (
+  default: ({ entries, onClose, onSaved }: {
+    entries: Array<{ venueName: string }>;
+    onClose: (pending?: Promise<void>, reason?: "refused") => void;
+    onSaved: (entries: unknown[]) => void;
+  }) => (
     <div role="dialog">
       {entries.map((entry) => entry.venueName).join(", ")}
       <button onClick={() => onClose(net.pending)}>Close while saving</button>
-      <button onClick={onSaved}>Confirm save</button>
+      <button onClick={() => onSaved(net.confirmed)}>Confirm save</button>
+      <button onClick={() => onClose(undefined, "refused")}>Refused</button>
     </div>
   ),
 }));
@@ -55,6 +60,7 @@ beforeEach(() => {
   malformedError = false;
   saved = [entry("crown")];
   net.pending = undefined;
+  net.confirmed = [];
   net.get.mockImplementation(async (url: string) => new Response(malformedError && url === "/api/social/rankings" ? "Unavailable" : JSON.stringify(
     url === "/api/social/rankings"
       ? status === 200 ? { entries: saved } : { code: status === 403 ? "SOCIAL_ADULT_VERIFICATION_REQUIRED" : "SOCIAL_ACCESS_UNAVAILABLE", retryable: status === 503 }
@@ -80,12 +86,46 @@ it("waits for a closed write and refreshes before another comparison", async () 
   expect(host.querySelector("[role=dialog]")?.textContent).toContain("The lamb");
 });
 
+it("makes a confirmed save the checkpoint at once and keeps it through an outage", async () => {
+  await mount();
+  await act(async () => button("Rank a pub").click());
+  const reads = net.get.mock.calls.length;
+  status = 503;
+  net.confirmed = [entry("lamb"), entry("crown")];
+  await act(async () => button("Confirm save").click());
+  expect(net.get.mock.calls.length).toBe(reads);
+  expect(host.textContent).toContain("The lamb");
+  await act(async () => button("Close while saving").click());
+  // Closing still checks the list once; the outage keeps the confirmed rows.
+  expect(net.get.mock.calls.filter(([url]) => url === "/api/social/rankings").length).toBe(2);
+  expect(host.textContent).toContain("The lamb");
+  expect(button("Try again")).toBeDefined();
+});
+
+it("keeps focus on the section heading when a retry is refused, without rows", async () => {
+  status = 503;
+  await mount();
+  const retry = button("Try again");
+  retry.focus();
+  status = 403;
+  await act(async () => retry.click());
+  await act(async () => {});
+  expect(host.textContent).not.toContain("The crown");
+  expect(button("Rank a pub")).toBeUndefined();
+  expect(document.activeElement?.id).toBe("pub-ranking-title");
+  expect(host.querySelector("[role=status]")?.textContent).toBe("Your ranking is not available to this account right now.");
+});
+
 it("does not reopen a retired comparison after access is restored", async () => {
   await mount();
   await act(async () => button("Rank a pub").click());
-  status = 403;
-  await act(async () => button("Confirm save").click());
+  const reads = net.get.mock.calls.length;
+  await act(async () => button("Refused").click());
+  await act(async () => {});
   expect(host.querySelector("[role=dialog]")).toBeNull();
+  expect(net.get.mock.calls.length).toBe(reads);
+  expect(host.textContent).not.toContain("The crown");
+  expect(document.activeElement?.id).toBe("pub-ranking-title");
   status = 200;
   await act(async () => root.render(<PubRankingPanel refreshKey="access-restored" />));
   expect(host.textContent).toContain("The crown");

@@ -8,7 +8,12 @@ import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const reads = vi.hoisted(() => ({ get: vi.fn(), action: vi.fn(), json: vi.fn() }));
-vi.mock("@/lib/authedFetch", () => ({ authedFetch: reads.get, authedActionFetch: reads.action, authedActionJson: reads.json }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
+  authedFetch: reads.get,
+  authedActionFetch: reads.action,
+  authedActionJson: reads.json,
+}));
 const auth = vi.hoisted(() => ({ user: null as { id: string } | null }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: auth.user }) }));
 
@@ -201,8 +206,24 @@ describe("first ten ranking on the owner's profile", () => {
     const host = await renderOwner();
     await openFirstTen();
     await act(async () => document.querySelector<HTMLButtonElement>("[aria-label=Close]")!.click());
+    for (let i = 0; i < 4; i += 1) await act(async () => {});
     expect(host.textContent).not.toContain("The Pub 1");
     expect(firstTen()).toBeNull();
+    expect(document.activeElement?.id).toBe("passport-ranked-title");
+  });
+
+  it("keeps focus on the section heading when a retry is refused, without rows", async () => {
+    auth.user = { id: "owner-account" };
+    rankingReads(rankingJson({ code: "RANKING_UNAVAILABLE", retryable: true }, 503), rankingJson(null, 403));
+    const host = await renderOwner();
+    const retry = [...host.querySelectorAll("button")].find((node) => node.textContent === "Try again")!;
+    retry.focus();
+    await act(async () => retry.click());
+    for (let i = 0; i < 4; i += 1) await act(async () => {});
+    expect(firstTen()).toBeNull();
+    expect(host.querySelector("ol")).toBeNull();
+    expect(document.activeElement?.id).toBe("passport-ranked-title");
+    expect(host.textContent).toContain("Your ranking is not available to this account right now.");
   });
 
   it("closes an open session and drops the old read when the account changes", async () => {
