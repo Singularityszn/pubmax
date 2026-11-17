@@ -381,6 +381,12 @@ test("an arrival from another chat clears the active header and composer", async
   }
   await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
+  await expect(page.locator(".messageArrival")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeAttached();
+  unread = 3;
+  lastAt = "2026-11-17T09:02:00Z";
+  await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
+  await expect(page.locator(".messageArrival")).toBeVisible();
   await expect.poll(async () => {
     const box = await page.locator(".messageArrival").boundingBox();
     return box?.y ?? 0;
