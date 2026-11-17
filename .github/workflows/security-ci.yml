@@ -138,6 +138,13 @@ jobs:
           scripts/ci/install-pinned-tool.sh
           osv-scanner --version
 
+      - name: Prove npm advisory exceptions are development-only
+        run: |
+          set -euo pipefail
+          while IFS= read -r -d '' lockfile; do
+            (cd "$(dirname "$lockfile")" && node "$GITHUB_WORKSPACE/scripts/resilient-audit.mjs")
+          done < <(git ls-files -z -- '*package-lock.json')
+
       # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
       # lockfile added later are scanned without editing this line. It exits
       # non-zero when it finds no lockfile at all, so it cannot pass empty.

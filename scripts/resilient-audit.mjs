@@ -1,10 +1,6 @@
-// npm audit that fails on real high/critical vulnerabilities but tolerates
-// primary registry outages. Plain `npm audit` exits non-zero for BOTH findings
-// and infrastructure errors (e.g. the advisory endpoint returning 503), which
-// turns an npm-registry incident into a build failure with zero signal.
-// Here: findings -> exit 1; primary registry/endpoint failure -> warn + exit 0.
-// Once a waiver is needed, an unavailable production-only audit fails closed
-// because the waiver's dev-only scope cannot be proven.
+// The temporary development-only exception requires complete audit evidence.
+// Findings and unavailable or malformed audit responses fail closed. The named
+// exception expires automatically; an outage cannot extend it.
 //
 // A finding may additionally be WAIVED, but only under the narrow terms in
 // WAIVED_ADVISORIES below: one named advisory, dev dependencies only, and
@@ -22,10 +18,14 @@ const AUDIT_LEVELS = ["high", "critical"];
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
 //
-// The map is empty. The last entry, GHSA-vfj7-8cjw-p6xm (braces <=3.0.3),
-// was removed on 2026-10-28 because GitHub withdrew the advisory on
-// 2026-10-23 and npm audit no longer reports it.
-export const WAIVED_ADVISORIES = new Map();
+// GHSA-fc5q-39xc-vjpf has no patched release as of 2026-11-17.
+// The lockfile reaches it only through development tools. Every audit must
+// still prove production is clean. Remove this exception when a fix ships.
+export const WAIVED_ADVISORIES = new Map(
+  Date.now() < Date.parse("2026-11-24T00:00:00Z")
+    ? [["https://github.com/advisories/GHSA-fc5q-39xc-vjpf", "high"]]
+    : [],
+);
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
@@ -43,7 +43,10 @@ function runAudit(extraArgs = []) {
 }
 
 function hasVulnerabilities(report) {
-  return Boolean(report && report.metadata && report.metadata.vulnerabilities);
+  const counts = report?.metadata?.vulnerabilities;
+  return report?.vulnerabilities !== null && typeof report?.vulnerabilities === "object"
+    && !Array.isArray(report.vulnerabilities)
+    && AUDIT_LEVELS.every((level) => Number.isSafeInteger(counts?.[level]) && counts[level] >= 0);
 }
 
 // `via` holds either advisory objects (the root cause) or the names of other
@@ -128,12 +131,11 @@ function main() {
     return 0;
   }
 
-  // No parseable report: npm itself failed (registry outage, ENOAUDIT, proxy).
-  // The audit is advisory infrastructure, so do not fail the build on its absence.
+  // This also fails after expiry, so unavailable evidence cannot prolong the exception.
   const stderr = (result.stderr ?? "").slice(0, 2000);
-  console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
-  if (stderr) console.warn(stderr);
-  return 0;
+  console.error("[resilient-audit] audit unavailable or malformed - failing closed.");
+  if (stderr) console.error(stderr);
+  return 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
