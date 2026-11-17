@@ -7536,6 +7536,13 @@ export type Database = {
         };
         Returns: string;
       };
+      _social_crew_admission_ineligible: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
+      };
       _social_crew_admission_refused: {
         Args: {
           p_crew: string | null;

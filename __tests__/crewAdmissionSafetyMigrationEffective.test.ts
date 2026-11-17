@@ -586,7 +586,7 @@ describe.skipIf(skipReason !== null)("rollback and reapply", () => {
       and to_regprocedure('public._social_crew_admission_refused(uuid,uuid)') is null
       and to_regprocedure('public._social_crew_admission_ineligible(uuid,uuid)') is null
       and to_regprocedure('public._lock_social_auth_user_accounts()') is null
-      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','social_accounts_lock_on_auth_user_delete'))`)).toBe("t");
+      and not exists(select 1 from pg_trigger where tgname in ('social_blocks_lock_participant_accounts','lock_social_accounts_on_auth_user_delete'))`)).toBe("t");
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana]);
     block(xav, ana);
