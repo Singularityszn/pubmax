@@ -5,7 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
-const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void) }));
+const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void), outbox: null as null | ((post: SocialPostDTO) => void) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "alice" }, accountRevision: 1, identityResolved: true }) }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedIn: true, signedOut: false }) }));
@@ -22,7 +22,7 @@ vi.mock("@/app/social/SocialPostEditor", () => ({ SocialPostEditor: ({ post, onS
   createElement("button", { onClick: () => onSaved({ ...post, body: "Accepted edit" }) }, "Save edit") }));
 vi.mock("@/app/social/SocialComposer", () => ({ default: ({ onSaved }: { onSaved: (post: SocialPostDTO) => void }) => { composer.save = onSaved; return null; } }));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
-vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
+vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onPostChanged: (post: SocialPostDTO) => void }) => { composer.outbox = onPostChanged; return null; } }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
@@ -89,7 +89,7 @@ it("keeps a four-page window during automatic refresh and offers an explicit ref
   expect([...host.querySelectorAll("button")].some(button => button.textContent === "Load more")).toBe(true);
 });
 
-it.each(["edit", "publish", "edit during refresh"])("keeps all four pages after %s", async action => {
+it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all four pages after %s", async action => {
   let refreshing = false;
   let finish!: (response: Response) => void;
   transport.request.mockImplementation(async (href: string) => {
@@ -110,6 +110,7 @@ it.each(["edit", "publish", "edit during refresh"])("keeps all four pages after 
 
   await act(async () => {
     if (action === "publish") composer.save!(feedPost("Published post", 20));
+    else if (action === "outbox edit") composer.outbox!({ ...feedPost("Accepted edit", 13), id: "Page 4", ownedByViewer: true });
     else host.querySelector<HTMLButtonElement>(".socialPostCard button")!.click();
   });
   if (action === "edit during refresh") {

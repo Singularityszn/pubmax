@@ -468,6 +468,7 @@ function SocialPageAccountState({
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  const feedController = useRef<AbortController | null>(null);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
@@ -617,6 +618,7 @@ function SocialPageAccountState({
     }
 
     const controller = new AbortController();
+    feedController.current = controller;
     feedPending.current = true;
     void Promise.resolve().then(() => {
       if (feedRequestId.current !== requestId) return;
@@ -667,6 +669,7 @@ function SocialPageAccountState({
       });
     return () => {
       controller.abort();
+      if (feedController.current === controller) feedController.current = null;
       feedPending.current = false;
       moreController.current?.abort();
       moreController.current = null;
@@ -737,6 +740,20 @@ function SocialPageAccountState({
     return () => controller.abort();
   }, [accountRevision, access, initialState.tab]);
 
+  const refreshAfterSave = useCallback(() => {
+    feedRequestId.current += 1;
+    if ((feedData.current?.page.pages ?? 0) <= SOCIAL_REFRESH_PAGE_CAP) {
+      setFeedAttempt(value => value + 1);
+      return;
+    }
+    feedController.current?.abort();
+    moreController.current?.abort();
+    moreController.current = null;
+    feedPending.current = false;
+    setLoadingMore(false);
+    setRefreshing(false);
+  }, []);
+
   const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
     if (updated) {
       const next = chronological(postsRef.current.map(item => item.id === updated.id
@@ -750,9 +767,8 @@ function SocialPageAccountState({
         writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false, preserveAge: true });
       }
     }
-    feedRequestId.current += 1;
-    setFeedAttempt(value => value + 1);
-  }, [feedSnapshotKey]);
+    refreshAfterSave();
+  }, [feedSnapshotKey, refreshAfterSave]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;
@@ -829,7 +845,7 @@ function SocialPageAccountState({
       triggerLabel="Post"
       onSaved={(saved) => {
         if (saved) setSubmittedPost(saved);
-        setFeedAttempt((value) => value + 1);
+        refreshAfterSave();
       }}
     />
   ) : viewerPhase === "signed-out" ? (
@@ -999,7 +1015,7 @@ function SocialPageAccountState({
             {showViewerCards && viewerHandle ? <PintDropRecovery handle={viewerHandle} /> : null}
             {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
               if (updated) setSubmittedPost(updated);
-              setFeedAttempt((value) => value + 1);
+              acceptPostEdit(updated);
             }} /> : null}
 
           {!friendsLaunchEnabled ? (

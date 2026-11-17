@@ -132,7 +132,9 @@ const HANDLE_KEY = "pubmax_handle";
 /** The counter shows only once a message is close to the cap. */
 const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
-function readHandle(): string {
+function readHandle(authHandle?: string | null): string {
+  const canonical = normalizeHandle(authHandle ?? "");
+  if (canonical) return canonical;
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
@@ -212,6 +214,18 @@ function sameThreadReadKey(
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
 }
 
+type ThreadHead = { key: ThreadReadKey; identity: ThreadIdentity | null; otherHandle: string };
+
+function retainedThreadHead(key: ThreadReadKey, identity: ThreadIdentity | null, messages: MessageDTO[], viewer: string, previous: ThreadHead | null): ThreadHead {
+  const held = sameThreadReadKey(previous?.key ?? null, key.conversationId, key.accountRevision) ? previous : null;
+  return {
+    key,
+    identity: identity ?? held?.identity ?? null,
+    otherHandle: otherHandleFromThreadRead(identity, messages, viewer) || held?.otherHandle || "",
+  };
+}
+
+
 /** Which picker is open. One at a time, because one attachment rides at a time. */
 type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
 
@@ -272,7 +286,7 @@ export default function MessageThread({
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
   const viewerSession = useViewerSession();
-  const snapshotKey = messageSnapshotKey(user?.id, accountRevision, normalizeHandle(authHandle ?? "") || readHandle(), conversationId);
+  const snapshotKey = messageSnapshotKey(user?.id, accountRevision, readHandle(authHandle), conversationId);
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
@@ -299,6 +313,7 @@ export default function MessageThread({
   }
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
+  const headRef = useRef<ThreadHead | null>(null);
   const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
   const requestGenerationRef = useRef(0);
   /**
@@ -365,6 +380,7 @@ export default function MessageThread({
     const held = readSurfaceSnapshot<ThreadSnapshot>(key);
     if (!held) return;
     loadedForRef.current = requestKey;
+    headRef.current = { key: requestKey, identity: held.identity, otherHandle: held.otherHandle };
     setViewRevision(requestKey);
     setMessages(held.messages);
     setIdentity(held.identity);
@@ -412,7 +428,7 @@ export default function MessageThread({
         setState(viewerSession.unresolved ? "loading" : "signedout");
         return;
       }
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!h) {
         land();
         loadedForRef.current = null;
@@ -479,8 +495,9 @@ export default function MessageThread({
         // A GROUP is named by its title or its people, never by one of them,
         // so its head keeps drawing from the group's own name.
         const identityFromRead = threadIdentityFromWire(body.conversation);
-        let nextIdentity: ThreadIdentity | null = identityFromRead;
-        let nextOther = otherHandleFromThreadRead(identityFromRead, next, h);
+        const head = retainedThreadHead(requestKey, identityFromRead, next, h, headRef.current);
+        let nextIdentity = head.identity;
+        let nextOther = head.otherHandle;
         rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
         if (!identityFromRead && next.length === 0 && !askedInboxForNameRef.current) {
           // ONE read of the inbox per thread, and only for an empty one with
@@ -491,16 +508,17 @@ export default function MessageThread({
           if (!stillCurrent()) return;
           if (named) {
             askedInboxForNameRef.current = true;
-            nextIdentity = named.identity;
-            if (named.identity?.kind !== "group") nextOther = named.otherHandle;
+            nextIdentity = named.identity ?? nextIdentity;
+            if (named.identity?.kind !== "group") nextOther = named.otherHandle || nextOther;
           }
         }
         if (!stillCurrent()) return;
         // A NAME ALREADY LEARNED FOR THIS THREAD IS NEVER TAKEN BACK. A later
         // read that carries no membership leaves the head as it was rather than
         // flipping a named person back to the neutral word.
-        setIdentity((previous) => nextIdentity ?? previous);
-        setOtherHandle((previous) => nextOther || previous);
+        headRef.current = { key: requestKey, identity: nextIdentity, otherHandle: nextOther };
+        setIdentity(nextIdentity);
+        setOtherHandle(nextOther);
         rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
         setState("ready");
       } catch (err) {
@@ -594,13 +612,14 @@ export default function MessageThread({
   }
 
 
+
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
    * counted here, because a count derived in two places is two counts.
    */
   const vote = useCallback(
     async (messageId: string, optionIndex: number): Promise<MessagePollView | null> => {
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!user || !h) return null;
       const res = await authedActionFetch(
         `/api/messages/${encodeURIComponent(conversationId)}`,
@@ -629,7 +648,7 @@ export default function MessageThread({
    */
   const remove = useCallback(async () => {
     const pendingRemoval = confirming;
-    const h = normalizeHandle(authHandle ?? "") || readHandle();
+    const h = readHandle(authHandle);
     if (!pendingRemoval || !user || !h) return;
     const requestRevision = accountRevision;
     const removalEpoch = removalEpochRef.current;
@@ -673,7 +692,7 @@ export default function MessageThread({
       discardBody(res);
       readFloorRef.current = requestGenerationRef.current + 1;
       if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
-      const inboxKey = messageSnapshotKey(user.id, accountRevision, normalizeHandle(authHandle ?? "") || readHandle());
+      const inboxKey = messageSnapshotKey(user.id, accountRevision, readHandle(authHandle));
       if (inboxKey) forgetSurfaceSnapshot(inboxKey);
       setConfirming(null);
       if (pendingRemoval.kind === "unsend") {
@@ -713,7 +732,7 @@ export default function MessageThread({
   }, [conversationId, accountRevision]);
   const report = useCallback(
     async (messageId: string) => {
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!user || !h) return;
       setReportError("");
       try {
