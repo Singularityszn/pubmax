@@ -78,7 +78,7 @@ import {
   liveAccountDeparted,
   releaseDeviceAccountOwner,
 } from "@/lib/deviceAccountIdentity";
-import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropSignInKeys";
 import { clearPersistedPlanDrafts, clearPlanIntakeDraft } from "@/lib/planDraftStorage";
 import { PLAN_HOST_NAME_KEY } from "@/lib/planHostName";
 import {
