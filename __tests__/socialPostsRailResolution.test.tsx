@@ -45,6 +45,7 @@ vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGNED_OUT_VALUE_LINE } from "@/lib/socialLaunch";
+import { LOG_IN_PUBLIC_FEED_HREF } from "@/lib/logInPublicDrops";
 
 const posts = { valid: true as const, tab: "posts" as const, feed: "following" as const, area: null };
 let host: HTMLDivElement;
@@ -67,6 +68,10 @@ beforeEach(() => {
   viewer.auth.user = null;
   setSession("unresolved");
   calendar.day = null;
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input) !== LOG_IN_PUBLIC_FEED_HREF) throw new Error(`Unexpected public request: ${String(input)}`);
+    return Response.json({ drops: [] });
+  }));
   transport.request.mockReset();
   transport.request.mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input) !== "/api/starter-packs") throw new Error(`Unexpected request: ${String(input)}`);
@@ -91,6 +96,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   style.remove();
+  vi.unstubAllGlobals();
 });
 
 async function renderSocial(initialState: SocialShellState = posts, friendsLaunchEnabled = true): Promise<void> {
@@ -141,7 +147,7 @@ describe("Social Posts account resolution", () => {
     const slot = door.querySelector('section[aria-label="Social posts"]');
     expect(slot, "the pending account must reserve the door's slot").not.toBeNull();
     const content = slot!.querySelector(".emptyState")!.parentElement!;
-    const switcher = door.querySelector("nav");
+    const pendingChildren = Array.from(door.children);
     const sizingContent = content.textContent;
     // The sizing copy is the same shape as the answer (a one-line title and
     // the value line) and names no door before the session answers. Only the
@@ -165,7 +171,8 @@ describe("Social Posts account resolution", () => {
     setSession("signed-out");
     calendar.day = "2026-11-17";
     await renderSocial();
-    await vi.dynamicImportSettled();
+    await act(async () => { await vi.dynamicImportSettled(); });
+    expect(door.querySelector(".socialLogInPublic")).not.toBeNull();
 
     expect(door.querySelector('section[aria-label="Social posts"]')).toBe(slot);
     expect(slot!.querySelector(".emptyState")!.parentElement).toBe(content);
@@ -185,8 +192,8 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
-    expect(door.querySelector("nav")).toBe(switcher);
-    expect(slot!.parentElement).toBe(door);
+    const stableChildren = Array.from(door.children).filter((child) => !child.matches(".socialLogInPublic"));
+    expect(stableChildren.slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
   });
 
   it("keeps an unanswered account neutral and hides stale signed-out copy when resolution restarts", async () => {
