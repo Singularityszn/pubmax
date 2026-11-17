@@ -1036,7 +1036,7 @@ export default function PrivacyPage() {
             places and cancel the Crew nights you own. Private write receipts stay for safe retries
             and audit until the actor&rsquo;s account deletion request is carried
             out, unless a legal or security hold applies. Crew removal correction
-            records are deleted with the affected account. Its export includes
+            records are deleted with the affected account. Your data export includes
             the correction outcome and date, without private review notes or
             staff identities.
           </li>

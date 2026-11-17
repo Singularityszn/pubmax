@@ -16,9 +16,9 @@
 --      departed member still holding a place or owning an open night. The deletion
 --      service calls it after every completed or repeated account deletion, and an
 --      operator can call it (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md).
---    - Every admission and invitation first releases its own crew's departed members,
---      so a place is never kept from a new guest, and refuses when the night is
---      cancelled.
+--    - Admission and invitation paths that pass the host pre-checks release their
+--      crew's departed members before participant locks. A departure during those
+--      waits can remain pending until the next sweep or admission.
 --    Lock order: crew row, member rows, Plan row, seat and invitation rows. It takes no
 --    auth row and no account lock.
 -- 4. Rollback drops both functions and restores 0245's _social_crew_admission_refused.

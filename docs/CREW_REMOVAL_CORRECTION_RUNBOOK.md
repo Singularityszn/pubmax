@@ -56,9 +56,9 @@ What the ledger does today:
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
 - When the subject deletes their account, their rows are deleted in the same transaction.
 - When the crew is deleted, its rows are deleted. Deleting a crew-bound Plan deletes its crew (see below).
-- The subject's own-record export is built outside migration 0245. It is not live yet.
+- The subject's own-record export ships with this change. It includes the correction outcome, without staff details or reasons.
 
-Export and the other lifecycle items are open release holds, owned outside migration 0245. Do not run a correction in production until the captain closes them.
+Production use still requires the captain's migration approval and the apply-time privilege and trigger-order checks. The unused 0071 identity writer remains a separate operational hold.
 
 ## Deleting a crew-bound Plan
 
@@ -78,7 +78,7 @@ The delete removes the Plan's seats, its crew, member rows, join requests, invit
 
 When an account is deleted, migration 0246 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
 
-The deletion service runs the release after the auth row is deleted, and again when the same delete is repeated. Each call processes at most 20 pending crews across deleted accounts. Later calls continue pending cleanup. A failed call can leave counts or cancellation stale until another call completes. An admission or invitation first releases that crew's deleted members. When the service logs `account.delete_crew_release_failed`, check and finish the release:
+The deletion service runs the release after the auth row is deleted, and again when the same delete is repeated. Each call processes at most 20 pending crews across deleted accounts. Later calls continue pending cleanup. A failed call can leave counts or cancellation stale until another call completes. Admission and invitation paths that pass the host pre-checks release their crew's departed members before participant locks. A departure during those waits can remain pending until the next sweep or admission. When the service logs `account.delete_crew_release_failed`, check and finish the release:
 
 ```sql
 select member.crew_id, member.role
@@ -97,6 +97,8 @@ select public.release_departed_social_crew_places(100);
 Run the call until it answers `"crews": 0`. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
 ## Rollback
+
+Roll back 0246 before 0245.
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 

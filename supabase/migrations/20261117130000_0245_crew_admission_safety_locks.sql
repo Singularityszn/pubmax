@@ -67,7 +67,7 @@
 -- does not own: it leaves lock_social_accounts_on_auth_user_delete with a function that
 -- returns at once, and reapplying checks and reuses that trigger. It waits for
 -- auth.users holding nothing, takes every other lock without waiting, and stops while
--- the ledger holds rows unless the session names their exact exported count.
+-- the ledger holds rows unless the session names their exact exported snapshot.
 begin;
 
 -- A row lock on auth.users needs UPDATE on it. Without that this migration stops here.
