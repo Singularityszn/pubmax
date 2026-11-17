@@ -1884,6 +1884,7 @@ span.socialPostAvatar {
 
 /* A photo feed reads at a phone's width even on a wide screen. */
 .socialPostList,
+.socialFeedHeading,
 .socialFeedInlineError,
 .socialFeedControls,
 .socialFeedNewPosts {
