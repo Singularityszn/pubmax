@@ -23,6 +23,12 @@
   background: var(--messages-surface, var(--paper));
 }
 
+.messagesPage :focus-visible,
+.messageAttachSheetPortal :focus-visible,
+.messageConfirmOverlay :focus-visible {
+  --shared-press-scale: 1;
+}
+
 html[data-theme="dark"] .messagesPage {
   --messages-surface: var(--paper);
   --messages-soft-surface: var(--panel-raised);
@@ -211,11 +217,6 @@ html[data-theme="dark"] .messagesPage {
   margin-top: var(--space-2);
 }
 
-.messagesScreen--signedOut .screenPrimary > a {
-  min-width: 14rem;
-  max-width: 100%;
-}
-
 .messagesScreen--signedOut .emptyState {
   text-align: start;
 }
@@ -293,7 +294,12 @@ html[data-theme="dark"] .messagesPage {
   border-radius: 0;
   text-decoration: none;
   color: inherit;
-  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.conversationLink:active,
+.threadBackLink:active,
+a.threadWith:active {
+  background: var(--messages-soft-surface);
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -433,7 +439,7 @@ html[data-theme="dark"] .messagesPage {
 
 @media (hover: hover) and (pointer: fine) {
   .threadBackLink:hover {
-    background: var(--panel);
+    background: var(--messages-soft-surface);
   }
 }
 
@@ -451,7 +457,7 @@ html[data-theme="dark"] .messagesPage {
 
 @media (hover: hover) and (pointer: fine) {
   a.threadWith:hover {
-    background: var(--panel);
+    background: var(--messages-soft-surface);
   }
 }
 
@@ -547,7 +553,7 @@ html[data-theme="dark"] .messagesPage {
 
    `width: fit-content` is the other half: it takes the AVAILABLE width as its
    floor rather than the min-content one a flex item would, so a short message
-   keeps its natural size while a pasted URL still stops at 75% and breaks
+   keeps its natural size while a pasted URL wraps
    inside the bubble instead of pushing the page sideways. */
 .messageLine {
   max-width: 75%;
@@ -558,6 +564,19 @@ html[data-theme="dark"] .messagesPage {
 }
 
 .messageRowMine .messageLine {
+  align-items: flex-end;
+}
+
+.messageBubbleGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.messageRowMine .messageBubbleGroup {
   align-items: flex-end;
 }
 
@@ -636,9 +655,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 }
 
-/* The time and the Report control live under the bubble and stay folded
-   until the bubble is tapped, hovered with a pointer that can hover, or
-   reached with the keyboard. A thread is not a column of Report links. */
+/* Hide actions until requested, so the thread is not a column of Report links.
+   Reveal and placement rules: docs/rules/components-venue-plan-and-message-surfaces.md. */
 .messageMeta {
   display: flex;
   gap: 0.6rem;
@@ -649,10 +667,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0 0.3rem;
   font-size: var(--text-2xs);
   color: var(--muted);
-  transition:
-    max-height var(--duration-base) var(--ease-out),
-    opacity var(--duration-base) var(--ease-out),
-    margin-top var(--duration-base) var(--ease-out);
 }
 
 .messageRow[data-revealed] .messageMeta,
@@ -662,18 +676,61 @@ html[data-theme="dark"] .messageBubblePhoto {
   margin-top: 0.2rem;
 }
 
-@media (hover: hover) {
-  .messageLine:hover .messageMeta {
-    max-height: max(2.75rem, 44px);
-    opacity: 1;
-    margin-top: 0.2rem;
-  }
-}
-
-/* An own message's meta is usually empty, so it sits under the right edge of
-   the bubble rather than under a left edge nothing else shares. */
 .messageRowMine .messageMeta {
   justify-content: flex-end;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .messageLine {
+    --message-actions-space: clamp(96px, 6rem, 112px);
+    max-width: min(100%, calc(75% + var(--message-actions-space)));
+  }
+
+  .messageBubbleGroup {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--message-actions-space);
+    align-items: end;
+    width: fit-content;
+  }
+
+  .messageMeta {
+    width: var(--message-actions-space);
+    flex-wrap: wrap;
+    row-gap: 0;
+    min-height: 44px;
+    max-height: none;
+    margin-top: 0;
+    padding: 0 0 0 var(--space-2);
+    overflow: visible;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+
+  .messageRowMine .messageBubbleGroup {
+    grid-template-columns: var(--message-actions-space) minmax(0, 1fr);
+  }
+
+  .messageRowMine .messageBubble,
+  .messageRowMine .messageUnsent {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
+  .messageRowMine .messageMeta {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0 var(--space-2) 0 0;
+  }
+
+  .messageRow[data-revealed] .messageMeta,
+  .messageLine:focus-within .messageMeta,
+  .messageLine:hover .messageMeta {
+    max-height: none;
+    margin-top: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
 }
 
 .messageClock {
@@ -1168,26 +1225,15 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--messages-accent, var(--brass));
+  background: var(--messages-accent);
   color: var(--color-on-accent);
   cursor: pointer;
-  transition:
-    background-color var(--duration-fast) var(--ease-out),
-    color var(--duration-fast) var(--ease-out),
-    transform var(--duration-fast) var(--ease-out);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .composerSend:hover:not(:disabled) {
     background: color-mix(in srgb, var(--ink) 6%, var(--ink-deep));
   }
-}
-
-/* Press feedback owned here, so the shared press layer in app/globals.css
-   stands down through its documented seam (--shared-press-scale). */
-.composerSend:active:not(:disabled) {
-  transform: scale(0.94);
-  --shared-press-scale: 1;
 }
 
 .composerSend:disabled {

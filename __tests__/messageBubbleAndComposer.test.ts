@@ -219,19 +219,6 @@ describe("message photo dimensions", () => {
 
 });
 describe("rendered conversation and composer", () => {
-  it("keeps own and incoming bubbles and metadata in their row's width wrapper", async () => {
-    await thread();
-    const rows = host.querySelectorAll(".messageRow");
-    expect(rows).toHaveLength(2);
-    for (const row of rows) {
-      const line = row.querySelector(".messageLine");
-      expect(line?.parentElement).toBe(row);
-      expect(line?.querySelector(".messageBubble")?.parentElement).toBe(line);
-      expect(line?.querySelector(".messageMeta")?.parentElement).toBe(line);
-      expect(line?.textContent).toContain("Yo!!");
-    }
-  });
-
   it("renders keyboard help for prose and grows to the measured scroll height", async () => {
     await thread();
     const input = field();

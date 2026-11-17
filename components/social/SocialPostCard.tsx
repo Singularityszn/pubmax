@@ -137,7 +137,7 @@ function PostTags({ hashtags, signedOut }: { hashtags: string[]; signedOut: bool
     <p className="socialPostTags">
       {hashtags.map((tag) => signedOut
         ? <span key={tag}>#{tag}</span>
-        : <Link key={tag} prefetch={false} href={socialTagHref(tag)}>#{tag}</Link>)}
+        : <Link key={tag} data-pressable prefetch={false} href={socialTagHref(tag)}>#{tag}</Link>)}
     </p>
   );
 }
@@ -173,7 +173,7 @@ export default function SocialPostCard({ post, lane, editor = null, interactive 
         <div className="socialPostMeta__who">
           <strong>
             {post.author.handle ? (
-              <Link prefetch={false} href={profilePath(post.author.handle)}>
+              <Link data-pressable prefetch={false} href={profilePath(post.author.handle)}>
                 @{post.author.handle}
               </Link>
             ) : HIDDEN_NAME_AUTHOR_LABEL}

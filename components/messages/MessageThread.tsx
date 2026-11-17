@@ -121,16 +121,10 @@ import "@/app/messages/messages.css";
 // decides which bubbles are "mine". A GET that isn't a participant returns 404 —
 // the page below shows a friendly not-found rather than a leak.
 //
-// A BUBBLE'S WIDTH IS THE ROW'S BUSINESS. Each row wraps its bubble in a
-// `.messageLine`, which is the box the 75% limit lives on; putting that limit on
-// the bubble made every bubble 78% of its OWN natural width, and "Yo!!" arrived
-// on production as one character per line. See app/messages/messages.css.
+// Bubble width constraints: app/messages/messages.css.
 //
-// A THREAD READS LIKE A CONVERSATION. lib/messageTimeline.ts decides the day
-// lines, which bubbles sit tight in one run, and where the time and the read
-// state print (once, under the last bubble of a run). Tapping any bubble
-// reveals its own time, and the Report control with it, so the thread is not
-// a column of underlined Report links.
+// Timeline, reveal and read-state rules:
+// docs/rules/components-venue-plan-and-message-surfaces.md.
 //
 // A SENT MESSAGE APPEARS THE MOMENT IT IS SENT. The composer clears and an own
 // bubble lands in the thread before the server answers; the refetch replaces
@@ -1218,7 +1212,7 @@ export default function MessageThread({
     }
     if (threadName) {
       return (
-        <Link href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
+        <Link data-pressable href={`/u/${encodeURIComponent(otherHandle)}`} className="threadWith">
           <MessageAvatar
             handle={otherHandle}
             avatarUrl={card?.avatarUrl}
@@ -1249,7 +1243,7 @@ export default function MessageThread({
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
       <div className="threadHeader">
-        <Link href="/messages" className="threadBackLink" aria-label="Back to inbox">
+        <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
@@ -1314,37 +1308,38 @@ export default function MessageThread({
                 data-revealed={revealed ? "" : undefined}
                 data-sending={sendingRow ? "" : undefined}
               >
-                {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
-                  {m.unsent ? (
+                  <div className="messageBubbleGroup">
+                    {m.unsent ? (
+                      <div
+                        className="messageUnsent"
+                        onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                      >
+                        {MESSAGE_UNSENT_LINE}
+                      </div>
+                    ) : (
                     <div
-                      className="messageUnsent"
+                      className={[
+                        mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
+                        (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
+                      ].filter(Boolean).join(" ")}
                       onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                     >
-                      {MESSAGE_UNSENT_LINE}
+                      {renderAttachment(m, sendingRow)}
+                      {pendingPhoto ? (
+                        // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
+                        <img className="messagePhotoSending" src={pendingPhoto} alt="" />
+                      ) : null}
+                      {m.body ? <MessageBody body={m.body} /> : null}
                     </div>
-                  ) : (
-                  <div
-                    className={[
-                      mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
-                      (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
-                    ].filter(Boolean).join(" ")}
-                    onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
-                  >
-                    {renderAttachment(m, sendingRow)}
-                    {pendingPhoto ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
-                      <img className="messagePhotoSending" src={pendingPhoto} alt="" />
-                    ) : null}
-                    {m.body ? <MessageBody body={m.body} /> : null}
-                  </div>
-                  )}
-                  <div className="messageMeta">
-                    <time className="messageClock" dateTime={m.createdAt}>
-                      {item.clock}
-                    </time>
-                    {renderMessageAction(m, mine, sendingRow)}
+                    )}
+                    <div className="messageMeta">
+                      <time className="messageClock" dateTime={m.createdAt}>
+                        {item.clock}
+                      </time>
+                      {renderMessageAction(m, mine, sendingRow)}
+                    </div>
                   </div>
                   {sendingRow ? (
                     <span className="messageReadState">Sending</span>

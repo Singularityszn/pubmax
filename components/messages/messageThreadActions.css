@@ -45,7 +45,8 @@
   z-index: 5;
   display: flex;
   flex-direction: column;
-  min-width: 12rem;
+  min-width: min(12rem, calc(100vw - 2rem));
+  max-width: calc(100vw - 2rem);
   padding: 0.35rem;
   border: 1px solid var(--line);
   border-radius: var(--radius);
@@ -66,7 +67,8 @@
   font: inherit;
   font-size: var(--text-sm);
   text-align: left;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
   cursor: pointer;
 }
 
