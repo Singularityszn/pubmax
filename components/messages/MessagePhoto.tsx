@@ -59,7 +59,23 @@ export default function MessagePhoto({
   const [open, setOpen] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const [requested, setRequested] = useState(false);
+  const frame = useRef<HTMLElement>(null);
   const opener = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (requested) return;
+    let active = true;
+    if (previewUrl || typeof IntersectionObserver === "undefined") {
+      queueMicrotask(() => { if (active) setRequested(true); });
+      return () => { active = false; };
+    }
+    const observer = new IntersectionObserver(entries => {
+      if (active && entries.some(entry => entry.isIntersecting)) setRequested(true);
+    }, { rootMargin: "320px 0px" });
+    if (frame.current) observer.observe(frame.current);
+    return () => { active = false; observer.disconnect(); };
+  }, [previewUrl, requested]);
 
   useEffect(() => {
     if (!open) return;
@@ -68,6 +84,7 @@ export default function MessagePhoto({
   }, [open]);
 
   useEffect(() => {
+    if (!requested) return;
     let active = true;
     queueMicrotask(() => { if (active) { setFailed(false); setObjectUrl(null); setLoaded(false); } });
     let created: string | null = null;
@@ -97,7 +114,7 @@ export default function MessagePhoto({
       controller.abort();
       if (created) URL.revokeObjectURL(created);
     };
-  }, [url, handle, attempt]);
+  }, [url, handle, attempt, requested]);
 
   useEffect(() => {
     if (loaded) onStoredLoad?.();
@@ -127,7 +144,7 @@ export default function MessagePhoto({
   ) : null;
 
   if (!shownUrl) {
-    return <figure className="messagePhotoFigure" style={tile}>
+    return <figure ref={frame} className="messagePhotoFigure" style={tile} tabIndex={0} aria-label={messagePhotoAltText(senderHandle)} onFocus={() => setRequested(true)}>
       {failed ? retry : <p className="messagePhotoPending">Loading photo</p>}
       {preload}
     </figure>;
@@ -136,7 +153,7 @@ export default function MessagePhoto({
   const alt = messagePhotoAltText(senderHandle);
 
   return (
-    <figure className="messagePhotoFigure" style={tile}>
+    <figure ref={frame} className="messagePhotoFigure" style={tile}>
       <button
         ref={opener}
         type="button"

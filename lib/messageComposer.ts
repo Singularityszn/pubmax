@@ -13,17 +13,21 @@ export type PendingMessageAttachment =
 export type OutboxMessage = MessageDTO & { pendingPhoto?: MessagePhotoDraft; queued?: boolean };
 
 export type ComposerActivity =
-  | { phase: "ready" | "preparing" | "sending"; scope: string }
+  | { phase: "ready" | "sending"; scope: string }
+  | { phase: "preparing"; scope: string; completed: number; total: number }
   | { phase: "failed"; scope: string; message: string; operation: "prepare" | "send" };
 type ComposerEvent =
-  | { type: "reset" | "prepare" | "send" | "finish" | "clear-error"; scope: string }
+  | { type: "reset" | "send" | "finish" | "clear-error"; scope: string }
+  | { type: "prepare"; scope: string; total: number }
+  | { type: "progress"; scope: string; completed: number }
   | { type: "fail"; scope: string; message: string; operation?: "prepare" | "send" };
 
 export function transitionComposerActivity(state: ComposerActivity, event: ComposerEvent): ComposerActivity {
   if (event.type === "reset") return { phase: "ready", scope: event.scope };
   if (event.scope !== state.scope) return state;
   switch (event.type) {
-    case "prepare": return state.phase === "sending" ? state : { phase: "preparing", scope: event.scope };
+    case "prepare": return state.phase === "sending" ? state : { phase: "preparing", scope: event.scope, completed: 0, total: event.total };
+    case "progress": return state.phase === "preparing" ? { ...state, completed: event.completed } : state;
     case "send": return state.phase === "preparing" ? state : { phase: "sending", scope: event.scope };
     case "fail": return { phase: "failed", scope: event.scope, message: event.message, operation: event.operation ?? "send" };
     case "finish": return state.phase === "preparing" || state.phase === "sending" ? { phase: "ready", scope: event.scope } : state;

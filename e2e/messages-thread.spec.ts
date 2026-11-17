@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 import { storeThemeChoice } from "./helpers/themeClock";
 
@@ -393,6 +393,18 @@ async function expectNoHorizontalOverflow(page: Page, width: number): Promise<vo
       { message: `document should not horizontally overflow at ${width}px` },
     )
     .toEqual({ clientWidth: width, scrollWidth: width, bodyScrollWidth: width });
+}
+
+async function expectReadableCaption(field: Locator): Promise<void> {
+  await expect(async () => {
+    const geometry = await field.evaluate((element: HTMLTextAreaElement) => ({ height: element.clientHeight, required: element.scrollHeight, maxHeight: parseFloat(getComputedStyle(element).maxHeight) }));
+    expect(geometry.height).toBeGreaterThanOrEqual(Math.min(geometry.required, geometry.maxHeight) - 1);
+    expect(geometry.height).toBeLessThanOrEqual(geometry.maxHeight + 1);
+    if (geometry.required > geometry.maxHeight) {
+      const end = await field.evaluate((element: HTMLTextAreaElement) => { element.scrollTop = element.scrollHeight; return element.scrollTop + element.clientHeight; });
+      expect(end).toBeGreaterThanOrEqual(geometry.required - 1);
+    }
+  }).toPass();
 }
 
 /** The composer dock is on screen, whole, and clear of the tab bar's pill. */
@@ -856,6 +868,88 @@ test.describe("the message thread on a desktop", () => {
   });
 });
 
+for (const width of [390, 768, 1440]) {
+  test(`photo history loads nearby frames and keyboard destinations at ${width}px`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await storeThemeChoice(page, "light");
+    const sharp = (await import("sharp")).default;
+    const bytes = await sharp("public/landing/hero-thames.jpg").resize(2048, 1536, { fit: "cover" }).jpeg({ quality: 88 }).toBuffer();
+    const rows = Array.from({ length: 40 }, (_, index) => ({
+      id: `history-${index}`, conversationId: "c1", senderHandle: THEM, body: "", createdAt: new Date(Date.now() - (40 - index) * 60_000).toISOString(), read: true, flagged: false,
+      attachment: { kind: "photo", url: `/api/messages/c1/media/history-${index}`, width: 2048, height: 1536 },
+    }));
+    const requests: string[] = [];
+    await installThread(page, rows);
+    await page.route("**/api/messages/c1/media/**", async route => {
+      requests.push(new URL(route.request().url()).pathname);
+      await route.fulfill({ contentType: "image/jpeg", body: bytes });
+    });
+    await page.goto("/messages/c1");
+    const frames = page.locator(".messagePhotoFigure");
+    await expect(frames).toHaveCount(40);
+    await expect(frames.last().locator(".messagePhotoButton")).toBeVisible();
+    await expect(frames.nth(20).locator(".messagePhotoPending")).toHaveCount(1);
+    expect(requests).not.toContain("/api/messages/c1/media/history-20");
+    expect(requests.length).toBeLessThanOrEqual(12);
+    const initial = { requests: requests.length, bytes: requests.length * bytes.length, totalFixtureBytes: 40 * bytes.length };
+    await page.screenshot({ path: testInfo.outputPath("history-initial.png") });
+    const before = await frames.nth(20).boundingBox();
+    await frames.nth(20).scrollIntoViewIfNeeded();
+    const opener = frames.nth(20).locator(".messagePhotoButton");
+    await expect(opener).toBeVisible();
+    await expect(opener).toBeInViewport();
+    expect(requests).toContain("/api/messages/c1/media/history-20");
+    expect((await frames.nth(20).boundingBox())!.height).toBeCloseTo(before!.height, 1);
+    await opener.focus();
+    await page.keyboard.press("Enter");
+    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+    await page.getByRole("button", { name: "Close", exact: true }).click();
+    await expect(opener).toBeFocused();
+    await frames.first().scrollIntoViewIfNeeded();
+    await expect(frames.first().locator(".messagePhotoButton")).toBeVisible();
+    expect(requests).toContain("/api/messages/c1/media/history-0");
+    expect(requests.length).toBeLessThan(40);
+    await page.screenshot({ path: testInfo.outputPath("history-older.png") });
+    await testInfo.attach("historical media requests", { body: JSON.stringify({ width, initial, afterScroll: { requests: requests.length, bytes: requests.length * bytes.length }, bytesPerPhoto: bytes.length }), contentType: "application/json" });
+  });
+}
+
+test("photo selection reports a twelve-photo batch from native file paths", async ({ page }, testInfo) => {
+  const { writeFile } = await import("node:fs/promises");
+  const sharp = (await import("sharp")).default;
+  const bytes = await sharp("public/landing/hero-thames.jpg").resize(4032, 3024, { fit: "cover" }).jpeg({ quality: 94 }).toBuffer();
+  const paths = await Promise.all(Array.from({ length: 12 }, async (_, index) => {
+    const path = testInfo.outputPath(`camera-${index}.jpg`);
+    await writeFile(path, bytes);
+    return path;
+  }));
+  await page.setViewportSize(PHONE);
+  await storeThemeChoice(page, "light");
+  await installThread(page, fixture());
+  await page.goto("/messages/c1");
+  await expect(page.locator(".composerInput")).toBeVisible();
+  await page.evaluate(() => {
+    const samples: Array<{ completed: number; total: number; previews: number; editable: boolean; cancel: boolean }> = [];
+    (window as unknown as { preparationSamples: typeof samples }).preparationSamples = samples;
+    const dock = document.querySelector(".composerDock")!;
+    const observer = new MutationObserver(() => {
+      const progress = dock.querySelector('[role="progressbar"][aria-label="Photo preparation"]');
+      if (!progress) return;
+      samples.push({ completed: Number(progress.getAttribute("aria-valuenow")), total: Number(progress.getAttribute("aria-valuemax")), previews: dock.querySelectorAll(".composerPendingThumb").length, editable: !dock.querySelector<HTMLTextAreaElement>(".composerInput")!.disabled, cancel: !!dock.querySelector(".composerPreparing button") });
+    });
+    observer.observe(dock, { childList: true, subtree: true, attributes: true });
+  });
+  await page.locator("#message-photo-file").setInputFiles(paths);
+  await expect(page.locator(".composerPendingThumb")).toHaveCount(12);
+  const samples = await page.evaluate(() => (window as unknown as { preparationSamples: Array<{ completed: number; total: number; previews: number; editable: boolean; cancel: boolean }> }).preparationSamples);
+  expect(samples.some(sample => sample.completed > 0 && sample.completed < 12)).toBe(true);
+  expect(samples.every(sample => sample.total === 12 && sample.previews === 0 && sample.editable && sample.cancel)).toBe(true);
+  expect(samples.map(sample => sample.completed)).toEqual(samples.map(sample => sample.completed).sort((a, b) => a - b));
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
+  await testInfo.attach("preparation progress", { body: JSON.stringify({ samples, inputBytes: bytes.length, dimensions: [4032, 3024], source: "upscaled project photograph" }), contentType: "application/json" });
+  await page.screenshot({ path: testInfo.outputPath("twelve-photos-prepared.png") });
+});
+
 test("an older poll preserves acknowledged photos until stored bytes decode", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 768, height: 900 });
   await storeThemeChoice(page, "light");
@@ -1075,6 +1169,8 @@ for (const width of [390, 768, 1440]) for (const native of [false, true]) {
 
 for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) {
   test(`photo drafts stay neutral and captions resize live at ${width}px in ${theme}`, async ({ page }, testInfo) => {
+    const resizeErrors: string[] = [];
+    page.on("pageerror", error => { if (error.message.includes("ResizeObserver")) resizeErrors.push(error.message); });
     await page.setViewportSize({ width, height: 900 });
     await installThread(page, fixture());
     await storeThemeChoice(page, theme);
@@ -1091,7 +1187,10 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
     const caption = "The full photo with a caption that wraps onto several lines.";
     await field.fill(caption);
     for (const visit of [1, 2]) {
-      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      const inbox = width >= 1024
+        ? page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: /^Messages/ })
+        : page.getByRole("link", { name: "Back to inbox", exact: true });
+      await inbox.click();
       await expect(page).toHaveURL(/\/messages$/);
       const notice = page.locator(".messagePhotoRecoveryNotice");
       const link = page.getByRole("link", { name: "Return to your photos", exact: true });
@@ -1107,16 +1206,12 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
       await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
     }
     expect(sends).toBe(0);
-    for (const text of ["", caption]) {
+    for (const text of ["", "The full photo.", caption]) {
       await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
       await field.fill(text);
-      await expect(async () => {
-        expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
-      }).toPass();
+      await expectReadableCaption(field);
       await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-      await expect(async () => {
-        expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
-      }).toPass();
+      await expectReadableCaption(field);
       await expect(field).toHaveValue(text);
       const dock = (await page.locator(".composerDock").boundingBox())!;
       expect(dock.y).toBeGreaterThanOrEqual(0);
@@ -1126,9 +1221,7 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
       await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-${text ? "caption" : "empty"}-large-text.png`) });
     }
     await page.setViewportSize({ width: width === 390 ? 768 : 390, height: 900 });
-    await expect(async () => {
-      expect(await field.evaluate(element => element.clientHeight >= element.scrollHeight - 1)).toBe(true);
-    }).toPass();
+    await expectReadableCaption(field);
     await expect(field).toHaveValue(caption);
     await page.setViewportSize({ width, height: 900 });
     await field.fill("A long caption that must scroll. ".repeat(20));
@@ -1139,6 +1232,7 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
     expect(overflow.height).toBeLessThanOrEqual(overflow.maxHeight + 1);
     expect(overflow.required).toBeGreaterThan(overflow.height);
     expect(overflow.scroll).toBeGreaterThan(0);
+    expect(resizeErrors).toEqual([]);
   });
 }
 
@@ -1300,17 +1394,13 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     await scaleIsOne();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.emulateMedia({ reducedMotion: "reduce" });
-    for (const caption of ["", "The full photo with a caption that wraps onto several lines."]) {
+    for (const caption of ["", "The full photo.", "The full photo with a caption that wraps onto several lines."]) {
       await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
       await page.getByRole("textbox", { name: "Message", exact: true }).fill(caption);
       await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-      await expect(async () => {
-        const field = await page.locator(".composerInput").evaluate((element: HTMLTextAreaElement) => ({
-          height: element.clientHeight, required: element.scrollHeight, value: element.value,
-        }));
-        expect(field.value).toBe(caption);
-        expect(field.height).toBeGreaterThanOrEqual(field.required - 1);
-      }).toPass();
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await expect(field).toHaveValue(caption);
+      await expectReadableCaption(field);
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       const dock = await page.locator(".composerDock").boundingBox();
       expect(dock!.y).toBeGreaterThanOrEqual(0);

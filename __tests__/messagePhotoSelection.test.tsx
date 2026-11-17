@@ -24,6 +24,7 @@ vi.mock("@/lib/authedFetch", async importOriginal => ({
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
+import MessagePhoto from "@/components/messages/MessagePhoto";
 import MessagePhotoViewer from "@/components/messages/MessagePhotoViewer";
 import { discardMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 
@@ -36,11 +37,11 @@ async function mount(strict = false) {
   const thread = createElement(MessageThread, { conversationId: "c1" });
   await act(async () => { root.render(strict ? createElement(StrictMode, {}, thread) : thread); });
 }
-async function choosePhoto() {
+async function choosePhoto(files?: File[]) {
   const input = container.querySelector<HTMLInputElement>("#message-photo-file")!;
   const file = new File([new Uint8Array([1, 2, 3])], "pint.jpg", { type: "image/jpeg" });
   Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
-  Object.defineProperty(input, "files", { value: [file], configurable: true });
+  Object.defineProperty(input, "files", { value: files ?? [file], configurable: true });
   await act(async () => { input.dispatchEvent(new Event("change", { bubbles: true })); });
   return file;
 }
@@ -64,6 +65,55 @@ beforeEach(() => {
 afterEach(async () => { await act(async () => root.unmount()); container.remove(); vi.restoreAllMocks(); vi.unstubAllGlobals(); });
 
 describe("choosing a DM photo preserves its frame and the composer's focus", () => {
+  it("reports sequential batch progress without publishing a partial selection", async () => {
+    const files = ["first.jpg", "second.jpg", "third.jpg"].map(name => new File([name], name, { type: "image/jpeg" }));
+    const finish: Array<() => void> = [];
+    state.prepare.mockImplementation((file: File) => new Promise(resolve => { finish.push(() => resolve({ file, width: 1200, height: 600 })); }));
+    await mount();
+    await choosePhoto(files);
+    const progress = () => container.querySelector('[role="progressbar"]');
+    expect(progress()?.getAttribute("aria-valuemax")).toBe("3");
+    expect(progress()?.getAttribute("aria-valuenow")).toBe("0");
+    expect(finish).toHaveLength(1);
+    for (const completed of [1, 2]) {
+      await act(async () => finish[completed - 1]!());
+      expect(progress()?.getAttribute("aria-valuenow")).toBe(String(completed));
+      expect(finish).toHaveLength(completed + 1);
+      expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(0);
+      expect(container.querySelector<HTMLTextAreaElement>(".composerInput")!.disabled).toBe(false);
+    }
+    await act(async () => finish[2]!());
+    expect(progress()).toBeNull();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    expect(container.querySelector<HTMLButtonElement>(".composerSend")!.disabled).toBe(false);
+  });
+
+  it.each(["cancel", "account", "replacement", "failure"])("discards partial batch progress and bytes after %s", async boundary => {
+    const files = ["first.jpg", "second.jpg"].map(name => new File([name], name, { type: "image/jpeg" }));
+    let finish!: () => void;
+    let fail!: () => void;
+    state.prepare.mockResolvedValueOnce({ file: files[0], width: 1200, height: 600 }).mockImplementationOnce(() => new Promise((resolve, reject) => {
+      finish = () => resolve({ file: files[1], width: 1200, height: 600 });
+      fail = () => reject(new Error("Unreadable photo"));
+    }));
+    createUrl.mockReturnValueOnce("blob:partial").mockReturnValue("blob:replacement");
+    await mount(); await choosePhoto(files);
+    expect(container.querySelector('[role="progressbar"]')?.getAttribute("aria-valuenow")).toBe("1");
+    if (boundary === "cancel" || boundary === "replacement") {
+      await act(async () => container.querySelector<HTMLButtonElement>(".composerPreparing button")!.click());
+    }
+    if (boundary === "account") {
+      state.auth = { user: { id: "sam-id" }, handle: "sam", accountRevision: 2 };
+      await mount();
+    }
+    if (boundary === "replacement") await choosePhoto();
+    await act(async () => boundary === "failure" ? fail() : finish());
+    expect(container.querySelector('[role="progressbar"]')).toBeNull();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(boundary === "replacement" ? 1 : 0);
+    expect(revoke).toHaveBeenCalledWith("blob:partial");
+    expect(container.querySelector('[role="alert"]') !== null).toBe(boundary === "failure");
+  });
+
   it("shows preparation immediately, then offers the whole photo without a crop dialog", async () => {
     let finish!: (value: { file: File; width: number; height: number }) => void;
     state.prepare.mockReturnValue(new Promise(resolve => { finish = resolve; }));
@@ -113,6 +163,80 @@ describe("choosing a DM photo preserves its frame and the composer's focus", () 
     expect(createUrl).not.toHaveBeenCalled();
     expect(container.querySelector(".composerPendingThumb")).toBeNull();
     expect(container.querySelector(".composerPreparing")).toBeNull();
+  });
+});
+
+describe("private media demand", () => {
+  type Observation = { target: Element; report: (visible: boolean) => void; disconnected: boolean };
+  let observations: Observation[];
+  beforeEach(() => {
+    observations = [];
+    vi.stubGlobal("IntersectionObserver", class {
+      observation!: Observation;
+      constructor(private callback: IntersectionObserverCallback) {}
+      observe(target: Element) {
+        this.observation = { target, disconnected: false, report: visible => this.callback([{ target, isIntersecting: visible } as IntersectionObserverEntry], this as unknown as IntersectionObserver) };
+        observations.push(this.observation);
+      }
+      disconnect() { if (this.observation) this.observation.disconnected = true; }
+    });
+  });
+  const photo = (handle = "alice", previewUrl?: string) => createElement(MessagePhoto, { url: "/api/messages/c1/photo/history", width: 1200, height: 600, senderHandle: "bridget", handle, previewUrl });
+
+  it("reserves distant frames without requesting private bytes until they approach", async () => {
+    let release!: (response: Response) => void;
+    state.request.mockImplementation(() => new Promise<Response>(resolve => { release = resolve; }));
+    await act(async () => root.render(photo()));
+    const frame = container.querySelector("figure")!;
+    expect(frame.querySelector(".messagePhotoPending")).not.toBeNull();
+    expect(state.request).not.toHaveBeenCalled();
+    await act(async () => observations[0]!.report(false));
+    expect(state.request).not.toHaveBeenCalled();
+    await act(async () => observations[0]!.report(true));
+    expect(state.request).toHaveBeenCalledTimes(1);
+    await act(async () => release(new Response("photo")));
+    await act(async () => container.querySelector("img[hidden]")!.dispatchEvent(new Event("load")));
+    expect(container.querySelector("figure")).toBe(frame);
+    expect(container.querySelector(".messagePhotoButton img")?.getAttribute("src")).toBe("blob:photo");
+    expect(observations[0]!.disconnected).toBe(true);
+  });
+
+  it("loads a deferred frame when reached by keyboard and keeps retry in that frame", async () => {
+    state.request.mockResolvedValueOnce(new Response(null, { status: 503 })).mockResolvedValue(new Response("photo"));
+    await act(async () => root.render(photo()));
+    const frame = container.querySelector("figure")!;
+    await act(async () => frame.focus());
+    expect(container.querySelector('[aria-label="Retry photo"]')).not.toBeNull();
+    await act(async () => container.querySelector<HTMLButtonElement>('[aria-label="Retry photo"]')!.click());
+    await act(async () => container.querySelector("img[hidden]")!.dispatchEvent(new Event("load")));
+    expect(container.querySelector("figure")).toBe(frame);
+    expect(container.querySelector(".messagePhotoButton")).not.toBeNull();
+  });
+
+  it("loads borrowed previews immediately and does not refetch after handoff", async () => {
+    state.request.mockResolvedValue(new Response("photo"));
+    await act(async () => root.render(photo("alice", "blob:local")));
+    expect(container.querySelector(".messagePhotoButton img")?.getAttribute("src")).toBe("blob:local");
+    await act(async () => container.querySelector("img[hidden]")!.dispatchEvent(new Event("load")));
+    await act(async () => root.render(photo()));
+    expect(state.request).toHaveBeenCalledTimes(1);
+    expect(container.querySelector(".messagePhotoButton img")?.getAttribute("src")).toBe("blob:photo");
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
+  it("aborts an admitted request and ignores its bytes after the reader changes", async () => {
+    const releases: Array<(response: Response) => void> = [];
+    state.request.mockImplementation(() => new Promise<Response>(resolve => { releases.push(resolve); }));
+    await act(async () => root.render(photo()));
+    await act(async () => observations[0]!.report(true));
+    const signal = state.request.mock.calls[0]![1].signal as AbortSignal;
+    await act(async () => root.render(photo("sam")));
+    expect(signal.aborted).toBe(true);
+    await act(async () => releases[0]!(new Response("old reader")));
+    expect(createUrl).not.toHaveBeenCalled();
+    await act(async () => root.render(null));
+    await act(async () => releases[1]!(new Response("unmounted")));
+    expect(createUrl).not.toHaveBeenCalled();
   });
 });
 

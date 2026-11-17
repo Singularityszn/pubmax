@@ -57,6 +57,7 @@ export function useMessageComposer(options: Options) {
   const [activity, dispatch] = useReducer(transitionComposerActivity, { phase: "ready", scope: owner } as ComposerActivity);
   const sending = activity.phase === "sending";
   const preparing = activity.phase === "preparing";
+  const preparationProgress = activity.phase === "preparing" ? { completed: activity.completed, total: activity.total } : null;
   const error = activity.phase === "failed" ? activity.message : "";
   const retrySend = activity.phase === "failed" && activity.operation === "send";
   const setError = useCallback((message: string, operation: "prepare" | "send" = "send") => dispatch(message ? { type: "fail", scope: owner, message, operation } : { type: "clear-error", scope: owner }), [owner]);
@@ -161,12 +162,13 @@ export function useMessageComposer(options: Options) {
     const revision = scope.current;
     const signal = readProviderAccountSignal();
     const photos: MessagePhotoDraft[] = [];
-    dispatch({ type: "prepare", scope: owner }); setError("");
+    dispatch({ type: "prepare", scope: owner, total: files.length }); setError("");
     try {
       for (const file of files) {
         const prepared = await preparePhotoUpload(file);
         if (revision !== scope.current || selection !== pick.current || signal.aborted) return;
         photos.push({ ...prepared, previewUrl: URL.createObjectURL(prepared.file) });
+        dispatch({ type: "progress", scope: owner, completed: photos.length });
       }
       const first = photos[0];
       if (first) {
@@ -274,5 +276,5 @@ export function useMessageComposer(options: Options) {
     });
   }, []);
 
-  return { sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, error, retrySend, selectPhotos, clearPending, cancelPreparation, abandon, send };
+  return { sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending: chooseAttachment, outbox, sending, preparing, preparationProgress, error, retrySend, selectPhotos, clearPending, cancelPreparation, abandon, send };
 }

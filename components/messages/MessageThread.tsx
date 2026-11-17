@@ -508,7 +508,7 @@ export default function MessageThread({
   }, []);
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
-    sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, error,
+    sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, preparationProgress, error,
     selectPhotos, clearPending, cancelPreparation, abandon, send, retrySend,
   } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
   const inputRef = useMessageInputSize(draft);
@@ -1017,7 +1017,7 @@ export default function MessageThread({
         {visibleError ? <div className="threadError" role="alert">{visibleError}
           {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
         </div> : null}
-        {preparing ? <p className="composerPreparing" role="status">Preparing photos… <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
+        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
 
         {renderPicker()}
 

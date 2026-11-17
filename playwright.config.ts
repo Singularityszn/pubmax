@@ -321,7 +321,7 @@ export default defineConfig({
       ? [{
           name: "webkit-message-photos",
           testMatch: ["**/messages-thread.spec.ts"],
-          grep: /photo selection/,
+          grep: /photo |acknowledged photos/,
           use: { ...devices["iPhone 14"], serviceWorkers: "block" as const },
         }]
       : []),

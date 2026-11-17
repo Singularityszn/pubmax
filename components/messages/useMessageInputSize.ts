@@ -17,13 +17,15 @@ export function useMessageInputSize(draft: string) {
   useLayoutEffect(() => {
     if (!field) return;
     let active = true;
+    let frame = 0;
     let width = field.clientWidth;
     const measure = () => { if (active) resize(field); };
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
       const nextWidth = field.clientWidth;
       if (nextWidth === width) return;
       width = nextWidth;
-      measure();
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(measure);
     });
     observer?.observe(field);
     const attributes = new MutationObserver(measure);
@@ -35,6 +37,7 @@ export function useMessageInputSize(draft: string) {
     void document.fonts?.ready.then(measure);
     return () => {
       active = false;
+      window.cancelAnimationFrame(frame);
       observer?.disconnect();
       attributes.disconnect();
       window.removeEventListener("resize", measure);

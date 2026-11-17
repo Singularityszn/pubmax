@@ -22,7 +22,7 @@ describe("photo preparation and sending scope", () => {
   });
   it("keeps a failed send visible when its operation finishes and ignores the old reader", () => {
     let state: ComposerActivity = { phase: "ready", scope: "account-a:thread" };
-    state = transitionComposerActivity(state, { type: "prepare", scope: state.scope });
+    state = transitionComposerActivity(state, { type: "prepare", scope: state.scope, total: 1 });
     expect(transitionComposerActivity(state, { type: "send", scope: state.scope })).toBe(state);
     state = transitionComposerActivity(state, { type: "finish", scope: state.scope });
     state = transitionComposerActivity(state, { type: "send", scope: state.scope });
