@@ -3,12 +3,11 @@ import { describe, expect, it } from "vitest";
 // The audit gate may waive named advisories (see WAIVED_ADVISORIES in the
 // script). These tests pin the blast radius of that mechanism: a waiver
 // covers exactly the advisory named, and a finding that mixes a waived
-// advisory with anything else still fails. The live map is empty;
-// classifyFindings is exercised with a local map so the machinery stays
-// pinned independently of any live waiver.
+// advisory with anything else still fails. classifyFindings is also exercised
+// with a local map so the machinery stays pinned independently of live waivers.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
-import { WAIVED_ADVISORIES, classifyFindings } from "../scripts/resilient-audit.mjs";
+import { classifyFindings, waivedAdvisories } from "../scripts/resilient-audit.mjs";
 
 const WAIVED_URL = "https://github.com/advisories/GHSA-xxxx-waived-zzzz";
 const OTHER_URL = "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz";
@@ -20,8 +19,10 @@ function advisory(url: string, severity = "high") {
 }
 
 describe("resilient-audit waivers", () => {
-  it("ships with no live waivers", () => {
-    expect([...WAIVED_ADVISORIES]).toEqual([]);
+  it("expires the picomatch waiver on 17 December 2026", () => {
+    const url = "https://github.com/advisories/GHSA-fc5q-39xc-vjpf";
+    expect([...waivedAdvisories(Date.parse("2026-12-16T23:59:59Z"))]).toEqual([[url, "high"]]);
+    expect([...waivedAdvisories(Date.parse("2026-12-17T00:00:00Z"))]).toEqual([]);
   });
 
   it("waives a finding whose only advisory is waived", () => {
