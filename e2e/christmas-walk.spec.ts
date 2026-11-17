@@ -159,9 +159,6 @@ for (const theme of ["light", "dark"] as const) {
     await writeFile(timingPath, JSON.stringify(timing));
     await testInfo.attach("map-ready-timing", { path: timingPath, contentType: "application/json" });
     await expectWholeWalkVisible(page);
-    const mapShot = testInfo.outputPath(`map-${theme}.png`);
-    await page.screenshot({ path: mapShot });
-    await testInfo.attach(`map-${theme}`, { path: mapShot, contentType: "image/png" });
     if (page.viewportSize()!.width < 768) {
       await page.getByRole("button", { name: /^(?:Edit active 13-stop plan|View active 13-stop walk)$/ }).click();
     } else if (page.viewportSize()!.width < 1024) {

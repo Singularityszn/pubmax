@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useState } from "react";
+import { act, createElement, Fragment, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it } from "vitest";
 
@@ -14,7 +14,6 @@ import type { MapSurfaceRetirement } from "@/lib/mapSurfaceState";
 const walk = curatedCrawls.find((crawl) => crawl.id === "london-christmas-walk")!.walk!;
 let host: HTMLDivElement;
 let root: Root;
-let selectStop: (id: string) => void;
 let events: string[];
 
 function Probe() {
@@ -27,8 +26,21 @@ function Probe() {
   };
   const focusStop = (next: MapCameraFocus) => { events.push("focus"); setFocus(next); };
   const selection = useCuratedWalkFocus(walk, setVenueId, focusStop, setSnap, retire);
-  selectStop = selection.selectRouteStop;
-  return createElement("output", null, JSON.stringify({ venueId, focus, snap, selected: selection.selectedWalkStopId }));
+  return createElement(Fragment, null,
+    createElement("output", null, JSON.stringify({ venueId, focus, snap, selected: selection.selectedWalkStopId })),
+    [...walk.stops.map((stop) => stop.id), "another-pub"].map((id) =>
+      createElement("button", { key: id, onClick: () => selection.selectRouteStop(id) }, id)),
+  );
+}
+
+function selectStop(id: string) {
+  const button = Array.from(host.querySelectorAll("button")).find((candidate) => candidate.textContent === id);
+  if (!button) throw new Error(`Missing stop control: ${id}`);
+  button.click();
+}
+
+function readState() {
+  return JSON.parse(host.querySelector("output")!.textContent!);
 }
 
 beforeEach(() => {
@@ -43,7 +55,7 @@ it.each([0, 6, 12])("retires an inspected pub when focusing walk stop %s", (inde
   const stop = walk.stops[index]!;
   act(() => selectStop(stop.id));
   expect(events).toEqual(["retire", "focus"]);
-  expect(JSON.parse(host.textContent!)).toMatchObject({
+  expect(readState()).toMatchObject({
     venueId: "", selected: stop.id, snap: "half",
     focus: { center: [stop.longitude, stop.latitude], zoom: 16, source: "landmark" },
   });
@@ -52,5 +64,5 @@ it.each([0, 6, 12])("retires an inspected pub when focusing walk stop %s", (inde
 it("still inspects a pub when a route selection is not a walk stop", () => {
   act(() => selectStop("another-pub"));
   expect(events).toEqual([]);
-  expect(JSON.parse(host.textContent!)).toEqual({ venueId: "another-pub", focus: null, snap: "full", selected: "" });
+  expect(readState()).toEqual({ venueId: "another-pub", focus: null, snap: "full", selected: "" });
 });

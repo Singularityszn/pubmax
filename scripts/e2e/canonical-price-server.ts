@@ -19,14 +19,17 @@ if (fixedDate) mock.timers.enable({ apis: ["Date"], now });
 else Date.now = () => now;
 
 async function start() {
-  const app = next({ dev: false, hostname: "127.0.0.1" });
-  await app.prepare();
-  const server = createServer(app.getRequestHandler());
-  server.listen(0, "127.0.0.1", () => {
-    const address = server.address();
-    if (!address || typeof address === "string") throw new Error("The fixture server requires a TCP port.");
-    process.send!({ baseURL: `http://127.0.0.1:${address.port}`, now });
+  const server = createServer();
+  await new Promise<void>((resolve, reject) => {
+    server.once("error", reject);
+    server.listen(0, "127.0.0.1", resolve);
   });
+  const address = server.address();
+  if (!address || typeof address === "string") throw new Error("The fixture server requires a TCP port.");
+  const app = next({ dev: false, hostname: "127.0.0.1", port: address.port });
+  await app.prepare();
+  server.on("request", app.getRequestHandler());
+  process.send!({ baseURL: `http://127.0.0.1:${address.port}`, now });
 }
 
 void start();
