@@ -33,41 +33,39 @@ export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonR
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
   const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
   const [settledRead, setSettledRead] = useState<{ scope: string; selectedVenueId: string } | null>(null);
-  const requested = useRef<string | null>(null);
-  const latestRequest = useRef(0);
+  const requested = useRef<{ scope: string; selectedVenueId: string; settled: boolean } | null>(null);
+
+  useEffect(() => () => {
+    if (!requested.current?.settled) requested.current = null;
+  }, [wanted, scope]);
 
   useEffect(() => {
     if (!wanted) {
       queueMicrotask(() => setStatus(current => current === "failed" ? "idle" : current));
       return;
     }
-    if (requested.current === "all" || requested.current === scope) return;
-    requested.current = scope;
-    const request = ++latestRequest.current;
-    let settled = false;
+    if (requested.current?.scope === "all" || requested.current?.scope === scope) {
+      requested.current.selectedVenueId = selectedVenueId;
+      return;
+    }
+    const request = { scope, selectedVenueId, settled: false };
+    requested.current = request;
     queueMicrotask(() => setStatus("loading"));
     loadLondonRestaurants(fetch, scope === "all" ? undefined : selectedVenueId).then(
       (loaded) => {
-        settled = true;
-        if (request !== latestRequest.current) return;
+        if (request !== requested.current) return;
+        request.settled = true;
         setRestaurants(loaded);
-        setSettledRead({ scope, selectedVenueId });
+        setSettledRead({ scope, selectedVenueId: request.selectedVenueId });
         setStatus("ready");
       },
       () => {
-        settled = true;
-        if (request !== latestRequest.current) return;
+        if (request !== requested.current) return;
         requested.current = null;
-        setSettledRead({ scope, selectedVenueId });
+        setSettledRead({ scope, selectedVenueId: request.selectedVenueId });
         setStatus("failed");
       },
     );
-    return () => {
-      if (!settled && request === latestRequest.current) {
-        latestRequest.current += 1;
-        requested.current = null;
-      }
-    };
   }, [wanted, selectedVenueId, scope]);
 
   const byId = useMemo(

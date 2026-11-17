@@ -251,19 +251,8 @@ async function fetchLondonRestaurants(fromPbfPath) {
   const seed = londonRestaurantSeed({ elements, osm3s: { timestamp_osm_base: extractedAt } }, { allowStale: Boolean(fromPbfPath) });
   seed.source = "OpenStreetMap via Geofabrik";
   seed.extract = { url: url.href, timestamp: extractedAt };
-  const cached = [];
-  for (const name of await readdir(rawDir)) {
-    if (!/^\d_\d(?:_\d_\d)?\.json$/.test(name)) continue;
-    const raw = parseOverpassRawText(await readFile(path.join(rawDir, name), "utf8"));
-    if (raw) cached.push(...raw.elements);
-  }
-  const published = new Set(seed.venues.map((row) => row.osmId));
-  const cachedIds = new Set(cached.filter((row) => row.tags?.amenity === "restaurant").map((row) => `${row.type}/${row.id}`));
-  seed.crossCheck = { cachedElements: cached.length, uniqueRestaurants: cachedIds.size,
-    presentInExtract: [...cachedIds].filter((id) => published.has(id)).length };
   await writeCompact(path.join(UK_DIR, "london_osm_restaurants.json"), seed);
   console.log(`London OSM restaurants: ${seed.venues.length} named rows, Geofabrik snapshot ${extractedAt}`);
-  console.log(`Overpass cross-check only: ${JSON.stringify(seed.crossCheck)}`);
 }
 
 function parseArgs(argv) {

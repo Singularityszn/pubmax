@@ -28,7 +28,6 @@ npm run fetch:uk-venues -- --london-restaurants --from-pbf=/absolute/path/to/gre
 npm run build:london-venues
 ```
 
-Old cached Overpass results supply cross-check counts only. They never supply rows.
 Neither the matrix website nor restaurant websites supply this layer.
 
 ## Published contract

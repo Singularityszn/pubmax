@@ -33,8 +33,8 @@ const layerInput = {
   selectedIsCafe: false,
 } satisfies Omit<Parameters<typeof useLondonRestaurants>[0], "selectedVenueId">;
 
-function RestaurantLayer({ wanted, selected }: { wanted: boolean; selected?: string }) {
-  const read = useLondonRestaurants({ ...layerInput, held: !wanted, selectedVenueId: selected ?? "", restaurantKindVisible: !selected });
+function RestaurantLayer({ wanted, selected, fullLayer }: { wanted: boolean; selected?: string; fullLayer?: boolean }) {
+  const read = useLondonRestaurants({ ...layerInput, held: !wanted, selectedVenueId: selected ?? "", restaurantKindVisible: fullLayer ?? !selected });
   const furnival = read.byId.get("venue-osm-n25496840");
   return createElement(
     "div",
@@ -94,6 +94,40 @@ it("asks again after a failed read the next time the layer is wanted", async () 
 
   expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(2);
   expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("ready");
+});
+
+it.each(["ok", "down"] as const)("preserves pending full-layer chunks across selection and close when they finish %s", async (outcome) => {
+  let release: () => void = () => { throw new Error("No chunk is pending."); };
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let response = outcome;
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const body = readFileSync(join(ROOT, "public", String(input).replace(/^\//, "")), "utf8");
+    if (String(input).includes("/packs/")) {
+      await pending;
+      if (response === "down") return new Response("down", { status: 503 });
+    }
+    return new Response(body, { status: 200 });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, fullLayer: true })));
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/packs/"))).toHaveLength(6);
+  for (const selected of ["the-george", "", "venue-osm-n25496840", "another-pub"]) {
+    await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, fullLayer: true, selected })));
+    expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("loading");
+    expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(1);
+    expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/packs/"))).toHaveLength(6);
+  }
+
+  await act(async () => release());
+  expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe(outcome === "ok" ? "ready" : "failed");
+  if (outcome === "down") {
+    response = "ok";
+    await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, fullLayer: true, selected: "venue-osm-n25496840" })));
+    expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(2);
+    expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("ready");
+  }
+  expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBeGreaterThan(1000);
 });
 
 it("credits OSM without adding prices or an alcohol claim", async () => {

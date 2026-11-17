@@ -480,7 +480,7 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
         "Geofabrik Greater London OSM extract authorised for the restaurant layer. Read live on 16 Nov 2026: https://download.geofabrik.de/europe/united-kingdom/england/greater-london.html and https://www.openstreetmap.org/copyright. The regional PBF contains OSM data under ODbL. Preserve the extract timestamp and contributor attribution.",
       checkedOn: "2026-11-16",
     },
-    notes: "npm run fetch:uk-venues -- --london-restaurants filters the extract with osmium-tool. Earlier Overpass responses are a coverage cross-check only.",
+    notes: "npm run fetch:uk-venues -- --london-restaurants filters the extract with osmium-tool.",
   },
   {
     id: "fsa-fhrs-api",
