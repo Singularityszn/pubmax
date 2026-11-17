@@ -21,6 +21,7 @@
 --      waits can remain pending until the next sweep or admission.
 --    Lock order: crew row, member rows, Plan row, seat and invitation rows. It takes no
 --    auth row and no account lock.
+--    The sweep locks its whole batch of crew rows first and skips busy crews.
 -- 4. Rollback drops both functions and restores 0245's _social_crew_admission_refused.
 --    Places already freed and nights already cancelled stay as they are.
 begin;
@@ -68,19 +69,25 @@ $$;
 create function public.release_departed_social_crew_places(p_limit integer default 20)
 returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_crew uuid; v_crews integer := 0; v_changed integer := 0;
+declare v_batch uuid[]; v_crew uuid; v_crews integer := 0; v_changed integer := 0;
 begin
-  for v_crew in
-    select distinct member.crew_id
-    from public.social_crew_members member
-    join public.social_crews crew on crew.id=member.crew_id
-    join public.plans plan on plan.id=crew.plan_id
-    join public.private_social_accounts account on account.id=member.social_account_id
-    join public.profiles profile on profile.id=account.profile_id
-    where member.state='active' and account.supabase_user_id is null and profile.tombstoned_at is not null
-      and (member.role<>'owner' or plan.status in ('draft','ready','active','ending'))
-    order by member.crew_id
+  select coalesce(array_agg(locked.id order by locked.id),array[]::uuid[]) into v_batch
+  from (
+    select crew.id from public.social_crews crew
+    where exists (
+      select 1 from public.social_crew_members member
+      join public.plans plan on plan.id=crew.plan_id
+      join public.private_social_accounts account on account.id=member.social_account_id
+      join public.profiles profile on profile.id=account.profile_id
+      where member.crew_id=crew.id and member.state='active'
+        and account.supabase_user_id is null and profile.tombstoned_at is not null
+        and (member.role<>'owner' or plan.status in ('draft','ready','active','ending'))
+    )
+    order by crew.id
     limit greatest(1,least(coalesce(p_limit,20),100))
+    for update of crew skip locked
+  ) locked;
+  foreach v_crew in array v_batch
   loop
     v_changed:=v_changed+public._release_departed_crew_places(v_crew);
     v_crews:=v_crews+1;

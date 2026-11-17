@@ -94,7 +94,7 @@ set role service_role;
 select public.release_departed_social_crew_places(100);
 ```
 
-Run the call until it answers `"crews": 0`. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
+The sweep locks the selected crew rows in ID order before it changes any Plan. It skips busy crews. A `"crews": 0` answer can therefore mean pending crews are busy. Check the pending query after each call. Cleanup is complete when that query returns no rows. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
 ## Rollback
 
