@@ -38,13 +38,16 @@ export default function FirstTenRanking({
   const [open, setOpen] = useState(false);
   const completedOnClose = useRef(false);
   const count = firstTenCount(entries);
+  const previouslyBelowGoal = useRef(count < FIRST_TEN_GOAL);
   useEffect(() => {
-    if (!open && completedOnClose.current) {
+    const completedOnRead = previouslyBelowGoal.current && count >= FIRST_TEN_GOAL;
+    previouslyBelowGoal.current = count < FIRST_TEN_GOAL;
+    if (!open && (completedOnClose.current || (completedOnRead && document.activeElement === document.body))) {
       completedOnClose.current = false;
       // The modal releases background inertness in its cleanup microtask.
       queueMicrotask(() => completionFocusRef.current?.focus());
     }
-  }, [open, completionFocusRef]);
+  }, [open, count, completionFocusRef]);
   if (count >= FIRST_TEN_GOAL && !open) return null;
 
   return (

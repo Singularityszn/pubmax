@@ -183,7 +183,7 @@ function PassportRanked({ handle }: { handle: string }) {
         {refresh === "checking" ? "Checking your ranking…" : "Your ranking is unavailable right now."}
       </p>
       <p className="passportQuiet">
-        <Button type="button" variant="ghost" disabled={refresh === "checking"} onClick={retry}>
+        <Button type="button" variant="ghost" aria-disabled={refresh === "checking"} onClick={() => { if (refresh !== "checking") retry(); }}>
           Try again
         </Button>
       </p>

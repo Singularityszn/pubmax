@@ -2,12 +2,14 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGeneration";
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import ReviewStars from "@/components/social/ReviewStars";
 import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedFetch } from "@/lib/authedFetch";
+import { rankingReadFailure } from "@/lib/firstTenRankingSession";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
 import { SOCIAL_PUB_BAND_LABEL, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
@@ -38,9 +40,15 @@ function comparedRows(entries: SocialPubRankingEntry[]): Row[] {
   }));
 }
 
-async function readJson<T>(url: string, signal: AbortSignal): Promise<T | null> {
+class RankingReadError extends Error {
+  constructor(readonly kind: "refused" | "unavailable") { super(kind); }
+}
+
+async function readJson<T>(url: string, signal: AbortSignal): Promise<T> {
   const response = await authedFetch(url, { credentials: "same-origin", signal }, { requiresIdentity: true });
-  return response.ok ? (await response.json()) as T : null;
+  const body = await response.json().catch(() => null);
+  if (!response.ok) throw new RankingReadError(rankingReadFailure(response.status, body?.code, body?.retryable));
+  return body as T;
 }
 
 /**
@@ -51,42 +59,76 @@ async function readJson<T>(url: string, signal: AbortSignal): Promise<T | null> 
  * star score. Both lists are for you alone; neither moves a feed, a map or a
  * price.
  */
-export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
+export default function PubRankingPanel(props: { refreshKey?: string }) {
+  const generation = useLiveAccountGeneration();
+  return <RankingPanel key={generation} {...props} />;
+}
+
+function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
   const sampled = useIsSample();
   const [scope, setScope] = useState<Scope>("mine");
   const [loaded, setLoaded] = useState<{ scope: Scope; rows: Row[]; compared: SocialPubRankingEntry[] } | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [comparing, setComparing] = useState(false);
   const [revision, setRevision] = useState(0);
+  const [phase, setPhase] = useState<"checking" | "retrying" | "ready" | "unavailable" | "refused">("checking");
+  const pendingWrite = useRef<Promise<void> | undefined>(undefined);
+  const generation = useRef(0);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const focusAfterRead = useRef(false);
+
+  useLayoutEffect(() => {
+    if (phase === "ready" && focusAfterRead.current) headingRef.current?.focus();
+    if (phase !== "checking" && phase !== "retrying") focusAfterRead.current = false;
+  }, [phase]);
 
   useEffect(() => {
     if (sampled) return;
+    const requestGeneration = ++generation.current;
     const controller = new AbortController();
     void (async () => {
+      await pendingWrite.current;
+      if (controller.signal.aborted) return;
       if (scope === "lot") {
         const lot = await readJson<{ entries?: SocialLotRankingEntry[] }>("/api/social/reviews?limit=50&scope=lot", controller.signal);
-        setLoaded({ scope, rows: starRows(lot?.entries ?? []), compared: [] });
+        if (controller.signal.aborted || generation.current !== requestGeneration) return;
+        if (!Array.isArray(lot?.entries)) throw new RankingReadError("unavailable");
+        setLoaded({ scope, rows: starRows(lot.entries), compared: [] });
+        setPhase("ready");
         return;
       }
       const [compared, stars] = await Promise.all([
         readJson<{ entries?: SocialPubRankingEntry[] }>("/api/social/rankings", controller.signal),
         readJson<{ entries?: StarEntry[] }>("/api/social/reviews?limit=50&scope=mine", controller.signal),
       ]);
-      const comparedEntries = compared?.entries ?? [];
+      if (controller.signal.aborted || generation.current !== requestGeneration) return;
+      if (!Array.isArray(compared?.entries) || !Array.isArray(stars?.entries)) throw new RankingReadError("unavailable");
+      const comparedEntries = compared.entries;
       setLoaded({
         scope,
-        rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars?.entries ?? []),
+        rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars.entries),
         compared: comparedEntries,
       });
-    })().catch(() => {});
-    return () => controller.abort();
+      setPhase("ready");
+    })().catch((error: unknown) => {
+      if (controller.signal.aborted || generation.current !== requestGeneration) return;
+      const next = error instanceof RankingReadError ? error.kind : "unavailable";
+      if (next === "refused") setLoaded(null);
+      setPhase(next);
+    });
+    return () => { controller.abort(); generation.current += 1; };
   }, [refreshKey, scope, revision, sampled]);
 
   const rows = sampled ? [] : loaded?.scope === scope ? loaded.rows : null;
   const visible = rows ? (showAll ? rows : rows.slice(0, SHOWN)) : [];
+  function refresh(retrying = false) {
+    setPhase(retrying ? "retrying" : "checking");
+    setRevision((value) => value + 1);
+  }
+  if (phase === "refused") return null;
   return (
     <section className="pubRanking" aria-labelledby="pub-ranking-title">
-      <h2 id="pub-ranking-title">{scope === "mine" ? "Your pubs, ranked" : "Your lot's pubs"}</h2>
+      <h2 id="pub-ranking-title" ref={headingRef} tabIndex={-1}>{scope === "mine" ? "Your pubs, ranked" : "Your lot's pubs"}</h2>
       <div className="pubRanking__switch" role="radiogroup" aria-label="Whose ranking">
         {(["mine", "lot"] as const).map((option) => (
           <button
@@ -94,13 +136,19 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
             type="button"
             role="radio"
             aria-checked={scope === option}
-            onClick={() => { setScope(option); setShowAll(false); }}
+            onClick={() => { if (scope !== option) { focusAfterRead.current = false; setPhase("checking"); setScope(option); } setShowAll(false); }}
           >
             {option === "mine" ? "Yours" : "Your lot's"}
           </button>
         ))}
       </div>
-      {rows === null ? <p className="pubRanking__empty" role="status">Loading…</p> : null}
+      {phase === "checking" && !sampled ? <p className="pubRanking__empty" role="status">Checking your ranking…</p> : null}
+      {phase === "unavailable" || phase === "retrying" ? (
+        <>
+          <p className="pubRanking__empty" role="status">{phase === "retrying" ? "Checking your ranking…" : "Your ranking is unavailable right now."}</p>
+          <button type="button" className="pubRanking__more" aria-disabled={phase === "retrying"} onClick={() => { if (phase === "unavailable") { focusAfterRead.current = true; refresh(true); } }}>Try again</button>
+        </>
+      ) : null}
       {rows && rows.length === 0 ? (
         <p className="pubRanking__empty">
           {scope === "mine"
@@ -134,15 +182,19 @@ export default function PubRankingPanel({ refreshKey = "" }: { refreshKey?: stri
         </button>
       ) : null}
       {scope === "mine" && (sampled || loaded?.scope === "mine") ? (
-        <button type="button" className="pubRanking__rank" onClick={() => setComparing(true)}>
+        <button type="button" className="pubRanking__rank" aria-disabled={phase !== "ready" || sampled} onClick={() => { if (phase === "ready" && !sampled) setComparing(true); }}>
           Rank a pub
         </button>
       ) : null}
       {comparing && loaded ? (
         <ComparePubFlow
           entries={loaded.compared}
-          onClose={() => setComparing(false)}
-          onSaved={() => setRevision((value) => value + 1)}
+          onClose={(pending) => {
+            setComparing(false);
+            pendingWrite.current = pending;
+            refresh();
+          }}
+          onSaved={() => refresh()}
         />
       ) : null}
     </section>
