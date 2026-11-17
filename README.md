@@ -459,7 +459,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
 - **Messages** - sign in with a claimed handle, open `/messages`, and choose **New message**. Search by at least two characters of a public handle, then select people from the results or your recent direct conversations. Select one person and choose **Chat**, or select two to eleven people and choose **Create group**. Groups include you and can have an optional name. Members can leave, but nobody can be added after creation. **All**, **Unread**, and **Groups** filter your existing inbox. **Search conversations** matches displayed names, handles, or group titles within the selected filter. The search and filter reset when you change accounts. In an empty conversation, **Share a pub** and **Share a plan** open the existing pickers. These buttons do not send a message or replace your text draft. The [navigation rules](docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) explain when unread badges refresh.
 
-  Scroll within the message list to read earlier messages. New messages preserve your reading position. Sending a message returns to the newest message.
+  Scroll within the message list to read earlier messages. While you read earlier messages, new messages preserve your reading position. Sending a message returns to the newest message.
 
   In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
 
