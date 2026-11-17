@@ -26,6 +26,7 @@ function AccountMessageNotificationSettings({ userId, conversationId }: { userId
   useEffect(() => {
     if (!open) return;
     const controller = new AbortController();
+    controllerRef.current = controller;
     void currentMessagePushToken().then((token) => token ? messagePushFingerprint(token) : null).catch(() => null).then((fingerprint) => authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}` : ""}`, {
       signal: controller.signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
     }, { requiresIdentity: true }))
@@ -41,6 +42,7 @@ function AccountMessageNotificationSettings({ userId, conversationId }: { userId
 
   async function change(kind: "enabled" | "preview" | "muted") {
     if (!settings || pending) return;
+    controllerRef.current?.abort();
     const controller = new AbortController();
     controllerRef.current = controller;
     setPending(true);
@@ -73,7 +75,7 @@ function AccountMessageNotificationSettings({ userId, conversationId }: { userId
   const support = typeof window === "undefined" ? "unsupported" : webPushSupport();
   return (
     <div className="messageAlerts">
-      <button className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? "Chat notifications" : "Message notifications"} aria-expanded={open} onClick={() => setOpen(!open)}>
+      <button className="messageAlertsToggle pressable" type="button" aria-label={conversationId ? "Chat notifications" : "Message notifications"} aria-expanded={open} disabled={pending} onClick={() => setOpen(!open)}>
         {settings?.muted ? <BellOff size={18} aria-hidden="true" /> : <Bell size={18} aria-hidden="true" />}
         {!conversationId ? "Message notifications" : null}
       </button>

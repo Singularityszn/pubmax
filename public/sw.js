@@ -417,10 +417,22 @@ async function matchPlanNavigationAcrossCaches(url) {
 // Web Push payloads are always user-visible. Treat provider data as untrusted:
 // copy only short strings and reduce click-through to a same-origin path. A
 // malformed or empty push still shows a useful, honest fallback notification.
+const pushSegmenter = typeof Intl.Segmenter === "function"
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+  : null;
+
 function pushText(value, fallback, maxLength) {
-  return typeof value === "string" && value.trim()
-    ? value.trim().slice(0, maxLength)
-    : fallback;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  const text = value.trim();
+  let result = "";
+  let count = 0;
+  for (const item of pushSegmenter ? pushSegmenter.segment(text) : text) {
+    const part = typeof item === "string" ? item : item.segment;
+    if (count === maxLength || result.length + part.length > maxLength * 16) break;
+    result += part;
+    count += 1;
+  }
+  return result || fallback;
 }
 
 function safeNotificationPath(value) {
