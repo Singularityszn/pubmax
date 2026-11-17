@@ -35,10 +35,17 @@ Out-tonight / crew presence → Show up → Safe home → Memory → Invite agai
 | Alcohol-optional soft occasions first | Nightlife-only Social |
 | Sourced pint-price guidance on the invite | Invented budgets |
 | Friends-gated check-ins | Area-public densification without sign-off |
-| Chronological / consent memory later | Algorithmic For You / dating adjacency |
+| Chronological / consent memory later | Algorithmic For You / inferred romantic preferences |
 | Keep Social live by default | Open `/social` feed theatre |
 
 Social engagement must never move pin colour, cheapest buckets, or the Pint Index.
+
+The planned extension is a hosted night followed by private, mutual reconnection.
+Friendship and dating require separate, explicit participation choices. Dating
+controls belong only to dating-labelled nights. Reconnection needs adult access,
+attendance attestation, report and block controls, and staffed moderation. It never
+requires a purchase or a price log, and it creates no follow or messaging permission.
+These are release requirements for planned work, not claims about shipped features.
 
 ---
 
