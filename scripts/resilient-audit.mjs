@@ -88,6 +88,10 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   return { waived: waivedNames, unwaived: unwaivedNames };
 }
 
+export function auditFailureExitCode(_report, exceptionsConfigured) {
+  return exceptionsConfigured ? 1 : 0;
+}
+
 function main() {
   const { result, stdout, report } = runAudit();
 
@@ -138,7 +142,7 @@ function main() {
 
   // This also fails after expiry, so unavailable evidence cannot prolong the exception.
   const stderr = (result.stderr ?? "").slice(0, 2000);
-  if (CONFIGURED_EXCEPTIONS.size === 0) {
+  if (auditFailureExitCode(report, CONFIGURED_EXCEPTIONS.size > 0) === 0) {
     console.warn("[resilient-audit] audit unavailable (registry/endpoint error) - skipping as advisory.");
     if (stderr) console.warn(stderr);
     return 0;
