@@ -85,7 +85,7 @@ async function render() {
 }
 
 function rankButton(): HTMLButtonElement | null {
-  return [...host.querySelectorAll("button")].find((button) => /^Rank it$|^Ranked #/.test(button.textContent ?? "")) ?? null;
+  return [...host.querySelectorAll("button")].find((button) => /^Rank it$|^Try ranking again$|^Ranked #/.test(button.textContent ?? "")) ?? null;
 }
 
 async function clickRank() {

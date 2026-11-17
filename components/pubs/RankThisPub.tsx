@@ -8,7 +8,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { AuthActionSessionError, authedActionJson } from "@/lib/authedFetch";
-import { isSocialPubBand, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 const RANKING_UNAVAILABLE = "Your ranking is unavailable right now.";
 
@@ -16,20 +16,9 @@ type Props = { venueId: string; venueName: string; returnTo: string };
 
 type State =
   | { kind: "idle" }
-  | { kind: "loading" }
+  | { kind: "loading"; origin: "open" | "closed" }
   | { kind: "failed"; message: string }
   | { kind: "comparing"; entries: SocialPubRankingEntry[] };
-
-function rankingEntries(body: unknown): SocialPubRankingEntry[] | null {
-  const entries = (body as { entries?: unknown } | null)?.entries;
-  if (!Array.isArray(entries)) return null;
-  const valid = entries.every((entry: Partial<SocialPubRankingEntry> | null) =>
-    typeof entry?.venueId === "string" &&
-    isSocialPubBand(entry.band) &&
-    typeof entry.place === "number" &&
-    typeof entry.score === "number");
-  return valid ? (entries as SocialPubRankingEntry[]) : null;
-}
 
 async function readRanking(): Promise<State> {
   try {
@@ -38,7 +27,7 @@ async function readRanking(): Promise<State> {
       { credentials: "same-origin" },
       { requiresIdentity: true },
     );
-    const entries = response.ok ? rankingEntries(body) : null;
+    const entries = response.ok ? socialPubRankingPayload(body) : null;
     if (entries) return { kind: "comparing", entries };
     if (response.status === 401) return { kind: "failed", message: RANKING_UNAVAILABLE };
     return { kind: "failed", message: errorMessageFrom(response.ok ? null : body, RANKING_UNAVAILABLE) };
@@ -82,7 +71,7 @@ function RankIt({ venueId, venueName }: Props) {
 
   async function open() {
     if (state.kind === "loading" || state.kind === "comparing") return;
-    setState({ kind: "loading" });
+    setState({ kind: "loading", origin: "open" });
     const next = await readRanking();
     if (!mounted.current) return;
     if (next.kind === "comparing") setPlaced(next.entries.find((entry) => entry.venueId === venueId) ?? null);
@@ -92,7 +81,7 @@ function RankIt({ venueId, venueName }: Props) {
   function close(value?: unknown) {
     // Older comparison versions pass click events instead of a write promise.
     const pending = value instanceof Promise ? value : undefined;
-    setState({ kind: pending ? "loading" : "idle" });
+    setState(pending ? { kind: "loading", origin: "closed" } : { kind: "idle" });
     if (!pending) return;
     const refresh = async () => {
       if (!mounted.current) return;
@@ -108,10 +97,10 @@ function RankIt({ venueId, venueName }: Props) {
 
   return (
     <>
-      <button type="button" className="pubPage__action" onClick={() => void open()} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
-        {placed ? `Ranked #${placed.place}` : "Rank it"}
+      <button type="button" className="pubPage__action" onClick={() => void open()} aria-busy={state.kind === "loading"} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
+        {state.kind === "failed" ? "Try ranking again" : placed ? `Ranked #${placed.place}` : "Rank it"}
       </button>
-      <p className={state.kind === "failed" || state.kind === "loading" ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
+      <p className={state.kind === "failed" || (state.kind === "loading" && state.origin === "closed") ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
         {state.kind === "failed" ? state.message : state.kind === "loading" ? "Checking your ranking…" : ""}
       </p>
       {state.kind === "comparing" ? (

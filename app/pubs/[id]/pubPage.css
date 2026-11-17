@@ -89,7 +89,9 @@
   cursor: pointer;
 }
 
-.pubPage__action:disabled {
+.pubPage__action:disabled,
+.pubPage__action[aria-disabled="true"] {
+  opacity: 0.6;
   cursor: progress;
 }
 
