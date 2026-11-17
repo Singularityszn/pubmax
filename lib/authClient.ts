@@ -96,8 +96,7 @@ export async function installRecoveredSession(session: Session, current: () => b
   const client = await ensureSupabaseBrowser();
   if (!client || !canonicalStorage || !current() || nativeInstallation || recoveryInstallation) return false;
   const initialized = await client.auth.initialize();
-  if (initialized.error || !current()) return false;
-  // Keep this install on the SDK's non-refresh path, where the verified tokens identify its writes.
+  if (initialized.error || !current() || nativeInstallation || recoveryInstallation) return false;
   if (typeof session.expires_at !== "number" || session.expires_at * 1000 <= Date.now() + 60_000) return false;
   const { storage, key } = canonicalStorage;
   let previous: string | null;
@@ -166,6 +165,19 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     cached = createClient(config.url, config.key, {
       global: {
         fetch: withAuthFetchTimeout(async (input, init) => {
+          // A tab can suspend after the freshness check. Keep rotated tokens out of the canonical installer.
+          const recovering = recoveryInstallation;
+          if (recovering && typeof init?.body === "string") {
+            let refreshToken: unknown;
+            try {
+              const body: unknown = JSON.parse(init.body);
+              if (body && typeof body === "object" && "refresh_token" in body) refreshToken = body.refresh_token;
+            } catch {}
+            const url = input instanceof Request ? input.url : String(input);
+            if (refreshToken === recovering.session.refresh_token && new URL(url).pathname === "/auth/v1/token") {
+              throw new Error("Recovery installation needs a fresh session.");
+            }
+          }
           const pending = nativeInstallation;
           const response = await request(input, init);
           if (pending?.auth === cached?.auth && pending && !response.ok &&

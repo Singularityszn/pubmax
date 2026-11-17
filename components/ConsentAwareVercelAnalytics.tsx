@@ -4,6 +4,8 @@ import { lazy, Suspense, useEffect, useSyncExternalStore } from "react";
 
 import type { BeforeSendEvent } from "@vercel/analytics/next";
 
+import { isPasswordRecoveryUrl } from "@/lib/passwordRecovery";
+
 import { analyticsCollectionAllowed, flushVerifiedAnalyticsOutbox, subscribeAnalyticsConsent } from "@/lib/analytics";
 
 const Analytics = lazy(() => import("@vercel/analytics/next").then((module) => ({ default: module.Analytics })));
@@ -12,7 +14,7 @@ const serverConsent = () => false;
 export function consentAwareBeforeSend(
   event: BeforeSendEvent,
 ): BeforeSendEvent | null {
-  return analyticsCollectionAllowed() ? event : null;
+  return analyticsCollectionAllowed() && !isPasswordRecoveryUrl(event.url) ? event : null;
 }
 
 export function shouldMountVercelAnalytics(

@@ -1,6 +1,11 @@
 export const PASSWORD_RECOVERY_MESSAGE = "If an account matches, we sent a link";
 export const PASSWORD_RECOVERY_PATH = "/auth/reset-password";
 
+export function isPasswordRecoveryUrl(value: string): boolean {
+  try { return new URL(value, "https://pubmaxxing.com").pathname === PASSWORD_RECOVERY_PATH; }
+  catch { return false; }
+}
+
 export type RecoveryFormState =
   | { status: "checking" }
   | { status: "editing"; error?: string }

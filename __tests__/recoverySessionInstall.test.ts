@@ -10,7 +10,7 @@ function session(id: string, nonce = "initial"): Session {
     user: { id, aud: "authenticated", app_metadata: {}, user_metadata: {}, created_at: "2026-11-17T00:00:00Z" },
   };
 }
-afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); localStorage.clear(); });
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); localStorage.clear(); });
 
 it.each(["account-switch", "same-account-switch", "replacement-link", "unmount"])("does not install a recovered session after %s during the SDK user lookup", async mode => {
   vi.resetModules();
@@ -66,5 +66,33 @@ it("rolls back a cancelled save before publishing identity, and keeps a valid sa
   expect(await installRecoveredSession(a, () => current)).toBe(true);
   expect(published).toEqual([a.user.id]);
   registration.data.subscription.unsubscribe();
+  await client.auth.stopAutoRefresh();
+});
+
+it("does not renew and install a cancelled recovery after a suspended tab resumes with expired tokens", async () => {
+  vi.resetModules();
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://recovery-expiry-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_expiry");
+  let now = Date.now();
+  let suspended = false;
+  vi.spyOn(Date, "now").mockImplementation(() => suspended ? (now += 60_000) : now);
+  const a = session("recovering-a");
+  const request = vi.fn(async () => Response.json(session("recovering-a", "refreshed")));
+  vi.stubGlobal("fetch", request);
+  const { ensureSupabaseBrowser, installRecoveredSession } = await import("@/lib/authClient");
+  const client = await ensureSupabaseBrowser();
+  if (!client) throw new Error("Missing fixture client");
+  await client.auth.initialize();
+  let current = true;
+  const install = client.auth.setSession.bind(client.auth);
+  vi.spyOn(client.auth, "setSession").mockImplementation(async tokens => {
+    now += 2 * 60 * 60_000;
+    suspended = true;
+    current = false;
+    return install(tokens);
+  });
+  expect(await installRecoveredSession(a, () => current)).toBe(false);
+  expect((await client.auth.getSession()).data.session).toBeNull();
+  expect(request).not.toHaveBeenCalled();
   await client.auth.stopAutoRefresh();
 });
