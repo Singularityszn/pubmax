@@ -121,6 +121,9 @@ function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">,
       if (millilitres(size[1]!, size[2]!) !== expectedMl) return true;
     }
   }
+  const pintText = text.toLowerCase().replace(/[^a-z0-9½/]+/g, " ")
+    .replace(/(?:\bhalf|\b1\/2|½)(?:\s+of)?(?:\s+a)?\s+pints?\b/g, "");
+  if (measure !== "pint" && /\bpints?\b/.test(pintText)) return true;
   const named = measureNamedInDrinkText(text);
   if (measure === "pint") return named !== null || (kind === "drink" && !isComparablePintServing({ measure, cheapestPint: text }));
   return named !== null && named !== measure;
