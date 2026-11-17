@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { ACCOUNTS, installAuthDoubles, seedSignedIn as seedFixtureSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
+import { ACCOUNTS, AUTH_STORAGE_KEY, accessJwt, installAuthDoubles, seedSignedIn as seedFixtureSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 const THREAD = "11111111-1111-4111-8111-111111111111";
@@ -459,4 +459,164 @@ test("global alert settings recover from a hung browser subscription", async ({ 
   await expect(page.getByRole("checkbox", { name: /Show the sender/ })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __permissionRequests: number }).__permissionRequests)).toBe(0);
   await page.screenshot({ path: testInfo.outputPath("subscription-timeout-recovered.png"), scale: "css" });
+});
+
+
+for (const first of ["open", "quiet"] as const) {
+  test(`another eligible arrival survives a ${first} first candidate and equal unread totals`, async ({ page }, testInfo) => {
+    const reading = "33333333-3333-4333-8333-333333333333";
+    await pushRuntime(page);
+    const auth = await installAuthDoubles(page);
+    let arrived = false;
+    const stamp = "2026-11-17T09:00:00Z";
+    await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [
+      { id: reading, otherHandle: "maeve", lastBody: "First candidate", lastMessageId: arrived ? "first-new" : "first-old", lastAt: stamp, lastFromMe: false, unread: 1 },
+      { id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: "Eligible second candidate", lastMessageId: arrived ? "second-new" : "second-old", lastAt: stamp, lastFromMe: false, unread: 1 },
+    ] } }));
+    await page.route("**/api/message-notifications**", route => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: new URL(route.request().url()).searchParams.get("conversationId") === reading, registered: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
+    await page.route(`**/api/messages/${reading}**`, route => route.fulfill({ json: { messages: [{ id: "first-old", conversationId: reading, senderHandle: "maeve", body: "First candidate", createdAt: stamp, read: true, flagged: false }] } }));
+    await page.route(`**/api/messages/${THREAD}**`, route => route.fulfill({ json: { messages: [{ id: "second-new", conversationId: THREAD, senderHandle: ACCOUNTS.A.handle, body: "Eligible second candidate", createdAt: stamp, read: true, flagged: false }] } }));
+    await seedSignedIn(page, "B");
+    await auth.signedInAs("B");
+    await page.goto(first === "open" ? `/messages/${reading}` : "/messages");
+    await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeAttached();
+    arrived = true;
+    await page.evaluate(id => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
+    const arrival = page.locator(".messageArrival a");
+    await expect(arrival).toHaveAttribute("href", `/messages/${THREAD}`);
+    await arrival.focus();
+    await page.screenshot({ path: testInfo.outputPath(`eligible-after-${first}.png`), scale: "css" });
+    await arrival.click();
+    await expect(page.locator(".threadMessages").getByText("Eligible second candidate", { exact: true })).toBeVisible();
+  });
+}
+
+for (const stage of ["response", "body"] as const) {
+  test(`the shared inbox recovers from a stalled ${stage} without reloading`, async ({ page }, testInfo) => {
+    await pushRuntime(page);
+    const auth = await installAuthDoubles(page);
+    await page.addInitScript(stage => {
+      const runtime = window as unknown as { __stallInbox: boolean; __finishInbox?: () => void; __inboxExpired: boolean };
+      runtime.__stallInbox = true;
+      const original = window.fetch;
+      window.fetch = async (input, init) => {
+        const url = String(input instanceof Request ? input.url : input);
+        if (!url.includes("/api/messages?") || !runtime.__stallInbox) return original(input, init);
+        init?.signal?.addEventListener("abort", () => { runtime.__inboxExpired = true; }, { once: true });
+        if (stage === "response") return new Promise(resolve => { runtime.__finishInbox = () => resolve(Response.json({ conversations: [] })); });
+        const response = await original(input, init);
+        response.json = () => new Promise(resolve => { runtime.__finishInbox = () => resolve({ conversations: [] }); });
+        return response;
+      };
+    }, stage);
+    let reads = 0;
+    await page.route("**/api/messages?**", route => { reads++; return route.fulfill({ json: { conversations: [{ id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: "Recovered conversation", lastMessageId: "recovered", lastAt: "2026-11-17T09:00:00Z", lastFromMe: false, unread: 2 }] } }); });
+    await page.route("**/api/message-notifications**", route => route.fulfill({ json: { enabled: false, preview: false, muted: false, bound: false, sessionId: null } }));
+    await seedSignedIn(page, "B");
+    await auth.signedInAs("B");
+    await page.goto("/messages");
+    await expect(page.getByRole("button", { name: "Try again", exact: true })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __inboxExpired: boolean }).__inboxExpired)).toBe(true);
+    await page.screenshot({ path: testInfo.outputPath(`inbox-${stage}-expired.png`), scale: "css" });
+    await page.evaluate(() => { (window as unknown as { __stallInbox: boolean }).__stallInbox = false; });
+    const before = reads;
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await expect(page.getByRole("link", { name: /Recovered conversation/ })).toBeVisible();
+    expect(reads).toBe(before + 1);
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeAttached();
+    await page.evaluate(() => (window as unknown as { __finishInbox?: () => void }).__finishInbox?.());
+    await expect(page.getByRole("link", { name: /Recovered conversation/ })).toBeVisible();
+    await page.screenshot({ path: testInfo.outputPath(`inbox-${stage}-recovered.png`), scale: "css" });
+  });
+}
+
+for (const stage of ["response", "body"] as const) {
+  test(`an open thread recovers after presence reservation ${stage} stalls and reuses its lease`, async ({ page }, testInfo) => {
+    await pushRuntime(page);
+    const auth = await installAuthDoubles(page);
+    await page.addInitScript(({ stage, key, bearer }) => {
+      const saved = localStorage.getItem(key);
+      if (saved) localStorage.setItem(key, JSON.stringify({ ...JSON.parse(saved), access_token: bearer }));
+      const runtime = window as unknown as { __stallPresence: boolean; __presenceExpired: boolean; __finishPresence?: () => void };
+      runtime.__stallPresence = true;
+      const original = window.fetch;
+      window.fetch = async (input, init) => {
+        const body = typeof init?.body === "string" ? JSON.parse(init.body) : {};
+        if (!String(input).includes("/api/message-notifications") || body.action !== "presence-start" || !runtime.__stallPresence) return original(input, init);
+        init?.signal?.addEventListener("abort", () => { runtime.__presenceExpired = true; }, { once: true });
+        if (stage === "response") return new Promise(resolve => { runtime.__finishPresence = () => resolve(Response.json({ activityId: 999 })); });
+        const response = await original(input, init);
+        response.json = () => new Promise(resolve => { runtime.__finishPresence = () => resolve({ activityId: 999 }); });
+        return response;
+      };
+    }, { stage, key: AUTH_STORAGE_KEY, bearer: accessJwt(ACCOUNTS.B) });
+    const actions: Record<string, unknown>[] = [];
+    await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [] } }));
+    await page.route(`**/api/messages/${THREAD}**`, route => route.fulfill({ json: { messages: [] } }));
+    await page.route("**/api/message-notifications**", route => {
+      const body = route.request().method() === "POST" ? route.request().postDataJSON() : {};
+      actions.push(body);
+      return route.fulfill({ json: body.action === "presence-start" ? { activityId: 1 } : body.action === "presence" ? { ok: true, applied: true } : { enabled: true, preview: false, muted: false, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } });
+    });
+    await seedSignedIn(page, "B");
+    await auth.signedInAs("B");
+    await page.goto(`/messages/${THREAD}`);
+    await expect(page.getByRole("textbox", { name: /message/i })).toBeVisible();
+    await expect.poll(() => page.evaluate(() => (window as unknown as { __presenceExpired: boolean }).__presenceExpired)).toBe(true);
+    await page.evaluate(() => { (window as unknown as { __stallPresence: boolean }).__stallPresence = false; window.dispatchEvent(new Event("pubmax:message-notification-settings")); });
+    await expect.poll(() => actions.filter(action => action.action === "presence" && action.conversationId === THREAD).length).toBe(1);
+    const reservations = actions.filter(action => action.action === "presence-start").length;
+    await page.evaluate(() => window.dispatchEvent(new Event("pubmax:message-notification-settings")));
+    await expect.poll(() => actions.filter(action => action.action === "presence" && action.conversationId === THREAD).length).toBe(2);
+    expect(actions.filter(action => action.action === "presence-start")).toHaveLength(reservations);
+    await page.evaluate(() => (window as unknown as { __finishPresence?: () => void }).__finishPresence?.());
+    const writes = actions.filter(action => action.action === "presence");
+    expect(writes.map(write => write.activityId)).toEqual([1, 1]);
+    await testInfo.attach("presence-requests.json", { body: Buffer.from(JSON.stringify(actions.map(({ token: _token, ...action }) => action), null, 2)), contentType: "application/json" });
+    await page.screenshot({ path: testInfo.outputPath(`presence-${stage}-recovered.png`), scale: "css" });
+  });
+}
+
+test("a failed account switch restores presence in the same mounted thread", async ({ page }, testInfo) => {
+  await pushRuntime(page);
+  const auth = await installAuthDoubles(page);
+  await page.addInitScript(({ key, tokens }) => {
+    const saved = localStorage.getItem(key);
+    if (!saved) return;
+    const session = JSON.parse(saved);
+    const bearer = tokens[session.user.id as keyof typeof tokens];
+    if (bearer) localStorage.setItem(key, JSON.stringify({ ...session, access_token: bearer }));
+  }, { key: AUTH_STORAGE_KEY, tokens: { [ACCOUNTS.A.id]: accessJwt(ACCOUNTS.A), [ACCOUNTS.B.id]: accessJwt(ACCOUNTS.B) } });
+  const actions: Record<string, unknown>[] = [];
+  await page.route("**/api/messages?**", route => route.fulfill({ json: { conversations: [] } }));
+  await page.route(`**/api/messages/${THREAD}**`, route => route.fulfill({ json: { messages: [] } }));
+  await page.route("**/api/message-notifications**", route => {
+    const body = route.request().method() === "POST" ? route.request().postDataJSON() : {};
+    actions.push(body);
+    const who = (route.request().headers().authorization ?? "").includes(accessJwt(ACCOUNTS.A)) ? "A" : "B";
+    const sessionId = who === "A" ? "11111111-1111-4111-8111-111111111111" : "22222222-2222-4222-8222-222222222222";
+    return route.fulfill({ json: body.action === "presence-start" ? { activityId: actions.length } : body.action === "presence" ? { ok: true, applied: true } : { ok: true, enabled: true, preview: false, muted: false, bound: true, sessionId } });
+  });
+  await seedSignedIn(page, "A");
+  await seedSignedIn(page, "B");
+  await auth.signedInAs("B");
+  await page.goto(`/messages/${THREAD}`);
+  await expect.poll(() => actions.some(action => action.action === "presence" && action.conversationId === THREAD)).toBe(true);
+  await page.locator(".threadMessages").evaluate(element => element.setAttribute("data-presence-mount", "original"));
+  await page.route("https://pubmaxx-e2e.supabase.co/auth/v1/token?**", async route => {
+    if (route.request().postDataJSON().refresh_token === ACCOUNTS.A.refreshToken) await route.fulfill({ status: 503, headers: { "access-control-allow-origin": "*" }, json: { message: "Synthetic account switch outage" } });
+    else await route.fallback();
+  });
+  await page.getByRole("button", { name: "Account options for Karan M", exact: true }).click();
+  await page.getByRole("button", { name: "Switch account", exact: true }).click();
+  const before = actions.filter(action => action.action === "presence" && action.conversationId === THREAD).length;
+  await page.locator(".authSwitcherRow").filter({ has: page.getByText("@karan", { exact: true }) }).click();
+  await expect(page.getByText("We could not switch account just now. Try again in a moment.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Account options for Karan M", exact: true })).toBeVisible();
+  await expect.poll(() => actions.filter(action => action.action === "presence" && action.conversationId === THREAD).length).toBe(before + 1);
+  await expect(page.locator(".threadMessages")).toHaveAttribute("data-presence-mount", "original");
+  expect(actions.some(action => action.action === "presence" && action.conversationId === null)).toBe(true);
+  await testInfo.attach("failed-switch-presence.json", { body: Buffer.from(JSON.stringify(actions.map(({ token: _token, ...action }) => action), null, 2)), contentType: "application/json" });
+  await page.screenshot({ path: testInfo.outputPath("failed-switch-presence-restored.png"), scale: "css" });
 });

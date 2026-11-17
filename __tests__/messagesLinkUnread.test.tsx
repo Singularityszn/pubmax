@@ -97,19 +97,20 @@ beforeEach(async () => {
 
 describe("MessagesLink arrival notices", () => {
   it.each(["open", "muted", "blocked", "sender", "read"])("does not let a %s candidate hide a later eligible arrival", async (reason) => {
-    const row = (id: string, message: string): ConversationDTO => ({ id, otherHandle: "sam", lastAt: inbox.lastAt, lastMessageId: message, unread: 1 });
+    const row = (id: string, message: string): ConversationDTO => ({ id, otherHandle: "sam", lastAt: inbox.lastAt, lastMessageId: message, lastFromMe: false, unread: 1 });
     inbox.rows = [row("c1", "old-a"), row("c2", "old-b"), row("c3", "old-c")];
     await act(async () => inbox.onIncoming());
     await act(async () => document.querySelector<HTMLButtonElement>(".messageArrival button")?.click());
     inbox.policyReads = [];
-    inbox.rows = [row("c1", "new-a"), row("c2", "new-b"), row("c3", "new-c")];
+    const first = row("c1", "new-a");
+    inbox.rows = [first, row("c2", "new-b"), row("c3", "new-c")];
     if (reason === "open") {
       inbox.pathname = "/messages/c1";
       await act(async () => root.render(createElement(MessagesLink)));
     }
     if (reason === "muted" || reason === "blocked") inbox.quietIds = ["c1"];
-    if (reason === "sender") inbox.rows[0].lastFromMe = true;
-    if (reason === "read") inbox.rows[0].unread = 0;
+    if (reason === "sender") first.lastFromMe = true;
+    if (reason === "read") first.unread = 0;
     await act(async () => inbox.onIncoming());
     expect(document.querySelectorAll(".messageArrival")).toHaveLength(1);
     expect(document.querySelector(".messageArrival a")?.getAttribute("href")).toBe("/messages/c2");
