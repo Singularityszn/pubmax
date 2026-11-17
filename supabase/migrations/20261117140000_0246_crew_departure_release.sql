@@ -1,4 +1,4 @@
--- 0244: a deleted account frees its guest places and cancels the nights it owns.
+-- 0246: a deleted account frees its guest places and cancels the nights it owns.
 -- The captain's rule: free their guest places, cancel nights they own, keep history.
 --
 -- 1. A departed account is one account deletion finished: unbound, with its profile
@@ -21,7 +21,7 @@
 --      cancelled.
 --    Lock order: crew row, member rows, Plan row, seat and invitation rows. It takes no
 --    auth row and no account lock.
--- 4. Rollback drops both functions and restores 0243's _social_crew_admission_refused.
+-- 4. Rollback drops both functions and restores 0245's _social_crew_admission_refused.
 --    Places already freed and nights already cancelled stay as they are.
 begin;
 
@@ -93,7 +93,7 @@ create or replace function public._social_crew_admission_refused(p_crew uuid,p_a
 returns boolean language plpgsql security definer set search_path=''
 as $$
 begin
-  -- 0244: free this crew's departed members first, under the crew row the caller holds.
+  -- 0246: free this crew's departed members first, under the crew row the caller holds.
   perform public._release_departed_crew_places(p_crew);
   if exists(select 1 from public.social_crews crew join public.plans plan on plan.id=crew.plan_id
     where crew.id=p_crew and plan.status='abandoned') then return true; end if;

@@ -1,9 +1,9 @@
-// Migration 0243 on a real PostgreSQL replay: the account lifecycle around crew
+// Migration 0245 on a real PostgreSQL replay: the account lifecycle around crew
 // admission. Account deletion, provisioning and suspension take the auth row and
 // the account lock in one order with admission, so each race finishes. A
 // moderator lifts one crew's removal through an audited, service-only call.
 //
-// The database starts with 0243 applied. Each case makes its own people.
+// The database starts with 0245 applied. Each case makes its own people.
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { postgresSkipReason } from "./helpers/postgres";
@@ -63,10 +63,10 @@ import {
 const skipReason = postgresSkipReason();
 let moderator: Person | null = null;
 const staff = () => { if (!moderator) throw new Error("The moderator was not created."); return moderator; };
-beforeAll(async () => { if (!skipReason) moderator = await bootCrewAdmissionDatabase("crew-lifecycle-0243", "after"); }, 600_000);
+beforeAll(async () => { if (!skipReason) moderator = await bootCrewAdmissionDatabase("crew-lifecycle-0245", "after"); }, 600_000);
 afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
-describe.skipIf(skipReason !== null)("after 0243: account deletion", () => {
+describe.skipIf(skipReason !== null)("after 0245: account deletion", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a deletion waits for an admission that holds a guest's account lock, then completes", async () => {
@@ -179,7 +179,7 @@ describe.skipIf(skipReason !== null)("after 0243: account deletion", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: moderator correction of a mistaken removal", () => {
+describe.skipIf(skipReason !== null)("after 0245: moderator correction of a mistaken removal", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a removed person stays barred with the neutral answer until a moderator corrects that crew's removal, then asks again under the usual checks", () => {
@@ -252,7 +252,7 @@ describe.skipIf(skipReason !== null)("after 0243: moderator correction of a mist
 });
 
 
-describe.skipIf(skipReason !== null)("after 0243: Crew write receipts end with the account", () => {
+describe.skipIf(skipReason !== null)("after 0245: Crew write receipts end with the account", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("deletion removes the deleted person's receipts and keeps everyone else's, a suspended person's and replays", () => {
@@ -343,7 +343,7 @@ describe.skipIf(skipReason !== null)("after 0243: Crew write receipts end with t
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: owner and invitee deletion", () => {
+describe.skipIf(skipReason !== null)("after 0245: owner and invitee deletion", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   const acceptCall = (who: Person, crew: string, invitation: string) =>
@@ -400,7 +400,7 @@ describe.skipIf(skipReason !== null)("after 0243: owner and invitee deletion", (
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: provisioning and account-less suspension against deletion", () => {
+describe.skipIf(skipReason !== null)("after 0245: provisioning and account-less suspension against deletion", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   /** Holds the profile row so two writers queue behind it in a chosen order. */
@@ -459,7 +459,7 @@ describe.skipIf(skipReason !== null)("after 0243: provisioning and account-less 
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: departed members", () => {
+describe.skipIf(skipReason !== null)("after 0245: departed members", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a guest who deleted their account no longer bars the people they blocked, and their place is freed", () => {
@@ -482,7 +482,7 @@ describe.skipIf(skipReason !== null)("after 0243: departed members", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () => {
+describe.skipIf(skipReason !== null)("after 0245: correction bookkeeping", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a correction moves the crew's authority revision like every other membership change", () => {
@@ -563,7 +563,7 @@ describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () =>
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: deleting a crew-bound Plan", () => {
+describe.skipIf(skipReason !== null)("after 0245: deleting a crew-bound Plan", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   /** The operator transaction from the runbook: the crew row, then the Plan row, then the delete. */

@@ -1,4 +1,4 @@
--- Rollback 0244: deleted accounts' crew places stop being released. It restores 0243's
+-- Rollback 0246: deleted accounts' crew places stop being released. It restores 0245's
 -- _social_crew_admission_refused and drops both release functions. Places already freed
 -- and nights already cancelled stay as they are; this rollback cannot restore them.
 begin;

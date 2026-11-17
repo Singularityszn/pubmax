@@ -1,4 +1,4 @@
-// Migration 0243 on a real PostgreSQL replay: admission, invitation, blocks,
+// Migration 0245 on a real PostgreSQL replay: admission, invitation, blocks,
 // suspension and the host queue. A crew admits and invites nobody who has an
 // active block, in either direction, with an accepted member, and nobody that
 // crew removed. The refusal says only "not found".
@@ -55,10 +55,10 @@ import {
 } from "./helpers/crewAdmissionHarness";
 
 const skipReason = postgresSkipReason();
-beforeAll(async () => { if (!skipReason) await bootCrewAdmissionDatabase("crew-admission-0243", "before"); }, 600_000);
+beforeAll(async () => { if (!skipReason) await bootCrewAdmissionDatabase("crew-admission-0245", "before"); }, 600_000);
 afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
-describe.skipIf(skipReason !== null)("before 0243", () => {
+describe.skipIf(skipReason !== null)("before 0245", () => {
   beforeAll(() => { if (running()) stageTo("before"); });
 
   it("as on Supabase, the migration role cannot drop a trigger on auth.users", async () => {
@@ -70,11 +70,11 @@ describe.skipIf(skipReason !== null)("before 0243", () => {
   });
 
   it("this cluster grants EXECUTE on a new function to every Supabase role, as Supabase does", () => {
-    db().sql("create function public._default_grant_probe_0243() returns int language sql as 'select 1'");
+    db().sql("create function public._default_grant_probe_0245() returns int language sql as 'select 1'");
     try {
-      expect(db().sql(`select has_function_privilege('service_role','public._default_grant_probe_0243()','execute')
-        and has_function_privilege('authenticated','public._default_grant_probe_0243()','execute')`)).toBe("t");
-    } finally { db().sql("drop function public._default_grant_probe_0243()"); }
+      expect(db().sql(`select has_function_privilege('service_role','public._default_grant_probe_0245()','execute')
+        and has_function_privilege('authenticated','public._default_grant_probe_0245()','execute')`)).toBe("t");
+    } finally { db().sql("drop function public._default_grant_probe_0245()"); }
   });
 
   it("a block with an accepted guest and an earlier removal both leave the door open", () => {
@@ -91,10 +91,10 @@ describe.skipIf(skipReason !== null)("before 0243", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("applying 0243 over earlier deletions", () => {
+describe.skipIf(skipReason !== null)("applying 0245 over earlier deletions", () => {
   beforeAll(() => { if (running()) stageTo("before"); });
 
-  it("removes receipts left by accounts deleted before 0243, and keeps suspended and unbound legacy accounts' receipts", () => {
+  it("removes receipts left by accounts deleted before 0245, and keeps suspended and unbound legacy accounts' receipts", () => {
     const host = person(), xav = person(), bea = person(), leo = person();
     const crew = crewWith(host);
     for (const who of [xav, bea, leo]) request(who, crew);
@@ -109,7 +109,7 @@ describe.skipIf(skipReason !== null)("applying 0243 over earlier deletions", () 
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: refusals", () => {
+describe.skipIf(skipReason !== null)("after 0245: refusals", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a request fails like an unknown crew when the requester and an accepted guest are blocked either way", () => {
@@ -217,7 +217,7 @@ describe.skipIf(skipReason !== null)("after 0243: refusals", () => {
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpers", () => {
+describe.skipIf(skipReason !== null)("after 0245: duplicates, inviters and helpers", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a second request on a new key after a block answers not found, while the first key replays and cancel still works", () => {
@@ -343,7 +343,7 @@ describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpe
   });
 });
 
-describe.skipIf(skipReason !== null)("after 0243: races", () => {
+describe.skipIf(skipReason !== null)("after 0245: races", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("two acceptances racing for the last place still admit exactly one", async () => {

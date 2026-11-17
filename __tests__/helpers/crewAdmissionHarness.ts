@@ -1,4 +1,4 @@
-// The shared harness for the 0243 crew admission proofs. Each proof file gets its
+// The shared harness for the 0245 crew admission proofs. Each proof file gets its
 // own module instance, so its own cluster and its own counters. A person's auth
 // user, profile and Social account IDs come from separate ranges.
 
@@ -9,9 +9,9 @@ import { expect } from "vitest";
 import { asServiceRole, startPostgres, type PostgresSession } from "./postgres";
 
 const directory = join(process.cwd(), "supabase/migrations");
-const name = "20261117090000_0243_crew_admission_safety_locks.sql";
+const name = "20261117130000_0245_crew_admission_safety_locks.sql";
 /** The migrations under test, in apply order. Rollback runs them in reverse. */
-const FORWARD = [name, "20261117120000_0244_crew_departure_release.sql"];
+const FORWARD = [name, "20261117140000_0246_crew_departure_release.sql"];
 const ROLLBACK = FORWARD.map((file) => `rollback/${file.replace(/\.sql$/, "_rollback.sql")}`).reverse();
 
 export const DIGEST = "a".repeat(64);
@@ -26,7 +26,7 @@ export const json = (value: string) => JSON.parse(value) as Record<string, unkno
 export type Stage = "before" | "after";
 let stage: Stage = "before";
 /**
- * A synthetic copy of the production permissions that 0243 runs under. On Supabase,
+ * A synthetic copy of the production permissions that 0245 runs under. On Supabase,
  * supabase_auth_admin owns auth.users. The migration role is not a superuser, owns the
  * application objects and holds only SELECT, UPDATE, TRIGGER and REFERENCES on
  * auth.users, so it cannot drop a trigger there. Only this cluster changes.
@@ -63,13 +63,13 @@ function replicateSupabaseOwnership() {
 }
 export const MIGRATOR = "pubmax_migrator";
 
-/** Applies one 0243 file the way production does: as the migration role, not a superuser. */
+/** Applies one 0245 file the way production does: as the migration role, not a superuser. */
 function applyAsMigrator(files: readonly string[]) {
   execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`,
     ...files.flatMap((file) => ["-f", join(directory, file)])], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-/** Moves the one database to a stage: the forward file applies 0243, the rollback file removes it. */
+/** Moves the one database to a stage: the forward file applies 0245, the rollback file removes it. */
 export function stageTo(next: Stage) {
   if (stage === next) return;
   applyAsMigrator(next === "after" ? FORWARD : ROLLBACK);
@@ -77,7 +77,7 @@ export function stageTo(next: Stage) {
 }
 
 let keys = 0;
-export const key = () => `admission-key-0243-${String(++keys).padStart(8, "0")}`;
+export const key = () => `admission-key-0245-${String(++keys).padStart(8, "0")}`;
 export const rpc = (call: string) => `select public.${call}::text`;
 export const call = (statement: string) => json(db().sql(asServiceRole(rpc(statement))));
 
@@ -87,7 +87,7 @@ let people = 0;
 export function person({ account = true } = {}): Person {
   const n = String(++people).padStart(12, "0");
   const who = { user: `a2431100-0000-4000-8000-${n}`, profile: `a2432200-0000-4000-8000-${n}`,
-    account: `a2433300-0000-4000-8000-${n}`, handle: `p0243_${people}` };
+    account: `a2433300-0000-4000-8000-${n}`, handle: `p0245_${people}` };
   db().sql(`insert into auth.users(id) values ('${who.user}');
     insert into public.profiles(id,user_id,handle) values ('${who.profile}','${who.user}','${who.handle}');`);
   if (account) {
@@ -262,14 +262,14 @@ export const waitsOnAnyLock = (application: string) => db().sqlAsync(`select exi
   where application_name='${application}' and wait_event_type='Lock'
     and cardinality(pg_blocking_pids(pid)) > 0)`);
 
-/** Boots one cluster with every migration before 0243, the session fixture and one moderator. */
+/** Boots one cluster with every migration before 0245, the session fixture and one moderator. */
 export async function bootCrewAdmissionDatabase(label: string, start: Stage) {
   session = await startPostgres({ label, database: label.replaceAll("-", "_") });
   try {
     db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
     for (const file of readdirSync(directory).filter((entry) => entry.endsWith(".sql") && entry < name).sort()) db().applyFile(join(directory, file));
     // Supabase grants EXECUTE on every new public function to these roles. The shared
-    // fixture does not, so this cluster does, before 0243 creates its helpers.
+    // fixture does not, so this cluster does, before 0245 creates its helpers.
     db().sql("alter default privileges in schema public grant execute on functions to anon, authenticated, service_role");
     replicateSupabaseOwnership();
     const staff = person();

@@ -1,4 +1,4 @@
--- 0243: crew admission and invitation refuse blocked and removed people, under the
+-- 0245: crew admission and invitation refuse blocked and removed people, under the
 -- auth row and participant-account locks that blocks, suspension, provisioning and
 -- account deletion share. Covered functions only; no whole-database claim.
 --
@@ -7,7 +7,7 @@
 -- 2. _social_crew_admission_ineligible is the one read-only rule: the person is not
 --    active, this crew removed them, or a block either way joins them to an accepted
 --    member who still has an account. A member whose deletion finished bars nobody with
---    kept blocks, and 0244 frees their place; a suspended member with an
+--    kept blocks, and 0246 frees their place; a suspended member with an
 --    account still bars. _social_crew_admission_refused locks, then asks the rule in a
 --    new statement. Capacity is at most 20, so an admission takes at most 21 locks.
 -- 3. Request, decision, invitation and acceptance answer not_found, as for an unknown
@@ -52,14 +52,14 @@
 -- 8. Private Crew write receipts end with their account. When deletion unbinds an
 --    account, social_account_unbind_purges_crew_receipts deletes its receipts in the
 --    same transaction. A Crew write whose actor was deleted while it waited fails whole,
---    with no receipt; a refusal keeps its neutral answer and stores no receipt. Applying 0243 also deletes receipts
+--    with no receipt; a refusal keeps its neutral answer and stores no receipt. Applying 0245 also deletes receipts
 --    already left by deleted accounts (unbound, profile tombstoned). Suspended and
 --    unbound legacy accounts keep theirs. Deleted receipts cannot be restored.
 -- 9. A crew-bound Plan can be deleted, with its crew history. The seat reference from
 --    member rows is checked at commit. Nothing in the app deletes a Plan; the operator
 --    transaction locks the crew row, then the Plan row, then deletes the Plan
 --    (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md), the order admission uses.
--- 0244 frees deleted members' places and cancels their nights. 0071 stays held outside.
+-- 0246 frees deleted members' places and cancels their nights. 0071 stays held outside.
 --
 -- Rollback restores the 0110, 0114, 0075, 0092 and 0224 bodies and the RESTRICT seat
 -- reference, and drops the social_blocks and account triggers, helpers, correction
@@ -74,7 +74,7 @@ begin;
 do $$
 begin
   if not pg_catalog.has_any_column_privilege('auth.users','UPDATE') then
-    raise exception '0243 needs UPDATE on auth.users to lock a candidate''s auth row';
+    raise exception '0245 needs UPDATE on auth.users to lock a candidate''s auth row';
   end if;
 end;
 $$;
@@ -222,7 +222,7 @@ after update of supabase_user_id on public.private_social_accounts
 for each row when (old.supabase_user_id is not null and new.supabase_user_id is null)
 execute function public._purge_social_crew_receipts_on_unbind();
 
--- Receipts already left by accounts deleted before 0243. Not restored by rollback.
+-- Receipts already left by accounts deleted before 0245. Not restored by rollback.
 delete from public.private_social_crew_write_receipts receipt
 using public.private_social_accounts account, public.profiles profile
 where account.id=receipt.actor_account_id and profile.id=account.profile_id
@@ -245,7 +245,7 @@ begin
   elsif v_trigger.tgfoid <> 'public._lock_social_auth_user_accounts()'::regprocedure
     or v_trigger.tgtype <> 11 or v_trigger.tgenabled <> 'O' or v_trigger.tgisinternal
     or v_trigger.tgnargs <> 0 or v_trigger.tgqual is not null or v_trigger.attrs <> 0 then
-    raise exception '0243 found a different trigger named lock_social_accounts_on_auth_user_delete on auth.users. Its owner must remove it first.';
+    raise exception '0245 found a different trigger named lock_social_accounts_on_auth_user_delete on auth.users. Its owner must remove it first.';
   end if;
 end;
 $$;

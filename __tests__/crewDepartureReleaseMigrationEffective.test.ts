@@ -1,4 +1,4 @@
-// Migration 0244 on a real PostgreSQL replay, applied after 0243 by the migration
+// Migration 0246 on a real PostgreSQL replay, applied after 0245 by the migration
 // role of the permission replica. The captain's rule for a deleted account: free
 // their guest places, cancel the nights they own, keep the history. Account
 // deletion holds the auth row and account locks, so the release runs afterwards,
@@ -39,7 +39,7 @@ import {
 } from "./helpers/crewAdmissionHarness";
 
 const skipReason = postgresSkipReason();
-beforeAll(async () => { if (!skipReason) await bootCrewAdmissionDatabase("crew-departure-0244", "after"); }, 600_000);
+beforeAll(async () => { if (!skipReason) await bootCrewAdmissionDatabase("crew-departure-0246", "after"); }, 600_000);
 afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
 const release = (limit?: number) => call(releaseCall(limit));
@@ -54,7 +54,7 @@ const activeCount = (crew: string) =>
 const withCapacity = (crew: string, capacity: number) => db().sql(`update public.social_crews
   set capacity=${capacity}, meeting_venue_id='venue-one', description='A night out' where id='${crew}'`);
 
-describe.skipIf(skipReason !== null)("0244: a deleted account's crew places", () => {
+describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
   it("a deleted guest's place is freed with the leave transition, the revision moves once and the row stays as history", () => {
@@ -162,7 +162,7 @@ describe.skipIf(skipReason !== null)("0244: a deleted account's crew places", ()
     db().sql(deleteAccount(xav));
     releaseAll();
     const ledger = db().sql("select count(*) from public.social_crew_removal_corrections");
-    expect(await rollbackOutcome("rollback_0244", ledger)).toMatchObject({ ok: true });
+    expect(await rollbackOutcome("rollback_0246", ledger)).toMatchObject({ ok: true });
     expect(db().sql("select to_regprocedure('public.release_departed_social_crew_places(integer)') is null")).toBe("t");
     expect(state(crew, xav)).toBe("left");
     db().sql(deleteAccount(yan));

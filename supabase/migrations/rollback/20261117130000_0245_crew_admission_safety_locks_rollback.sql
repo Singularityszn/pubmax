@@ -1,4 +1,4 @@
--- Rollback 0243: crew admission and invitation check only the host pair again, and
+-- Rollback 0245: crew admission and invitation check only the host pair again, and
 -- block, suspension, provisioning and account deletion writes stop taking the auth
 -- row and participant-account locks in one order.
 -- It restores the 0110 join request and decision bodies, the 0075 invitation and
@@ -41,7 +41,7 @@ begin
   end if;
   if v_rows > 0
     and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> v_rows::text then
-    raise exception 'Rollback 0243 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported to that row count and run it again.', v_rows;
+    raise exception 'Rollback 0245 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported to that row count and run it again.', v_rows;
   end if;
 end;
 $$;
@@ -494,7 +494,7 @@ begin
 end;
 $$;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
--- Receipts deleted while 0243 was applied stay deleted. A rollback cannot restore them.
+-- Receipts deleted while 0245 was applied stay deleted. A rollback cannot restore them.
 drop trigger if exists social_account_unbind_purges_crew_receipts on public.private_social_accounts;
 drop function if exists public._purge_social_crew_receipts_on_unbind();
 create or replace function public._social_crew_finish_write(

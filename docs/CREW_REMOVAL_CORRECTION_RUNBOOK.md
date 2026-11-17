@@ -1,12 +1,12 @@
 # Crew removal correction runbook
 
-A host can remove a member from one crew. After migration 0243, that person cannot ask to join that crew again.
+A host can remove a member from one crew. After migration 0245, that person cannot ask to join that crew again.
 The refusal is "not found", the same answer an unknown crew gets. Only a moderator can correct a mistaken removal.
 There is no app screen or route for this. The operator runs one service-only SQL call.
 
 ## Before you start
 
-1. Make sure the captain applied migration 0243.
+1. Make sure the captain applied migration 0245.
 2. Get the moderator's staff role ID. It is `SOCIAL_MODERATOR_STAFF_ROLE_ID`, and the role must be active and not revoked.
 3. Make sure the moderator is not the removed person. The call refuses a moderator's own removal.
 4. Write down the reason, for example the report or support message that shows the mistake. The reason must have 3 to 500 characters.
@@ -56,9 +56,9 @@ What the ledger does today:
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
 - When the subject deletes their account, their rows are deleted in the same transaction.
 - When the crew is deleted, its rows are deleted. Deleting a crew-bound Plan deletes its crew (see below).
-- The subject's own-record export is built outside migration 0243. It is not live yet.
+- The subject's own-record export is built outside migration 0245. It is not live yet.
 
-Export and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
+Export and the other lifecycle items are open release holds, owned outside migration 0245. Do not run a correction in production until the captain closes them.
 
 ## Deleting a crew-bound Plan
 
@@ -76,7 +76,7 @@ The delete removes the Plan's seats, its crew, member rows, join requests, invit
 
 ## Deleted accounts' crew places
 
-When an account is deleted, migration 0244 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
+When an account is deleted, migration 0246 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
 
 The deletion service runs the release right after the auth row is deleted, and again when the same delete is repeated. Each run also finishes any earlier deletion whose release failed. An admission or invitation into a crew first releases that crew's deleted members. When the service logs `account.delete_crew_release_failed`, check and finish the release:
 
@@ -94,11 +94,11 @@ set role service_role;
 select public.release_departed_social_crew_places(100);
 ```
 
-Run the call until it answers `"crews": 0`. Rolling back 0244 stops new releases. It does not restore freed places or cancelled nights.
+Run the call until it answers `"crews": 0`. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
 ## Rollback
 
-Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
+Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
 
 1. Export the rows and note how many there are.
 
@@ -116,6 +116,6 @@ Rollback of 0243 waits for `auth.users` while it holds nothing. Corrections, adm
 
 The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.
 
-Migration 0243 also deletes private Crew write receipts that belong to deleted accounts, both those left before it was applied and each one when an account is deleted later. The rollback cannot restore deleted receipts. After a rollback, account deletion leaves receipts behind again, which the published privacy text does not allow, so reapply 0243 or replace that protection before deletions resume.
+Migration 0245 also deletes private Crew write receipts that belong to deleted accounts, both those left before it was applied and each one when an account is deleted later. The rollback cannot restore deleted receipts. After a rollback, account deletion leaves receipts behind again, which the published privacy text does not allow, so reapply 0245 or replace that protection before deletions resume.
 
-The migration role does not own `auth.users`, so it cannot drop a trigger there. The rollback leaves `lock_social_accounts_on_auth_user_delete` in place and makes its function return at once, so account deletion takes no account lock. Reapplying 0243 reuses that trigger only when it is exactly the 0243 trigger. When a different trigger has that name, the reapply stops, and the owner of `auth.users` must remove it.
+The migration role does not own `auth.users`, so it cannot drop a trigger there. The rollback leaves `lock_social_accounts_on_auth_user_delete` in place and makes its function return at once, so account deletion takes no account lock. Reapplying 0245 reuses that trigger only when it is exactly the 0245 trigger. When a different trigger has that name, the reapply stops, and the owner of `auth.users` must remove it.
