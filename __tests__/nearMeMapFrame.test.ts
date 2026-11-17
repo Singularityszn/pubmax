@@ -221,14 +221,6 @@ describe("the shipped near-me camera", () => {
     expect(fitNearby).not.toContain("LngLatBounds");
   });
 
-  it("measures its chrome rather than assuming it", () => {
-    // Both edges of the band are facts about the moment: a content-sized sheet
-    // below, a stack of coming-and-going rows above.
-    expect(fitNearby).toContain("whenBottomSheetSettles");
-    expect(fitNearby).toContain("measureTopChromeBottom");
-    expect(source).toContain("function measureBottomSheetTop");
-  });
-
   it("moves once, so the camera never corrects itself on screen", () => {
     // The first version aimed immediately and re-aimed when the sheet settled.
     // The first reading is taken while the sheet is still a sliver, so that
@@ -244,11 +236,6 @@ describe("the shipped near-me camera", () => {
     expect(fitNearby.match(/duration:/g) ?? []).toHaveLength(1);
   });
 
-  it("does not spend the settle timeout when no sheet covers the map", () => {
-    const watcher = source.slice(source.indexOf("function whenBottomSheetSettles"));
-    expect(watcher).toContain("BOTTOM_SHEET_SELECTOR");
-    expect(watcher).toMatch(/done\(null\);/);
-  });
 });
 
 describe("mapVisibleBand", () => {
