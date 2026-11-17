@@ -1203,9 +1203,9 @@ export type Database = {
           token: string;
           active_conversation_id: string | null;
           last_seen: string | null;
+          updated_at: string;
           presence_activity_id: number;
           presence_revision: number;
-          updated_at: string;
         };
         Insert: {
           endpoint_hash: string;
@@ -1214,9 +1214,9 @@ export type Database = {
           token: string;
           active_conversation_id?: string | null;
           last_seen?: string | null;
+          updated_at?: string;
           presence_activity_id?: number;
           presence_revision?: number;
-          updated_at?: string;
         };
         Update: {
           endpoint_hash?: string;
@@ -1225,9 +1225,9 @@ export type Database = {
           token?: string;
           active_conversation_id?: string | null;
           last_seen?: string | null;
+          updated_at?: string;
           presence_activity_id?: number;
           presence_revision?: number;
-          updated_at?: string;
         };
         Relationships: [
           {

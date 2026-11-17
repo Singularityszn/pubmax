@@ -47,8 +47,13 @@ Cancellation does not stop the browser's own subscription work. Regression cover
 The [Messages guide](../README.md#features) owns setup and preview controls.
 Message alerts require the VAPID configuration above and migration
 `supabase/migrations/20261116220000_0242_message_notifications.sql`.
-Apply and deployment require the captain's separate instructions.
-The migration has a rollback beside it under `supabase/migrations/rollback/`.
+Firstmate029 reports that migration 0242 from commit
+`43d3a036208a51c0c0ae0526e8cb0690b4769003` is applied to production and verified.
+Ordered presence updates additionally require
+`supabase/migrations/20261117100000_0243_message_notification_presence_order.sql`.
+Migration 0243 is not applied. Its application and deployment require the
+captain's separate instructions. Each migration has its own rollback under
+`supabase/migrations/rollback/`.
 
 `registerWebPush()` accepts a `saveToken` callback for private registration.
 Message alerts use that callback to register through `/api/message-notifications`
