@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import {
   createContext,
   useContext,
@@ -8,29 +9,15 @@ import {
   useMemo,
   useRef,
   useState,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
-import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
-import FairPintFlow from "./FairPintFlow";
-import {
-  fairPintActive,
-  subscribeFairPintActive,
-  supportsFairPint,
-  earlyFairPintClosed,
-  earlyFairPintDragging,
-  setFairPintSession,
-  clearEarlyFairPint,
-} from "@/lib/fairPint";
+import { supportsFairPint } from "@/lib/fairPint";
 import { getCity, type CityId } from "@/lib/cities";
-import {
-  shouldShowMapFirstVisitArrival,
-  subscribeMapFirstVisitArrival,
-  dismissMapFirstVisitArrival,
-} from "@/lib/mapFirstVisitArrival";
 import type { MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { NightAreaSlug } from "@/lib/nightAreas";
+
+const FairPintGate = dynamic(() => import("./FairPintGate"), { ssr: false });
 
 type Bridge = {
   bounds: MapBounds;
@@ -65,24 +52,6 @@ export function FairPintMapBridge(props: Bridge) {
 }
 
 export function FairPintHost({ children, cityId }: { children: ReactNode; cityId: CityId }) {
-  useEffect(() => {
-    const update = () => {
-      const early = window.__pubmaxEarlyFairPint;
-      if (!early) return;
-      if (early.closed) {
-        clearEarlyFairPint();
-        suppressMapFirstVisitPrompts();
-        setFairPintSession(false);
-        dismissMapFirstVisitArrival(undefined, Date.now(), true);
-      } else setFairPintSession(true, early.pence);
-    };
-    update();
-    window.addEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, update);
-    return () => {
-      window.removeEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, update);
-      setFairPintSession(false);
-    };
-  }, []);
   const [bridge, setBridge] = useState<Bridge | null>(null);
   const queued = useRef<{ pounds?: number; route?: Parameters<Bridge["onRoute"]> }>({});
   const [mobile, setMobile] = useState(false);
@@ -93,16 +62,6 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
     media.addEventListener("change", update);
     return () => media.removeEventListener("change", update);
   }, []);
-  const eligible = useSyncExternalStore(
-    subscribeMapFirstVisitArrival,
-    () =>
-      !earlyFairPintClosed() &&
-      !earlyFairPintDragging() &&
-      supportsFairPint(cityId) &&
-      shouldShowMapFirstVisitArrival({ pinsRevealed: true, search: location.search }),
-    () => false,
-  );
-  const active = useSyncExternalStore(subscribeFairPintActive, fairPintActive, () => false);
   useEffect(() => {
     if (!bridge) return;
     if (queued.current.pounds !== undefined) bridge.onCommit(queued.current.pounds);
@@ -123,8 +82,8 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
   return (
     <MapConnection.Provider value={setBridge}>
       {children}
-      {supportsFairPint(cityId) && !earlyFairPintDragging() && (eligible || active) ? (
-        <FairPintFlow
+      {supportsFairPint(cityId) ? (
+        <FairPintGate
           cityId={cityId}
           readerPosition={bridge?.position ?? null}
           mobile={mobile}

@@ -1,10 +1,9 @@
 "use client";
 
-import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
+import { MAP_FIRST_VISIT_ARRIVAL_KEY, MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
 import FairPintCard from "./FairPintCard";
 import { bootFairPintCard, FAIR_PINT_KEY, validFairPint } from "@/lib/fairPint";
 import { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling } from "@/lib/onboardingFlow";
-import { MAP_FIRST_VISIT_ARRIVAL_KEY } from "@/lib/mapFirstVisitArrival";
 import { getCity, type CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 

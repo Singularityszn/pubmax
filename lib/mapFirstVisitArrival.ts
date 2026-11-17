@@ -10,7 +10,7 @@ import {
   PLAN_QUERY_PARAM,
 } from "@/lib/planOccasion";
 import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
-import { notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
+import { MAP_FIRST_VISIT_ARRIVAL_KEY, notifyMapFirstVisitArrivalChange } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 // The consent gate lives in its own import-free leaf so the root shell can read
@@ -21,7 +21,7 @@ export {
   subscribeMapFirstVisitArrival,
 } from "@/lib/mapFirstVisitArrivalGate";
 
-export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+export { MAP_FIRST_VISIT_ARRIVAL_KEY } from "@/lib/mapFirstVisitArrivalGate";
 /**
  * How long an answer to the ask holds. Any answer counts: a tap on either
  * button, the close, or the reader's own first move on the map. After this the

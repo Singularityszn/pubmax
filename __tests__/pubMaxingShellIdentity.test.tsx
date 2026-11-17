@@ -5,9 +5,12 @@ import { afterEach, expect, it, vi } from "vitest";
 
 const mapBoundary = vi.hoisted(() => ({ mounts: 0 }));
 vi.mock("next/dynamic", () => ({
-  default: () => function MapBoundary({ cityId }: { cityId: string }) {
-    const [instance] = useState(() => ++mapBoundary.mounts);
-    return createElement("div", { className: "mapStage", "data-instance": instance }, createElement("span", null, cityId));
+  default: (_load: unknown, options?: { loading?: unknown }) => {
+    if (!options?.loading) return () => null;
+    return function MapBoundary({ cityId }: { cityId: string }) {
+      const [instance] = useState(() => ++mapBoundary.mounts);
+      return createElement("div", { className: "mapStage", "data-instance": instance }, createElement("span", null, cityId));
+    };
   },
 }));
 

@@ -5,12 +5,12 @@ import path from "node:path";
 
 import {
   buildPriceEvidence,
-  canonicalPintPriceInput,
   type AccessEvidenceSource,
   type PlanAccessEvidence,
   type PlanOpeningSchedule,
   type PlanPriceEvidence,
 } from "@/lib/planRouteEvidence";
+import { canonicalPintPriceInput } from "@/lib/canonicalPintPriceInput";
 import { getVenueAccessibility } from "@/lib/venueAccessibilitySeeds";
 import { displayVenueName } from "@/lib/venueDisplay";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";

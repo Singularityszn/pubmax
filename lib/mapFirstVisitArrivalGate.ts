@@ -8,6 +8,8 @@
 // code in the shell every page downloads, for one boolean and one event name.
 // This module imports nothing, so the root shell pays for exactly that.
 
+export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
+
 /** The event every arrival change fires, for the consent prompt to re-read. */
 export const MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 
