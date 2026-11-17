@@ -53,7 +53,6 @@ import type { Route } from "next";
 import { profilePath } from "@/lib/appLink";
 import { formatGbp } from "@/lib/formatGbp";
 import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
-import type { CropTarget } from "@/lib/profileImagePicker";
 import { normalizeHandle } from "@/lib/handleNormalize";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
@@ -80,39 +79,10 @@ export function isMessageAttachmentKind(
 
 /** Sentence noun for reader-facing copy, so one wording serves every message. */
 export const MESSAGE_PHOTO_NOUN = "Photo";
-const MESSAGE_PHOTO_NOUN_LOWER = "photo";
-
-/**
- * The frame a message photo is cut to. Portrait, because a phone photograph is,
- * and because a thread reads as a column: a landscape tile pushes the words
- * that follow it off the screen.
- */
+/** Fallback aspect ratio for photos without usable stored dimensions. */
 export const MESSAGE_PHOTO_ASPECT_RATIO = 4 / 5;
-/** Longest edge of the stored JPEG. Portrait, so height is the max edge. */
-const MESSAGE_PHOTO_MAX_EDGE = 2_048;
-export const MESSAGE_PHOTO_OUTPUT_HEIGHT = MESSAGE_PHOTO_MAX_EDGE;
-export const MESSAGE_PHOTO_OUTPUT_WIDTH = Math.round(
-  MESSAGE_PHOTO_MAX_EDGE * MESSAGE_PHOTO_ASPECT_RATIO,
-);
 /** Server re-encode quality for message photos (mozjpeg). */
 export const MESSAGE_PHOTO_JPEG_QUALITY = 85;
-
-/**
- * The crop step's target. A row in the SAME table the profile slots and the pub
- * wall use, run through the one cropper - which is also what makes an iPhone's
- * HEIC uploadable, because it re-encodes whatever the browser could decode to
- * JPEG. Widening the picker never widens the server's three stored types.
- */
-export const MESSAGE_PHOTO_CROP_TARGET: CropTarget = {
-  id: "message-photo",
-  aspectRatio: MESSAGE_PHOTO_ASPECT_RATIO,
-  outputBox: {
-    width: MESSAGE_PHOTO_OUTPUT_WIDTH,
-    height: MESSAGE_PHOTO_OUTPUT_HEIGHT,
-  },
-  nounLower: MESSAGE_PHOTO_NOUN_LOWER,
-  fileName: "message-photo.jpg",
-};
 
 /**
  * Storage keys. Serving and staging are SIBLINGS rather than nested, so a
@@ -473,9 +443,7 @@ export const MESSAGE_PHOTO_ASPECT_PROPERTY = "--message-photo-aspect";
  * A photo's own aspect as ONE number, which is what both `aspect-ratio` and the
  * tile-width `calc()` can read.
  *
- * A dimension that is missing or nonsense falls back to the frame every message
- * photo is cut to. A box with no aspect reserves nothing, and reserving nothing
- * is the defect.
+ * The legacy portrait ratio reserves space when stored dimensions are unusable.
  */
 export function messagePhotoAspect(width: unknown, height: unknown): number {
   const w = typeof width === "number" && Number.isFinite(width) && width > 0 ? width : 0;

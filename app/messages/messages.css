@@ -417,6 +417,7 @@ a.threadWith:active {
   top: 0;
   z-index: 2;
   display: flex;
+  flex-shrink: 0;
   align-items: center;
   gap: 0.25rem;
   min-height: 56px;
@@ -670,7 +671,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .messageRow[data-revealed] .messageMeta,
-.messageLine:focus-within .messageMeta {
+.messageLine:has(:focus-visible) .messageMeta {
   max-height: max(2.75rem, 44px);
   opacity: 1;
   margin-top: 0.2rem;
@@ -724,7 +725,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   .messageRow[data-revealed] .messageMeta,
-  .messageLine:focus-within .messageMeta,
+  .messageLine:has(:focus-visible) .messageMeta,
   .messageLine:hover .messageMeta {
     max-height: none;
     margin-top: 0;
@@ -805,14 +806,22 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePhotoFigure {
   --message-photo-max-height: min(40dvh, 240px);
 
+  position: relative;
   margin: 0;
-  width: calc(var(--message-photo-max-height) * var(--message-photo-aspect, 0.8));
+  width: max(44px, calc(var(--message-photo-max-height) * var(--message-photo-aspect, 0.8)));
+  min-width: 44px;
   max-width: 100%;
+  aspect-ratio: var(--message-photo-aspect, 0.8);
+  min-height: 44px;
+  max-height: var(--message-photo-max-height);
 }
 
 .messagePhotoButton {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
+  height: 100%;
   padding: 0;
   border: none;
   background: none;
@@ -823,110 +832,30 @@ html[data-theme="dark"] .messageBubblePhoto {
 .messagePhoto {
   display: block;
   width: 100%;
-  height: auto;
-  aspect-ratio: var(--message-photo-aspect, 0.8);
+  height: 100%;
   border-radius: var(--radius);
-  /* `contain`, never `cover`: if a stored dimension ever disagreed with the
-     bytes, a photograph letterboxes rather than being silently cut. */
+  /* `contain` preserves the full photo when the minimum tap target changes
+     the frame's aspect, or stored dimensions disagree with the bytes. */
   object-fit: contain;
 }
 
-/* The reserved box. Same width as the figure, same aspect as the photograph. */
 .messagePhotoPending {
+  position: absolute;
+  inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  aspect-ratio: var(--message-photo-aspect, 0.8);
+  height: 100%;
   border-radius: var(--radius);
   background: color-mix(in srgb, var(--ink) 6%, transparent);
   font-size: var(--text-xs);
   color: var(--muted);
 }
 
-/* The photo the sender chose, drawn from its local preview while the bytes
-   are on their way, under the same cap the stored tile takes. */
 .messagePhotoSending {
-  display: block;
-  max-width: 100%;
-  max-height: min(40dvh, 240px);
-  border-radius: var(--radius);
-  object-fit: contain;
-}
-
-.messagePhotoFailed {
-  display: flex;
-  align-items: center;
-  min-height: 44px;
-  font-size: var(--text-xs);
-  color: var(--muted);
-}
-
-/* Tap to view full. A dialog rather than a new tab: the thread is still there
-   behind it, and Escape is the way out on every platform.
-   "View full" is a FULL-FRAME view, and the bug being fixed was a phone one, so
-   a desktop keeps the 60rem / 92dvh room it has always had. The narrow caps
-   belong to the 640px rule below, the shared mobile breakpoint
-   (lib/breakpoints.ts), where the composer and nav stay visible around it. */
-.messagePhotoViewer {
-  width: min(96vw, 60rem);
-  max-width: calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-  max-height: 92dvh;
-  margin: auto;
-  padding: 0;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--panel);
-  color: var(--ink);
-  overflow: hidden;
-}
-
-.messagePhotoViewer::backdrop {
-  background: rgb(0 0 0 / 52%);
-}
-
-.messagePhotoViewerImage {
-  display: block;
-  width: 100%;
-  height: auto;
-  max-height: calc(92dvh - 56px);
-  object-fit: contain;
-}
-
-/* The phone bound. A dialog the width of the screen reads as a page rather than
-   a look at one photograph, and the close control has to stay reachable above
-   the home indicator. */
-@media (max-width: 640px) {
-  .messagePhotoViewer {
-    width: min(88vw, 36rem);
-    max-height: min(
-      72dvh,
-      calc(100dvh - 7rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
-    );
-  }
-
-  .messagePhotoViewerImage {
-    max-height: min(
-      60dvh,
-      calc(100dvh - 9rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
-    );
-  }
-}
-
-.messagePhotoViewerClose {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-height: 44px;
-  min-width: 44px;
-  margin: 0.25rem 0.25rem 0.25rem auto;
-  padding: 0 0.9rem;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  background: var(--panel-raised);
-  color: var(--ink);
-  font: inherit;
-  cursor: pointer;
+  position: absolute;
+  inset: 0;
 }
 
 /* A pub card: name, area, and only the figure this pub is allowed to say. */
@@ -974,15 +903,23 @@ html[data-theme="dark"] .messageBubblePhoto {
    the desktop split makes it the bottom of the thread pane instead. */
 .composerDock {
   position: sticky;
-  bottom: calc(var(--composer-clearance) + var(--keyboard-inset, 0px));
+  bottom: max(var(--composer-clearance), var(--keyboard-inset, 0px));
   z-index: 3;
   display: flex;
+  flex: 0 1 auto;
   flex-direction: column;
+  min-height: 0;
+  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - max(var(--composer-clearance), var(--keyboard-inset, 0px)));
+  overflow-y: auto;
   gap: 0.5rem;
   margin: 0 calc(var(--messages-gutter, 20px) * -1);
   padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
   background: var(--messages-surface, var(--paper));
   border-top: 0;
+}
+
+.composerDock > * {
+  flex-shrink: 0;
 }
 
 /* One row: the attachments, the field, Send. The field is the only thing that
@@ -1275,15 +1212,9 @@ html[data-theme="dark"] .messageBubblePhoto {
   width: 40px;
   height: 50px;
   border-radius: var(--radius-sm);
-  object-fit: cover;
+  object-fit: contain;
 }
 
-/* Crop step inside the thread: a card over the composer, not a full-screen page.
-   It is a modal, so it sits ABOVE the phone tab bar (--z-tabbar, 1350) and below
-   the splash takeover (1400). At z-index 30 the bar painted its opaque pill over
-   the card's own Use photo / Cancel row, so the two controls were untappable on
-   the one surface this card exists for. The phone rule below also reserves the
-   bar's lane, so the card is never merely painted on top of it. */
 .messageCropOverlay {
   position: fixed;
   inset: 0;
@@ -1438,7 +1369,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     display: grid;
     grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
     height: calc(100dvh - 9rem);
-    min-height: 32rem;
+    min-height: 0;
     overflow: hidden;
     border: 1px solid var(--line);
     /* Round like every other panel in the launch system; square corners made the
@@ -1520,7 +1451,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 
   .messagesThreadPane .threadMessages {
-    flex: 1 1 auto;
+    flex: 1 1 0;
     min-height: 0;
     overflow-y: auto;
     padding: 0.75rem 1.25rem 0.5rem;
@@ -1528,8 +1459,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 
   .messagesThreadPane .composerDock {
     position: static;
+    min-height: calc(44px + 16px);
+    max-height: none;
     margin: 0;
-    padding: 0.6rem 0.75rem 0.85rem;
+    padding: 8px 0.75rem;
   }
 
   .messagesThreadPane > .conversationPreview,
@@ -1565,15 +1498,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* ── the phone ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* The composer clears the tab bar's lane. When the keyboard is up the bar
-     has stepped aside (lib/softKeyboard.ts), so the lane is the keyboard's
-     own inset instead. */
+  /* The dock clears the page's reserved chrome lane. A keyboard inset
+     replaces that lane instead of adding to it. */
   .messageThreadShell {
-    --composer-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
-  }
-
-  .messageThreadShell[data-keyboard-open] {
-    --composer-clearance: 0px;
+    --composer-clearance: var(--chrome-bottom-clearance);
   }
 
   /* The analytics consent card parks in the lane above the tab bar
