@@ -618,7 +618,8 @@ export default function PrivacyPage() {
           Deleting your account removes its correction records.
         </p>
         <p className="legalBody">
-          Crew and roster records stay with the Crew-bound Plan. A left or
+          After account deletion, we free your guest places and cancel the
+          Crew nights you own. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
           disappearing. Invitations and Join Requests keep their final states
           until the Crew-bound Plan is deleted. Pending rows become expired
@@ -1031,7 +1032,8 @@ export default function PrivacyPage() {
           <li>
             <strong>Social Crews:</strong>{" "}the Crew, membership history,
             invitations and Join Requests stay with the Crew-bound Plan until
-            that Plan is deleted. Private write receipts stay for safe retries
+            that Plan is deleted. After account deletion, we free your guest
+            places and cancel the Crew nights you own. Private write receipts stay for safe retries
             and audit until the actor&rsquo;s account deletion request is carried
             out, unless a legal or security hold applies. Crew removal correction
             records are deleted with the affected account. Its export includes
