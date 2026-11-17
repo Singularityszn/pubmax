@@ -167,6 +167,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   let navigation: ReturnType<typeof useMapSurfaceNavigation>;
   const onRestore = vi.fn();
   const onReturnToMap = vi.fn();
+  const onVenueReturnToMap = vi.fn();
   const onHome = vi.fn();
 
   let assembledState: MapSurfaceState;
@@ -189,6 +190,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
       selectionHint,
       onRestore,
       onReturnToMap,
+      onVenueReturnToMap,
       onHome,
       onSurfaceClose: () => {},
     });
@@ -228,6 +230,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     onRestore.mockClear();
     onReturnToMap.mockClear();
+    onVenueReturnToMap.mockClear();
     onHome.mockClear();
     window.history.replaceState(null, "", "/map");
     container = document.createElement("div");
@@ -270,6 +273,33 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     window.history.replaceState({}, "", window.location.href);
     openSurfaces(venue);
     expect(readEntriesAboveRoot(window.history.state)).toBe(1);
+  });
+
+  it.each(["back", "browser back", "home"])("requests walk recovery once when %s closes a venue to the map", async (exit) => {
+    openSurfaces(venue);
+    expect(onVenueReturnToMap).not.toHaveBeenCalled();
+
+    await traverse(() => {
+      if (exit === "browser back") window.history.back();
+      else if (exit === "home") navigation.home();
+      else navigation.back();
+    });
+
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onVenueReturnToMap).toHaveBeenCalledTimes(1);
+    await traverse(() => window.history.forward());
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
+    expect(onVenueReturnToMap).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not request walk recovery when a venue returns to its parent sheet", async () => {
+    openSurfaces(planner, venue);
+    await traverse(() => navigation.back());
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "planner" }));
+    expect(onVenueReturnToMap).not.toHaveBeenCalled();
+    await traverse(() => navigation.back());
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onVenueReturnToMap).not.toHaveBeenCalled();
   });
 
   it("restores the outgoing journey camera after traversing an earlier area", async () => {

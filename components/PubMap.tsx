@@ -5180,14 +5180,11 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onReturnToMap: moveMapCameraTo,
+    onVenueReturnToMap: () => setCloseVenueRequestToken(nextCameraRequestToken()),
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
   });
-  const closeVenueToMap = () => {
-    if (detailOpen) setCloseVenueRequestToken(nextCameraRequestToken());
-    mapSurfaceTrail.home();
-  };
   const {
     rejectSelection: rejectMapSelection,
     resolveSelection: resolveMapSelection,
@@ -6903,11 +6900,11 @@ export default function PubMap({
             }
             initialSnap="half"
             requestedSnap={detailOpen ? sheetSnap : plannerSheetSnap}
-            onClose={closeVenueToMap}
+            onClose={mapSurfaceTrail.home}
             onDismiss={
               mapSurfaceTrail.backLabel
                 ? mapSurfaceTrail.back
-                : closeVenueToMap
+                : mapSurfaceTrail.home
             }
             closeLabel={
               detailOpen
@@ -7078,7 +7075,7 @@ export default function PubMap({
                   ? homeActionLabel(`the ${mapDisplayName} map`)
                   : selectedVenueLabels.closeLabel
               }
-              onHome={closeVenueToMap}
+              onHome={mapSurfaceTrail.home}
               closeRef={drawerCloseButtonRef}
             />
           </div>

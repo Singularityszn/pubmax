@@ -170,6 +170,7 @@ export function useMapSurfaceNavigation({
   selectionHint,
   onRestore,
   onReturnToMap,
+  onVenueReturnToMap,
   onHome,
   onSurfaceClose,
   landedEntry = 0,
@@ -181,6 +182,7 @@ export function useMapSurfaceNavigation({
   selectionHint: string;
   onRestore: (entry: SurfaceEntry<MapSurfaceState> | null) => void;
   onReturnToMap?: (camera: NonNullable<MapSurfaceState["returnCamera"]>) => void;
+  onVenueReturnToMap?: () => void;
   onHome: () => void;
   onSurfaceClose: () => void;
   /** Changes when the map lets a pub go for a walking-route link it landed. */
@@ -196,11 +198,15 @@ export function useMapSurfaceNavigation({
   const pendingOpensRef = useRef<SurfaceEntry<MapSurfaceState>[]>([]);
   const onRestoreRef = useRef(onRestore);
   const onReturnToMapRef = useRef(onReturnToMap);
+  const onVenueReturnToMapRef = useRef(onVenueReturnToMap);
   const onHomeRef = useRef(onHome);
   const onSurfaceCloseRef = useRef(onSurfaceClose);
   const pendingHomeRef = useRef<SurfaceStack<MapSurfaceState> | null>(null);
   const selectionHintRef = useRef(selectionHint);
   const publishStack = useCallback((next: SurfaceStack<MapSurfaceState>) => {
+    if (selectedVenueId(stackRef.current) && next.length === 0) {
+      onVenueReturnToMapRef.current?.();
+    }
     stackRef.current = next;
     setStack(next);
   }, []);
@@ -212,10 +218,11 @@ export function useMapSurfaceNavigation({
   useLayoutEffect(() => {
     onRestoreRef.current = onRestore;
     onReturnToMapRef.current = onReturnToMap;
+    onVenueReturnToMapRef.current = onVenueReturnToMap;
     onHomeRef.current = onHome;
     onSurfaceCloseRef.current = onSurfaceClose;
     selectionHintRef.current = selectionHint;
-  }, [onHome, onRestore, onReturnToMap, onSurfaceClose, selectionHint]);
+  }, [onHome, onRestore, onReturnToMap, onVenueReturnToMap, onSurfaceClose, selectionHint]);
 
   const commitOpen = useCallback(
     (entry: SurfaceEntry<MapSurfaceState>) => {
