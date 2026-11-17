@@ -969,6 +969,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 .composer:focus-within {
+  outline: 2px solid transparent;
   border-color: var(--brass);
   box-shadow: 0 0 0 1px var(--brass);
 }
@@ -2132,7 +2133,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 
-@media (max-width: 1023px), (pointer: coarse) {
+@media (max-width: 1023px) {
   html:has(.messagesMainThread .messageThreadShell) {
     overscroll-behavior: none;
   }
@@ -2147,10 +2148,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 
   .messageThreadShell {
     position: fixed;
-    top: var(--thread-viewport-top, 0px);
+    top: 0;
     left: 0;
     right: 0;
-    height: calc(var(--thread-viewport-height, 100dvh) - var(--composer-clearance));
+    height: calc(100dvh - var(--composer-clearance));
     display: flex;
     flex-direction: column;
     background: var(--messages-surface, var(--paper));
@@ -2181,7 +2182,18 @@ html[data-theme="dark"] .messageBubblePhoto {
     padding-bottom: 0.5rem;
   }
 
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
   .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) .composerDock {
     padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 1024px) and (pointer: coarse) {
+  .messagesSplit:has(.messageThreadShell) {
+    position: relative;
+    min-height: 0;
+    transition-property: none;
   }
 }

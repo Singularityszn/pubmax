@@ -577,8 +577,8 @@ export default function MessageThread({
     const viewport = window.visualViewport;
     let layoutWidth = window.innerWidth;
     let layoutHeight = window.innerHeight;
-    let previousHeight = "";
-    let previousTop = "";
+    const panel = shell.closest<HTMLElement>(".messagesSplit");
+    let panelShift = 0;
     const fit = () => {
       // Pinch zoom changes the view, not the conversation's layout.
       if (viewport && viewport.scale !== 1) return;
@@ -595,12 +595,26 @@ export default function MessageThread({
         visualViewportHeight: viewport?.height ?? window.innerHeight,
         layoutViewportHeight: layoutHeight,
       })));
-      const height = `${viewport?.height ?? window.innerHeight}px`;
-      const top = `${viewport?.offsetTop ?? 0}px`;
-      if (height !== previousHeight) shell.style.setProperty("--thread-viewport-height", height);
-      if (top !== previousTop) shell.style.setProperty("--thread-viewport-top", top);
-      previousHeight = height;
-      previousTop = top;
+      const height = viewport?.height ?? window.innerHeight;
+      const top = viewport?.offsetTop ?? 0;
+      if (panel && window.matchMedia("(min-width: 1024px) and (pointer: coarse)").matches) {
+        shell.style.removeProperty("height");
+        shell.style.removeProperty("top");
+        const normalTop = panel.getBoundingClientRect().top - panelShift;
+        panelShift = Math.max(0, top - normalTop);
+        const nextTop = `${panelShift}px`;
+        const maxHeight = `${Math.max(0, top + height - normalTop - panelShift)}px`;
+        if (panel.style.top !== nextTop) panel.style.top = nextTop;
+        if (panel.style.maxHeight !== maxHeight) panel.style.maxHeight = maxHeight;
+      } else {
+        panel?.style.removeProperty("top");
+        panel?.style.removeProperty("max-height");
+        panelShift = 0;
+        const nextHeight = `calc(${height}px - var(--composer-clearance))`;
+        const nextTop = `${top}px`;
+        if (shell.style.height !== nextHeight) shell.style.height = nextHeight;
+        if (shell.style.top !== nextTop) shell.style.top = nextTop;
+      }
     };
     fit();
     const unsubscribe = subscribeSoftKeyboard(fit);
@@ -612,6 +626,8 @@ export default function MessageThread({
       viewport?.removeEventListener("resize", fit);
       viewport?.removeEventListener("scroll", fit);
       window.removeEventListener("resize", fit);
+      panel?.style.removeProperty("top");
+      panel?.style.removeProperty("max-height");
     };
   }, []);
 

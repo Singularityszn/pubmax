@@ -1701,6 +1701,8 @@ test.describe("thread keyboard geometry on a large touch screen", () => {
     });
     await installThread(page, fixture());
     await page.goto("/messages/c1");
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
+    await expect(page.locator(".siteNavBar")).toBeVisible();
     await page.getByRole("textbox", { name: "Message", exact: true }).tap();
     const geometry = await page.evaluate(() => {
       Object.assign(window.visualViewport!, { height: 400, offsetTop: 120 });
@@ -1709,12 +1711,44 @@ test.describe("thread keyboard geometry on a large touch screen", () => {
       return {
         top: document.querySelector(".threadHeader")!.getBoundingClientRect().top,
         bottom: document.querySelector(".composerDock")!.getBoundingClientRect().bottom,
+        panelTop: document.querySelector(".messagesSplit")!.getBoundingClientRect().top,
+        gutter: document.querySelector(".messageBubble")!.getBoundingClientRect().left
+          - document.querySelector(".messagesThreadPane")!.getBoundingClientRect().left,
       };
     });
-    expect(geometry.top).toBe(120);
+    expect(geometry.panelTop).toBe(120);
+    expect(geometry.top).toBe(121);
     expect(Math.abs(geometry.bottom - 520)).toBeLessThanOrEqual(1);
-    await expect(page.getByRole("link", { name: "Back to inbox", exact: true })).toBeVisible();
+    expect(geometry.gutter).toBeGreaterThanOrEqual(20);
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
     await expectMessageInView(page, "Bring cash, card machine is dodgy");
     await page.screenshot({ path: testInfo.outputPath("tablet-touch-keyboard.png"), scale: "css", clip: { x: 0, y: 120, width: 1180, height: 400 } });
   });
+});
+
+
+test("thread keyboard geometry reserves the newest photo before its bytes arrive", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  const rows = [...fixture(), {
+    ...fixture()[0], id: "delayed-photo", senderHandle: ME, body: "Latest photo",
+    attachment: { kind: "photo" as const, url: "/api/messages/c1/photo-delayed", width: 600, height: 600 },
+  }];
+  await installThread(page, rows);
+  let releasePhoto!: () => void;
+  const ready = new Promise<void>((resolve) => { releasePhoto = resolve; });
+  await page.route("**/api/messages/c1/photo-delayed?**", async (route) => {
+    await ready;
+    await route.fulfill({ path: `${process.cwd()}/e2e/fixtures/bill.jpg`, contentType: "image/jpeg" });
+  });
+  await page.goto("/messages/c1");
+  await expect(page.getByText("Loading photo", { exact: true })).toBeVisible();
+  await expectMessageInView(page, "Latest photo");
+  const before = await page.locator(".messagePhotoFigure").boundingBox();
+  releasePhoto();
+  const photo = page.getByRole("img", { name: /Photo/ });
+  await expect(photo).toBeVisible();
+  await photo.evaluate((element: HTMLImageElement) => element.decode());
+  const after = await page.locator(".messagePhotoFigure").boundingBox();
+  expect(after!.height).toBe(before!.height);
+  await expectMessageInView(page, "Latest photo");
 });
