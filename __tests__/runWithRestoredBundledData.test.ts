@@ -3,12 +3,24 @@ import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync,
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 
 import { COMMITTED_BUNDLED_DATA_PATHS } from "../scripts/lib/committedBundledDataPaths.mjs";
 
 const bundledWrapper = resolve(process.cwd(), "scripts/run-with-restored-bundled-data.mjs");
 const nextEnvWrapper = resolve(process.cwd(), "scripts/run-with-restored-next-env.mjs");
+
+const scratchDirs: string[] = [];
+
+function makeScratchDir(prefix: string): string {
+  const dir = mkdtempSync(join(tmpdir(), prefix));
+  scratchDirs.push(dir);
+  return dir;
+}
+
+afterEach(() => {
+  for (const dir of scratchDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
 
 function initialiseGit(cwd: string): void {
   execFileSync("git", ["init", "-q"], { cwd });
@@ -24,7 +36,7 @@ describe("committed bundled data restore", () => {
   it.each([".env", ".env.local", ".env.development", ".env.development.local",
     ".env.test", ".env.test.local", ".env.production", ".env.production.local"])(
     "refuses mapped verification before payload startup when %s can reload credentials", (name) => {
-      const cwd = join(tmpdir(), `pubmax-mapped-envfile-${Date.now()}-${name}`);
+      const cwd = makeScratchDir(`pubmax-mapped-envfile-${name}-`);
       mkdirSync(join(cwd, "scripts"), { recursive: true });
       initialiseGit(cwd);
       const sentinel = "TYPESAFE_API_KEY=fake-env-file-sentinel\n";
@@ -58,7 +70,7 @@ describe("committed bundled data restore", () => {
     { label: "positive sign value", inheritedHeap: "--max-old-space-size=4096 --max_old_space_size=+1024", inheritedWorkers: "8", expectedHeap: 1024 },
     { label: "last zero restores bounded default", inheritedHeap: "--max-old-space-size=1024 --max_old_space_size=0", inheritedWorkers: "8", expectedHeap: 2048 },
   ])("starts the mapped verifier and its grandchild keyless before setup ($label)", ({ label, inheritedHeap, inheritedWorkers, expectedHeap }) => {
-    const cwd = join(tmpdir(), `pubmax-mapped-keyless-${Date.now()}-${label.replaceAll(" ", "-")}`);
+    const cwd = makeScratchDir(`pubmax-mapped-keyless-${label.replaceAll(" ", "-")}-`);
     mkdirSync(join(cwd, "scripts"), { recursive: true });
     initialiseGit(cwd);
     writeFileSync(join(cwd, ".env.example"), "TYPESAFE_API_KEY=example-only\n");
@@ -107,8 +119,7 @@ describe("committed bundled data restore", () => {
   });
 
   it("restores public/data after the wrapped command succeeds", () => {
-    const cwd = join(tmpdir(), `pubmax-bundled-restore-${Date.now()}`);
-    mkdirSync(cwd, { recursive: true });
+    const cwd = makeScratchDir("pubmax-bundled-restore-");
     initialiseGit(cwd);
     execFileSync(process.execPath, [bundledWrapper, process.execPath, "-e", "require('fs').appendFileSync('public/data/baseline.json','dirty\\n')"], { cwd });
     expect(readFileSync(join(cwd, "public/data/baseline.json"), "utf8")).toBe("{}\n");
@@ -116,8 +127,7 @@ describe("committed bundled data restore", () => {
   });
 
   it("restores public/data after the wrapped command fails", () => {
-    const cwd = join(tmpdir(), `pubmax-bundled-restore-fail-${Date.now()}`);
-    mkdirSync(cwd, { recursive: true });
+    const cwd = makeScratchDir("pubmax-bundled-restore-fail-");
     initialiseGit(cwd);
     const result = spawnSync(
       process.execPath,
@@ -129,8 +139,7 @@ describe("committed bundled data restore", () => {
   });
 
   it("clears the provider key only in the payload and forwards unrelated environment values", () => {
-    const cwd = join(tmpdir(), `pubmax-bundled-keyless-${Date.now()}`);
-    mkdirSync(cwd, { recursive: true });
+    const cwd = makeScratchDir("pubmax-bundled-keyless-");
     initialiseGit(cwd);
     writeFileSync(join(cwd, ".env.local"), "TYPESAFE_API_KEY=fake-non-mapped-env-file\n");
     const env = {
@@ -158,8 +167,7 @@ describe("committed bundled data restore", () => {
   });
 
   it("removes a shard file the wrapped command added and keeps one that was already there", () => {
-    const cwd = join(tmpdir(), `pubmax-bundled-restore-untracked-${Date.now()}`);
-    mkdirSync(cwd, { recursive: true });
+    const cwd = makeScratchDir("pubmax-bundled-restore-untracked-");
     initialiseGit(cwd);
     writeFileSync(join(cwd, "public/data/draft.json"), "{}\n", "utf8");
     execFileSync(
@@ -172,8 +180,7 @@ describe("committed bundled data restore", () => {
   });
 
   it("restores public/data after a browser build wrapper when CI allowlists it", () => {
-    const cwd = join(tmpdir(), `pubmax-next-env-restore-${Date.now()}`);
-    mkdirSync(cwd, { recursive: true });
+    const cwd = makeScratchDir("pubmax-next-env-restore-");
     writeFileSync(join(cwd, "tsconfig.json"), "{}\n", "utf8");
     initialiseGit(cwd);
     execFileSync(
