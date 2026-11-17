@@ -28,6 +28,65 @@ function workerHarness(options: { userId?: string; subscription?: Promise<null |
 }
 
 describe("service worker web push", () => {
+  it("preserves whole graphemes in an authorised private preview", async () => {
+    const body = "👨‍👩‍👧‍👦".repeat(21) + "abcdefgh🍺";
+    const raw = { endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } };
+    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ preview: { title: "@sender", body } })));
+    try {
+      const { listeners, showNotification } = workerHarness({ subscription: Promise.resolve({ toJSON: () => raw }) });
+      let pending = Promise.resolve();
+      listeners.get("push")!({
+        data: { json: () => ({ data: { kind: "message", preview: "1", recipientId: "recipient", url: "/messages/thread" } }) },
+        waitUntil(value: Promise<void>) { pending = value; },
+      });
+      await pending;
+      expect(showNotification).toHaveBeenCalledWith("@sender", expect.objectContaining({ body }));
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("limits public titles, bodies and tags at whole grapheme boundaries", async () => {
+    const { listeners, showNotification } = workerHarness();
+    let pending = Promise.resolve();
+    listeners.get("push")!({
+      data: { json: () => ({ title: "🍺".repeat(81), body: "e\u0301".repeat(241), tag: "👨‍👩‍👧‍👦".repeat(81) }) },
+      waitUntil(value: Promise<void>) { pending = value; },
+    });
+    await pending;
+    expect(showNotification).toHaveBeenCalledWith("🍺".repeat(80), expect.objectContaining({
+      body: "e\u0301".repeat(240), tag: "👨‍👩‍👧‍👦".repeat(80),
+    }));
+  });
+
+  it("still displays complete code points when grapheme segmentation is unavailable", async () => {
+    vi.stubGlobal("Intl", { Segmenter: undefined });
+    try {
+      const { listeners, showNotification } = workerHarness();
+      let pending = Promise.resolve();
+      listeners.get("push")!({
+        data: { json: () => ({ title: "🍺".repeat(81), body: "🍺".repeat(241), tag: "🍺".repeat(81) }) },
+        waitUntil(value: Promise<void>) { pending = value; },
+      });
+      await pending;
+      expect(showNotification).toHaveBeenCalledWith("🍺".repeat(80), expect.objectContaining({
+        body: "🍺".repeat(240), tag: "🍺".repeat(80),
+      }));
+    } finally { vi.unstubAllGlobals(); }
+  });
+
+  it("rejects an oversized combining cluster without displaying part of it", async () => {
+    const { listeners, showNotification } = workerHarness();
+    const cluster = "e" + "\u0301".repeat(10_000);
+    let pending = Promise.resolve();
+    listeners.get("push")!({
+      data: { json: () => ({ title: cluster, body: cluster, tag: cluster }) },
+      waitUntil(value: Promise<void>) { pending = value; },
+    });
+    await pending;
+    expect(showNotification).toHaveBeenCalledWith("PUBMAXX", expect.objectContaining({
+      body: "Your London brief is ready.", tag: "pubmax-update",
+    }));
+  });
+
   it("discards a preview authorised before account departure and acknowledges after display", async () => {
     let resolvePreview!: (response: Response) => void;
     let requested!: () => void;
