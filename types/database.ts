@@ -1203,6 +1203,8 @@ export type Database = {
           token: string;
           active_conversation_id: string | null;
           last_seen: string | null;
+          presence_activity_id: number;
+          presence_revision: number;
           updated_at: string;
         };
         Insert: {
@@ -1212,6 +1214,8 @@ export type Database = {
           token: string;
           active_conversation_id?: string | null;
           last_seen?: string | null;
+          presence_activity_id?: number;
+          presence_revision?: number;
           updated_at?: string;
         };
         Update: {
@@ -1221,6 +1225,8 @@ export type Database = {
           token?: string;
           active_conversation_id?: string | null;
           last_seen?: string | null;
+          presence_activity_id?: number;
+          presence_revision?: number;
           updated_at?: string;
         };
         Relationships: [
@@ -8665,6 +8671,18 @@ export type Database = {
           p_token: string | null;
         };
         Returns: boolean;
+      };
+      message_notification_presence: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+          p_conversation_id: string | null;
+          p_activity_id: number | null;
+          p_revision: number | null;
+        };
+        Returns: undefined;
       };
       message_notification_session_active: {
         Args: {
