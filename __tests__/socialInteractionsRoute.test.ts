@@ -56,7 +56,7 @@ describe("Social interactions route", () => {
     vi.clearAllMocks();
     vi.mocked(socialFreezeResponse).mockReset().mockReturnValue(null);
     vi.mocked(isLimited).mockReset().mockResolvedValue(false);
-    vi.mocked(requireVerifiedSocialActor).mockReset().mockResolvedValue({ ok: true, actor });
+    vi.mocked(requireVerifiedSocialActor).mockReset().mockResolvedValue({ ok: true, actor, authUserId: "user-a" });
     store.summary.mockResolvedValue({ cheered: false, saved: false, reposted: false, cheerCount: 0, repostCount: 0 });
     store.listComments.mockResolvedValue({ items: [], nextCursor: null });
     store.listSaved.mockResolvedValue({ items: [], nextCursor: null });
@@ -196,7 +196,7 @@ describe("Social interactions route", () => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
     const { PUT } = await import("@/app/api/social/interactions/route");
     const request = () => new Request(URL, { method: "PUT", body: JSON.stringify({ action: "block", targetHandle: "bob" }) });
-    vi.mocked(requireVerifiedSocialActor).mockResolvedValueOnce({ ok: false, status: 401, code: "AUTH_REQUIRED", error: "Sign in first." });
+    vi.mocked(requireVerifiedSocialActor).mockResolvedValueOnce({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in first." });
     expect((await PUT(request())).status).toBe(401);
     vi.mocked(isLimited).mockResolvedValueOnce(true);
     expect((await PUT(request())).status).toBe(429);
