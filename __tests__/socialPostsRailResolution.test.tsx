@@ -75,7 +75,8 @@ beforeEach(() => {
     if (String(input) !== LOG_IN_PUBLIC_FEED_HREF) throw new Error(`Unexpected public request: ${String(input)}`);
     const response = Response.json({ drops: [] });
     const readJson = response.json.bind(response);
-    // Observe body consumption so readiness does not depend on import timing.
+    // next/dynamic mounts on SyncLane while act waits. After body consumption,
+    // async act drains the remaining microtasks before the ready-state assertions.
     response.json = async () => {
       const body = await readJson();
       finishPromotionBody();
