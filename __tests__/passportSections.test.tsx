@@ -195,9 +195,9 @@ describe("first ten ranking on the owner's profile", () => {
     expect(firstTen()).toBeNull();
   });
 
-  it("hides the saved list when a later read refuses access", async () => {
+  it.each([401, 403])("hides the saved list when a later null-body read refuses access (%s)", async (status) => {
     auth.user = { id: "owner-account" };
-    rankingReads(rankingJson({ entries: ranked(2) }), rankingJson({ code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" }, 403));
+    rankingReads(rankingJson({ entries: ranked(2) }), rankingJson(null, status));
     const host = await renderOwner();
     await openFirstTen();
     await act(async () => document.querySelector<HTMLButtonElement>("[aria-label=Close]")!.click());
