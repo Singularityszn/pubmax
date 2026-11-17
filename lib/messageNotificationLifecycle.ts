@@ -2,59 +2,74 @@ import { decodeWebPushSubscription, encodeWebPushSubscription } from "@/lib/webP
 import { waitForWebPushWork } from "@/lib/webPush";
 import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
-type Binding = { token: string; sessionId: string };
+import { INITIAL_MESSAGE_PUSH_BINDING_STATE, transitionMessagePushBinding, type MessagePushBinding as Binding, type MessagePushBindingEvent } from "@/lib/messagePushBindingState";
 let operations = Promise.resolve();
-let departureRevision = 0;
-let bound: Binding | null = null;
-const pendingReleases = new Map<string, Binding>();
+let bindingState = INITIAL_MESSAGE_PUSH_BINDING_STATE;
 const RELEASE_KEY = "pubmax:pending-message-detach";
 const BOUND_KEY = "pubmax:message-device-binding";
-const bindingKey = (binding: Binding) => `${binding.sessionId}:${binding.token}`;
 function isBinding(value: unknown): value is Binding {
   if (!value || typeof value !== "object") return false;
   const binding = value as Binding;
   return typeof binding.token === "string" && Boolean(decodeWebPushSubscription(binding.token)) && typeof binding.sessionId === "string" && /^[a-f0-9-]{36}$/i.test(binding.sessionId);
 }
-export function messagePushDepartureRevision(): number { return departureRevision; }
+export function messagePushDepartureRevision(): number { return bindingState.revision; }
 export function queueMessagePushOperation(operation: () => Promise<void>): Promise<void> {
   const next = operations.catch(() => undefined).then(operation);
   operations = next.catch(() => undefined);
   return next;
 }
-function rememberReleases(): void {
-  try { safeLocalStorage()?.setItem(RELEASE_KEY, JSON.stringify([...pendingReleases.values()])); } catch { /* The in-memory queue remains available. */ }
+function applyBindingEvent(event: MessagePushBindingEvent): void {
+  const transition = transitionMessagePushBinding(bindingState, event);
+  bindingState = transition.state;
+  for (const effect of transition.effects) {
+    switch (effect) {
+      case "announce-departure":
+        window.dispatchEvent(new Event(MESSAGE_PUSH_DEPARTURE));
+        break;
+      case "persist-binding":
+        try {
+          if (bindingState.phase === "bound") safeSessionStorage()?.setItem(BOUND_KEY, JSON.stringify(bindingState.binding));
+          else safeSessionStorage()?.removeItem(BOUND_KEY);
+        } catch { /* The marker only avoids redundant release attempts. */ }
+        break;
+      case "persist-releases":
+        try { safeLocalStorage()?.setItem(RELEASE_KEY, JSON.stringify(bindingState.pending)); } catch { /* The in-memory queue remains available. */ }
+        break;
+      default: {
+        const unreachable: never = effect;
+        return unreachable;
+      }
+    }
+  }
 }
-function loadReleases(): void {
+function readReleases(): Binding[] | undefined {
   try {
     const storage = safeLocalStorage();
     if (!storage) return;
     const stored: unknown = JSON.parse(storage.getItem(RELEASE_KEY) ?? "[]");
-    if (!Array.isArray(stored)) return;
-    pendingReleases.clear();
-    for (const binding of stored) if (isBinding(binding)) pendingReleases.set(bindingKey(binding), binding);
+    if (Array.isArray(stored)) return stored.filter(isBinding);
   } catch { /* A private preview also requires a current client session. */ }
 }
-export function recordMessagePushBinding(token: string, sessionId: string | null, revision = departureRevision): void {
-  if (revision !== departureRevision) {
-    if (sessionId) {
-      const binding = { token, sessionId };
-      loadReleases(); pendingReleases.set(bindingKey(binding), binding); rememberReleases();
-    }
-    return;
-  }
-  bound = sessionId ? { token, sessionId } : null;
+function loadReleases(): void {
+  const bindings = readReleases();
+  if (bindings) applyBindingEvent({ type: "releases-loaded", bindings });
+}
+function readBoundBinding(): Binding | null | undefined {
   try {
-    if (bound) safeSessionStorage()?.setItem(BOUND_KEY, JSON.stringify(bound));
-    else safeSessionStorage()?.removeItem(BOUND_KEY);
-  } catch { /* The marker only avoids redundant release attempts. */ }
-  loadReleases();
-  for (const [key, binding] of pendingReleases) if (binding.token === token) pendingReleases.delete(key);
-  rememberReleases();
+    const storage = safeSessionStorage();
+    if (!storage) return;
+    const stored: unknown = JSON.parse(storage.getItem(BOUND_KEY) ?? "null");
+    return isBinding(stored) ? stored : null;
+  } catch { /* Retain the last in-memory binding. */ }
+}
+export function recordMessagePushBinding(token: string, sessionId: string | null, revision = bindingState.revision): void {
+  applyBindingEvent({ type: "binding-recorded", token, sessionId, revision, storedReleases: readReleases() });
 }
 export async function flushMessagePushReleases(signal?: AbortSignal, currentToken?: string): Promise<void> {
   loadReleases();
-  for (const [key, binding] of pendingReleases) {
-    if (currentToken !== undefined && binding.token !== currentToken) continue;
+  while (true) {
+    const binding = bindingState.pending.find(item => currentToken === undefined || item.token === currentToken);
+    if (!binding) return;
     const response = await fetch("/api/message-notifications", {
       method: "DELETE", headers: { "content-type": "application/json" }, body: JSON.stringify(binding),
       keepalive: true, signal: signal ?? AbortSignal.timeout(3_000),
@@ -69,8 +84,7 @@ export async function flushMessagePushReleases(signal?: AbortSignal, currentToke
       if (result?.ok !== true) throw new Error("Message detach is pending.");
     } else await response.body?.cancel().catch(() => undefined);
     loadReleases();
-    pendingReleases.delete(key);
-    rememberReleases();
+    applyBindingEvent({ type: "release-confirmed", binding });
   }
 }
 
@@ -90,15 +104,8 @@ export async function messagePushFingerprint(token: string, signal?: AbortSignal
 }
 
 export async function releaseMessagePush(): Promise<void> {
-  departureRevision += 1;
-  window.dispatchEvent(new Event(MESSAGE_PUSH_DEPARTURE));
-  try {
-    const storage = safeSessionStorage();
-    if (storage) { const stored: unknown = JSON.parse(storage.getItem(BOUND_KEY) ?? "null"); bound = isBinding(stored) ? stored : null; }
-  } catch { /* Retain the last in-memory binding. */ }
-  if (bound) { loadReleases(); pendingReleases.set(bindingKey(bound), bound); rememberReleases(); }
-  bound = null;
-  try { safeSessionStorage()?.removeItem(BOUND_KEY); } catch { /* Cleanup remains best effort. */ }
+  applyBindingEvent({ type: "departure-started", storedBinding: readBoundBinding(), storedReleases: readReleases() });
+  const revision = bindingState.revision;
   const controller = new AbortController();
   let timer: ReturnType<typeof setTimeout> | undefined;
   const deadline = new Promise<void>((resolve) => { timer = setTimeout(() => { controller.abort(); resolve(); }, 3_000); });
@@ -121,5 +128,5 @@ export async function releaseMessagePush(): Promise<void> {
     await Promise.allSettled([flushMessagePushReleases(controller.signal), closeTray()]);
   });
   try { await Promise.race([work, deadline]); } catch { /* Auth departure must complete even while offline. */ }
-  finally { clearTimeout(timer); }
+  finally { clearTimeout(timer); applyBindingEvent({ type: "departure-settled", revision }); }
 }
