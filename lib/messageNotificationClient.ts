@@ -11,6 +11,7 @@ export function saveMessageNotificationSetting(body: Record<string, unknown>, si
   if (body.action === "subscribe" || body.action === "restore") return queueMessagePushOperation(async () => {
     if (signal?.aborted || revision !== messagePushDepartureRevision()) throw new Error("Account changed.");
     if (await currentMessagePushToken(signal) !== body.token) throw new Error("This device needs a new subscription. Try again.");
+    if (signal?.aborted || revision !== messagePushDepartureRevision()) throw new Error("Account changed.");
     await writeSetting(body, AbortSignal.timeout(3_000));
   });
   const deadline = AbortSignal.timeout(3_000);
@@ -47,6 +48,6 @@ export function restoreMessagePushAccount(signal: AbortSignal, userId: string): 
       }
     } catch { /* Tray access must not prevent device reconciliation. */ }
     const token = await currentMessagePushToken(compositeActionSignal([signal, AbortSignal.timeout(3_000)]));
-    if (token && !signal.aborted) await writeSetting({ action: "restore", token }, AbortSignal.timeout(3_000));
+    if (token && !signal.aborted && revision === messagePushDepartureRevision()) await writeSetting({ action: "restore", token }, AbortSignal.timeout(3_000));
   });
 }
