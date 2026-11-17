@@ -1,4 +1,19 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import type { ReactNode } from "react";
+
+const imageStore = vi.hoisted(() => ({ state: null as PlanState | null }));
+vi.mock("@/lib/planStore", () => ({
+  resolvePlanIdByInviteToken: async () => ({ ok: true, planId: "00000000-0000-4000-8000-000000000001" }),
+  planStateResult: async () => ({ ok: true, plan: imageStore.state }),
+}));
+vi.mock("@/lib/venueDetailIndex", () => ({
+  lookupVenueDetail: async () => ({ status: "found", venue: { cheapestPrice: 7.35 } }),
+}));
+vi.mock("@/lib/ogBrand", async (original) => ({ ...await original<typeof import("@/lib/ogBrand")>(), loadOgFonts: () => [] }));
+vi.mock("next/og", () => ({ ImageResponse: class extends Response {
+  constructor(element: ReactNode) { super(renderToStaticMarkup(element)); }
+} }));
 
 import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { PlanState } from "@/lib/plan";
@@ -171,4 +186,21 @@ describe("buildInvitePrivacyPreview", () => {
     };
     expect(result).toEqual(expected);
   });
+});
+
+it("redacts route names, organiser names and prices from the classic invite image", async () => {
+  const state = makePlanState(); imageStore.state = state;
+  const { default: Image } = await import("@/app/invite/[token]/opengraph-image");
+  const response = await Image({ params: Promise.resolve({ token: "a".repeat(32) }) });
+  const image = await response.text();
+  for (const stop of state.stops) {
+    expect(image).not.toContain(stop.venueName);
+    expect(image).not.toContain(stop.venueId);
+  }
+  for (const member of state.crew) expect(image).not.toContain(member.name);
+  expect(image).not.toContain(state.plan.title);
+  expect(image).not.toContain("£");
+  expect(image).toContain("Shoreditch");
+  expect(image).toContain("3 stops");
+  expect(image).toContain("Join the crew to see the route");
 });
