@@ -27,6 +27,14 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   The `/signup` and `/join` addresses temporarily redirect to `/login`.
 
+  If you forget your password, use the reset flow.
+
+  1. On `/login`, select **Sign in with handle and password**. Select **Forgot password?**.
+  2. Enter your account email. Select **Send reset link**.
+  3. Open the email link. Enter and confirm a new password. Select **Save new password**.
+
+  If the link expires or was already used, request another one. An account without an email cannot receive a reset link.
+
   After an offline start, reconnect or return to the app to retry the sign-in check. Once the check confirms you are signed out, you can retry **Continue with Apple** without restarting the iPhone app.
 
   On a signed-out map visit, **Sign in** can appear before the map pins. If the account check is unavailable, account status stays unresolved until pins appear or you leave the map. A failed check does not sign you out.

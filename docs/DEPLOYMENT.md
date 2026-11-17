@@ -188,7 +188,7 @@ Dashboard → Authentication → URL Configuration:
 | Setting | Value |
 |---|---|
 | Site URL | `https://pubmaxxing.com` (canonical production apex) |
-| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback` |
+| Redirect URLs | `https://pubmaxxing.com/auth/callback`, `http://localhost:3000/auth/callback`, `https://pubmaxxing.com/auth/reset-password`, `http://localhost:3000/auth/reset-password` |
 
 These are captain-owned dashboard settings and required target values, not
 evidence that the current Supabase project is configured completely. Repository
@@ -284,6 +284,20 @@ curl -sS -o /dev/null -w '%{http_code} %{redirect_url}\n' 'https://www.pubmaxxin
 ```
 
 The apex prints `200`. The `www` host prints `308 https://pubmaxxing.com/map?sel=venue-xjf3n0`. Neither command follows the redirect, so the second reads the first response's `Location`, not the page it leads to. Both requests complete a TLS handshake, which checks each certificate.
+
+#### Password recovery email
+
+The **Reset Password** template must use [supabase/templates/password-recovery.html](../supabase/templates/password-recovery.html).
+Committing this file does not install it in Supabase.
+
+1. Open Authentication → Email Templates → **Reset Password** in the Supabase dashboard.
+2. Copy the repository template into that template, preserving its fragment-based `token_hash` link.
+3. Keep **Magic Link** unchanged and retain the Site URL and redirect URLs specified in [URL configuration](#captain-owned-supabase-url-config).
+
+The default recovery confirmation link does not match this app's reset flow.
+The [password recovery contract](rules/app-auth-and-account-routes.md#password-recovery) owns proof handling and session installation.
+Dashboard changes require the captain's authorisation.
+Repository checks do not prove that the remote template or email delivery is configured.
 
 #### Google
 

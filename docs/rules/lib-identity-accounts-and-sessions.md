@@ -4,7 +4,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 <a id="the-password-ask-is-separate-from-password-creation"></a>
 
-- **The password ask is separate from password creation.** `CreatePasswordPrompt` runs in the deferred shell under the shared prompt budget. `lib/passwordPrompt.ts` owns its once-per-account marker and offers it only after a claimed handle and `hasPassword: false` answer. `SetAccountPassword` remains the only password setter. Pins: `__tests__/passwordPrompt.test.ts`, `__tests__/createPasswordPromptRender.test.ts`.
+- **The password ask is separate from password creation.** `CreatePasswordPrompt` runs in the deferred shell under the shared prompt budget. `lib/passwordPrompt.ts` owns its once-per-account marker and offers it only after a claimed handle and `hasPassword: false` answer. Password setting follows the [password route contract](app-auth-and-account-routes.md#a-password-is-created-behind-a-session-and-only-ever-spent-without-one). Pins: `__tests__/passwordPrompt.test.ts`, `__tests__/createPasswordPromptRender.test.ts`.
 
 <a id="the-signed-in-account-is-the-only-identity-authority-on-a-device"></a>
 

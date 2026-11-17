@@ -15,7 +15,7 @@ export async function createPasswordRecoveryFinisher(tokenHash: string) {
   return Object.assign(passwordRecoveryFinisher(auth, tokenHash), { dispose: () => auth.dispose() });
 }
 
-// This private client keeps the recovery session off the device until the password and sessions are secured.
+// This private client keeps the recovery session out of persistent storage until the password and other sessions are secured.
 export function passwordRecoveryFinisher(auth: RecoveryAuth, tokenHash: string) {
   let session: Session | null = null;
   let passwordSaved = false;

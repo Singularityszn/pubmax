@@ -93,6 +93,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/auth/session`
 - `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
+- `POST app/api/auth/password-recovery`
 - `POST app/api/ask`
 - `POST app/api/board-reads`
 - `POST app/api/cheap-pint-ping`
@@ -1500,6 +1501,11 @@ commit.
 - **Rollback / kill:** remove the route and make the password form use the
   create flow only. Existing password creation remains signed-in and
   owner-bound.
+
+### `app/api/auth/password-recovery` - recovery email request
+
+The [password recovery contract](rules/app-auth-and-account-routes.md#password-recovery) owns this route's authority and abuse boundaries.
+`__tests__/passwordRecoveryRoute.test.ts` covers its request refusals and account-independent responses.
 
 ### `app/api/auth/session` - durable sign-in resume cookie
 
