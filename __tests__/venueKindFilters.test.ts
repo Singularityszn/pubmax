@@ -15,19 +15,25 @@ import type { Venue } from "@/lib/venues";
 const venue = (id: string, kind?: Venue["kind"]) => ({ id, kind }) as Venue;
 
 describe("venueKindFilters", () => {
-  it("defaults the five curated venue types on and the other five off", () => {
-    expect(defaultVenueKindVisibility()).toEqual({
+  it("keeps only the optional OSM restaurant layer off in London", () => {
+    expect(defaultVenueKindVisibility("london")).toEqual({
       pub: true,
       bar: true,
       club: true,
       food: true,
       restaurant: true,
+      osmRestaurants: false,
       cafe: false,
       hotel_lounge: false,
       library: false,
       coworking: false,
       other: false,
     });
+  });
+
+  it("preserves existing curated restaurant pins while the OSM layer is off", () => {
+    const existing = venue("food-anchor", "restaurant");
+    expect(filterVenuesByKind([existing], defaultVenueKindVisibility("london"))).toEqual([existing]);
   });
 
   it("treats absent kind as a backward-compatible pub", () => {

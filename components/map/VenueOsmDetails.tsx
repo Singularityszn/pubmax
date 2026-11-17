@@ -1,4 +1,4 @@
-import { osmPubFactsView, type OsmPubFacts } from "@/lib/osmPubFacts";
+import { osmPubFactsView, type OsmPubFacts, type OsmPubFactsView } from "@/lib/osmPubFacts";
 import "./venuePlacesDetails.css";
 
 const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -28,21 +28,10 @@ function clockLabel(time: string): string {
 export default function VenueOsmDetails({ facts }: { facts: OsmPubFacts | null | undefined }) {
   const view = osmPubFactsView(facts);
   if (!view) return null;
-  const { hours, hoursRaw } = view;
   const hasFacts = view.chips.length > 0 || view.ownership.length > 0 || view.links.length > 0;
   return (
     <div className="venuePlacesDetails">
-      {hours || hoursRaw ? <details>
-        <summary>OpenStreetMap opening hours</summary>
-        {hours ? <dl>{[1, 2, 3, 4, 5, 6, 0].map((day) => {
-          const windows = hours[day];
-          return <div key={day}>
-            <dt>{DAYS[day]}</dt>
-            <dd>{windows === undefined ? "Not stated" : windows.length ? windows.map((window) => `${clockLabel(window.opens)} to ${clockLabel(window.closes)}`).join(", ") : "Closed"}</dd>
-          </div>;
-        })}</dl> : <p>{hoursRaw}</p>}
-        <small className="venuePlacesDetailsCredit">{view.hoursCredit}</small>
-      </details> : null}
+      <VenueOsmHours view={view} />
       {hasFacts ? <div>
         {view.chips.length > 0 ? <div className="amenityRow" aria-label="OpenStreetMap amenities">
           {view.chips.map((chip) => (
@@ -71,4 +60,21 @@ export default function VenueOsmDetails({ facts }: { facts: OsmPubFacts | null |
       </small>
     </div>
   );
+}
+
+export function VenueOsmHours({ view }: { view: Pick<OsmPubFactsView, "hours" | "hoursRaw" | "hoursCredit"> }) {
+  const { hours, hoursRaw } = view;
+  return <>
+      {hours || hoursRaw ? <details>
+        <summary>OpenStreetMap opening hours</summary>
+        {hours ? <dl>{[1, 2, 3, 4, 5, 6, 0].map((day) => {
+          const windows = hours[day];
+          return <div key={day}>
+            <dt>{DAYS[day]}</dt>
+            <dd>{windows === undefined ? "Not stated" : windows.length ? windows.map((window) => `${clockLabel(window.opens)} to ${clockLabel(window.closes)}`).join(", ") : "Closed"}</dd>
+          </div>;
+        })}</dl> : <p>{hoursRaw}</p>}
+        <small className="venuePlacesDetailsCredit">{view.hoursCredit}</small>
+      </details> : null}
+  </>;
 }

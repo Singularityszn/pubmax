@@ -285,36 +285,25 @@ describe("the shipped London layer", () => {
     const census: Record<string, number> = {};
     for (const venue of venues) census[venue.kind] = (census[venue.kind] ?? 0) + 1;
 
-    const counts = JSON.parse(
-      readFileSync(
-        path.join(__dirname, "..", "data", "osm", "uk", "venue_counts.json"),
-        "utf8",
-      ),
-    ) as { london: { total: number; byKind: Record<string, number> } };
-
-    // Restaurants whose own website states alcohol join the OSM census as
-    // restaurants, except where an OSM pack already ships that element.
-    const shipped = new Set<string>();
+    const sourceDir = path.join(__dirname, "..", "data", "osm", "uk");
+    const snapshot = JSON.parse(readFileSync(path.join(sourceDir, "london_osm_restaurants.json"), "utf8")) as { venues: { osmId: string }[] };
+    const counts = JSON.parse(readFileSync(path.join(sourceDir, "venue_counts.json"), "utf8")) as { london: { byKind: Record<string, number> } };
+    const expected = { ...counts.london.byKind };
+    const restaurantIds = new Set(snapshot.venues.map(row => row.osmId));
     for (const group of ["drink", "food", "work"]) {
-      const pack = JSON.parse(
-        readFileSync(path.join(__dirname, "..", "data", "osm", "uk", `uk_osm_venues_${group}.json`), "utf8"),
-      ) as { venues: Array<{ osmId: string }> };
-      for (const venue of pack.venues) shipped.add(venue.osmId);
+      const national = JSON.parse(readFileSync(path.join(sourceDir, `uk_osm_venues_${group}.json`), "utf8")) as { venues: { osmId: string; kind: string; lat: number; lng: number }[] };
+      for (const row of national.venues) {
+        if (row.kind !== "restaurant" && restaurantIds.has(row.osmId) && row.lat >= 51.28 && row.lat <= 51.7 && row.lng >= -0.53 && row.lng <= 0.34) expected[row.kind] = defined(expected[row.kind]) - 1;
+      }
     }
-    const evidence = JSON.parse(
-      readFileSync(path.join(__dirname, "..", "data", "london_restaurant_drinks", "evidence.json"), "utf8"),
-    ) as { rows: Array<{ osmId: string }> };
-    const evidenced = evidence.rows.filter((row) => !shipped.has(row.osmId)).length;
-    const manifest = JSON.parse(readFileSync(publishedManifestPath, "utf8")) as {
-      restaurantDrinkEvidence: { count: number };
+    expected.restaurant = snapshot.venues.length;
+    expect(census).toEqual(expected);
+    const published = JSON.parse(readFileSync(publishedManifestPath, "utf8")) as {
+      countsByKind: Record<string, number>; generatedFrom: { count: number };
     };
-    expect(manifest.restaurantDrinkEvidence.count).toBe(evidenced);
-
-    expect(census).toEqual({
-      ...counts.london.byKind,
-      restaurant: (counts.london.byKind.restaurant ?? 0) + evidenced,
-    });
-    expect(venues.length).toBe(counts.london.total + evidenced);
+    expect(census).toEqual(published.countsByKind);
+    expect(census.restaurant).toBe(snapshot.venues.length);
+    expect(venues.length).toBe(published.generatedFrom.count);
     // Ids are unique across the whole layer: a cell id formatted to too few
     // decimals used to collapse cells onto one another and merge their rows.
     expect(new Set(venues.map((venue) => venue.id)).size).toBe(venues.length);
@@ -324,7 +313,7 @@ describe("the shipped London layer", () => {
     const venues = decodeWholeLayer();
     const shown = filterVenuesByKind(
       venues as unknown as Venue[],
-      defaultVenueKindVisibility(),
+      defaultVenueKindVisibility("london"),
     );
     const shownKinds = new Set(shown.map((venue) => venue.kind));
     // A club shows and hides with the bars (`curatedVenueKind`). Every other
