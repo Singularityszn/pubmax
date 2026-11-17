@@ -7,6 +7,7 @@ import {
   socialPubComparisonNeighbours,
   socialPubRankingEntries,
   socialPubRankingPayload,
+  socialPubRankingReadFailure,
   startSocialPubComparison,
   type SocialPubComparison,
 } from "@/lib/socialPubRankings";
@@ -144,5 +145,19 @@ describe("ranking response payload", () => {
     { entries: [{ ...row, place: 0 }] }, { entries: [{ ...row, venueName: {} }] },
   ])("rejects an incomplete response without inventing an empty list: %j", (body) => {
     expect(socialPubRankingPayload(body)).toBeNull();
+  });
+});
+
+describe("ranking access failures", () => {
+  it.each([
+    { status: 401, body: null, result: "refused" },
+    { status: 403, body: {}, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE" }, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, result: "unavailable" },
+    { status: 503, body: { code: "RANKING_UNAVAILABLE" }, result: "unavailable" },
+    { status: 200, body: null, result: "unavailable" },
+    { status: 0, body: null, result: "unavailable" },
+  ])("classifies an access boundary separately from an outage: $status $body", ({ status, body, result }) => {
+    expect(socialPubRankingReadFailure(status, body)).toBe(result);
   });
 });
