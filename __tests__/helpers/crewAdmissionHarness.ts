@@ -2,7 +2,7 @@
 // own module instance, so its own cluster and its own counters. A person's auth
 // user, profile and Social account IDs come from separate ranges.
 
-import { execFileSync, spawn } from "node:child_process";
+import { execFile, spawn } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { expect } from "vitest";
@@ -56,6 +56,8 @@ export const accountOf = (who: Person) =>
     from public.private_social_accounts where profile_id='${who.profile}'),'none')`);
 export const makeCohost = (crew: string, who: Person) =>
   db().sql(`update public.social_crew_members set role='cohost' where crew_id='${crew}' and social_account_id='${who.account}'`);
+export const corrections = (crew: string) =>
+  db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`);
 export const revision = (crew: string) => db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
 export const mutual = (a: Person, b: Person) => db().sql(`insert into public.follows(follower_id,followee_id)
   values ('${a.profile}','${b.profile}'),('${b.profile}','${a.profile}') on conflict do nothing`);
@@ -205,6 +207,9 @@ export async function bootCrewAdmissionDatabase(label: string, start: Stage) {
   try {
     db().applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
     for (const file of readdirSync(directory).filter((entry) => entry.endsWith(".sql") && entry < name).sort()) db().applyFile(join(directory, file));
+    // Supabase grants EXECUTE on every new public function to these roles. The shared
+    // fixture does not, so this cluster does, before 0243 creates its helpers.
+    db().sql("alter default privileges in schema public grant execute on functions to anon, authenticated, service_role");
     const staff = person();
     db().sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role) values ('${STAFF_ROLE}','${staff.profile}','Moderator','moderator');`);
     stage = "before";
@@ -215,19 +220,18 @@ export async function bootCrewAdmissionDatabase(label: string, start: Stage) {
 export async function stopCrewAdmissionDatabase() { await session?.stop(); session = null; }
 export const running = () => session !== null;
 
-/** Applies the rollback with one session setting set first, in the same connection. */
-export function rollbackWithSetting(setting: string, value: string) {
-  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set ${setting} = '${value}'`, "-f", join(directory, rollback)],
-    { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-  stage = "before";
-}
-/** The rollback with no setting, answering whether the database took it and what it said. */
-export function tryRollback() {
-  try {
-    execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-f", join(directory, rollback)], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
-    stage = "before";
-    return { ok: true, said: "" };
-  } catch (error) {
-    return { ok: false, said: String((error as { stderr?: unknown }).stderr ?? error) };
-  }
+/**
+ * The rollback file on its own named connection, with the ledger export count set
+ * first when one is given. It answers whether the database took it and what it said.
+ */
+export function rollbackOutcome(application: string, exportedRows?: string) {
+  const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`];
+  if (exportedRows !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${exportedRows}'`);
+  args.push("-f", join(directory, rollback));
+  return new Promise<{ ok: boolean; said: string }>((resolve) => {
+    execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => {
+      if (!error) stage = "before";
+      resolve({ ok: !error, said: String(stderr ?? "") });
+    });
+  });
 }

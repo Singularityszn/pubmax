@@ -12,6 +12,7 @@ import {
   DIGEST,
   NOT_FOUND,
   NO_CREW,
+  type Person,
   admit,
   answerInvitation,
   block,
@@ -30,6 +31,7 @@ import {
   key,
   leave,
   makeCohost,
+  memberId,
   mutual,
   ownership,
   person,
@@ -55,6 +57,14 @@ afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
 describe.skipIf(skipReason !== null)("before 0243", () => {
   beforeAll(() => { if (running()) stageTo("before"); });
+
+  it("this cluster grants EXECUTE on a new function to every Supabase role, as Supabase does", () => {
+    db().sql("create function public._default_grant_probe_0243() returns int language sql as 'select 1'");
+    try {
+      expect(db().sql(`select has_function_privilege('service_role','public._default_grant_probe_0243()','execute')
+        and has_function_privilege('authenticated','public._default_grant_probe_0243()','execute')`)).toBe("t");
+    } finally { db().sql("drop function public._default_grant_probe_0243()"); }
+  });
 
   it("a block with an accepted guest and an earlier removal both leave the door open", () => {
     const host = person(), ana = person(), xav = person();
@@ -216,6 +226,26 @@ describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpe
     expect(call(suspendCall(bea))).toMatchObject({ ok: true, code: "suspended" });
     expect(answerInvitation(xav, crew, invitation.invitation_id as string, "accepted")).toEqual(NOT_FOUND);
     expect(state(crew, xav)).toBe("none");
+  });
+
+  it("an invitation loses its force when its cohost is removed, leaves or is made a member", () => {
+    const changes: [string, (crew: string, bea: Person, host: Person) => unknown][] = [
+      ["removed", (crew, bea, host) => remove(host, crew, bea)],
+      ["left", (crew, bea) => leave(crew, bea)],
+      ["made a member", (crew, bea, host) => call(`set_social_crew_role_atomic('${host.account}','${crew}','${memberId(crew, bea)}','member','${key()}','${DIGEST}')`)],
+    ];
+    for (const [change, apply] of changes) {
+      const host = person(), bea = person(), xav = person();
+      mutual(host, bea);
+      mutual(host, xav);
+      const crew = crewWith(host, [bea]);
+      makeCohost(crew, bea);
+      const invitation = invite(bea, crew, xav);
+      expect(invitation, change).toMatchObject({ ok: true, code: "invited" });
+      expect(apply(crew, bea, host), change).toMatchObject({ ok: true });
+      expect(answerInvitation(xav, crew, invitation.invitation_id as string, "accepted"), change).toEqual(NOT_FOUND);
+      expect(state(crew, xav), change).toBe("none");
+    }
   });
 
   it("a cohost's invitation waits for that cohost's suspension in flight, then answers not found", async () => {

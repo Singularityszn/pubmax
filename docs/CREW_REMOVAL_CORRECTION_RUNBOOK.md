@@ -41,6 +41,7 @@ There is no app screen or route for this. The operator runs one service-only SQL
    | `unchanged` | The member was not removed. Nothing changed and no ledger row was written. |
    | `not_found` | The crew or the member does not exist, or the member is in another crew. |
    | `forbidden` | The moderator is the removed person. Ask another moderator. |
+   | `gone` | The removed person deleted their account. Nothing changed. |
    | `invalid` | The reason is too short or too long. |
    | error `staff required` | The staff role is not an active moderator. |
 
@@ -48,14 +49,31 @@ The correction does not give the person a place. No message goes to the host or 
 
 ## The ledger
 
-Each correction writes one row to `public.social_crew_removal_corrections`: the crew, the member, the account, the reason, the staff role and the moderator's display name.
+Each correction writes one row to `public.social_crew_removal_corrections`: the crew, the subject's auth user, the member, the account, the reason, the staff role and the moderator's display name.
+
+What the ledger does today:
 
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
-- The ledger is crew history. Like membership rows, it is not part of the account export. It stays through account deletion and is deleted with its crew.
-- Rollback of 0243 stops while the ledger has rows. Export the rows first:
+- When the subject deletes their account, their rows are deleted in the same transaction.
+- When the crew is deleted, its rows are deleted. A crew-bound Plan cannot be deleted today while its member rows reference seats.
+- The subject's own-record export is built outside migration 0243. It is not live yet.
 
-  ```sql
-  select * from public.social_crew_removal_corrections order by created_at;
-  ```
+Export, the Plan deletion change and the other lifecycle items are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
 
-  Then run the rollback in a session that has run `set pubmax.crew_removal_corrections_exported = 'yes';`.
+## Rollback
+
+Rollback of 0243 first locks the crew tables, then `auth.users`, then the ledger, so sign-ins and Social writes wait until it commits. It counts the ledger rows. While the ledger has rows, the rollback stops.
+
+1. Export the rows and note how many there are.
+
+   ```sql
+   select * from public.social_crew_removal_corrections order by created_at;
+   ```
+
+2. In the session that runs the rollback, first run this, with the exact count from step 1:
+
+   ```sql
+   set pubmax.crew_removal_corrections_exported = '<row count>';
+   ```
+
+3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
