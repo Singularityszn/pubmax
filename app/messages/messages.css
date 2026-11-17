@@ -2135,7 +2135,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 @media (max-width: 1023px) {
   html:has(.messagesMainThread .messageThreadShell) {
-    overscroll-behavior: none;
+    overscroll-behavior-y: none;
   }
 
   body:has(.messagesMainThread .messageThreadShell) {
@@ -2152,6 +2152,7 @@ html[data-theme="dark"] .messageBubblePhoto {
     left: 0;
     right: 0;
     height: calc(100dvh - var(--composer-clearance));
+    padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
     display: flex;
     flex-direction: column;
     background: var(--messages-surface, var(--paper));
