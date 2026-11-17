@@ -61,3 +61,18 @@
   color: var(--ink-soft);
   cursor: default;
 }
+
+/* The invite preview's two links sit inside its sentences, as the publisher
+   link does in ListedPriceLine: ink, underlined, and a 44px tap area that
+   reaches past the line instead of growing it. */
+.summonPreview a {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-block: calc(-1 * var(--space-3));
+  vertical-align: middle;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

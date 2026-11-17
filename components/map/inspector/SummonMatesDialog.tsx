@@ -9,11 +9,12 @@
 // (lib/summonMates.server.ts). The receipt names only the mates the server says
 // it reached. Nothing here counts who is coming.
 //
-// A dated price rides along only when the pub's public detail proves it
-// (lib/summonPrice.ts). The preview shows it before anything leaves. The send
-// posts no price: the server reads its own.
+// A dated price rides along only when the pub's live public detail proves it
+// (lib/summonPrice.ts). Its age is checked again on share and when the page
+// comes back, so a dialog left open past the 30-day line drops it. The preview
+// shows the shared invite. The send posts no price: the server reads its own.
 
-import { useEffect, useId, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
+import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/components/auth/authContext";
@@ -37,7 +38,7 @@ import {
   summonText,
   venueSummonUrl,
 } from "@/lib/summonMates";
-import { selectSummonPrice, type SummonPriceEvidence } from "@/lib/summonPrice";
+import { selectSummonPrice, summonPriceSentence } from "@/lib/summonPrice";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -68,6 +69,11 @@ type Props = {
   onClose: () => void;
 };
 
+/** The clock, read when the reader shares or comes back. Never during render. */
+function readClock(): number {
+  return Date.now();
+}
+
 function accessGate(body: unknown): ContributionGateStatus | null {
   const error = body as { code?: unknown; details?: { gate?: unknown } } | null;
   if (error?.code === "SOCIAL_SIGN_IN_REQUIRED") return "sign_in_required";
@@ -94,30 +100,69 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
   const [shareNote, setShareNote] = useState<string | null>(null);
   const [gate, setGate] = useState<ContributionGateStatus | null>(null);
   const [reload, setReload] = useState(0);
-  const [price, setPrice] = useState<SummonPriceEvidence | null>(() =>
-    selectSummonPrice(getWarmedVenue(venue.id), Date.now()),
-  );
+  // Only a live public detail read. A saved device copy never lends a price.
+  const [detail, setDetail] = useState<Venue | null>(() => getWarmedVenue(venue.id));
+  const [checkedAt, setCheckedAt] = useState(() => Date.now());
+  const price = useMemo(() => selectSummonPrice(detail, checkedAt), [detail, checkedAt]);
+  // The venue action that opened the dialog. Focus goes back to it on close,
+  // even after a gate has come and gone.
+  const [originRef] = useState(() => ({
+    current: typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  }));
+  // The control that opened a gate, so closing the gate lands back on it.
+  const gateReturnRef = useRef<HTMLElement | null>(null);
+  const previewLabelId = useId();
 
   useDismissOnEscape(!gate, onClose);
-  useFocusTrap(!gate, dialogRef, "strict-modal");
+  useFocusTrap(!gate, dialogRef, "strict-modal", originRef);
   useEffect(() => {
     if (gate) return;
-    queueMicrotask(() => dialogRef.current?.focus({ preventScroll: true }));
+    // After the gate's own trap has given the page back.
+    queueMicrotask(() => {
+      const dialogNode = dialogRef.current;
+      const target = gateReturnRef.current;
+      gateReturnRef.current = null;
+      if (target?.isConnected && dialogNode?.contains(target) && !target.matches(":disabled")) {
+        target.focus({ preventScroll: true });
+        return;
+      }
+      dialogNode?.focus({ preventScroll: true });
+    });
   }, [gate]);
+
+  function openGate(status: ContributionGateStatus | null, invoker: HTMLElement | null): void {
+    gateReturnRef.current = status ? invoker : null;
+    setGate(status);
+  }
 
   useEffect(() => {
     if (getWarmedVenue(venue.id)) return;
     let live = true;
-    // The public detail read. A saved device copy is not a fresh read, so it lends no price.
     void warmVenueDetail(venue.id).then((result) => {
       if (live && result.status === "found" && !result.savedAt) {
-        setPrice(selectSummonPrice(result.venue, Date.now()));
+        setDetail(result.venue);
+        setCheckedAt(readClock());
       }
     });
     return () => {
       live = false;
     };
   }, [venue.id]);
+
+  useEffect(() => {
+    // A phone can hold this dialog for days. Coming back checks the price's age again.
+    const recheck = () => {
+      if (document.visibilityState === "visible") setCheckedAt(readClock());
+    };
+    document.addEventListener("visibilitychange", recheck);
+    window.addEventListener("pageshow", recheck);
+    window.addEventListener("focus", recheck);
+    return () => {
+      document.removeEventListener("visibilitychange", recheck);
+      window.removeEventListener("pageshow", recheck);
+      window.removeEventListener("focus", recheck);
+    };
+  }, []);
 
   useEffect(() => {
     if (signedOut || !identityResolved || readProviderAccountRevision() !== accountRevision) return;
@@ -137,7 +182,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
         const body = (await response.json().catch(() => null)) as unknown;
         if (!live()) return;
         if (!response.ok) {
-          setGate(accessGate(body));
+          openGate(accessGate(body), null);
           setMates({ kind: "unavailable", text: errorMessageFrom(body, "Your mates are unavailable right now.") });
           return;
         }
@@ -167,6 +212,8 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
   }
 
   async function send(): Promise<void> {
+    const focused = document.activeElement;
+    const invoker = focused instanceof HTMLElement && dialogRef.current?.contains(focused) ? focused : null;
     const accountSignal = readProviderAccountSignal();
     const live = () => !accountSignal.aborted && readProviderAccountRevision() === accountRevision && dialogRef.current !== null;
     if (signedOut || !live()) return;
@@ -198,7 +245,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
         return;
       }
       setStage({ kind: "form" });
-      setGate(accessGate(body));
+      openGate(accessGate(body), invoker);
       setError(errorMessageFrom(body, SUMMON_SEND_FAILED_LINE));
     } catch {
       if (!live()) return;
@@ -215,7 +262,10 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
     setError(null);
     setShareNote(null);
     const url = new URL(venueSummonUrl(venue.id, validTime), window.location.origin).toString();
-    const text = summonShareText(venue.name, validTime, price);
+    const now = readClock();
+    setCheckedAt(now);
+    const fresh = selectSummonPrice(detail, now);
+    const text = summonShareText(venue.name, validTime, fresh, url);
     const outcome = await shareNightObject({ title: venue.name, text, url });
     if (outcome === "shared" || outcome === "cancelled") return;
     if (outcome === "whatsapp") {
@@ -223,7 +273,8 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
       return;
     }
     try {
-      await navigator.clipboard.writeText(`${text}\n${url}`);
+      // A priced invite already names the link, before the publisher's page.
+      await navigator.clipboard.writeText(fresh ? text : `${text}\n${url}`);
       setShareNote("Sharing didn't open, so we copied the invite and link.");
     } catch {
       setError("Couldn't copy the link. Try Share again.");
@@ -244,7 +295,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
         ref={dialogRef}
         className="tableRequestDialog"
         role="dialog"
-        aria-modal="true"
+        aria-modal={gate ? undefined : true}
         aria-labelledby={titleId}
         tabIndex={-1}
         data-summon-dialog=""
@@ -275,9 +326,22 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
               />
             </label>
             {price && validTime ? (
-              <div className="tableRequestScript" role="group" aria-label="Listed price at this pub" data-summon-preview="">
-                <p>{summonText(venue.name, validTime, price)}</p>
+              <div className="tableRequestScript summonPreview" role="group" aria-labelledby={previewLabelId} data-summon-preview="">
+                <p id={previewLabelId} className="tableRequestHint">Your invite</p>
+                <p>
+                  {summonText(venue.name, validTime)} It&apos;s on the PUBMAXX map:{" "}
+                  <a href={venueSummonUrl(venue.id, validTime)}>map link</a>
+                </p>
+                <p>
+                  {summonPriceSentence(price)}{" "}
+                  <a href={price.sourceUrl} target="_blank" rel="noopener noreferrer">
+                    Source: {price.sourceLabel}
+                  </a>
+                </p>
               </div>
+            ) : null}
+            {price && validTime && canSend ? (
+              <p className="tableRequestHint">A message sent from here reads the price again first, so it can change or go without one.</p>
             ) : null}
             {listed.kind === "loading" ? (
               <p className="tableRequestHint" role="status">
@@ -346,7 +410,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
                 type="button"
                 variant="secondary"
                 className="tableRequestPrimary"
-                onClick={() => setGate("sign_in_required")}
+                onClick={(event) => openGate("sign_in_required", event.currentTarget)}
               >
                 Sign in
               </Button>

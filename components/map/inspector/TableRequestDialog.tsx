@@ -144,16 +144,36 @@ export default function TableRequestDialog({
   // One key per request payload: a retry of the same words reuses it, an edit mints a new one.
   const attemptRef = useRef<{ key: string; payload: string } | null>(null);
 
+  // The venue action that opened the dialog. Focus goes back to it on close,
+  // even after a gate has come and gone.
+  const [originRef] = useState(() => ({
+    current: typeof document !== "undefined" && document.activeElement instanceof HTMLElement ? document.activeElement : null,
+  }));
+  // The control that opened a gate, so closing the gate lands back on it.
+  const gateReturnRef = useRef<HTMLElement | null>(null);
+
   useDismissOnEscape(gate === null, onClose);
-  useFocusTrap(gate === null, dialogRef, "strict-modal");
+  useFocusTrap(gate === null, dialogRef, "strict-modal", originRef);
   useEffect(() => {
     if (gate) return;
-    queueMicrotask(() => dialogRef.current?.focus({ preventScroll: true }));
+    // After the gate's own trap has given the page back.
+    queueMicrotask(() => {
+      const dialogNode = dialogRef.current;
+      const target = gateReturnRef.current;
+      gateReturnRef.current = null;
+      if (target?.isConnected && dialogNode?.contains(target) && !target.matches(":disabled")) {
+        target.focus({ preventScroll: true });
+        return;
+      }
+      dialogNode?.focus({ preventScroll: true });
+    });
   }, [gate]);
 
   const update = (patch: Partial<Draft>) => setDraft((current) => ({ ...current, ...patch }));
 
   async function send(): Promise<void> {
+    const focused = document.activeElement;
+    const invoker = focused instanceof HTMLElement && dialogRef.current?.contains(focused) ? focused : null;
     const validation = validateTableRequest(
       {
         venueId: venue.id,
@@ -223,6 +243,7 @@ export default function TableRequestDialog({
       const status = readContributionGateStatus(body?.status);
       setStage({ kind: "form" });
       if (status) {
+        gateReturnRef.current = invoker;
         setGate(status);
         return;
       }
@@ -252,7 +273,7 @@ export default function TableRequestDialog({
         ref={dialogRef}
         className="tableRequestDialog"
         role="dialog"
-        aria-modal="true"
+        aria-modal={gate ? undefined : true}
         aria-labelledby={titleId}
         tabIndex={-1}
         data-venue-id={venue.id}
