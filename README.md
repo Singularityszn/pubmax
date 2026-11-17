@@ -425,6 +425,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
 
+  If a refresh fails, the feed keeps its loaded posts and offers **Retry**. If **Load more** fails, choose **Try again** below the posts. After loading more than three pages, choose **Refresh posts** to replace the loaded posts with the latest feed. Automatic refresh pauses for these longer lists so your place stays stable.
+
   In **Following**, **Your mates' pints and challenges** shows recent Pint Drops and finished challenges from people you follow who also follow you. You need verified Social access. The section shows five rows first. **Show more from your mates** reveals the remaining rows, up to 20 per read, newest first. A pint row names the mate, pub, drink and date, with the price and bill-check status when recorded. Select a pint row to open the pub on the map. A challenge row names the mate, challenge and finish date. Select it to open the mate's profile.
 
   Muted mates and people blocked in either direction do not appear. Anonymous, hidden and demo drops stay out, as do drops from withdrawn or retired authors. Friends-only drops follow the reader's access rules. Challenge finishes require a public profile and complete, reader-visible Pint Drop history. A capped history or unknown finish date produces no challenge entry. Anonymous drops can count towards the owner's progress without appearing here. Nearby check-ins earn no points. Private diary entries, private plans and plain **Been here** ticks earn no visit points. The section does not publish those records or star ratings. An empty section says no pints or finished challenges are available. A failed read offers **Try again**.
@@ -488,6 +490,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   To stop receiving group messages, open **Chat options**. Choose **Leave group**. Confirm your departure. Your earlier messages stay for the remaining members. After deletion or departure, the thread shows a confirmation until you leave that view or change accounts.
 
   If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations. Within the inbox limit, a failed check for new messages in one deleted chat keeps that chat and the others visible. Messages from before deletion stay hidden, and the inbox shows an availability notice. When the check succeeds, the restored chat sorts and displays its newest message time.
+
+  While a chat loads its first history or retries a failed read, **Back to inbox** remains available. The message field stays unavailable until history loads.
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 

@@ -7,8 +7,8 @@
 //
 // Four rules make it safe to keep an answer past a navigation.
 //
-// IT LIVES IN THE BROWSER ONLY. The store is a module Map backed by a
-// sessionStorage namespace, so it dies with the browser session. A device
+// IT LIVES IN THE BROWSER ONLY. Persistence follows the browser cache policy in
+// docs/rules/app-proxy-csp-caching-and-file-tracing.md. A device
 // cache of who you are is the exact thing lib/deviceAccountIdentity.ts exists
 // to close, and this must never reopen it from the other side.
 //
