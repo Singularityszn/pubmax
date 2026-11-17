@@ -10,6 +10,7 @@ import { useCallback, useEffect, useReducer, useState } from "react";
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { crewAttendanceRefusal, parseCrewAttendance, type CrewAttendanceState } from "@/lib/crewAttendance";
 import { CREW_ATTENDANCE_LOADING, nextCrewAttendanceView, type CrewAttendanceNotice } from "@/lib/crewAttendanceView";
+import { afterCrewAttendanceWrite, holdCrewAttendanceWrite } from "@/lib/crewAttendanceWrites";
 import { displayHandle } from "@/lib/handleDisplay";
 import type { SocialCrewMemberDTO } from "@/lib/socialCrew";
 import { crewIdempotencyKey } from "@/lib/socialCrewsUi";
@@ -29,10 +30,11 @@ type Props = { crewId: string; members: SocialCrewMemberDTO[]; hosts: boolean };
 
 /** One panel per crew and signed-in account, so another account never sees this state. */
 export default function CrewAttendance({ identityKey, ...props }: Props & { identityKey: string }) {
-  return <AttendancePanel key={`${props.crewId}|${identityKey}`} {...props} />;
+  const scope = `${props.crewId}|${identityKey}`;
+  return <AttendancePanel key={scope} scope={scope} {...props} />;
 }
 
-function AttendancePanel({ crewId, members, hosts }: Props) {
+function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: string }) {
   const path = `/api/social/crews/${encodeURIComponent(crewId)}/attendance`;
   const [view, dispatch] = useReducer(nextCrewAttendanceView, CREW_ATTENDANCE_LOADING);
   const [attempt, setAttempt] = useState(0);
@@ -45,6 +47,9 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
     const controller = new AbortController();
     void (async () => {
       try {
+        // A mark this account still has in flight on this crew lands before the read.
+        await afterCrewAttendanceWrite(scope);
+        if (controller.signal.aborted) return;
         const response = await authedFetch(path, { cache: "no-store", signal: controller.signal }, { requiresIdentity: true });
         const data = response.ok ? parseCrewAttendance(await response.json().catch(() => null)) : null;
         if (controller.signal.aborted) return;
@@ -55,7 +60,7 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
       }
     })();
     return () => controller.abort();
-  }, [path, attempt]);
+  }, [path, attempt, scope]);
 
   useRefreshAt(view.status === "ready" ? view.boundary : null, view.status === "ready" || view.status === "unavailable", reload);
 
@@ -65,12 +70,12 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
     if (view.status !== "ready" || view.saving || view.refreshing || !view.data.open) return;
     dispatch({ type: "save", memberId, state });
     try {
-      const response = await authedActionFetch(path, {
+      const response = await holdCrewAttendanceWrite(scope, authedActionFetch(path, {
         method: "POST",
         credentials: "same-origin",
         headers: { "content-type": "application/json", "idempotency-key": crewIdempotencyKey("crew-attendance") },
         body: JSON.stringify({ memberId, state, expectedRevision }),
-      }, { requiresIdentity: true });
+      }, { requiresIdentity: true }));
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (response.ok && body && typeof body.revision === "number" && body.state === state) {
         dispatch({ type: "saved", memberId, state, revision: body.revision, now: Date.now() });
@@ -84,7 +89,7 @@ function AttendancePanel({ crewId, members, hosts }: Props) {
     } catch {
       dispatch({ type: "saveFailed" });
     }
-  }, [path, view]);
+  }, [path, scope, view]);
 
   const noticeText = (notice: CrewAttendanceNotice | null) => {
     if (!notice) return "";

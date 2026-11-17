@@ -156,7 +156,8 @@ export default function CrewDetailClient({
     if (!identityResolved) return;
     let active = true;
     const controller = new AbortController();
-    void Promise.resolve().then(() => setStatus("loading"));
+    // A read again for the same account keeps the page, so a control in use stays put.
+    void Promise.resolve().then(() => setStatus((current) => (current === "ready" ? current : "loading")));
     authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
       cache: "no-store",
       credentials: "same-origin",
