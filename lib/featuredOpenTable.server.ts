@@ -78,7 +78,7 @@ export async function loadFeaturedOpenTable(
 ): Promise<FeaturedOpenTableResult> {
   if (!selection) return { status: "not-configured" };
   if (!validSelection(selection)) return MISSING;
-  const preview = await loadOpenCrawlPublicPreview(selection.crewId, { includePrices: false });
+  const preview = await loadOpenCrawlPublicPreview(selection.crewId, { includeOptionalFacts: false });
   if (!preview.ok) return preview.reason === "unavailable" ? UNAVAILABLE : MISSING;
 
   const { card, meetingVenueId, singleStopVenueId } = preview;

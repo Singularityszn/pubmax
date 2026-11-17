@@ -169,12 +169,13 @@ export async function loadOpenCrawlShareCard(
 
 export async function loadOpenCrawlPublicPreview(
   crewId: string,
-  options: { includePrices?: boolean } = {},
+  options: { includeOptionalFacts?: boolean } = {},
 ): Promise<OpenCrawlShareCardResult> {
-  const dependencies = options.includePrices === false
+  const includeOptionalFacts = options.includeOptionalFacts !== false;
+  const dependencies = !includeOptionalFacts
     ? { ...DEFAULTS, listedPint: async () => null }
     : DEFAULTS;
-  return loadOpenCrawl(crewId, dependencies, true);
+  return loadOpenCrawl(crewId, dependencies, includeOptionalFacts);
 }
 
 async function loadOpenCrawl(
