@@ -12,6 +12,7 @@ export type RecoveryFormState =
   | { status: "busy"; passwordSaved?: boolean }
   | { status: "securing"; error: string }
   | { status: "complete" }
+  | { status: "sign-in" }
   | { status: "invalid"; expired: boolean };
 
 export type RecoveryFormEvent =
@@ -19,16 +20,18 @@ export type RecoveryFormEvent =
   | { type: "submit" }
   | { type: "failed"; message: string; passwordSaved?: boolean; field?: "email" | "password" | "confirm" }
   | { type: "complete" }
+  | { type: "sign-in" }
   | { type: "invalid"; expired?: boolean };
 
 export function recoveryFormTransition(state: RecoveryFormState, event: RecoveryFormEvent): RecoveryFormState {
   if (event.type === "link") return { status: "editing" };
-  if (state.status === "complete" || state.status === "invalid") return state;
+  if (state.status === "complete" || state.status === "invalid" || state.status === "sign-in") return state;
   switch (event.type) {
     case "submit": return { status: "busy", ...((state.status === "securing" || state.status === "busy" && state.passwordSaved) ? { passwordSaved: true } : {}) };
     case "failed": return event.passwordSaved
       ? { status: "securing", error: event.message }
       : { status: "editing", error: event.message, ...(event.field ? { field: event.field } : {}) };
+    case "sign-in": return { status: "sign-in" };
     case "complete": return { status: "complete" };
     case "invalid": return { status: "invalid", expired: event.expired === true };
   }

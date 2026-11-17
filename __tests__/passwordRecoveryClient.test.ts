@@ -89,10 +89,44 @@ it("does not start revocation after cancellation during an already-sent password
   const updating = new Promise<void>(resolve => { reached = resolve; });
   auth.updateUser.mockImplementation(() => { reached(); return new Promise(resolve => { release = resolve; }); });
   let current = true;
-  const result = passwordRecoveryFinisher(auth, "token")("London123!", () => current);
+  const finish = passwordRecoveryFinisher(auth, "token");
+  const result = finish("London123!", () => current);
   await updating;
   current = false;
   release({ data: { user: session.user }, error: null });
   expect(await result).toMatchObject({ status: "retry", passwordSaved: true });
   expect(auth.signOut).not.toHaveBeenCalled();
+  current = true;
+  expect(await finish("", () => current)).toMatchObject({ status: "saved" });
+  expect(auth.updateUser).toHaveBeenCalledTimes(1);
+});
+
+it("retries an explicitly cancelled verification without consuming its single-use proof again", async () => {
+  const auth = fixture();
+  let release!: (value: Awaited<ReturnType<typeof auth.verifyOtp>>) => void;
+  auth.verifyOtp.mockImplementationOnce(() => new Promise(resolve => { release = resolve; }));
+  auth.verifyOtp.mockResolvedValue({ data: { user: null, session: null }, error: new AuthApiError("used", 403, "otp_expired") });
+  let current = true;
+  const finish = passwordRecoveryFinisher(auth, "token");
+  const pending = finish("London123!", () => current);
+  current = false;
+  release({ data: { session, user: session.user }, error: null });
+  expect(await pending).toMatchObject({ status: "retry", passwordSaved: false });
+  expect(auth.updateUser).not.toHaveBeenCalled();
+  current = true;
+  expect(await finish("London123!", () => current)).toMatchObject({ status: "saved" });
+  expect(auth.verifyOtp).toHaveBeenCalledTimes(1);
+  expect(auth.updateUser).toHaveBeenCalledTimes(1);
+});
+
+it("offers manual sign-in when the saved password has no usable recovery session", async () => {
+  const auth = fixture();
+  auth.getSession.mockResolvedValue({ data: { session: null }, error: null });
+  expect(await passwordRecoveryFinisher(auth, "token")("London123!")).toEqual({ status: "sign-in" });
+});
+
+it("identifies a server password-policy rejection as a password-field error", async () => {
+  const auth = fixture();
+  auth.updateUser.mockResolvedValue({ data: { user: null }, error: new AuthApiError("weak", 422, "weak_password") });
+  expect(await passwordRecoveryFinisher(auth, "token")("London123!")).toMatchObject({ status: "retry", passwordSaved: false, field: "password" });
 });

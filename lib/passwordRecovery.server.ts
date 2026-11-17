@@ -22,5 +22,8 @@ export async function sendPasswordRecoveryEmail(email: string, currentUrl: strin
   const { error } = await client.auth.resetPasswordForEmail(email, {
     redirectTo: new URL(PASSWORD_RECOVERY_PATH, origin).toString(),
   });
-  if (error) log("error", "auth.password_recovery.delivery_refused", { code: error.code, status: error.status });
+  if (error) {
+    const throttled = error.status === 429 || ["over_email_send_rate_limit", "over_request_rate_limit"].includes(error.code ?? "");
+    log(throttled ? "warn" : "error", "auth.password_recovery.delivery_refused", { code: error.code, status: error.status });
+  }
 }

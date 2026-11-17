@@ -16,3 +16,11 @@ it("raises the existing error alert contract for delivery refusal without accoun
   await sendPasswordRecoveryEmail("private@example.test", "https://pubmaxxing.com/auth/forgot-password");
   expect(report).toHaveBeenCalledWith("error", "auth.password_recovery.delivery_refused", { code: "captcha_failed", status: 400 });
 });
+
+it.each([{ status: 429, code: "rate_limit" }, { status: 400, code: "over_email_send_rate_limit" }, { status: 400, code: "over_request_rate_limit" }])("does not raise an operator alert for an expected provider throttle: %j", async error => {
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://recovery-email-test.supabase.co");
+  vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_recovery_email");
+  reset.mockResolvedValue({ error });
+  await sendPasswordRecoveryEmail("private@example.test", "https://pubmaxxing.com/auth/forgot-password");
+  expect(report).toHaveBeenCalledWith("warn", "auth.password_recovery.delivery_refused", error);
+});

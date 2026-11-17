@@ -28,9 +28,33 @@ function recoveryPresentation(state: RecoveryFormState) {
   };
 }
 
+function focusRecoveryError(main: HTMLElement | null, field: string | undefined, reset: boolean): void {
+  const target = field ? main?.querySelector<HTMLElement>(`#recovery-${field}`)
+    : main?.querySelector<HTMLElement>(reset ? "[role=alert]" : "#recovery-email");
+  target?.focus();
+}
+
+function RecoveryNotice({ state, reset }: { state: RecoveryFormState; reset: boolean }) {
+  if (state.status === "checking") return <><p role="status">Opening your reset link…</p><noscript><p>Turn on JavaScript, then open the link in your email again.</p></noscript></>;
+  if (state.status === "invalid") return <>
+    <p role="alert">{state.expired ? "This reset link has expired or was already used. Ask for a new one." : "Open the link in your email again, or ask for a new one. Each link works once."}</p>
+    <Button asChild><Link href="/auth/forgot-password">Email me a new link</Link></Button>
+  </>;
+  if (state.status === "sign-in") return <>
+    <p role="status">Your password is saved. Sign in with it to continue.</p>
+    <Button asChild><Link href="/login">Sign in with your new password</Link></Button>
+  </>;
+  if (state.status === "complete") return <>
+    <p role="status">{reset ? "Your password is saved. You're signed in." : PASSWORD_RECOVERY_MESSAGE}</p>
+    {!reset ? <p>Check your inbox and spam folder. Each link works once.</p> : <Button asChild><Link href="/map">Back to the map</Link></Button>}
+  </>;
+  return null;
+}
+
 function recoveryTitle(state: RecoveryFormState, reset: boolean, securing: boolean): string {
   if (securing) return "Finish signing in";
   if (state.status === "invalid") return "Ask for a new link";
+  if (state.status === "sign-in") return "Password saved";
   if (state.status === "complete") return reset ? "Password saved" : "Check your inbox";
   return reset ? "Choose a new password" : "Forgot your password?";
 }
@@ -57,8 +81,12 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   const { busy, securing, error, invalidField } = recoveryPresentation(state);
 
   useEffect(() => {
-    if (state.status === "complete" || state.status === "invalid" || state.status === "securing") main.current?.focus();
+    if (state.status === "complete" || state.status === "invalid" || state.status === "securing" || state.status === "sign-in") main.current?.focus();
   }, [state.status]);
+
+  useEffect(() => {
+    if (state.status === "editing" && error) focusRecoveryError(main.current, invalidField, reset);
+  }, [state.status, error, invalidField, reset]);
 
   useEffect(() => {
     mounted.current = true;
@@ -139,11 +167,19 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
         });
         const result = await (await finisher.current)(password, () => ownsOperation() && !accountSignal.aborted && baseline.matches());
         if (!ownsOperation()) return;
+        if (result.status === "sign-in") {
+          token.current = null;
+          disposeFinisher(finisher.current);
+          finisher.current = null;
+          setPassword(""); setConfirm("");
+          dispatch({ type: "sign-in" });
+          return;
+        }
         if (result.status === "invalid") { dispatch({ type: "invalid", expired: true }); return; }
         passwordSaved.current = result.status === "saved" || result.passwordSaved;
         if (passwordSaved.current) { setPassword(""); setConfirm(""); }
         if (result.status === "retry") {
-          dispatch({ type: "failed", message: result.message, passwordSaved: result.passwordSaved });
+          dispatch({ type: "failed", message: result.message, passwordSaved: result.passwordSaved, field: result.field });
           return;
         }
         if (accountSignal.aborted) throw new Error();
@@ -158,7 +194,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
       }
     } catch {
       if (ownsOperation()) dispatch({ type: "failed", passwordSaved: passwordSaved.current, message: passwordSaved.current
-        ? "Your password is saved. Try again to finish signing in, or sign in with your new password."
+        ? "Your password is saved. Try again to finish signing in."
         : "Could not finish. Check your connection and try again." });
     } finally {
       if (operation.current === owner) operation.current = null;
@@ -166,62 +202,59 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   }
 
   const complete = state.status === "complete";
-  const invalid = state.status === "invalid";
+  const showForm = ["editing", "busy", "securing"].includes(state.status);
+  const showBackLink = !(reset && (complete || state.status === "sign-in"));
   const title = recoveryTitle(state, reset, securing);
   return (
     <main className="passwordRecoveryPage" ref={main} tabIndex={-1} aria-labelledby={titleId}>
       <div className="passwordRecoveryInner">
         <Screen className="passwordRecoveryHead" kicker="PUBMAXX" title={title} titleId={titleId} />
-        {state.status === "checking" ? <p role="status">Opening your reset link…</p> : invalid ? (
-          <>
-            <p role="alert">{state.status === "invalid" && state.expired
-              ? "This reset link has expired or was already used. Ask for a new one."
-              : "Open the link in your email again, or ask for a new one. Each link works once."}</p>
-            <Button asChild><Link href="/auth/forgot-password">Email me a new link</Link></Button>
-          </>
-        ) : complete ? (
-          <>
-            <p role="status">{reset ? "Your password is saved. You're signed in." : PASSWORD_RECOVERY_MESSAGE}</p>
-            {!reset ? <p>Check your inbox and spam folder. Each link works once.</p> : null}
-            {reset ? <Button asChild><Link href="/map">Back to the map</Link></Button> : null}
-          </>
-        ) : (
+        <div className={reset ? "passwordRecoveryBody passwordRecoveryBody--reset" : "passwordRecoveryBody"}>
+        {showForm ? (
           <form onSubmit={submit} noValidate method="post" aria-label={reset ? "Reset password" : "Request password reset"} aria-busy={busy}>
             {reset && !securing ? (
               <>
+                <div className="passwordRecoveryField passwordRecoveryField--password">
                 <div className="passwordRecoveryLabel">
                   <label htmlFor="recovery-password">New password</label>
                   <button type="button" aria-controls="recovery-password recovery-confirm" onClick={() => setVisible(!visible)}>
                     {visible ? "Hide passwords" : "Show passwords"}
                   </button>
                 </div>
-                <input id="recovery-password" type={visible ? "text" : "password"} autoComplete="new-password"
+                <input id="recovery-password" spellCheck={false} autoCorrect="off" autoCapitalize="none" type={visible ? "text" : "password"} autoComplete="new-password"
                   minLength={MIN_PASSWORD_LENGTH} required aria-invalid={invalidField === "password"} aria-describedby={`${hintId}${error ? ` ${errorId}` : ""}`} readOnly={busy || securing}
                   value={password} onChange={event => setPassword(event.target.value)} />
                 <PasswordPolicyHint value={password} id={hintId} />
+                </div>
+                <div className="passwordRecoveryField">
                 <label htmlFor="recovery-confirm">Confirm new password</label>
-                <input id="recovery-confirm" type={visible ? "text" : "password"} autoComplete="new-password"
+                <input id="recovery-confirm" spellCheck={false} autoCorrect="off" autoCapitalize="none" type={visible ? "text" : "password"} autoComplete="new-password"
                   minLength={MIN_PASSWORD_LENGTH} required aria-invalid={invalidField === "confirm"} aria-describedby={error ? errorId : undefined} readOnly={busy || securing}
                   value={confirm} onChange={event => setConfirm(event.target.value)} />
+                </div>
               </>
             ) : null}
             {!reset ? (
               <>
                 <p>We&apos;ll send a reset link to the email on your account.</p>
+                <div className="passwordRecoveryField">
                 <label htmlFor="recovery-email">Account email</label>
                 <input id="recovery-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
-                  required aria-invalid={invalidField === "email"} aria-describedby={error ? errorId : undefined} maxLength={MAX_EMAIL_LENGTH} disabled={!ready || busy} value={email} onChange={event => setEmail(event.target.value)} />
+                  required aria-invalid={invalidField === "email"} aria-describedby={error ? errorId : undefined} maxLength={MAX_EMAIL_LENGTH} disabled={!ready} readOnly={busy} value={email} onChange={event => setEmail(event.target.value)} />
+                </div>
               </>
             ) : null}
-            {error ? <p role="alert" id={errorId}>{error}</p> : null}
+            {securing ? <p role="status">{error ?? "Your password is saved. Finishing sign-in…"}</p> : null}
+            {error && !securing ? <p role="alert" tabIndex={-1} id={errorId}>{error}</p> : null}
             <Button type="submit" disabled={busy || !configured}>
-              {busy ? "Working…" : securing ? "Finish securing account" : reset ? "Save new password" : "Send reset link"}
+              {busy ? "Working…" : securing ? "Finish signing in" : reset ? "Save new password" : "Send reset link"}
             </Button>
             {!configured ? <p role="status">Password recovery is unavailable on this build.</p> : null}
           </form>
-        )}
+        ) : <RecoveryNotice state={state} reset={reset} />}
+        </div>
         <div className="passwordRecoveryFooter">
-          {reset && complete ? null : <Link href="/login">{reset ? "Back to sign in" : "Sign in with an email link"}</Link>}
+          {showBackLink ? <Link href="/login">{reset ? "Back to sign in" : "Sign in with an email link"}</Link> : null}
           {!reset ? <p>An account without an email cannot receive a reset.</p> : null}
         </div>
       </div>

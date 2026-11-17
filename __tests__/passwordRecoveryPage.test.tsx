@@ -68,6 +68,7 @@ it("marks only confirmation invalid when passwords differ", () => {
   act(() => host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
   const confirm = host.querySelector("#recovery-confirm")!;
   expect(confirm.getAttribute("aria-invalid")).toBe("true");
+  expect(document.activeElement).toBe(confirm);
   expect(host.querySelector("#recovery-password")!.getAttribute("aria-invalid")).toBe("false");
   expect(document.getElementById(confirm.getAttribute("aria-describedby")!)).not.toBeNull();
 });
@@ -124,7 +125,52 @@ it("offers only session completion after a saved password needs cleanup retry", 
   await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
   expect(host.querySelector("input")).toBeNull();
   expect(host.querySelector("h1")?.textContent).toBe("Finish signing in");
+  expect(host.querySelector("[role=alert]")).toBeNull();
+  expect(host.querySelector("[role=status]")).not.toBeNull();
   await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
   expect(host.querySelector("form")).toBeNull();
   expect(host.querySelector("h1")?.textContent).toBe("Password saved");
+});
+
+it("opts revealed passwords out of spelling, correction and capitalisation services", () => {
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => host.querySelector<HTMLButtonElement>(".passwordRecoveryLabel button")!.click());
+  for (const input of host.querySelectorAll<HTMLInputElement>("input")) {
+    expect(input.type).toBe("text");
+    expect(input.getAttribute("spellcheck")).toBe("false");
+    expect(input.getAttribute("autocorrect")).toBe("off");
+    expect(input.getAttribute("autocapitalize")).toBe("none");
+  }
+});
+
+it("keeps request entry focusable during submission and restores it after failure for retry", async () => {
+  let release!: (response: Response) => void;
+  const request = vi.fn(() => new Promise<Response>(resolve => { release = resolve; }));
+  vi.stubGlobal("fetch", request);
+  act(() => root.render(createElement(PasswordRecoveryPage)));
+  act(() => fillPassword("#recovery-email", "private@example.test"));
+  const input = host.querySelector<HTMLInputElement>("#recovery-email")!;
+  input.focus();
+  act(() => host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+  expect(input.disabled).toBe(false);
+  expect(input.readOnly).toBe(true);
+  await act(async () => { release(new Response(null, { status: 503 })); });
+  expect(document.activeElement).toBe(input);
+  expect(input.readOnly).toBe(false);
+  act(() => host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })));
+  await act(async () => { release(Response.json({ message: "neutral" })); });
+  expect(host.querySelector("form")).toBeNull();
+  expect(request).toHaveBeenCalledTimes(2);
+});
+
+it("replaces an impossible cleanup retry with the existing sign-in path", async () => {
+  const { createPasswordRecoveryFinisher } = await import("@/lib/passwordRecoveryClient");
+  vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(vi.fn().mockResolvedValue({ status: "sign-in" }), { dispose: vi.fn() }));
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("form")).toBeNull();
+  expect(host.querySelector(".passwordRecoveryBody a")?.getAttribute("href")).toBe("/login");
 });
