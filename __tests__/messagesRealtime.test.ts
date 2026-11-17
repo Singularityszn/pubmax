@@ -22,6 +22,7 @@ import {
   messagesReattachDelayMs,
   subscribeToInbox as subscribeToInboxReal,
   subscribeToMessages,
+  announceInboxArrival,
 } from "@/lib/messagesRealtime";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 import { defined } from "@/__tests__/helpers/defined";
@@ -474,4 +475,15 @@ describe("re-attaching after a dropped channel", () => {
     expect(messagesReattachDelayMs(2)).toBeLessThan(messagesReattachDelayMs(3));
     expect(messagesReattachDelayMs(99)).toBe(messagesReattachDelayMs(50));
   });
+});
+
+it("fans out a worker-only arrival without requiring a live channel", () => {
+  isAuthConfigured.mockReturnValue(false);
+  const nav = vi.fn();
+  const inbox = vi.fn();
+  subscribeToInbox("reader", nav);
+  subscribeToInbox("reader", inbox);
+  announceInboxArrival("reader");
+  expect(nav).toHaveBeenCalledOnce();
+  expect(inbox).toHaveBeenCalledOnce();
 });

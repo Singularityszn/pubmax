@@ -113,3 +113,26 @@ it("restores the previous setting after a failed save without accepting an older
   expect(preview().disabled).toBe(false);
   expect(host.querySelector('[role="status"]')).not.toBeNull();
 });
+
+
+it("reconciles a committed change after a response timeout", async () => {
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  state.save.mockRejectedValueOnce(new DOMException("The response timed out.", "TimeoutError"));
+  state.fetch.mockResolvedValueOnce(Response.json({ ...settings, preview: true }));
+  await click(preview());
+  expect(preview().checked).toBe(true);
+  expect(toggle().getAttribute("aria-busy")).toBe("false");
+});
+
+it("does not take focus from the control clicked outside the panel", async () => {
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  const outside = document.createElement("button");
+  document.body.append(outside);
+  outside.focus();
+  await act(async () => outside.dispatchEvent(new Event("pointerdown", { bubbles: true })));
+  expect(host.querySelector(".messageAlertsPanel")).toBeNull();
+  expect(document.activeElement).toBe(outside);
+  outside.remove();
+});

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
-const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, allowed: true, muted: false, prefs: { enabled: false, preview: false } }));
+const state = vi.hoisted(() => ({ userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, prefs: { enabled: false, preview: false } }));
 const savePreferences = vi.fn(async (_userId: string, prefs: typeof state.prefs) => { state.prefs = prefs; });
 const setMuted = vi.fn();
 const presence = vi.fn();
@@ -9,7 +9,7 @@ const release = vi.fn();
 const saveToken = vi.fn();
 vi.mock("@/lib/authServer", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authServer")>(), callerUserId: async () => state.userId || null }));
 vi.mock("@/lib/profileStore", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/profileStore")>(), profileStore: () => ({ getHandleByUserId: async () => "ken", getByHandle: async (handle: string) => ({ id: handle, handle, userId: handle === "ken" ? "owner" : "sender" }) }) }));
-vi.mock("@/lib/messagesStore", () => ({ messagesStore: () => ({ membership: async () => state.member ? { handles: ["ken", "sam"] } : null, listMessages: async () => [{ senderHandle: "sam" }] }) }));
+vi.mock("@/lib/messagesStore", () => ({ messagesStore: () => ({ membership: async () => state.member ? { handles: ["ken", "sam"] } : null, listMessages: async () => { if (state.latestUnavailable) throw new Error("latest message unavailable"); return [{ senderHandle: "sam" }]; } }) }));
 vi.mock("@/lib/messageNotifications.server", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/messageNotifications.server")>(), messageNotificationSenderAllowed: async () => state.allowed }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => state.limited }));
 vi.mock("@/lib/messageNotificationStore", () => ({ messageNotificationStore: () => ({ preferences: async () => state.prefs, muted: async () => state.muted, savePreferences, setMuted, presence, release, saveToken, sessionActive: async () => true }) }));
@@ -21,7 +21,7 @@ const THREAD = "11111111-1111-4111-8111-111111111111";
 const SESSION = "22222222-2222-4222-8222-222222222222";
 const jwt = `header.${Buffer.from(JSON.stringify({ sub: "owner", session_id: SESSION })).toString("base64url")}.signature`;
 const request = (body: unknown, method = "POST") => new Request("https://pubmaxxing.com/api/message-notifications", { method, body: JSON.stringify(body), headers: { "content-type": "application/json", authorization: `Bearer ${jwt}` } });
-beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
+beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
   it.each(["", "different-user"])("returns no preview before allocating a per-user limit for %s", async (userId) => {
@@ -81,4 +81,12 @@ describe("message notification ownership", () => {
   it("rejects invalid subscriptions instead of registering a network destination", async () => {
     expect((await POST(request({ action: "subscribe", token: "https://127.0.0.1/private" }))).status).toBe(400);
   });
+});
+
+it("loads thread settings without requiring a message-policy read", async () => {
+  state.prefs.enabled = true;
+  state.latestUnavailable = true;
+  const response = await GET(new Request(`https://pubmaxxing.com/api/message-notifications?conversationId=${THREAD}&settingsOnly=1`));
+  expect(response.status).toBe(200);
+  expect(await response.json()).toEqual({ enabled: true, preview: false, muted: false, registered: false });
 });
