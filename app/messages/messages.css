@@ -903,13 +903,13 @@ html[data-theme="dark"] .messageBubblePhoto {
    the desktop split makes it the bottom of the thread pane instead. */
 .composerDock {
   position: sticky;
-  bottom: calc(var(--composer-clearance) + var(--keyboard-inset, 0px));
+  bottom: max(var(--composer-clearance), var(--keyboard-inset, 0px));
   z-index: 3;
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - var(--composer-clearance) - var(--keyboard-inset, 0px));
+  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - max(var(--composer-clearance), var(--keyboard-inset, 0px)));
   overflow-y: auto;
   gap: 0.5rem;
   margin: 0 calc(var(--messages-gutter, 20px) * -1);
@@ -1459,9 +1459,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 
   .messagesThreadPane .composerDock {
     position: static;
+    min-height: calc(44px + 16px);
     max-height: none;
     margin: 0;
-    padding: 0.6rem 0.75rem 0.85rem;
+    padding: 8px 0.75rem;
   }
 
   .messagesThreadPane > .conversationPreview,
@@ -1497,15 +1498,10 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* ── the phone ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* The composer clears the tab bar's lane. When the keyboard is up the bar
-     has stepped aside (lib/softKeyboard.ts), so the lane is the keyboard's
-     own inset instead. */
+  /* The dock clears the page's reserved chrome lane. A keyboard inset
+     replaces that lane instead of adding to it. */
   .messageThreadShell {
-    --composer-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
-  }
-
-  .messageThreadShell[data-keyboard-open] {
-    --composer-clearance: 0px;
+    --composer-clearance: var(--chrome-bottom-clearance);
   }
 
   /* The analytics consent card parks in the lane above the tab bar
