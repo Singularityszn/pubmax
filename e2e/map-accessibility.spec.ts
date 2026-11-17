@@ -459,6 +459,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect
       .poll(() => page.locator(".mapSplitListRow").count(), { timeout: 90_000 })
       .toBeGreaterThan(0);
+    await expect(page.locator(".mapSplitList")).toHaveAttribute("aria-busy", "false");
     const chosenVenueId = await page.locator(".mapSplitListRow").first().getAttribute("data-venue-id");
     expect(chosenVenueId).toBeTruthy();
     const chosenVenue = page.locator(
