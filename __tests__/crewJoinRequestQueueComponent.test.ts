@@ -63,7 +63,7 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn() }),
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     identityResolved: state.identityResolved,
     accountRevision: state.accountRevision,

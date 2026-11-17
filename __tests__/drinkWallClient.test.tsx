@@ -13,7 +13,7 @@ vi.mock("next/image", () => ({
   default: (props: Record<string, unknown>) => createElement("img", props),
 }));
 vi.mock("@/components/drink-wall/DrinkWallComposer", () => ({ default: () => null }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: { id: "user-alice" }, handle: "alice", configured: true }),
 }));
 

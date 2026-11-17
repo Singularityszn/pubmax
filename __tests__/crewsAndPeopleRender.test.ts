@@ -21,7 +21,7 @@ const auth = vi.hoisted(() => ({
 }));
 const transport = vi.hoisted(() => ({ action: vi.fn(), identity: vi.fn() }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: transport.action,
   authedActionFetch: transport.action,

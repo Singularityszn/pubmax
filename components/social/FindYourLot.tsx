@@ -8,7 +8,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import {
   errorMessageFrom,

@@ -21,7 +21,7 @@ import {
 
 import SignInButton from "@/components/auth/SignInButton";
 import Screen from "@/components/ui/screen";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";

@@ -19,7 +19,7 @@ const state = vi.hoisted(() => ({
   accountBoundFetch: vi.fn(),
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: state.user,
     session: state.session,

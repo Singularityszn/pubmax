@@ -29,7 +29,7 @@ import { useEffect, useEffectEvent, useId, useState, useSyncExternalStore, type 
 import { createPortal } from "react-dom";
 import { Megaphone, MoreHorizontal, Share2, Users } from "lucide-react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import LastOrdersBellSlot from "@/components/wild/LastOrdersBellSlot";

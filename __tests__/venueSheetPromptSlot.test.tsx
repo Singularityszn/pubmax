@@ -15,7 +15,7 @@ const signedIn = {
   invalidateContributionAuth: () => {},
 };
 const auth = vi.hoisted(() => ({ current: {} as Record<string, unknown> }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => "[sign-in control]" }));
 

@@ -16,7 +16,7 @@ import { discardBody } from "@/lib/responseBody";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 
 type Props = {
   /** The profile being viewed (the potential check-in owner). */

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { invalidateMessagesInbox, invalidateMessagesInboxOnFocus, markMessagesInboxVisible, readMessagesInbox } from "@/lib/messagesInboxClient";
 import type { ConversationDTO } from "@/lib/messages";

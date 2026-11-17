@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ configured: true }),
 }));
 vi.mock("@/lib/authClient", () => ({ ensureSupabaseBrowser: async () => null }));

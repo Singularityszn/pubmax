@@ -37,7 +37,7 @@ vi.mock("next/navigation", () => {
 });
 
 // An anonymous viewer whose identity has settled.
-vi.mock("@/components/auth/AuthProvider", async (importOriginal) => {
+vi.mock("@/components/auth/authContext", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/components/auth/AuthProvider")>();
   return {
     ...original,

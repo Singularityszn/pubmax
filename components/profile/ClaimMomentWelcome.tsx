@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import {
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,

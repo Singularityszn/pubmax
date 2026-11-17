@@ -21,7 +21,7 @@ const fetches = vi.hoisted(() => ({
   waiting: [] as Array<(erinUnread: number) => void>,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({
     phase: "signed-in",

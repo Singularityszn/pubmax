@@ -11,7 +11,7 @@ import { dispatchDismissKey } from "@/lib/nativeBackGesture";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null, session: null }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: null, session: null }) }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 const noop = () => undefined;

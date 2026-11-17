@@ -3,7 +3,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { discardBody } from "@/lib/responseBody";

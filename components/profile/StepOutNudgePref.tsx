@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ContributionGateDoor from "@/components/identity/ContributionGateDoor";
 import { webPushNeedsHomeScreenInstall } from "@/lib/a2hsPrompt";

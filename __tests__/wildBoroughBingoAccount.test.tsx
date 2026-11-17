@@ -5,7 +5,7 @@ import { expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ id: "account-a", resolveIndex: null as null | ((value: unknown) => void) }));
 vi.mock("@/lib/venuesSlim", () => ({ loadSlimVenuesForCityResult: () => new Promise((resolve) => { auth.resolveIndex = resolve; }) }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: auth.id } }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: { id: auth.id } }) }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch: (path: string) => {
   if (path.endsWith("/been") && auth.id === "account-a") return Promise.resolve({ ok: true, json: async () => ({ access: "full", status: "ready", count: 1, venues: [{ venueId: "lamb", venueName: "The Lamb", lastDate: "", sources: ["been_here"] }] }) });
   if (path.endsWith("/been")) return new Promise(() => {});

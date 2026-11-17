@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { readContributionDoor } from "@/lib/contributionGateStatus";

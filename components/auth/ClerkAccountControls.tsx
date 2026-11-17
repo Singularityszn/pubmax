@@ -25,7 +25,7 @@
 
 import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 
 export default function ClerkAccountControls({

@@ -15,7 +15,7 @@ const state = vi.hoisted(() => ({
   getCurrentUserId: vi.fn(),
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ ...state.auth, getCurrentUserId: state.getCurrentUserId }),
 }));
 vi.mock("@/components/auth/useViewerSession", () => ({

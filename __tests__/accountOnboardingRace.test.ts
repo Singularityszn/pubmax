@@ -26,7 +26,7 @@ const requestState = vi.hoisted(() => ({
   responses: [] as Array<Response | Error>,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
 

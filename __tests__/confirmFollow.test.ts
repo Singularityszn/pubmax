@@ -29,7 +29,7 @@ const auth = vi.hoisted(() => ({
 const viewer = vi.hoisted(() => ({ handle: null as string | null }));
 const followAction = vi.hoisted(() => ({ request: vi.fn() }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => auth,
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({

@@ -13,7 +13,7 @@ const authState = vi.hoisted(() => ({
 }));
 const authedActionFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));

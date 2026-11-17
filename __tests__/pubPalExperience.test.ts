@@ -10,7 +10,7 @@ const authState = vi.hoisted(() => ({
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn<typeof fetch>() }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ ...authState.current, getCurrentUserId: authState.getCurrentUserId }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));

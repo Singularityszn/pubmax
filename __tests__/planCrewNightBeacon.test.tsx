@@ -15,7 +15,7 @@ const { trackEvent, authedActionFetch } = vi.hoisted(() => ({
 
 vi.mock("@/lib/analytics", () => ({ trackEvent }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ identityResolved: true }),
 }));
 vi.mock("@/lib/crewRealtime", () => ({ subscribeToPlanCrew: () => () => {} }));

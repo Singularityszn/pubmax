@@ -23,7 +23,7 @@ vi.mock("@/components/profile/SocialLinksEditor", () => ({ default: () => null }
 vi.mock("@/components/social/CrewsPanel", () => ({ default: () => null }));
 vi.mock("@/components/diary/DiaryList", () => ({ default: () => null }));
 vi.mock("@/components/wanted/WantedList", () => ({ default: () => null }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     accountRevision: 0, user: { id: "local-focus-owner" }, handle: "focus_pints",
     configured: true, identityResolved: true, signOut: async () => undefined,

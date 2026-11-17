@@ -19,7 +19,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const capability = vi.hoisted(() => ({ token: "member-token", role: "host" as "host" | "guest" }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: null, session: null, identityResolved: true }),
 }));
 vi.mock("@/lib/activePlan", () => ({

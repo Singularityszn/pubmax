@@ -8,7 +8,7 @@ const authState = vi.hoisted(() => ({
   user: null as { id: string } | null,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState,
 }));
 

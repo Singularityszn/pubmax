@@ -8,7 +8,7 @@ const router = vi.hoisted(() => ({ push: vi.fn() }));
 const askSession = vi.hoisted(() => vi.fn());
 
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: null, session: null }),
 }));
 vi.mock("@/components/pal/PubPalMascot", () => ({

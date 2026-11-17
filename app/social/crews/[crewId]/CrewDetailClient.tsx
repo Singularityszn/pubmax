@@ -17,7 +17,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import SiteNav from "@/components/nav/SiteNav";
 import ReportPerson from "@/components/social/ReportPerson";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";

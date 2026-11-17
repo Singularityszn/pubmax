@@ -13,7 +13,7 @@ import {
 } from "@/lib/referralFollowBack";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 
 import "./referralFollowBack.css";
 

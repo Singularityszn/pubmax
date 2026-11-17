@@ -7,7 +7,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { authedFetch } from "@/lib/authedFetch";
 import { beenHereRevision, subscribeBeenHere } from "@/lib/beenHere";
 import type { BeenCompare, BeenVenue, ComparedVenue, PassportVenue, TasteFact } from "@/lib/profilePassport";

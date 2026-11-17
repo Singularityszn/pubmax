@@ -10,7 +10,7 @@ import { act, createElement, useState, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null }) }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => ({ user: null }) }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>

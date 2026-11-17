@@ -7,7 +7,7 @@ function setup() {
   const bridge = createAuthContextBridge({ configured: true, clerkIntegrationConfigured: false }, {
     cancelPending: cancel, accountSignal: () => owner.signal,
   });
-  const email = vi.fn(async () => ({ status: "sent" as const }));
+  const email = vi.fn(async () => ({ status: "sent" as const, message: "Link sent" }));
   const attached = vi.fn(async () => true);
   const runtime = { ...bridge.read(), signInWithEmail: email, waitForAuthRuntime: attached };
   return { bridge, owner, cancel, email, attached, runtime };
@@ -26,7 +26,7 @@ describe("the auth context while its runtime loads", () => {
     const pending = proxy("person@example.test", "/map");
     expect(email).not.toHaveBeenCalled();
     bridge.publish(runtime);
-    expect(await pending).toEqual({ status: "sent" });
+    expect(await pending).toEqual({ status: "sent", message: "Link sent" });
     expect(email).toHaveBeenCalledExactlyOnceWith("person@example.test", "/map");
     expect(bridge.read().signInWithEmail).toBe(proxy);
   });

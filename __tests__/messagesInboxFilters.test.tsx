@@ -8,7 +8,7 @@ const fixture = vi.hoisted(() => ({
   auth: { user: { id: "alice-account" }, handle: "alice", accountRevision: 1 },
   request: vi.fn(),
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => fixture.auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => fixture.auth }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ signedIn: true, signedOut: false, unresolved: false }),
 }));

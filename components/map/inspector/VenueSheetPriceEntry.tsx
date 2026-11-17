@@ -1,6 +1,6 @@
 "use client";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { usePriceEvidenceMission } from "@/components/nearme/usePriceEvidenceMission";
 import type { CommunityPriceMapReach } from "@/lib/communityPrice";

@@ -28,7 +28,7 @@ import {
   useState,
 } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { trackEvent } from "@/lib/analytics";

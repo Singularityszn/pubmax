@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
-import type { SignOutScope } from "@/components/auth/AuthProvider";
+import type { SignOutScope } from "@/components/auth/authContext";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";

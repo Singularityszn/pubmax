@@ -24,7 +24,7 @@
 
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 

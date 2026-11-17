@@ -9,7 +9,7 @@ import { MAP_ROUTE_PLAN_HREF, MapRouteTransferButton, carryRouteToPlan } from "@
 import PubmaxxLoadingEmber from "@/components/brand/PubmaxxLoadingEmber";
 import { Button } from "@/components/ui/button";
 import { Chip } from "@/components/ui/chip";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useTransientSpeechInput } from "@/components/plan/useTransientSpeechInput";
 import AreaNewsBlock from "@/components/areanews/AreaNewsBlock";
 import type { CityId } from "@/lib/cities";

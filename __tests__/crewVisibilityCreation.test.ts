@@ -13,7 +13,7 @@ const authedActionFetch = vi.hoisted(() => vi.fn());
 const PLAN_ID = "60000000-0000-4000-8000-000000000001";
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState,
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));

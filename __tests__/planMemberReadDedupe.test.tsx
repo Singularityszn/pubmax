@@ -16,7 +16,7 @@ const PLAN = "6ab5ca40-836b-4970-9477-d1779fdd31ab";
 
 const capability = vi.hoisted(() => ({ token: "member-token" }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: null, session: null, identityResolved: true }),
 }));
 vi.mock("@/lib/activePlan", () => ({

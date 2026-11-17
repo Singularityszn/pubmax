@@ -6,7 +6,7 @@
 
 import { Fragment, useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import {
   useAccountScopedDraft,
   useContributionGate,

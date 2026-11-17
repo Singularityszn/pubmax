@@ -1,5 +1,6 @@
 export type PubmaxPerformanceMark =
   | "pubmax:auth-provider-mounted"
+  | "pubmax:auth-runtime-mounted"
   | "pubmax:auth-sdk-requested"
   | "pubmax:auth-sdk-imported"
   | "pubmax:auth-client-built"

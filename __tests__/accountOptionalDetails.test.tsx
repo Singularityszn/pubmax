@@ -14,7 +14,7 @@ const auth = vi.hoisted(() => ({
   handle: null,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),

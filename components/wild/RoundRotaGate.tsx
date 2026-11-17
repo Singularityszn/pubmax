@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { isValidRoundCode, normalizeRoundCode } from "@/lib/rounds";
 import { useWildNightPreview } from "@/lib/useWildNightPreview";

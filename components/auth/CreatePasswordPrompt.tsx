@@ -10,7 +10,7 @@ import {
   useSyncExternalStore,
 } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { readAuthedIdentity } from "@/lib/currentIdentityRead";
 import {
   claimPromptBudget,

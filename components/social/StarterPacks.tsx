@@ -22,7 +22,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";

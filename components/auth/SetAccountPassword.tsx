@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useId, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import PasswordPolicyHint from "@/components/auth/PasswordPolicyHint";
 import {
   AuthActionSessionError,

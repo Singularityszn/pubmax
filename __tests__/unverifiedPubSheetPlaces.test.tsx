@@ -13,7 +13,7 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 
 const auth = vi.hoisted(() => ({ user: { id: "signed-in-drinker" } as { id: string } | null }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: auth.user, handle: "night_owl", identityResolved: true, loading: false, configured: true }),
 }));
 

@@ -5,8 +5,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
-  AuthProvider: ({ children }: { children: React.ReactNode }) =>
+vi.mock("@/components/auth/AuthBoundary", () => ({
+  AuthBoundary: ({ children }: { children: React.ReactNode }) =>
     createElement("div", { "data-testid": "auth-provider" }, children),
 }));
 

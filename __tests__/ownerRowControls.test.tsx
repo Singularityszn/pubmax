@@ -20,7 +20,7 @@ const auth = vi.hoisted(() => ({
 const authedFetch = vi.hoisted(() => vi.fn());
 const authedActionFetch = vi.hoisted(() => vi.fn());
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({
     phase: "signed-in",

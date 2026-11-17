@@ -20,7 +20,7 @@ vi.mock("@/components/map/useVenueOccupancy", () => ({
   trackOccupancyRead: vi.fn(),
   flagVenueOccupancy: vi.fn(),
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: "user-1" },
     session: { user: { id: "user-1" }, access_token: "token" },

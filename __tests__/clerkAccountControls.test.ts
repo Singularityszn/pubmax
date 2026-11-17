@@ -14,7 +14,7 @@ vi.mock("@clerk/nextjs", () => ({
   UserButton: () => null,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState,
 }));
 

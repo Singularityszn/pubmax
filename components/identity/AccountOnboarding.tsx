@@ -14,7 +14,7 @@ import { createPortal } from "react-dom";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
-import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
+import { useAuth, type SignOutScope } from "@/components/auth/authContext";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { AUTH_ACCOUNT_BANNED_TERMS_PATH } from "@/lib/authAccountBan";

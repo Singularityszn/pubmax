@@ -13,7 +13,7 @@
 
 import { FormEvent, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { Button } from "@/components/ui/button";
 import { offlineOrMessage } from "@/lib/apiErrorMessage";
 import { ensureSupabaseBrowser } from "@/lib/authClient";

@@ -20,7 +20,7 @@ const authState = vi.hoisted(() => ({
   handle: "night_owl" as string | null,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: authState.user,
     session: authState.session,

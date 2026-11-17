@@ -7,7 +7,7 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ accountRevision: 0, user: null }),
 }));
 

@@ -14,7 +14,7 @@ import { clearPlanMemberProjectionRead } from "@/components/plan/usePlanMemberRe
 const viewer = vi.hoisted(() => ({ pathname: "/plan/saved", auth: { identityResolved: true, providerAuthState: "signed-out", user: null as { id: string } | null } }));
 vi.mock("next/navigation", () => ({ usePathname: () => viewer.pathname }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => viewer.auth }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => viewer.auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => viewer.auth }));
 vi.mock("@/components/plan/PlanRoute", () => ({ default: ({ stops }: { stops: { venueId: string }[] }) => <ol>{stops.map((stop) => <li key={stop.venueId}>{stop.venueId}</li>)}</ol> }));
 vi.mock("@/components/plan/PlanCollaborationPanel", () => ({ default: () => null }));
 vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));

@@ -11,7 +11,7 @@ import type { NearMeCard } from "@/lib/nearMeAnswer";
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const auth = vi.hoisted(() => ({ identityResolved: true, user: { id: "owner-one" } as { id: string } | null }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth }));
 beforeEach(() => { auth.identityResolved = true; auth.user = { id: "owner-one" }; });
 
 type MissionProps = { cards: readonly NearMeCard[]; enabled: boolean };

@@ -31,7 +31,7 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: viewer.signedIn ? viewer.user : null, session: null, loading: false, identityResolved: true }),
 }));
 

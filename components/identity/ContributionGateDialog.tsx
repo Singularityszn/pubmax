@@ -13,7 +13,7 @@ import {
   type SetStateAction,
 } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import SignInButton from "@/components/auth/SignInButton";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { authedActionFetch } from "@/lib/authedFetch";

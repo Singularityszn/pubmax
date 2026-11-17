@@ -23,7 +23,7 @@ import { normalizeUnnamedOsmPubElement } from "../scripts/lib/osmPubNormalizer.m
 import { normalizeElements, normalizeUnnamedElements } from "../scripts/lib/ukOsmSeed.mjs";
 import { defined } from "@/__tests__/helpers/defined";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: "signed-in-drinker" },
     handle: "night_owl",

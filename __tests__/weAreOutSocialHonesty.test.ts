@@ -32,7 +32,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => viewer.handle,
 }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     identityResolved: viewer.identityResolved,
     retryIdentity: viewer.retryIdentity,

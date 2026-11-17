@@ -11,7 +11,7 @@ import type {
 } from "@/lib/mapExperienceLens";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: { id: "signed-in-drinker" },
     handle: "night_owl",

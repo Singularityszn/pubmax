@@ -18,7 +18,7 @@ import type { Route } from "next";
 import { useState } from "react";
 
 import AccountSwitcher from "@/components/auth/AccountSwitcher";
-import type { SignOutScope } from "@/components/auth/AuthProvider";
+import type { SignOutScope } from "@/components/auth/authContext";
 import {
   deviceAccountSwitchTargets,
   deviceSignOutScopeOffered,

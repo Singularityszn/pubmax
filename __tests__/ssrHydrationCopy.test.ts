@@ -18,7 +18,7 @@ vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/nav/NowSegment", () => ({ default: () => null }));
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({
     user: null,
     loading: true,

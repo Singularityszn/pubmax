@@ -18,7 +18,7 @@
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 import { createPortal } from "react-dom";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
 import { Button } from "@/components/ui/button";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";

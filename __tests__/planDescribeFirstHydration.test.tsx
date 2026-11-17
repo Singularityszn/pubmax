@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 const signedIn = vi.hoisted(() => ({ current: false }));
 
-vi.mock("@/components/auth/AuthProvider", async (importOriginal) => {
+vi.mock("@/components/auth/authContext", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/components/auth/AuthProvider")>();
   return {
     ...original,

@@ -11,7 +11,7 @@ import type { VisitReportDTO } from "@/lib/visitReports";
 // The panel mounts through its real loader (fetchVisitReports) against a
 // stubbed /api/visit-reports, so every assertion is what a reader sees.
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => ({ user: null, session: null }),
 }));
 

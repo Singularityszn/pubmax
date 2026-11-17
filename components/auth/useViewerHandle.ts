@@ -15,7 +15,7 @@
 
 import { useSyncExternalStore } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
 import { readDeviceHandle } from "@/lib/identityClaimClient";
 

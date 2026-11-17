@@ -29,7 +29,7 @@ const magicLinkState = vi.hoisted(() => ({
   signInWithEmail: null as ((email: string) => Promise<unknown>) | null,
 }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({
+vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => authState.current,
 }));
 vi.mock("@/components/auth/MagicLinkForm", () => ({

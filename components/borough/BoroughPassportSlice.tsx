@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { formatGbp } from "@/lib/formatGbp";
 import { buildBoroughPassport } from "@/lib/passport";
 import { normalizeHandle, type ProfileDrop } from "@/lib/profiles";

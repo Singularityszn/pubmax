@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import EmptyState from "@/components/ui/empty-state";
 import { Chip } from "@/components/ui/chip";
 import Screen from "@/components/ui/screen";
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";

@@ -1,21 +1,12 @@
 "use client";
 
-// App-wide auth context. Holds the current Supabase session/user (or null) and
-// exposes Google, Apple, Microsoft, passwordless email, and sign-out actions. Additive only:
-// anonymous browsing is unaffected - nothing here gates a route or blocks a
-// render. A signed-in session establishes identity for account-owned actions.
-//
-// React 19 note: `react-hooks/set-state-in-effect` is an ERROR here, so we never
-// call setState synchronously in the effect body. The effect only SUBSCRIBES
-// (getSession + onAuthStateChange); every setState fires from an async callback
-// or an event handler, and the subscription is torn down on cleanup.
-//
-// Account onboarding owns handle selection after sign-in. Provider email and
-// browser-local handles are never promoted to account identity automatically.
+// The session runtime loaded by AuthBoundary. This is the only owner of
+// Supabase sessions, account transitions and native session installation.
 
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -30,6 +21,7 @@ import type { Session, User } from "@supabase/supabase-js";
 import "@/app/auth/auth.css";
 import AuthAccountBannedNotice from "@/components/auth/AuthAccountBannedNotice";
 import IdentityNudge from "@/components/identity/IdentityNudge";
+import { captureBrowserAuthReturn, browserLocalStorage, browserSessionStorage, browserLockManager, releaseBrowserAuthAttempt, cancelBrowserAuthAttempt, scrubLingeringBrowserAuthCallback } from "@/lib/browserAuthReturn";
 import { LOGIN_ADD_ACCOUNT_PARAM, markArrival, parseAddAccount, takeChosenIntent } from "@/lib/arrivalWelcome";
 import { forgetCurrentIdentityRead } from "@/lib/currentIdentityRead";
 import { oauthOpensInSystemBrowser, openOAuthInSystemBrowser } from "@/lib/nativeOAuth";
@@ -97,14 +89,9 @@ import {
   type DeviceAccountSwitchOutcome,
 } from "@/lib/deviceAccountSwitch";
 import {
-  AUTH_RETURN_FRAGMENT_RESTORED_EVENT,
   beginCanonicalAuthAttempt,
-  cancelAuthAttempt,
   defaultEmailAuthNext,
   hasPendingAuthAttempt,
-  releaseAuthAttempt,
-  scrubAuthCallback,
-  scrubLingeringAuthCallback,
   safeAuthNext,
   type CanonicalAuthAttemptStart,
   type AuthCallbackAttempt,
@@ -156,15 +143,7 @@ import {
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";
 export { useAuth } from "@/components/auth/authContext";
 
-// Two of the account overlays this provider hosts render nothing without a
-// signed-in user, and this provider rides the root shell on every route.
-// Imported eagerly they put the handle-claim form and the founders' welcome in
-// front of every anonymous page. Each is its own chunk now, mounted only once a
-// user exists, so a stranger never downloads them and nothing a signed-in
-// reader sees moves: both already waited on the session before drawing.
-//
-// IdentityNudge stays eager on purpose. Its first-paint grace starts when it
-// mounts, so mounting it late would hold a nudge the reader just armed.
+// Account overlays load only after this runtime establishes a user.
 const ArrivalWelcome = nextDynamic(() => import("@/components/auth/ArrivalWelcome"), {
   ssr: false,
 });
@@ -190,22 +169,6 @@ function signedInAsMessage(user: User): string {
   return address ? `Signed in as ${address}.` : "Signed in.";
 }
 
-function browserLocalStorage(): Storage | null {
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
-
-function browserSessionStorage(): Storage | null {
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
 /**
  * Copy an account's OWN canonical handle onto its OWN row in the remembered
  * account lane, so the switcher lists people rather than email addresses.
@@ -223,33 +186,6 @@ function rememberAccountHandle(userId: string, handle: string | null): void {
     Date.now(),
   );
   emitDeviceAccountSessionsChanged();
-}
-
-function browserLockManager(): LockManager | null {
-  try {
-    return typeof navigator !== "undefined" ? navigator.locks : null;
-  } catch {
-    return null;
-  }
-}
-
-function releaseBrowserAuthAttempt(attemptId: string): void {
-  releaseAuthAttempt(attemptId, browserLocalStorage(), browserSessionStorage());
-}
-
-function cancelBrowserAuthAttempt(keepAttemptId?: string | null): void {
-  cancelAuthAttempt(browserLocalStorage(), browserSessionStorage(), keepAttemptId);
-}
-
-/**
- * Defect fence: callback tokens must leave the address bar on every path -
- * success, failure, or a first replaceState the browser refused or a router
- * write reverted. Runs after the exchange settles and once more on a delay.
- */
-function scrubLingeringBrowserAuthCallback(): void {
-  scrubLingeringAuthCallback(window.location.href, (cleanUrl) =>
-    window.history.replaceState(window.history.state, "", cleanUrl),
-  );
 }
 
 /**
@@ -338,16 +274,34 @@ const NOBODY_IDENTITY: CanonicalIdentityState = {
   identity: null,
 };
 
+function createRuntimeAttachment() {
+  let resolve!: (ready: boolean) => void;
+  const state = { attached: false, settled: false, promise: new Promise<boolean>((done) => { resolve = done; }),
+    finish(ready: boolean) { state.attached = ready; state.settled = true; resolve(ready); } };
+  return state;
+}
+
 export function AuthProvider({
   children,
   clerkIntegrationConfigured,
+  capturedAuthReturn,
+  initialSocialProviders = null,
+  publishContext,
 }: {
   children?: ReactNode;
   clerkIntegrationConfigured: boolean;
+  capturedAuthReturn?: Promise<CapturedAuthCallback | null>;
+  initialSocialProviders?: SocialAuthProviderAvailability | null;
+  publishContext?: (value: AuthContextValue) => void;
 }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
   const pendingClientTurn = useRef<AuthClientTurn | null>(null);
+  const attachment = useRef(createRuntimeAttachment());
+  const waitForAuthRuntime = useCallback(() => {
+    pendingClientTurn.current?.releaseForSignIn();
+    return attachment.current.attached ? Promise.resolve(true) : attachment.current.promise;
+  }, []);
   const accountRevision = useSyncExternalStore(
     subscribeProviderIdentityRevision,
     readProviderIdentityRevision,
@@ -383,7 +337,7 @@ export function AuthProvider({
   /** Confirmation receipt after an unowned callback is accepted. */
   const [authSignedInNotice, setAuthSignedInNotice] = useState<string | null>(null);
   const [socialProviderRead, setSocialProviders] =
-    useState<SocialAuthProviderAvailability | null>(null);
+    useState<SocialAuthProviderAvailability | null>(initialSocialProviders);
   const socialProviders = socialProviderRead ?? NO_SOCIAL_AUTH_PROVIDERS;
   const [welcomeBack, setWelcomeBack] = useState<ResumeHint | null>(null);
   const [rejectedContributionAuth, setRejectedContributionAuth] =
@@ -523,7 +477,7 @@ export function AuthProvider({
       active = false;
     };
   }, [configured]);
-  const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(undefined);
+  const capturedCallback = useRef<Promise<CapturedAuthCallback | null> | undefined>(capturedAuthReturn);
 
   useEffect(() => {
     const user = session?.user ?? null;
@@ -594,21 +548,11 @@ export function AuthProvider({
   }, [session, identityReadAttempt, getCurrentUserId, providerAccountSignal]);
 
   useEffect(() => {
+    if (attachment.current.settled && !attachment.current.attached) attachment.current = createRuntimeAttachment();
     // Capture callback inputs once across React Strict Mode's effect replay and
     // scrub the address bar synchronously, before any exchange/network await.
     if (capturedCallback.current === undefined) {
-      capturedCallback.current = scrubAuthCallback(
-        window.location.href,
-        (cleanUrl) => window.history.replaceState(window.history.state, "", cleanUrl),
-        {
-          persistentStorage: browserLocalStorage(),
-          tabStorage: browserSessionStorage(),
-          lockManager: browserLockManager(),
-          onFragmentRestored: () => {
-            window.dispatchEvent(new Event(AUTH_RETURN_FRAGMENT_RESTORED_EVENT));
-          },
-        },
-      );
+      capturedCallback.current = captureBrowserAuthReturn();
     }
     const callbackCapture = capturedCallback.current ?? Promise.resolve(null);
 
@@ -629,6 +573,7 @@ export function AuthProvider({
     };
 
     if (!configured) {
+      attachment.current.finish(false);
       let active = true;
       void callbackCapture.then((captured) => {
         const callbackAttempt = captured?.attempt ?? null;
@@ -679,7 +624,8 @@ export function AuthProvider({
     // One durable-cookie read serves the wait below and the bootstrap.
     let resumeHint: ReturnType<typeof fetchResumeHint> | null = null;
     const readResumeHint = () => (resumeHint ??= fetchResumeHint());
-    markPubmaxTiming("pubmax:auth-provider-mounted");
+    if (!publishContext) markPubmaxTiming("pubmax:auth-provider-mounted");
+    markPubmaxTiming("pubmax:auth-runtime-mounted");
     const clientTurn = authClientTurn(window, {
       storedSession: hasStoredBrowserSession(browserLocalStorage()),
       storedSessionNow: () => hasStoredBrowserSession(browserLocalStorage()),
@@ -723,6 +669,7 @@ export function AuthProvider({
     // signed-out variant over an intact session (lib/authClientLoad.ts).
     const loadClient = () => clientTurn.ready.then(() => {
       if (!active) return null;
+      if (attachment.current.settled && !attachment.current.attached) attachment.current = createRuntimeAttachment();
       armLoadingTimeout();
       return loadAuthClientWithRetry(ensureSupabaseBrowser, {
         delay: (ms) =>
@@ -734,6 +681,7 @@ export function AuthProvider({
       if (!active || !outcome) return;
 
       if (outcome.status === "unavailable") {
+        attachment.current.finish(false);
         // Say nothing about the viewer and stop the ceiling from saying it for
         // us. A stale document is the likeliest cause, so ask the deployment
         // skew check to run: it reloads onto the current deployment, and its
@@ -762,6 +710,7 @@ export function AuthProvider({
 
       // Unconfigured / SSR-only: nothing to subscribe to.
       if (!supabase) {
+        attachment.current.finish(false);
         window.clearTimeout(loadingTimeout);
         const unavailableAuthState = resolveSupabaseAuthState(
           "bootstrap",
@@ -860,6 +809,7 @@ export function AuthProvider({
       publishAuthEvent.current = handleAuthEvent;
       const registration = supabase.auth.onAuthStateChange(handleAuthEvent);
       subscription = registration.data.subscription;
+      attachment.current.finish(true);
       // Unmounted while the chunk was loading: tear the subscription right back
       // down so the cleanup's null slot doesn't leak it.
       if (!active) {
@@ -1085,9 +1035,10 @@ export function AuthProvider({
       stopBootstrapRetry();
       window.removeEventListener("focus", retryBootstrap);
       subscription?.unsubscribe();
+      attachment.current.finish(false);
       publishAuthEvent.current = null;
     };
-  }, [configured, updateSession]);
+  }, [configured, updateSession, publishContext]);
 
   useEffect(() => {
     if (pathname !== null) pendingClientTurn.current?.updatePathname(pathname);
@@ -1662,6 +1613,7 @@ export function AuthProvider({
         : null;
     return {
       session,
+      waitForAuthRuntime,
       user,
       loading,
       configured,
@@ -1695,6 +1647,7 @@ export function AuthProvider({
     };
   }, [
     session,
+    waitForAuthRuntime,
     loading,
     configured,
     clerkIntegrationConfigured,
@@ -1718,6 +1671,8 @@ export function AuthProvider({
     invalidateContributionAuth,
     getCurrentUserId,
   ]);
+
+  useLayoutEffect(() => { publishContext?.(value); }, [publishContext, value]);
 
   return (
     <AuthContext.Provider value={value}>
@@ -1774,7 +1729,7 @@ export function AuthProvider({
       ) : null}
       {/* Signed-out account nudge after a high-intent action. Self-gates on
           auth + a pending trigger, so it renders nothing until armed. */}
-      <IdentityNudge />
+      {publishContext ? null : <IdentityNudge />}
     </AuthContext.Provider>
   );
 }

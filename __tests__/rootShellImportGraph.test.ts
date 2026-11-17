@@ -104,7 +104,7 @@ describe("the root shell's eager import graph", () => {
 
   it("walks a real graph rather than an empty one", () => {
     // The shell's own pieces must be found, or a broken walk would pass.
-    for (const file of ["components/auth/AuthProvider.tsx", "components/nav/MobileTabBar.tsx", "lib/promptBudget.ts"]) {
+    for (const file of ["components/auth/AuthBoundary.tsx", "components/nav/MobileTabBar.tsx", "lib/promptBudget.ts"]) {
       expect(graph.has(join(REPO_ROOT, file)), file).toBe(true);
     }
   });

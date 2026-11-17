@@ -9,7 +9,7 @@ const auth = vi.hoisted(() => ({
 }));
 const navigation = vi.hoisted(() => ({ replace: vi.fn() }));
 
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => auth.current }));
+vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/auth/authContext", () => ({ useAuth: () => auth.current }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => "test-token" }));
