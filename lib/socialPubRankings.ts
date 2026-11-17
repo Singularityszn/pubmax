@@ -141,3 +141,7 @@ export function socialPubRankingPayload(body: unknown): SocialPubRankingEntry[] 
   });
   return valid ? entries as SocialPubRankingEntry[] : null;
 }
+
+export function socialPubRankingReadFailure(_status: number, _body: unknown): "refused" | "unavailable" {
+  return "unavailable";
+}
