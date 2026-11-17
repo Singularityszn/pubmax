@@ -9,6 +9,7 @@ import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCard from "@/components/plan/PlanCard";
 import PlanCrew from "@/components/plan/PlanCrew";
+import PlanNightReceipt from "@/components/plan/PlanNightReceipt";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
@@ -243,6 +244,7 @@ export default async function PlanPage({ params }: Props) {
           otherwise. Client-only gating, no new route. */}
       {!completed ? <NightCrawlMode planId={id} initialState={redactedInitialState(state, safeTitle)} /> : null}
       {completed ? <CompletedPlanUsualLot /> : null}
+      {completed ? <PlanNightReceipt planId={id} /> : null}
       <div className="planPage__grid">
         <PlanSummary planId={id} initialPreview={preview} vibeTally={vibeTally} />
         <aside className="planPage__side">

@@ -31,8 +31,8 @@ function completedState(overrides: Partial<PlanState> = {}): PlanState {
       { venueId: "venue-a", venueName: "The First Pub", position: 0 },
     ],
     crew: [
-      { id: "m-host", name: HOST_NAME, status: "arrived", joinedAt: "2026-11-10T12:00:00.000Z", updatedAt: "2026-11-14T19:05:00.000Z" },
-      { id: "m-mate", name: MATE_NAME, status: "arrived", joinedAt: "2026-11-11T12:00:00.000Z", updatedAt: "2026-11-14T19:06:00.000Z" },
+      { id: "m-host", name: HOST_NAME, status: "here", joinedAt: "2026-11-10T12:00:00.000Z", updatedAt: "2026-11-14T19:05:00.000Z" },
+      { id: "m-mate", name: MATE_NAME, status: "here", joinedAt: "2026-11-11T12:00:00.000Z", updatedAt: "2026-11-14T19:06:00.000Z" },
     ],
     actions: [
       { id: "a-1", type: "arrived", stopPosition: 0, ending: null, createdAt: "2026-11-14T19:05:00.000Z", venueId: "venue-a" },
