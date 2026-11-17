@@ -13,13 +13,13 @@
 -- cannot drop a trigger there. The rollback makes the trigger function return at once.
 --
 -- THE LEDGER IS NOT DROPPED SILENTLY. Before anything else, the rollback locks
--- social_crew_removal_corrections against new corrections and counts its rows. When
--- there are rows, the rollback stops unless the session first ran
--- set pubmax.crew_removal_corrections_exported = '<that exact row count>';
--- A correction that commits a row while the rollback waits for that lock changes the
--- count, so an export taken before it no longer matches and the rollback stops.
+-- social_crew_removal_corrections against writers and checks its exact exported snapshot.
+-- When there are rows, set pubmax.crew_removal_corrections_exported to the count:SHA256
+-- acknowledgement produced in the same query as the exported records (see the runbook).
+-- A changed row set refuses rollback even when deletions preserve the exported count.
 
 begin;
+set local time zone 'UTC';
 
 -- Locks. auth.users comes first, while this rollback holds nothing, so waiting for it
 -- cannot close a cycle: a correction, admission, deletion or plan join that holds an
@@ -32,16 +32,19 @@ lock table public.social_crews, public.social_crew_members, public.social_crew_j
   public.private_social_accounts in access exclusive mode nowait;
 
 do $$
-declare v_rows bigint := 0;
+declare v_rows bigint := 0; v_records jsonb := '[]'::jsonb; v_acknowledgement text;
 begin
   if to_regclass('public.social_crew_removal_corrections') is not null then
-    -- Held until commit, so no correction can add a row between this count and the drop.
+    -- Held until commit, so this snapshot cannot change before the drop.
     lock table public.social_crew_removal_corrections in access exclusive mode nowait;
-    select count(*) into v_rows from public.social_crew_removal_corrections;
+    select count(*), coalesce(jsonb_agg(to_jsonb(correction) order by id), '[]'::jsonb)
+      into v_rows, v_records from public.social_crew_removal_corrections correction;
   end if;
+  v_acknowledgement := v_rows::text || ':' || pg_catalog.encode(
+    pg_catalog.sha256(pg_catalog.convert_to(v_records::text, 'UTF8')), 'hex');
   if v_rows > 0
-    and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> v_rows::text then
-    raise exception 'Rollback 0245 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported to that row count and run it again.', v_rows;
+    and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> v_acknowledgement then
+    raise exception 'Rollback 0245 would drop % crew removal corrections. Export the exact current records, then set pubmax.crew_removal_corrections_exported to their count:SHA256 acknowledgement and run it again.', v_rows;
   end if;
 end;
 $$;

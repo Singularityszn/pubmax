@@ -78,7 +78,7 @@ The delete removes the Plan's seats, its crew, member rows, join requests, invit
 
 When an account is deleted, migration 0246 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
 
-The deletion service runs the release right after the auth row is deleted, and again when the same delete is repeated. Each run also finishes any earlier deletion whose release failed. An admission or invitation into a crew first releases that crew's deleted members. When the service logs `account.delete_crew_release_failed`, check and finish the release:
+The deletion service runs the release after the auth row is deleted, and again when the same delete is repeated. Each call processes at most 20 pending crews across deleted accounts. Later calls continue pending cleanup. A failed call can leave counts or cancellation stale until another call completes. An admission or invitation first releases that crew's deleted members. When the service logs `account.delete_crew_release_failed`, check and finish the release:
 
 ```sql
 select member.crew_id, member.role
@@ -98,21 +98,31 @@ Run the call until it answers `"crews": 0`. Rolling back 0246 stops new releases
 
 ## Rollback
 
-Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that already hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one of them is busy, it stops at once with `could not obtain lock`; run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. It counts the ledger rows. While the ledger has rows, the rollback stops.
+Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 
-1. Export the rows and note how many there are.
-
-   ```sql
-   select * from public.social_crew_removal_corrections order by created_at;
-   ```
-
-2. In the session that runs the rollback, first run this, with the exact count from step 1:
+1. In psql, export the records and their acknowledgement in one query. Use a secure local destination.
 
    ```sql
-   set pubmax.crew_removal_corrections_exported = '<row count>';
+   \pset format unaligned
+   \pset tuples_only on
+   set time zone 'UTC';
+   with exported as (
+     select coalesce(jsonb_agg(to_jsonb(correction) order by id), '[]'::jsonb) as records
+     from public.social_crew_removal_corrections correction
+   )
+   select jsonb_build_object('records', records, 'acknowledgement',
+     jsonb_array_length(records)::text || ':' || encode(sha256(convert_to(records::text, 'UTF8')), 'hex'))
+   from exported
+   \g /secure/crew-removal-corrections.json
    ```
 
-3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.
+2. Read the acknowledgement from that file. In the rollback session, set that exact value.
+
+   ```sql
+   set pubmax.crew_removal_corrections_exported = '<count>:<SHA256 from the exported file>';
+   ```
+
+3. Run the rollback. If any record changed after export, it stops even when the count is unchanged. Export again before retrying.
 
 The rollback also restores the seat reference from member rows to `ON DELETE RESTRICT`. After it, a crew-bound Plan cannot be deleted again.
 

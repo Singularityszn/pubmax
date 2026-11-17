@@ -154,10 +154,10 @@ export type AccountDeletionDeps = {
   deleteAuthUser(userId: string): Promise<{ error: unknown }>;
   /**
    * Frees deleted accounts' crew places and cancels the nights they owned
-   * (migration 0244). It runs after the auth row is gone, in its own
+   * (migration 0246). It runs after the auth row is gone, in its own
    * transaction, because the delete holds account locks that a crew lock must
-   * never follow. It sweeps every deleted account, so a later delete or an
-   * operator call also finishes one that failed here. Throws when refused.
+   * never follow. Each bounded pass advances pending cleanup across deleted
+   * accounts. Later deletes or operator calls continue it. Throws when refused.
    */
   releaseDepartedCrewPlaces(): Promise<void>;
 };

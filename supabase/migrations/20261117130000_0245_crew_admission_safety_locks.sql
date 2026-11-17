@@ -276,7 +276,9 @@ begin
       or (v_visibility<>'open' and v_rel is distinct from 'mutual') then
       return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'not_found'); end if;
     v_expiry:=public._social_crew_plan_expiry(p_crew_id);
-    if v_expiry is null or v_expiry<=now() then return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,'invalid'); end if;
+    if v_expiry is null or v_expiry<=now() then
+      return public._social_crew_fail_write(p_actor_account_id,'join-request',p_idempotency_key,p_payload_digest,
+        case when exists(select 1 from public.social_crews crew join public.plans plan on plan.id=crew.plan_id where crew.id=p_crew_id and plan.status='abandoned') then 'not_found' else 'invalid' end); end if;
     update public.social_crew_join_requests set state='expired',decided_at=now()
       where crew_id=p_crew_id and requester_account_id=p_actor_account_id and state='pending' and now()>=expires_at;
     if exists(select 1 from public.social_crew_members
