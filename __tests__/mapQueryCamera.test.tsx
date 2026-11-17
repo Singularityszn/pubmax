@@ -1555,7 +1555,7 @@ describe("closing a route stop", () => {
   });
 });
 
-it("restores the selected route stop when its source arrives after style load", () => {
+it("restores selection as soon as a replacement route source arrives, before worker data", () => {
   const states = new Map<string, { selected: boolean }>();
   const listeners = new Map<string, (event: { sourceId: string }) => void>();
   let sourceReady = true;
@@ -1578,7 +1578,7 @@ it("restores the selected route stop when its source arrives after style load", 
     sourceReady = false;
     listeners.get("style.load")?.({ sourceId: "route-stops" });
     sourceReady = true;
-    listeners.get("sourcedata")?.({ sourceId: "route-stops" });
+    listeners.get("styledata")?.({ sourceId: "route-stops" });
   });
   expect(states.get("christmas-1")?.selected).toBe(true);
   act(() => root.render(createElement(SelectedStop, { id: "christmas-6" })));
