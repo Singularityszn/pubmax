@@ -18,6 +18,16 @@
 
 begin;
 
+-- Lock order: the crew tables, then auth.users, then the ledger. A correction takes a
+-- crew row, then an auth row, then writes the ledger. An account deletion takes
+-- auth.users, then cascades into the ledger. Dropping the auth.users trigger needs
+-- ACCESS EXCLUSIVE there, so it is taken now, before the ledger. This rollback then
+-- never holds one of these while it waits for another. Sign-ins and Social writes
+-- wait until it commits.
+lock table public.social_crews, public.social_crew_members, public.social_crew_join_requests,
+  public.social_crew_invitations in access exclusive mode;
+lock table auth.users in access exclusive mode;
+
 do $$
 declare v_rows bigint := 0;
 begin

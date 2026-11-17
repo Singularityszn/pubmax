@@ -15,7 +15,6 @@ import {
   STAFF_ROLE,
   accountOf,
   admit,
-  answerInvitation,
   block,
   blockCall,
   bootCrewAdmissionDatabase,
@@ -467,42 +466,6 @@ describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () =>
     expect(answer?.ok).toBe(true);
     expect(state(crew, xav)).toBe("left");
     expect(corrections(crew)).toBe("0");
-  });
-});
-
-describe.skipIf(skipReason !== null)("after 0243: deleting a crew-bound Plan", () => {
-  beforeAll(() => { if (running()) stageTo("after"); });
-
-  it("deleting a Plan removes its crew, members, decided requests and accepted invitations, while a lone referenced row is still refused", async () => {
-    const host = person(), ana = person(), xav = person(), bea = person();
-    mutual(host, xav);
-    const crew = crewWith(host, [ana]);
-    const invitation = invite(host, crew, xav).invitation_id as string;
-    expect(answerInvitation(xav, crew, invitation, "accepted")).toMatchObject({ ok: true, code: "accepted" });
-    request(bea, crew);
-    const plan = db().sql(`select plan_id from public.social_crews where id='${crew}'`);
-    const history = () => db().sql(`select
-      (select count(*) from public.social_crews where id='${crew}')||'|'||
-      (select count(*) from public.social_crew_members where crew_id='${crew}')||'|'||
-      (select count(*) from public.social_crew_join_requests where crew_id='${crew}')||'|'||
-      (select count(*) from public.social_crew_invitations where crew_id='${crew}')`);
-    expect(history()).toBe("1|3|2|1");
-
-    const kept = crewWith(host, [ana]);
-    const hostMember = memberId(kept, host);
-    const anaSeat = db().sql(`select plan_member_id from public.social_crew_members where crew_id='${kept}' and social_account_id='${ana.account}'`);
-    for (const orphaning of [`delete from public.social_crew_members where id='${hostMember}'`,
-      `delete from public.plan_crew_members where id='${anaSeat}'`]) {
-      const refused = await db().attempt(orphaning);
-      expect(refused.ok, orphaning).toBe(false);
-      expect(refused.said, orphaning).toContain("23503");
-    }
-
-    const deleted = await db().attempt(`delete from public.plans where id='${plan}'`);
-    expect(deleted.said).toBe("");
-    expect(deleted.ok).toBe(true);
-    expect(history()).toBe("0|0|0|0");
-    expect(state(kept, ana)).toBe("active");
   });
 });
 

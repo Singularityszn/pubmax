@@ -5172,6 +5172,7 @@ export type Database = {
         Row: {
           id: string;
           crew_id: string;
+          subject_user_id: string;
           member_id: string;
           social_account_id: string;
           reason: string;
@@ -5182,6 +5183,7 @@ export type Database = {
         Insert: {
           id?: string;
           crew_id: string;
+          subject_user_id: string;
           member_id: string;
           social_account_id: string;
           reason: string;
@@ -5192,6 +5194,7 @@ export type Database = {
         Update: {
           id?: string;
           crew_id?: string;
+          subject_user_id?: string;
           member_id?: string;
           social_account_id?: string;
           reason?: string;
@@ -5205,6 +5208,13 @@ export type Database = {
             columns: ["crew_id"];
             isOneToOne: false;
             referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_crew_removal_corrections_subject_user_id_fkey";
+            columns: ["subject_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
