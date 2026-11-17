@@ -7,28 +7,35 @@
 --    purchase, price, receipt, photo or points. No browser or service role reads the
 --    table; only these functions do.
 -- 2. attest_social_crew_attendance_atomic: an active owner or co-host of an open crew
---    marks an active accepted member who is not themselves, from London midnight on
---    the night's day until start + 12 hours (OPEN_CRAWL_ARRIVAL_CLOSE_MS in
---    lib/nightWindows.ts). A cancelled night is closed. A change names the current
---    revision (0 for none) and gets 'stale' otherwise. The same state is 'unchanged'.
---    A block either way between host and participant, or a suspended or deleted
---    account, answers not_found like an unknown member. Writes use the Crew write
---    receipts, so a replayed key returns its stored answer.
--- 3. correct_social_crew_attendance_admin: an active moderator, with a 3 to 500
---    character reason, sets any accepted participant's mark until it expires, also
---    after the close. A moderator who is or was an owner or co-host of the crew, who
---    recorded a mark in it, or who is the participant, gets 'forbidden'.
--- 4. Lock order, the order admission uses (0245): crew row, the participant's auth row
+--    marks an active guest (role 'member'), never an owner, a co-host or themselves,
+--    from London midnight on the night's day until start + 12 hours
+--    (OPEN_CRAWL_ARRIVAL_CLOSE_MS in lib/nightWindows.ts). A cancelled night is closed.
+--    A change names the current revision (0 for none) and gets 'stale' otherwise. The
+--    same state is 'unchanged'. A block either way between host and guest, or a
+--    suspended or deleted account, answers not_found like an unknown member.
+-- 3. Writes use the Crew write receipts. A receipt that names a guest carries that
+--    guest's auth user and the mark's expiry: it goes with the account deletion, and
+--    the cleanup deletes it once expired. A replayed key passes every access check
+--    again, after the same locks, before it returns its stored answer. Without access
+--    it answers not_found, and after expiry 'closed'. It never writes.
+-- 4. correct_social_crew_attendance_admin: an active moderator, with a 3 to 500
+--    character reason, sets the mark of any member row of the crew (active, left or
+--    removed) until it expires, also after the close, and never changes the member
+--    row. A moderator with any member row in that crew, in any role or state, its
+--    owner, anyone who marked in it, or the participant gets 'forbidden'. So a
+--    participant moderator never decides that crew's disputes.
+-- 5. Lock order, the order admission uses (0245): crew row, the participant's auth row
 --    (KEY SHARE), then participant-account locks in account-ID order. Blocks,
 --    suspension and account deletion take the same account locks.
--- 5. Every row expires 30 days after the close. Reads and the export deny expired rows
---    before any cleanup. purge_expired_social_crew_attendance deletes at most 1,000
---    expired rows per call. Nothing schedules it.
--- 6. A row goes with its crew, and with its participant's auth user in the same
+-- 6. Every row expires 30 days after the close. Reads, replays and the export deny
+--    expired rows before any cleanup. purge_expired_social_crew_attendance deletes at
+--    most 1,000 expired rows and 1,000 expired receipts per call. Nothing schedules it.
+-- 7. A row goes with its crew, and with its participant's auth user in the same
 --    transaction as that account deletion.
 --
--- Rollback drops the table and functions. It stops while rows exist unless the session
--- sets pubmax.crew_attendance_discarded to the exact row count.
+-- Rollback drops the table and functions, erases the attendance receipts and drops
+-- the receipt columns. It stops while rows exist unless the session sets
+-- pubmax.crew_attendance_discarded to the exact row count.
 begin;
 
 create table public.social_crew_attendance (
@@ -54,6 +61,17 @@ create index social_crew_attendance_subject_user_idx on public.social_crew_atten
 create index social_crew_attendance_expires_idx on public.social_crew_attendance (expires_at);
 alter table public.social_crew_attendance enable row level security;
 revoke all on table public.social_crew_attendance from public, anon, authenticated, service_role;
+
+alter table public.private_social_crew_write_receipts
+  add column subject_user_id uuid references auth.users(id) on delete cascade,
+  add column expires_at timestamptz,
+  add constraint private_social_crew_write_receipts_attendance_subject check (
+    (subject_user_id is null and expires_at is null)
+    or (operation like 'attendance:%' and subject_user_id is not null and expires_at is not null));
+create index private_social_crew_write_receipts_subject_idx
+  on public.private_social_crew_write_receipts (subject_user_id) where subject_user_id is not null;
+create index private_social_crew_write_receipts_expires_idx
+  on public.private_social_crew_write_receipts (expires_at) where expires_at is not null;
 
 -- The night's attendance window from the crew's Plan. Null when there is no Plan.
 create function public._social_crew_attendance_window(p_crew uuid,
@@ -81,7 +99,7 @@ as $$
   where mark.crew_id=p_crew and mark.subject_account_id=p_account and mark.expires_at > pg_catalog.statement_timestamp();
 $$;
 
--- True when this active owner or co-host may mark this member now. A new statement
+-- True when this active owner or co-host may mark this guest now. A new statement
 -- each time, so it reads what committed while the locks waited.
 create function public._social_crew_attendance_markable(p_crew uuid,p_actor uuid,p_subject uuid)
 returns boolean language sql stable security definer set search_path=''
@@ -93,8 +111,34 @@ as $$
     and exists(select 1 from public.social_crew_members member
       join public.private_social_accounts account on account.id=member.social_account_id
       where member.crew_id=p_crew and member.social_account_id=p_subject and member.state='active'
-        and account.ownership_state='active' and account.supabase_user_id is not null)
+        and member.role='member' and account.ownership_state='active' and account.supabase_user_id is not null)
     and public._social_crew_relationship_between_accounts(p_actor,p_subject) is distinct from 'blocked';
+$$;
+
+-- Stores one attendance answer under its key. A receipt about a guest names them and
+-- expires with the mark.
+create function public._social_crew_attendance_finish(p_actor uuid,p_operation text,p_key text,p_digest text,
+  p_response jsonb,p_subject_user uuid,p_expires_at timestamptz)
+returns jsonb language plpgsql security definer set search_path=''
+as $$
+begin
+  insert into public.private_social_crew_write_receipts(
+    actor_account_id,operation,idempotency_key,payload_digest,response,subject_user_id,expires_at
+  ) values(p_actor,p_operation,p_key,p_digest,p_response,p_subject_user,p_expires_at);
+  return p_response;
+end;
+$$;
+
+-- A refusal. A replay writes nothing, because its key already holds a receipt.
+create function public._social_crew_attendance_refuse(p_replay boolean,p_actor uuid,p_operation text,p_key text,
+  p_digest text,p_code text,p_subject_user uuid default null,p_expires_at timestamptz default null)
+returns jsonb language plpgsql security definer set search_path=''
+as $$
+begin
+  if p_replay then return jsonb_build_object('ok',false,'code',p_code); end if;
+  return public._social_crew_attendance_finish(p_actor,p_operation,p_key,p_digest,
+    jsonb_build_object('ok',false,'code',p_code),p_subject_user,p_expires_at);
+end;
 $$;
 
 create function public.attest_social_crew_attendance_atomic(
@@ -102,34 +146,59 @@ create function public.attest_social_crew_attendance_atomic(
   p_idempotency_key text,p_payload_digest text
 ) returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_operation text:='attendance:'||p_crew_id::text; v_replay jsonb; v_subject uuid; v_user uuid;
-  v_window record; v_current record; v_response jsonb;
+declare v_operation text:='attendance:'||p_crew_id::text; v_replay jsonb; v_replaying boolean:=false;
+  v_stored_expiry timestamptz; v_subject uuid; v_user uuid; v_window record; v_current record; v_response jsonb;
 begin
   v_replay:=public._social_crew_begin_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest);
-  if v_replay is not null then return v_replay; end if;
-  if p_state is null or p_state not in ('attended','absent') or p_expected_revision is null or p_expected_revision<0 then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'invalid'); end if;
+  if v_replay is not null then
+    -- Without a stored receipt for this payload, the answer is an invalid key or a
+    -- changed payload, and it discloses nothing about the guest.
+    select receipt.expires_at into v_stored_expiry from public.private_social_crew_write_receipts receipt
+    where receipt.actor_account_id=p_actor_account_id and receipt.operation=v_operation
+      and receipt.idempotency_key=p_idempotency_key and receipt.payload_digest=p_payload_digest;
+    if not found then return v_replay; end if;
+    v_replaying:=true;
+  elsif p_state is null or p_state not in ('attended','absent') or p_expected_revision is null or p_expected_revision<0 then
+    return public._social_crew_attendance_refuse(false,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'invalid');
+  end if;
   perform 1 from public.social_crews where id=p_crew_id for update;
-  if not found then return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if not found then
+    return public._social_crew_attendance_refuse(v_replaying,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found');
+  end if;
   select member.social_account_id into v_subject from public.social_crew_members member
     where member.id=p_member_id and member.crew_id=p_crew_id;
   if v_subject is null or not public._social_crew_attendance_markable(p_crew_id,p_actor_account_id,v_subject) then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
-  select * into v_window from public._social_crew_attendance_window(p_crew_id);
-  if v_window.cancelled or pg_catalog.statement_timestamp() >= v_window.closes_at then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'closed'); end if;
-  if pg_catalog.statement_timestamp() < v_window.opens_at then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_open'); end if;
-  -- 0245's order: the participant's auth row, then both account locks in ID order.
+    return public._social_crew_attendance_refuse(v_replaying,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found');
+  end if;
+  -- 0245's order: the guest's auth row, then both account locks in ID order. The auth
+  -- row waits for an account deletion in flight, which also deletes this key's receipt.
   select account.supabase_user_id into v_user from public.private_social_accounts account where account.id=v_subject;
   perform 1 from auth.users where id=v_user for key share;
+  if not found then
+    return public._social_crew_attendance_refuse(v_replaying,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found');
+  end if;
   perform public._lock_social_participant_accounts(array[p_actor_account_id,v_subject]);
-  if not public._social_crew_attendance_markable(p_crew_id,p_actor_account_id,v_subject)
-    or not exists(select 1 from auth.users where id=v_user) then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if not public._social_crew_attendance_markable(p_crew_id,p_actor_account_id,v_subject) then
+    return public._social_crew_attendance_refuse(v_replaying,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'not_found');
+  end if;
+  if v_replaying then
+    if v_stored_expiry <= pg_catalog.statement_timestamp() then return jsonb_build_object('ok',false,'code','closed'); end if;
+    return v_replay;
+  end if;
+  select * into v_window from public._social_crew_attendance_window(p_crew_id);
+  if v_window.cancelled or pg_catalog.statement_timestamp() >= v_window.closes_at then
+    return public._social_crew_attendance_refuse(false,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,
+      'closed',v_user,v_window.expires_at);
+  end if;
+  if pg_catalog.statement_timestamp() < v_window.opens_at then
+    return public._social_crew_attendance_refuse(false,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,
+      'not_open',v_user,v_window.expires_at);
+  end if;
   select * into v_current from public._social_crew_attendance_current(p_crew_id,v_subject);
   if v_current.revision<>p_expected_revision then
-    return public._social_crew_fail_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,'stale'); end if;
+    return public._social_crew_attendance_refuse(false,p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,
+      'stale',v_user,v_window.expires_at);
+  end if;
   if v_current.state is not distinct from p_state then
     v_response:=jsonb_build_object('ok',true,'code','unchanged','revision',v_current.revision,'state',p_state);
   else
@@ -137,7 +206,8 @@ begin
       values(p_crew_id,v_subject,v_user,v_current.revision+1,p_state,'host',p_actor_account_id,v_window.expires_at);
     v_response:=jsonb_build_object('ok',true,'code','attested','revision',v_current.revision+1,'state',p_state);
   end if;
-  return public._social_crew_finish_write(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,v_response);
+  return public._social_crew_attendance_finish(p_actor_account_id,v_operation,p_idempotency_key,p_payload_digest,
+    v_response,v_user,v_window.expires_at);
 end;
 $$;
 
@@ -156,21 +226,22 @@ begin
     return jsonb_build_object('ok',false,'code','invalid'); end if;
   perform 1 from public.social_crews where id=p_crew_id for update;
   if not found then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  -- Any member row: a removed guest's mark is corrected without reinstating them.
   select * into v_member from public.social_crew_members where id=p_member_id and crew_id=p_crew_id;
-  if v_member.id is null or v_member.state not in ('active','left') then
-    return jsonb_build_object('ok',false,'code','not_found'); end if;
+  if v_member.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
   select account.supabase_user_id into v_user from public.private_social_accounts account where account.id=v_member.social_account_id;
   if v_user is null then return jsonb_build_object('ok',false,'code','gone'); end if;
   perform 1 from auth.users where id=v_user for key share;
   if not found then return jsonb_build_object('ok',false,'code','gone'); end if;
   perform public._lock_social_participant_accounts(array[v_member.social_account_id]);
-  -- A reported host never decides their own dispute, and nobody corrects their own mark.
+  -- A participant never decides their own crew's dispute. Roles change in place, so
+  -- any member row in that crew, in any role or state, excludes the moderator.
   if exists(select 1 from public.private_social_accounts staff_account
       where staff_account.profile_id=v_staff.profile_id and (
         staff_account.id=v_member.social_account_id
         or exists(select 1 from public.social_crews crew where crew.id=p_crew_id and crew.owner_account_id=staff_account.id)
-        or exists(select 1 from public.social_crew_members host where host.crew_id=p_crew_id
-          and host.social_account_id=staff_account.id and host.role in ('owner','cohost'))
+        or exists(select 1 from public.social_crew_members insider where insider.crew_id=p_crew_id
+          and insider.social_account_id=staff_account.id)
         or exists(select 1 from public.social_crew_attendance mark where mark.crew_id=p_crew_id
           and mark.attester_account_id=staff_account.id))) then
     return jsonb_build_object('ok',false,'code','forbidden'); end if;
@@ -242,31 +313,44 @@ as $$
     select * from public.social_crew_attendance
     where subject_user_id=p_user_id and expires_at > pg_catalog.statement_timestamp()
     order by created_at desc, id
-    limit greatest(0,least(coalesce(p_limit,0),1000))
+    limit greatest(0,coalesce(p_limit,0))
   ) mark;
 $$;
 
 create function public.purge_expired_social_crew_attendance(p_limit integer default 1000)
 returns jsonb language plpgsql security definer set search_path=''
 as $$
-declare v_deleted integer;
+declare v_limit integer:=greatest(1,least(coalesce(p_limit,1000),1000)); v_deleted integer; v_receipts integer;
 begin
   with doomed as (
     select id from public.social_crew_attendance
     where expires_at <= pg_catalog.statement_timestamp()
     order by expires_at, id
-    limit greatest(1,least(coalesce(p_limit,1000),1000))
+    limit v_limit
     for update skip locked
   )
   delete from public.social_crew_attendance mark using doomed where mark.id=doomed.id;
   get diagnostics v_deleted = row_count;
-  return jsonb_build_object('ok',true,'deleted',v_deleted);
+  with doomed as (
+    select actor_account_id, operation, idempotency_key from public.private_social_crew_write_receipts
+    where expires_at <= pg_catalog.statement_timestamp()
+    order by expires_at
+    limit v_limit
+    for update skip locked
+  )
+  delete from public.private_social_crew_write_receipts receipt using doomed
+  where receipt.actor_account_id=doomed.actor_account_id and receipt.operation=doomed.operation
+    and receipt.idempotency_key=doomed.idempotency_key;
+  get diagnostics v_receipts = row_count;
+  return jsonb_build_object('ok',true,'deleted',v_deleted,'receipts',v_receipts);
 end;
 $$;
 
 revoke all on function public._social_crew_attendance_window(uuid) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_current(uuid,uuid) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_markable(uuid,uuid,uuid) from public, anon, authenticated, service_role;
+revoke all on function public._social_crew_attendance_finish(uuid,text,text,text,jsonb,uuid,timestamptz) from public, anon, authenticated, service_role;
+revoke all on function public._social_crew_attendance_refuse(boolean,uuid,text,text,text,text,uuid,timestamptz) from public, anon, authenticated, service_role;
 revoke all on function public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text) from public, anon, authenticated;
 revoke all on function public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text) from public, anon, authenticated;
 revoke all on function public.read_social_crew_attendance(uuid,uuid,uuid) from public, anon, authenticated;

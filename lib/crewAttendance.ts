@@ -9,7 +9,24 @@ export function isCrewAttendanceState(value: unknown): value is CrewAttendanceSt
   return CREW_ATTENDANCE_STATES.includes(value as CrewAttendanceState);
 }
 
-type CrewAttendanceItem = {
+/** Why a host's mark was refused: the API sends it as `details.reason` with a 409. */
+const CREW_ATTENDANCE_REFUSALS = ["stale", "closed", "not_open"] as const;
+export type CrewAttendanceRefusal = (typeof CREW_ATTENDANCE_REFUSALS)[number];
+
+export function isCrewAttendanceRefusal(value: unknown): value is CrewAttendanceRefusal {
+  return CREW_ATTENDANCE_REFUSALS.includes(value as CrewAttendanceRefusal);
+}
+
+/** The refusal named by a 409 body, or null when the body names none. */
+export function crewAttendanceRefusal(body: unknown): CrewAttendanceRefusal | null {
+  if (!body || typeof body !== "object") return null;
+  const details = (body as { details?: unknown }).details;
+  if (!details || typeof details !== "object") return null;
+  const reason = (details as { reason?: unknown }).reason;
+  return isCrewAttendanceRefusal(reason) ? reason : null;
+}
+
+export type CrewAttendanceItem = {
   memberId: string;
   /** Null with revision 0 when nobody has marked this person. */
   state: CrewAttendanceState | null;

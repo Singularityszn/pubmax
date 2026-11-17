@@ -150,7 +150,7 @@ test("a refusal says whether marking has closed or not opened yet", async ({ pag
 
 test("the list reads again when marking opens, without polling", async ({ page }) => {
   const opensAt = Date.parse("2026-11-17T12:00:00.000Z");
-  await page.clock.install({ time: opensAt - 30_000 });
+  await page.clock.install({ time: opensAt - 6_000 });
   let reads = 0;
   const section = await open(page, "owner", (route) => {
     reads += 1;
@@ -158,9 +158,9 @@ test("the list reads again when marking opens, without polling", async ({ page }
       : { ...hostRead, opensAt: new Date(opensAt).toISOString() } });
   });
   await expect(section.getByText("Marking opens on the day.")).toBeVisible();
-  await page.clock.runFor(20_000);
+  await page.clock.runFor(3_000);
   expect(reads).toBe(1);
-  await page.clock.runFor(15_000);
+  await page.clock.runFor(4_000);
   await expect(section.getByText(/^Open until /)).toBeVisible();
   expect(reads).toBe(2);
 });

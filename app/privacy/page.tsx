@@ -621,10 +621,13 @@ export default function PrivacyPage() {
           On an open Crew night, the host or a co-host can mark you Here or Not
           here. It&rsquo;s their word, not a check, and it earns no points. The
           record names the Crew, you, who marked you, the mark, its time and
-          each change. It holds no location and nothing you bought. Only you and
-          the Crew&rsquo;s hosts can see it. After the night closes, only a
-          moderator who is not a host of that Crew can change it, with a reason.
-          Your data export includes your marks, without who recorded them or why.
+          each change. It holds no location and nothing you bought. In the app,
+          only you and the Crew&rsquo;s hosts see it. Moderators who handle
+          reports and corrections, and the operators who run PubMaxxing, can
+          also see it. After the night closes, only a moderator who has never
+          been in that Crew can change it, with a reason. If a mark is wrong,
+          report it from the Crew page. Your data export includes your marks,
+          without who recorded them or why.
         </p>
         <p className="legalBody">
           After account deletion, we free your guest places and cancel the
@@ -1048,9 +1051,10 @@ export default function PrivacyPage() {
             records are deleted with the affected account. Your data export includes
             the correction outcome and date, without private review notes or
             staff identities. Crew attendance marks and their corrections
-            expire 30 days after the night closes. From then nobody can read
-            them, and an operator cleanup deletes them. Deleting your account
-            deletes them at once.
+            expire 30 days after the night closes. From then the app stops
+            showing them and leaves them out of your export, and an operator
+            cleanup deletes them in batches. Deleting your account deletes them,
+            and the write receipts that name you, at once.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

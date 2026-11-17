@@ -98,39 +98,57 @@ The sweep locks the selected crew rows in ID order before it changes any Plan. I
 
 ## Host attendance (0247)
 
-A host or co-host of an open crew marks each accepted guest Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for this. The moderator must not be the guest, and must not be or have been an owner or co-host of that crew, or have marked anyone in it. So a reported host never decides their own dispute.
+A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for this. A guest reports a wrong mark from the crew page, and the report reaches the moderators' queue.
 
-```sql
-select member.id as member_id, member.state, profile.handle
-from public.social_crew_members member
-join public.private_social_accounts account on account.id = member.social_account_id
-join public.profiles profile on profile.id = account.profile_id
-where member.crew_id = '<crew id>';
+A moderator with any member row in that crew, in any role or state, cannot decide its disputes. Roles change in place, so a former co-host looks like a guest. The call also refuses the crew's owner, anyone who marked in it, and the guest. Ask a moderator who was never in that crew.
 
-set role service_role;
-select public.read_social_crew_attendance('<owner account id>', '<owner profile id>', '<crew id>');
-select public.correct_social_crew_attendance_admin(
-  '<staff role id>', '<crew id>', '<member id>', 'attended' or 'absent', <current revision>, '<reason>'
-);
-```
+1. In the Supabase SQL editor, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark.
+
+   ```sql
+   select member.id as member_id, member.state, member.role, profile.handle,
+     coalesce(mark.revision, 0) as current_revision, mark.state as mark, mark.actor_kind, mark.expires_at
+   from public.social_crew_members member
+   join public.private_social_accounts account on account.id = member.social_account_id
+   join public.profiles profile on profile.id = account.profile_id
+   left join lateral (
+     select attendance.revision, attendance.state, attendance.actor_kind, attendance.expires_at
+     from public.social_crew_attendance attendance
+     where attendance.crew_id = member.crew_id and attendance.subject_account_id = member.social_account_id
+       and attendance.expires_at > now()
+     order by attendance.revision desc
+     limit 1
+   ) mark on true
+   where member.crew_id = '<crew id>';
+   ```
+
+2. Run the correction as the service role. Use `current_revision` from step 1.
+
+   ```sql
+   set role service_role;
+   select public.correct_social_crew_attendance_admin(
+     '<staff role id>', '<crew id>', '<member id>', 'attended' or 'absent', <current revision>, '<reason>'
+   );
+   ```
+
+The correction works for a member who is `active`, `left` or `removed`. It never changes the member row, so a removed guest stays removed.
 
 | Answer | Meaning |
 | --- | --- |
 | `corrected` | A new revision records the mark, the moderator and the reason. No one is notified. |
 | `unchanged` | The mark already has that state. |
 | `stale` | The revision is not the current one. Read it again. |
-| `forbidden` | The moderator is the guest, a host of that crew or someone who marked in it. Ask another moderator. |
+| `forbidden` | The moderator has been in that crew, owns it, marked in it, or is the guest. Ask another moderator. |
 | `expired` | The record is past its 30 days. |
-| `not_found`, `gone`, `invalid` | No such accepted member, the account was deleted, or the reason or state is not valid. |
+| `not_found`, `gone`, `invalid` | No such member, the account was deleted, or the reason or state is not valid. |
 
-Marks and corrections expire 30 days after the close. Reads and exports hide them at once. Nothing schedules their deletion. To delete expired rows, run this until it answers `"deleted": 0`. Each call deletes at most 1,000.
+Marks, corrections and the write receipts about them expire 30 days after the close. The app's reads, replays and exports stop at expiry, but the rows stay until the cleanup deletes them. Nothing schedules that. Run this until it answers `"deleted": 0, "receipts": 0`. Each call deletes at most 1,000 of each.
 
 ```sql
 set role service_role;
 select public.purge_expired_social_crew_attendance(1000);
 ```
 
-Deleting a guest's account deletes their marks in the same transaction. Rolling back 0247 deletes every mark. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
+Deleting a guest's account deletes their marks and the receipts about them in the same transaction. Rolling back 0247 deletes every mark and every attendance receipt. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
 
 ## Rollback
 

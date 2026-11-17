@@ -25,8 +25,10 @@ describe("host attendance view", () => {
     expect(refused).toMatchObject({ status: "ready", refreshing: true, saving: null, notice: { kind: "refused", reason: "stale" } });
     if (refused.status !== "ready") throw new Error("rows dropped");
     expect(refused.data.items).toEqual(hostRead.items);
-    const fresh = { ...hostRead, items: [hostRead.items[0], { ...hostRead.items[1], state: "absent" as const, revision: 1,
-      recordedAt: "2026-11-17T20:50:00.000Z", recordedBy: "host" as const }] };
+    const fresh: CrewAttendanceDTO = { ...hostRead, items: [
+      { memberId: ANA, state: "attended", revision: 1, recordedAt: "2026-11-17T20:10:00.000Z", recordedBy: "host" },
+      { memberId: BEA, state: "absent", revision: 1, recordedAt: "2026-11-17T20:50:00.000Z", recordedBy: "host" },
+    ] };
     expect(run(refused, { type: "loaded", data: fresh, now: NOW })).toMatchObject({
       status: "ready", refreshing: false, data: fresh, notice: { kind: "refused", reason: "stale" },
     });

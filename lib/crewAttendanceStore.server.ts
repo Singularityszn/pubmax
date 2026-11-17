@@ -2,6 +2,7 @@ import "server-only";
 
 import { createHash } from "node:crypto";
 import {
+  isCrewAttendanceRefusal,
   isCrewAttendanceState,
   parseCrewAttendance,
   type CrewAttendanceDTO,
@@ -82,7 +83,9 @@ export function createCrewAttendanceStore(dependencies: CrewAttendanceDependenci
       });
       const answer = data && typeof data === "object" ? data as Record<string, unknown> : unavailable();
       const refusal = answer.ok === false && typeof answer.code === "string" ? REFUSALS[answer.code] : undefined;
-      if (refusal) throw new SocialCrewStoreError(...refusal);
+      if (refusal) {
+        throw new SocialCrewStoreError(...refusal, isCrewAttendanceRefusal(answer.code) ? answer.code : undefined);
+      }
       if (answer.ok !== true || !["attested", "unchanged", "replayed"].includes(String(answer.code))
         || !isCrewAttendanceState(answer.state) || !Number.isInteger(answer.revision) || (answer.revision as number) < 1) {
         return unavailable();

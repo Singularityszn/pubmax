@@ -3616,6 +3616,8 @@ export type Database = {
           payload_digest: string;
           response: Json;
           created_at: string;
+          subject_user_id: string | null;
+          expires_at: string | null;
         };
         Insert: {
           actor_account_id: string;
@@ -3624,6 +3626,8 @@ export type Database = {
           payload_digest: string;
           response: Json;
           created_at?: string;
+          subject_user_id?: string | null;
+          expires_at?: string | null;
         };
         Update: {
           actor_account_id?: string;
@@ -3632,6 +3636,8 @@ export type Database = {
           payload_digest?: string;
           response?: Json;
           created_at?: string;
+          subject_user_id?: string | null;
+          expires_at?: string | null;
         };
         Relationships: [
           {
