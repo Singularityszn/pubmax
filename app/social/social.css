@@ -1883,7 +1883,8 @@ span.socialPostAvatar {
 }
 
 /* A photo feed reads at a phone's width even on a wide screen. */
-.socialPostList {
+.socialPostList,
+.socialFeedInlineError {
   max-width: 560px;
   margin-inline: auto;
   width: 100%;

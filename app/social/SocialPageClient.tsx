@@ -59,7 +59,7 @@ import { matchesSocialPostFeedSelection } from "@/lib/socialPostFeedMembership";
 import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { forgetSurfaceSnapshot, forgetSurfaceSnapshots, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
-import { chronological, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
+import { chronological, mergeSocialPostHead, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
 
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 
@@ -463,6 +463,8 @@ function SocialPageAccountState({
   const [loadingMore, setLoadingMore] = useState(false);
   const [moreFailed, setMoreFailed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [quietFeedFailure, setQuietFeedFailure] = useState(false);
+  const backgroundController = useRef<AbortController | null>(null);
   const [loadedPages, setLoadedPages] = useState(0);
   const feedPending = useRef(false);
   const feedData = useRef<{ key: string; page: SocialPostWindow } | null>(null);
@@ -621,6 +623,8 @@ function SocialPageAccountState({
   }, []);
 
   useEffect(() => {
+    backgroundController.current?.abort();
+    backgroundController.current = null;
     moreController.current?.abort();
     const requestId = ++feedRequestId.current;
     const replaceDeepWindow = explicitFeedRefreshKey.current === feedSnapshotKey;
@@ -666,6 +670,7 @@ function SocialPageAccountState({
       setFeedStatus(current => held ? (sameWindow && current === "error" ? "error" : "ready") : "loading");
       setLoadingMore(false);
       setRefreshing(!keepDeepWindow);
+      setQuietFeedFailure(false);
       if (!sameWindow) setMoreFailed(false);
     });
     if (keepDeepWindow) return cancel;
@@ -702,24 +707,59 @@ function SocialPageAccountState({
   }, [access, feedAttempt, feedHref, feedSnapshotKey, initialState, denyFeed]);
 
   useEffect(() => {
-    if (access !== "verified" || !feedHref) return;
-    const refresh = () => {
-      if ((feedData.current?.page.pages ?? 0) > SOCIAL_REFRESH_PAGE_CAP) return;
-      if (document.visibilityState !== "hidden" && !feedPending.current && !moreController.current) {
-        setFeedAttempt(value => value + 1);
+    if (access !== "verified" || !feedHref || !feedSnapshotKey) return;
+    let failures = 0;
+    let retryAfter = 0;
+    const refresh = async () => {
+      const held = feedData.current;
+      if (document.visibilityState === "hidden" || Date.now() < retryAfter ||
+        held?.key !== feedSnapshotKey || held.page.pages > SOCIAL_REFRESH_PAGE_CAP ||
+        feedPending.current || moreController.current || backgroundController.current) return;
+      const controller = new AbortController();
+      backgroundController.current = controller;
+      const requestId = feedRequestId.current;
+      const stillCurrent = () => !controller.signal.aborted &&
+        backgroundController.current === controller && feedRequestId.current === requestId &&
+        committedFeed.current?.key === feedSnapshotKey && committedFeed.current.editable &&
+        feedData.current?.key === feedSnapshotKey;
+      try {
+        const head = await readPostPage(feedHref, controller.signal);
+        if (!stillCurrent()) return;
+        const page = mergeSocialPostHead(feedData.current!.page, head);
+        feedData.current = { key: feedSnapshotKey, page };
+        writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false, preserveAge: true });
+        setPosts(page.posts);
+        setFeedStatus("ready");
+        setQuietFeedFailure(false);
+        failures = 0;
+        retryAfter = 0;
+      } catch (error) {
+        if (!stillCurrent()) return;
+        if (error instanceof SocialFeedDenied) denyFeed();
+        else {
+          failures += 1;
+          retryAfter = Date.now() + Math.min(120_000, 15_000 * 2 ** failures);
+          setQuietFeedFailure(true);
+          setFeedStatus("error");
+        }
+      } finally {
+        if (backgroundController.current === controller) backgroundController.current = null;
       }
     };
-    const timer = window.setInterval(refresh, 15_000);
-    window.addEventListener("focus", refresh);
-    window.addEventListener("online", refresh);
-    document.addEventListener("visibilitychange", refresh);
+    const onRefresh = () => void refresh();
+    const timer = window.setInterval(onRefresh, 15_000);
+    window.addEventListener("focus", onRefresh);
+    window.addEventListener("online", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
     return () => {
       window.clearInterval(timer);
-      window.removeEventListener("focus", refresh);
-      window.removeEventListener("online", refresh);
-      document.removeEventListener("visibilitychange", refresh);
+      backgroundController.current?.abort();
+      backgroundController.current = null;
+      window.removeEventListener("focus", onRefresh);
+      window.removeEventListener("online", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
     };
-  }, [access, feedHref]);
+  }, [access, feedHref, feedSnapshotKey, denyFeed]);
 
   useEffect(() => {
     const requestId = ++activityRequestId.current;
@@ -800,6 +840,8 @@ function SocialPageAccountState({
     if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;
     const href = socialFeedRequestHref(initialState, nextCursor);
     if (!href) return;
+    backgroundController.current?.abort();
+    backgroundController.current = null;
     const requestId = feedRequestId.current;
     const controller = new AbortController();
     moreController.current = controller;
@@ -1111,7 +1153,7 @@ function SocialPageAccountState({
               aria-busy={feedStatus === "loading" || loadingMore || refreshing}
             >
               {feedHeading}
-              {loadedPages > SOCIAL_REFRESH_PAGE_CAP ? <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button> : null}
+              {loadedPages > 0 ? <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button> : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1127,7 +1169,7 @@ function SocialPageAccountState({
                       : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
               {feedStatus === "error" && posts.length > 0 ? (
-                <p className="socialFeedInlineError" role="alert">
+                <p className="socialFeedInlineError" role={quietFeedFailure ? "status" : "alert"}>
                   Couldn&rsquo;t refresh these posts. They show what loaded last.
                   <Button type="button" variant="secondary" onClick={requestExplicitFeedRefresh}>Retry</Button>
                 </p>

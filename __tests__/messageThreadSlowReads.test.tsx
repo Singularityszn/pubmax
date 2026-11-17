@@ -520,3 +520,38 @@ it.each(["refusal", "network"] as const)("ignores an old removal %s while the ne
   const buttons = [...document.querySelectorAll<HTMLButtonElement>('[role="alertdialog"] button')];
   expect(buttons.every((button) => button.disabled)).toBe(true);
 });
+
+// A successful transport is not proof of valid history. The wire contract requires an array.
+it.each([null, {}, { messages: null }, { messages: {} }])("refuses invalid cold history %j on open and Retry", async body => {
+  await render();
+  await answer(Response.json(body));
+  expect(retryPanel()).not.toBeNull();
+  expect(host.querySelector(".composerInput")).toBeNull();
+  await act(async () => host.querySelector<HTMLButtonElement>(".threadRetryBtn")!.click());
+  await answer(Response.json(body));
+  expect(retryPanel()).not.toBeNull();
+  expect(host.querySelector(".composerInput")).toBeNull();
+});
+
+it.each(["malformed", "rejected"])("retains warm history on %s and isolates a thread change", async outcome => {
+  await render();
+  await answer(thread("Warm private note"));
+  await poll();
+  await answer(outcome === "rejected" ? new Error("offline") : Response.json({ messages: "invalid" }));
+  expect(host.textContent).toContain("Warm private note");
+  expect(host.querySelector(".inboxStaleNotice")?.getAttribute("role")).toBe("status");
+  expect(host.querySelector(".composerInput")).not.toBeNull();
+  await render("conversation-b");
+  await answer(Response.json({}));
+  expect(host.textContent).not.toContain("Warm private note");
+  expect(retryPanel()).not.toBeNull();
+  expect(host.querySelector(".composerInput")).toBeNull();
+});
+
+it("keeps mounted history independently of detached cache eviction", async () => {
+  await render();
+  await answer(thread("Still reading this note"));
+  clearSurfaceCache();
+  expect(host.textContent).toContain("Still reading this note");
+  expect(host.querySelector(".composerInput")).not.toBeNull();
+});

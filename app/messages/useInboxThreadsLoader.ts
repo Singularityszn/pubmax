@@ -34,7 +34,7 @@ export function useInboxThreadsLoader({
   const activeUserId = user?.id;
   const canonicalAuthHandle = normalizeHandle(authHandle ?? "");
   const [handle, setHandle] = useState("");
-  const [conversations, setConversations] = useState<ConversationDTO[]>([]);
+  const [rows, setRows] = useState<{ readerKey: string; conversations: ConversationDTO[] } | null>(null);
   const readerKey = JSON.stringify([user?.id ?? null, accountRevision, normalizeHandle(authHandle ?? "") || readHandle()]);
   const [loadedReaderKey, setLoadedReaderKey] = useState<string | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
@@ -100,7 +100,7 @@ export function useInboxThreadsLoader({
         requestRevision === accountRevisionRef.current;
       if (!activeUserId) {
         if (!stillCurrent()) return;
-        setConversations([]);
+        setRows({ readerKey, conversations: [] });
         setNeedsSignIn(true);
         setHandleNotOwned(false);
         setFailed(false);
@@ -111,7 +111,7 @@ export function useInboxThreadsLoader({
       const h = canonicalAuthHandle || readHandle();
       if (!h) {
         if (!stillCurrent()) return;
-        setConversations([]);
+        setRows({ readerKey, conversations: [] });
         setNeedsSignIn(true);
         setHandleNotOwned(false);
         setFailed(false);
@@ -123,8 +123,9 @@ export function useInboxThreadsLoader({
       if (restoredKeyRef.current !== cacheKey) {
         restoredKeyRef.current = cacheKey;
         const held = readSurfaceSnapshot<InboxSnapshot>(cacheKey);
+        if (stillCurrent()) setRows(current => current?.readerKey === readerKey ? current : { readerKey, conversations: [] });
         if (held && stillCurrent()) {
-          setConversations(held.conversations);
+          setRows({ readerKey, conversations: held.conversations });
           setPartial(held.partial);
           setNeedsSignIn(false);
           setHandleNotOwned(false);
@@ -145,7 +146,7 @@ export function useInboxThreadsLoader({
           if (read.status === 401 || read.status === 403) {
             forgetSurfaceSnapshot(cacheKey);
             setNeedsSignIn(read.status === 401);
-            setConversations([]);
+            setRows({ readerKey, conversations: [] });
             setFailed(false);
             setPartial(false);
             return;
@@ -160,7 +161,7 @@ export function useInboxThreadsLoader({
           const rows = read.conversations;
           const degraded = read.degraded;
           if (!degraded || rows.length > 0) {
-            setConversations(rows);
+            setRows({ readerKey, conversations: rows });
             rememberMessageSnapshot(cacheKey, { conversations: rows, partial: degraded });
           }
           // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
@@ -239,19 +240,19 @@ export function useInboxThreadsLoader({
         ...held,
         conversations: held.conversations.map(row => row.id === activeConversationId ? { ...row, unread: 0 } : row),
       }, true);
-      setConversations((rows) =>
-        rows.some((c) => c.id === activeConversationId && (c.unread ?? 0) > 0)
-          ? rows.map((c) => (c.id === activeConversationId ? { ...c, unread: 0 } : c))
-          : rows,
-      );
+      setRows(heldRows => {
+        if (heldRows?.readerKey !== readerKey || !heldRows.conversations.some(c => c.id === activeConversationId && (c.unread ?? 0) > 0)) return heldRows;
+        return { readerKey, conversations: heldRows.conversations.map(c =>
+          c.id === activeConversationId && (c.unread ?? 0) > 0 ? { ...c, unread: 0 } : c) };
+      });
       void refresh(undefined, true);
     });
-  }, [activeConversationId, refresh, user?.id, accountRevision, authHandle]);
+  }, [activeConversationId, refresh, user?.id, accountRevision, authHandle, readerKey]);
 
   const accountDataReady = loadedReaderKey === readerKey;
   return {
     handle,
-    conversations,
+    conversations: rows?.readerKey === readerKey ? rows.conversations : [],
     needsSignIn,
     handleNotOwned,
     failed,

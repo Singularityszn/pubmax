@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 
+import { messageSnapshotKey, rememberMessageSnapshot } from "@/lib/messageReadSnapshots";
 import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
@@ -435,6 +436,60 @@ describe("message sign-in doors", () => {
     expect(host.textContent).not.toContain("@bridget");
     expect(host.textContent).toContain("With you in a sec.");
     await releaseFetch(Response.json({ conversations: [] }));
+  });
+
+  it.each(["503", "rejected", "malformed", "degraded"])("never exposes A rows after B's %s completes", async outcome => {
+    signedIn("account-a", "alice", 1);
+    fetchState.response = () => Response.json({ conversations: [{ id: "a-private", otherHandle: "bridget", lastBody: "A private note", unread: 2 }] });
+    await render(createElement(MessagesInboxClient));
+    expect(host.textContent).toContain("A private note");
+    fetchState.pending = true;
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessagesInboxClient));
+    const response = outcome === "rejected" ? new Error("offline")
+      : outcome === "503" ? Response.json({}, { status: 503 })
+        : outcome === "malformed" ? Response.json({}) : Response.json({ conversations: [], status: "degraded" });
+    await releaseFetch(response);
+    expect(host.textContent).not.toContain("A private note");
+    expect(host.textContent).not.toContain("@bridget");
+    expect(host.textContent).not.toContain("Your messages start here");
+    expect(host.querySelector(".threadRetryBtn")).not.toBeNull();
+  });
+
+  it("retains only B's warm rows through failure and ignores a late A reply", async () => {
+    signedIn("account-a", "alice", 1);
+    fetchState.pending = true;
+    await render(createElement(MessagesInboxClient));
+    rememberMessageSnapshot(messageSnapshotKey("account-b", 2, "bob"), { conversations: [{ id: "b", otherHandle: "erin", lastBody: "B warm note" }], partial: false });
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessagesInboxClient));
+    expect(host.textContent).toContain("B warm note");
+    await releaseFetch(Response.json({}, { status: 503 }), "handle=bob");
+    expect(host.textContent).toContain("B warm note");
+    await releaseFetch(Response.json({ conversations: [{ id: "a", otherHandle: "bridget", lastBody: "A late private note" }] }), "handle=alice");
+    expect(host.textContent).toContain("B warm note");
+    expect(host.textContent).not.toContain("A late private note");
+  });
+
+  it("ignores an already queued read signal from the departed reader", async () => {
+    const listen = vi.spyOn(window, "addEventListener");
+    try {
+      signedIn("account-a", "alice", 1);
+      fetchState.response = () => Response.json({ conversations: [{ id: "a", otherHandle: "bridget", lastBody: "A private note", unread: 2 }] });
+      await render(createElement(MessagesInboxClient, { activeConversationId: "a" }));
+      const oldSignal = listen.mock.calls.find(([name]) => name === "pubmax:messages-read")?.[1] as EventListener;
+      expect(oldSignal).toBeDefined();
+      fetchState.pending = true;
+      signedIn("account-b", "bob", 2);
+      await render(createElement(MessagesInboxClient, { activeConversationId: "b" }));
+      await releaseFetch(Response.json({ conversations: [{ id: "b", otherHandle: "erin", lastBody: "B private note", unread: 3 }] }), "handle=bob");
+      const calls = fetchState.calls;
+      await act(async () => oldSignal(new Event("pubmax:messages-read")));
+      expect(fetchState.calls).toBe(calls);
+      expect(host.textContent).toContain("B private note");
+      expect(host.textContent).not.toContain("A private note");
+      expect(host.querySelector(".conversationUnread")?.textContent).toBe("3");
+    } finally { listen.mockRestore(); }
   });
 
   it("gives a signed-in empty inbox one clear door to start a message", async () => {

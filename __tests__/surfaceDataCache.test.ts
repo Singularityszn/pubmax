@@ -626,3 +626,46 @@ describe("a read the page already made", () => {
     },
   );
 });
+
+describe("private detached memory", () => {
+  beforeEach(() => { vi.useFakeTimers(); vi.setSystemTime(10_000); });
+  afterEach(() => { clearSurfaceCache(); vi.useRealTimers(); });
+
+  it("evicts untouched private bodies at the deadline but leaves public policy alone", () => {
+    writeSurfaceSnapshot("public", { value: 1 });
+    writeSurfaceSnapshot("private", { body: "private" }, Date.now(), { persist: false });
+    vi.advanceTimersByTime(DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS + 1);
+    expect(surfaceCacheSize()).toBe(1);
+    expect(readSurfaceSnapshot("public", Infinity)).toEqual({ value: 1 });
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("bounds private visits to twenty snapshots without evicting public answers", () => {
+    writeSurfaceSnapshot("public", 1);
+    for (let n = 0; n < 40; n++) writeSurfaceSnapshot(`private-${n}`, n, Date.now(), { persist: false });
+    expect(surfaceCacheSize()).toBe(21);
+    expect(readSurfaceSnapshot("private-0")).toBeUndefined();
+    writeSurfaceSnapshot("private-0", 100, Date.now(), { persist: false, preserveAge: true });
+    expect(readSurfaceSnapshot("private-0")).toBeUndefined();
+    expect(readSurfaceSnapshot("private-39")).toBe(39);
+    expect(readSurfaceSnapshot("public")).toBe(1);
+  });
+
+  it("does not resurrect expired or evicted rows through a partial update", () => {
+    writeSurfaceSnapshot("private", 1, Date.now(), { persist: false });
+    vi.advanceTimersByTime(DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS - 1);
+    writeSurfaceSnapshot("private", 2, Date.now(), { persist: false, preserveAge: true });
+    vi.advanceTimersByTime(2);
+    expect(surfaceCacheSize()).toBe(0);
+    writeSurfaceSnapshot("private", 3, Date.now(), { persist: false, preserveAge: true });
+    expect(surfaceCacheSize()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("cancels expiry work at an account boundary", () => {
+    writeSurfaceSnapshot("private", 1, Date.now(), { persist: false });
+    window.dispatchEvent(new Event(DEVICE_IDENTITY_CHANGED_EVENT));
+    expect(surfaceCacheSize()).toBe(0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+});

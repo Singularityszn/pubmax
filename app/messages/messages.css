@@ -988,7 +988,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .composerPlaceholderField {
   min-height: 44px;
   height: calc(1.35em + 1.3rem);
-  border-radius: 22px;
+  border-radius: var(--radius-pill);
 }
 
 .composerInput {
@@ -1506,6 +1506,10 @@ html[data-theme="dark"] .messageBubblePhoto {
     min-height: 0;
     overflow-y: auto;
     padding: 0.75rem 1.25rem 0.5rem;
+  }
+
+  .messagesThreadPane .threadReadRecovery {
+    margin-inline: var(--space-5);
   }
 
   .messagesThreadPane .composerDock {

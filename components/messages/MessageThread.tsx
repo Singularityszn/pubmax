@@ -190,6 +190,14 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
   );
 }
 
+function ThreadReadRecovery({ visible, onRetry }: { visible: boolean; onRetry: () => void }) {
+  if (!visible) return null;
+  return <p className="inboxStaleNotice threadReadRecovery" role="status">
+    Couldn&rsquo;t refresh these messages. They show what loaded last.
+    <button type="button" className="threadRetryBtn" onClick={onRetry}>Try again</button>
+  </p>;
+}
+
 type ThreadState =
   | "loading"
   | "ready"
@@ -292,6 +300,7 @@ export default function MessageThread({
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
   const [reportFailure, setReportFailure] = useState<{ owner: string; message: string } | null>(null);
+  const [failedRead, setFailedRead] = useState<ThreadReadKey | null>(null);
   const { fromRefusal, adultGateDialog } = useMessageAdultGate();
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
@@ -447,8 +456,8 @@ export default function MessageThread({
           discardBody(res);
           return;
         }
-        land();
         if (res.status === 401) {
+          land();
           if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
@@ -457,6 +466,7 @@ export default function MessageThread({
           return;
         }
         if ([403, 404].includes(res.status)) {
+          land();
           if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
@@ -465,6 +475,8 @@ export default function MessageThread({
           return;
         }
         if (!res.ok) {
+          land();
+          setFailedRead(requestKey);
           discardBody(res);
           setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
@@ -481,8 +493,10 @@ export default function MessageThread({
           };
         };
         if (!stillCurrent()) return;
+        if (!body || !Array.isArray(body.messages)) throw new Error("Malformed thread history");
         land();
-        const next = Array.isArray(body.messages) ? body.messages : [];
+        setFailedRead(null);
+        const next = body.messages;
         // The thread route marks what was waiting as read in this same read, so
         // the nav's unread badge is told now instead of at its next poll.
         announceIfWaitingRead(next, h);
@@ -520,14 +534,14 @@ export default function MessageThread({
         headRef.current = { key: requestKey, identity: nextIdentity, otherHandle: nextOther };
         setIdentity(nextIdentity);
         setOtherHandle(nextOther);
-        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
+        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther }, true);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
         if (!aborted && stillCurrent()) {
-          land();
+          setFailedRead(requestKey);
           setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
             setState("unreachable");
@@ -1189,6 +1203,10 @@ export default function MessageThread({
         />
       </div>
 
+      <ThreadReadRecovery
+        visible={sameThreadReadKey(failedRead, conversationId, accountRevision)}
+        onRetry={() => void refresh()}
+      />
       {state === "loading" ? (
         <ThreadLoading />
       ) : (

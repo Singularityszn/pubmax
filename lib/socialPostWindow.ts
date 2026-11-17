@@ -27,3 +27,16 @@ export async function readSocialPostWindow(
   } while (nextCursor && pages < Math.min(pageCount, SOCIAL_REFRESH_PAGE_CAP));
   return { posts: chronological([...posts.values()]), nextCursor, pages };
 }
+
+export function mergeSocialPostHead(current: SocialPostWindow, head: SocialPostPage): SocialPostWindow {
+  const byId = new Map(current.posts.map(post => [post.id, post]));
+  for (const post of head.posts) {
+    const held = byId.get(post.id);
+    if (held && held.revision !== undefined && held.mutationVersion !== undefined &&
+      held.revision === post.revision && held.mutationVersion === post.mutationVersion) continue;
+    byId.set(post.id, post);
+  }
+  const posts = chronological([...byId.values()]);
+  if (posts.length === current.posts.length && posts.every((post, index) => post === current.posts[index])) return current;
+  return { ...current, posts };
+}

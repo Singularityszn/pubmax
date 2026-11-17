@@ -27,7 +27,7 @@ vi.mock("@/app/social/SocialOutbox", () => ({ default: ({ onPostChanged }: { onP
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { clearSurfaceCache, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
-import { readSocialPostWindow } from "@/lib/socialPostWindow";
+import { mergeSocialPostHead, readSocialPostWindow } from "@/lib/socialPostWindow";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import type { SocialPostsShellState } from "@/lib/socialShell";
 
@@ -445,25 +445,67 @@ it.each(["pagination", "edit"])("does not renew the first page's age after %s", 
   } finally { clock.mockRestore(); }
 });
 
-it("disables pagination while a refresh is pending and preserves the visible posts", async () => {
+it("lets pagination supersede a held background head without a stale rewind", async () => {
   let reads = 0;
   let finish!: (response: Response) => void;
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    if (href.includes("cursor=")) return Response.json({ posts: [feedPost("Older post", 11)], nextCursor: "page-three" });
     if (++reads > 1) return new Promise<Response>(resolve => { finish = resolve; });
     return Response.json({ posts: [feedPost("Original post", 12)], nextCursor: "older" });
   });
   await mountFeed();
   await act(async () => window.dispatchEvent(new Event("focus")));
-  const loadMore = [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!;
-  expect(loadMore.disabled).toBe(true);
-  expect(host.querySelector(".socialPostCard")?.textContent).toBe("Original post");
+  const more = [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!;
+  expect(more.disabled).toBe(false);
+  await act(async () => more.click());
+  expect(host.textContent).toContain("Older post");
+  await act(async () => finish(Response.json({ posts: [feedPost("Stale head", 13)], nextCursor: null })));
+  expect(host.textContent).toContain("Older post");
+  expect(host.textContent).not.toContain("Stale head");
+});
 
-  await act(async () => finish(Response.json({ posts: [feedPost("Refreshed post", 12)], nextCursor: "fresh-older" })));
-
-  expect(host.querySelector(".socialPostCard")?.textContent).toBe("Refreshed post");
-  expect(loadMore.disabled).toBe(false);
+it("polls only the head, retains older pages and reports background failures politely", async () => {
+  vi.useFakeTimers();
+  try {
+    let fail = false;
+    let heads = 0;
+    let tails = 0;
+    transport.request.mockImplementation(async (href: string) => {
+      if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+      if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+      if (href.includes("cursor=")) {
+        tails++;
+        return Response.json({ posts: [feedPost(`Older ${tails}`, 12 - tails)], nextCursor: `older-${tails}` });
+      }
+      heads++;
+      return fail ? Response.json({}, { status: 503 }) : Response.json({ posts: [feedPost("Head", 12)], nextCursor: "older" });
+    });
+    await mountFeed();
+    for (let n = 0; n < 2; n++) await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    for (let n = 0; n < 4; n++) await act(async () => vi.advanceTimersByTime(15_000));
+    expect(heads).toBe(5);
+    expect(tails).toBe(2);
+    expect(host.textContent).toContain("Older 2");
+    const beforeHidden = heads;
+    const visibility = vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    await act(async () => vi.advanceTimersByTime(30_000));
+    expect(heads).toBe(beforeHidden);
+    visibility.mockRestore();
+    fail = true;
+    await act(async () => vi.advanceTimersByTime(15_000));
+    expect(host.querySelector(".socialFeedInlineError")?.getAttribute("role")).toBe("status");
+    const beforeBackoff = heads;
+    await act(async () => vi.advanceTimersByTime(15_000));
+    expect(heads).toBe(beforeBackoff);
+    const retry = [...host.querySelectorAll("button")].find(button => button.textContent === "Retry")!;
+    await act(async () => retry.click());
+    expect(host.querySelector(".socialFeedInlineError")?.getAttribute("role")).toBe("alert");
+    fail = false;
+    await act(async () => retry.click());
+    expect(host.querySelector(".socialFeedInlineError")).toBeNull();
+  } finally { vi.useRealTimers(); }
 });
 
 it("keeps an accepted edit when its revalidation fails", async () => {
@@ -505,7 +547,7 @@ it("keeps the warm Following window while visiting a view with no feed request",
   expect(host.querySelector(".socialPostCard")?.textContent).toBe("A warm post");
 });
 
-it("revalidates loaded pages through fresh cursors and removes a deleted older post", async () => {
+it("explicitly revalidates loaded pages through fresh cursors and removes a deleted older post", async () => {
   let changed = false;
   transport.request.mockImplementation(async (href: string) => {
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
@@ -524,7 +566,7 @@ it("revalidates loaded pages through fresh cursors and removes a deleted older p
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(2);
   changed = true;
 
-  await act(async () => window.dispatchEvent(new Event("focus")));
+  await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!.click());
 
   expect([...host.querySelectorAll(".socialPostCard")].map(card => card.textContent)).toEqual(["New first post", "Original first post"]);
   expect(host.textContent).not.toContain("Deleted older post");
@@ -624,4 +666,16 @@ it.each(["following", "discover"] as const)("hides an empty %s feed and keeps fi
   expect(host.querySelector('a[href="/plan"]')?.textContent).toContain("Plan a crawl");
   expect(host.textContent).not.toContain("No posts here yet.");
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(0);
+});
+
+it("keeps unchanged record identities and the browsing cursor on head reconciliation", () => {
+  const first = feedPost("Head", 12), older = feedPost("Older", 11);
+  const window = { posts: [first, older], nextCursor: "third-page", pages: 2 };
+  expect(mergeSocialPostHead(window, { posts: [{ ...first }], nextCursor: "ignored" })).toBe(window);
+  const edited = { ...first, body: "Changed", revision: 1 };
+  const merged = mergeSocialPostHead(window, { posts: [edited, feedPost("New", 13)], nextCursor: "ignored" });
+  expect(merged.posts.map(post => post.body)).toEqual(["New", "Changed", "Older"]);
+  expect(merged.posts[2]).toBe(older);
+  expect(merged.nextCursor).toBe("third-page");
+  expect(merged.pages).toBe(2);
 });

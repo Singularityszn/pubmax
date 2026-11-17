@@ -24,7 +24,7 @@ export function InboxLoading() {
 
 export function ThreadLoading() {
   return <>
-    <p className="conversationPreview">With you in a sec.</p>
+    <p className="sr-only">With you in a sec.</p>
     <SampleSkeleton label="Loading messages">
       <ul className="threadMessages">
         {[0, 1, 2].map(row => <li key={row} className={`messageRow${row === 1 ? " messageRowMine" : ""}`}>
