@@ -8,7 +8,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { AuthActionSessionError, authedActionJson } from "@/lib/authedFetch";
-import { socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { socialPubRankingPayload, socialPubRankingReadFailure, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 const RANKING_UNAVAILABLE = "Your ranking is unavailable right now.";
 
@@ -18,6 +18,7 @@ type State =
   | { kind: "idle" }
   | { kind: "loading"; origin: "open" | "closed" }
   | { kind: "failed"; message: string }
+  | { kind: "refused"; message: string }
   | { kind: "comparing"; entries: SocialPubRankingEntry[] };
 
 async function readRanking(): Promise<State> {
@@ -29,8 +30,10 @@ async function readRanking(): Promise<State> {
     );
     const entries = response.ok ? socialPubRankingPayload(body) : null;
     if (entries) return { kind: "comparing", entries };
-    if (response.status === 401) return { kind: "failed", message: RANKING_UNAVAILABLE };
-    return { kind: "failed", message: errorMessageFrom(response.ok ? null : body, RANKING_UNAVAILABLE) };
+    return {
+      kind: socialPubRankingReadFailure(response.status, body) === "refused" ? "refused" : "failed",
+      message: response.status === 401 ? RANKING_UNAVAILABLE : errorMessageFrom(response.ok ? null : body, RANKING_UNAVAILABLE),
+    };
   } catch (error) {
     return {
       kind: "failed",
@@ -75,6 +78,7 @@ function RankIt({ venueId, venueName }: Props) {
     const next = await readRanking();
     if (!mounted.current) return;
     if (next.kind === "comparing") setPlaced(next.entries.find((entry) => entry.venueId === venueId) ?? null);
+    if (next.kind === "refused") setPlaced(null);
     setState(next);
   }
 
@@ -90,7 +94,10 @@ function RankIt({ venueId, venueName }: Props) {
       if (next.kind === "comparing") {
         setPlaced(next.entries.find((entry) => entry.venueId === venueId) ?? null);
         setState({ kind: "idle" });
-      } else setState(next);
+      } else {
+        if (next.kind === "refused") setPlaced(null);
+        setState(next);
+      }
     };
     void pending.then(refresh, refresh);
   }
@@ -98,10 +105,10 @@ function RankIt({ venueId, venueName }: Props) {
   return (
     <>
       <button type="button" className="pubPage__action" onClick={() => void open()} aria-busy={state.kind === "loading"} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
-        {state.kind === "failed" ? "Try ranking again" : placed ? `Ranked #${placed.place}` : "Rank it"}
+        {placed ? `Ranked #${placed.place}` : state.kind === "failed" ? "Try ranking again" : "Rank it"}
       </button>
-      <p className={state.kind === "failed" || (state.kind === "loading" && state.origin === "closed") ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
-        {state.kind === "failed" ? state.message : state.kind === "loading" ? "Checking your ranking…" : ""}
+      <p className={state.kind === "failed" || state.kind === "refused" || (state.kind === "loading" && state.origin === "closed") ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
+        {state.kind === "failed" || state.kind === "refused" ? state.message : state.kind === "loading" ? "Checking your ranking…" : ""}
       </p>
       {state.kind === "comparing" ? (
         <ComparePubFlow
