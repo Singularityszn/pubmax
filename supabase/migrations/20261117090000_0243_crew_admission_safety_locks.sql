@@ -6,8 +6,8 @@
 --    in account-ID order. A later pair lock comes after these.
 -- 2. _social_crew_admission_ineligible is the one read-only rule: the person is not
 --    active, this crew removed them, or a block either way joins them to an accepted
---    member who still has an account. A member whose deletion finished keeps their row
---    and counted place, but their kept blocks bar nobody; a suspended member with an
+--    member who still has an account. A member whose deletion finished bars nobody with
+--    kept blocks, and 0244 frees their place; a suspended member with an
 --    account still bars. _social_crew_admission_refused locks, then asks the rule in a
 --    new statement. Capacity is at most 20, so an admission takes at most 21 locks.
 -- 3. Request, decision, invitation and acceptance answer not_found, as for an unknown
@@ -59,7 +59,7 @@
 --    member rows is checked at commit. Nothing in the app deletes a Plan; the operator
 --    transaction locks the crew row, then the Plan row, then deletes the Plan
 --    (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md), the order admission uses.
--- Holds outside this migration: departed members' counted seats and 0071's lock order.
+-- 0244 frees deleted members' places and cancels their nights. 0071 stays held outside.
 --
 -- Rollback restores the 0110, 0114, 0075, 0092 and 0224 bodies and the RESTRICT seat
 -- reference, and drops the social_blocks and account triggers, helpers, correction

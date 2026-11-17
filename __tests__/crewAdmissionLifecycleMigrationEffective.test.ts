@@ -462,15 +462,15 @@ describe.skipIf(skipReason !== null)("after 0243: provisioning and account-less 
 describe.skipIf(skipReason !== null)("after 0243: departed members", () => {
   beforeAll(() => { if (running()) stageTo("after"); });
 
-  it("a guest who deleted their account no longer bars the people they blocked, and still holds their counted place", () => {
+  it("a guest who deleted their account no longer bars the people they blocked, and their place is freed", () => {
     const host = person(), ana = person(), xav = person();
     const crew = crewWith(host, [ana]);
     block(ana, xav);
     expect(request(xav, crew)).toEqual(NOT_FOUND);
     db().sql(deleteAccount(ana));
-    expect(state(crew, ana)).toBe("active");
     admit(host, crew, xav);
-    expect(db().sql(`select count(*) from public.social_crew_members where crew_id='${crew}' and state='active'`)).toBe("3");
+    expect(state(crew, ana)).toBe("left");
+    expect(db().sql(`select count(*) from public.social_crew_members where crew_id='${crew}' and state='active'`)).toBe("2");
   });
 
   it("a suspended guest who still has an account keeps barring the people they blocked", () => {

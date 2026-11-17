@@ -7587,6 +7587,12 @@ export type Database = {
         };
         Returns: string;
       };
+      _release_departed_crew_places: {
+        Args: {
+          p_crew: string | null;
+        };
+        Returns: number;
+      };
       _social_crew_admission_ineligible: {
         Args: {
           p_crew: string | null;
@@ -9463,6 +9469,12 @@ export type Database = {
           p_key: string | null;
         };
         Returns: boolean;
+      };
+      release_departed_social_crew_places: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: Json;
       };
       release_pub_pal_voice_trial: {
         Args: {

@@ -11,7 +11,7 @@ import { asServiceRole, startPostgres, type PostgresSession } from "./postgres";
 const directory = join(process.cwd(), "supabase/migrations");
 const name = "20261117090000_0243_crew_admission_safety_locks.sql";
 /** The migrations under test, in apply order. Rollback runs them in reverse. */
-const FORWARD = [name];
+const FORWARD = [name, "20261117120000_0244_crew_departure_release.sql"];
 const ROLLBACK = FORWARD.map((file) => `rollback/${file.replace(/\.sql$/, "_rollback.sql")}`).reverse();
 
 export const DIGEST = "a".repeat(64);
