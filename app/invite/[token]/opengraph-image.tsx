@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { planStateResult, resolvePlanIdByInviteToken } from "@/lib/planStore";
 import { buildInvitePrivacyPreview } from "@/lib/invitePrivacyPreview";
+import { clampOgText } from "@/lib/ogCardText";
 import { CardShell, OG, OG_CACHE_HEADERS, OG_SIZE, Wordmark, loadOgFonts } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
@@ -25,7 +26,7 @@ export default async function Image({ params }: { params: Promise<{ token: strin
       <Wordmark />
       <div style={{ display: "flex", flexDirection: "column" }}>
         <div style={{ display: "flex", fontSize: 60, fontWeight: 700, color: OG.ink }}>
-          {preview?.areaName ?? "You’re invited"}
+          {clampOgText(preview?.areaName, 48, "You’re invited")}
         </div>
         <div style={{ display: "flex", fontSize: 26, color: OG.muted, marginTop: 14 }}>
           {preview ? `${preview.stopCount} stops · First pint ${preview.startLabel}` : "A pub crawl planned on PUBMAXX."}
