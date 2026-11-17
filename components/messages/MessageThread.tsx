@@ -118,21 +118,15 @@ import "@/components/messages/messagePhotos.css";
 // Timeline, reveal and read-state rules:
 // docs/rules/components-venue-plan-and-message-surfaces.md.
 //
-// A SENT MESSAGE APPEARS THE MOMENT IT IS SENT. The composer clears and an own
-// bubble lands in the thread before the server answers; the refetch replaces
-// it with the stored row, and a refused send takes it back off and puts the
-// words back in the field, with the reason beside it.
+// Delivery and retry rules:
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries.
 //
 // THE COMPOSER IS PINNED, above the phone tab bar and above the keyboard.
 // lib/keyboardInset.ts measures the covered strip; lib/softKeyboard.ts says
 // whether the bar has stepped aside. Both ride the root as data, so the
 // stylesheet decides the geometry.
 //
-// A MESSAGE MAY CARRY ONE ATTACHMENT: a photo, or a pub. The photo takes the
-// whole owned-image journey server-side and its bytes come back through the same
-// courtesy gate the thread does (components/messages/MessagePhoto.tsx). The pub
-// stores an id alone (no coordinate of any kind rides in a message) and its
-// card is resolved live on the read path.
+// Attachment rules: lib/messageAttachments.ts.
 
 const HANDLE_KEY = "pubmax_handle";
 /** The counter shows only once a message is close to the cap. */

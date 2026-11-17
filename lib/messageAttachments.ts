@@ -464,9 +464,7 @@ export const MESSAGE_PHOTO_ASPECT_PROPERTY = "--message-photo-aspect";
  * A photo's own aspect as ONE number, which is what both `aspect-ratio` and the
  * tile-width `calc()` can read.
  *
- * A dimension that is missing or nonsense falls back to the frame every message
- * photo is cut to. A box with no aspect reserves nothing, and reserving nothing
- * is the defect.
+ * The legacy portrait ratio reserves space when stored dimensions are unusable.
  */
 export function messagePhotoAspect(width: unknown, height: unknown): number {
   const w = typeof width === "number" && Number.isFinite(width) && width > 0 ? width : 0;

@@ -12,7 +12,7 @@ import { MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { normalizeHandle } from "@/lib/profiles";
 import { preparePhotoUpload } from "@/lib/preparePhotoUpload";
 import { safeLocalStorage } from "@/lib/safeStorage";
-import { MESSAGE_PHOTO_BATCH_LIMIT } from "@/lib/messagePhotoBudget";
+import { MESSAGE_PHOTO_LIMIT as MESSAGE_PHOTO_BATCH_LIMIT } from "@/lib/messagePhotoBudget";
 import { discardMessagePhotoRecovery, rememberMessagePhotos, readMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 import { discardBody } from "@/lib/responseBody";
 
