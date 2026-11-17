@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { crewAttendanceRefusal, type CrewAttendanceDTO } from "@/lib/crewAttendance";
 import { CREW_ATTENDANCE_LOADING, nextCrewAttendanceView, type CrewAttendanceView } from "@/lib/crewAttendanceView";
+import { afterCrewAttendanceWrite, holdCrewAttendanceWrite } from "@/lib/crewAttendanceWrites";
 
 const ANA = "30000000-0000-4000-8000-000000000002";
 const BEA = "30000000-0000-4000-8000-000000000003";
@@ -80,5 +81,28 @@ describe("host attendance view", () => {
     for (const body of [null, {}, { details: null }, { details: { reason: "late" } }, { reason: "closed" }]) {
       expect(crewAttendanceRefusal(body), JSON.stringify(body)).toBeNull();
     }
+  });
+
+  it("a read waits for the same account's mark in flight on that crew, and for no other", async () => {
+    let finish!: () => void;
+    const write = holdCrewAttendanceWrite("crew-a|7", new Promise<void>((resolve) => { finish = resolve; }));
+    const order: string[] = [];
+    const waiting = afterCrewAttendanceWrite("crew-a|7").then(() => order.push("read crew-a"));
+    await afterCrewAttendanceWrite("crew-a|8").then(() => order.push("read as another account"));
+    await afterCrewAttendanceWrite("crew-b|7").then(() => order.push("read crew-b"));
+    expect(order).toEqual(["read as another account", "read crew-b"]);
+    finish();
+    await write;
+    await waiting;
+    expect(order).toEqual(["read as another account", "read crew-b", "read crew-a"]);
+  });
+
+  it("a failed mark releases the read too", async () => {
+    let fail!: (error: Error) => void;
+    const write = holdCrewAttendanceWrite("crew-a|9", new Promise<void>((_resolve, reject) => { fail = reject; }));
+    const waiting = afterCrewAttendanceWrite("crew-a|9");
+    fail(new Error("offline"));
+    await expect(write).rejects.toThrow("offline");
+    await expect(waiting).resolves.toBeUndefined();
   });
 });

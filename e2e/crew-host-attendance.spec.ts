@@ -15,9 +15,11 @@ const BEA = "30000000-0000-4000-8000-000000000073";
 const path = `/social/crews/${CREW}`;
 const api = `**/api/social/crews/${CREW}`;
 
-function crew(role: "owner" | "member") {
+function crew(role: "owner" | "member", arrival = false) {
   const viewer = role === "owner" ? HOST : ANA;
   return {
+    // The real read always carries arrival, so focus and resume read the whole crew again.
+    ...(arrival ? { arrival: { open: true, here: false, refreshAt: null } } : {}),
     kind: "member", crewId: CREW, title: "Thursday table", visibility: "open", phase: "live", nightArea: "Camden",
     startsAt: "2026-11-17T20:00:00.000Z", authorityRevision: 3,
     viewer: { memberId: viewer, role }, owner: { memberId: HOST, handle: "karan" },
@@ -46,6 +48,9 @@ const deferred = () => {
 const conflict = (reason: string) => ({ status: 409, json: { error: "Social Crew changed before this request.",
   code: "SOCIAL_CREW_CONFLICT", retryable: false, details: { reason } } });
 const focusWindow = (page: Page) => page.evaluate(() => window.dispatchEvent(new Event("focus")));
+const resumePage = (page: Page) => page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+const beaHere = { ...hostRead, items: [hostRead.items[0],
+  { memberId: BEA, state: "attended", revision: 1, recordedAt: "2026-11-17T21:00:00.000Z", recordedBy: "host" }] };
 
 /** Every attendance phrase the page ever rendered, so a flash that came and went is still caught. */
 async function recordPhrases(page: Page) {
@@ -61,7 +66,8 @@ async function recordPhrases(page: Page) {
   return () => page.evaluate(() => (window as unknown as { attendanceSeen: string[] }).attendanceSeen);
 }
 
-async function open(page: Page, role: "owner" | "member", attendance: (route: Route) => Promise<void>) {
+async function open(page: Page, role: "owner" | "member", attendance: (route: Route) => Promise<void>,
+  crewRead: (route: Route) => Promise<void> = (route) => route.fulfill({ json: crew(role) })) {
   const auth = await installAuthDoubles(page);
   await seedSignedIn(page, "A");
   await auth.signedInAs("A");
@@ -75,7 +81,7 @@ async function open(page: Page, role: "owner" | "member", attendance: (route: Ro
   await page.route("**/api/profiles/*/lot", (route) => route.fulfill({ json: { handles: [] } }));
   await page.route(`${api}/join-requests`, (route) => route.fulfill({ json: { items: [], hasMore: false } }));
   await page.route(`${api}/attendance`, attendance);
-  await page.route(api, (route) => route.fulfill({ json: crew(role) }));
+  await page.route(api, crewRead);
   await page.goto(path);
   return page.getByRole("region", { name: "Who came" });
 }
@@ -107,6 +113,61 @@ test("a host marks a guest with the revision they saw, and the page says what sa
   await expect(bea.getByRole("button", { name: "Here", exact: true })).toBeFocused();
   expect(posts).toEqual([{ body: { memberId: BEA, state: "attended", expectedRevision: 0 }, key: expect.stringMatching(/^crew-attendance-/) }]);
   await section.screenshot({ path: info.outputPath("host-after.png") });
+});
+
+test("a mark still saving when the page resumes keeps its button, and the list never reads ahead of it", async ({ page }, info) => {
+  const save = deferred();
+  let committed = false;
+  let crewReads = 0;
+  const section = await open(page, "owner", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: committed ? beaHere : hostRead });
+    await save.held;
+    committed = true;
+    return route.fulfill({ json: { memberId: BEA, state: "attended", revision: 1 } });
+  }, (route) => { crewReads += 1; return route.fulfill({ json: crew("owner", true) }); });
+  const bea = section.getByRole("group", { name: "Attendance for @bea" });
+  await expect(page.getByRole("button", { name: /I.m here/ })).toBeVisible();
+  await bea.getByRole("button", { name: "Here", exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(bea.getByRole("button", { name: "Saving…" })).toBeFocused();
+  const before = crewReads;
+  await resumePage(page);
+  await expect.poll(() => crewReads).toBe(before + 1);
+  await expect(page.getByRole("heading", { name: "Thursday table" })).toBeVisible();
+  await expect(bea.getByRole("button", { name: "Saving…" })).toBeFocused();
+  await section.screenshot({ path: info.outputPath("host-resume-saving.png") });
+  save.release();
+  await expect(section.getByRole("status")).toHaveText("@bea marked here.");
+  await expect(bea.getByRole("button", { name: "Here", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(bea.getByRole("button", { name: "Here", exact: true })).toBeFocused();
+  await expect(section.getByText("Not marked")).toHaveCount(0);
+  await section.screenshot({ path: info.outputPath("host-resume-saved.png") });
+});
+
+test("a list read again while a mark is saving waits for it, even after the crew page failed and recovered", async ({ page }) => {
+  const save = deferred();
+  let committed = false;
+  let failCrew = false;
+  const section = await open(page, "owner", async (route) => {
+    if (route.request().method() === "GET") return route.fulfill({ json: committed ? beaHere : hostRead });
+    await save.held;
+    committed = true;
+    return route.fulfill({ json: { memberId: BEA, state: "attended", revision: 1 } });
+  }, (route) => {
+    if (!failCrew) return route.fulfill({ json: crew("owner", true) });
+    failCrew = false;
+    return route.fulfill({ status: 503, json: { error: "down" } });
+  });
+  const bea = section.getByRole("group", { name: "Attendance for @bea" });
+  await bea.getByRole("button", { name: "Here", exact: true }).click();
+  await expect(bea.getByRole("button", { name: "Saving…" })).toBeVisible();
+  failCrew = true;
+  await focusWindow(page);
+  await page.getByRole("button", { name: "Try again" }).click();
+  await expect(section.getByText("Checking attendance…")).toBeVisible();
+  save.release();
+  await expect(bea.getByRole("button", { name: "Here", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(section.getByText("Not marked")).toHaveCount(0);
 });
 
 test("a host whose revision is stale keeps the list and their place while it reads again", async ({ page }, info) => {
