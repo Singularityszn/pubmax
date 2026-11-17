@@ -353,7 +353,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If the drop saved without stars, the form keeps your selection and says the stars were not saved. Retrying returns the saved drop without creating another one. It cannot add missing stars to an already saved drop.
 
-  On the [configured Product Hunt log in public day](lib/logInPublicDay.ts), **Logged in public** replaces home's Recent prices strip and appears above Social's Posts. Other Social tabs keep their existing behaviour. The section lists public London prices logged that calendar day, newest first, with each pub, serving, price and London time. Demo drops, unpriced drops and other days' drops are excluded. The section shows its date and refreshes its day selection at London midnight and when the browser page resumes.
+  On the [configured Product Hunt log in public day](lib/logInPublicDay.ts), **Logged in public** replaces home's Recent prices strip. On Social, it follows the main layout on both tabs. The section lists public London prices logged that calendar day, newest first, with each pub, serving, price and London time. Demo drops, unpriced drops and other days' drops are excluded. The section shows its date and refreshes its day selection at London midnight and when the browser page resumes.
 
   Results come from a capped public read and can omit eligible drops. **Show more prices from today** expands the returned rows. An empty result does not establish that nobody logged a price. A failed read offers **Try again**. **Log a pint** opens the map's pub picker.
 

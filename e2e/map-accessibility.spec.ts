@@ -1,5 +1,6 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { openVenueSecondaryActions } from "./helpers/venueActions";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 import { COMMUNITY_SHEET_FIXTURE_VENUE_ID } from "@/e2e/helpers/communitySheetFixture";
 
@@ -255,6 +256,8 @@ async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
 }
 
 test.describe("map keyboard and screen-reader venue path", () => {
+  test.use({ serviceWorkers: "block" });
+
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await page.emulateMedia({ reducedMotion: "reduce" });
@@ -448,6 +451,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     page,
   }) => {
     test.setTimeout(180_000);
+    await installDeterministicMapBasemap(page);
     await page.goto("/map");
     const canvas = page.locator(".maplibregl-canvas").first();
     await expect(canvas).toBeVisible({ timeout: 30_000 });
