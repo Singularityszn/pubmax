@@ -372,3 +372,32 @@ test.describe("first ten ranking", () => {
     expectQuiet(fixture);
   });
 });
+
+test("a failed retry keeps focus", async ({ page }) => {
+  const fixture = newFixture();
+  fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
+  await openProfile(page, fixture);
+  const retry = page.getByRole("button", { name: "Try again", exact: true });
+  await expect(retry).toBeVisible();
+  fixture.next.GET = (route) => route.fulfill({ status: 503, json: { code: "RANKING_UNAVAILABLE", retryable: true } });
+  await retry.click();
+  await expect(retry).toBeEnabled();
+  await expect(retry).toBeFocused();
+});
+
+test("a reread completes ten and restores focus", async ({ page }) => {
+  const nine = Array.from({ length: 9 }, (_, index) => `w2-recover-${index}`);
+  for (const id of nine) VENUES[id] = { name: `Extra ${id}`, borough: "Camden" };
+  const fixture = newFixture({ A: nine.map((venueId) => ({ venueId, band: "not_for_me" as const })) });
+  await openProfile(page, fixture);
+  await expect(card(page)).toContainText("9 of 10 ranked");
+  await startSession(page);
+  await pickPub(page, "swan", "The Swan");
+  fixture.next.POST = commitThenDrop(fixture);
+  fixture.next.GET = (route) => route.abort("internetdisconnected");
+  await dialog(page).getByRole("button", { name: "Loved it" }).click();
+  await expect(dialog(page).getByRole("heading", { name: "We lost the answer" })).toBeVisible();
+  await dialog(page).getByRole("button", { name: "Close", exact: true }).first().click();
+  await expect(card(page)).toHaveCount(0);
+  await expect(page.getByRole("heading", { name: "Your pubs, ranked" })).toBeFocused();
+});
