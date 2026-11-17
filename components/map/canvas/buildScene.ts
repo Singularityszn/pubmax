@@ -1413,6 +1413,7 @@ export function buildPubs(ctx: SceneCtx) {
       // because `clusterProperties` is create-time only: which one the donut
       // reads is decided per cluster in donutClusters.ts, from the counts
       // themselves.
+      generateId: true,
       clusterProperties: {
         minFairPence: ["min", ["coalesce", ["get", "fairPence"], 2147483647]],
         b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
