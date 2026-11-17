@@ -423,6 +423,24 @@ a.threadWith:active {
   border-bottom: 1px solid var(--line-soft);
 }
 
+.threadHeaderGroup {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: calc(var(--messages-gutter, 20px) * -1);
+  background: var(--messages-surface, var(--paper));
+}
+
+.threadHeaderGroup .threadHeader {
+  position: static;
+  margin-inline: 0;
+}
+
+.threadHeaderGroup .threadReadRecovery {
+  margin: 0 var(--messages-gutter, 20px);
+  padding-block: var(--space-2);
+}
+
 .threadBackLink {
   display: inline-grid;
   place-items: center;
@@ -1495,6 +1513,11 @@ html[data-theme="dark"] .messageBubblePhoto {
     margin: 0;
     min-height: 76px;
     padding: 0.5rem 1.25rem;
+  }
+
+  .messagesThreadPane .threadHeaderGroup {
+    position: static;
+    margin-inline: 0;
   }
 
   .messagesThreadPane .threadBackLink {

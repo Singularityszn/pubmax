@@ -754,6 +754,8 @@ it.each([30, 200])("keeps a feed contiguous after %s posts arrive between heads"
     expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
     expect(host.querySelector('[role="status"].socialFeedNewPosts')).not.toBeNull();
     expect(reads).toEqual([200, 0, 20, 40]);
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(reads).toEqual([200, 0, 20, 40]);
     const refresh = [...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!;
     await act(async () => refresh.click());
     expect(host.querySelector('[role="status"].socialFeedNewPosts')).toBeNull();

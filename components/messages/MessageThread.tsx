@@ -38,6 +38,7 @@ import { useMessageThreadPresence } from "@/components/messages/useMessageThread
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import { useThreadViewportFit } from "@/components/messages/useThreadViewportFit";
+import { useThreadReadingPosition } from "@/components/messages/useThreadReadingPosition";
 import MessageVenuePicker from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
@@ -320,6 +321,7 @@ export default function MessageThread({
     setRemoving(false);
     setRemovalError("");
   }
+  const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
   const headRef = useRef<ThreadHead | null>(null);
@@ -603,13 +605,13 @@ export default function MessageThread({
     };
   }, [conversationId, refresh]);
 
-  const { attachViewport, attachList, followingNewestRef } = useThreadViewportFit({
-    conversationId,
-    accountRevision,
-    messages,
-    outbox,
-    revealedId,
+  const { attachViewport } = useThreadViewportFit();
+  useThreadReadingPosition({
+    listRef, scope: snapshotKey,
+    ready: state === "ready", current: sameThreadReadKey(viewRevision, conversationId, accountRevision),
+    history: messages, outbox, keyboardOpen,
   });
+
 
   const over = draft.length > MAX_MESSAGE_BODY;
   const hasSomething = draft.trim().length > 0 || pending !== null;
@@ -622,7 +624,6 @@ export default function MessageThread({
   }, []);
 
   function sendMessage(): void {
-    followingNewestRef.current = true;
     setPicking(null); setMobileAttachOpen(false); void send();
   }
 
@@ -1190,6 +1191,7 @@ export default function MessageThread({
         className="messageThreadShell"
         data-keyboard-open={keyboardOpen ? "" : undefined}
       >
+      <div className="threadHeaderGroup">
       <div className="threadHeader">
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
@@ -1207,10 +1209,11 @@ export default function MessageThread({
         visible={sameThreadReadKey(failedRead, conversationId, accountRevision)}
         onRetry={() => void refresh()}
       />
+      </div>
       {state === "loading" ? (
         <ThreadLoading />
       ) : (
-        <ul className="threadMessages" ref={attachList}>
+        <ul className="threadMessages" ref={listRef}>
           {timeline.length === 0 ? (
             <li className="threadEmpty" aria-live="polite">
               {otherHandle ? (
