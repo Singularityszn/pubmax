@@ -98,7 +98,7 @@ export default function FairPintFrame({
         aria-label="Close"
         onClick={onClose}
       >
-        <X size={18} aria-hidden="true" />
+        <X size={20} aria-hidden="true" />
       </button>
     </aside>
   );
