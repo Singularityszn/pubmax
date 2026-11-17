@@ -58,6 +58,10 @@ describe("resilient-audit waivers", () => {
     expect(runGate(auditReport(PICOMATCH_URL), auditReport(), now).status).toBe(1);
   });
 
+  it("does not accept unavailable evidence when the exception expires", () => {
+    expect(runGate("registry unavailable", auditReport(), "2026-11-24T00:00:00.000Z").status).toBe(1);
+  });
+
   it.each([
     ["production exposure", auditReport(PICOMATCH_URL), auditReport(PICOMATCH_URL)],
     ["another advisory", auditReport(OTHER_URL), auditReport()],
