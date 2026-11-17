@@ -13,6 +13,7 @@ const viewer = vi.hoisted(() => ({
   session: {} as ViewerSession,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
+const calendar = vi.hoisted(() => ({ day: null as string | null }));
 
 vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
@@ -30,6 +31,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => v
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
+vi.mock("@/lib/useLogInPublicDay", () => ({ useLogInPublicDay: () => calendar.day }));
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
@@ -64,6 +66,7 @@ beforeEach(() => {
   viewer.auth.accountRevision = 0;
   viewer.auth.user = null;
   setSession("unresolved");
+  calendar.day = null;
   transport.request.mockReset();
   transport.request.mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input) !== "/api/starter-packs") throw new Error(`Unexpected request: ${String(input)}`);
@@ -160,7 +163,9 @@ describe("Social Posts account resolution", () => {
     expect(transport.request).not.toHaveBeenCalled();
 
     setSession("signed-out");
+    calendar.day = "2026-11-17";
     await renderSocial();
+    await vi.dynamicImportSettled();
 
     expect(door.querySelector('section[aria-label="Social posts"]')).toBe(slot);
     expect(slot!.querySelector(".emptyState")!.parentElement).toBe(content);
