@@ -2,7 +2,6 @@ import Link from "next/link";
 
 import type { FeaturedOpenTable } from "@/lib/featuredOpenTable.server";
 import { displayHandle } from "@/lib/handleDisplay";
-import { openCrawlPlacesLine } from "@/lib/openCrawl";
 
 import "./openTableCard.css";
 
@@ -34,7 +33,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
         {" · London"}
       </p>
       <p>Hosted by {displayHandle(table.hostHandle)}</p>
-      {table.placesLeft === null ? null : <p>{openCrawlPlacesLine(table.placesLeft)}</p>}
+      {table.placesLine === null ? null : <p>{table.placesLine}</p>}
       {table.price ? (
         <p className="socialAlternativeSource">
           {table.price.sentence}{" "}

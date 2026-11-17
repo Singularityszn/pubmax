@@ -2,7 +2,7 @@ import "server-only";
 
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { FeaturedOpenTableSelection } from "@/lib/featuredOpenTableSelection";
-import { openCrawlJoinWindow } from "@/lib/openCrawl";
+import { openCrawlJoinWindow, openCrawlPlacesLine } from "@/lib/openCrawl";
 import { loadOpenCrawlPublicPreview } from "@/lib/openCrawlShareCard.server";
 import { selectSummonPrice, summonPriceSentence } from "@/lib/summonPrice";
 import { lookupVenueDetail } from "@/lib/venueDetailIndex";
@@ -15,7 +15,7 @@ export type FeaturedOpenTable = {
   meetingPubName: string;
   startsAt: string;
   /** Null when the count was not read. Never derived from capacity. */
-  placesLeft: number | null;
+  placesLine: string | null;
   price: { sentence: string; sourceUrl: string } | null;
 };
 
@@ -103,7 +103,7 @@ export async function loadFeaturedOpenTable(
       hostHandle: card.hostHandle,
       meetingPubName: card.meetingPubName,
       startsAt: new Date(startMs).toISOString(),
-      placesLeft: card.placesLeft,
+      placesLine: card.placesLeft === null ? null : openCrawlPlacesLine(card.placesLeft),
       price: await datedPrice(selection.meetingVenueId, nowMs),
     },
   };
