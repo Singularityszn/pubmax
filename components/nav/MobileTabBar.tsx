@@ -20,7 +20,7 @@ import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
-import { requestMobileSheetDismiss } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
 import {
   preferredCityMapHref,
   readPreferredCity,

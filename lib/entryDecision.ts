@@ -23,6 +23,13 @@ import {
   shouldRouteNativeFirstRun,
 } from "@/lib/nativeFirstRun";
 import { isNativeApp } from "@/lib/nativePlatform";
+import { hasConsumedSessionEntry } from "@/lib/sessionEntry";
+export {
+  SESSION_ENTRY_CONSUMED_KEY,
+  hasConsumedSessionEntry,
+  markSessionEntryConsumed,
+  consumeDeepLinkBootEntry,
+} from "@/lib/sessionEntry";
 
 /** PWA launch and native onboarding completion destination. */
 export const SHELL_START_PATH = "/tonight";
@@ -103,76 +110,6 @@ export function isStandaloneDisplay(): boolean {
     // matchMedia missing/throwing — fall through to the iOS flag.
   }
   return (window.navigator as { standalone?: boolean }).standalone === true;
-}
-
-/**
- * Per-session flag that records the cold-start entry decision has run (owner
- * amendment, 2026-07-21). sessionStorage-backed so it resets on a genuine cold
- * start (a fresh app session) but survives in-app navigation, and injectable so
- * the pure decision above stays hermetically testable. Mirrors the
- * resolveSessionStorage idiom in lib/nativeFirstRun.ts.
- *
- * The key itself is EXPORTED because the entry block in public/theme-init.js takes the same
- * decision one paint earlier, before React exists, and has to write the same
- * slot; __tests__/nativeShellEntry.test.ts holds the static file to it.
- */
-export const SESSION_ENTRY_CONSUMED_KEY = "pubmax:entryDecision:consumed:v1";
-const SESSION_ENTRY_KEY = SESSION_ENTRY_CONSUMED_KEY;
-
-function resolveSessionStorage(storage?: Storage | null): Storage | null {
-  if (storage) return storage;
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Has this session's entry decision run? Missing storage returns false.
- * Native launches still keep the homepage. A PWA root launch opens Tonight.
- */
-export function hasConsumedSessionEntry(storage?: Storage | null): boolean {
-  const store = resolveSessionStorage(storage);
-  if (!store) return false;
-  try {
-    return store.getItem(SESSION_ENTRY_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Mark this session's entry decision as run. SSR and storage failures are
- * silent. The native homepage destination does not depend on this flag.
- */
-export function markSessionEntryConsumed(storage?: Storage | null): void {
-  const store = resolveSessionStorage(storage);
-  if (!store) return;
-  try {
-    store.setItem(SESSION_ENTRY_KEY, "1");
-  } catch {
-    // Storage full / disabled / private mode — degrade silently (see above).
-  }
-}
-
-/**
- * Deep-link boot stamp (2026-07-22, closes the installed-PWA home-tap hole).
- * The PWA manifest cold-starts the app on start_url (/tonight), so
- * AppEntryRoute — mounted only at "/" — never ran and never stamped the
- * per-session flag. The FIRST in-app wordmark tap to "/" then read as a cold
- * start and bounced straight back to /tonight. A boot on any non-root path IS
- * this session's entry decision (precedence rule 1: deep links bypass), so it
- * must consume the session entry too. Root boots stay entirely with
- * AppEntryRoute — stamping first at "/" would corrupt the cold-start read.
- * Returns whether the flag was stamped (false at "/"), so contract tests can
- * assert both sides.
- */
-export function consumeDeepLinkBootEntry(path: string, storage?: Storage | null): boolean {
-  if (path === "/") return false;
-  markSessionEntryConsumed(storage);
-  return true;
 }
 
 /** Snapshot the live entry context for the given boot pathname. */
