@@ -117,12 +117,10 @@ import {
   withReferralSignupProof,
 } from "@/lib/referralClaimClient";
 import {
-  handleClaimRouteAfterSignIn,
   IDENTITY_HANDLE_CHANGED_EVENT,
   identityHandleForOwner,
-  resolveCanonicalIdentity,
   type IdentityHandleChangedDetail,
-} from "@/lib/identityClient";
+} from "@/lib/identitySignals";
 import {
   AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS,
   bootstrapAuthSession,
@@ -569,12 +567,8 @@ export function AuthProvider({
         return;
       }
       timeout = window.setTimeout(unavailable, 8_000);
-      const resolution = await resolveCanonicalIdentity(
-        user.id,
-        session,
-        browserLocalStorage(),
-        undefined,
-        current,
+      const resolution = await import("@/lib/identityClient").then(({ resolveCanonicalIdentity }) =>
+        current() ? resolveCanonicalIdentity(user.id, session, browserLocalStorage(), undefined, current) : null,
       ).catch(() => null);
       if (!current()) return;
       if (!resolution?.ok) {
@@ -913,15 +907,13 @@ export function AuthProvider({
           // claimed handle lands on the claim surface.
           void referralClaimed
             .catch(() => {})
-            .then(() => current()
-              ? handleClaimRouteAfterSignIn(
-                exchangedSession,
-                captured.cleanUrl,
-                browserLocalStorage(),
-                undefined,
-                current,
-              ) : null,
-            )
+            .then(async () => {
+              if (!current()) return null;
+              const { handleClaimRouteAfterSignIn } = await import("@/lib/identityClient");
+              return current() ? handleClaimRouteAfterSignIn(
+                exchangedSession, captured.cleanUrl, browserLocalStorage(), undefined, current,
+              ) : null;
+            })
             .then((destination) => {
               if (destination && current()) window.location.assign(destination);
             })
@@ -1143,9 +1135,13 @@ export function AuthProvider({
         returnUrl = safeAuthNext(cleanUrl, window.location.origin);
       },
     });
-    void referralClaimed.catch(() => {}).then(() =>
-      ownsAccount() ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount) : null,
-    ).then((destination) => {
+    void referralClaimed.catch(() => {}).then(async () => {
+      if (!ownsAccount()) return null;
+      const { handleClaimRouteAfterSignIn } = await import("@/lib/identityClient");
+      return ownsAccount()
+        ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount)
+        : null;
+    }).then((destination) => {
       if (ownsAccount()) {
         router.push(safeAuthNext(destination ?? returnUrl, window.location.origin) as Route);
       }
