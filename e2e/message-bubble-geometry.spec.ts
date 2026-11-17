@@ -112,7 +112,10 @@ async function measureBubbles(page: Page): Promise<Record<string, Measured>> {
         report.textContent = "Report";
         meta.append(report);
       }
-      line.append(bubble, meta);
+      const group = document.createElement("div");
+      group.className = "messageBubbleGroup";
+      group.append(bubble, meta);
+      line.append(group);
       row.append(line);
       list.append(row);
     }
@@ -187,7 +190,10 @@ async function measureMedia(page: Page, rootFontPx: number): Promise<MeasuredMed
         fill(bubble);
         const meta = document.createElement("div");
         meta.className = "messageMeta";
-        line.append(bubble, meta);
+        const group = document.createElement("div");
+        group.className = "messageBubbleGroup";
+        group.append(bubble, meta);
+        line.append(group);
         item.append(line);
         list.append(item);
       };
@@ -341,7 +347,7 @@ for (const viewport of VIEWPORTS) {
         const next = document.getElementById("long-mine")!.getBoundingClientRect();
         const x = report.getBoundingClientRect().left + 4;
         return [
-          [x, own.bottom - 1],
+          [own.right - 1, own.bottom - 1],
           [x, next.top + 1],
         ].map(([px, py]) => report.contains(document.elementFromPoint(px, py)));
       });

@@ -689,20 +689,18 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 @media (hover: hover) and (pointer: fine) {
   .messageLine {
-    /* Cap the action allowance so enlarged text keeps a readable bubble. */
     --message-actions-space: clamp(96px, 6rem, 112px);
-    max-width: min(75%, calc(100% - var(--message-actions-space)));
+    max-width: min(100%, calc(75% + var(--message-actions-space)));
   }
 
   .messageBubbleGroup {
-    position: relative;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) var(--message-actions-space);
+    align-items: end;
     width: fit-content;
   }
 
   .messageMeta {
-    position: absolute;
-    inset-block-end: 0;
-    inset-inline-start: 100%;
     width: var(--message-actions-space);
     flex-wrap: wrap;
     row-gap: 0;
@@ -715,9 +713,20 @@ html[data-theme="dark"] .messageBubblePhoto {
     pointer-events: none;
   }
 
+  .messageRowMine .messageBubbleGroup {
+    grid-template-columns: var(--message-actions-space) minmax(0, 1fr);
+  }
+
+  .messageRowMine .messageBubble,
+  .messageRowMine .messageUnsent {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
   .messageRowMine .messageMeta {
-    inset-inline-start: auto;
-    inset-inline-end: 100%;
+    grid-column: 1;
+    grid-row: 1;
     padding: 0 var(--space-2) 0 0;
   }
 

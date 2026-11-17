@@ -218,6 +218,102 @@ async function expectSendCentred(page: Page): Promise<void> {
   expect(measured.radius).toBe("50%");
 }
 
+test.describe("message action hit areas", () => {
+  for (const width of [390, 768, 1440]) {
+    for (const rootFontPx of [16, 32]) {
+      test(`actions stay in their own row at ${width}px with ${rootFontPx}px text`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        const rows = fixture().slice(-4).map((row, index) => ({
+          ...row,
+          senderHandle: index < 2 ? THEM : ME,
+          body: index % 2 === 0 ? "Meet at the Coach and Horses, by the window." : "Ok",
+          createdAt: new Date(Date.now() - (4 - index) * 1_000).toISOString(),
+        }));
+        await installThread(page, rows);
+        await page.goto("/messages/c1");
+        const bubbles = page.locator(".threadMessages .messageBubble");
+        await expect(bubbles).toHaveCount(4);
+        await page.evaluate((size) => {
+          document.documentElement.style.fontSize = `${size}px`;
+        }, rootFontPx);
+        await page.evaluate(() => document.fonts.ready);
+
+        for (const index of [1, 3]) {
+          const row = page.locator(".messageRow").nth(index);
+          const bubble = bubbles.nth(index);
+          const action = row.getByRole("button", { name: index === 1 ? "Report" : "Unsend", exact: true });
+          await page.mouse.move(0, 0);
+          await bubble.scrollIntoViewIfNeeded();
+          const before = await bubbles.evaluateAll((elements) => elements.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+          }));
+          await bubble.hover();
+          await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
+          const geometry = await action.evaluate((element) => {
+            const row = element.closest(".messageRow")!;
+            const previous = row.previousElementSibling!.querySelector(".messageBubble")!;
+            const bounds = element.getBoundingClientRect();
+            const rowBounds = row.getBoundingClientRect();
+            const previousBounds = previous.getBoundingClientRect();
+            const x = bounds.left + bounds.width / 2;
+            return {
+              height: bounds.height,
+              width: bounds.width,
+              contained: bounds.top >= rowBounds.top && bounds.bottom <= rowBounds.bottom
+                && bounds.left >= rowBounds.left && bounds.right <= rowBounds.right,
+              previousCoversX: x > previousBounds.left && x < previousBounds.right,
+              previousOwnsEdge: previous.contains(document.elementFromPoint(x, previousBounds.bottom - 1)),
+            };
+          });
+          expect(geometry.height).toBeGreaterThanOrEqual(44);
+          expect(geometry.width).toBeGreaterThanOrEqual(44);
+          expect(geometry.contained).toBe(true);
+          expect(geometry.previousCoversX).toBe(true);
+          expect(geometry.previousOwnsEdge).toBe(true);
+          const target = await action.boundingBox();
+          await page.mouse.move(target!.x + target!.width / 2, target!.y + target!.height / 2);
+          await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
+          expect(await bubbles.evaluateAll((elements) => elements.map((element) => {
+            const rect = element.getBoundingClientRect();
+            return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
+          }))).toEqual(before);
+          await page.screenshot({ path: testInfo.outputPath(`action-${index}.png`) });
+          await page.mouse.move(0, 0);
+          await action.focus();
+          await expect(action).toBeFocused();
+          await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
+          await action.evaluate((element) => (element as HTMLElement).blur());
+        }
+      });
+    }
+  }
+});
+
+test.describe("message bubbles on touch", () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  for (const rootFontPx of [16, 32]) {
+    test(`short own bubbles keep their natural width with ${rootFontPx}px text`, async ({ page }) => {
+      await page.setViewportSize(PHONE);
+      await installThread(page, [{ ...fixture()[5]!, body: "Ok" }]);
+      await page.goto("/messages/c1");
+      const bubble = page.locator(".messageBubble");
+      await expect(bubble).toHaveText("Ok");
+      await page.evaluate((size) => {
+        document.documentElement.style.fontSize = `${size}px`;
+      }, rootFontPx);
+      const before = await bubble.boundingBox();
+      expect(before!.width).toBeLessThan(PHONE.width / 2);
+      await bubble.tap();
+      await expect(page.locator(".messageMeta")).toHaveCSS("opacity", "1");
+      const after = await bubble.boundingBox();
+      expect(after!.width).toBe(before!.width);
+      expect(after!.x + after!.width).toBe(before!.x + before!.width);
+    });
+  }
+});
+
 test.describe("the message thread on a phone", () => {
   test.beforeEach(async ({ page }) => {
     await page.setViewportSize(PHONE);
