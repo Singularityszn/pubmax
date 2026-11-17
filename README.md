@@ -468,9 +468,11 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
-  Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
+  Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. During preparation, a counter shows completed photos and the batch total. **Cancel** stops preparation. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
 
-  If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread. If you leave the thread, **Return to your photos** opens the unsent batch.
+  If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread.
+
+  If you leave the thread with unsent photos, choose **Return to your photos** to reopen the draft. Returning to a draft does not count as a failed send. Review it and choose **Send**. A failed send keeps its error when you return and offers **Retry send**.
 
   This recovery works within the same tab and account session. Reloading or closing the tab loses unsent photos. Signing out or changing accounts clears them. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
 
