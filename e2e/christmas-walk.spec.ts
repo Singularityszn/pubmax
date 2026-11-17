@@ -129,7 +129,7 @@ for (const theme of ["light", "dark"] as const) {
     if (page.viewportSize()!.width < 768) {
       await page.getByRole("button", { name: /^(?:Edit active 13-stop plan|View active 13-stop walk)$/ }).click();
     } else if (page.viewportSize()!.width < 1024) {
-      await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+      await page.getByRole("button", { name: "View walk", exact: true }).click();
     } else {
       await page.getByRole("button", { name: "View stops", exact: true }).click();
     }
@@ -154,7 +154,7 @@ for (const theme of ["light", "dark"] as const) {
     await expectMapLoadingFrameReleased(page);
     await expectCameraRest(page);
     if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
-    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
     else await page.getByRole("button", { name: "View stops", exact: true }).click();
     const panel = page.getByRole("complementary", { name: "London Christmas walk", exact: true });
     const stops = panel.getByRole("list", { name: "Walking stops in order" });
@@ -191,7 +191,7 @@ for (const theme of ["light", "dark"] as const) {
     await expectMapLoadingFrameReleased(page);
     await expectCameraRest(page);
     if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
-    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
     else await page.getByRole("button", { name: "View stops", exact: true }).click();
     const panel = page.getByRole("complementary", { name: "London Christmas walk", exact: true });
     const stops = panel.getByRole("list", { name: "Walking stops in order" });
@@ -226,7 +226,7 @@ for (const theme of ["light", "dark"] as const) {
     await expectMapLoadingFrameReleased(page);
     await expectCameraRest(page);
     if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
-    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
+    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
     else await page.getByRole("button", { name: "View stops", exact: true }).click();
     const panel = page.getByRole("complementary", { name: "London Christmas walk", exact: true });
     const stops = panel.getByRole("list", { name: "Walking stops in order" });

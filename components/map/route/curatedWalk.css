@@ -34,7 +34,7 @@
 .curatedWalkActions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
 .curatedWalkSummary { margin-top: 8px; }
 .curatedWalkActions > button { white-space: nowrap; }
-.mobileSharedSheet[data-surface="solid"] > .mobileSharedSheetHeader { padding-bottom: 0; }
+.mobileSharedSheet[data-surface="solid"] > .mobileSharedSheetHeader { padding-bottom: 12px; }
 @media (min-width: 641px) and (max-width: 768px) {
   .mapStage[data-curated-walk-open="true"] {
     --map-top-clearance: calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px);

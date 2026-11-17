@@ -607,7 +607,6 @@ export function useMapCamera(refs: CameraRefs) {
       sheetWaitsRef.current += 1;
       if (owner === "user") pendingOwnerRef.current = owner;
       let waiting = true;
-      let cancelWait: (() => void) | undefined;
       const release = () => {
         if (!waiting) return;
         waiting = false;
@@ -619,7 +618,7 @@ export function useMapCamera(refs: CameraRefs) {
         release();
         if (requestVersion === userRequestRef.current) scheduleFit();
       }, waitForPanel);
-      cancelWait = () => { cancel(); release(); };
+      function cancelWait() { cancel(); release(); }
       if (waiting) routeWaitRef.current = cancelWait;
       return cancelWait;
     } else scheduleFit();

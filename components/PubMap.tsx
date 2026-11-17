@@ -6709,6 +6709,7 @@ export default function PubMap({
         onPersonaSelect={selectPersona}
         personaTonightCategory={personaTonightCategory}
         planningOpen={planningOpen}
+        walkActive={Boolean(curatedWalk)}
         detailOpen={detailOpen}
         storyOpen={storyDrawerOpen}
         desktopLaneActive={railViewport}

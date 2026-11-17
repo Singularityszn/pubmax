@@ -4,6 +4,7 @@ import type { ComponentProps } from "react";
 import { MobilePlanActivation } from "./MobilePlanActivation";
 import { Button } from "@/components/ui/button";
 import { discoveredCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import "./mobilePlanEntry.css";
 
 export function MobilePlanEntry({ crawls, onLoadCrawl, ...props }: ComponentProps<typeof MobilePlanActivation> & {
   crawls: CuratedCrawl[];
@@ -11,7 +12,10 @@ export function MobilePlanEntry({ crawls, onLoadCrawl, ...props }: ComponentProp
 }) {
   const walks = discoveredCuratedCrawls(crawls).filter((crawl) => crawl.walk);
   return <>
-    {walks.map((crawl) => <Button key={crawl.id} variant="secondary" aria-label={`Map ${crawl.name} with ${crawl.walk!.stops.length} stops`} onClick={() => onLoadCrawl(crawl)}>{crawl.name} · {crawl.walk!.stops.length} stops</Button>)}
+    {walks.map((crawl) => <div key={crawl.id} className="mobileWalkEntry">
+      <p>{crawl.walk!.kicker}</p>
+      <Button variant="secondary" aria-label={`Map ${crawl.name} with ${crawl.walk!.stops.length} stops`} onClick={() => onLoadCrawl(crawl)}><span>{crawl.name}</span><span>{crawl.walk!.stops.length} stops</span></Button>
+    </div>)}
     <MobilePlanActivation {...props} />
   </>;
 }
