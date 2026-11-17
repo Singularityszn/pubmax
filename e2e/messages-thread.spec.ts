@@ -67,7 +67,7 @@ function fixture(): Row[] {
 test.describe("photo action and pinch regression", () => {
   test.use({ hasTouch: true });
 
-  test("photo selection keeps touch actions and resisted pinch anchors", async ({ page, browserName }, testInfo) => {
+  test.beforeEach(async ({ page }) => {
     await page.setViewportSize(PHONE);
     await storeThemeChoice(page, "light");
     const sharp = (await import("sharp")).default;
@@ -80,7 +80,9 @@ test.describe("photo action and pinch regression", () => {
     await page.route("**/api/messages/c1/media/**", route => route.fulfill({ contentType: "image/jpeg", body: photo }));
     await page.goto("/messages/c1");
     await expect(page.locator(".messagePhotoButton")).toHaveCount(2);
+  });
 
+  test("photo selection keeps touch actions and resisted pinch anchors", async ({ page, browserName }, testInfo) => {
     for (const [index, action] of ["Unsend", "Report"].entries()) {
       await page.locator(".composerInput").focus();
       const row = page.locator(".messageRow").nth(index);
@@ -134,6 +136,7 @@ test.describe("photo action and pinch regression", () => {
       }
       await cdp?.detach();
       await page.getByRole("button", { name: "Close", exact: true }).tap();
+      await expect(row.locator(".messagePhotoButton")).toBeFocused();
       await expect(row).toHaveAttribute("data-revealed", "");
       await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
       await expect(row.getByRole("button", { name: action, exact: true })).toBeVisible();
@@ -142,6 +145,104 @@ test.describe("photo action and pinch regression", () => {
       await testInfo.attach(`${action}-after-close`, { path, contentType: "image/png" });
     }
   });
+
+  for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    test(`photo selection recovers from extreme travel with ${reducedMotion} motion`, async ({ page, browserName }, testInfo) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.locator(".composerInput").focus();
+      const opener = page.locator(".messagePhotoButton").last();
+      await opener.tap();
+      const stage = page.locator(".messagePhotoViewerStage");
+      const image = page.locator(".messagePhotoViewerImage");
+      await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+      const rect = await stage.boundingBox();
+      if (!rect) throw new Error("Photo stage is missing");
+      const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      const cdp = browserName === "chromium" ? await page.context().newCDPSession(page) : null;
+      if (!cdp) {
+        testInfo.annotations.push({ type: "coverage", description: "WebKit uses synthetic PointerEvents on the mounted viewer, not native device multi-touch." });
+        await stage.evaluate(element => { element.setPointerCapture = () => {}; });
+      }
+      type Touch = { id: number; x: number; y: number };
+      const pointer = async (type: "touchStart" | "touchMove" | "touchEnd", points: Touch[]) => {
+        if (cdp) await cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points });
+        else for (const point of points) {
+          await stage.dispatchEvent(type === "touchStart" ? "pointerdown" : type === "touchMove" ? "pointermove" : "pointerup", {
+            pointerId: point.id, pointerType: "touch", clientX: point.x, clientY: point.y, button: 0, bubbles: true,
+          });
+        }
+      };
+      const transform = () => image.evaluate(element => {
+        const matrix = new DOMMatrix(getComputedStyle(element).transform);
+        return { x: matrix.m41, y: matrix.m42, scale: matrix.a };
+      });
+      const shot = async (name: string) => {
+        const path = testInfo.outputPath(`${name}.png`);
+        await page.screenshot({ path });
+        await testInfo.attach(name, { path, contentType: "image/png" });
+      };
+      const observations = [];
+      for (const axis of ["x", "y"] as const) for (const direction of [1, -1]) {
+        await page.getByRole("button", { name: "Reset zoom", exact: true }).tap();
+        await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+        await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+        const dimension = axis === "x" ? rect.width : rect.height;
+        const fitted = Math.min(rect.width, rect.height);
+        const limit = Math.max(0, (fitted * 2 - dimension) / 2);
+        const fingers = [{ id: 1, x: centre.x - 30, y: centre.y - 30 }, { id: 2, x: centre.x + 30, y: centre.y + 30 }];
+        await pointer("touchStart", fingers);
+        const travelled = fingers.map(point => ({ ...point, [axis]: point[axis] + direction * dimension * 3 }));
+        await pointer("touchMove", travelled);
+        await expect(stage).toHaveAttribute("data-scale", "2");
+        await expect(async () => {
+          const current = await transform();
+          expect(direction * current[axis]).toBeGreaterThan(limit);
+          expect(Math.abs(current[axis])).toBeLessThan((fitted * 2 + dimension) / 2);
+        }).toPass();
+        const extreme = await transform();
+        await shot(`${axis}-${direction}-extreme`);
+        await pointer("touchEnd", [travelled[1]!]);
+        const handoff = await transform();
+        expect(handoff.x).toBeCloseTo(extreme.x, 1);
+        expect(handoff.y).toBeCloseTo(extreme.y, 1);
+        const recovered = { ...travelled[0]!, [axis]: travelled[0]![axis] - direction * dimension / 4 };
+        await pointer("touchMove", [recovered]);
+        const otherAxis = axis === "x" ? "y" : "x";
+        await expect(async () => {
+          const current = await transform();
+          expect(direction * (extreme[axis] - current[axis])).toBeGreaterThan(3);
+          expect(direction * (extreme[axis] - current[axis])).toBeLessThan(dimension / 4);
+          expect(current[otherAxis]).toBeCloseTo(extreme[otherAxis], 1);
+        }).toPass();
+        const dragged = await transform();
+        await shot(`${axis}-${direction}-one-finger`);
+        await pointer("touchEnd", cdp ? [] : [recovered]);
+        const withinBounds = async () => {
+          const current = await transform();
+          expect(current.scale).toBe(2);
+          expect(Math.abs(current.x)).toBeLessThanOrEqual(Math.max(0, (fitted * 2 - rect.width) / 2) + 0.1);
+          expect(Math.abs(current.y)).toBeLessThanOrEqual(Math.max(0, (fitted * 2 - rect.height) / 2) + 0.1);
+          await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+          const next = await transform();
+          expect(next.x).toBeCloseTo(current.x, 1);
+          expect(next.y).toBeCloseTo(current.y, 1);
+        };
+        await expect(withinBounds).toPass();
+        observations.push({ axis, direction, extreme, handoff, dragged, settled: await transform() });
+        await shot(`${axis}-${direction}-settled`);
+      }
+      await cdp?.detach();
+      await page.getByRole("button", { name: "Close", exact: true }).tap();
+      await expect(opener).toBeFocused();
+      await shot("close-focus");
+      await opener.press("Enter");
+      await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("dialog", { name: "Photo viewer" })).toHaveCount(0);
+      await expect(opener).toBeFocused();
+      await testInfo.attach("gesture-observations", { body: JSON.stringify({ browserName, reducedMotion, rect, observations }, null, 2), contentType: "application/json" });
+    });
+  }
 });
 
 /** Sign the page in as account A and answer the messages API in the browser. */
@@ -839,6 +940,7 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     await shot("viewer-zoom"); await scaleIsOne();
     await page.getByRole("button", { name: "Close", exact: true }).click();
     await expect(page.getByRole("dialog", { name: "Photo viewer" })).toHaveCount(0);
+    await expect(page.locator(".messagePhotoButton").first()).toBeFocused();
     await scaleIsOne();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.emulateMedia({ reducedMotion: "reduce" });

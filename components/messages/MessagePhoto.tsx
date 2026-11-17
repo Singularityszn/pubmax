@@ -21,7 +21,7 @@
 // own aspect, so the space reserved before the bytes land is the space the
 // photograph takes when they do.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import MessagePhotoViewer from "@/components/messages/MessagePhotoViewer";
 
@@ -54,6 +54,13 @@ export default function MessagePhoto({
   const [open, setOpen] = useState(false);
   const [dialogError, setDialogError] = useState("");
   const [attempt, setAttempt] = useState(0);
+  const opener = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const button = opener.current;
+    return () => { button?.focus({ preventScroll: true }); };
+  }, [open]);
 
   useEffect(() => {
     let active = true;
@@ -120,6 +127,7 @@ export default function MessagePhoto({
   return (
     <figure className="messagePhotoFigure" style={tile}>
       <button
+        ref={opener}
         type="button"
         className="messagePhotoButton"
         onClick={() => {
