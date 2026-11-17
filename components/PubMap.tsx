@@ -5099,7 +5099,7 @@ export default function PubMap({
     viewport: mapViewport,
   });
   const closeMapSurfaces = useCallback(() => {
-    const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
+    const searchPick = routeForMap.length < 2 && selectedVenueId === searchPickedVenueId && filters.query.trim()
       ? venueById.get(searchPickedVenueId)
       : null;
     if (searchPick) {
@@ -5113,7 +5113,7 @@ export default function PubMap({
     releasePlannerMode(); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, routeForMap.length, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
