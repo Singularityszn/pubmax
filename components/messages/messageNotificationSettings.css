@@ -1,12 +1,12 @@
 .messageAlerts { position: relative; }
-.messageAlertsPanel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hairline); border-radius: 16px; background: var(--paper); color: var(--ink); box-shadow: 0 8px 32px #0002; }
+.messageAlertsPanel { display: grid; gap: 12px; padding: 16px; border: 1px solid var(--hairline); border-radius: var(--radius-lg); background: var(--paper); color: var(--ink); box-shadow: var(--shadow-sm); }
 .messageAlertsPanel p { margin: 0; }
-.messageAlertsPanel h2 { margin: 0; font-size: 15px; line-height: 1.4; font-weight: 600; }
-.messageAlertsPanel .uiButton { min-height: var(--control-height, 44px); }
-.messageAlertsPanel label { display: flex; align-items: flex-start; gap: 8px; font-size: 14px; line-height: 1.5; }
+.messageAlertsPanel h2 { margin: 0; font-size: var(--text-base); line-height: 1.4; font-weight: 600; }
+.messageAlertsPanel .uiButton { min-height: var(--control-height); }
+.messageAlertsPanel label { display: flex; align-items: flex-start; gap: 8px; font-size: var(--text-sm); line-height: 1.5; }
 .messageAlertsPanel input { width: 20px; height: 20px; flex: 0 0 auto; }
 .messageAlertsPanel [aria-disabled="true"] { opacity: .6; }
-.messageAlertsHint { font-size: 13px; line-height: 1.5; color: var(--ink-soft); }
+.messageAlertsHint { font-size: var(--text-sm); line-height: 1.5; color: var(--ink-soft); }
 .threadHeader > .messageAlerts { margin-left: auto; }
 .threadHeader .messageAlertsPanel, .messageAlerts--compact .messageAlertsPanel { position: absolute; top: calc(100% + 8px); right: 0; z-index: 30; width: min(320px, calc(100vw - 32px)); transform-origin: top right; }
 .messagesInboxActions { position: relative; display: flex; align-items: center; gap: 8px; }

@@ -49,6 +49,35 @@ afterEach(() => {
   Reflect.deleteProperty(window, "Capacitor");
 });
 
+it.each([undefined, "thread"])("cancels unread error bodies across settings reads for %s", async (conversationId) => {
+  let cancelled = 0;
+  const failRead = () => state.fetch.mockResolvedValueOnce(new Response(new ReadableStream({
+    cancel() { cancelled += 1; },
+  }), { status: 503 }));
+  await act(async () => root.render(createElement(MessageNotificationSettings, { conversationId })));
+  failRead();
+  await click(toggle());
+  expect(cancelled).toBe(1);
+  const retry = () => Array.from(host.querySelectorAll("button")).find(button => button.textContent === "Try again")!;
+  failRead();
+  await click(retry());
+  expect(cancelled).toBe(2);
+  await click(retry());
+  expect(action()).not.toBeNull();
+  await click(toggle());
+  failRead();
+  await click(toggle());
+  expect(cancelled).toBe(3);
+  state.save.mockRejectedValueOnce(new DOMException("Timed out", "TimeoutError"));
+  failRead();
+  await click(conversationId ? action() : preview());
+  expect(cancelled).toBe(4);
+  expect(host.querySelector('[role="status"]')).not.toBeNull();
+  await click(retry());
+  expect(action()).not.toBeNull();
+  expect(host.querySelector('[role="status"]')).toBeNull();
+});
+
 it("shows a muted thread before its settings panel opens", async () => {
   state.fetch.mockResolvedValue(Response.json({ ...settings, muted: true }));
   await act(async () => root.render(createElement(MessageNotificationSettings, { conversationId: "thread" })));

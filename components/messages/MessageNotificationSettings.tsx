@@ -9,6 +9,7 @@ import { IconButton } from "@/components/ui/icon-button";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { currentMessagePushToken, messagePushFingerprint, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
 import { isNativeApp } from "@/lib/nativePlatform";
+import { discardBody } from "@/lib/responseBody";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { registerWebPush, webPushSupport, waitForWebPushWork } from "@/lib/webPush";
 import "./messageNotificationSettings.css";
@@ -28,7 +29,7 @@ async function readSettings(conversationId: string | undefined, signal: AbortSig
     const response = await authedActionFetch(`/api/message-notifications${conversationId ? `?conversationId=${encodeURIComponent(conversationId)}&settingsOnly=1` : ""}`, {
       signal: scope.signal, headers: fingerprint ? { "x-message-push-fingerprint": fingerprint } : {},
     }, { requiresIdentity: true });
-    if (!response.ok) throw new Error("Could not read message alerts.");
+    if (!response.ok) { discardBody(response); throw new Error("Could not read message alerts."); }
     return response.json() as Promise<Settings>;
   };
   try { return await waitForWebPushWork(read(), scope.signal); }

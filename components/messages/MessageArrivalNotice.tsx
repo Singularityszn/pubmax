@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
+import { discardBody } from "@/lib/responseBody";
 import "./messageArrivalNotice.css";
 
 export default function MessageArrivalNotice({ conversation, onDismiss, inbox = false, currentPath = "" }: { conversation: ConversationDTO; onDismiss: () => void; inbox?: boolean; currentPath?: string }): React.JSX.Element | null {
@@ -24,7 +25,7 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
     const controller = new AbortController();
     void authedActionFetch(`/api/message-notifications?conversationId=${encodeURIComponent(conversation.id)}`, { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
-        if (!response.ok) return;
+        if (!response.ok) { discardBody(response); return; }
         const settings = await response.json() as { quiet?: boolean };
         if (!controller.signal.aborted && settings.quiet === false) setAllowed(true);
       }).catch(() => undefined);
@@ -69,8 +70,8 @@ export default function MessageArrivalNotice({ conversation, onDismiss, inbox = 
   if (!host) return null;
   return createPortal(<div ref={noticeRef} className={allowed ? `messageArrival${inbox ? " messageArrival--inbox" : ""}` : undefined} role="status" onMouseEnter={() => setInteracting(true)} onMouseLeave={() => setInteracting(false)} onFocus={() => setInteracting(true)} onBlur={(event) => { if (!event.currentTarget.contains(event.relatedTarget)) setInteracting(false); }}>
     {allowed ? <>
-    <Link href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>{destination}</span></Link>
-    <button type="button" aria-label="Dismiss message notification" onClick={onDismiss}><X size={18} aria-hidden="true" /></button>
+    <Link className="pressable" href={`/messages/${conversation.id}`} onClick={onDismiss}>New message <span>{destination}</span></Link>
+    <button type="button" aria-label="Dismiss message notification" onClick={onDismiss}><X size={20} aria-hidden="true" /></button>
     </> : null}
   </div>, host);
 }
