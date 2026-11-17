@@ -110,3 +110,11 @@ it("keeps an early release when Close arrives before the controller loads", asyn
     act(() => root.unmount()); clearEarlyFairPint(); haptic.mockRestore(); vi.unstubAllGlobals();
   }
 });
+
+it("authorises the early card script with the dynamic document nonce", async () => {
+  const { renderToStaticMarkup } = await import("react-dom/server");
+  const { default: Prelude } = await import("@/components/map/fairpint/FairPintPrelude");
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(<Prelude area="Soho" nonce="request-nonce" />);
+  expect(host.querySelector("script")?.nonce).toBe("request-nonce");
+});
