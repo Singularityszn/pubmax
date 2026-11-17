@@ -125,3 +125,7 @@ export function socialPubComparisonNeighbours(session: SocialPubComparison): { a
     belowVenueId: session.band[slot] ?? null,
   };
 }
+
+export function socialPubRankingPayload(_body: unknown): SocialPubRankingEntry[] | null {
+  return null;
+}
