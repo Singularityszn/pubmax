@@ -1,7 +1,12 @@
 import type { Map as MapLibreMap } from "maplibre-gl";
+import type { AllPaintProperties } from "@maplibre/maplibre-gl-style-spec";
 import { fairPintSession, subscribeFairPintPaint } from "@/lib/fairPint";
 
-const wires = new WeakMap<MapLibreMap, () => void>();
+type PaintLease = {
+  dispose: () => void;
+  retain: (id: string, property: string, value: unknown) => boolean;
+};
+const wires = new WeakMap<MapLibreMap, PaintLease>();
 const STATE = "fairPintOpacity";
 const layers = [
   ["pubs-point", "icon-opacity"],
@@ -14,12 +19,18 @@ const layers = [
   ["cluster-count-badge", "text-opacity"],
 ] as const;
 
+export function setPintPaint<K extends keyof AllPaintProperties>(
+  map: MapLibreMap, id: string, property: K, value: AllPaintProperties[K],
+): void {
+  if (!wires.get(map)?.retain(id, property, value)) map.setPaintProperty(id, property, value);
+}
+
 export function fairPintOpacity(listed: unknown, ceiling: number): 1 | 0.25 {
   return typeof listed === "number" && listed <= ceiling ? 1 : 0.25;
 }
 
 export function wireFairPintPaint(map: MapLibreMap) {
-  wires.get(map)?.();
+  wires.get(map)?.dispose();
   const baseline = layers.map(([id, property]) => (map.getLayer(id) ? map.getPaintProperty(id, property) : undefined));
   const transitions = layers.map(([id, property]) =>
     map.getLayer(id) ? map.getPaintProperty(id, `${property}-transition`) : undefined,
@@ -65,19 +76,21 @@ export function wireFairPintPaint(map: MapLibreMap) {
     schedule();
   };
   const content = (event: { sourceId?: string; sourceDataType?: string }) => {
-    if (event.sourceId !== "pubs" || event.sourceDataType !== "content") return;
+    if (event.sourceId !== "pubs") return;
     painted.clear();
     schedule();
   };
   const unsubscribe = subscribeFairPintPaint(sync);
   map.on("sourcedata", content);
   map.on("moveend", schedule);
+  map.on("zoom", schedule);
   map.on("idle", schedule);
   const dispose = () => {
     unsubscribe();
     if (frame) cancelAnimationFrame(frame);
     map.off("sourcedata", content);
     map.off("moveend", schedule);
+    map.off("zoom", schedule);
     map.off("idle", schedule);
     map.off("remove", dispose);
     layers.forEach(([id, property], index) => {
@@ -92,6 +105,17 @@ export function wireFairPintPaint(map: MapLibreMap) {
     });
   };
   map.on("remove", dispose);
-  wires.set(map, dispose);
+  wires.set(map, {
+    dispose,
+    retain: (id, property, value) => {
+      const index = layers.findIndex(([layer, paint]) =>
+        layer === id && (property === paint || property === `${paint}-transition`),
+      );
+      if (index < 0) return false;
+      if (property.endsWith("-transition")) transitions[index] = value as (typeof transitions)[number];
+      else baseline[index] = value as (typeof baseline)[number];
+      return installed;
+    },
+  });
   sync();
 }

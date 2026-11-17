@@ -1,10 +1,9 @@
 "use client";
-
 import { curatedWalkLine, type CuratedWalk, type MapRouteStop } from "@/lib/curatedWalk";
 import { selectedPlaceIsDrawn } from "@/components/map/canvas/selectedPlaceIsDrawn";
 import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
-
+import { setPintPaint } from "@/components/map/fairpint/fairPintPaint";
 import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
 
 import dynamic from "next/dynamic";
@@ -2803,7 +2802,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // and therefore the pin's own hit box, so ramping it from 0 held every
       // pin untappable for the length of the entrance (see tokens.ts). The
       // pins keep buildScene's resting size and fade in.
-      map.setPaintProperty(
+      setPintPaint(map,
         "pubs-point",
         "icon-opacity",
         pinEntranceIconOpacityExpr(
@@ -2817,7 +2816,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // The price tag rides its own pin's stagger. Only visible when the map
       // loads already at street zoom (a deep link), but there the alternative
       // is a grid of numbers at full strength over glyphs still fading in.
-      map.setPaintProperty(
+      setPintPaint(map,
         "pubs-point",
         "text-opacity",
         pinEntranceIconOpacityExpr(
@@ -2838,8 +2837,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           PIN_ENTRANCE_STAGGER_MS,
           PIN_ENTRANCE_RAMP_MS,
         );
-        map.setPaintProperty("pubs-price-pill", "icon-opacity", pillOpacity);
-        map.setPaintProperty("pubs-price-pill", "text-opacity", pillOpacity);
+        setPintPaint(map, "pubs-price-pill", "icon-opacity", pillOpacity);
+        setPintPaint(map, "pubs-price-pill", "text-opacity", pillOpacity);
       }
       // City zoom shows clusters, not pins, so without this the entrance the
       // owner actually sees on a phone was no entrance at all — every disc
@@ -2852,17 +2851,17 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     // `progress` 1 restores the resting paint exactly (buildScene's constants).
     const applyClusterEntranceFrame = (progress: number) => {
       if (map.getLayer("clusters")) {
-        map.setPaintProperty("clusters", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
-        map.setPaintProperty("clusters", "circle-stroke-opacity", CLUSTER_STROKE_OPACITY * progress);
+        setPintPaint(map, "clusters", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
+        setPintPaint(map, "clusters", "circle-stroke-opacity", CLUSTER_STROKE_OPACITY * progress);
       }
       if (map.getLayer("clusters-casing")) {
-        map.setPaintProperty("clusters-casing", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
+        setPintPaint(map, "clusters-casing", "circle-opacity", CLUSTER_FILL_OPACITY * progress);
       }
       if (map.getLayer("cluster-count")) {
-        map.setPaintProperty("cluster-count", "text-opacity", progress);
+        setPintPaint(map, "cluster-count", "text-opacity", progress);
       }
       if (map.getLayer("cluster-count-badge")) {
-        map.setPaintProperty("cluster-count-badge", "text-opacity", progress);
+        setPintPaint(map, "cluster-count-badge", "text-opacity", progress);
       }
     };
     // Restores the static baseline (buildScene's own expressions) and
@@ -2890,24 +2889,24 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       pinEntranceActiveRef.current = false;
       applyClusterEntranceFrame(1);
       if (map.getLayer("pubs-point")) {
-        map.setPaintProperty("pubs-point", "text-opacity-transition", {
+        setPintPaint(map, "pubs-point", "text-opacity-transition", {
           duration: 250,
           delay: 0,
         });
-        map.setPaintProperty("pubs-point", "icon-opacity-transition", {
+        setPintPaint(map, "pubs-point", "icon-opacity-transition", {
           duration: 250,
           delay: 0,
         });
         map.setLayoutProperty("pubs-point", "icon-size", selectedPinIconSizeExpr(selectedIdRef.current));
-        map.setPaintProperty("pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
-        map.setPaintProperty("pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-point", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-point", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
       }
       if (map.getLayer("pubs-price-pill")) {
         for (const property of ["icon-opacity-transition", "text-opacity-transition"] as const) {
-          map.setPaintProperty("pubs-price-pill", property, { duration: 250, delay: 0 });
+          setPintPaint(map, "pubs-price-pill", property, { duration: 250, delay: 0 });
         }
-        map.setPaintProperty("pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
-        map.setPaintProperty("pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
       }
       markPinEntranceSettled();
     };
@@ -2938,11 +2937,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         pinEntranceCeilingTimer = undefined;
         if (pinEntranceActiveRef.current) finishPinEntrance();
       }, PIN_ENTRANCE_SETTLE_CEILING_MS);
-      map.setPaintProperty("pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
-      map.setPaintProperty("pubs-point", "text-opacity-transition", { duration: 0, delay: 0 });
+      setPintPaint(map, "pubs-point", "icon-opacity-transition", { duration: 0, delay: 0 });
+      setPintPaint(map, "pubs-point", "text-opacity-transition", { duration: 0, delay: 0 });
       if (map.getLayer("pubs-price-pill")) {
         for (const property of ["icon-opacity-transition", "text-opacity-transition"] as const) {
-          map.setPaintProperty("pubs-price-pill", property, { duration: 0, delay: 0 });
+          setPintPaint(map, "pubs-price-pill", property, { duration: 0, delay: 0 });
         }
       }
       // Paint t=0 synchronously so there's no one-frame flash of full-size,
@@ -4436,12 +4435,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           "icon-size",
           selectedPinIconSizeExpr(selectedIdRef.current),
         );
-        map.setPaintProperty(
+        setPintPaint(map,
           "pubs-point",
           "icon-opacity",
           pubIconOpacityExpr(selectedIdRef.current),
         );
-        map.setPaintProperty(
+        setPintPaint(map,
           "pubs-point",
           "text-opacity",
           pubIconOpacityExpr(selectedIdRef.current),
@@ -4469,8 +4468,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           "pubs-price-pill",
           pricePillFilter(selectedIdRef.current, bandMemberIdsRef.current),
         );
-        map.setPaintProperty("pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
-        map.setPaintProperty("pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-price-pill", "icon-opacity", pubIconOpacityExpr(selectedIdRef.current));
+        setPintPaint(map, "pubs-price-pill", "text-opacity", pubIconOpacityExpr(selectedIdRef.current));
         map.setLayoutProperty("pubs-price-pill", "symbol-sort-key", pinSortKeyExpr(selectedIdRef.current));
       }
       // The overlap exemption lives on the dedicated selected-pin layer
