@@ -5,6 +5,7 @@ import path from "node:path";
 
 import {
   buildPriceEvidence,
+  canonicalPintPriceInput,
   type AccessEvidenceSource,
   type PlanAccessEvidence,
   type PlanOpeningSchedule,

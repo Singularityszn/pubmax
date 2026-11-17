@@ -412,6 +412,10 @@ jobs:
           npm run build:slim
           npx vitest run __tests__/fairPint.test.ts
 
+      - name: Check fair-pint data parity
+        if: steps.scope.outputs.scope == 'code' || matrix.shard == 1
+        run: npx vitest run __tests__/fairPint.test.ts
+
       # Postgres/PostgREST proofs live in rls-session.yml, the one job that
       # installs a cluster. `--without-postgres` excludes exactly the suites
       # named in scripts/rls/postgresSuites.mjs, so a new proof cannot land in
