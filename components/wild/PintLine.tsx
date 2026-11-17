@@ -109,6 +109,7 @@ function play(nodes: Nodes, layout: PintLineLayout, presentation = false, onDraw
   const total = line.getTotalLength();
   if (!(total > 0)) {
     showFinal(nodes, layout);
+    onDrawn?.();
     return () => undefined;
   }
   // Sample the drawn path once, so a frame reads an array and never the DOM.

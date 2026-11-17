@@ -1,4 +1,5 @@
 import type { MapRouteStop } from "@/lib/curatedWalk";
+import { fairPintRouteInsets } from "@/components/map/fairpint/fairPintRouteInsets";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
@@ -263,7 +264,8 @@ function routeFitPadding(
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: Math.max(72, palInsets.right),
         bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 });
-  return limitRoutePadding(padding, container.clientWidth, container.clientHeight);
+  const padded = fairPintRouteInsets(container, isPhone, padding);
+  return limitRoutePadding(padded, container.clientWidth, container.clientHeight);
 }
 
 /** The one sheet class that can cover the map on a phone. */

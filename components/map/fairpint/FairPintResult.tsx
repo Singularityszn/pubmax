@@ -17,6 +17,7 @@ import type { WildCrawl } from "@/lib/wildPintLineCrawl";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import { categoryLabel, isDrinkCategory } from "@/lib/drinks";
 import { formatPence } from "@/lib/formatGbp";
+import FairPintStops, { listedFairPintStops } from "./FairPintStops";
 import "./fairPint.css";
 type ResultProps = {
   last: FairPintDrawn;
@@ -77,13 +78,7 @@ export default function FairPintResult({
     queueMicrotask(() => heading.current?.focus());
   }, []);
 
-  const stops = generated.stops.map((stop) => ({
-    ...stop,
-    listed:
-      stop.priceEvidence && priceEvidenceUsableForCeiling(stop.priceEvidence) && stop.priceServing === "pint"
-        ? stop.priceEvidence
-        : null,
-  }));
+  const stops = listedFairPintStops(generated.stops);
   const priced = stops.filter((stop) => stop.listed);
   const total = priced.reduce((sum, stop) => sum + stop.listed!.pence!, 0);
   const crawl = useMemo<WildCrawl>(
@@ -198,35 +193,7 @@ export default function FairPintResult({
             {generated.routeTotals.estimatedWalkingMinutes} min walk
           </p>
         ) : null}
-        <ol className="fairPintStops">
-          {stops.map((stop) => (
-            <li key={stop.venueId}>
-              <strong>{stop.venueName}</strong>
-              {stop.listed ? (
-                <>
-                  <span>
-                    {isDrinkCategory(stop.priceCategory) ? categoryLabel(stop.priceCategory) : "Pint"} · pint ·{" "}
-                    {formatPence(stop.listed.pence!)}
-                  </span>
-                  <a href={stop.listed.source!.url} target="_blank" rel="noopener noreferrer">
-                    {stop.listed.source!.label}
-                  </a>
-                  <span>
-                    Read{" "}
-                    {new Date(stop.listed.source!.observedAt).toLocaleDateString("en-GB", {
-                      timeZone: "Europe/London",
-                      day: "numeric",
-                      month: "short",
-                      year: "numeric",
-                    })}
-                  </span>
-                </>
-              ) : (
-                <span>No listed price</span>
-              )}
-            </li>
-          ))}
-        </ol>
+        <FairPintStops stops={stops} />
         <strong>{planningConfidenceLabel(generated.planningConfidence.level)}</strong>
         {generated.planningConfidence.missingEvidence.includes("opening_hours") ? (
           <p>Opening times are not checked.</p>
@@ -268,7 +235,7 @@ export default function FairPintResult({
     </>
   );
   return mobile ? (
-    <Sheet kind="planner" title="Your Pint Line" initialSnap="half" onClose={close} backLabel="Back" onBack={close}>
+    <Sheet kind="planner" surface="solid" title="Your Pint Line" initialSnap="half" onClose={close} backLabel="Back" onBack={close}>
       {content}
     </Sheet>
   ) : (

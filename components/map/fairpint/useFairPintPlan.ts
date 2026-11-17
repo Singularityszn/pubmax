@@ -29,8 +29,11 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
   const pending = useRef<AbortController | null>(null),
     sequence = useRef(0);
   const release = useRef<(() => void) | null>(null);
+  const watchdog = useRef<number | null>(null);
   const routePending = useRef<{ request: number; generated: FairPintGenerated } | null>(null);
   const releaseDrawing = () => {
+    if (watchdog.current !== null) window.clearTimeout(watchdog.current);
+    watchdog.current = null;
     release.current?.();
     release.current = null;
   };
@@ -45,7 +48,7 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
     () => () => {
       pending.current?.abort();
       sequence.current++;
-      release.current?.();
+      releaseDrawing();
     },
     [],
   );
@@ -54,6 +57,11 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
     routePending.current = null;
     releaseDrawing();
     release.current = holdFairPintDraw();
+    watchdog.current = window.setTimeout(() => {
+      const route = routePending.current;
+      if (route) lineReady(route.generated.operationKey);
+      else releaseDrawing();
+    }, 2000);
     const controller = new AbortController(),
       request = ++sequence.current;
     pending.current = controller;
@@ -110,6 +118,7 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
         throw new Error("The route details could not be checked. Try again.");
       dispatch({ type: "drawn", request, last: { generated, pence, start: input, startIso: iso } });
       routePending.current = { request, generated };
+      if (watchdog.current === null) watchdog.current = window.setTimeout(() => lineReady(generated.operationKey), 2000);
       waitingForLine = true;
     } catch (error) {
       if (controller.signal.aborted || sequence.current !== request) return;

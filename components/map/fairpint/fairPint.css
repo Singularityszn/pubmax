@@ -1,6 +1,6 @@
 .fairPintCard {
   position: fixed;
-  z-index: calc(var(--z-tabbar) + 2);
+  z-index: var(--z-float-action);
   inset-inline: max(12px, env(safe-area-inset-left));
   bottom: calc(var(--tabbar-height, 64px) + env(safe-area-inset-bottom) + 12px);
   display: grid;
@@ -13,6 +13,12 @@
   max-height: calc(100dvh - 180px);
   overflow-y: auto;
   overscroll-behavior: contain;
+}
+body:has(> .mobileSheetPortal:not([data-sheet-exiting])) .fairPintCard {
+  visibility: hidden;
+}
+body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
+  visibility: hidden;
 }
 .fairPintCard h2 {
   margin: 0;
@@ -92,7 +98,7 @@
 .fairPintResultActions {
   display: grid;
   gap: 6px;
-  padding-top: 12px;
+  padding: 12px 16px;
   flex: none;
 }
 .fairPintResultBody .pintLine {
@@ -121,6 +127,7 @@
 .fairPintStamp {
   font-family: var(--font-data);
   font-size: var(--text-sm);
+  text-wrap: pretty;
 }
 .fairPintResultBody input {
   min-height: 44px;

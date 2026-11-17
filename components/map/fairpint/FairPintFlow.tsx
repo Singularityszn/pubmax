@@ -12,6 +12,8 @@ import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } fr
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { haptic } from "@/lib/nativeHaptics";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
+import CrawlPresentationBoundary from "@/components/wild/CrawlPresentationBoundary";
+import FairPintResultFallback from "./FairPintResultFallback";
 
 const FairPintResult = dynamic(() => import("./FairPintResult"));
 
@@ -53,6 +55,7 @@ export default function FairPintFlow({
   const [locationOff, setLocationOff] = useState(false);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
+  const [returnToCard, setReturnToCard] = useState(false);
   const [data, setData] = useState<{
     rows: SlimVenue[];
     count: "loading" | "failed" | "ready";
@@ -155,28 +158,39 @@ export default function FairPintFlow({
   const close = () => {
     setFairPintSession(false);
     dismissMapFirstVisitArrival(undefined, Date.now(), true);
+    queueMicrotask(() => document.querySelector<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')?.focus({ preventScroll: true }));
+  };
+  const back = () => {
+    setReturnToCard(true);
+    plan.back();
   };
   if (!area) return null;
   if (plan.state.last && plan.state.phase !== "dial")
     return (
-      <FairPintResult
-        onLineReady={plan.lineReady}
-        onEditStart={plan.editStart}
-        cityId={cityId}
-        onClose={close}
-        mobile={mobile}
-        last={plan.state.last}
-        venues={data.rows}
-        start={plan.start}
-        busy={plan.state.phase === "drawing"}
-        error={plan.state.error}
-        onStart={plan.changeStart}
-        onBack={plan.back}
-      />
+      <CrawlPresentationBoundary
+        key={plan.state.last.generated.operationKey}
+        fallback={<FairPintResultFallback last={plan.state.last} onBack={back} />}
+      >
+        <FairPintResult
+          onLineReady={plan.lineReady}
+          onEditStart={plan.editStart}
+          cityId={cityId}
+          onClose={close}
+          mobile={mobile}
+          last={plan.state.last}
+          venues={data.rows}
+          start={plan.start}
+          busy={plan.state.phase === "drawing"}
+          error={plan.state.error}
+          onStart={plan.changeStart}
+          onBack={back}
+        />
+      </CrawlPresentationBoundary>
     );
   return (
     <>
       <FairPintCard
+        focusOnMount={returnToCard}
         start={committed}
         area={area.name}
         counts={(pence) => counts(pence)}

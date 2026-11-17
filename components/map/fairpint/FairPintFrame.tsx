@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import { useId, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/buttonVariants";
 import "@/components/ui/primitives.css";
@@ -41,6 +41,7 @@ export default function FairPintFrame({
   onDraw?: () => void;
   onClose?: () => void;
 }) {
+  const reasonId = useId();
   return (
     <aside
       className="fairPintCard"
@@ -84,12 +85,13 @@ export default function FairPintFrame({
         type="button"
         className={buttonVariants({})}
         aria-busy={pending}
+        aria-describedby={reason ? reasonId : undefined}
         onClick={onDraw}
         disabled={drawDisabled}
       >
         Draw my night in {area}
       </button>
-      {reason ? <p className="fairPintReason">{reason}</p> : null}
+      {reason ? <p id={reasonId} className="fairPintReason">{reason}</p> : null}
       <button
         type="button"
         className={`${buttonVariants({ variant: "ghost", size: "icon" })} fairPintClose`}

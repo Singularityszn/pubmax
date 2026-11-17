@@ -20,7 +20,9 @@ export default function FairPintCard({
   drawUnavailable = false,
   error = "",
   pending = false,
+  focusOnMount = false,
 }: {
+  focusOnMount?: boolean;
   drawUnavailable?: boolean;
   error?: string;
   pending?: boolean;
@@ -64,7 +66,7 @@ export default function FairPintCard({
           ? FAIR_PINT_LOADING_LINE
           : current.count === 0
             ? `No pubs ${geography} list a pint at ${amount} or less.${located ? " Raise it." : " Move the map or raise it."}`
-            : `${current.count} pubs ${geography} list a pint at ${amount} or less.`;
+            : `${current.count} ${current.count === 1 ? "pub" : "pubs"} ${geography} ${current.count === 1 ? "lists" : "list"} a pint at ${amount} or less.`;
   const line = describeCount(count, figure);
   const reason =
     draw.phase === "loading"
@@ -93,6 +95,7 @@ export default function FairPintCard({
     const early = document.querySelector<HTMLElement>("[data-fair-prelude]");
     if (early) early.hidden = true;
   }, []);
+  useLayoutEffect(() => { if (focusOnMount) slider.current?.focus({ preventScroll: true }); }, [focusOnMount]);
   return (
     <FairPintFrame
       area={area}
@@ -112,7 +115,7 @@ export default function FairPintCard({
       slider={{
         ref: slider,
         value: pence,
-        "aria-valuetext": `${figure}, ${offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} pubs ${located ? "within 800 metres" : "in view"}` : "loading prices"}`,
+        "aria-valuetext": `${figure}, ${offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}`,
         onPointerDown: (event) => event.currentTarget.setPointerCapture(event.pointerId),
         onInput: (event) => input(event.currentTarget.valueAsNumber),
         onPointerUp: release,
