@@ -38,16 +38,25 @@ export const call = (statement: string) => json(db().sql(asServiceRole(rpc(state
 export type Person = { user: string; profile: string; account: string; handle: string };
 let people = 0;
 /** A signed-up person. The three IDs come from different ranges and never coincide. */
-export function person(): Person {
+export function person({ account = true } = {}): Person {
   const n = String(++people).padStart(12, "0");
   const who = { user: `a2431100-0000-4000-8000-${n}`, profile: `a2432200-0000-4000-8000-${n}`,
     account: `a2433300-0000-4000-8000-${n}`, handle: `p0243_${people}` };
   db().sql(`insert into auth.users(id) values ('${who.user}');
-    insert into public.profiles(id,user_id,handle) values ('${who.profile}','${who.user}','${who.handle}');
-    insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id)
+    insert into public.profiles(id,user_id,handle) values ('${who.profile}','${who.user}','${who.handle}');`);
+  if (account) {
+    db().sql(`insert into public.private_social_accounts(id,clerk_user_id,supabase_user_id,profile_id)
       values ('${who.account}','clerk-${who.handle}','${who.user}','${who.profile}');`);
+  }
   return who;
 }
+/** The account bound to this person's auth user, whatever created it. */
+export const accountOf = (who: Person) =>
+  db().sql(`select coalesce((select id::text||'|'||ownership_state||'|'||(supabase_user_id is null)
+    from public.private_social_accounts where profile_id='${who.profile}'),'none')`);
+export const makeCohost = (crew: string, who: Person) =>
+  db().sql(`update public.social_crew_members set role='cohost' where crew_id='${crew}' and social_account_id='${who.account}'`);
+export const revision = (crew: string) => db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
 export const mutual = (a: Person, b: Person) => db().sql(`insert into public.follows(follower_id,followee_id)
   values ('${a.profile}','${b.profile}'),('${b.profile}','${a.profile}') on conflict do nothing`);
 

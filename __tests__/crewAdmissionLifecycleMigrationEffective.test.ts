@@ -10,8 +10,10 @@ import { postgresSkipReason } from "./helpers/postgres";
 import {
   DIGEST,
   NOT_FOUND,
+  type Person,
   REFUSED_BY_LOCKS,
   STAFF_ROLE,
+  accountOf,
   admit,
   block,
   bootCrewAdmissionDatabase,
@@ -26,6 +28,7 @@ import {
   hold,
   holdRpc,
   invite,
+  inviteCall,
   json,
   key,
   memberId,
@@ -36,6 +39,9 @@ import {
   remove,
   request,
   requestCall,
+  revision,
+  rollback,
+  rollbackWithSetting,
   rpc,
   running,
   seats,
@@ -43,6 +49,7 @@ import {
   state,
   stopCrewAdmissionDatabase,
   suspendCall,
+  tryRollback,
   waiting,
   waitingRpc,
   waitingRpcResult,
@@ -51,7 +58,9 @@ import {
 } from "./helpers/crewAdmissionHarness";
 
 const skipReason = postgresSkipReason();
-beforeAll(async () => { if (!skipReason) await bootCrewAdmissionDatabase("crew-lifecycle-0243", "after"); }, 600_000);
+let moderator: Person | null = null;
+const staff = () => { if (!moderator) throw new Error("The moderator was not created."); return moderator; };
+beforeAll(async () => { if (!skipReason) moderator = await bootCrewAdmissionDatabase("crew-lifecycle-0243", "after"); }, 600_000);
 afterAll(async () => { await stopCrewAdmissionDatabase(); });
 
 describe.skipIf(skipReason !== null)("after 0243: account deletion", () => {
@@ -239,3 +248,199 @@ describe.skipIf(skipReason !== null)("after 0243: moderator correction of a mist
   });
 });
 
+
+describe.skipIf(skipReason !== null)("after 0243: owner and invitee deletion", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  const acceptCall = (who: Person, crew: string, invitation: string) =>
+    `accept_social_crew_invitation_atomic('${who.account}','${crew}','${invitation}','accepted','${key()}','${DIGEST}')`;
+
+  it("an invitation acceptance waits for the owner's deletion in flight, then answers not found", async () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav).invitation_id as string;
+    const deletion = await hold(deleteAccount(host), "postgres");
+    let accepting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      accepting = outcome("accept_after_owner_delete", rpc(acceptCall(xav, crew, invitation)));
+      await expect.poll(() => waitsOnAnyLock("accept_after_owner_delete")).toBe("t");
+    } finally { await deletion.finish(); }
+    const answer = await accepting;
+    expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(answer?.said.trim() ?? "{}")).toEqual(NOT_FOUND);
+    expect(seats(crew, xav)).toBe("0|0");
+  });
+
+  it("an owner's deletion waits for an invitation acceptance in flight, and both finish", async () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav).invitation_id as string;
+    const acceptance = await holdRpc(acceptCall(xav, crew, invitation));
+    expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("owner_delete_after_accept", deleteAccount(host), "postgres");
+      await expect.poll(() => waitsOnAccountLock("owner_delete_after_accept")).toBe("t");
+    } finally { await acceptance.finish(); }
+    expect((await deletion)?.ok).toBe(true);
+    expect(state(crew, xav)).toBe("active");
+    expect(ownership(host)).toBe("suspended");
+  });
+
+  it("an invitation waits for the invitee's deletion in flight, then answers not found and stores nothing", async () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const deletion = await hold(deleteAccount(xav), "postgres");
+    let inviting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      inviting = outcome("invite_after_invitee_delete", rpc(inviteCall(host, crew, xav)));
+      await expect.poll(() => waitsOnAnyLock("invite_after_invitee_delete")).toBe("t");
+    } finally { await deletion.finish(); }
+    const answer = await inviting;
+    expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(answer?.said.trim() ?? "{}")).toEqual(NOT_FOUND);
+    expect(db().sql(`select count(*) from public.social_crew_invitations where crew_id='${crew}'`)).toBe("0");
+  });
+});
+
+describe.skipIf(skipReason !== null)("after 0243: provisioning and account-less suspension against deletion", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  /** Holds the profile row so two writers queue behind it in a chosen order. */
+  async function raceBehindProfile(who: Person, first: [string, string, "service_role" | "postgres"],
+    second: [string, string, "service_role" | "postgres"]) {
+    const holder = await hold(`select id from public.profiles where id='${who.profile}' for update`, "postgres");
+    let one: Promise<{ ok: boolean; said: string }> | null = null;
+    let two: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      one = outcome(first[0], first[1], first[2]);
+      await expect.poll(() => waitsOnAnyLock(first[0])).toBe("t");
+      two = outcome(second[0], second[1], second[2]);
+      await expect.poll(() => waitsOnAnyLock(second[0])).toBe("t");
+    } finally { await holder.finish(); }
+    return Promise.all([one, two]);
+  }
+
+  it("a Social sign-in that provisions an existing account and a deletion of that person both finish", async () => {
+    const xav = person();
+    const [provisioned, deleted] = await raceBehindProfile(xav,
+      ["provision_racing_delete", rpc(`provision_social_product_account('${xav.user}')`), "service_role"],
+      ["delete_racing_provision", deleteAccount(xav), "postgres"]);
+    for (const answer of [provisioned, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(provisioned?.said.trim() ?? "{}")).toMatchObject({ ok: true, product_account_id: xav.account });
+    expect(deleted?.ok).toBe(true);
+    expect(accountOf(xav)).toBe(`${xav.account}|suspended|true`);
+  });
+
+  it("a moderator suspending a person with no Social account and that person's deletion both finish", async () => {
+    const xav = person({ account: false });
+    const [suspended, deleted] = await raceBehindProfile(xav,
+      ["accountless_suspend_racing_delete", rpc(suspendCall(xav)), "service_role"],
+      ["delete_racing_accountless_suspend", deleteAccount(xav), "postgres"]);
+    for (const answer of [suspended, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(suspended?.said.trim() ?? "{}")).toMatchObject({ ok: true, code: "suspended" });
+    expect(deleted?.ok).toBe(true);
+    expect(accountOf(xav)).toMatch(/\|suspended\|true$/);
+  });
+
+  it("provisioning and an account-less suspension that start during a deletion wait, then refuse without creating an account", async () => {
+    const xav = person({ account: false });
+    const deletion = await hold(deleteAccount(xav), "postgres");
+    let provisioning: Promise<{ ok: boolean; said: string }> | null = null;
+    let suspending: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      provisioning = outcome("provision_after_delete", rpc(`provision_social_product_account('${xav.user}')`));
+      await expect.poll(() => waitsOnAnyLock("provision_after_delete")).toBe("t");
+      suspending = outcome("suspend_after_delete", rpc(suspendCall(xav)));
+      await expect.poll(() => waitsOnAnyLock("suspend_after_delete")).toBe("t");
+    } finally { await deletion.finish(); }
+    for (const answer of [await provisioning, await suspending]) {
+      expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+      expect(json(answer?.said.trim() ?? "{}")).toMatchObject({ ok: false });
+    }
+    expect(accountOf(xav)).toBe("none");
+  });
+});
+
+describe.skipIf(skipReason !== null)("after 0243: departed members", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("a guest who deleted their account no longer bars the people they blocked, and still holds their counted place", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana]);
+    block(ana, xav);
+    expect(request(xav, crew)).toEqual(NOT_FOUND);
+    db().sql(deleteAccount(ana));
+    expect(state(crew, ana)).toBe("active");
+    admit(host, crew, xav);
+    expect(db().sql(`select count(*) from public.social_crew_members where crew_id='${crew}' and state='active'`)).toBe("3");
+  });
+
+  it("a suspended guest who still has an account keeps barring the people they blocked", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana]);
+    block(xav, ana);
+    expect(call(suspendCall(ana))).toMatchObject({ ok: true, code: "suspended" });
+    expect(request(xav, crew)).toEqual(NOT_FOUND);
+  });
+});
+
+describe.skipIf(skipReason !== null)("after 0243: correction bookkeeping", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("a correction moves the crew's authority revision like every other membership change", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const removedMember = memberId(crew, xav);
+    remove(host, crew, xav);
+    const before = Number(revision(crew));
+    expect(correct(crew, removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    expect(Number(revision(crew))).toBe(before + 1);
+  });
+
+  it("a moderator cannot correct their own removal", () => {
+    const host = person(), ana = person();
+    const crew = crewWith(host, [ana, staff()]);
+    const removedMember = memberId(crew, staff());
+    remove(host, crew, staff());
+    expect(correct(crew, removedMember)).toEqual({ ok: false, code: "forbidden" });
+    expect(state(crew, staff())).toBe("removed");
+    expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
+  });
+
+  it("the correction ledger stays with the Crew-bound Plan and goes when that Plan is deleted", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const removedMember = memberId(crew, xav);
+    remove(host, crew, xav);
+    correct(crew, removedMember);
+    db().sql(deleteAccount(xav));
+    expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("1");
+    db().sql(`delete from public.plans where id=(select plan_id from public.social_crews where id='${crew}')`);
+    expect(db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`)).toBe("0");
+  });
+});
+
+describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("rollback refuses to drop recorded corrections until their export is acknowledged, then reapplies", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const removedMember = memberId(crew, xav);
+    remove(host, crew, xav);
+    correct(crew, removedMember);
+    const refused = tryRollback();
+    expect(refused.ok).toBe(false);
+    expect(refused.said).toMatch(/export/i);
+    expect(db().sql(`select to_regclass('public.social_crew_removal_corrections') is not null
+      and to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)') is not null`)).toBe("t");
+    rollbackWithSetting("pubmax.crew_removal_corrections_exported", "yes");
+    expect(db().sql(`select to_regclass('public.social_crew_removal_corrections') is null`)).toBe("t");
+    stageTo("after");
+    expect(request(xav, crew)).toEqual(NOT_FOUND);
+  });
+});

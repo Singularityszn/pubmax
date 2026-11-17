@@ -9,6 +9,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import {
+  DIGEST,
   NOT_FOUND,
   NO_CREW,
   admit,
@@ -28,6 +29,7 @@ import {
   json,
   key,
   leave,
+  makeCohost,
   mutual,
   ownership,
   person,
@@ -36,6 +38,7 @@ import {
   remove,
   request,
   requestState,
+  rollback,
   rpc,
   running,
   stageTo,
@@ -172,6 +175,111 @@ describe.skipIf(skipReason !== null)("after 0243: refusals", () => {
         or has_function_privilege('${role}','public._social_crew_admission_refused(uuid,uuid)','execute')
         or has_function_privilege('${role}','public._social_crew_admission_ineligible(uuid,uuid)','execute')
         or has_function_privilege('${role}','public._lock_social_auth_user_accounts()','execute')`)).toBe("f");
+    }
+  });
+});
+
+describe.skipIf(skipReason !== null)("after 0243: duplicates, inviters and helpers", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("a second request on a new key after a block answers not found, while the first key replays and cancel still works", () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana]);
+    const first = key();
+    const asking = (idempotencyKey: string) =>
+      call(`request_social_crew_join_atomic('${xav.account}','${crew}','pending','${idempotencyKey}','${DIGEST}')`);
+    expect(asking(first)).toMatchObject({ ok: true, code: "requested" });
+    block(ana, xav);
+    expect(asking(key())).toEqual(NOT_FOUND);
+    expect(asking(first)).toMatchObject({ ok: true, code: "replayed" });
+    expect(cancel(xav, crew)).toMatchObject({ ok: true, code: "cancelled" });
+  });
+
+  it("a second invitation on a new key after a block answers not found, and the pending one can still be declined", () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav);
+    expect(invitation).toMatchObject({ ok: true, code: "invited" });
+    block(xav, ana);
+    expect(invite(host, crew, xav)).toEqual(NOT_FOUND);
+    expect(answerInvitation(xav, crew, invitation.invitation_id as string, "declined")).toMatchObject({ ok: true, code: "declined" });
+  });
+
+  it("an invitation from a cohost who is later suspended can no longer be accepted", () => {
+    const host = person(), bea = person(), xav = person();
+    mutual(host, bea);
+    mutual(host, xav);
+    const crew = crewWith(host, [bea]);
+    makeCohost(crew, bea);
+    const invitation = invite(bea, crew, xav);
+    expect(invitation).toMatchObject({ ok: true, code: "invited" });
+    expect(call(suspendCall(bea))).toMatchObject({ ok: true, code: "suspended" });
+    expect(answerInvitation(xav, crew, invitation.invitation_id as string, "accepted")).toEqual(NOT_FOUND);
+    expect(state(crew, xav)).toBe("none");
+  });
+
+  it("a cohost's invitation waits for that cohost's suspension in flight, then answers not found", async () => {
+    const host = person(), bea = person(), xav = person();
+    mutual(host, bea);
+    mutual(host, xav);
+    const crew = crewWith(host, [bea]);
+    makeCohost(crew, bea);
+    const suspension = await holdRpc(suspendCall(bea));
+    try {
+      const inviting = waitingRpcResult("invite_after_inviter_suspend", inviteCall(bea, crew, xav));
+      await expect.poll(() => waitsOnAccountLock("invite_after_inviter_suspend")).toBe("t");
+      await suspension.finish();
+      expect(await inviting).toEqual(NOT_FOUND);
+    } finally { await suspension.finish(); }
+    expect(db().sql(`select count(*) from public.social_crew_invitations where crew_id='${crew}'`)).toBe("0");
+  });
+
+  it("an invitation acceptance waits for the owner's suspension in flight, then answers not found", async () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav).invitation_id as string;
+    const suspension = await holdRpc(suspendCall(host));
+    try {
+      const accepting = waitingRpcResult("accept_after_owner_suspend",
+        `accept_social_crew_invitation_atomic('${xav.account}','${crew}','${invitation}','accepted','${key()}','${DIGEST}')`);
+      await expect.poll(() => waitsOnAccountLock("accept_after_owner_suspend")).toBe("t");
+      await suspension.finish();
+      expect(await accepting).toEqual(NOT_FOUND);
+    } finally { await suspension.finish(); }
+    expect(state(crew, xav)).toBe("none");
+  });
+
+  it("an owner suspension waits for an invitation acceptance in flight, and the guest keeps the place", async () => {
+    const host = person(), ana = person(), xav = person();
+    mutual(host, xav);
+    const crew = crewWith(host, [ana]);
+    const invitation = invite(host, crew, xav).invitation_id as string;
+    const acceptance = await holdRpc(
+      `accept_social_crew_invitation_atomic('${xav.account}','${crew}','${invitation}','accepted','${key()}','${DIGEST}')`);
+    expect(acceptance.result).toMatchObject({ ok: true, code: "accepted" });
+    try {
+      const suspending = waitingRpcResult("owner_suspend_after_accept", suspendCall(host));
+      await expect.poll(() => waitsOnAccountLock("owner_suspend_after_accept")).toBe("t");
+      await acceptance.finish();
+      expect(await suspending).toMatchObject({ ok: true, code: "suspended" });
+    } finally { await acceptance.finish(); }
+    expect(state(crew, xav)).toBe("active");
+  });
+
+  it("no browser role and not the service role can call an internal lock, rule or trigger helper", () => {
+    const helpers = ["_lock_social_participant_accounts(uuid[])", "_social_crew_admission_refused(uuid,uuid)",
+      "_social_crew_admission_ineligible(uuid,uuid)", "_lock_social_block_participants()", "_lock_social_auth_user_accounts()"];
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      for (const helper of helpers) {
+        expect(db().sql(`select has_function_privilege('${role}','public.${helper}','execute')`), `${role} ${helper}`).toBe("f");
+      }
+    }
+    for (const rpcName of ["decide_social_crew_join_request_atomic(uuid,uuid,uuid,text,text,text)",
+      "provision_social_product_account(uuid)", "read_social_crew_join_requests(uuid,uuid,uuid)"]) {
+      expect(db().sql(`select has_function_privilege('service_role','public.${rpcName}','execute')
+        and not has_function_privilege('authenticated','public.${rpcName}','execute')`), rpcName).toBe("t");
     }
   });
 });
