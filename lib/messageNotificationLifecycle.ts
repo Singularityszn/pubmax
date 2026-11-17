@@ -114,8 +114,11 @@ export async function releaseMessagePush(): Promise<void> {
         channel.port1.onmessage = () => { controller.signal.removeEventListener("abort", finish); finish(); };
         registration.active!.postMessage({ type: "pubmax:message-push-departure" }, [channel.port2]);
       }) : Promise.resolve();
-    await Promise.allSettled([flushMessagePushReleases(controller.signal), barrier]);
-    for (const notification of await waitForWebPushWork(registration?.getNotifications() ?? Promise.resolve([]), controller.signal)) if (notification.data?.recipientId) notification.close();
+    const closeTray = async () => {
+      await barrier;
+      for (const notification of await waitForWebPushWork(registration?.getNotifications() ?? Promise.resolve([]), controller.signal)) if (notification.data?.recipientId) notification.close();
+    };
+    await Promise.allSettled([flushMessagePushReleases(controller.signal), closeTray()]);
   });
   try { await Promise.race([work, deadline]); } catch { /* Auth departure must complete even while offline. */ }
   finally { clearTimeout(timer); }

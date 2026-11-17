@@ -46,7 +46,7 @@ export function restoreMessagePushAccount(signal: AbortSignal, userId: string): 
         if (notification.data?.recipientId && notification.data.recipientId !== userId) notification.close();
       }
     } catch { /* Tray access must not prevent device reconciliation. */ }
-    const token = await currentMessagePushToken(scope);
+    const token = await currentMessagePushToken(compositeActionSignal([signal, AbortSignal.timeout(3_000)]));
     if (token && !signal.aborted) await writeSetting({ action: "restore", token }, AbortSignal.timeout(3_000));
   });
 }
