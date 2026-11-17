@@ -11,7 +11,7 @@ import { describe, expect, it } from "vitest";
 // map. CLI cases exercise the approved exception and its production audit.
 
 // @ts-expect-error - plain .mjs build script, no type declarations
-import { classifyFindings } from "../scripts/resilient-audit.mjs";
+import { auditFailureExitCode, classifyFindings } from "../scripts/resilient-audit.mjs";
 
 const WAIVED_URL = "https://github.com/advisories/GHSA-xxxx-waived-zzzz";
 const OTHER_URL = "https://github.com/advisories/GHSA-xxxx-yyyy-zzzz";
@@ -97,6 +97,7 @@ describe("resilient-audit waivers", () => {
   it.each([
     { severity: "high", title: "unknown advisory" },
     "missing-package",
+    "constructor",
   ])("rejects unresolved evidence mixed with a waived advisory", (unknownAdvisory) => {
     const report = {
       vulnerabilities: {
@@ -104,6 +105,18 @@ describe("resilient-audit waivers", () => {
       },
     };
     expect(classifyFindings(report, EXAMPLE_WAIVERS).unwaived).toEqual(["mixed"]);
+  });
+
+  it.each([
+    JSON.parse(withHighCount(auditReport(OTHER_URL), 2)),
+    JSON.parse(withHighCount(auditReport(OTHER_URL), 0)),
+  ])("rejects inconsistent metadata after the exception is removed", (report) => {
+    expect(auditFailureExitCode(report, false)).toBe(1);
+  });
+
+  it("restores only primary outage tolerance after configuration removal", () => {
+    expect(auditFailureExitCode(null, false)).toBe(0);
+    expect(auditFailureExitCode(null, true)).toBe(1);
   });
 
   it("waives a finding whose only advisory is waived", () => {
