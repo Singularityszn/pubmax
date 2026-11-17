@@ -173,6 +173,21 @@ it("restores a previously loaded thread while a returning read is pending", asyn
   expect(retryPanel()).toBeNull();
 });
 
+it("keeps an empty thread's learned name in its snapshot after a poll", async () => {
+  await render();
+  await answer(Response.json({ messages: [] }), "/messages/conversation-a?");
+  await answer(Response.json({ conversations: [{ id: "conversation-a", otherHandle: "bridget" }] }), "/api/messages?");
+  expect(host.querySelector(".threadWithHandle")?.textContent).toContain("bridget");
+  await poll();
+  await answer(Response.json({ messages: [] }), "/messages/conversation-a?");
+  await act(async () => root.unmount());
+  root = createRoot(host);
+
+  await render();
+
+  expect(host.querySelector(".threadWithHandle")?.textContent).toContain("bridget");
+});
+
 it("does not restore a cached previous thread from a late subscription callback", async () => {
   await render("conversation-a");
   await answer(thread("A private note"));

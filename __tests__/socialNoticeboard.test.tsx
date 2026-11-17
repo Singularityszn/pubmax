@@ -5,6 +5,7 @@ import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
+const composer = vi.hoisted(() => ({ save: null as null | ((post: SocialPostDTO) => void) }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), prefetch: vi.fn() }) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "alice" }, accountRevision: 1, identityResolved: true }) }));
 vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => ({ unresolved: false, signedIn: true, signedOut: false }) }));
@@ -19,7 +20,7 @@ vi.mock("@/components/social/PubRankingPanel", () => ({ default: () => null }));
 vi.mock("@/components/social/SocialPostCard", () => ({ default: ({ post, editor }: { post: { body: string }; editor?: React.ReactNode }) => createElement("article", { className: "socialPostCard" }, post.body, editor) }));
 vi.mock("@/app/social/SocialPostEditor", () => ({ SocialPostEditor: ({ post, onSaved }: { post: { body: string }; onSaved: (post: unknown) => void }) =>
   createElement("button", { onClick: () => onSaved({ ...post, body: "Accepted edit" }) }, "Save edit") }));
-vi.mock("@/app/social/SocialComposer", () => ({ default: () => null }));
+vi.mock("@/app/social/SocialComposer", () => ({ default: ({ onSaved }: { onSaved: (post: SocialPostDTO) => void }) => { composer.save = onSaved; return null; } }));
 vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 vi.mock("@/app/social/SocialOutbox", () => ({ default: () => null }));
 
@@ -86,6 +87,39 @@ it("keeps a four-page window during automatic refresh and offers an explicit ref
   await act(async () => refresh.click());
   expect(host.querySelectorAll(".socialPostCard")).toHaveLength(3);
   expect([...host.querySelectorAll("button")].some(button => button.textContent === "Load more")).toBe(true);
+});
+
+it.each(["edit", "publish", "edit during refresh"])("keeps all four pages after %s", async action => {
+  let refreshing = false;
+  let finish!: (response: Response) => void;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    if (refreshing) return new Promise<Response>(resolve => { finish = resolve; });
+    const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+    return Response.json({ posts: [{ ...feedPost(`Page ${index + 1}`, 16 - index), ownedByViewer: index === 3 }], nextCursor: String(index + 1) });
+  });
+  await mountFollowing();
+  for (let page = 0; page < 3; page += 1) {
+    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+  }
+  if (action === "edit during refresh") {
+    refreshing = true;
+    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!.click());
+  }
+
+  await act(async () => {
+    if (action === "publish") composer.save!(feedPost("Published post", 20));
+    else host.querySelector<HTMLButtonElement>(".socialPostCard button")!.click();
+  });
+  if (action === "edit during refresh") {
+    await act(async () => finish(Response.json({ posts: [feedPost("Stale response", 16)], nextCursor: null })));
+  }
+
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
+  expect(host.textContent).toContain(action === "publish" ? "Page 4" : "Accepted edit");
+  expect(host.textContent).not.toContain("Stale response");
+  expect([...host.querySelectorAll("button")].find(button => button.textContent === "Refresh posts")!.disabled).toBe(false);
 });
 
 it("does not renew the first page's age by loading another page", async () => {
