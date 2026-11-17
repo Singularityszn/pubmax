@@ -12,14 +12,14 @@ import { categoryLabel } from "@/lib/drinks";
 import type { CrawlEnding, PlanMemberRole, PlanState } from "@/lib/plan";
 import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
 
-export type NightReceiptPrice = {
+type NightReceiptPrice = {
   drink: string;
   pence: number;
   source: "community";
   reportedAt: string;
 };
 
-export type NightReceiptStop = {
+type NightReceiptStop = {
   position: number;
   venueName: string;
   price: NightReceiptPrice | null;
