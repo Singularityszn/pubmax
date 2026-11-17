@@ -112,6 +112,10 @@ function isTargetChange(input: Record<string, unknown>, action: "block" | "mute"
   return keys === "action,targetProfileId" || keys === "action,targetHandle";
 }
 
+function isPrivateControl(input: Record<string, unknown> | null): boolean {
+  return input !== null && (isTargetChange(input, "block") || isTargetChange(input, "mute"));
+}
+
 async function verified(request: Request): Promise<{ actor: Actor } | { response: Response }> {
   const access = await requireVerifiedSocialActor(request);
   return access.ok ? { actor: access.actor } : { response: accessError(access) };
@@ -229,7 +233,7 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function PUT(request: Request): Promise<Response> {
   const input = await body(request);
-  const access = await writeActor(request, { bypassFreeze: input !== null && isTargetChange(input, "block") });
+  const access = await writeActor(request, { bypassFreeze: isPrivateControl(input) });
   if ("response" in access) return access.response;
   if (!input || typeof input.action !== "string") {
     return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
@@ -263,7 +267,7 @@ export async function PUT(request: Request): Promise<Response> {
 
 export async function DELETE(request: Request): Promise<Response> {
   const input = await body(request);
-  const access = await writeActor(request, { bypassFreeze: input !== null && isTargetChange(input, "block") });
+  const access = await writeActor(request, { bypassFreeze: isPrivateControl(input) });
   if ("response" in access) return access.response;
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {

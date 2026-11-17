@@ -55,6 +55,10 @@ owns the public sections that remain visible while this lane is paused.
 These **safety and legal floors stay OPEN even while frozen** and were wired to
 sit outside the guard on purpose:
 
+- **Block, unblock, mute and unmute** (`PUT` / `DELETE /api/social/interactions`).
+  People keep control of their own private choices. These changes publish no
+  content and send no notification. Authentication, target checks and the
+  ordinary rate limit still apply.
 - **Reporting** a pint drop (`action: "report"` on `POST /api/pint-drops`).
 - **Reporting** a message (`action: "report"` on `POST /api/messages/[id]`).
 - **Moderation** actions you take as owner (`restore` / `keep_hidden` on

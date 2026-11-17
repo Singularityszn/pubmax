@@ -400,8 +400,9 @@ bodies.
   and the response is null. Changing a post to standard clears its displayed
   feature metadata. Changing it back restores the latest update from history.
 - **Failure and rollback:** the Social freeze runs before identity, limiter or
-  storage work for ordinary writes. Reporting and moderation safety floors stay
-  open. Deployed production selects the durable store and fails closed when
+  storage work for ordinary writes. Reporting, moderation, and private block
+  and mute controls stay open. Both setting and removing these private choices
+  retain authentication, target checks and rate limits. Deployed production selects the durable store and fails closed when
   migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
   leaving Social posts, profiles and follows intact.
 
