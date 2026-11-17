@@ -24,6 +24,7 @@ let host: HTMLDivElement;
 let root: Root;
 let saved = [entry("crown")];
 let status = 200;
+let malformedError = false;
 
 function entry(id: string) {
   return { venueId: id, venueName: `The ${id}`, band: "loved", place: 1, score: 10 };
@@ -50,9 +51,10 @@ beforeEach(() => {
   document.body.append(host);
   root = createRoot(host);
   status = 200;
+  malformedError = false;
   saved = [entry("crown")];
   net.pending = undefined;
-  net.get.mockImplementation(async (url: string) => new Response(JSON.stringify(
+  net.get.mockImplementation(async (url: string) => new Response(malformedError && url === "/api/social/rankings" ? "Unavailable" : JSON.stringify(
     url === "/api/social/rankings"
       ? status === 200 ? { entries: saved } : { code: status === 403 ? "SOCIAL_ADULT_VERIFICATION_REQUIRED" : "SOCIAL_ACCESS_UNAVAILABLE", retryable: status === 503 }
       : { entries: [] },
@@ -91,10 +93,11 @@ it("keeps the confirmed list during an outage and requires a successful retry", 
   expect(host.textContent).toContain("The lamb");
 });
 
-it("hides the old private snapshot after an access refusal", async () => {
+it.each([false, true])("hides the old snapshot after refusal, including an unreadable error: %s", async (malformed) => {
   await mount();
   const finish = await closePending();
   status = 403;
+  malformedError = malformed;
   await act(async () => finish());
   expect(host.textContent).not.toContain("The crown");
   expect(button("Rank a pub")).toBeUndefined();
