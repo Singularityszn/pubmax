@@ -7516,6 +7516,12 @@ export type Database = {
         };
         Returns: string;
       };
+      _lock_social_participant_accounts: {
+        Args: {
+          p_accounts: string[] | null;
+        };
+        Returns: undefined;
+      };
       _reconcile_plan_account_join: {
         Args: {
           p_plan_id: string | null;
@@ -7529,6 +7535,13 @@ export type Database = {
           p_user_id: string | null;
         };
         Returns: string;
+      };
+      _social_crew_admission_refused: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
       };
       _social_crew_begin_write: {
         Args: {
