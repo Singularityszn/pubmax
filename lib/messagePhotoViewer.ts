@@ -19,3 +19,17 @@ export function rubberbandPhotoView(view: PhotoView, frame: Box, photo: Box): Ph
     y: frame.height > 0 ? bounded.y + rubberband(view.y - bounded.y, frame.height) : bounded.y,
   };
 }
+
+export function rawPhotoView(displayed: PhotoView, frame: Box, photo: Box): PhotoView {
+  const bounded = clampPhotoView(displayed, frame, photo);
+  const raw = (offset: number, dimension: number) => {
+    if (dimension <= 0) return 0;
+    const magnitude = Math.min(Math.abs(offset), dimension * (1 - Number.EPSILON));
+    return Math.sign(offset) * magnitude * dimension / (0.55 * (dimension - magnitude));
+  };
+  return {
+    ...bounded,
+    x: bounded.x + raw(displayed.x - bounded.x, frame.width),
+    y: bounded.y + raw(displayed.y - bounded.y, frame.height),
+  };
+}

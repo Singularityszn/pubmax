@@ -64,6 +64,86 @@ function fixture(): Row[] {
   ];
 }
 
+test.describe("photo action and pinch regression", () => {
+  test.use({ hasTouch: true });
+
+  test("photo selection keeps touch actions and resisted pinch anchors", async ({ page, browserName }, testInfo) => {
+    await page.setViewportSize(PHONE);
+    await storeThemeChoice(page, "light");
+    const sharp = (await import("sharp")).default;
+    const photo = await sharp(Buffer.from('<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg"><rect width="800" height="800" fill="#d0a050"/><path d="M400 0V800M0 400H800" stroke="#111" stroke-width="20"/></svg>')).jpeg().toBuffer();
+    const rows = [ME, THEM].map((senderHandle, index) => ({
+      id: `photo-${index}`, conversationId: "c1", senderHandle, body: "", createdAt: new Date().toISOString(), read: true, flagged: false,
+      attachment: { kind: "photo", url: `/api/messages/c1/media/photo-${index}`, width: 800, height: 800 },
+    }));
+    await installThread(page, rows);
+    await page.route("**/api/messages/c1/media/**", route => route.fulfill({ contentType: "image/jpeg", body: photo }));
+    await page.goto("/messages/c1");
+    await expect(page.locator(".messagePhotoButton")).toHaveCount(2);
+
+    for (const [index, action] of ["Unsend", "Report"].entries()) {
+      await page.locator(".composerInput").focus();
+      const row = page.locator(".messageRow").nth(index);
+      await row.locator(".messagePhotoButton").tap();
+      await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
+      await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+      await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+      const stage = page.locator(".messagePhotoViewerStage");
+      const image = page.locator(".messagePhotoViewerImage");
+      const rect = await stage.boundingBox();
+      if (!rect) throw new Error("Photo stage is missing");
+      const centre = { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
+      const cdp = browserName === "chromium" ? await page.context().newCDPSession(page) : null;
+      if (!cdp) await stage.evaluate(element => { element.setPointerCapture = () => {}; });
+      const pointer = async (type: "touchStart" | "touchMove" | "touchEnd", points: Array<{ id: number; x: number; y: number }>) => {
+        if (cdp) await cdp.send("Input.dispatchTouchEvent", { type, touchPoints: points });
+      };
+      const synthetic = async (type: string, point: { id: number; x: number; y: number }) => {
+        await stage.dispatchEvent(type, { pointerId: point.id, pointerType: "touch", clientX: point.x, clientY: point.y, button: 0, bubbles: true });
+      };
+      const fitted = Math.min(rect.width, rect.height);
+      for (const direction of [1, -1]) {
+        await page.getByRole("button", { name: "Reset zoom", exact: true }).tap();
+        await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+        await page.getByRole("button", { name: "Zoom in", exact: true }).tap();
+        const start = { id: 1, x: direction === 1 ? rect.x + 20 : rect.x + rect.width - 20, y: centre.y - direction * 50 };
+        const first = { id: 1, x: start.x + direction * (Math.max(0, (fitted * 2 - rect.width) / 2) + 100), y: start.y + direction * (Math.max(0, (fitted * 2 - rect.height) / 2) + 100) };
+        if (cdp) { await pointer("touchStart", [start]); await pointer("touchMove", [first]); }
+        else { await synthetic("pointerdown", start); await synthetic("pointermove", first); }
+        const transform = () => image.evaluate(element => {
+          const matrix = new DOMMatrix(getComputedStyle(element).transform);
+          return { x: matrix.m41, y: matrix.m42 };
+        });
+        const before = await transform();
+        const second = { id: 2, x: centre.x * 2 - first.x, y: centre.y * 2 - first.y };
+        if (cdp) await pointer("touchStart", [first, second]);
+        else await synthetic("pointerdown", second);
+        const expand = (point: typeof first) => ({ id: point.id, x: centre.x + (point.x - centre.x) * 1.5, y: centre.y + (point.y - centre.y) * 1.5 });
+        const expanded = [expand(first), expand(second)];
+        if (cdp) await pointer("touchMove", expanded);
+        else { await synthetic("pointermove", expanded[0]!); await synthetic("pointermove", expanded[1]!); }
+        await expect(stage).toHaveAttribute("data-scale", "3");
+        const after = await transform();
+        expect(after.x).toBeCloseTo(before.x * 1.5, 1);
+        expect(after.y).toBeCloseTo(before.y * 1.5, 1);
+        const path = testInfo.outputPath(`${action}-${direction}-pinch.png`);
+        await page.screenshot({ path });
+        await testInfo.attach(`${action}-${direction}-pinch`, { path, contentType: "image/png" });
+        if (cdp) await pointer("touchEnd", []);
+        else { await synthetic("pointerup", expanded[0]!); await synthetic("pointerup", expanded[1]!); }
+      }
+      await cdp?.detach();
+      await page.getByRole("button", { name: "Close", exact: true }).tap();
+      await expect(row).toHaveAttribute("data-revealed", "");
+      await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
+      await expect(row.getByRole("button", { name: action, exact: true })).toBeVisible();
+      const path = testInfo.outputPath(`${action}-after-close.png`);
+      await page.screenshot({ path });
+      await testInfo.attach(`${action}-after-close`, { path, contentType: "image/png" });
+    }
+  });
+});
+
 /** Sign the page in as account A and answer the messages API in the browser. */
 async function installThread(page: Page, rows: Row[], account: "A" | "B" = "A"): Promise<void> {
   const stub = await installAuthDoubles(page);

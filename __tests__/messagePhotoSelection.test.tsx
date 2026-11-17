@@ -3,10 +3,12 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { MessageDTO } from "@/lib/messages";
 
 const state = vi.hoisted(() => ({
   auth: { user: { id: "alice-id" }, handle: "alice", accountRevision: 1 },
   prepare: vi.fn(),
+  messages: [] as MessageDTO[],
 }));
 vi.mock("next/link", () => ({ default: ({ href, children }: { href: string; children: React.ReactNode }) => createElement("a", { href }, children) }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }));
@@ -17,7 +19,7 @@ vi.mock("@/lib/messagesRealtime", () => ({ subscribeToMessages: () => () => {}, 
 vi.mock("@/lib/preparePhotoUpload", () => ({ preparePhotoUpload: (file: File) => state.prepare(file) }));
 vi.mock("@/lib/authedFetch", async importOriginal => ({
   ...(await importOriginal<typeof import("@/lib/authedFetch")>()),
-  authedActionFetch: async () => Response.json({ messages: [] }),
+  authedActionFetch: async () => Response.json({ messages: state.messages }),
 }));
 
 import MessageThread from "@/components/messages/MessageThread";
@@ -45,6 +47,7 @@ beforeEach(() => {
   discardMessagePhotoRecovery("sam-id:2:c1");
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   state.auth = { user: { id: "alice-id" }, handle: "alice", accountRevision: 1 };
+  state.messages = [];
   state.prepare.mockReset().mockImplementation(async file => ({ file, width: 1200, height: 600 }));
   createUrl.mockReset().mockReturnValue("blob:photo"); revoke.mockReset();
   vi.stubGlobal("URL", class extends URL { static createObjectURL = createUrl; static revokeObjectURL = revoke; });
@@ -123,7 +126,7 @@ describe("photo viewer pan release", () => {
       return frameId;
     });
     vi.stubGlobal("cancelAnimationFrame", (id: number) => frames.delete(id));
-    vi.stubGlobal("matchMedia", () => ({ matches: reducedMotion }));
+    vi.stubGlobal("matchMedia", () => ({ matches: reducedMotion, addEventListener() {}, removeEventListener() {} }));
     vi.spyOn(performance, "now").mockReturnValue(0);
     vi.spyOn(HTMLElement.prototype, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 0, 400, 400));
     await act(async () => root.render(createElement(MessagePhotoViewer, {
@@ -149,14 +152,14 @@ describe("photo viewer pan release", () => {
   function pointer(type: string, x: number, y: number, time: number, pointerId = 1) {
     const event = new MouseEvent(type, { bubbles: true, clientX: x, clientY: y, button: 0 });
     Object.defineProperties(event, {
-      pointerId: { value: pointerId }, pointerType: { value: "touch" }, timeStamp: { value: time },
+      pointerId: { value: pointerId }, pointerType: { value: "touch" }, timeStamp: { value: time + 1 },
     });
     act(() => { stage.dispatchEvent(event); });
   }
 
   function position() {
-    const values = photo.style.transform.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi)!.map(Number);
-    return { x: values[0]!, y: values[1]! };
+    const values = photo.style.transform.match(/^translate\(([^)]+)\)/)![1]!.split(",").map(parseFloat);
+    return { x: values[0]!, y: values[1] ?? 0 };
   }
 
   function frame(time: number) {
@@ -164,6 +167,53 @@ describe("photo viewer pan release", () => {
     frames.clear();
     act(() => { callbacks.forEach(callback => callback(time)); });
   }
+
+  it.each([[1, 1.5], [-1, 1.5], [1, 1.1], [-1, 1.1]])("anchors a pinch after %s-direction resisted dragging at ratio %s on both axes", (direction, ratio) => {
+    pointer("pointerdown", 100, 100, 0);
+    pointer("pointermove", 100 + direction * 300, 100 + direction * 300, 10);
+    const visible = position();
+    const first = { x: 100 + direction * 300, y: 100 + direction * 300 };
+    const second = { x: 400 - first.x, y: 400 - first.y };
+    pointer("pointerdown", second.x, second.y, 20, 2);
+    pointer("pointermove", first.x, first.y, 30);
+    expect(position().x).toBeCloseTo(visible.x);
+    expect(position().y).toBeCloseTo(visible.y);
+    pointer("pointermove", 200 + (first.x - 200) * ratio, 200 + (first.y - 200) * ratio, 40);
+    pointer("pointermove", 200 + (second.x - 200) * ratio, 200 + (second.y - 200) * ratio, 50, 2);
+    expect(Number(stage.dataset.scale)).toBeCloseTo(2 * ratio);
+    expect(position().x).toBeCloseTo(visible.x * ratio);
+    expect(position().y).toBeCloseTo(visible.y * ratio);
+    pointer("pointerup", 200 + (first.x - 200) * ratio, 200 + (first.y - 200) * ratio, 50);
+    const remaining = { x: 200 + (second.x - 200) * ratio, y: 200 + (second.y - 200) * ratio };
+    const pinched = position();
+    pointer("pointermove", remaining.x, remaining.y, 60, 2);
+    expect(position().x).toBeCloseTo(pinched.x);
+    expect(position().y).toBeCloseTo(pinched.y);
+    pointer("pointermove", remaining.x - direction * 10, remaining.y - direction * 10, 70, 2);
+    expect(position().x * direction).toBeLessThan(pinched.x * direction);
+    expect(position().y * direction).toBeLessThan(pinched.y * direction);
+    if (ratio === 1.5) {
+      expect(position().x).toBeCloseTo(pinched.x - direction * 10);
+      expect(position().y).toBeCloseTo(pinched.y - direction * 10);
+    }
+  });
+
+  it.each(["alice", "bob"])("keeps %s's photo action revealed after viewer controls and close", async senderHandle => {
+    await act(async () => root.render(null));
+    state.messages = [{ id: "m1", conversationId: "c1", senderHandle, body: "", createdAt: "2026-11-17T10:00:00Z", read: true, flagged: false,
+      attachment: { kind: "photo", url: "/api/messages/c1/media/m1", width: 800, height: 800 } }];
+    await mount();
+    container.querySelector<HTMLTextAreaElement>(".composerInput")!.focus();
+    const row = container.querySelector<HTMLLIElement>(".messageRow")!;
+    expect(row.hasAttribute("data-revealed")).toBe(false);
+    await act(async () => container.querySelector<HTMLButtonElement>(".messagePhotoButton")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>("[aria-label='Zoom in']")!.click());
+    await act(async () => container.querySelector<HTMLButtonElement>(".messagePhotoViewerClose")!.click());
+    expect(container.querySelector(".messagePhotoViewer")).toBeNull();
+    expect(row.hasAttribute("data-revealed")).toBe(true);
+    const action = row.querySelector<HTMLButtonElement>(senderHandle === "alice" ? ".messageUnsendBtn" : ".messageReportBtn");
+    expect(action?.disabled).toBe(false);
+  });
 
   it.each([1, -1])("hands a %s-direction diagonal flick to momentum and lands at the photo edges", direction => {
     pointer("pointerdown", 200, 200, 0);

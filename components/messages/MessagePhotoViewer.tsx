@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type PointerEvent } from "react";
-import { clampPhotoView, rubberbandPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
+import { clampPhotoView, rawPhotoView, rubberbandPhotoView, type PhotoView } from "@/lib/messagePhotoViewer";
 import { releaseVelocity, springTo } from "@/lib/springAnimate";
 import { projectMomentum } from "@/lib/springMotion";
 
@@ -15,6 +15,7 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
   const stage = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const view = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
+  const displayed = useRef<PhotoView>(view.current);
   const pointers = useRef(new Map<number, Point>());
   const start = useRef({ points: [] as Point[], view: { scale: 1, x: 0, y: 0 } });
   const sample = useRef({ view: view.current, time: 0, velocity: { x: 0, y: 0 } });
@@ -26,7 +27,8 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
     const frame = stage.current;
     if (!frame || !image.current) return;
     view.current = next;
-    const { scale, x, y } = rubberbandPhotoView(next, frame.getBoundingClientRect(), { width, height });
+    displayed.current = rubberbandPhotoView(next, frame.getBoundingClientRect(), { width, height });
+    const { scale, x, y } = displayed.current;
     image.current.style.transform = `translate(${x}px, ${y}px) scale(${scale})`;
     frame.dataset.scale = String(scale);
   }, [width, height]);
@@ -36,7 +38,7 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
     animations.current = [];
   }, []);
   const begin = useCallback((time: number) => {
-    start.current = { points: [...pointers.current.values()], view: { ...view.current } };
+    start.current = { points: [...pointers.current.values()], view: { ...(pointers.current.size === 2 ? displayed.current : view.current) } };
     sample.current = { view: view.current, time, velocity: { x: 0, y: 0 } };
   }, []);
   const changeView = useCallback((next: PhotoView) => {
@@ -98,10 +100,11 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
     const scale = Math.max(1, Math.min(4, initial.view.scale * ratio));
     const applied = scale / initial.view.scale;
     const rect = event.currentTarget.getBoundingClientRect();
-    draw({ scale,
+    const next = { scale,
       x: after.x - rect.left - rect.width / 2 - (before.x - rect.left - rect.width / 2 - initial.view.x) * applied,
       y: after.y - rect.top - rect.height / 2 - (before.y - rect.top - rect.height / 2 - initial.view.y) * applied,
-    });
+    };
+    draw(current.length === 2 ? rawPhotoView(next, rect, { width, height }) : next);
     const elapsed = event.timeStamp - sample.current.time;
     if (elapsed > 0) {
       sample.current = { view: view.current, time: event.timeStamp, velocity: {
