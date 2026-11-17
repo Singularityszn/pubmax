@@ -7,10 +7,11 @@ import { useLiveAccountGeneration } from "@/components/auth/useLiveAccountGenera
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import ComparePubFlow from "@/components/social/ComparePubFlow";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { AuthActionSessionError, authedActionJson } from "@/lib/authedFetch";
+import { AuthActionJsonParseError, AuthActionSessionError, authedActionJson } from "@/lib/authedFetch";
 import { socialPubRankingPayload, socialPubRankingReadFailure, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 const RANKING_UNAVAILABLE = "Your ranking is unavailable right now.";
+const RANKING_ACCESS_REFUSED = "We could not confirm access to your ranking.";
 
 type Props = { venueId: string; venueName: string; returnTo: string };
 
@@ -30,11 +31,16 @@ async function readRanking(): Promise<State> {
     );
     const entries = response.ok ? socialPubRankingPayload(body) : null;
     if (entries) return { kind: "comparing", entries };
+    const refused = socialPubRankingReadFailure(response.status, body) === "refused";
     return {
-      kind: socialPubRankingReadFailure(response.status, body) === "refused" ? "refused" : "failed",
-      message: response.status === 401 ? RANKING_UNAVAILABLE : errorMessageFrom(response.ok ? null : body, RANKING_UNAVAILABLE),
+      kind: refused ? "refused" : "failed",
+      message: response.status === 401 ? RANKING_ACCESS_REFUSED
+        : errorMessageFrom(response.ok ? null : body, refused ? RANKING_ACCESS_REFUSED : RANKING_UNAVAILABLE),
     };
   } catch (error) {
+    if (error instanceof AuthActionJsonParseError && socialPubRankingReadFailure(error.status, null) === "refused") {
+      return { kind: "refused", message: RANKING_ACCESS_REFUSED };
+    }
     return {
       kind: "failed",
       message: error instanceof AuthActionSessionError ? error.message : offlineOrMessage(RANKING_UNAVAILABLE),
@@ -82,7 +88,13 @@ function RankIt({ venueId, venueName }: Props) {
     setState(next);
   }
 
-  function close(value?: unknown) {
+  function close(value?: unknown, reason?: "refused") {
+    if (!mounted.current) return;
+    if (reason === "refused") {
+      setPlaced(null);
+      setState({ kind: "refused", message: RANKING_ACCESS_REFUSED });
+      return;
+    }
     // Older comparison versions pass click events instead of a write promise.
     const pending = value instanceof Promise ? value : undefined;
     setState(pending ? { kind: "loading", origin: "closed" } : { kind: "idle" });
