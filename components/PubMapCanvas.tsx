@@ -1998,7 +1998,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     const gestureGuard = installMapGestureGuard(map.getCanvasContainer(), gestureCameraRef, () => {
       emitUserCameraMove({ originalEvent: true });
     });
-    for (const name of ["drag", "zoom", "rotate", "pitch"] as const) {
+    for (const name of ["move", "drag", "zoom", "rotate", "pitch"] as const) {
       map.on(`${name}start`, gestureGuard.begin(name));
       map.on(`${name}end`, gestureGuard.end(name));
     }

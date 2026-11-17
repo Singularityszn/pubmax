@@ -32,6 +32,8 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   const errors = watchPageErrors(page);
   await holdLondonAfternoon(page);
 
+  // The launch-day feed excludes demos. Exercise the ordinary seeded feed.
+  await holdLondonAfternoon(page);
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 

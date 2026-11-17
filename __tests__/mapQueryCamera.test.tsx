@@ -5,7 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import type { Map as MapLibreMap, LngLatBounds } from "maplibre-gl";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
+import { latestMapCameraRequestToken, palCameraDefaults, useMapCamera, useNearbyCameraFraming, useRouteCameraFraming } from "@/components/map/canvas/useMapCamera";
 import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
@@ -997,6 +997,58 @@ describe("query camera with contextual price pins", () => {
 });
 
 describe("closing a route stop", () => {
+  // The ownership contract requires the newest deliberate request to win,
+  // even when route data or map readiness delays both requests.
+  it.each([
+    ["route data", "close", false], ["route data", "close", true],
+    ["route data", "route", false], ["route data", "route", true],
+    ["map readiness", "close", false], ["map readiness", "close", true],
+    ["map readiness", "route", false], ["map readiness", "route", true],
+  ] as const)("honours the newest %s-delayed %s request, reader moved: %s", (delay, newest, moved) => {
+    const gesture = { current: { active: false, endedAt: null, movementSerial: 0 } };
+    let selected = "stop";
+    let ready = false;
+    let requestToken = nextCameraRequestToken();
+    let closeToken = 0;
+    function Camera() {
+      const ownedCamera = useMapCamera({
+        latestRequestToken: latestMapCameraRequestToken({ routeRequestToken: requestToken,
+          closeVenueRequestToken: closeToken, nearbyRequestToken: 0,
+          selectedVenueId: selected, selectedVenueRequestToken: 0 }),
+        mapRef: { current: { stop: vi.fn(), fitBounds, getBearing: () => -8,
+          getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
+            getBoundingClientRect: () => ({ top: 0 }) }),
+        } as unknown as MapLibreMap },
+        reducedRef: { current: true }, cityViewRef: { current: {
+          center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
+        cityBoundsRef: { current: [[-0.3, 51.4], [0.1, 51.7]] },
+        routeRef: { current: soho }, routeLineRef: { current: { type: "FeatureCollection", features: [] } },
+        venuesRef: { current: soho }, gestureCameraRef: gesture,
+      });
+      useRouteCameraFraming({ mapReady: delay === "route data" || ready,
+        routePending: delay === "route data" && !ready, routeKey: "a>b",
+        selectedVenueId: selected, requestToken, closeRequestToken: closeToken,
+        gestureCameraRef: gesture, fitRoute: ownedCamera.fitRoute });
+      return null;
+    }
+    const render = () => act(() => root.render(createElement(Camera)));
+    render();
+    selected = "";
+    closeToken = nextCameraRequestToken();
+    if (moved) gesture.current.movementSerial += 1;
+    render();
+    if (newest === "route") requestToken = nextCameraRequestToken();
+    ready = true;
+    render();
+    act(() => { pendingFrame?.(performance.now()); pendingFrame = undefined; });
+    if (moved && newest === "close") expect(fitBounds).not.toHaveBeenCalled();
+    else {
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect((fitBounds.mock.calls[0]![0] as LngLatBounds).toArray())
+        .toEqual([[-0.139, 51.514], [-0.129, 51.516]]);
+    }
+  });
+
   it.each([
     ["home", false], ["home", true],
     ["back", false], ["back", true],

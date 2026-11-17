@@ -3,6 +3,7 @@ import { expect, test, type CDPSession, type Page } from "@playwright/test";
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
 import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 // The map a reader turns with two fingers, in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project).
@@ -87,6 +88,47 @@ test.beforeEach(async ({ page }) => {
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 });
+
+for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
+  test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm&sel=venue-7tarkc");
+    const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+    await expect(close).toBeVisible();
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expect(page.locator(".mapLoading")).toHaveCount(0);
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling;
+    }).toBe(true);
+    const before = await readCamera(page);
+    const canvas = page.locator(".maplibregl-canvas");
+    await canvas.focus();
+    await canvas.press(key);
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling
+        && Math.hypot(state.center[0] - before.center[0], state.center[1] - before.center[1]) > 0.00001;
+    }).toBe(true);
+    const panned = await readCamera(page);
+    await close.click();
+    await expect(close).not.toBeVisible();
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling;
+    }).toBe(true);
+    // The reader's chosen view is the oracle. A route fit after closure
+    // changes the centre or zoom and must fail this check.
+    const after = await readCamera(page);
+    expect(after.center[0]).toBeCloseTo(panned.center[0], 7);
+    expect(after.center[1]).toBeCloseTo(panned.center[1], 7);
+    expect(after.zoom).toBeCloseTo(panned.zoom, 7);
+    expect(after.bearing).toBeCloseTo(panned.bearing, 7);
+    expect(after.pitch).toBeCloseTo(panned.pitch, 7);
+  });
+}
 
 async function readCamera(page: Page): Promise<CameraReading> {
   return page.evaluate(() => {

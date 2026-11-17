@@ -89,7 +89,7 @@ export function useRouteCameraFraming({
     consumedClose.current = closeRequestToken;
     if (!selectedVenueId && previous.id) {
       selection.current = { id: "", movementSerial };
-      if (userOwned) fitRoute("user", requestToken);
+      if (userOwned && requestToken > closeRequestToken) fitRoute("user", requestToken);
       else if (closed && routeKey.includes(">") && previous.movementSerial === movementSerial) fitRoute("user", closeRequestToken);
       return;
     }
