@@ -8,6 +8,7 @@ import {
   socialPubRankingEntries,
   socialPubRankingPayload,
   socialPubRankingReadFailure,
+  socialPubRankingSaveAnswer,
   startSocialPubComparison,
   type SocialPubComparison,
 } from "@/lib/socialPubRankings";
@@ -159,5 +160,25 @@ describe("ranking access failures", () => {
     { status: 0, body: null, result: "unavailable" },
   ])("classifies an access boundary separately from an outage: $status $body", ({ status, body, result }) => {
     expect(socialPubRankingReadFailure(status, body)).toBe(result);
+  });
+});
+
+describe("ranking save answers without a list", () => {
+  it.each([
+    { status: 401, body: null, result: "refused" },
+    { status: 403, body: { code: "SOCIAL_ACCOUNT_SUSPENDED" }, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE" }, result: "refused" },
+    { status: 409, body: { code: "STALE_RANKING" }, result: "stale" },
+    { status: 409, body: null, result: "unknown" },
+    { status: 400, body: { code: "INVALID_VENUE" }, result: "rejected" },
+    { status: 429, body: { code: "RATE_LIMITED" }, result: "rejected" },
+    { status: 503, body: { code: "SOCIAL_FROZEN" }, result: "rejected" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, result: "rejected" },
+    { status: 503, body: { code: "VENUE_LOOKUP_UNAVAILABLE" }, result: "rejected" },
+    { status: 503, body: { code: "RANKING_UNAVAILABLE" }, result: "unknown" },
+    { status: 502, body: null, result: "unknown" },
+    { status: 200, body: { entries: [null] }, result: "unknown" },
+  ])("says what a $status answer proves about the write: $body", ({ status, body, result }) => {
+    expect(socialPubRankingSaveAnswer(status, body)).toBe(result);
   });
 });
