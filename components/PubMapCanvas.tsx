@@ -1,5 +1,10 @@
 "use client";
 
+import { curatedWalkLine, type CuratedWalk, type MapRouteStop } from "@/lib/curatedWalk";
+import { selectedPlaceIsDrawn } from "@/components/map/canvas/selectedPlaceIsDrawn";
+import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
+import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
+
 import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
 
 import dynamic from "next/dynamic";
@@ -192,7 +197,6 @@ import {
 } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
-  isUkBaseId,
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
@@ -290,7 +294,10 @@ type PubMapCanvasProps = {
    * curated index is the overview, not a failed pub list.
    */
   nationalBrowse?: boolean;
-  route: Venue[];
+  route: MapRouteStop[];
+  walk?: CuratedWalk;
+  walkPanelOpen?: boolean;
+  selectedRouteStopId?: string;
   routeRequestToken?: number;
   routePending?: boolean;
   /**
@@ -613,14 +620,6 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
 // does not rerun on every render of a pint map.
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 
-/** Whether a London venue-layer place on this map holds the id: a pilot cafe or a restaurant. */
-function londonPlaceDrawn(
-  id: string,
-  cafes: readonly CoffeePilotCafe[],
-  restaurants: readonly LondonVenue[],
-): boolean {
-  return cafes.some((cafe) => cafe.id === id) || restaurants.some((place) => place.id === id);
-}
 // Every pub-source layer, gated together through the basemap gate on desktop
 // and the stricter source-aware visible-frame handoff on phone.
 const PUB_PIN_LAYERS = [
@@ -792,7 +791,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venues,
     filteredVenueCount,
     venueDataReady,
-    route,
+    route, walk, walkPanelOpen = false, selectedRouteStopId,
     routeRequestToken,
     routePending,
     crewPals,
@@ -1502,6 +1501,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     queryVenuesRef,
     gestureCameraRef,
   })
+
+  useCuratedWalkFraming(walkPanelOpen, mapReady, fitRoute);
+  useRouteStopSelection(mapReady, mapRef, selectedRouteStopId);
 
   // The map's opening turn (captain, 7 Sep 2026: "I also want the map to rotate
   // slightly"). Once per mounted map, on the first ready, and never again: the
@@ -4362,14 +4364,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
-    // Selection and venue-data refreshes must retain a routed road line.
-    // Only a different ordered coordinate sequence needs a new fallback.
+    // Selection and venue-data refreshes retain the routed road line.
     if (routeLineKeyRef.current !== routeCoordKey) {
       routeLineKeyRef.current = routeCoordKey;
-      routeLineRef.current = routed?.line ?? routeToLine(route);
+      routeLineRef.current = walk ? curatedWalkLine(walk) : routed?.line ?? routeToLine(route);
     }
-    routeStopsRef.current = routeToStops(route);
-    routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
+    routeStopsRef.current = routeToStops(route, Boolean(walk));
+    routeLegTimesRef.current = walk ? { type: "FeatureCollection", features: [] } : routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
     // A parent re-render hands over a new `route` array for the same stops;
     // only a real change of stops or selection is news worth moving for.
@@ -4494,11 +4495,11 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       applyMapFocusMute(map, selectedIdRef.current ? "selection"
         : route.length >= 2 ? "route" : "browse", selectionMuteStoreRef.current);
     });
-  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData, walk]);
 
   // Road-following upgrade (T4). The effect above paints the straight line
-  // instantly (routeToLine, drawn dashed as "approximate"); here we ask
-  // /api/walk-route to redraw the SAME ordered stops along real walking roads.
+  // instantly (routeToLine, drawn dashed as "approximate"); the endpoint
+  // upgrades the same ordered stops to real walking roads.
   // On an "ors" success we swap routeLineRef to the road LineString and repaint
   // (buildRoute draws it solid); on any failure the straight dashed line simply
   // stays. Debounced via an AbortController so rapid stop edits collapse to the
@@ -4506,7 +4507,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
   // and re-fires only when the stop coordinates actually change.
   useEffect(() => {
-    if (!mapReady) return;
+    if (!mapReady || walk) return;
     if (routeCoordKey.split(";").length < 2) return;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
@@ -4542,7 +4543,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute, walk]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4760,11 +4761,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // false→true exactly once when the venue first appears — re-running the
   // effect — and stays true across filter/drop churn, so `venues` itself can
   // remain out of the deps (no re-flying on churn, the original guarantee).
-  const selectedPresent =
-    Boolean(selectedVenueId) &&
-    (venues.some((item) => item.id === selectedVenueId) ||
-      isUkBaseId(selectedVenueId) ||
-      londonPlaceDrawn(selectedVenueId, coffeePilotCafes, londonRestaurants));
+  const selectedPresent = selectedPlaceIsDrawn(selectedVenueId, venues, coffeePilotCafes, londonRestaurants);
 
   // There is no ambient camera here, and that is a decision (captain, 3 Sep
   // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the

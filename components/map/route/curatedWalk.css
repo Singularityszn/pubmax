@@ -1,0 +1,33 @@
+.curatedWalkHeading, .curatedWalkSummary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.curatedWalkKicker { display: flex; align-items: center; gap: 8px; color: var(--brass-ink); font-size: var(--text-sm); margin: 0; }
+.curatedWalkPanel h2 { margin: 0; text-wrap: balance; }
+.curatedWalkTiming { color: var(--muted); margin: 4px 0; }
+.curatedWalkMetrics { display: flex; align-items: center; gap: 8px; margin: 0; font-variant-numeric: tabular-nums; }
+.curatedWalkCopyStatus { font-size: var(--text-sm); margin: 0; }
+.curatedWalkCopyStatus:not(:empty) { margin-bottom: 12px; }
+.curatedWalkStops { margin-top: 12px; }
+.curatedWalkSources { margin-top: 16px; font-size: var(--text-sm); color: var(--muted); }
+.curatedWalkSources summary { min-height: 44px; display: flex; align-items: center; cursor: pointer; }
+.curatedWalkSources a { color: var(--ink); text-decoration: underline; }
+.curatedWalkPreview { width: 100%; height: auto; display: block; color: var(--route-line); margin: 16px 0; }
+
+.curatedWalkPreview .routeThumbnailNumber { fill: var(--paper); font-family: var(--font-body); }
+
+.mobileSharedSheet .curatedWalkPanel { padding: 0; }
+.curatedWalkDrawerTitle { grid-column: 2; grid-row: 1; min-width: 0; }
+.curatedWalkDrawerTitle h2 { margin: 0; font-size: var(--text-lg); }
+.curatedWalkDrawerTitle .curatedWalkKicker { font-size: var(--text-xs); }
+.plannerSheetHead:has(.curatedWalkDrawerTitle) { display: grid; }
+.curatedWalkMetrics small { display: block; color: var(--muted); font-size: var(--text-xs); }
+
+.curatedWalkSummary { flex-wrap: wrap; }
+.curatedWalkMetrics { flex-shrink: 0; max-width: 100%; }
+.curatedWalkMetrics > span { min-width: 0; }
+.curatedWalkSummary > button { flex-shrink: 0; white-space: nowrap; }
+
+.curatedWalkCredit a { color: inherit; text-underline-offset: 2px; }

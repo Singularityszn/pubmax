@@ -9,6 +9,10 @@ import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import type { CrawlStyle } from "@/lib/venues";
 import { appendMapPlanDrinkSelection, type MapPlanDrinkSelection } from "@/lib/mapPlanDrinkPresentation";
+import christmasWalk from "@/data/curated-walks/london-christmas.json";
+import type { CuratedWalk } from "@/lib/curatedWalk";
+import type { LngLat } from "@/lib/routeMiniMap";
+import { londonDayKey } from "@/lib/londonHour";
 
 // Named "generational" curated crawls — hand-picked routes through pubs that
 // genuinely cluster in a themed patch of London, so an older drinker's pub
@@ -26,6 +30,8 @@ export type CuratedCrawl = {
   blurb: string;
   crawlStyle: CrawlStyle;
   venueIds: string[];
+  walk?: CuratedWalk;
+  promotion?: { from: string; through: string };
   /**
    * Optional landmark id (lib/landmarks) the crawl starts at — the crawls page
    * shows a "starts at Big Ben"-style origin chip when set (story 27). Left
@@ -304,7 +310,32 @@ export const curatedCrawls: CuratedCrawl[] = [
     ],
     startLandmarkId: "piccadilly-circus",
   },
+  {
+    id: "london-christmas-walk",
+    name: "London Christmas walk",
+    blurb: `${christmasWalk.description} ${christmasWalk.bestTime}.`,
+    crawlStyle: "balanced",
+    venueIds: [],
+    promotion: { from: "11-15", through: "01-06" },
+    walk: { ...christmasWalk, path: christmasWalk.path as LngLat[] },
+  },
 ];
+
+export function curatedCrawlStopCount(crawl: CuratedCrawl): number {
+  return crawl.walk?.stops.length ?? crawl.venueIds.length;
+}
+
+export function discoveredCuratedCrawls(crawls: readonly CuratedCrawl[], now = new Date()): CuratedCrawl[] {
+  const day = Number.isFinite(now.getTime()) ? londonDayKey(now).slice(5) : "";
+  const active = crawls.filter(({ promotion }) => {
+    if (!promotion) return true;
+    if (!day) return false;
+    return promotion.from <= promotion.through
+      ? day >= promotion.from && day <= promotion.through
+      : day >= promotion.from || day <= promotion.through;
+  });
+  return [...active.filter((crawl) => crawl.promotion), ...active.filter((crawl) => !crawl.promotion)];
+}
 
 /** Curated crawls that package a given Place story corridor (Wave F2). */
 export function curatedCrawlsForBand(
@@ -369,7 +400,7 @@ export function curatedCrawlMapHref(
 ): Route {
   const params = new URLSearchParams();
   params.set("mode", "build");
-  params.set("pubs", crawl.venueIds.join(","));
+  if (crawl.venueIds.length) params.set("pubs", crawl.venueIds.join(","));
   params.set("crawl", crawl.id);
   if (crawl.crawlStyle) params.set("style", crawl.crawlStyle);
   if (crawl.altStyle && crawl.altStyle !== "pint") params.set("alt", crawl.altStyle);
@@ -399,6 +430,8 @@ export function crawlShareMapHref(input: {
   const city = resolveHrefCity(input.cityId, ids);
   const params = new URLSearchParams();
   appendMapPlanDrinkSelection(params, input.drinkSelection);
+  const curated = input.crawlId ? (input.crawls ?? curatedCrawls).find((crawl) => crawl.id === input.crawlId) : undefined;
+  if (curated?.walk) return curatedCrawlMapHref(curated, city);
   if (ids.length === 0) {
     const band = input.placeStoryBandId?.trim();
     if (band) params.set("band", band);

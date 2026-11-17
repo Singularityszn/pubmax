@@ -12,6 +12,8 @@ import { buildRouteLegs } from "@/lib/routeLegs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedWalkKm, curatedWalkMinutes, type MapRouteStop } from "@/lib/curatedWalk";
 
 type InitialPlanState = {
   mode: CrawlMode;
@@ -112,8 +114,8 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setPlannedNightArea(nightArea);
   }, [mapRoute, setBuiltIds, setMode]);
 
-  const releasePlannerMode = useCallback(() => {
-    setPlan((current) => current.builtIds.length === 0 && current.mode === "build"
+  const releasePlannerMode = useCallback((keepFixedWalk = false) => {
+    setPlan((current) => keepFixedWalk !== true && current.builtIds.length === 0 && current.mode === "build"
       ? { ...current, routeMapped: false, mode: "suggest" }
       : current);
   }, []);
@@ -162,10 +164,12 @@ export function useMapPlanPresentation({
   activePlanRoute,
   venueById,
   settledBuiltStopIds,
+  activeCrawl,
 }: {
   mode: CrawlMode;
   builtIds: string[];
   routeMapped: boolean;
+  activeCrawl?: CuratedCrawl | null;
   suggestedRoute: Venue[];
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
@@ -183,12 +187,18 @@ export function useMapPlanPresentation({
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
   const routePending = routeMapped && mode === "build" && builtIds.length >= 2
     && builtIds.some((id) => !venueById.has(canonicalBundledVenueId(id)) && !settledBuiltStopIds?.has(id));
-  const routeMappedActive = routeMapped && route.length >= 2;
-  const routeForMap = useMemo(
-    () => (routeMappedActive ? route : activePlanRoute),
-    [activePlanRoute, route, routeMappedActive],
+  const walk = mode === "build" ? activeCrawl?.walk : undefined;
+  const routeMappedActive = routeMapped && (walk ? walk.stops.length >= 2 : route.length >= 2);
+  const routeForMap = useMemo<MapRouteStop[]>(
+    () => routeMappedActive ? walk?.stops ?? route : activePlanRoute,
+    [activePlanRoute, route, routeMappedActive, walk],
   );
-  const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
+  const routeForMapLegs = useMemo(() => {
+    const summary = buildRouteLegs(routeMappedActive ? route : activePlanRoute, "walk");
+    if (!walk || !routeMappedActive) return summary;
+    const totalKm = curatedWalkKm(walk);
+    return { ...summary, totalKm, totalMinutes: curatedWalkMinutes(walk) };
+  }, [activePlanRoute, route, routeMappedActive, walk]);
 
   return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs };
 }

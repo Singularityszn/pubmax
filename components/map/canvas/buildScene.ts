@@ -1972,10 +1972,10 @@ export function buildRouteStops(ctx: SceneCtx) {
     type: "circle",
     source: "route-stops",
     paint: {
-      "circle-color": tokens.inkDeep,
-      "circle-radius": 16,
+      "circle-color": ["case", ["boolean", ["feature-state", "selected"], false], tokens.routeLine, tokens.inkDeep],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 9, 16], 15, 16],
       "circle-stroke-color": tokens.brassBright,
-      "circle-stroke-width": 2.5,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 1.5, 2.5], 15, 2.5],
     },
   });
   // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
@@ -2020,7 +2020,7 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "label"],
       "text-font": textFont,
-      "text-size": 14,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 11, 14], 15, 14],
       "text-allow-overlap": true,
       // The stop discs are a circle layer, which takes no part in symbol
       // collision. The number does, so padded out to the disc's radius it
@@ -2030,7 +2030,7 @@ export function buildRouteStops(ctx: SceneCtx) {
       "text-padding": 12,
     },
     // Stops are always dark-filled, so the label is the light-side token.
-    paint: { "text-color": dark ? tokens.ink : tokens.paper },
+    paint: { "text-color": ["case", ["boolean", ["feature-state", "selected"], false], dark ? tokens.inkDeep : tokens.paper, dark ? tokens.ink : tokens.paper] },
   });
 }
 

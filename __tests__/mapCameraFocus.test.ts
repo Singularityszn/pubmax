@@ -182,6 +182,33 @@ describe("mounted camera focus ownership", () => {
     (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = false;
   });
 
+  it("keeps a landmark move pending until its sheet finishes", async () => {
+    const panel = document.createElement("section");
+    panel.className = "mapDrawer left open";
+    panel.style.willChange = "max-height";
+    panel.innerHTML = '<aside class="curatedWalkPanel"></aside>';
+    document.body.append(panel);
+    vi.spyOn(panel, "getBoundingClientRect").mockReturnValue(new DOMRect(0, 300, 390, 400));
+    const picked = focus("landmark", 10, LONDON);
+    const applied = { current: null as string | null };
+    const movement = Promise.withResolvers<void>();
+    cinematic.mockImplementationOnce(movement.resolve);
+    function LandmarkCamera() {
+      useMapFocusPoint(true, picked, applied, cinematic);
+      return null;
+    }
+    try {
+      act(() => root.render(createElement(LandmarkCamera)));
+      expect(mapCameraFocusMoves(picked, applied.current)).toBe(true);
+      expect(cinematic).not.toHaveBeenCalled();
+      await act(async () => { panel.style.willChange = "auto"; await movement.promise; });
+      expect(mapCameraFocusMoves(picked, applied.current)).toBe(false);
+      expect(cinematic).toHaveBeenCalledOnce();
+    } finally {
+      panel.remove();
+    }
+  });
+
   it("waits for readiness and applies each owner's first move once", () => {
     render({ resolved: true, ready: false });
     expect(cinematic).not.toHaveBeenCalled();

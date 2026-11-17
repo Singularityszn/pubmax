@@ -80,7 +80,7 @@ export default async function CrawlsPage({
   const story = decodeCrawlStory(encodedStory);
   // Only the featured crawl wears a photograph, so only its photograph ships.
   const featured: CuratedCrawl | undefined = story ? undefined : visibleCuratedCrawls(pack)[0];
-  const featuredPhoto = featured ? ((await crawlPhotos())[featured.id] ?? null) : null;
+  const featuredPhoto = featured && !featured.walk ? ((await crawlPhotos())[featured.id] ?? null) : null;
   const cityCrawlGroups = story ? [] : await loadCityCrawlGroups();
   return (
     <CrawlsPageClient pack={pack} encodedStory={encodedStory} featuredPhoto={featuredPhoto} cityCrawlGroups={cityCrawlGroups} />

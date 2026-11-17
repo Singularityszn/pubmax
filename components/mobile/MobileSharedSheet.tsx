@@ -97,6 +97,8 @@ export default function MobileSharedSheet({
   kicker,
   initialSnap = "half",
   requestedSnap,
+  surface = "glass",
+  mapInteractive = false,
   onClose,
   onDismiss = onClose,
   closeLabel,
@@ -113,6 +115,8 @@ export default function MobileSharedSheet({
   kicker?: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
+  surface?: "glass" | "solid";
+  mapInteractive?: boolean;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
   /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
@@ -323,9 +327,10 @@ export default function MobileSharedSheet({
   // <body> and owns its own strict-modal trap over this sheet. A strict-modal
   // policy here inerted that dialog, so a new drinker could see the signup form
   // and type nothing into it.
-  const sheetModal = mobileSheetIsModal(sheetSnap);
+  const mapRemainsInteractive = mapInteractive && sheetSnap !== "full";
+  const sheetModal = !mapRemainsInteractive && mobileSheetIsModal(sheetSnap);
   useFocusTrap(
-    Boolean(kind) && mobileSheetFocusContained(sheetSnap),
+    Boolean(kind) && !mapRemainsInteractive && mobileSheetFocusContained(sheetSnap),
     sheetRef,
     "map-surface",
     previousFocus,
@@ -356,6 +361,7 @@ export default function MobileSharedSheet({
   return createPortal(
     <div
       className="mobileSheetPortal"
+      data-map-interactive={mapRemainsInteractive ? "true" : undefined}
       data-sheet-kind={presented.kind}
       data-sheet-exiting={visibleExit ? "true" : undefined}
       inert={visibleExit ? true : undefined}
@@ -373,6 +379,7 @@ export default function MobileSharedSheet({
       />
       <section
         ref={sheetRef}
+        data-surface={surface}
         data-sheet-motion={
           dragging ? "dragging" : settling ? "settling" : entering ? "entering" : "idle"
         }

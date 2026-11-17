@@ -258,7 +258,7 @@ function planDoorIsVisible(
   return overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, fixedWalk, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -310,6 +310,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   planOpen: boolean;
   planActive: boolean;
   planStopCount: number;
+  fixedWalk?: boolean;
   /** Stops picked by hand on this map while no route is mapped yet. */
   builtStopCount?: number;
   planInteractive: boolean;
@@ -438,7 +439,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     outdoorSeatingActive,
   });
   const tflOnMap = tflEdgeForCity(cityId, tflStatus, tflCount, tflUrgentCount);
-  const planPill = planActivationPill({ planActive, planStopCount, builtStopCount });
+  const planPill = planActivationPill({ planActive, planStopCount, builtStopCount, fixedWalk });
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled, cityId);
   // The plan door and the bottom card it rides in stand down for everything
   // that takes the foot of the map: a sheet, the planner, List view, a story.
@@ -537,7 +538,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             </button>
           </div>
         ) : null}
-        {overlay === "search" ? null : (
+        {overlay === "search" || (fixedWalk && planOpen && !drinkLaneSelected && !experienceFilterLabel) ? null : (
           <MapChipRow
             overlay={overlay}
             drinkLaneLabel={drinkLaneLabel}

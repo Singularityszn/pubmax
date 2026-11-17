@@ -17,6 +17,7 @@ type RouteThumbnailProps = {
    * the /crawls cards use.
    */
   stopNumbers?: readonly number[];
+  linePoints?: readonly [number, number][];
 };
 
 const VIEW = 100;
@@ -27,6 +28,7 @@ export default function RouteThumbnail({
   className,
   label,
   stopNumbers,
+  linePoints,
 }: RouteThumbnailProps) {
   if (points.length < 2) return null;
 
@@ -34,10 +36,11 @@ export default function RouteThumbnail({
   // route's proportions survive the degrees→pixels squash at London latitudes,
   // then fit the larger span into the padded square (uniform scale, centred on
   // the shorter axis) with Y flipped (north up).
-  const midLat = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+  const extentPoints = linePoints?.length ? [...points, ...linePoints] : points;
+  const midLat = extentPoints.reduce((sum, p) => sum + p[1], 0) / extentPoints.length;
   const lngScale = Math.cos((midLat * Math.PI) / 180);
-  const xsRaw = points.map((p) => p[0] * lngScale);
-  const ysRaw = points.map((p) => p[1]);
+  const xsRaw = extentPoints.map((p) => p[0] * lngScale);
+  const ysRaw = extentPoints.map((p) => p[1]);
   const minX = Math.min(...xsRaw);
   const maxX = Math.max(...xsRaw);
   const minY = Math.min(...ysRaw);
@@ -78,11 +81,19 @@ export default function RouteThumbnail({
       if (!moved) break;
     }
   }
-  const polylinePoints = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const lineCoords = linePoints?.map(([lng, lat]) => [
+    PAD + ((lng * lngScale - minX + xOffset) / span) * inner,
+    PAD + ((maxY - lat + yOffset) / span) * inner,
+  ]) ?? coords;
+  const polylinePoints = lineCoords.map(([x, y]) => `${x!.toFixed(1)},${y!.toFixed(1)}`).join(" ");
+
+  const previewYs = [...lineCoords, ...pinCoords].map((point) => point[1]!);
+  const previewTop = linePoints?.length ? Math.max(0, Math.min(...previewYs) - 10) : 0;
+  const previewBottom = linePoints?.length ? Math.min(VIEW, Math.max(...previewYs) + 10) : VIEW;
 
   return (
     <svg
-      viewBox={`0 0 ${VIEW} ${VIEW}`}
+      viewBox={`0 ${previewTop} ${VIEW} ${previewBottom - previewTop}`}
       className={className}
       role="img"
       aria-label={label ?? `Route shape: straight lines between ${points.length} stops`}

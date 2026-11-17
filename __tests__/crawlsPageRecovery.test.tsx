@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/round/RoundStarter", () => ({ default: () => null }));
@@ -39,6 +39,9 @@ const sharedStory = encodeCrawlStory({
     { venueId: "venue-b", name: "Second pub" },
   ],
 });
+
+beforeAll(() => { vi.useFakeTimers({ toFake: ["Date"] }); vi.setSystemTime(new Date("2026-06-01T12:00:00Z")); });
+afterAll(() => vi.useRealTimers());
 
 describe("/crawls shared-link recovery", () => {
   it.each([

@@ -9,6 +9,7 @@ import {
   type MapCameraFocus,
 } from "@/lib/mapCameraFocus";
 import type { useMapCamera } from "./useMapCamera";
+import { walkSurfaceOffset, whenWalkPanelSettles } from "./useMapCamera";
 
 export function useMapFocusPoint(
   mapReady: boolean,
@@ -19,12 +20,17 @@ export function useMapFocusPoint(
   useEffect(() => {
     if (!mapReady || !focusPoint) return;
     if (!mapCameraFocusMoves(focusPoint, focusKeyRef.current)) return;
-    focusKeyRef.current = mapCameraFocusKey(focusPoint);
-    cinematic(
-      { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
-      cameraIntentForFocusSource(focusPoint.source),
-      focusPoint.source === "opening-location" ? "automatic" : "user",
-      focusPoint.source === "area" ? focusPoint.token : 0,
-    );
+    const move = () => {
+      focusKeyRef.current = mapCameraFocusKey(focusPoint);
+      cinematic(
+        { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900,
+          ...(focusPoint.source === "landmark" ? { offset: walkSurfaceOffset() } : {}) },
+        cameraIntentForFocusSource(focusPoint.source),
+        focusPoint.source === "opening-location" ? "automatic" : "user",
+        focusPoint.source !== "opening-location" ? focusPoint.token : 0,
+      );
+    };
+    if (focusPoint.source === "landmark") return whenWalkPanelSettles(move);
+    move();
   }, [mapReady, focusPoint, focusKeyRef, cinematic]);
 }

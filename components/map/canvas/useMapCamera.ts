@@ -1,3 +1,4 @@
+import type { MapRouteStop } from "@/lib/curatedWalk";
 import { useCallback, useEffect, useMemo, useRef } from "react";
 import type { MutableRefObject } from "react";
 import * as maplibregl from "maplibre-gl";
@@ -7,6 +8,7 @@ import { createCameraIntentCoordinator, nextCameraRequestToken, type CameraInten
 import { mapArrivalBearingPlan } from "@/lib/mapArrivalBearing";
 import { cameraIntentBlocked, type GestureCameraState } from "@/lib/mapGestureGuard";
 import type { MapCameraFocus } from "@/lib/mapCameraFocus";
+import { SHEET_SNAP_ORDER, sheetTopReserveY, sheetTranslateY } from "@/lib/sheetSnap";
 import { mapVisibleBand, nearMeCameraFrame, nearestVenueKm } from "@/lib/nearMeMapFrame";
 
 type MapView = { center: [number, number]; zoom: number; pitch: number; bearing: number };
@@ -42,6 +44,10 @@ export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestTok
   return { nearbyRequestToken };
 }
 
+export function whenWalkPanelSettles(done: () => void, waitForMount = false): () => void {
+  return whenBottomSheetSettles(0, () => done(), { waitForSheet: waitForMount, surfaceSelector: WALK_PANEL_SELECTOR });
+}
+
 // Chrome the near-me camera must stay clear of. The top values are only a
 // FALLBACK: the phone chrome stack is being reworked, and a hardcoded height
 // would drift the reader silently under a changed chip row. Measure it.
@@ -50,7 +56,8 @@ const PHONE_BOTTOM_INSET = 190;
 const DESKTOP_TOP_INSET = 150;
 const DESKTOP_BOTTOM_INSET = 110;
 
-const PHONE_ROUTE_PADDING = { top: 160, right: 28, bottom: 200, left: 28 };
+// Reserve deferred phone controls until their mounted geometry is available.
+const PHONE_ROUTE_PADDING = { top: 160, right: 88, bottom: 280, left: 28 };
 const MIN_ROUTE_CONTENT_PX = 48;
 
 function desktopStatusSize(style: CSSStyleDeclaration | null) {
@@ -142,11 +149,51 @@ export function useNearbyCameraFraming({
   }, [mapReady, userLocation, routeLength, nearbyMapVenues, framingOwedRef, key]);
 }
 
+export const WALK_PANEL_SELECTOR = ".mapDrawer.left.open:has(.curatedWalkPanel)";
+
+function walkSurfacePadding(rect: DOMRect): Required<maplibregl.PaddingOptions> | null {
+  const panel = document.querySelector<HTMLElement>(WALK_PANEL_SELECTOR);
+  if (!panel || panel.closest('[data-sheet-exiting="true"]')) return null;
+  const cover = panel.getBoundingClientRect();
+  let coverTop = cover.top;
+  if (panel.dataset.springAxis === "vertical" && !panel.classList.contains("sheet-dragging") && typeof DOMMatrixReadOnly !== "undefined") {
+    const snap = SHEET_SNAP_ORDER.find((value) => panel.classList.contains(`sheet-${value}`));
+    if (snap) {
+      const translateY = new DOMMatrixReadOnly(getComputedStyle(panel).transform).m42;
+      // The bounded waiter can expire before a busy frame starts the entrance.
+      coverTop = Math.min(coverTop, cover.top - translateY + sheetTranslateY(snap, window.innerHeight, sheetTopReserveY(panel)));
+    }
+  }
+  const chrome = [".mobileMapChrome", ".mapToolbar"].map((selector) =>
+    document.querySelector(selector)?.getBoundingClientRect()).find((bounds) => bounds && bounds.width > 0 && bounds.height > 0);
+  const padding = { top: Math.max(32, (chrome?.bottom ?? rect.top) - rect.top + 16), right: 32, bottom: 48, left: 32 };
+  if (cover.width >= rect.width * 0.75) padding.bottom = Math.max(48, rect.bottom - coverTop + 32);
+  else if (cover.left < rect.left + rect.width / 2) padding.left = Math.max(32, cover.right - rect.left + 28);
+  else padding.right = Math.max(32, rect.right - cover.left + 28);
+  return padding;
+}
+
+function limitRoutePadding(padding: Required<maplibregl.PaddingOptions>, width: number, height: number) {
+  const vertical = Math.min(1, Math.max(0, (height - MIN_ROUTE_CONTENT_PX) / (padding.top + padding.bottom)));
+  const horizontal = Math.min(1, Math.max(0, (width - MIN_ROUTE_CONTENT_PX) / (padding.left + padding.right)));
+  return { top: Math.floor(padding.top * vertical), right: Math.floor(padding.right * horizontal),
+    bottom: Math.floor(padding.bottom * vertical), left: Math.floor(padding.left * horizontal) };
+}
+
+export function walkSurfaceOffset(): [number, number] | undefined {
+  const rect = document.querySelector(".maplibreMap")?.getBoundingClientRect();
+  const padding = rect && walkSurfacePadding(rect);
+  if (!rect || !padding) return;
+  const bounded = limitRoutePadding(padding, rect.width, rect.height);
+  return [(bounded.left - bounded.right) / 2, (bounded.top - bounded.bottom) / 2];
+}
+
 function routeFitPadding(
   map: maplibregl.Map,
   isPhone: boolean,
 ): number | maplibregl.PaddingOptions {
   const container = map.getContainer();
+  const walkPadding = walkSurfacePadding(container.getBoundingClientRect());
   const containerTop = container.getBoundingClientRect().top;
   const shortLandscape = !isPhone && container.clientHeight <= 500;
   const statusBounds = isPhone ? null : document.querySelector(".cityStatusStack")?.getBoundingClientRect();
@@ -184,10 +231,12 @@ function routeFitPadding(
       // full disc diameter as well as the Pal's measured berth.
       return { ...inset, bottom: Math.max(inset.bottom, container.getBoundingClientRect().bottom - bounds.top + 48) };
     }, { bottom: 0, right: 0 });
-  const padding = isPhone
+  const phoneBottomBounds = isPhone ? Array.from(document.querySelectorAll(".palSummon, .mobilePlanActivation, .mobileTabBar"))
+    .map((element) => element.getBoundingClientRect()).filter((rect) => rect.width > 0 && rect.height > 0) : [];
+  const padding = walkPadding ?? (isPhone
     ? { ...PHONE_ROUTE_PADDING,
         // Names extend beyond their discs. Keep them above the credit control.
-        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palInsets.bottom, attributionBounds?.height
+        bottom: Math.max(PHONE_ROUTE_PADDING.bottom, palInsets.bottom, ...phoneBottomBounds.map((rect) => container.getBoundingClientRect().bottom - rect.top + 16), attributionBounds?.height
           ? container.getBoundingClientRect().bottom - attributionBounds.top + 8 : 0),
         // Keep the full numbered disc clear of Near me and transport controls.
         right: Math.max(PHONE_ROUTE_PADDING.right, utilityBounds?.width
@@ -196,23 +245,8 @@ function routeFitPadding(
         measureTopChromeBottom(containerTop, PHONE_ROUTE_PADDING.top),
         recoveryBounds?.height ? recoveryBounds.bottom - containerTop + 16 : 0) }
     : { top: desktopTop, right: Math.max(72, palInsets.right),
-        bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 };
-  const verticalScale = Math.min(
-    1,
-    Math.max(0, (container.clientHeight - MIN_ROUTE_CONTENT_PX)
-      / (padding.top + padding.bottom)),
-  );
-  const horizontalScale = Math.min(
-    1,
-    Math.max(0, (container.clientWidth - MIN_ROUTE_CONTENT_PX)
-      / (padding.left + padding.right)),
-  );
-  return {
-    top: Math.floor(padding.top * verticalScale),
-    right: Math.floor(padding.right * horizontalScale),
-    bottom: Math.floor(padding.bottom * verticalScale),
-    left: Math.floor(padding.left * horizontalScale),
-  };
+        bottom: Math.max(desktopBottom, palInsets.bottom), left: 72 });
+  return limitRoutePadding(padding, container.clientWidth, container.clientHeight);
 }
 
 /** The one sheet class that can cover the map on a phone. */
@@ -268,9 +302,9 @@ const SHEET_UNGROWN_COVER_PX = 64;
  * module already answers for near-me: how much map is left above the sheet.
  * One selector, one measurement, so the two moves cannot drift apart.
  */
-export function measureBottomSheetTop(containerTop: number): number | null {
+export function measureBottomSheetTop(containerTop: number, selector = BOTTOM_SHEET_SELECTOR): number | null {
   if (typeof document === "undefined") return null;
-  const sheet = document.querySelector(BOTTOM_SHEET_SELECTOR);
+  const sheet = document.querySelector(selector);
   if (!sheet) return null;
   const rect = sheet.getBoundingClientRect();
   if (rect.height <= 0) return null;
@@ -295,12 +329,13 @@ export function measureBottomSheetTop(containerTop: number): number | null {
 export type BottomSheetSettleOptions = {
   /** Keep watching briefly when the sheet portal has not mounted yet. */
   waitForSheet?: boolean;
+  surfaceSelector?: string;
 };
 
 export function whenBottomSheetSettles(
   containerTop: number,
   done: (coverTop: number | null) => void,
-  { waitForSheet = false }: BottomSheetSettleOptions = {},
+  { waitForSheet = false, surfaceSelector = BOTTOM_SHEET_SELECTOR }: BottomSheetSettleOptions = {},
 ): () => void {
   let cancelled = false;
   const finish = (coverTop: number | null) => {
@@ -309,7 +344,7 @@ export function whenBottomSheetSettles(
     done(coverTop);
   };
   const measure = (): number | null => {
-    const top = measureBottomSheetTop(containerTop);
+    const top = measureBottomSheetTop(containerTop, surfaceSelector);
     if (top === null) return null;
     // Still growing. Not a band yet, and not "no sheet" either.
     return top;
@@ -327,7 +362,7 @@ export function whenBottomSheetSettles(
   // nothing to wait for, so do not spend the timeout finding that out. A venue
   // selection opts into waiting because its portal can mount one commit after
   // the canvas effect that requested the camera.
-  if (!document.querySelector(BOTTOM_SHEET_SELECTOR) && !waitForSheet) {
+  if (!document.querySelector(surfaceSelector) && !waitForSheet) {
     cancelled = true;
     done(null);
     return () => {
@@ -335,14 +370,22 @@ export function whenBottomSheetSettles(
     };
   }
   const startedAt = performance.now();
+  const surface = () => document.querySelector<HTMLElement>(surfaceSelector);
+  const position = () => { const rect = surface()?.getBoundingClientRect(); return rect ? [rect.x, rect.y, rect.width, rect.height].join(":") : ""; };
   let previous = measure();
+  let previousPosition = position();
   let stableFrames = 0;
   const step = () => {
     if (cancelled) return;
     const current = measure();
-    stableFrames = current === previous ? stableFrames + 1 : 0;
+    const currentPosition = position();
+    stableFrames = current === previous && currentPosition === previousPosition ? stableFrames + 1 : 0;
     previous = current;
-    const settled = grown(current) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES;
+    previousPosition = currentPosition;
+    const element = surface();
+    const changing = element && getComputedStyle(element).willChange;
+    const idle = !element?.closest('[data-sheet-exiting="true"]') && (!changing || changing === "auto") && (!element?.dataset.sheetMotion || element.dataset.sheetMotion === "idle");
+    const settled = (grown(current) || (!waitForSheet && !element)) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES && idle;
     if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
       // A sheet that never grew is treated as no cover rather than as a band
       // pinned to the bottom of the screen.
@@ -364,7 +407,7 @@ type CameraRefs = {
   /** The city's designed view: the attitude a whole-city fit returns to. */
   cityViewRef: MutableRefObject<MapView>;
   cityBoundsRef: MutableRefObject<[[number, number], [number, number]]>;
-  routeRef: MutableRefObject<Venue[]>;
+  routeRef: MutableRefObject<MapRouteStop[]>;
   routeLineRef: MutableRefObject<GeoJSON.FeatureCollection>;
   venuesRef: MutableRefObject<Venue[]>;
   queryVenuesRef?: MutableRefObject<Venue[]>;
@@ -529,18 +572,28 @@ export function useMapCamera(refs: CameraRefs) {
     const routeKey = current.map((venue) => venue.id).join(">");
     const container = mapRef.current?.getContainer();
     const viewportKey = `${container?.clientWidth}:${container?.clientHeight}`;
-    scheduleCamera(owner, kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
+    const scheduleFit = () => scheduleCamera(owner, kind, `${kind}:${request}:${routeKey}:${boundsKey}:${viewportKey}`, (map) => {
       routeFrameRef.current = { key: routeKey, gestureEndedAt: gestureCameraRef.current.endedAt };
       // A road response can arrive after scheduling but before this frame.
       // Read its geometry when the owned camera move actually runs.
       map.fitBounds(routeBounds(), {
         padding: routeFitPadding(map, isPhone),
+        ...(document.querySelector(WALK_PANEL_SELECTOR) || routeLineRef.current.features.some((feature) => feature.properties?.source === "curated") ? { pitch: 0 } : {}),
         maxZoom: 18,
         duration: reducedRef.current ? 0 : 800,
         // Keep the current rotation when fitting the route.
         bearing: map.getBearing(),
       });
     }, requestToken);
+    if (document.querySelector('.mobileSheetPortal[data-sheet-exiting="true"] .curatedWalkPanel')) {
+      const requestVersion = userRequestRef.current;
+      sheetWaitsRef.current += 1;
+      if (owner === "user") pendingOwnerRef.current = owner;
+      whenWalkPanelSettles(() => {
+        sheetWaitsRef.current -= 1;
+        if (requestVersion === userRequestRef.current) scheduleFit();
+      });
+    } else scheduleFit();
   }, [claimCamera, gestureCameraRef, mapRef, reducedRef, routeRef, routeLineRef, scheduleCamera]);
 
   const fitOwnedRoute = useCallback(() => {

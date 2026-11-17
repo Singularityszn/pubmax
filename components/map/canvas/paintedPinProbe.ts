@@ -31,6 +31,7 @@ const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
 // restaurant). They are not pubs, so they never join the pub answer above,
 // which every map spec reads as "a tap here opens a pub".
 const PAINTED_LONDON_PLACE_PROBE_KEY = "__pubmaxPaintedLondonPlaceTapPoints";
+const PAINTED_ROUTE_PROBE_KEY = "__pubmaxPaintedRouteTapPoints";
 
 /** A pub mark the map is painting, in viewport coordinates a tap can use. */
 export type PaintedMapTapPoint = {
@@ -69,6 +70,7 @@ function paintedMapLoadingState(map: maplibregl.Map): PaintedMapLoadingState {
 }
 
 type ProbeWindow = Window & {
+  [PAINTED_ROUTE_PROBE_KEY]?: () => PaintedMapTapPoint[];
   [PAINTED_MAP_PROBE_KEY]?: (() => PaintedMapTapPoint[]) & {
     trace?: typeof pubHitTrace;
     state?: () => PaintedMapLoadingState;
@@ -182,7 +184,7 @@ export function paintedMapTapPoints(
         if (target.kind !== "cluster" || markId(target.feature, kind) !== id || !map.getSource("pubs")) continue;
       } else {
         if (!layers.includes(target.feature.layer.id)) continue;
-        const targetId = target.kind === "pub"
+        const targetId = target.kind === "pub" || target.kind === "route"
           ? (typeof target.feature.properties?.id === "string" ? target.feature.properties.id : null)
           : target.kind === "base"
             ? ukBasePubFromFeature(target.feature)?.id
@@ -246,9 +248,13 @@ export function installPaintedPinProbe(map: maplibregl.Map): () => void {
     },
   );
   probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY] = () => paintedLondonPlaceTapPoints(map);
+  probeWindow[PAINTED_ROUTE_PROBE_KEY] = () => paintedMapTapPoints(map, ["route-stops"], []).map((point) => ({
+    ...point, selected: Boolean(map.getFeatureState({ source: "route-stops", id: point.id }).selected),
+  }));
   return () => {
     pubHitTrace.stop();
     delete probeWindow[PAINTED_MAP_PROBE_KEY];
     delete probeWindow[PAINTED_LONDON_PLACE_PROBE_KEY];
+    delete probeWindow[PAINTED_ROUTE_PROBE_KEY];
   };
 }

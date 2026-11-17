@@ -7,7 +7,7 @@
 // Mirrors lib/routeLegs semantics ("straight-line", ceil to a
 // whole minute, never "0 min") without importing the Venue-typed leg builder.
 
-import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls, discoveredCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import { venuePriceEvidence, type VenuePriceEvidence } from "@/lib/venuePriceEvidence";
 import { formatGbp } from "@/lib/formatGbp";
@@ -118,7 +118,7 @@ export function formatPriceRange(range: Pick<CrawlPriceRange, "minGbp" | "maxGbp
  */
 export function visibleCuratedCrawls(packId: string | undefined): CuratedCrawl[] {
   const pack = packId ? getRoutePack(packId) : undefined;
-  if (!pack) return curatedCrawls;
+  if (!pack) return discoveredCuratedCrawls(curatedCrawls);
   const ids = new Set(pack.crawlIds);
-  return curatedCrawls.filter((crawl) => ids.has(crawl.id));
+  return discoveredCuratedCrawls(curatedCrawls.filter((crawl) => ids.has(crawl.id)));
 }

@@ -1,7 +1,7 @@
 import { X } from "lucide-react";
 import { useRef } from "react";
 
-import { type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawlStopCount, discoveredCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 // §4.5 onboarding overlay: a dismissible "Start with a story" card that offers
@@ -53,18 +53,18 @@ export function MapOnboardingOverlay({
           on the map, or explore on your own.
         </p>
         <div className="mapOnboardingList">
-          {crawls.map((crawl) => (
+          {discoveredCuratedCrawls(crawls).slice(0, 4).map((crawl) => (
             <button
               key={crawl.id}
               type="button"
               className="mapOnboardingCrawl"
-              aria-label={`Load the ${crawl.name} crawl, ${crawl.venueIds.length} stops`}
+              aria-label={`Load the ${crawl.name} crawl, ${curatedCrawlStopCount(crawl)} stops`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="mapOnboardingCrawlHead">
                 <strong>{crawl.name}</strong>
                 <span className="mapOnboardingCount">
-                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                  {curatedCrawlStopCount(crawl)} stop{curatedCrawlStopCount(crawl) === 1 ? "" : "s"}
                 </span>
               </span>
               <span className="mapOnboardingBlurb">{crawl.blurb}</span>
