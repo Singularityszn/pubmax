@@ -138,6 +138,22 @@ jobs:
           scripts/ci/install-pinned-tool.sh
           osv-scanner --version
 
+      - name: Setup Node
+        timeout-minutes: 5
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+
+      - name: Audit npm lockfiles and prove exceptions are development-only
+        run: |
+          set -euo pipefail
+          git ls-files -z -- '*package-lock.json' > "$RUNNER_TEMP/npm-audit-lockfiles"
+          test -s "$RUNNER_TEMP/npm-audit-lockfiles"
+          while IFS= read -r -d '' lockfile; do
+            printf 'Auditing %s\n' "$lockfile"
+            (cd "$(dirname "$lockfile")" && node "$GITHUB_WORKSPACE/scripts/resilient-audit.mjs")
+          done < "$RUNNER_TEMP/npm-audit-lockfiles"
+
       # Recursive, so scripts/chatgpt-map, the iOS Package.resolved and any
       # lockfile added later are scanned without editing this line. It exits
       # non-zero when it finds no lockfile at all, so it cannot pass empty.
