@@ -11,7 +11,11 @@ import "server-only";
 //
 // The message may carry one dated price. It comes from a fresh read of the
 // pub's public detail at send time (lib/summonPrice.ts), never from the
-// request. A failed or incomplete read sends the invite without a price.
+// request. A failed, slow or incomplete read sends the invite without a price.
+// The detail reader takes no signal, so a read past the bound is not cancelled:
+// its answer is ignored. The mutual list and every consent check run again
+// after the read, so the wait cannot carry a stale answer into delivery. The
+// final check and each write are still separate store calls, not one atomic step.
 
 import { followStore } from "@/lib/followStore";
 import { cleanBody } from "@/lib/messages";
@@ -55,6 +59,19 @@ async function lookupPub(venueId: string): Promise<SummonPub> {
   if (lookup.status !== "found") return { status: lookup.status };
   if (!isPubVenueKind(lookup.slimVenue.kind ?? lookup.venue.kind)) return { status: "unknown" };
   return { status: "found", venueId: lookup.canonicalId, name: lookup.venue.name };
+}
+
+/** The optional price, or null once the bound passes. The timer never outlives the read. */
+async function boundedPrice(read: Promise<SummonPriceEvidence | null>): Promise<SummonPriceEvidence | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), SUMMON_PRICE_READ_MS);
+  });
+  try {
+    return await Promise.race([read.catch(() => null), expired]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 async function lookupPrice(venueId: string): Promise<SummonPriceEvidence | null> {
@@ -140,10 +157,13 @@ export async function sendSummon(
   if (pub.status === "unknown") return { status: "unknown_pub" };
   if (pub.status === "unavailable") return { status: "unavailable" };
 
+  const mutualsBefore = new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle));
+  if (!asked.some((handle) => mutualsBefore.has(handle))) return { status: "no_mates" };
+  const price = await boundedPrice(Promise.resolve().then(() => deps.lookupPrice(pub.venueId)));
+  // The read may have taken a while. Ask who is still a mate after it, not before.
   const mutuals = new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle));
   const candidates = asked.filter((handle) => mutuals.has(handle));
   if (candidates.length === 0) return { status: "no_mates" };
-  const price = await deps.lookupPrice(pub.venueId).catch(() => null);
   const allowed = await Promise.all(candidates.map((handle) => summonable(viewer, handle, deps)));
   const mates = candidates.filter((_, index) => allowed[index]);
   if (mates.length === 0) return { status: "no_mates" };
