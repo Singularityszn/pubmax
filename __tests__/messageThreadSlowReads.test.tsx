@@ -159,6 +159,23 @@ beforeEach(() => {
   root = createRoot(host);
 });
 
+it.each(["cold", "retry"])("keeps the header and inbox exit during a %s read", async mode => {
+  await render();
+  if (mode === "retry") {
+    await answer(outage());
+    await click(".threadRetryBtn");
+  }
+  expect(host.querySelector(".threadHeader")).not.toBeNull();
+  expect(host.querySelector('a[aria-label="Back to inbox"]')?.getAttribute("href")).toBe("/messages");
+  expect(host.querySelector(".threadWith")).not.toBeNull();
+  expect(host.querySelector(".composerInput")).toBeNull();
+  expect(host.querySelector('[aria-label="Chat options"]')).toBeNull();
+  await answer(thread("Loaded history"));
+  expect(host.querySelectorAll(".threadHeader")).toHaveLength(1);
+  expect(host.querySelector(".messageBubble")?.textContent).toContain("Loaded history");
+  expect(host.querySelector(".composerInput")).not.toBeNull();
+});
+
 it("restores a previously loaded thread while a returning read is pending", async () => {
   await render();
   await answer(thread("Meet at seven"));

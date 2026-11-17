@@ -209,6 +209,21 @@ afterEach(async () => {
 });
 
 describe("message sign-in doors", () => {
+  it("keeps the inbox pending when bootstrap resolves without changing the account revision", async () => {
+    viewerState.current = { phase: "unresolved", signedIn: false, signedOut: false, unresolved: true };
+    await render(createElement(MessagesInboxClient));
+    signedIn("user-1", "alice", 0);
+    fetchState.pending = true;
+
+    await render(createElement(MessagesInboxClient));
+
+    expect(fetchState.requests).toHaveLength(1);
+    expect(host.textContent).not.toContain("Your messages start here.");
+    expect(host.querySelector("[data-sample-skeleton]")).not.toBeNull();
+    await releaseFetch(Response.json({ conversations: [{ id: "first-thread", otherHandle: "erin", lastBody: "Meet at seven", unread: 1 }] }));
+    expect(host.querySelector('a[href="/messages/first-thread"]')).not.toBeNull();
+  });
+
   const createdGroup = {
     id: "group-hari-maisie",
     kind: "group",

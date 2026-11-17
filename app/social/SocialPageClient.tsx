@@ -611,8 +611,8 @@ function SocialPageAccountState({
     if (access !== "verified" || !feedHref || !feedSnapshotKey) {
       if (["preview", "sign_in_required", "age_verification_required", "suspended"].includes(access) && feedData.current) {
         forgetSurfaceSnapshot(feedData.current.key);
-        feedData.current = null;
       }
+      feedData.current = null;
       void Promise.resolve().then(() => {
         if (feedRequestId.current !== requestId) return;
         setPosts([]);

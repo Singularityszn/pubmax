@@ -1,3 +1,6 @@
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
+
 import SampleSkeleton from "@/components/ui/sample-skeleton";
 
 export function InboxLoading() {
@@ -30,4 +33,19 @@ export function ThreadLoading() {
       </ul>
     </SampleSkeleton>
   </>;
+}
+
+export function ThreadLoadingShell() {
+  return <div className="messageThread">
+    <div className="threadHeader">
+      <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
+        <ChevronLeft size={24} aria-hidden="true" />
+      </Link>
+      <SampleSkeleton label="Loading conversation" className="threadWith">
+        <span className="messageAvatar" style={{ width: 36, height: 36 }} data-sample-block="" />
+        <span className="threadWithHandle">Conversation</span>
+      </SampleSkeleton>
+    </div>
+    <ThreadLoading />
+  </div>;
 }

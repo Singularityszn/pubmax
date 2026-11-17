@@ -125,7 +125,8 @@ export default function MessagesInboxClient({
   const [inboxSearch, setInboxSearch] = useState<{ revision: number; query: string; filter: InboxFilter }>({ revision: accountRevision, query: "", filter: "all" });
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
-  const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
+  const readerKey = JSON.stringify([user?.id ?? null, accountRevision, normalizeHandle(authHandle ?? "") || readHandle()]);
+  const [loadedReaderKey, setLoadedReaderKey] = useState<string | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
   // The server refused this handle's inbox (403): the account does not own it.
   // Asking again cannot change that, so it is not `failed` and has no retry.
@@ -194,7 +195,7 @@ export default function MessagesInboxClient({
         setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
-        setLoadedRevision(requestRevision);
+        setLoadedReaderKey(readerKey);
         return;
       }
       const h = canonicalAuthHandle || readHandle();
@@ -205,7 +206,7 @@ export default function MessagesInboxClient({
         setHandleNotOwned(false);
         setFailed(false);
         setPartial(false);
-        setLoadedRevision(requestRevision);
+        setLoadedReaderKey(readerKey);
         return;
       }
       const cacheKey = messageSnapshotKey(activeUserId, requestRevision, h)!;
@@ -218,7 +219,7 @@ export default function MessagesInboxClient({
           setNeedsSignIn(false);
           setHandleNotOwned(false);
           setFailed(false);
-          setLoadedRevision(requestRevision);
+          setLoadedReaderKey(readerKey);
         }
       }
       const controller = new AbortController();
@@ -268,7 +269,7 @@ export default function MessagesInboxClient({
         } finally {
           signal?.removeEventListener("abort", abort);
           readsRef.current.delete(controller);
-          if (stillCurrent()) setLoadedRevision(requestRevision);
+          if (stillCurrent()) setLoadedReaderKey(readerKey);
           if (pendingReadRef.current?.generation === generation) pendingReadRef.current = null;
         }
       });
@@ -278,7 +279,7 @@ export default function MessagesInboxClient({
     // `handle` is deliberately NOT a dependency: the read derives the handle
     // itself, and re-keying on the state copy made every mount fetch the inbox
     // twice, once before the handle settled and once after.
-    [accountRevision, activeUserId, canonicalAuthHandle],
+    [accountRevision, activeUserId, canonicalAuthHandle, readerKey],
   );
 
   const retry = useCallback(() => {
@@ -348,7 +349,7 @@ export default function MessagesInboxClient({
     });
   }, [activeConversationId, refresh, user?.id, accountRevision, authHandle]);
 
-  const accountDataReady = loadedRevision === accountRevision;
+  const accountDataReady = loadedReaderKey === readerKey;
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();

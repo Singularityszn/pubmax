@@ -21,7 +21,7 @@ import MessageAttachmentPicker, {
 } from "@/components/messages/MessageAttachmentPicker";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import MessageAvatar from "@/components/messages/MessageAvatar";
-import { ThreadLoading } from "@/components/messages/MessageLoading";
+import { ThreadLoading, ThreadLoadingShell } from "@/components/messages/MessageLoading";
 import MessageContactCard from "@/components/messages/MessageContactCard";
 import MessageConfirmDialog from "@/components/messages/MessageConfirmDialog";
 import MessageContactPicker from "@/components/messages/MessageContactPicker";
@@ -772,7 +772,7 @@ export default function MessageThread({
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
-    return <ThreadLoading />;
+    return <ThreadLoadingShell />;
   }
 
   if (state === "signedout" && viewerSession.signedOut) {
@@ -784,7 +784,7 @@ export default function MessageThread({
     );
   }
   if (state === "signedout") {
-    return <ThreadLoading />;
+    return <ThreadLoadingShell />;
   }
   if (state === "left") {
     return (

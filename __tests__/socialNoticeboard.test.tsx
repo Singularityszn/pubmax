@@ -122,6 +122,45 @@ it.each(["view", "remount"])("retains a four-page window and its continuation af
   expect(host.textContent).toContain("Page 5");
 });
 
+it.each(["nearby", "discover"])("expires a detached deep window after visiting %s", async selection => {
+  let now = Date.now();
+  const clock = vi.spyOn(Date, "now").mockImplementation(() => now);
+  try {
+    let version = "Original";
+    transport.request.mockImplementation(async (href: string) => {
+      if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+      if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+      const index = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+      return Response.json({ posts: [feedPost(`${version} page ${index + 1}`, 16 - index)], nextCursor: String(index + 1) });
+    });
+    await mountFeed();
+    for (let page = 0; page < 3; page += 1) {
+      await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    }
+    // Mounted windows retain position, even after the detached-cache lifetime.
+    now += 5 * 60_000 + 1;
+    await act(async () => window.dispatchEvent(new Event("focus")));
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(4);
+    await act(async () => root.render(createElement(SocialPageClient, {
+      initialState: selection === "nearby"
+        ? { valid: true, tab: "posts", feed: "nearby", area: null }
+        : { valid: true, tab: "discover", feed: null, area: null },
+      rivalry: [], heritageCrawls: [],
+    })));
+    version = "Fresh";
+    await act(async () => root.render(createElement(SocialPageClient, {
+      initialState: { valid: true, tab: "posts", feed: "following", area: null }, rivalry: [], heritageCrawls: [],
+    })));
+    expect(host.textContent).toContain("Fresh page 1");
+    expect(host.textContent).not.toContain("Original page");
+    expect(host.querySelectorAll(".socialPostCard")).toHaveLength(1);
+    await act(async () => [...host.querySelectorAll("button")].find(button => button.textContent === "Load more")!.click());
+    expect(host.textContent).toContain("Fresh page 2");
+  } finally {
+    clock.mockRestore();
+  }
+});
+
 it.each(["edit", "publish", "outbox edit", "edit during refresh"])("keeps all four pages after %s", async action => {
   let refreshing = false;
   let finish!: (response: Response) => void;
