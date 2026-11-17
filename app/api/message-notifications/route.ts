@@ -8,12 +8,10 @@ import { messageNotificationSenderAllowed, messageNotificationSessionId, resolve
 import { isLimited } from "@/lib/pintDrops";
 import { profileStore } from "@/lib/profileStore";
 import { decodeWebPushSubscription } from "@/lib/webPushSubscription";
-import { clientIp, hashIp } from "@/lib/supabase";
 
 function validDeviceToken(value: unknown): value is string {
   return typeof value === "string" && value.length <= 2048 && Boolean(decodeWebPushSubscription(value));
 }
-function deviceAction(value: unknown): boolean { return value === "subscribe" || value === "unsubscribe" || value === "restore"; }
 function bindingAction(value: unknown): boolean { return value === "subscribe" || value === "restore"; }
 
 async function conversationAccess(userId: string, id: string): Promise<boolean> {
@@ -75,23 +73,18 @@ export async function POST(request: Request): Promise<Response> {
     } else if (body.action === "mute" && typeof body.conversationId === "string" && typeof body.muted === "boolean") {
       if (!await conversationAccess(userId, body.conversationId)) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
       await store.setMuted(userId, body.conversationId, body.muted);
-    } else if (deviceAction(body.action) && validDeviceToken(body.token)) {
+    } else if (bindingAction(body.action) && validDeviceToken(body.token)) {
       const sessionId = messageNotificationSessionId(request, userId);
       if (!sessionId || !await store.sessionActive(userId, sessionId)) return publicApiError("Sign in again to enable message alerts.", "UNAUTHENTICATED", 401);
-      if (body.action === "restore") {
-        if ((await store.preferences(userId)).enabled) await store.saveToken(userId, body.token, sessionId);
-        else await store.release(body.token);
-      } else if (body.action === "subscribe") await store.saveToken(userId, body.token, sessionId);
-      else await store.removeToken(userId, body.token);
+      const enabled = body.action === "subscribe" || (await store.preferences(userId)).enabled;
+      if (enabled) await store.saveToken(userId, body.token, sessionId);
+      else await store.release(body.token);
+      return jsonNoStore({ ok: true, bound: enabled, sessionId: enabled ? sessionId : null });
     } else if (body.action === "presence" && validDeviceToken(body.token) && (body.conversationId === null || typeof body.conversationId === "string")) {
       if (body.conversationId && !await conversationAccess(userId, body.conversationId)) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
       await store.presence(userId, body.token, body.conversationId);
     } else {
       return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
-    }
-    if (bindingAction(body.action) && typeof body.token === "string") {
-      const enabled = body.action === "subscribe" || (await store.preferences(userId)).enabled;
-      return jsonNoStore({ ok: true, bound: enabled, sessionId: enabled ? messageNotificationSessionId(request, userId) : null });
     }
     return jsonNoStore({ ok: true });
   } catch {
@@ -107,18 +100,19 @@ export async function DELETE(request: Request): Promise<Response> {
     if (await isLimited(key, key, 120, 60 * 60 * 1000)) return publicApiError("Too many changes. Try again later.", "RATE_LIMITED", 429);
     await messageNotificationStore().release(body.token, body.sessionId);
     return jsonNoStore({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof SyntaxError) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
     return publicApiError("Could not release message alerts.", "UNAVAILABLE", 503, { retryable: true });
   }
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  const key = `message-notification-preview:${hashIp(clientIp(request))}`;
-  if (await isLimited(key, key, 1200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
   try {
     const body = await request.json() as Record<string, unknown>;
     const { token, recipientId, conversationId, messageId } = body;
     if (typeof token !== "string" || token.length > 2048 || !decodeWebPushSubscription(token) || ![recipientId, conversationId, messageId].every((id) => typeof id === "string" && /^[a-f0-9-]{36}$/i.test(id))) return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
+    const key = `message-notification-preview:${createHash("sha256").update(token).digest("hex")}`;
+    if (await isLimited(key, key, 1200, 60 * 60 * 1000)) return publicApiError("Too many requests.", "RATE_LIMITED", 429);
     const userId = await callerUserId(request);
     const sessionId = userId ? messageNotificationSessionId(request, userId) : null;
     const preview = userId && userId === recipientId && sessionId ? await resolveMessageNotificationPreview(token, userId, conversationId as string, messageId as string, sessionId) : null;

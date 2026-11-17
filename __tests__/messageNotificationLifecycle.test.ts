@@ -122,6 +122,18 @@ describe("message alerts on account departure", () => {
     expect(recovered).toHaveBeenCalledOnce();
     expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toEqual([]);
   });
+  it("drops a permanently invalid detach and still releases the next device", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Offline"); }));
+    await releaseMessagePush();
+    const other = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/other-device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    recordMessagePushBinding(other, "33333333-3333-4333-8333-333333333333");
+    await releaseMessagePush();
+    let released = 0;
+    vi.stubGlobal("fetch", vi.fn(async () => { released++; return new Response(null, { status: released === 1 ? 400 : 200 }); }));
+    await flushMessagePushReleases();
+    expect(released).toBe(2);
+    expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toEqual([]);
+  });
   it("does not wait longer than three seconds for an unresponsive preview worker", async () => {
     vi.useFakeTimers();
     try {

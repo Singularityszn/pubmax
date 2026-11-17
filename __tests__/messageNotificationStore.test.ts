@@ -9,6 +9,11 @@ function token(id: string, auth = "secret_auth_key") {
 afterEach(() => vi.restoreAllMocks());
 
 describe("message device ownership and foreground presence", () => {
+  it("accepts a verified well-formed memory session before its first device binding", async () => {
+    expect(await store.sessionActive("new-user", "77777777-7777-4777-8777-777777777777")).toBe(true);
+    expect(await store.tokens("new-user")).toEqual([]);
+    expect(await store.sessionActive("new-user", "not-a-session")).toBe(false);
+  });
   it("suppresses only the same visible thread for thirty seconds", async () => {
     const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
     const device = token("presence");

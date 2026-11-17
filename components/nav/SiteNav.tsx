@@ -243,9 +243,8 @@ export default function SiteNav({
     active === "map" || pathname === "/map" || pathname.startsWith("/map/");
 
   useLayoutEffect(() => {
-    if (!isMap) return;
     const node = floatingNavRef.current;
-    const shell = node?.closest<HTMLElement>(".appShell");
+    const shell = node?.closest<HTMLElement>(".appShell") ?? document.documentElement;
     if (!node || !shell) return;
     const property = "--site-nav-floating-height";
     let published = "";

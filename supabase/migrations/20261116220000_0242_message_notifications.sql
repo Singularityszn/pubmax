@@ -54,4 +54,18 @@ $$;
 revoke all on function public.message_notification_session_active(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.message_notification_session_active(uuid, uuid) to service_role;
 
+create function public.message_notification_targets(p_user_id uuid, p_conversation_id uuid)
+returns table (token text) language plpgsql security definer set search_path = '' as $$
+begin
+  delete from public.message_push_subscriptions s where s.user_id = p_user_id
+    and not public.message_notification_session_active(p_user_id, s.session_id);
+  return query select s.token from public.message_push_subscriptions s
+    where s.user_id = p_user_id and (s.active_conversation_id is distinct from p_conversation_id
+      or s.last_seen is null or s.last_seen < now() - interval '30 seconds')
+    order by s.updated_at desc limit 20;
+end;
+$$;
+revoke all on function public.message_notification_targets(uuid, uuid) from public, anon, authenticated;
+grant execute on function public.message_notification_targets(uuid, uuid) to service_role;
+
 commit;

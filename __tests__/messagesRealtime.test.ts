@@ -20,11 +20,18 @@ import {
   MESSAGES_POLL_LIVE_MS,
   MESSAGES_REATTACH_MAX_ATTEMPTS,
   messagesReattachDelayMs,
-  subscribeToInbox,
+  subscribeToInbox as subscribeToInboxReal,
   subscribeToMessages,
 } from "@/lib/messagesRealtime";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 import { defined } from "@/__tests__/helpers/defined";
+
+const inboxCleanups: Array<() => void> = [];
+function subscribeToInbox(...args: Parameters<typeof subscribeToInboxReal>) {
+  const cleanup = subscribeToInboxReal(...args);
+  inboxCleanups.push(cleanup);
+  return cleanup;
+}
 
 type StatusCallback = (status: string) => void;
 type SignalCallback = () => void;
@@ -79,6 +86,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  for (const cleanup of inboxCleanups.splice(0)) cleanup();
   vi.clearAllTimers();
   vi.useRealTimers();
 });
@@ -265,6 +273,25 @@ describe("message realtime subscription", () => {
 });
 
 describe("inbox realtime subscription", () => {
+  it("keeps the nav listener live when the inbox using the same SDK channel unmounts", () => {
+    const fixture = realtimeFixture();
+    getSupabaseBrowser.mockReturnValue(fixture.client);
+    const nav = vi.fn();
+    const inbox = vi.fn();
+    const stopNav = subscribeToInbox("shared", nav);
+    const stopInbox = subscribeToInbox("shared", inbox);
+    fixture.emitStatus("SUBSCRIBED");
+    fixture.emit("message");
+    expect(nav).toHaveBeenCalledOnce();
+    expect(inbox).toHaveBeenCalledOnce();
+    stopInbox();
+    fixture.emit("message");
+    expect(nav).toHaveBeenCalledTimes(2);
+    expect(inbox).toHaveBeenCalledOnce();
+    expect(fixture.removeChannel).not.toHaveBeenCalled();
+    stopNav();
+    expect(fixture.removeChannel).toHaveBeenCalledOnce();
+  });
   it("listens on the handle's inbox topic for message signals", () => {
     const fixture = realtimeFixture();
     const onSignal = vi.fn();

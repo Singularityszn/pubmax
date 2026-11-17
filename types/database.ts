@@ -8664,6 +8664,15 @@ export type Database = {
         };
         Returns: boolean;
       };
+      message_notification_targets: {
+        Args: {
+          p_user_id: string | null;
+          p_conversation_id: string | null;
+        };
+        Returns: {
+          token: string;
+        }[];
+      };
       migrate_social_product_account: {
         Args: {
           p_clerk_user_id: string | null;

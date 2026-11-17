@@ -146,6 +146,11 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
     await page.evaluate((id) => (window as unknown as { __receiveMessage: (id: string) => void }).__receiveMessage(id), ACCOUNTS.B.id);
     await expect(page.getByRole("link", { name: "Messages, 2 unread", exact: true })).toBeVisible();
     await expect(page.locator(".messageArrival")).toBeVisible();
+    await page.locator(".messageArrival a").focus();
+    for (const width of [390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.screenshot({ path: testInfo.outputPath(`recipient-arrival-${width}.png`), scale: "css" });
+    }
     await page.screenshot({ path: testInfo.outputPath("recipient-arrival.png"), fullPage: true });
     await page.locator(".messageArrival a").click();
     await expect(page).toHaveURL(new RegExp(`/messages/${THREAD}$`));

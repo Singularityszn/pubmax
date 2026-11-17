@@ -76,9 +76,9 @@ const durableMessageNotificationStore: Store = {
     return (data ?? []).map((row) => String(row.token));
   },
   async targets(userId, conversationId) {
-    const { data, error } = await admin().from(tokensTable).select("token, active_conversation_id, last_seen").eq("user_id", userId).order("updated_at", { ascending: false }).limit(20);
+    const { data, error } = await admin().rpc("message_notification_targets", { p_user_id: userId, p_conversation_id: conversationId });
     if (error) throw error;
-    return (data ?? []).filter((row) => row.active_conversation_id !== conversationId || Date.parse(String(row.last_seen)) < Date.now() - 30_000 || !row.last_seen).map((row) => String(row.token));
+    return (data ?? []).map((row: { token: string }) => row.token);
   },
   async registered(userId, fingerprint) {
     const { data, error } = await admin().from(tokensTable).select("endpoint_hash").eq("endpoint_hash", fingerprint).eq("user_id", userId).maybeSingle();
@@ -155,7 +155,7 @@ export const memoryMessageNotificationStore: Store = {
     const row = tokens.get(endpointHash(token));
     return row?.token === token && row.userId === userId && row.sessionId === sessionId && claims.has(`${userId}:${messageId}`);
   },
-  async sessionActive(userId, sessionId) { return [...tokens.values()].some((row) => row.userId === userId && row.sessionId === sessionId); },
+  async sessionActive(userId, sessionId) { return Boolean(userId && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(sessionId)); },
   async claim(userId, messageId) {
     const key = `${userId}:${messageId}`;
     if (claims.has(key)) return false;
