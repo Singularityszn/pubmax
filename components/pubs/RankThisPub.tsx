@@ -84,7 +84,9 @@ function RankIt({ venueId, venueName }: Props) {
     if (state.kind === "loading" || state.kind === "comparing") return;
     setState({ kind: "loading" });
     const next = await readRanking();
-    if (mounted.current) setState(next);
+    if (!mounted.current) return;
+    if (next.kind === "comparing") setPlaced(next.entries.find((entry) => entry.venueId === venueId) ?? null);
+    setState(next);
   }
 
   function close(value?: unknown) {
@@ -109,8 +111,8 @@ function RankIt({ venueId, venueName }: Props) {
       <button type="button" className="pubPage__action" onClick={() => void open()} aria-disabled={state.kind === "loading" || state.kind === "comparing"}>
         {placed ? `Ranked #${placed.place}` : "Rank it"}
       </button>
-      <p className={state.kind === "failed" ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
-        {state.kind === "failed" ? state.message : ""}
+      <p className={state.kind === "failed" || state.kind === "loading" ? "pubPage__note" : "sr-only"} role="status" style={{ order: 1, flexBasis: "100%" }}>
+        {state.kind === "failed" ? state.message : state.kind === "loading" ? "Checking your ranking…" : ""}
       </p>
       {state.kind === "comparing" ? (
         <ComparePubFlow
