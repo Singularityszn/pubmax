@@ -20,6 +20,7 @@
 // to print are resolved on the READ path, because a price frozen into a message
 // is an undated claim nobody can correct.
 
+import { MESSAGE_PHOTO_LIMIT, MESSAGE_PHOTO_WINDOW_MS } from "@/lib/messagePhotoBudget";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -78,8 +79,8 @@ const SEND_WINDOW_MS = 60_000;
  *  spend. So the photo budget is its own, it is tighter than the text budget,
  *  and it fails CLOSED: a limiter we cannot reach refuses rather than handing
  *  the provider bill to whoever asks. */
-const PHOTO_LIMIT = 12;
-const PHOTO_WINDOW_MS = 60 * 60 * 1000;
+const PHOTO_LIMIT = MESSAGE_PHOTO_LIMIT;
+const PHOTO_WINDOW_MS = MESSAGE_PHOTO_WINDOW_MS;
 
 /** Answering a poll costs one small write and no paid call, so the budget is
  *  looser than a send's — but it is a budget, because every mutating route

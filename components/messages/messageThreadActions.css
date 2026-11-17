@@ -79,8 +79,8 @@
 }
 
 /* ── the confirm ──────────────────────────────────────────────────────────── */
-/* A sheet from the foot on a phone, above the tab bar's lane; a centred card
-   from 641px. The same stacking the crop step uses. */
+/* A sheet from the foot on a phone, above the tab bar's lane. A centred card
+   from 641px. */
 .messageConfirmOverlay {
   position: fixed;
   inset: 0;
