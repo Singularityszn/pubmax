@@ -3,7 +3,11 @@
 // pulling a store behind them. lib/leagues.server.ts reads; this module counts.
 
 import type { MatesBoardRow } from "@/lib/matesBoard";
-import type { Route } from "next";
+import { normalizeInviteCode } from "@/lib/leagueInvite";
+export {
+  INVITE_CODE_ALPHABET, INVITE_CODE_LENGTH, normalizeInviteCode,
+  formatInviteCode, leagueInvitePath, safeLeagueInviteReturnTo,
+} from "@/lib/leagueInvite";
 
 /** Most members one league holds. Migration 0239 holds the same number. */
 export const LEAGUE_MAX_MEMBERS = 20;
@@ -11,41 +15,10 @@ export const LEAGUE_MAX_MEMBERS = 20;
 export const LEAGUE_MAX_PER_PERSON = 10;
 export const LEAGUE_NAME_MAX = 40;
 
-/** No 0, O, 1 or I, so a code read aloud is the code typed. */
-export const INVITE_CODE_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-export const INVITE_CODE_LENGTH = 8;
-const INVITE_CODE = /^[A-HJ-NP-Z2-9]{8}$/;
-const LEAGUE_INVITE_PREFIX = "/social/leagues/join/";
 const LEAGUE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export function isLeagueId(value: unknown): value is string {
   return typeof value === "string" && LEAGUE_ID.test(value);
-}
-
-/**
- * A typed or pasted code, or null. Case, spaces and dashes do not matter, so
- * "abcd-efgh" is "ABCDEFGH".
- */
-export function normalizeInviteCode(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const code = value.replace(/[\s-]/g, "").toUpperCase();
-  return INVITE_CODE.test(code) ? code : null;
-}
-
-/** "ABCD-EFGH", so a code is easy to read out. */
-export function formatInviteCode(code: string): string {
-  return code.length === INVITE_CODE_LENGTH ? `${code.slice(0, 4)}-${code.slice(4)}` : code;
-}
-
-/** The path a shared invite link opens. */
-export function leagueInvitePath(code: string): string {
-  return `${LEAGUE_INVITE_PREFIX}${encodeURIComponent(code)}`;
-}
-
-export function safeLeagueInviteReturnTo(raw: string | null | undefined): Route | null {
-  if (typeof raw !== "string" || !raw.startsWith(LEAGUE_INVITE_PREFIX)) return null;
-  const code = raw.slice(LEAGUE_INVITE_PREFIX.length);
-  return INVITE_CODE.test(code) ? leagueInvitePath(code) as Route : null;
 }
 
 /** A league's name with its spaces tidied, or null when it is empty or too long. */

@@ -5,7 +5,8 @@
 // survive this validator. File mtimes are never evidence of observation time.
 
 import { LONDON_BOROUGH_CLASSIFIER_VERSION } from "@/lib/londonBoroughPoint.mjs";
-import { slugifyVenueName } from "@/lib/venuePermalinkSlug";
+import { boroughCode } from "@/lib/londonBoroughCode";
+export { boroughCode } from "@/lib/londonBoroughCode";
 
 export const LONDON_BOROUGH_NAMES = [
   "Barking and Dagenham", "Barnet", "Bexley", "Brent", "Bromley", "Camden",
@@ -19,9 +20,7 @@ export const LONDON_BOROUGH_NAMES = [
 
 export type LondonBoroughName = (typeof LONDON_BOROUGH_NAMES)[number];
 
-export function boroughCode(name: string): string {
-  return slugifyVenueName(name);
-}
+
 const BOROUGH_BY_CODE = new Map(LONDON_BOROUGH_NAMES.map((name) => [boroughCode(name), name]));
 
 type PintIndexSourceBase = {

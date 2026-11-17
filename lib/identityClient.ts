@@ -17,7 +17,7 @@ import {
   readCurrentIdentity,
 } from "@/lib/currentIdentityRead";
 import { discardBody } from "@/lib/responseBody";
-import { safeLeagueInviteReturnTo } from "@/lib/leagues";
+import { safeLeagueInviteReturnTo } from "@/lib/leagueInvite";
 import { normalizeHandle } from "@/lib/profiles";
 import { clearClaimedRoundAnonymousHandle } from "@/lib/roundRequest";
 

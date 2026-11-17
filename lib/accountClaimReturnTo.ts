@@ -4,7 +4,7 @@ import { parseCityId } from "@/lib/cities";
 import { safeInviteReturnTo } from "@/lib/inviteReturnTo";
 import { isPlanId } from "@/lib/planId";
 import { safeTableRequestReturnTo } from "@/lib/tableRequestIntent";
-import { safeLeagueInviteReturnTo } from "@/lib/leagues";
+import { safeLeagueInviteReturnTo } from "@/lib/leagueInvite";
 
 const RETURN_ORIGIN = "https://pubmax.invalid";
 
