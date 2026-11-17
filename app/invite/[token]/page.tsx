@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { formatPence } from "@/lib/formatGbp";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 
@@ -264,6 +265,9 @@ export default async function PlanInvitePage({ params }: PageProps) {
   );
   const routePoints = routeStops.map((entry) => entry.point);
   const spendBand = inviteSpendBand(stops);
+  const listedTotalPence = spendBand
+    ? stops.reduce((total, stop) => total + (stop.listedPint ? Math.round(stop.listedPint.priceGbp * 100) : 0), 0)
+    : null;
   // Where to meet is the first stop in route order. The directions link names
   // the pub only, so it sends the guest's position nowhere.
   const meet = numbered[0] ?? null;
@@ -301,6 +305,11 @@ export default async function PlanInvitePage({ params }: PageProps) {
             </div>
           ) : null}
           {spendBand ? <p className="invite__spend">{formatPlanInviteSpendBand(spendBand)}</p> : null}
+          {listedTotalPence !== null ? (
+            <p className="invite__spend">
+              {stops.length} stops · Listed cost: {formatPence(listedTotalPence)}, one pint per stop
+            </p>
+          ) : null}
           {alcoholOptionalLine ? (
             <p className="invite__softNote">{alcoholOptionalLine}</p>
           ) : null}
