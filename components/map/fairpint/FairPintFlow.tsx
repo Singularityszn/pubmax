@@ -16,6 +16,10 @@ import CrawlPresentationBoundary from "@/components/wild/CrawlPresentationBounda
 import FairPintResultFallback from "./FairPintResultFallback";
 
 const FairPintResult = dynamic(() => import("./FairPintResult"));
+const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
+  .find((element) => element.getClientRects().length > 0) ?? null;
+const resultReturnFocus = () => document.querySelector<HTMLElement>(".fairPintCard:not([data-fair-prelude]) input.fairPintRange") ?? mapSearchControl();
+
 
 function circleBounds(lat: number, lng: number, radiusKm: number): MapBounds {
   const dy = radiusKm / 110.574,
@@ -158,7 +162,7 @@ export default function FairPintFlow({
   const close = () => {
     setFairPintSession(false);
     dismissMapFirstVisitArrival(undefined, Date.now(), true);
-    queueMicrotask(() => document.querySelector<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')?.focus({ preventScroll: true }));
+    if (plan.state.phase === "dial") mapSearchControl()?.focus({ preventScroll: true });
   };
   const back = () => {
     setReturnToCard(true);
@@ -176,6 +180,7 @@ export default function FairPintFlow({
           onEditStart={plan.editStart}
           cityId={cityId}
           onClose={close}
+          returnFocus={resultReturnFocus}
           mobile={mobile}
           last={plan.state.last}
           venues={data.rows}

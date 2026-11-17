@@ -122,6 +122,7 @@ export default function MobileSharedSheet({
   onInterruptReveal,
   venueRevealSettleSequence = 0,
   surface = "material",
+  returnFocus,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -150,6 +151,7 @@ export default function MobileSharedSheet({
   onInterruptReveal?: () => void;
   venueRevealSettleSequence?: number;
   surface?: "material" | "solid";
+  returnFocus?: () => HTMLElement | null;
   children: React.ReactNode;
 }) {
   const titleId = useId();
@@ -263,9 +265,9 @@ export default function MobileSharedSheet({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
-      previousFocus.current?.focus({ preventScroll: true });
+      if (!returnFocus) previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, openAtSnap, requestEscape]);
+  }, [initialSnap, kind, openAtSnap, requestEscape, returnFocus]);
 
   // How far the sheet's top edge sits above the viewport bottom, for chrome
   // that docks on it (the live voice bar). Layout height, not the rect: the
@@ -350,6 +352,7 @@ export default function MobileSharedSheet({
     sheetRef,
     "map-surface",
     previousFocus,
+    kind ? returnFocus : undefined,
   );
 
   const presented = kind ? { kind, title, kicker, children } : visibleExit;

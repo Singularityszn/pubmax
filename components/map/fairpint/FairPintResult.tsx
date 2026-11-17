@@ -34,6 +34,7 @@ type ResultProps = {
   onStart: (value: string) => void;
   onBack: () => void;
   onClose: () => void;
+  returnFocus: () => HTMLElement | null;
 };
 function ResultActions({ children }: { children: ReactNode }) {
   const footer = useSheetFooterSlot();
@@ -58,9 +59,13 @@ export default function FairPintResult({
   onLineReady,
   onBack,
   onClose,
+  returnFocus,
   mobile,
   cityId,
 }: ResultProps) {
+  useEffect(() => {
+    if (!mobile) return () => { returnFocus()?.focus({ preventScroll: true }); };
+  }, [mobile, returnFocus]);
   const heading = useRef<HTMLHeadingElement>(null);
   const handle = useViewerHandle();
   const nameField = useRef<HTMLInputElement>(null),
@@ -253,7 +258,7 @@ export default function FairPintResult({
     </>
   );
   return mobile ? (
-    <Sheet kind="planner" surface="solid" title="Your Pint Line" initialSnap="half" requestedSnap={snap} onClose={close} backLabel="Back" onBack={close}>
+    <Sheet kind="planner" surface="solid" title="Your Pint Line" initialSnap="half" requestedSnap={snap} returnFocus={returnFocus} onClose={close} backLabel="Back" onBack={close}>
       {content}
     </Sheet>
   ) : (
