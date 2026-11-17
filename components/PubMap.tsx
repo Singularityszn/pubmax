@@ -3094,7 +3094,7 @@ export default function PubMap({
     selectedVenueId,
     selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
     isLondon,
-    restaurantKindVisible: venueKindVisibility.osmRestaurants ?? false,
+    restaurantKindVisible: venueKindVisibility.osmRestaurants,
     experienceLens,
     lensOwnsMap: activeLensPrices !== null,
     held: secondaryStreamsHeld,

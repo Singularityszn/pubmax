@@ -19,13 +19,15 @@ export type LondonRestaurantsState = {
 
 const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
 
-type LondonRestaurantLayerInput = Omit<Parameters<typeof londonRestaurantLayerMode>[0], "selectedVenueId">
-  & Omit<Parameters<typeof londonRestaurantPackWanted>[0], "shown">;
+type LondonRestaurantLayerInput = Omit<Parameters<typeof londonRestaurantLayerMode>[0], "selectedVenueId" | "restaurantKindVisible">
+  & Omit<Parameters<typeof londonRestaurantPackWanted>[0], "shown">
+  & { restaurantKindVisible: boolean | undefined };
 
 export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonRestaurantsState {
   const { selectedVenueId } = input;
   const mode = londonRestaurantLayerMode({
     ...input,
+    restaurantKindVisible: input.restaurantKindVisible ?? false,
     selectedVenueId: input.selectedIsCafe ? undefined : selectedVenueId,
   });
   const wanted = londonRestaurantPackWanted({ ...input, shown: mode !== "off" });
