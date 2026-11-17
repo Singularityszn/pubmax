@@ -4,6 +4,8 @@ import type { FeaturedOpenTable } from "@/lib/featuredOpenTable.server";
 import { displayHandle } from "@/lib/handleDisplay";
 import { openCrawlPlacesLine } from "@/lib/openCrawl";
 
+import "./openTableCard.css";
+
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   weekday: "long",
   day: "numeric",
@@ -42,7 +44,7 @@ export default function OpenTableCard({ table }: { table: FeaturedOpenTable }) {
       <Link className="socialOpenTableAction" prefetch={false} href={`/social/crews/${table.crewId}`}>
         View this night
       </Link>
-      <p className="socialAlternativeMeta">Buy your own. Alcohol is optional.</p>
+      <p className="socialAlternativeMeta openTableSmallPrint">Buy your own. Alcohol is optional.</p>
     </section>
   );
 }
