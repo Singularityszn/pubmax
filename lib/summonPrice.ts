@@ -87,11 +87,11 @@ function listingStatesAmount(listing: string, amount: number): boolean {
 
 /**
  * A spirit pour a text states: "single" or "double" ending the text or followed
- * by a pour or spirit word. A brand or style word ("Double IPA", "Single Malt")
+ * by a pour, spirit word or volume. A brand or style word ("Double IPA", "Single Malt")
  * is not a pour, so it names nothing here.
  */
 const SPIRIT_POUR =
-  /\b(single|double)\b(?=\s+(?:shots?|measures?|of|gin|vodka|rum|whisk(?:e)?y|tequila|brandy|cognac|bourbon|scotch|spirits?|g\s*&\s*t)\b|\s*\)?\s*$)/gi;
+  /\b(single|double)\b(?=\s+(?:shots?|measures?|of|gin|vodka|rum|whisk(?:e)?y|tequila|brandy|cognac|bourbon|scotch|spirits?|g\s*&\s*t)\b|\s*(?:[([]\s*)?\d+(?:\.\d+)?\s*(?:ml|cl)\b|\s*\)?\s*$)/gi;
 /** A can the text names as a serving. A listing's bare "can" is often the verb, so it needs a serving word beside it. */
 const DRINK_CAN = /\b(?:cans?|canned)\b/i;
 const LISTING_CAN = /\b(?:canned|cans)\b|\b(?:\d+(?:\.\d+)?\s*(?:ml|cl|l)|per|a)\s+can\b/i;
@@ -133,6 +133,7 @@ function servingConflicts(text: string, measure: Exclude<DrinkMeasure, "other">,
   }
   if ((kind === "drink" ? DRINK_CAN : LISTING_CAN).test(text)) return true;
   if (measure !== "bottle" && BOTTLE.test(text)) return true;
+  if (measure !== "half" && /\bhalfpints?\b/i.test(text)) return true;
   // A listing's serving words apply even before conditions. Its complete drink name is excluded.
   if (kind === "listing") {
     const servingText = drinkName ? withoutDrinkName(text, drinkName) : text;
