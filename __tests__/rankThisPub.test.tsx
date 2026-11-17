@@ -147,7 +147,7 @@ describe("pub-page ranking transitions", () => {
     const unavailable = transitionPubPageRanking(reading, {
       type: "read", scope, requestId: reading.requestId, result: { kind: "failed", message: "Unavailable" },
     });
-    expect(closed.kind).toBe("idle");
+    expect(closed.kind).toBe("closed");
     expect(unavailable.kind).toBe("failed");
     expect(unavailable.checkpoint?.place).toBe(1);
   });
@@ -201,6 +201,18 @@ describe("pub-page ranking transitions", () => {
     expect(reconciled.checkpoint?.place).toBe(2);
   });
 
+  it.each(["open", "refused"] as const)("ignores a closed comparison acknowledgement after a newer %s", (next) => {
+    const previous = comparing();
+    const closed = transitionPubPageRanking(previous, { type: "close", scope, requestId: previous.requestId });
+    const reading = transitionPubPageRanking(closed, { type: "open" });
+    const current = next === "open" ? reading : transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "refused", message: "Access refused" },
+    });
+    expect(transitionPubPageRanking(current, {
+      type: "saved", scope, requestId: previous.requestId, entries: [{ ...entries[0]!, place: 1 }],
+    })).toBe(current);
+  });
+
   it("does not publish a different pub's position", () => {
     const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
     const opened = transitionPubPageRanking(reading, {
@@ -216,7 +228,9 @@ it("keeps the real comparison's successful save after closing during its POST", 
   net.realComparison = true;
   let finish!: (response: Response) => void;
   const write = new Promise<Response>((resolve) => { finish = resolve; });
-  net.read.mockResolvedValueOnce(json({ entries: [] })).mockReturnValueOnce(write);
+  const savedEntries = [ENTRY, { ...ENTRY, venueId: "seven-stars", venueName: "The Seven Stars", place: 2 }];
+  net.read.mockResolvedValueOnce(json({ entries: [] })).mockReturnValueOnce(write)
+    .mockResolvedValueOnce(json({ entries: savedEntries }));
   await render();
   await clickRank();
   await act(async () => {
@@ -228,7 +242,7 @@ it("keeps the real comparison's successful save after closing during its POST", 
   });
   expect(document.querySelector('[role="dialog"]')).toBeNull();
   await act(async () => {
-    finish(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", venueName: "The Seven Stars", place: 2 }] }));
+    finish(json({ entries: savedEntries }));
   });
   expect(rankButton()?.textContent).toBe("Ranked #2");
 });
