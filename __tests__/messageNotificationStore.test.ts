@@ -28,6 +28,13 @@ describe("message device ownership and foreground presence", () => {
     await store.removeToken("outsider", device);
     expect(await store.targets("owner", "thread")).toEqual([device]);
   });
+  it("does not let a stale session detach a newer account binding", async () => {
+    const device = token("stale-session");
+    await store.saveToken("A", device, "session-a");
+    await store.saveToken("B", device, "session-b");
+    await store.release(device, "session-a");
+    expect(await store.tokens("B")).toEqual([device]);
+  });
   it("does not overwrite another device using only its endpoint", async () => {
     const device = token("endpoint-only");
     await store.saveToken("victim", device, "session");

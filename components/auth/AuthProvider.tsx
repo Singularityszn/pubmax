@@ -1598,7 +1598,7 @@ export function AuthProvider({
         outcome = await activateRememberedAccount(userId);
       } finally {
         const current = sessionTransitions.current.currentUserId();
-        if (current && current !== userId) await restoreMessagePushAccount(new AbortController().signal, current).catch(() => undefined);
+        if (current && current !== userId) void restoreMessagePushAccount(new AbortController().signal, current).catch(() => undefined);
       }
       if (outcome.status === "switched") trackEvent("account_switched");
       return outcome;

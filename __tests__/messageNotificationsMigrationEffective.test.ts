@@ -12,7 +12,8 @@ const MESSAGE = "c0000000-0000-4000-8000-000000000001";
 beforeAll(async () => {
   database = await startPostgres({ label: "message-notifications" });
   database.applyFile(join(process.cwd(), "scripts/rls/session-fixture.sql"));
-  database.sql(`create table public.conversations (id uuid primary key); create table public.messages (id uuid primary key);
+  database.sql(`create table auth.sessions (id uuid primary key, user_id uuid not null references auth.users(id), not_after timestamptz);
+    create table public.conversations (id uuid primary key); create table public.messages (id uuid primary key);
     insert into auth.users(id) values ('${OWNER}'); insert into auth.sessions(id,user_id) values ('${SESSION}','${OWNER}');
     insert into public.conversations values ('${THREAD}'); insert into public.messages values ('${MESSAGE}');`);
 });
@@ -41,7 +42,9 @@ describe("message notification privacy migration", () => {
     expect(database.sql(`select public.message_notification_session_active('${OWNER}', '${SESSION}')`)).toBe("f");
     database.sql(`delete from auth.sessions where id='${SESSION}'`);
     expect(database.sql(`select public.message_notification_session_active('${OWNER}', '${SESSION}')`)).toBe("f");
-    expect(database.sql("select count(*) from public.message_push_subscriptions")).toBe("0");
+    expect(database.sql("select count(*) from public.message_push_subscriptions")).toBe("1");
+    database.sql("drop table auth.sessions");
+    expect(database.sql(`select public.message_notification_session_active('${OWNER}', '${SESSION}')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_session_active(uuid,uuid)', 'EXECUTE')`)).toBe("f");
     database.sql(`delete from auth.users where id='${OWNER}'`);
     expect(database.sql("select count(*) from public.message_push_subscriptions")).toBe("0");

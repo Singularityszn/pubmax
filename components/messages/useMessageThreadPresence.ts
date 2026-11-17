@@ -1,25 +1,31 @@
 import { useEffect } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { getAccessToken } from "@/lib/authClient";
+import { providerOwnsSession } from "@/lib/authProviderRevision";
 import { currentMessagePushToken, MESSAGE_PUSH_DEPARTURE } from "@/lib/messageNotificationLifecycle";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { MESSAGE_NOTIFICATION_SETTINGS_CHANGED } from "@/lib/messageNotificationClient";
 import { discardBody } from "@/lib/responseBody";
 
 export function useMessageThreadPresence(conversationId: string): void {
-  const { user, session } = useAuth();
+  const { user } = useAuth();
+  const userId = user?.id;
   useEffect(() => {
-    if (!user || !session) return;
+    if (!userId) return;
     let disposed = false;
     let token: string | null = null;
     const controller = new AbortController();
     const clear = () => {
-      if (!token) return;
-      void fetch("/api/message-notifications", {
-        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${session.access_token}` },
+      if (!token || !providerOwnsSession("supabase", userId)) return;
+      void getAccessToken().then((accessToken) => {
+        if (!accessToken || !providerOwnsSession("supabase", userId)) return;
+        return fetch("/api/message-notifications", {
+        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
         body: JSON.stringify({ action: "presence", token, conversationId: null }), keepalive: true,
         signal: AbortSignal.timeout(3_000),
-      }).then(discardBody).catch(() => undefined);
+      }).then(discardBody);
+      }).catch(() => undefined);
     };
     const heartbeat = async () => {
       if (disposed || document.visibilityState !== "visible") return;
@@ -50,5 +56,5 @@ export function useMessageThreadPresence(conversationId: string): void {
       window.removeEventListener(MESSAGE_PUSH_DEPARTURE, clear);
       clear();
     };
-  }, [conversationId, user, session]);
+  }, [conversationId, userId]);
 }

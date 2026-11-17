@@ -27,7 +27,9 @@ describe("message notification ownership", () => {
   it("reconciles an existing device without clearing an enabled binding first", async () => {
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/restore", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
     state.prefs.enabled = true;
-    expect((await POST(request({ action: "restore", token }))).status).toBe(200);
+    const restored = await POST(request({ action: "restore", token }));
+    expect(restored.status).toBe(200);
+    expect(await restored.json()).toMatchObject({ bound: true, sessionId: SESSION });
     expect(saveToken).toHaveBeenCalledWith("owner", token, SESSION);
     expect(release).not.toHaveBeenCalled();
     state.prefs.enabled = false;
@@ -43,9 +45,9 @@ describe("message notification ownership", () => {
   it("allows a device holder to release its token after sign-out without selecting another owner", async () => {
     state.userId = "";
     const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/release", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
-    const response = await DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify({ token }) }));
+    const response = await DELETE(new Request("https://pubmaxxing.com/api/message-notifications", { method: "DELETE", body: JSON.stringify({ token, sessionId: SESSION }) }));
     expect(response.status).toBe(200);
-    expect(release).toHaveBeenCalledWith(token);
+    expect(release).toHaveBeenCalledWith(token, SESSION);
   });
   it("refuses anonymous reads and writes without changing preferences", async () => {
     state.userId = "";

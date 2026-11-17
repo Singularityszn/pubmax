@@ -19,7 +19,7 @@ type Store = {
   registered(userId: string, fingerprint: string): Promise<boolean>;
   targets(userId: string, conversationId: string): Promise<string[]>;
   presence(userId: string, token: string, conversationId: string | null): Promise<void>;
-  release(token: string): Promise<void>;
+  release(token: string, sessionId?: string): Promise<void>;
   previewAllowed(token: string, userId: string, messageId: string, sessionId: string): Promise<boolean>;
   sessionActive(userId: string, sessionId: string): Promise<boolean>;
   claim(userId: string, messageId: string): Promise<boolean>;
@@ -89,8 +89,10 @@ const durableMessageNotificationStore: Store = {
     const { error } = await admin().from(tokensTable).update({ active_conversation_id: conversationId, last_seen: new Date().toISOString() }).eq("endpoint_hash", endpointHash(token)).eq("user_id", userId).eq("token", token);
     if (error) throw error;
   },
-  async release(token) {
-    const { error } = await admin().from(tokensTable).delete().eq("endpoint_hash", endpointHash(token)).eq("token", token);
+  async release(token, sessionId) {
+    let query = admin().from(tokensTable).delete().eq("endpoint_hash", endpointHash(token)).eq("token", token);
+    if (sessionId) query = query.eq("session_id", sessionId);
+    const { error } = await query;
     if (error) throw error;
   },
   async previewAllowed(token, userId, messageId, sessionId) {
@@ -145,9 +147,9 @@ export const memoryMessageNotificationStore: Store = {
     const row = tokens.get(endpointHash(token));
     if (row?.userId === userId && row.token === token) { row.conversationId = conversationId; row.lastSeen = Date.now(); }
   },
-  async release(token) {
+  async release(token, sessionId) {
     const key = endpointHash(token);
-    if (tokens.get(key)?.token === token) tokens.delete(key);
+    if (tokens.get(key)?.token === token && (!sessionId || tokens.get(key)?.sessionId === sessionId)) tokens.delete(key);
   },
   async previewAllowed(token, userId, messageId, sessionId) {
     const row = tokens.get(endpointHash(token));

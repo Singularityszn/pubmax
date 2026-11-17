@@ -4,7 +4,7 @@
 .messageArrival a:active:not(:focus-visible) { transform: scale(.97); }
 .messageArrival span { display: block; color: var(--ink-soft); font-size: 13px; line-height: 1.5; }
 .messageArrival button { width: 44px; height: 44px; margin-right: 4px; display: grid; place-items: center; border: 0; background: transparent; color: inherit; touch-action: manipulation; transition: transform 160ms var(--ease-out); }
-.messageArrival button:active { transform: scale(.97); }
+.messageArrival button:active:not(:focus-visible) { transform: scale(.97); }
 @supports (backdrop-filter: blur(12px)) { .messageArrival { background: color-mix(in srgb, var(--paper) 92%, transparent); backdrop-filter: blur(12px); } }
 @media (prefers-reduced-transparency: reduce) { .messageArrival { background: var(--paper); backdrop-filter: none; } }
-@media (prefers-reduced-motion: reduce) { .messageArrival { transition: opacity 180ms ease-out; transform: none; } .messageArrival a, .messageArrival button { transition: opacity 160ms ease-out; } .messageArrival a:active:not(:focus-visible), .messageArrival button:active { transform: none; opacity: .7; } @starting-style { .messageArrival { transform: none; } } }
+@media (prefers-reduced-motion: reduce) { .messageArrival { transition: opacity 180ms ease-out; transform: none; } .messageArrival a, .messageArrival button { transition: opacity 160ms ease-out; } .messageArrival a:active:not(:focus-visible), .messageArrival button:active:not(:focus-visible) { transform: none; opacity: .7; } @starting-style { .messageArrival { transform: none; } } }

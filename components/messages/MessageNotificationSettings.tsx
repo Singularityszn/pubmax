@@ -6,7 +6,6 @@ import { useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { currentMessagePushToken, messagePushFingerprint, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
-import { queueMessagePushOperation, flushMessagePushReleases } from "@/lib/messageNotificationLifecycle";
 import { registerWebPush, webPushSupport } from "@/lib/webPush";
 import "./messageNotificationSettings.css";
 
@@ -50,8 +49,6 @@ function AccountMessageNotificationSettings({ userId, conversationId }: { userId
     setSettings(next);
     try {
       if (kind === "enabled" && next.enabled) {
-        await queueMessagePushOperation(flushMessagePushReleases);
-        if (controller.signal.aborted) return;
         const token = await registerWebPush(controller.signal, undefined, async (token, signal) => {
           await saveMessageNotificationSetting({ action: "subscribe", token }, signal);
           return true;

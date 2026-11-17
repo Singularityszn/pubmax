@@ -11,7 +11,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
-import { MESSAGE_PUSH_DEPARTURE, releaseMessagePush, flushMessagePushReleases, queueMessagePushOperation } from "@/lib/messageNotificationLifecycle";
+import { MESSAGE_PUSH_DEPARTURE, releaseMessagePush, flushMessagePushReleases, queueMessagePushOperation, currentMessagePushToken } from "@/lib/messageNotificationLifecycle";
 import { getAccessToken } from "@/lib/authClient";
 import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { useViewerSession } from "@/components/auth/useViewerSession";
@@ -47,12 +47,20 @@ export default function MessagesLink(): React.JSX.Element | null {
 
   useEffect(() => {
     if (viewerSession.unresolved) return;
-    const controller = new AbortController();
-    const stop = () => controller.abort();
+    const controllers = new Set<AbortController>();
+    const stop = () => { for (const controller of controllers) controller.abort(); controllers.clear(); };
+    const restore = () => {
+      if (document.visibilityState === "hidden") return;
+      if (!activeUserId) { void releaseMessagePush().catch(() => undefined); return; }
+      const controller = new AbortController();
+      controllers.add(controller);
+      void restoreMessagePushAccount(controller.signal, activeUserId).catch(() => undefined).finally(() => controllers.delete(controller));
+    };
     window.addEventListener(MESSAGE_PUSH_DEPARTURE, stop);
-    if (activeUserId) void restoreMessagePushAccount(controller.signal, activeUserId).catch(() => undefined);
-    else void releaseMessagePush().catch(() => undefined);
-    return () => { controller.abort(); window.removeEventListener(MESSAGE_PUSH_DEPARTURE, stop); };
+    window.addEventListener("online", restore);
+    document.addEventListener("visibilitychange", restore);
+    restore();
+    return () => { stop(); window.removeEventListener(MESSAGE_PUSH_DEPARTURE, stop); window.removeEventListener("online", restore); document.removeEventListener("visibilitychange", restore); };
   }, [activeUserId, viewerSession.unresolved]);
 
   const dismissArrival = useCallback(() => setArrival(null), []);
@@ -129,12 +137,13 @@ export default function MessagesLink(): React.JSX.Element | null {
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("focus", onFocus);
     const onPush = (event: MessageEvent) => {
-      if (event.data?.type === "pubmax:message-preview-auth" && event.data.recipientId === user.id && event.ports[0]) {
+      const reply = event.ports[0];
+      if (event.data?.type === "pubmax:message-preview-auth" && event.data.recipientId === user.id && reply) {
         const revision = readProviderAccountRevision();
-        void queueMessagePushOperation(() => flushMessagePushReleases(AbortSignal.timeout(1_000)))
+        void queueMessagePushOperation(async () => flushMessagePushReleases(AbortSignal.timeout(1_000), await currentMessagePushToken() ?? ""))
           .then(getAccessToken).then((token) => {
-            event.ports[0].postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
-          }).catch(() => event.ports[0].postMessage({ token: null }));
+            reply.postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
+          }).catch(() => reply.postMessage({ token: null }));
       }
       if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) void refresh(true);
     };

@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { releaseMessagePush, flushMessagePushReleases } from "@/lib/messageNotificationLifecycle";
+import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
 const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: async (_url: string, init: RequestInit) => {
-  if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true }); }
+  if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
   return Response.json({ enabled: account.enabled });
 } }));
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
 
 const unsubscribe = vi.fn(async () => true);
@@ -14,6 +15,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   account.subscribe = null;
   localStorage.clear();
+  sessionStorage.clear();
+  recordMessagePushBinding(encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!, "22222222-2222-4222-8222-222222222222");
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ok: true })));
   Object.defineProperty(navigator, "serviceWorker", { configurable: true, value: {
     getRegistration: async () => ({
@@ -59,6 +62,23 @@ describe("message alerts on account departure", () => {
     await releaseMessagePush();
     expect(unsubscribe).not.toHaveBeenCalled();
   });
+  it("does not send another detach on a signed-out reload without a binding", async () => {
+    const fetch = vi.fn(async () => Response.json({ ok: true }));
+    vi.stubGlobal("fetch", fetch);
+    await releaseMessagePush();
+    const count = fetch.mock.calls.length;
+    await releaseMessagePush();
+    expect(fetch).toHaveBeenCalledTimes(count);
+  });
+  it("rebinds the current token despite a failed superseded detach", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(null, { status: 429 })));
+    await releaseMessagePush();
+    account.enabled = true;
+    account.active = "B";
+    await expect(restoreMessagePushAccount(new AbortController().signal, "B")).resolves.toBeUndefined();
+    expect(account.owner).toBe("B");
+    expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toEqual([]);
+  });
   it("waits for an accepted subscription before releasing it on departure", async () => {
     let finish!: () => void;
     let started!: () => void;
@@ -71,7 +91,7 @@ describe("message alerts on account departure", () => {
       started();
       await new Promise<void>((resolve) => { finish = resolve; });
       account.owner = "A";
-      return Response.json({ ok: true });
+      return Response.json({ ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" });
     };
     vi.stubGlobal("fetch", vi.fn(async () => { account.owner = ""; return Response.json({ ok: true }); }));
     const controller = new AbortController();

@@ -9,7 +9,7 @@ create table public.message_notification_preferences (
 create table public.message_push_subscriptions (
   endpoint_hash text primary key,
   user_id uuid not null references auth.users(id) on delete cascade,
-  session_id uuid not null references auth.sessions(id) on delete cascade,
+  session_id uuid not null,
   token text not null check (length(token) between 1 and 2048),
   active_conversation_id uuid references public.conversations(id) on delete set null,
   last_seen timestamptz,
@@ -43,9 +43,13 @@ grant all on public.message_notification_preferences, public.message_push_subscr
   public.message_notification_mutes, public.message_notification_claims to service_role;
 
 create function public.message_notification_session_active(p_user_id uuid, p_session_id uuid)
-returns boolean language sql stable security definer set search_path = pg_catalog as $$
-  select exists (select 1 from auth.sessions where id = p_session_id and user_id = p_user_id
+returns boolean language plpgsql stable security definer set search_path = '' as $$
+begin
+  return exists (select 1 from auth.sessions where id = p_session_id and user_id = p_user_id
     and (not_after is null or not_after > now()));
+exception when undefined_table or undefined_column then
+  return false;
+end;
 $$;
 revoke all on function public.message_notification_session_active(uuid, uuid) from public, anon, authenticated;
 grant execute on function public.message_notification_session_active(uuid, uuid) to service_role;

@@ -64,7 +64,7 @@ test("a recipient can choose message alerts without enabling public broadcasts",
       const body = route.request().postDataJSON();
       actions.push(body.action);
       if (body.action === "preferences") preferences = { ...preferences, enabled: body.enabled, preview: body.preview };
-      await route.fulfill({ json: { ok: true } });
+      await route.fulfill({ json: { ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } });
     } else await route.fulfill({ json: preferences });
   });
   await page.route("**/api/push-tokens", () => { throw new Error("Message consent must not register public broadcasts"); });
@@ -116,7 +116,7 @@ test("an incoming message updates the badge, opens its thread and stays quiet in
   let stamp = "2026-11-16T21:00:00Z";
   const rows = () => [{ id: THREAD, otherHandle: ACCOUNTS.A.handle, lastBody: body, lastAt: stamp, lastFromMe: false, unread }];
   await page.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: rows() } }));
-  await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false } }));
+  await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: true, preview: false, muted: false, quiet: false, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }));
   await page.route(`**/api/messages/${THREAD}**`, (route) => route.fulfill({ json: { messages: [{ id: "m1", conversationId: THREAD, senderHandle: ACCOUNTS.A.handle, body, createdAt: "2026-11-16T22:00:00Z", read: true, flagged: false }] } }));
   const senderContext = await browser.newContext({ baseURL });
   try {
@@ -171,7 +171,7 @@ test("chat mutes can be changed at every supported width", async ({ page }, test
     if (route.request().method() === "POST") {
       const body = route.request().postDataJSON();
       if (body.action === "mute") muted = body.muted;
-      await route.fulfill({ json: { ok: true } });
+      await route.fulfill({ json: { ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } });
     } else await route.fulfill({ json: { enabled: true, preview: false, muted, quiet: muted } });
   });
   await page.goto(`/messages/${THREAD}`);
@@ -198,10 +198,10 @@ test("account switching and sign-out release and restore this device", async ({ 
   await page.route("**/api/message-notifications**", async (route) => {
     const request = route.request();
     if (request.method() === "DELETE" && offlineDetach) { await route.abort("internetdisconnected"); return; }
-    if (request.method() === "DELETE") { owner = ""; releases++; await route.fulfill({ json: { ok: true } }); return; }
+    if (request.method() === "DELETE") { owner = ""; releases++; await route.fulfill({ json: { ok: true, bound: true, sessionId: "22222222-2222-4222-8222-222222222222" } }); return; }
     const bearer = request.headers().authorization ?? "";
     const who = bearer.includes("access-token-A") || (bearer.split(".")[1] && JSON.parse(Buffer.from(bearer.split(".")[1], "base64url").toString()).sub === ACCOUNTS.A.id) ? "A" : "B";
-    if (request.method() === "POST") { if (["subscribe", "restore"].includes(request.postDataJSON().action)) owner = who; await route.fulfill({ json: { ok: true } }); }
+    if (request.method() === "POST") { if (["subscribe", "restore"].includes(request.postDataJSON().action)) owner = who; await route.fulfill({ json: { ok: true, bound: true, sessionId: who === "A" ? "11111111-1111-4111-8111-111111111111" : "22222222-2222-4222-8222-222222222222" } }); }
     else await route.fulfill({ json: { enabled: true, preview: false, muted: false } });
   });
   await page.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: [] } }));
@@ -218,12 +218,22 @@ test("account switching and sign-out release and restore this device", async ({ 
   await page.getByRole("button", { name: "Sign out of @karan", exact: true }).click();
   await expect(page.getByRole("button", { name: /Account options for Karan M/ })).toBeVisible();
   expect(await page.evaluate(() => (window as unknown as { __unsubscribedPush: number }).__unsubscribedPush)).toBe(0);
-  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("pubmax:pending-message-detach") ?? "[]").length)).toBeGreaterThan(0);
+  await expect.poll(() => owner).toBe("B");
   await page.screenshot({ path: testInfo.outputPath("offline-sign-out-completed.png") });
+  await page.getByRole("button", { name: /Account options for Karan M/ }).click();
+  await page.getByRole("button", { name: "Sign out", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Sign in", exact: true }).or(page.getByRole("link", { name: "Sign in", exact: true })).first()).toBeVisible();
+  await expect.poll(() => page.evaluate(() => JSON.parse(localStorage.getItem("pubmax:pending-message-detach") ?? "[]").length)).toBeGreaterThan(0);
+  expect(await page.evaluate(() => (window as unknown as { __unsubscribedPush: number }).__unsubscribedPush)).toBe(0);
+  await page.screenshot({ path: testInfo.outputPath("offline-all-accounts-signed-out.png") });
+  await auth.signedInAs(null);
   offlineDetach = false;
   await page.reload();
+  await expect.poll(() => owner).toBe("");
+  await auth.signedInAs("B");
+  await page.goto("/messages");
   await expect.poll(() => owner).toBe("B");
-  expect(releases).toBeGreaterThanOrEqual(3);
+  expect(releases).toBeGreaterThanOrEqual(2);
   expect(await page.evaluate(() => (window as unknown as { __closedNotifications: number }).__closedNotifications)).toBeGreaterThan(0);
   await page.screenshot({ path: testInfo.outputPath("account-a-signed-out.png"), scale: "css" });
 });
@@ -243,7 +253,7 @@ test("iPhone setup explains installation and requires a tap before permission", 
   await seedSignedIn(page, "B");
   await auth.signedInAs("B");
   await page.route("**/api/messages?**", (route) => route.fulfill({ json: { conversations: [] } }));
-  await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: false, preview: false, muted: false } }));
+  await page.route("**/api/message-notifications**", (route) => route.fulfill({ json: { enabled: false, preview: false, muted: false, bound: route.request().method() === "POST" && route.request().postDataJSON().action === "subscribe", sessionId: "22222222-2222-4222-8222-222222222222" } }));
   await page.goto("/messages");
   await page.getByRole("button", { name: "Message notifications", exact: true }).click();
   await expect(page.getByText(/Add to Home Screen/)).toBeVisible();

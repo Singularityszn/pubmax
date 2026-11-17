@@ -60,9 +60,12 @@ export async function resolveMessageNotificationPreview(token: string, recipient
   return { title: `@${sender.handle}`, body: Array.from(new Intl.Segmenter(undefined, { granularity: "grapheme" }).segment(message.body.trim()), ({ segment }) => segment).slice(0, 80).join("") || "Sent an attachment." };
 }
 
+// The caller must first verify this request’s bearer with callerUserId.
 export function messageNotificationSessionId(request: Request, verifiedUserId: string): string | null {
   try {
-    const payload = JSON.parse(Buffer.from(bearerToken(request)!.split(".")[1], "base64url").toString()) as { sub?: unknown; session_id?: unknown };
+    const encoded = bearerToken(request)?.split(".")[1];
+    if (!encoded) return null;
+    const payload = JSON.parse(Buffer.from(encoded, "base64url").toString()) as { sub?: unknown; session_id?: unknown };
     return payload.sub === verifiedUserId && typeof payload.session_id === "string" && /^[a-f0-9]{8}(-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(payload.session_id) ? payload.session_id : null;
   } catch { return null; }
 }
