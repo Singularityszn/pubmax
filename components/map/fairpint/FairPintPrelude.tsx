@@ -6,7 +6,7 @@ import { bootFairPintCard, FAIR_PINT_KEY, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PAT
 import { searchHasArrivalParam } from "@/lib/mapArrivalParams";
 import { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling } from "@/lib/budgetChoice";
 
-export default function FairPintPrelude({ area }: { area: string }) {
+export default function FairPintPrelude({ area, nonce }: { area: string; nonce?: string }) {
   const config = {
     priceKey: FAIR_PINT_KEY,
     budgetKey: BUDGET_KEY,
@@ -20,7 +20,7 @@ export default function FairPintPrelude({ area }: { area: string }) {
   return (
     <>
       <FairPintFrame prelude area={area} figure="£5.50" reason={`Checking prices in ${area}…`} />
-      <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
+      <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
     </>
   );
 }

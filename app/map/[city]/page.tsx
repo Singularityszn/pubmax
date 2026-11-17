@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { getCity, parseCityId } from "@/lib/cities";
@@ -55,13 +56,14 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   const { city: raw } = await params;
   const cityId = parseCityId(raw);
   if (!cityId || !getCity(cityId).enabled) notFound();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
   return (
     <>
       {cityId === "london" ? (
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
-      <PubMaxingShell cityId={cityId} fairPintAreaName={nearestNightAreaForViewport(cityId, getCity(cityId).mapView.center)?.name} pricesReadLine={mapPricesReadLineFor(cityId)} />
+      <PubMaxingShell nonce={nonce} cityId={cityId} fairPintAreaName={nearestNightAreaForViewport(cityId, getCity(cityId).mapView.center)?.name} pricesReadLine={mapPricesReadLineFor(cityId)} />
     </>
   );
 }
