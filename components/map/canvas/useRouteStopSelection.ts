@@ -8,8 +8,10 @@ export function useRouteStopSelection(ready: boolean, mapRef: RefObject<Map | nu
   useEffect(() => {
     const map = mapRef.current;
     if (!ready || !map) return;
+    let appliedSource: ReturnType<Map["getSource"]>;
     const apply = () => {
-      if (!map.getSource("route-stops")) return;
+      const source = map.getSource("route-stops");
+      if (!source) return;
       if (previous.current && previous.current !== selectedId) {
         map.setFeatureState({ source: "route-stops", id: previous.current }, { selected: false });
       }
@@ -17,10 +19,15 @@ export function useRouteStopSelection(ready: boolean, mapRef: RefObject<Map | nu
         map.setFeatureState({ source: "route-stops", id: selectedId }, { selected: true });
       }
       previous.current = selectedId;
+      appliedSource = source;
     };
     apply();
     const restore = (event: MapSourceDataEvent) => { if (event.sourceId === "route-stops") apply(); };
+    const restoreStyle = () => {
+      if (map.getSource("route-stops") !== appliedSource) apply();
+    };
+    map.on("styledata", restoreStyle);
     map.on("sourcedata", restore);
-    return () => { map.off("sourcedata", restore); };
+    return () => { map.off("styledata", restoreStyle); map.off("sourcedata", restore); };
   }, [mapRef, ready, selectedId]);
 }

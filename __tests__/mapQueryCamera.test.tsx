@@ -1559,8 +1559,9 @@ it("restores selection as soon as a replacement route source arrives, before wor
   const states = new Map<string, { selected: boolean }>();
   const listeners = new Map<string, (event: { sourceId: string }) => void>();
   let sourceReady = true;
+  let source = {};
   const map = {
-    getSource: () => sourceReady ? {} : undefined,
+    getSource: () => sourceReady ? source : undefined,
     getFeatureState: ({ id }: { id: string }) => states.get(id) ?? {},
     setFeatureState: ({ id }: { id: string }, state: { selected: boolean }) => states.set(id, state),
     on: (event: string, listener: (event: { sourceId: string }) => void) => listeners.set(event, listener),
@@ -1577,8 +1578,18 @@ it("restores selection as soon as a replacement route source arrives, before wor
     states.clear();
     sourceReady = false;
     listeners.get("style.load")?.({ sourceId: "route-stops" });
+    source = {};
     sourceReady = true;
     listeners.get("styledata")?.({ sourceId: "route-stops" });
+  });
+  expect(states.get("christmas-1")?.selected).toBe(true);
+  act(() => {
+    states.clear();
+    sourceReady = false;
+    listeners.get("styledata")?.({ sourceId: "route-stops" });
+    source = {};
+    sourceReady = true;
+    listeners.get("sourcedata")?.({ sourceId: "route-stops" });
   });
   expect(states.get("christmas-1")?.selected).toBe(true);
   act(() => root.render(createElement(SelectedStop, { id: "christmas-6" })));
