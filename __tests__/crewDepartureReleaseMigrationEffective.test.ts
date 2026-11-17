@@ -26,6 +26,7 @@ import {
   invite,
   json,
   key,
+  leave,
   memberId,
   mutual,
   outcome,
@@ -266,6 +267,46 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
       expect(result.said).not.toMatch(REFUSED_BY_LOCKS);
     }
     expect([planStatus(first), planStatus(second)]).toEqual(["abandoned", "abandoned"]);
+    expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
+  });
+
+  it("a cancelled open-crew request returns before the creator deletion's auth lock", async () => {
+    releaseAll();
+    const creator = person(), departedOwner = person();
+    mutual(creator, departedOwner);
+    const crew = crewWith(creator, [departedOwner]);
+    expect(call(`transfer_social_crew_owner_atomic('${creator.account}','${crew}',
+      '${memberId(crew, departedOwner)}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true });
+    expect(leave(crew, creator)).toMatchObject({ ok: true });
+    const plan = db().sql(`select plan_id from public.social_crews where id='${crew}'`);
+    db().sql(deleteAccount(departedOwner));
+    let barrier: Awaited<ReturnType<typeof hold>> | undefined;
+    const jobs: Array<Promise<{ ok: boolean; said: string }>> = [];
+    let results: Array<{ ok: boolean; said: string }> = [];
+    try {
+      db().sql(`create function public.departure_test_cancel_barrier() returns trigger language plpgsql as $$
+        begin
+          if new.id='${plan}' and new.status='abandoned' then perform pg_advisory_xact_lock(246733); end if;
+          return new;
+        end; $$;
+        create trigger departure_test_cancel_barrier before update on public.plans
+          for each row execute function public.departure_test_cancel_barrier();`);
+      barrier = await hold("select pg_advisory_xact_lock(246733)", "postgres");
+      jobs.push(outcome("cancelled_creator_request", rpc(requestCall(creator, crew))));
+      await expect.poll(() => waitsOnAnyLock("cancelled_creator_request")).toBe("t");
+      jobs.push(outcome("cancelled_creator_delete", deleteAccount(creator), "postgres"));
+      await expect.poll(() => waitsOnAnyLock("cancelled_creator_delete")).toBe("t");
+    } finally {
+      try {
+        await barrier?.finish();
+        results = await Promise.all(jobs);
+      } finally {
+        db().sql("drop trigger if exists departure_test_cancel_barrier on public.plans; drop function if exists public.departure_test_cancel_barrier()");
+      }
+    }
+    for (const result of results) expect(result.ok, result.said).toBe(true);
+    expect(json(results[0]!.said)).toMatchObject(NOT_FOUND);
+    expect(planStatus(crew)).toBe("abandoned");
     expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
   });
 
