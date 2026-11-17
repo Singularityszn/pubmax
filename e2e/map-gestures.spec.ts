@@ -207,6 +207,19 @@ for (const { width, height, delayedRoad, southEast = false } of [
         await expect.poll(async () => (await readStops()).settled).toBe(true);
       }
       await page.screenshot({ path: testInfo.outputPath(`${stage}-ask-open.png`) });
+      const input = dialog.locator("input");
+      const placeholder = await input.evaluate(element => {
+        const style = getComputedStyle(element);
+        const context = document.createElement("canvas").getContext("2d")!;
+        context.font = style.font;
+        context.letterSpacing = style.letterSpacing;
+        return {
+          textWidth: context.measureText(element.placeholder).width,
+          availableWidth: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        };
+      });
+      expect(placeholder.textWidth, "The full Ask placeholder must fit without clipping a glyph")
+        .toBeLessThanOrEqual(placeholder.availableWidth);
       const close = dialog.getByRole("button", { name: "Close ask", exact: true });
       await expectUncovered(close);
       const examples = dialog.locator(".mapConciergeAskChip");
@@ -218,7 +231,6 @@ for (const { width, height, delayedRoad, southEast = false } of [
         expect((await request).postDataJSON().query).toBe("Quiet-ish near Bank, 4 of us");
         await expect(dialog.getByText("No verified answer for this browser fixture.", { exact: true })).toBeVisible();
       }
-      const input = dialog.locator("input");
       await expectUncovered(input);
       await input.tap();
       await input.fill("Tube delays right now");

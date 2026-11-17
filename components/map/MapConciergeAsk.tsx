@@ -220,7 +220,7 @@ export default function MapConciergeAsk({
             className="mapConciergeAskInput"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Ask the map: quiet-ish near Bank, not pricey…"
+            placeholder="Quiet-ish near Bank, not pricey…"
             maxLength={500}
             enterKeyHint="search"
           />
