@@ -14,6 +14,7 @@
 // docs/rules/ios-native-email-return.md.
 
 import type { Session, SupabaseClient } from "@supabase/supabase-js";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { isAuthAttemptId } from "@/lib/authRedirect";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
 import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
@@ -106,7 +107,9 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     );
     if (!config) return null;
 
+    markPubmaxTiming("pubmax:auth-sdk-requested");
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
+    markPubmaxTiming("pubmax:auth-sdk-imported");
     const storageKey = browserSessionStorageKey(config.url);
     let storage: Storage | null = null;
     try {
@@ -161,6 +164,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
         flowType: "implicit",
       },
     });
+    markPubmaxTiming("pubmax:auth-client-built");
     announceClient(cached);
     return cached;
   })();

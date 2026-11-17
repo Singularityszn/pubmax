@@ -1,4 +1,9 @@
 export type PubmaxPerformanceMark =
+  | "pubmax:auth-provider-mounted"
+  | "pubmax:auth-sdk-requested"
+  | "pubmax:auth-sdk-imported"
+  | "pubmax:auth-client-built"
+  | "pubmax:auth-form-ready"
   | "pubmax:drop-tap"
   | "pubmax:drop-route-ready"
   | "pubmax:map-chunk-ready"

@@ -28,6 +28,7 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { moveTablistFocus } from "@/components/ui/tabs";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -688,6 +689,12 @@ export default function LoginPage({
       hasAuthSurface,
       returning,
     });
+  useEffect(() => {
+    if (showForm && !loading && supabaseAuthState === "signed-out") {
+      markPubmaxTiming("pubmax:auth-form-ready");
+    }
+  }, [showForm, loading, supabaseAuthState]);
+
   const head = loginPageHeadCopy({
     sessionKnown: headSessionKnown,
     adding,

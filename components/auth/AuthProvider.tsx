@@ -61,7 +61,7 @@ import {
 } from "@/lib/authCallbackClient";
 import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { authClientTurn, type AuthClientTurn } from "@/lib/authClientTurn";
-import { PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -685,6 +685,7 @@ export function AuthProvider({
     // One durable-cookie read serves the wait below and the bootstrap.
     let resumeHint: ReturnType<typeof fetchResumeHint> | null = null;
     const readResumeHint = () => (resumeHint ??= fetchResumeHint());
+    markPubmaxTiming("pubmax:auth-provider-mounted");
     const clientTurn = authClientTurn(window, {
       storedSession: hasStoredBrowserSession(browserLocalStorage()),
       pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
