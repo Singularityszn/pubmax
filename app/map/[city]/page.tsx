@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { getCity, parseCityId } from "@/lib/cities";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import { cityMapShareUrl } from "@/lib/cityMapHref";
 import {
   cityMapOgAlt,
@@ -60,7 +61,7 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
-      <PubMaxingShell cityId={cityId} pricesReadLine={mapPricesReadLineFor(cityId)} />
+      <PubMaxingShell cityId={cityId} fairPintAreaName={nearestNightAreaForViewport(cityId, getCity(cityId).mapView.center)?.name} pricesReadLine={mapPricesReadLineFor(cityId)} />
     </>
   );
 }

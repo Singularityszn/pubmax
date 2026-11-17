@@ -1,6 +1,8 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import { getCity } from "@/lib/cities";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import Script from "next/script";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
 import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
@@ -58,6 +60,7 @@ export default async function MapPage() {
       <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
       <PubMaxingShell
         cityId="london"
+        fairPintAreaName={nearestNightAreaForViewport("london", getCity("london").mapView.center)?.name}
         zonePintIndex={zonePintIndex}
         pricesReadLine={mapPricesReadLineFor("london")}
       />

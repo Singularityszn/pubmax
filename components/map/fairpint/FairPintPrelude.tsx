@@ -1,17 +1,11 @@
 "use client";
 
 import { MAP_FIRST_VISIT_ARRIVAL_KEY, MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
-import FairPintCard from "./FairPintCard";
+import FairPintFrame from "./FairPintFrame";
 import { bootFairPintCard, FAIR_PINT_KEY, validFairPint } from "@/lib/fairPint";
-import { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling } from "@/lib/onboardingFlow";
-import { getCity, type CityId } from "@/lib/cities";
-import { nearestNightAreaForViewport } from "@/lib/nightAreas";
+import { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling } from "@/lib/budgetChoice";
 
-const loading = () => ({ phase: "loading" as const });
-const noop = () => {};
-export default function FairPintPrelude({ cityId }: { cityId: CityId }) {
-  const area = nearestNightAreaForViewport(cityId, getCity(cityId).mapView.center);
-  if (!area) return null;
+export default function FairPintPrelude({ area }: { area: string }) {
   const config = {
     priceKey: FAIR_PINT_KEY,
     budgetKey: BUDGET_KEY,
@@ -22,22 +16,7 @@ export default function FairPintPrelude({ cityId }: { cityId: CityId }) {
   const script = `(${bootFairPintCard.toString()})(${JSON.stringify(config).replaceAll("<", "\\u003c")},${validFairPint.toString()})`;
   return (
     <>
-      <FairPintCard
-        prelude
-        start={550}
-        area={area.name}
-        counts={loading}
-        drawCounts={loading}
-        located={false}
-        locationOff={false}
-        offline={false}
-        onInput={noop}
-        onCommit={noop}
-        onLocation={noop}
-        onRetry={noop}
-        onDraw={noop}
-        onClose={noop}
-      />
+      <FairPintFrame prelude area={area} figure="£5.50" reason={`Checking prices in ${area}…`} />
       <script suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
     </>
   );
