@@ -21,6 +21,13 @@ export function notifyMapFirstVisitArrivalChange(): void {
 }
 
 let arrivalCardVisible = false;
+let firstVisitPromptsSuppressed = false;
+export const mapFirstVisitPromptsSuppressed = () => firstVisitPromptsSuppressed;
+export function suppressMapFirstVisitPrompts(): void {
+  if (firstVisitPromptsSuppressed) return;
+  firstVisitPromptsSuppressed = true;
+  notifyMapFirstVisitArrivalChange();
+}
 const areaPickers = new Set<symbol>();
 
 export function holdMapAreaPickerPrompts(): () => void {

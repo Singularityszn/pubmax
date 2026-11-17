@@ -1,3 +1,5 @@
+import { cleanSelectedDrinkPriceEvidence } from "@/lib/planSelectedDrinkPriceEvidence";
+import type { NightContext } from "@/lib/nightPlanning";
 import {
   arbitratePlanDrafts,
   type DraftArbitrationConflict,
@@ -381,4 +383,35 @@ export function londonServiceDateLabel(startIso: string | null): string | null {
     hour: "2-digit",
     minute: "2-digit",
   }).format(new Date(ms));
+}
+
+export function composerCreatePayload(input: {
+  title: string;
+  creatorName: string;
+  startTime: string;
+  cityId?: CityId | null;
+  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
+  groundingProof?: string | null;
+  planAnchor?: import("@/lib/plan").PlanAnchorMetadata | null;
+  context?: NightContext | null;
+}): Record<string, unknown> {
+  return {
+    title: input.title,
+    creatorName: input.creatorName,
+    startTime: input.startTime,
+    ...(input.cityId ? { cityId: input.cityId } : {}),
+    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
+      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
+      return {
+        venueId,
+        venueName,
+        ...(evidence && input.context && !input.context.zeroProof
+          && evidence.category === input.context.drinkCategory
+          ? { selectedDrinkPriceEvidence: evidence } : {}),
+      };
+    }),
+    ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
+    ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
+    ...(input.context ? { context: input.context } : {}),
+  };
 }

@@ -30,6 +30,7 @@ export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
  */
 const MAP_FIRST_VISIT_ARRIVAL_QUIET_MS = 30 * 24 * 60 * 60 * 1000;
 const DISMISSED_PREFIX = "dismissed:";
+let dismissedThisSession = false;
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
@@ -65,6 +66,7 @@ export function hasDismissedMapFirstVisitArrival(
   storage?: Storage | null,
   now: number = Date.now(),
 ): boolean {
+  if (storage === undefined && dismissedThisSession) return true;
   const store = resolveStorage(storage);
   if (!store) return true;
   try {
@@ -104,6 +106,10 @@ export function dismissMapFirstVisitArrival(
   now: number = Date.now(),
   permanently = false,
 ): void {
+  if (permanently && storage === undefined) {
+    dismissedThisSession = true;
+    notifyMapFirstVisitArrivalChange();
+  }
   const store = resolveStorage(storage);
   if (!store) return;
   try {

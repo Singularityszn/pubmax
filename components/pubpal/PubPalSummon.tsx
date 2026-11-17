@@ -1,5 +1,5 @@
 "use client";
-import { fairPintPromptsSuppressed, subscribeFairPintActive } from "@/lib/fairPint";
+import { mapFirstVisitPromptsSuppressed, subscribeMapFirstVisitArrival } from "@/lib/mapFirstVisitArrivalGate";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import type { Route } from "next";
@@ -71,7 +71,7 @@ export default function PubPalSummon() {
   const pathname = usePathname() ?? "";
   // A null user is not sign-out: offer sign-in only once the live session says so.
   const { signedOut } = useViewerSession();
-  const fairSuppressed = useSyncExternalStore(subscribeFairPintActive, fairPintPromptsSuppressed, () => false);
+  const fairSuppressed = useSyncExternalStore(subscribeMapFirstVisitArrival, mapFirstVisitPromptsSuppressed, () => false);
   if (fairSuppressed && onMapPath(pathname)) return null;
   if (!ownerId) return signedOut && onMapPath(pathname) ? <SignInPalChip pathname={pathname} /> : null;
   // Each account gets a new instance before paint. Old callbacks cannot

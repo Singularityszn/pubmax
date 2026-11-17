@@ -1,5 +1,6 @@
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { budgetCeiling, readBudgetChoice } from "@/lib/onboardingFlow";
+import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 export type FairPintEvidence = readonly [unknown, unknown, unknown];
@@ -31,53 +32,9 @@ export function writeFairPint(pence: number, storage = safeLocalStorage()): void
   try { storage?.setItem(FAIR_PINT_KEY, JSON.stringify({ pence })); } catch {}
 }
 
-const PINT_URL_PREFIX = "https://www.pint-prices.com/pub/";
-/** Repeated evidence is cell metadata. Each venue retains one exact observation. */
-export function compactFairPintPayload<T extends FairPintPin & { name?: string; priceSource?: string; priceObservedAt?: string }>(pins: readonly T[]) {
-  const dates = [...new Set(pins.flatMap((pin) => typeof pin.fairPint?.[2] === "string" ? [pin.fairPint[2]] : []))];
-  const prefix = pins.filter((pin) => typeof pin.fairPint?.[1] === "string" && pin.fairPint[1].startsWith(PINT_URL_PREFIX)).length >= 2 ? PINT_URL_PREFIX : null;
-  const rows = pins.map((pin) => {
-    if (!pin.fairPint) return pin;
-    const [pence, url, date] = pin.fairPint;
-    if (typeof url !== "string" || typeof date !== "string") return pin;
-    const row = { ...pin };
-    let flags = 0;
-    if (row.priceSource === "Pint Prices") { delete row.priceSource; flags |= 1; }
-    if (row.priceObservedAt === date.slice(0, 10)) { delete row.priceObservedAt; flags |= 2; }
-    delete row.fairPint;
-    let encoded = url;
-    const suffix = typeof row.name === "string" ? "/" + encodeURIComponent(row.name) : "";
-    if (suffix && encoded.endsWith(suffix)) { encoded = encoded.slice(0, -suffix.length); flags |= 4; }
-    if (prefix && encoded.startsWith(prefix)) encoded = "~" + encoded.slice(prefix.length).replaceAll("%20", " ");
-    return { ...row, fp: [pence, encoded, dates.indexOf(date), ...(flags === 3 ? [] : [flags])] };
-  });
-  return { rows, ft: dates.map((date) => Date.parse(date)), ...(prefix ? { fu: prefix } : {}) };
-}
-export function expandFairPintPin(value: unknown, metadata?: { ft?: unknown; fu?: unknown }): unknown {
-  if (!value || typeof value !== "object" || !("fp" in value) || !Array.isArray(value.fp)) return value;
-  const { fp, ...row } = value;
-  const [pence, encoded, index, flags = 3] = fp;
-  const time = Array.isArray(metadata?.ft) && Number.isInteger(index) ? metadata.ft[index] : null;
-  if (fp.length < 3 || fp.length > 4 || typeof encoded !== "string" || typeof time !== "number" || !Number.isFinite(time)
-    || !Number.isInteger(flags) || flags < 0 || flags > 7) return row;
-  const stamp = new Date(time);
-  if (!Number.isFinite(stamp.getTime())) return row;
-  const date = stamp.toISOString();
-  let url = encoded;
-  if (url.startsWith("~")) {
-    if (typeof metadata?.fu !== "string") return row;
-    url = metadata.fu + url.slice(1).replaceAll(" ", "%20");
-  }
-  if (flags & 4) {
-    if (!("name" in row) || typeof row.name !== "string") return row;
-    url += "/" + encodeURIComponent(row.name);
-  }
-  return { ...row, fairPint: [pence, url, date], ...(flags & 1 ? { priceSource: "Pint Prices" } : {}), ...(flags & 2 ? { priceObservedAt: date.slice(0, 10) } : {}) };
-}
+export { compactFairPintPayload, expandFairPintPin } from "@/lib/slimListingPrices.mjs";
 
 let session = { active: false, pence: 550 };
-let promptsSuppressed = false;
-export const fairPintPromptsSuppressed = () => promptsSuppressed;
 const activeListeners = new Set<() => void>();
 const paintListeners = new Set<() => void>();
 export const fairPintActive = () => session.active;
@@ -86,7 +43,7 @@ export function subscribeFairPintActive(listener: () => void) { activeListeners.
 export function subscribeFairPintPaint(listener: () => void) { paintListeners.add(listener); return () => { paintListeners.delete(listener); }; }
 export function setFairPintSession(active: boolean, pence = session.pence) {
   const changed = active !== session.active;
-  if (active) promptsSuppressed = true;
+  if (active) suppressMapFirstVisitPrompts();
   session = { active, pence };
   if (changed) activeListeners.forEach((listener) => listener());
   paintListeners.forEach((listener) => listener());
@@ -111,6 +68,23 @@ export function transitionFairPintPlan(state: FairPintPlanState, event: FairPint
     case "drawn": return state.request !== event.request ? state : { ...state, phase: "result", last: event.last, error: "" };
     case "failed": return state.request !== event.request ? state : { ...state, phase: state.last ? "result" : "dial", error: event.error, retryAt: event.retryAt };
     case "back": return { ...state, phase: "dial" };
+    default: { const never: never = event; return never; }
+  }
+}
+
+export type FairPintSaveState =
+  | { phase: "editing"; scope: string; notice: string }
+  | { phase: "saving"; scope: string; notice: string }
+  | { phase: "locked"; scope: string; notice: string; planId: string; link: { phase: "loading" } | { phase: "failed" } | { phase: "ready"; url: string }; share: import("@/lib/shareSheet").ShareOutcome | null };
+export type FairPintSaveEvent = { type: "save"; scope: string } | { type: "saved"; scope: string; planId: string } | { type: "link"; scope: string; url: string | null } | { type: "notice"; scope: string; notice: string } | { type: "share"; scope: string; outcome: import("@/lib/shareSheet").ShareOutcome };
+export function transitionFairPintSave(state: FairPintSaveState, event: FairPintSaveEvent): FairPintSaveState {
+  if (event.type === "save") return { phase: "saving", scope: event.scope, notice: "" };
+  if (event.scope !== state.scope) return state;
+  switch (event.type) {
+    case "saved": return { phase: "locked", scope: event.scope, planId: event.planId, notice: "", link: { phase: "loading" }, share: null };
+    case "link": return state.phase !== "locked" ? state : { ...state, link: event.url ? { phase: "ready", url: event.url } : { phase: "failed" }, notice: event.url ? "" : "Could not prepare the link. Try again." };
+    case "notice": return state.phase === "saving" ? { phase: "editing", scope: state.scope, notice: event.notice } : { ...state, notice: event.notice };
+    case "share": return state.phase !== "locked" || event.outcome === "cancelled" ? state : { ...state, share: event.outcome, notice: event.outcome === "shared" ? "Shared." : event.outcome === "whatsapp" ? "Opened WhatsApp." : "Could not open sharing. Copy the link instead." };
     default: { const never: never = event; return never; }
   }
 }

@@ -11,6 +11,7 @@ import TonightProvenanceLines from "@/app/tonight/TonightProvenanceLines";
 import NightAreaCoverage from "@/components/night/NightAreaCoverage";
 import { PalMeetingScreen } from "@/components/pal/PalExperience";
 import { DEFAULT_PAL_DRAFT } from "@/lib/pubPal";
+import { planningConfidenceLabel } from "@/lib/planIntelligence";
 import { provenanceLabel } from "@/lib/tonight";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -508,7 +509,7 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(areaButton).toContain("Rough guess");
     expect(areaButton).toContain("Not all checked");
     expect(areaButton).toContain("Gone stale");
-    expect(mobilePlan).toContain("Prices checked");
+    expect(planningConfidenceLabel("high")).toBe("Prices checked");
 
     const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
     expect(groups.map((group) => group.label)).toEqual([

@@ -248,11 +248,14 @@ export default function PintLine({ crawl, presentation = false }: { crawl: WildC
   // be wrapped wrong once the page's own face arrives.
   useEffect(() => {
     let alive = true;
-    void (presentation ? Promise.resolve() : fontsSettled()).then(() => {
+    const measureFaces = () => {
       if (!alive || !stageRef.current) return;
       const real = canvasMeasure(stageRef.current);
       setMeasure(() => real ?? ((text: string, font) => text.length * PINT_LINE_TYPE[font].size * 0.62));
-    });
+    };
+    if (presentation) measureFaces();
+    void fontsSettled().then(measureFaces);
+    if (presentation) void document.fonts?.ready.then(measureFaces);
     return () => {
       alive = false;
     };

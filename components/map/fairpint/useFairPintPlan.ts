@@ -7,15 +7,15 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
   const [start, setStart] = useState("");
   const pending = useRef<AbortController | null>(null), sequence = useRef(0);
   useEffect(() => () => { pending.current?.abort(); sequence.current++; }, []);
-  async function draw(pence: number, chosenStart = start) {
+  async function draw(pence: number, chosenStart?: string) {
     pending.current?.abort();
     const controller = new AbortController(), request = ++sequence.current;
     pending.current = controller;
     dispatch({ type: "draw", request });
     try {
       const time = await import("@/lib/planIntake");
-      const input = chosenStart || time.defaultLondonStartInput();
-      if (!chosenStart) setStart(input);
+      const input = chosenStart === undefined ? start || time.defaultLondonStartInput() : chosenStart;
+      if (chosenStart === undefined && !start) setStart(input);
       const iso = time.resolveFutureLondonStartIso(input, null, new Date());
       if (!iso) throw new Error("Choose a valid future London start time.");
       const response = await fetch("/api/plans/generate", { method: "POST", signal: controller.signal, headers: { "content-type": "application/json" }, body: JSON.stringify(fairPintRequest(cityId, area, pence, iso)) });
@@ -42,5 +42,5 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
     const timer = setTimeout(() => setRetryReady(state.retryAt), Math.max(0, state.retryAt - Date.now()));
     return () => clearTimeout(timer);
   }, [state.retryAt]);
-  return { state, start, retrying: state.retryAt > retryReady, draw, back: () => { pending.current?.abort(); sequence.current++; dispatch({ type: "back" }); }, changeStart: (value: string) => { setStart(value); if (state.last) void draw(state.last.pence, value); } };
+  return { state, start, retrying: state.retryAt > retryReady, draw, back: () => { pending.current?.abort(); sequence.current++; dispatch({ type: "back" }); }, changeStart: (value: string) => { setStart(value); return state.last ? draw(state.last.pence, value) : Promise.resolve(); } };
 }

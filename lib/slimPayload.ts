@@ -1,4 +1,4 @@
-import { expandFairPintPin } from "@/lib/fairPint";
+import { expandFairPintPin } from "@/lib/slimListingPrices.mjs";
 export function recordedPintVenueIdsFromSlimPayload(value: unknown): string[] | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const payload = value as { bundlePricesChecked?: unknown; recordedPintVenueIds?: unknown };

@@ -36,6 +36,7 @@ export default function FairPintCard({ start, area, counts, drawCounts, located,
       onPointerDown={(event) => event.currentTarget.setPointerCapture(event.pointerId)}
       onInput={(event) => input(event.currentTarget.valueAsNumber)} onPointerUp={release} onKeyUp={release}
       onPointerCancel={() => { dirty.current = false; setPence(held.current); onInput(held.current); }}
+      onBlur={() => { if (dirty.current) { dirty.current = false; setPence(held.current); onInput(held.current); } }}
       onKeyDown={(event) => { if (event.key === "PageUp" || event.key === "PageDown") { event.preventDefault(); input(Math.min(800, Math.max(300, pence + (event.key === "PageUp" ? 50 : -50)))); } }} />
     <p className="fairPintCount" aria-hidden="true">{line}</p>
     <span className="sr-only" aria-live="polite">{announcement}</span>

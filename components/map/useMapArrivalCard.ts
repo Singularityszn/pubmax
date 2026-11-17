@@ -1,5 +1,6 @@
 "use client";
 
+import { fairPintActive, subscribeFairPintActive } from "@/lib/fairPint";
 import { useState, useSyncExternalStore } from "react";
 
 import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
@@ -36,7 +37,8 @@ export function useMapArrivalCard({
     () => false,
   );
   const readerPosition = useMapReaderPosition(onLocationExposure, setPermission);
-  const visible = cityId === "london" ? eligible : shouldShowMapArrivalLocationCard({
+  const active = useSyncExternalStore(subscribeFairPintActive, fairPintActive, () => false);
+  const visible = cityId === "london" ? eligible || active : shouldShowMapArrivalLocationCard({
     eligible,
     mobile,
     permission,

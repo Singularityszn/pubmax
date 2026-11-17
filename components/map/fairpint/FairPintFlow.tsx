@@ -47,11 +47,14 @@ export default function FairPintFlow({ cityId, bounds, center, onCommit, onRoute
   useEffect(() => {
     let cancelled = false;
     const countBox: MapBounds = JSON.parse(countKey), drawBox: MapBounds = JSON.parse(drawKey);
-    void Promise.all([loader.inBounds(countBox), loader.inBounds(drawBox)]).then(([countRows, drawRows]) => {
+    const load = async (box: MapBounds, kind: "count" | "draw") => {
+      const rows = await loader.inBounds(box);
       if (cancelled) return;
-      setData((held) => ({ countKey, drawKey, rows: [...new Map([...held.rows, ...countRows, ...drawRows].map((row) => [row.id, row])).values()], count: loader.coverageComplete(countBox) ? "ready" : "failed", draw: loader.coverageComplete(drawBox) ? "ready" : "failed" }));
-      if (loader.coverageComplete(countBox)) performance.mark("fair_pint_ready");
-    });
+      const ready = loader.coverageComplete(box);
+      setData((held) => ({ ...held, [kind + "Key"]: kind === "count" ? countKey : drawKey, rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()], [kind]: ready ? "ready" : "failed" }));
+      if (kind === "count" && ready) performance.mark("fair_pint_ready");
+    };
+    void load(countBox, "count"); void load(drawBox, "draw");
     return () => { cancelled = true; };
   }, [loader, countKey, drawKey, attempt]);
   const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: fairPence(row, now) })), [data.rows, now]);
@@ -60,12 +63,13 @@ export default function FairPintFlow({ cityId, bounds, center, onCommit, onRoute
     if (phase !== "ready") return { phase };
     return { phase, count: pricedRows.filter(({ row, pence: listed }) => listed !== null && listed <= pence && (draw && area ? inCircle(row, area.centre.lat, area.centre.lng, area.radiusKm) : position ? inCircle(row, position.lat, position.lng, 0.8) : row.lng >= bounds.west && row.lng <= bounds.east && row.lat >= bounds.south && row.lat <= bounds.north)).length };
   };
+  const close = () => { setFairPintSession(false); dismissMapFirstVisitArrival(undefined, Date.now(), true); };
   if (!area) return null;
-  if (plan.state.last && plan.state.phase !== "dial") return <FairPintResult mobile={mobile} last={plan.state.last} venues={data.rows} start={plan.start} busy={plan.state.phase === "drawing"} error={plan.state.error} onStart={plan.changeStart} onBack={plan.back} />;
+  if (plan.state.last && plan.state.phase !== "dial") return <FairPintResult cityId={cityId} onClose={close} mobile={mobile} last={plan.state.last} venues={data.rows} start={plan.start} busy={plan.state.phase === "drawing"} error={plan.state.error} onStart={plan.changeStart} onBack={plan.back} />;
   return <><FairPintCard start={committed} area={area.name} counts={(pence) => counts(pence)} drawCounts={(pence) => counts(pence, true)} located={position !== null} locationOff={locationOff} offline={offline} drawUnavailable={plan.retrying} pending={plan.state.phase === "drawing"} error={plan.state.error}
     onInput={(pence) => setFairPintSession(true, pence)}
     onCommit={(pence) => { setCommitted(pence); writeFairPint(pence); onCommit(pence / 100); void haptic("selection-kept"); }}
     onLocation={() => { if (!navigator.geolocation) { setLocationOff(true); return; } navigator.geolocation.getCurrentPosition((value) => { setPosition({ lat: value.coords.latitude, lng: value.coords.longitude }); setLocationOff(false); }, () => setLocationOff(true)); }}
-    onRetry={() => setAttempt((held) => held + 1)} onClose={() => dismissMapFirstVisitArrival(undefined, Date.now(), true)}
+    onRetry={() => setAttempt((held) => held + 1)} onClose={close}
     onDraw={(pence) => { if (plan.retrying) return; void import("./FairPintResult"); void plan.draw(pence); }} /></>;
 }
