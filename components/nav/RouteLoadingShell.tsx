@@ -12,7 +12,6 @@ import SiteNav from "@/components/nav/SiteNav";
 import PintLoader from "@/components/ui/pint-loader";
 import type { PubQuizQuestion } from "@/lib/pubQuiz";
 
-import "./navigation.css";
 
 type RouteLoadingShellProps = {
   /** Short status label for AT + quiet on-screen copy (e.g. "Tonight"). */

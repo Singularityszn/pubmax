@@ -3,6 +3,10 @@
 @import "./theme.css";
 @import "./auth/auth.css";
 @import "../components/nav/navigation.css";
+@import "../components/nav/navPendingIndicator.css";
+@import "../components/ui/primitives.css";
+@import "../components/brand/pubmaxxWordmark.css";
+@import "../components/brand/pubmaxxMark.css";
 @import "../components/founding/foundersDiscordLink.css";
 @import "../components/auth/arrivalWelcome.css";
 @import "../components/identity/identityNudge.css";
