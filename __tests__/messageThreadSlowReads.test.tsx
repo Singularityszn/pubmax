@@ -173,6 +173,26 @@ it("restores a previously loaded thread while a returning read is pending", asyn
   expect(retryPanel()).toBeNull();
 });
 
+it("keeps a confirmed send when an older poll answers afterward", async () => {
+  await render();
+  await answer(thread("Earlier history"));
+  await poll();
+  const input = host.querySelector<HTMLTextAreaElement>(".composerInput")!;
+  await act(async () => {
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "A confirmed message");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  });
+  await click(".composerSend");
+  const message = { id: "stored-send", conversationId: "conversation-a", senderHandle: "alice", body: "A confirmed message", createdAt: "2026-10-04T12:01:00Z", read: false, flagged: false };
+  await act(async () => transport.writes.shift()!.resolve(Response.json({ message })));
+  expect(host.textContent).toContain("A confirmed message");
+
+  await answer(thread("Earlier history"));
+
+  expect(host.textContent).toContain("A confirmed message");
+  expect(host.textContent).toContain("Earlier history");
+});
+
 it("keeps an empty thread's learned name in its snapshot after a poll", async () => {
   await render();
   await answer(Response.json({ messages: [] }), "/messages/conversation-a?");
