@@ -320,6 +320,7 @@ export default function MessageThread({
    * The oldest read whose answer may still land. A read that lands raises it
    * to its own generation, so an older read answering later is dropped; a new
    * conversation or reader raises it past every read already sent.
+   * A confirmed write also outranks reads that started before it.
    */
   const readFloorRef = useRef(0);
   const removedForRef = useRef<ThreadReadKey | null>(null);
@@ -610,6 +611,7 @@ export default function MessageThread({
     followingNewestRef.current = true;
     setPicking(null); setMobileAttachOpen(false); void send();
   }
+
 
 
 
