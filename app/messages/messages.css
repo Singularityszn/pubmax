@@ -558,7 +558,7 @@ a.threadWith:active {
 
    `width: fit-content` is the other half: it takes the AVAILABLE width as its
    floor rather than the min-content one a flex item would, so a short message
-   keeps its natural size while a pasted URL still stops at 75% and breaks
+   keeps its natural size while a pasted URL wraps
    inside the bubble instead of pushing the page sideways. */
 .messageLine {
   max-width: 75%;
@@ -659,9 +659,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   }
 }
 
-/* The time and the Report control live under the bubble and stay folded
-   until the bubble is tapped, hovered with a fine pointer, or
-   reached with the keyboard. A thread is not a column of Report links. */
+/* Hide actions until requested, so the thread is not a column of Report links.
+   Reveal and placement rules: docs/rules/components-venue-plan-and-message-surfaces.md. */
 .messageMeta {
   display: flex;
   gap: 0.6rem;
@@ -681,8 +680,6 @@ html[data-theme="dark"] .messageBubblePhoto {
   margin-top: 0.2rem;
 }
 
-/* An own message's meta is usually empty, so it sits under the right edge of
-   the bubble rather than under a left edge nothing else shares. */
 .messageRowMine .messageMeta {
   justify-content: flex-end;
 }

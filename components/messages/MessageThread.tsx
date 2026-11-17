@@ -121,16 +121,10 @@ import "@/app/messages/messages.css";
 // decides which bubbles are "mine". A GET that isn't a participant returns 404 —
 // the page below shows a friendly not-found rather than a leak.
 //
-// A BUBBLE'S WIDTH IS THE ROW'S BUSINESS. Each row wraps its bubble in a
-// `.messageLine`, which is the box the 75% limit lives on; putting that limit on
-// the bubble made every bubble 78% of its OWN natural width, and "Yo!!" arrived
-// on production as one character per line. See app/messages/messages.css.
+// Bubble width constraints: app/messages/messages.css.
 //
-// A THREAD READS LIKE A CONVERSATION. lib/messageTimeline.ts decides the day
-// lines, which bubbles sit tight in one run, and where the time and the read
-// state print (once, under the last bubble of a run). Tapping any bubble
-// reveals its own time, and the Report control with it, so the thread is not
-// a column of underlined Report links.
+// Timeline, reveal and read-state rules:
+// docs/rules/components-venue-plan-and-message-surfaces.md.
 //
 // A SENT MESSAGE APPEARS THE MOMENT IT IS SENT. The composer clears and an own
 // bubble lands in the thread before the server answers; the refetch replaces
@@ -1314,7 +1308,6 @@ export default function MessageThread({
                 data-revealed={revealed ? "" : undefined}
                 data-sending={sendingRow ? "" : undefined}
               >
-                {/* The box the 75% width limit lives on. */}
                 <div className="messageLine">
                   {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
                   <div className="messageBubbleGroup">

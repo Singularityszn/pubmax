@@ -243,7 +243,7 @@ test.describe("message action hit areas", () => {
           const bubble = bubbles.nth(index);
           const action = row.getByRole("button", { name: index === 1 ? "Report" : "Unsend", exact: true });
           await page.mouse.move(0, 0);
-          await bubble.scrollIntoViewIfNeeded();
+          await row.evaluate((element) => element.scrollIntoView({ block: "center" }));
           const before = await bubbles.evaluateAll((elements) => elements.map((element) => {
             const rect = element.getBoundingClientRect();
             return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
