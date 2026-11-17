@@ -255,6 +255,7 @@ describe("RankThisPub", () => {
     net.pending = new Promise<void>((resolve) => { finish = resolve; });
     const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!;
     await act(async () => close.click());
+    expect(notice()).toBe("Checking your ranking…");
     await clickRank();
     expect(net.read).toHaveBeenCalledTimes(1);
     net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
@@ -279,4 +280,16 @@ describe("RankThisPub", () => {
     expect(net.read).toHaveBeenCalledTimes(1);
     expect(rankButton()?.textContent).toBe("Rank it");
   });
+  it("updates the saved position from a retry read without another save", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ error: { message: "Your ranking is unavailable right now." } }, 503));
+    await clickRank();
+    expect(compare()).toBeNull();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!;
+    await act(async () => close.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+  });
+
 });
