@@ -398,7 +398,11 @@ body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon, .palVoiceBar) {
     transform: translateY(110%);
   }
 
-  .mobileTabBar[inert] {
+  /* A table or summon dialog (tableRequest.css) owns the page: its strict
+     focus trap has made the dock inert, and the dock would otherwise paint over
+     the dialog's last row. Other strict modals and the keyboard slide keep the
+     dock as they had it. */
+  body:has(> .tableRequestBackdrop) .mobileTabBar[inert]:not(.isKeyboardHidden) {
     visibility: hidden;
   }
 
