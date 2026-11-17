@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import Screen from "@/components/ui/screen";
 import { captureRecoverySessionBaseline, installRecoveredSession, preloadPasswordRecoveryAuth } from "@/lib/authClient";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { useClientReady } from "@/lib/useClientReady";
 import { parseEmail, MAX_EMAIL_LENGTH } from "@/lib/emailAddress";
 import { PASSWORD_RECOVERY_MESSAGE, recoveryFormTransition, recoveryToken, type RecoveryFormState } from "@/lib/passwordRecovery";
 import { createPasswordRecoveryFinisher } from "@/lib/passwordRecoveryClient";
@@ -18,7 +19,17 @@ function disposeFinisher(pending: ReturnType<typeof createPasswordRecoveryFinish
   void pending?.then(finisher => finisher.dispose()).catch(() => {});
 }
 
-function recoveryTitle(state: RecoveryFormState, reset: boolean): string {
+function recoveryPresentation(state: RecoveryFormState) {
+  return {
+    busy: state.status === "busy",
+    securing: state.status === "securing" || state.status === "busy" && state.passwordSaved === true,
+    invalidField: state.status === "editing" ? state.field : undefined,
+    error: state.status === "editing" || state.status === "securing" ? state.error ?? null : null,
+  };
+}
+
+function recoveryTitle(state: RecoveryFormState, reset: boolean, securing: boolean): string {
+  if (securing) return "Finish signing in";
   if (state.status === "invalid") return "Ask for a new link";
   if (state.status === "complete") return reset ? "Password saved" : "Check your inbox";
   return reset ? "Choose a new password" : "Forgot your password?";
@@ -26,6 +37,7 @@ function recoveryTitle(state: RecoveryFormState, reset: boolean): string {
 
 export default function PasswordRecoveryPage({ reset = false }: { reset?: boolean }) {
   const { configured } = useAuth();
+  const ready = useClientReady();
   const [state, dispatch] = useReducer(recoveryFormTransition, { status: reset ? "checking" : "editing" });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,13 +54,10 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   const titleId = useId();
   const errorId = useId();
   const main = useRef<HTMLElement | null>(null);
-  const busy = state.status === "busy";
-  const securing = state.status === "securing";
-  const invalidField = state.status === "editing" ? state.field : undefined;
-  const error = state.status === "editing" || state.status === "securing" ? state.error : null;
+  const { busy, securing, error, invalidField } = recoveryPresentation(state);
 
   useEffect(() => {
-    if (state.status === "complete" || state.status === "invalid") main.current?.focus();
+    if (state.status === "complete" || state.status === "invalid" || state.status === "securing") main.current?.focus();
   }, [state.status]);
 
   useEffect(() => {
@@ -88,14 +97,14 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
   }, [reset]);
 
   useEffect(() => {
-    if (!configured || state.status !== "editing" || markedReady.current) return;
+    if (!ready || !configured || state.status !== "editing" || markedReady.current) return;
     markedReady.current = true;
     performance.mark?.(reset ? "pubmax:password-recovery:reset-ready" : "pubmax:password-recovery:request-ready");
-  }, [configured, reset, state.status]);
+  }, [configured, ready, reset, state.status]);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (operation.current || !configured) return;
+    if (!ready || operation.current || !configured) return;
     if (!reset && !parseEmail(email)) {
       dispatch({ type: "failed", message: "Enter a valid email address.", field: "email" });
       return;
@@ -158,7 +167,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
 
   const complete = state.status === "complete";
   const invalid = state.status === "invalid";
-  const title = recoveryTitle(state, reset);
+  const title = recoveryTitle(state, reset, securing);
   return (
     <main className="passwordRecoveryPage" ref={main} tabIndex={-1} aria-labelledby={titleId}>
       <div className="passwordRecoveryInner">
@@ -178,7 +187,7 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
           </>
         ) : (
           <form onSubmit={submit} noValidate method="post" aria-label={reset ? "Reset password" : "Request password reset"} aria-busy={busy}>
-            {reset ? (
+            {reset && !securing ? (
               <>
                 <div className="passwordRecoveryLabel">
                   <label htmlFor="recovery-password">New password</label>
@@ -195,14 +204,15 @@ export default function PasswordRecoveryPage({ reset = false }: { reset?: boolea
                   minLength={MIN_PASSWORD_LENGTH} required aria-invalid={invalidField === "confirm"} aria-describedby={error ? errorId : undefined} readOnly={busy || securing}
                   value={confirm} onChange={event => setConfirm(event.target.value)} />
               </>
-            ) : (
+            ) : null}
+            {!reset ? (
               <>
                 <p>We&apos;ll send a reset link to the email on your account.</p>
                 <label htmlFor="recovery-email">Account email</label>
                 <input id="recovery-email" name="email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
-                  required aria-invalid={invalidField === "email"} aria-describedby={error ? errorId : undefined} maxLength={MAX_EMAIL_LENGTH} disabled={busy} value={email} onChange={event => setEmail(event.target.value)} />
+                  required aria-invalid={invalidField === "email"} aria-describedby={error ? errorId : undefined} maxLength={MAX_EMAIL_LENGTH} disabled={!ready || busy} value={email} onChange={event => setEmail(event.target.value)} />
               </>
-            )}
+            ) : null}
             {error ? <p role="alert" id={errorId}>{error}</p> : null}
             <Button type="submit" disabled={busy || !configured}>
               {busy ? "Working…" : securing ? "Finish securing account" : reset ? "Save new password" : "Send reset link"}

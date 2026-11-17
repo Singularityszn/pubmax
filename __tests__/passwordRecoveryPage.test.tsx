@@ -52,6 +52,7 @@ it("opens a replacement email link in the same tab after a missing-link error", 
 it("disables request submission in server HTML until the client takes ownership", () => {
   host.innerHTML = renderToString(createElement(PasswordRecoveryPage));
   expect(host.querySelector("button[type=submit]")?.hasAttribute("disabled")).toBe(true);
+  expect(host.querySelector("#recovery-email")?.hasAttribute("disabled")).toBe(true);
 });
 
 function fillPassword(id: string, value: string) {
@@ -107,4 +108,23 @@ it.each(["unmount", "replacement"])("cancels private verification on page %s bef
   });
   expect(auth.updateUser).not.toHaveBeenCalled();
   expect(auth.signOut).not.toHaveBeenCalled();
+});
+
+it("offers only session completion after a saved password needs cleanup retry", async () => {
+  const { createPasswordRecoveryFinisher } = await import("@/lib/passwordRecoveryClient");
+  const { installRecoveredSession } = await import("@/lib/authClient");
+  const finish = vi.fn()
+    .mockResolvedValueOnce({ status: "retry", passwordSaved: true, message: "Your password is saved. Try again to secure your account." })
+    .mockResolvedValueOnce({ status: "saved", session: { access_token: "saved", refresh_token: "saved", user: { id: "owner" } } });
+  vi.mocked(createPasswordRecoveryFinisher).mockResolvedValue(Object.assign(finish, { dispose: vi.fn() }));
+  vi.mocked(installRecoveredSession).mockResolvedValue(true);
+  window.history.replaceState(null, "", `/auth/reset-password#token_hash=${token}`);
+  act(() => root.render(createElement(PasswordRecoveryPage, { reset: true })));
+  act(() => { fillPassword("#recovery-password", "London123!"); fillPassword("#recovery-confirm", "London123!"); });
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("input")).toBeNull();
+  expect(host.querySelector("h1")?.textContent).toBe("Finish signing in");
+  await act(async () => { host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true })); });
+  expect(host.querySelector("form")).toBeNull();
+  expect(host.querySelector("h1")?.textContent).toBe("Password saved");
 });
