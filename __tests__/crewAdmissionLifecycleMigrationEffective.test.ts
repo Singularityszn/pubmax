@@ -12,6 +12,7 @@ import {
   NOT_FOUND,
   type Person,
   REFUSED_BY_LOCKS,
+  ROLLBACK_0245_ONLY,
   STAFF_ROLE,
   accountOf,
   admit,
@@ -42,6 +43,7 @@ import {
   ownership,
   person,
   receipts,
+  releaseCall,
   remove,
   request,
   requestCall,
@@ -751,5 +753,40 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
       create trigger lock_social_accounts_on_auth_user_delete before delete on auth.users
       for each row execute function public._lock_social_auth_user_accounts();`);
     expect(forwardOutcome()).toMatchObject({ ok: true });
+  });
+
+  it("rollback of 0245 alone refuses while 0246 is applied and changes nothing, and 0246 first, 0245 next and reapply still work", async () => {
+    const schema = () => db().sql(`select md5(string_agg(item, '|' order by item)) from (
+      select p.oid::regprocedure::text || ':' || md5(pg_get_functiondef(p.oid)) as item from pg_proc p
+        join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','pubmax_private') and p.prokind='f'
+      union all select c.oid::regclass::text || ':' || c.relkind::text from pg_class c
+        join pg_namespace n on n.oid=c.relnamespace where n.nspname in ('public','pubmax_private')
+      union all select t.tgrelid::regclass::text || ':' || t.tgname || ':' || t.tgenabled::text from pg_trigger t where not t.tgisinternal
+      union all select r.conrelid::regclass::text || ':' || r.conname || ':' || pg_get_constraintdef(r.oid) from pg_constraint r
+        join pg_namespace n on n.oid=r.connamespace where n.nspname='public'
+    ) objects`);
+    const first = removedAndCorrected();
+    expect(correct(first.crew, first.removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    const before = schema();
+    const rows = ledgerRows();
+
+    const refused = await rollbackOutcome("rollback_0245_alone", correctionLedgerExport().acknowledgement, ROLLBACK_0245_ONLY);
+    expect(refused.ok).toBe(false);
+    expect(refused.said).toContain("0246");
+    expect(schema()).toBe(before);
+    expect(ledgerRows()).toBe(rows);
+
+    expect(await rollbackOutcome("rollback_in_order", correctionLedgerExport().acknowledgement)).toMatchObject({ ok: true });
+    expect(db().sql("select to_regprocedure('public.release_departed_social_crew_places(integer)') is null")).toBe("t");
+    expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
+
+    stageTo("after");
+    const host = person(), ana = person(), bea = person();
+    const crew = crewWith(host, [ana]);
+    db().sql(deleteAccount(ana));
+    expect(call(releaseCall(100))).toMatchObject({ ok: true });
+    expect(state(crew, ana)).toBe("left");
+    admit(host, crew, bea);
+    expect(state(crew, bea)).toBe("active");
   });
 });

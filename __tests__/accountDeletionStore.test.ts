@@ -26,10 +26,14 @@ vi.mock("@/lib/profileStore", () => ({
   },
 }));
 
-const logged = vi.hoisted(() => ({ events: [] as Array<{ event: string; stage?: unknown }> }));
+const logged = vi.hoisted(() => ({
+  events: [] as Array<{ event: string; stage?: unknown }>,
+  lines: [] as Array<{ level: string; event: string; context?: Record<string, unknown> }>,
+}));
 vi.mock("@/lib/log", () => ({
-  log: (_level: string, event: string, context?: Record<string, unknown>) => {
+  log: (level: string, event: string, context?: Record<string, unknown>) => {
     logged.events.push({ event, stage: context?.stage });
+    logged.lines.push({ level, event, context });
   },
 }));
 
@@ -60,6 +64,7 @@ type Fake = AccountDeletionDeps & {
   socialKeys: string[];
   releases: number;
   releaseThrows: boolean;
+  releaseAnswer: unknown;
 };
 
 /** A bucket that lists by folder the way the Storage API does, and an auth that answers as GoTrue does. */
@@ -80,9 +85,11 @@ function fakeDeps(): Fake {
     socialKeys: [],
     releases: 0,
     releaseThrows: false,
+    releaseAnswer: { ok: true, crews: 0, released: 0 },
     async releaseDepartedCrewPlaces() {
       fake.releases += 1;
       if (fake.releaseThrows) throw new Error("crew release unavailable");
+      return fake.releaseAnswer;
     },
     async profileForUser() {
       return fake.profile;
@@ -138,6 +145,7 @@ function seedPhotos(fake: Fake): string[] {
 
 beforeEach(() => {
   logged.events = [];
+  logged.lines = [];
 });
 
 describe("ownedObjectKeys", () => {
@@ -354,6 +362,40 @@ describe("deleteOwnAccount", () => {
     fake.releaseThrows = true;
     expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
     expect(logged.events).toContainEqual({ event: "account.delete_crew_release_failed", stage: "crew_release" });
+    expect(fake.removed.length).toBeGreaterThan(0);
+  });
+
+  it("warns that crew cleanup may remain when the sweep fills its batch, and the deleted account still answers deleted", async () => {
+    const fake = fakeDeps();
+    seedPhotos(fake);
+    fake.releaseAnswer = { ok: true, crews: 19, released: 25 };
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+    expect(logged.events.map((line) => line.event)).not.toContain("account.delete_crew_release_batch_full");
+
+    fake.releaseAnswer = { ok: true, crews: 20, released: 31 };
+    fake.authError = { status: 404, code: "user_not_found", message: "User not found" };
+    expect(await deleteOwnAccount(USER, fake)).toBe("already-gone");
+    expect(logged.lines).toContainEqual({
+      level: "warn",
+      event: "account.delete_crew_release_batch_full",
+      context: { stage: "crew_release", crews: 20, released: 31, limit: 20 },
+    });
+    expect(logged.events.map((line) => line.event)).not.toContain("account.delete_crew_release_failed");
+    expect(fake.removed.length).toBeGreaterThan(0);
+  });
+
+  it.each([
+    ["no answer", null],
+    ["a refusal", { ok: false, crews: 0, released: 0 }],
+    ["a missing count", { ok: true, released: 0 }],
+    ["a count that is not a whole number", { ok: true, crews: "20", released: 0 }],
+  ])("logs a crew release that answered with %s as failed, and the deleted account still answers deleted", async (_label, answer) => {
+    const fake = fakeDeps();
+    seedPhotos(fake);
+    fake.releaseAnswer = answer;
+    expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
+    expect(logged.events).toContainEqual({ event: "account.delete_crew_release_failed", stage: "crew_release" });
+    expect(logged.events.map((line) => line.event)).not.toContain("account.delete_crew_release_batch_full");
     expect(fake.removed.length).toBeGreaterThan(0);
   });
 
