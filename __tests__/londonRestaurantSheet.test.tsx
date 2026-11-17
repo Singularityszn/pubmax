@@ -23,8 +23,18 @@ const ROOT = resolve(__dirname, "..");
 const container = document.createElement("div");
 const root = createRoot(container);
 
+const layerInput = {
+  isLondon: true,
+  restaurantKindVisible: false,
+  experienceLens: "all",
+  lensOwnsMap: false,
+  held: false,
+  zoom: 13,
+  selectedIsCafe: false,
+} satisfies Omit<Parameters<typeof useLondonRestaurants>[0], "selectedVenueId">;
+
 function RestaurantLayer({ wanted, selected }: { wanted: boolean; selected?: string }) {
-  const read = useLondonRestaurants(wanted, selected);
+  const read = useLondonRestaurants({ ...layerInput, held: !wanted, selectedVenueId: selected ?? "", restaurantKindVisible: !selected });
   const furnival = read.byId.get("venue-osm-n25496840");
   return createElement(
     "div",
@@ -156,7 +166,7 @@ it("keeps a second shared-link selection while its different read settles", asyn
   const reject = vi.fn();
   function SharedLink() {
     const [selected, setSelected] = useState("venue-osm-n25496840");
-    const read = useLondonRestaurants(Boolean(selected), selected || undefined);
+    const read = useLondonRestaurants({ ...layerInput, selectedVenueId: selected });
     const pick = londonVenueSelection({ selectedVenueId: selected,
       coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
       restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });
@@ -173,16 +183,21 @@ it("keeps a second shared-link selection while its different read settles", asyn
 
 it("opens a selected place after a failed full-layer read without rejecting it", async () => {
   let response: "ok" | "down" = "down";
-  stubPack(() => response);
+  const fetchMock = stubPack(() => response);
   const reject = vi.fn();
   function FailedFullRead() {
     const [selected, setSelected] = useState("");
-    const read = useLondonRestaurants(true, selected || undefined);
+    const read = useLondonRestaurants({ ...layerInput, restaurantKindVisible: true, selectedVenueId: selected });
     const pick = londonVenueSelection({ selectedVenueId: selected,
       coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
-      restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });
+      restaurants: { shown: read.mode !== "off", status: read.status, byId: read.byId } });
     useReleaseLondonVenueSelection(pick.release, selected, reject, setSelected);
-    return createElement("button", { "data-selected": selected, "data-status": read.status, onClick: () => setSelected("venue-osm-n1784593689") }, pick.restaurant?.name ?? "");
+    return createElement("button", {
+      "data-selected": selected,
+      "data-status": read.status,
+      "data-count": read.restaurants.length,
+      onClick: () => setSelected(selected === "venue-osm-n1784593689" ? "venue-osm-n25496840" : "venue-osm-n1784593689"),
+    }, pick.restaurant?.name ?? "");
   }
   await act(async () => root.render(createElement(FailedFullRead)));
   expect(container.querySelector("button")?.getAttribute("data-status")).toBe("failed");
@@ -190,6 +205,12 @@ it("opens a selected place after a failed full-layer read without rejecting it",
   await act(async () => container.querySelector("button")?.click());
   expect(reject).not.toHaveBeenCalled();
   expect(container.querySelector("button")?.textContent).toBe("Tayyabs");
+  expect(Number(container.querySelector("button")?.getAttribute("data-count"))).toBeGreaterThan(1000);
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/packs/"))).toHaveLength(6);
+  await act(async () => container.querySelector("button")?.click());
+  expect(reject).not.toHaveBeenCalled();
+  expect(container.querySelector("button")?.textContent).toBe("26 Furnival Street");
+  expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(2);
 });
 
 it("allows the same shared place to be retried after a failed read released it", async () => {
@@ -198,7 +219,7 @@ it("allows the same shared place to be retried after a failed read released it",
   const reject = vi.fn();
   function RetrySharedRead() {
     const [selected, setSelected] = useState("venue-osm-n1784593689");
-    const read = useLondonRestaurants(Boolean(selected), selected || undefined);
+    const read = useLondonRestaurants({ ...layerInput, selectedVenueId: selected });
     const pick = londonVenueSelection({ selectedVenueId: selected,
       coffee: { lensOn: false, status: "ready", byId: new Map<string, never>() },
       restaurants: { shown: Boolean(selected), status: read.status, byId: read.byId } });

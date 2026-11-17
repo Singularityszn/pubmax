@@ -4,11 +4,14 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import {
   loadLondonRestaurants,
+  londonRestaurantLayerMode,
+  londonRestaurantPackWanted,
   type LondonRestaurant,
   type LondonRestaurantStatus,
 } from "@/lib/londonRestaurants";
 
 export type LondonRestaurantsState = {
+  mode: ReturnType<typeof londonRestaurantLayerMode>;
   status: LondonRestaurantStatus;
   restaurants: readonly LondonRestaurant[];
   byId: ReadonlyMap<string, LondonRestaurant>;
@@ -16,21 +19,24 @@ export type LondonRestaurantsState = {
 
 const NO_RESTAURANTS: readonly LondonRestaurant[] = [];
 
-/**
- * The London restaurant pack, read the first time `wanted` turns true and held
- * for the rest of the visit (lib/londonRestaurants.ts
- * `londonRestaurantPackWanted`). A failed read is asked for again the next
- * time `wanted` turns true, rather than on every render.
- */
-export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string): LondonRestaurantsState {
+type LondonRestaurantLayerInput = Omit<Parameters<typeof londonRestaurantLayerMode>[0], "selectedVenueId">
+  & Omit<Parameters<typeof londonRestaurantPackWanted>[0], "shown">;
+
+export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonRestaurantsState {
+  const { selectedVenueId } = input;
+  const mode = londonRestaurantLayerMode({
+    ...input,
+    selectedVenueId: input.selectedIsCafe ? undefined : selectedVenueId,
+  });
+  const wanted = londonRestaurantPackWanted({ ...input, shown: mode !== "off" });
+  const scope = mode === "selection" ? selectedVenueId : "all";
   const [status, setStatus] = useState<LondonRestaurantStatus>("idle");
   const [restaurants, setRestaurants] = useState<readonly LondonRestaurant[]>(NO_RESTAURANTS);
-  const [settledScope, setSettledScope] = useState<string | null>(null);
+  const [settledRead, setSettledRead] = useState<{ scope: string; selectedVenueId: string } | null>(null);
   const requested = useRef<string | null>(null);
   const latestRequest = useRef(0);
 
   useEffect(() => {
-    const scope = selectedVenueId ?? "all";
     if (!wanted) {
       queueMicrotask(() => setStatus(current => current === "failed" ? "idle" : current));
       return;
@@ -40,19 +46,19 @@ export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string):
     const request = ++latestRequest.current;
     let settled = false;
     queueMicrotask(() => setStatus("loading"));
-    loadLondonRestaurants(fetch, selectedVenueId).then(
+    loadLondonRestaurants(fetch, scope === "all" ? undefined : selectedVenueId).then(
       (loaded) => {
         settled = true;
         if (request !== latestRequest.current) return;
         setRestaurants(loaded);
-        setSettledScope(scope);
+        setSettledRead({ scope, selectedVenueId });
         setStatus("ready");
       },
       () => {
         settled = true;
         if (request !== latestRequest.current) return;
         requested.current = null;
-        setSettledScope(scope);
+        setSettledRead({ scope, selectedVenueId });
         setStatus("failed");
       },
     );
@@ -62,14 +68,15 @@ export function useLondonRestaurants(wanted: boolean, selectedVenueId?: string):
         requested.current = null;
       }
     };
-  }, [wanted, selectedVenueId]);
+  }, [wanted, selectedVenueId, scope]);
 
   const byId = useMemo(
     () => new Map(restaurants.map((restaurant) => [restaurant.id, restaurant] as const)),
     [restaurants],
   );
-  const changingScope = settledScope !== null && !(settledScope === "all" && status === "ready") && settledScope !== (selectedVenueId ?? "all");
-  return { status: changingScope ? "loading" : status, restaurants, byId };
+  const changingScope = settledRead !== null && !(settledRead.scope === "all" && status === "ready")
+    && (settledRead.scope !== scope || settledRead.selectedVenueId !== selectedVenueId);
+  return { mode, status: changingScope ? "loading" : status, restaurants, byId };
 }
 
 /**

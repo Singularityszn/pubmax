@@ -457,8 +457,6 @@ import {
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
 import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
 import {
-  londonRestaurantLayerMode,
-  londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsWithoutCuratedTwin,
   type LondonRestaurant,
@@ -3092,23 +3090,17 @@ export default function PubMap({
     experienceLensPrices,
   );
   // An explicit OSM link also opens its sheet while the layer starts off.
-  const londonRestaurantsShown = londonRestaurantLayerMode({
-    selectedVenueId: coffeePilot.byId.has(selectedVenueId) ? undefined : selectedVenueId,
+  const londonRestaurantRead = useLondonRestaurants({
+    selectedVenueId,
+    selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
     isLondon,
     restaurantKindVisible: venueKindVisibility.osmRestaurants ?? false,
     experienceLens,
     lensOwnsMap: activeLensPrices !== null,
+    held: secondaryStreamsHeld,
+    zoom: mapViewport.zoom,
   });
-  const londonRestaurantRead = useLondonRestaurants(
-    londonRestaurantPackWanted({
-      shown: londonRestaurantsShown !== "off",
-      held: secondaryStreamsHeld,
-      zoom: mapViewport.zoom,
-      selectedVenueId,
-      selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
-    }),
-    londonRestaurantsShown === "selection" ? selectedVenueId : undefined,
-  );
+  const londonRestaurantsShown = londonRestaurantRead.mode;
   // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
   // go only when neither can open it.
   const londonPlacePick = londonVenueSelection({
