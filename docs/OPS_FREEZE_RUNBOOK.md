@@ -83,6 +83,7 @@ left open for the same reason (private coordination, not broadcast).
 | Pint drops — react | `POST /api/pint-drops/reactions` |
 | Messages — send | `POST /api/messages`, send branch of `POST /api/messages/[id]` |
 | Follows | `POST /api/profiles/[handle]/follow` |
+| Social interactions | `PUT` / `DELETE /api/social/interactions`, except block and mute controls |
 | Night moments | `POST /api/night-memories/[id]/moments`, `POST /api/night-stories/[id]/moments` |
 | Story create + publish | `POST /api/night-stories`, `.../publish-proposals`, `.../publish-confirmations` |
 

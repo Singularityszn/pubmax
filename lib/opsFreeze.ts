@@ -4,8 +4,8 @@
 // owner needs a single switch that makes the social WRITE surfaces read-only
 // instantly, driven by one env var, no deploy beyond a redeploy that picks up
 // the flipped value. Reads keep working, the rest of the product keeps working,
-// and safety controls (reporting, moderation, block/mute choices, deletion) stay OPEN so a
-// freeze can never trap someone or bury an incident.
+// and safety controls (reporting, moderation, block/mute choices, deletion)
+// stay OPEN so a freeze can never trap someone or bury an incident.
 //
 // This is a pure seam: it reads the env at CALL time (never at module scope), so
 // it is hermetically testable with vi.stubEnv and honours the repo's env-seam

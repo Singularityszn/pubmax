@@ -194,15 +194,18 @@ describe("Social interactions route", () => {
     expect(action === "block" ? store.setBlock : store.setMute).toHaveBeenCalledWith(actor, "22222222-2222-4222-8222-222222222222", method === "PUT");
   });
 
-  it("still authenticates and rate limits frozen block changes", async () => {
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    (["block", "mute"] as const).map((action) => ({ method, action })),
+  ))("still authenticates and rate limits frozen $method $action changes", async ({ method, action }) => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
-    const { PUT } = await import("@/app/api/social/interactions/route");
-    const request = () => new Request(URL, { method: "PUT", body: JSON.stringify({ action: "block", targetHandle: "bob" }) });
+    const route = await import("@/app/api/social/interactions/route");
+    const request = () => new Request(URL, { method, body: JSON.stringify({ action, targetHandle: "bob" }) });
     vi.mocked(requireVerifiedSocialActor).mockResolvedValueOnce({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in first." });
-    expect((await PUT(request())).status).toBe(401);
+    expect((await route[method](request())).status).toBe(401);
     vi.mocked(isLimited).mockResolvedValueOnce(true);
-    expect((await PUT(request())).status).toBe(429);
+    expect((await route[method](request())).status).toBe(429);
     expect(store.setBlock).not.toHaveBeenCalled();
+    expect(store.setMute).not.toHaveBeenCalled();
   });
 
   it.each((["PUT", "DELETE"] as const).flatMap((method) => [
