@@ -59,12 +59,11 @@ const durableMessageNotificationStore: Store = {
     if (error) throw error;
   },
   async saveToken(userId, token, sessionId) {
-    const hash = endpointHash(token);
-    const { error: insertError } = await admin().from(tokensTable).upsert({ endpoint_hash: hash, user_id: userId, session_id: sessionId, token }, { onConflict: "endpoint_hash", ignoreDuplicates: true });
-    if (insertError) throw insertError;
-    const { data, error } = await admin().from(tokensTable).update({ user_id: userId, session_id: sessionId, updated_at: new Date().toISOString(), active_conversation_id: null, last_seen: null }).eq("endpoint_hash", hash).eq("token", token).select("endpoint_hash");
+    const { data, error } = await admin().rpc("message_notification_bind", {
+      p_user_id: userId, p_session_id: sessionId, p_endpoint_hash: endpointHash(token), p_token: token,
+    });
     if (error) throw error;
-    if (data?.length !== 1) throw new Error("Subscription secret does not match.");
+    if (data !== true) throw new Error("Subscription secret does not match.");
   },
   async removeToken(userId, token) {
     const { error } = await admin().from(tokensTable).delete().eq("endpoint_hash", endpointHash(token)).eq("user_id", userId);
@@ -133,7 +132,9 @@ export const memoryMessageNotificationStore: Store = {
   },
   async saveToken(userId, token, sessionId) {
     const key = endpointHash(token);
-    if (tokens.has(key) && tokens.get(key)?.token !== token) throw new Error("Subscription secret does not match.");
+    const previous = tokens.get(key);
+    if (previous && previous.token !== token) throw new Error("Subscription secret does not match.");
+    if (previous?.userId === userId && previous.sessionId === sessionId) return;
     tokens.set(key, { userId, token, sessionId });
   },
   async removeToken(userId, token) {

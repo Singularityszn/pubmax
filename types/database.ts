@@ -8657,6 +8657,15 @@ export type Database = {
         };
         Returns: boolean;
       };
+      message_notification_bind: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+        };
+        Returns: boolean;
+      };
       message_notification_session_active: {
         Args: {
           p_user_id: string | null;
