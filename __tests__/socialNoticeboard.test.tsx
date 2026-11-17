@@ -763,3 +763,23 @@ it.each([30, 200])("keeps a feed contiguous after %s posts arrive between heads"
     expect(host.textContent).toContain("Report 0");
   }
 });
+
+it("keeps pagination reachable when a background head populates an empty feed", async () => {
+  let published = false;
+  transport.request.mockImplementation(async (href: string) => {
+    if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
+    if (!href.startsWith("/api/social/posts")) return Response.json({ items: [] });
+    const offset = Number(new URL(href, "http://localhost").searchParams.get("cursor") ?? 0);
+    return Response.json({ posts: published ? Array.from({ length: 20 }, (_, i) => feedPost(`New report ${offset + i}`, 12)) : [], nextCursor: published ? String(offset + 20) : null });
+  });
+  await mountFeed();
+  expect(host.querySelector(".socialFeed")).toBeNull();
+  published = true;
+  await act(async () => window.dispatchEvent(new Event("focus")));
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(20);
+  const more = [...host.querySelectorAll("button")].find(button => button.textContent === "Load more");
+  expect(more).toBeDefined();
+  await act(async () => more!.click());
+  expect(host.querySelectorAll(".socialPostCard")).toHaveLength(40);
+  expect(host.textContent).toContain("New report 39");
+});

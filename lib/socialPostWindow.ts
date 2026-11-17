@@ -70,6 +70,8 @@ export function mergeSocialPostHead(current: SocialPostWindow, head: SocialPostP
     byId.set(post.id, post);
   }
   const posts = chronological([...byId.values()]);
-  if (posts.length === current.posts.length && posts.every((post, index) => post === current.posts[index])) return current;
-  return { ...current, posts, pages: Math.max(current.pages, Math.ceil(posts.length / SOCIAL_POST_PAGE_SIZE)) };
+  const nextCursor = current.posts.length ? current.nextCursor : head.nextCursor;
+  if (nextCursor === current.nextCursor && posts.length === current.posts.length &&
+    posts.every((post, index) => post === current.posts[index])) return current;
+  return { ...current, posts, nextCursor, pages: Math.max(current.pages, Math.ceil(posts.length / SOCIAL_POST_PAGE_SIZE)) };
 }

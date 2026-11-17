@@ -744,6 +744,7 @@ function SocialPageAccountState({
         feedData.current = { key: feedSnapshotKey, page };
         writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false, preserveAge: true });
         setPosts(page.posts);
+        setNextCursor(page.nextCursor);
         setLoadedPages(page.pages);
         setFeedStatus("ready");
         setQuietFeedFailure(false);
