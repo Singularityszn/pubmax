@@ -2,7 +2,6 @@
 
 import { MessageCircle, Search, SquarePen, UsersRound } from "lucide-react";
 import Link from "next/link";
-import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import {
   useCallback,
@@ -21,6 +20,7 @@ import MessageAvatar from "@/components/messages/MessageAvatar";
 import { IconButton } from "@/components/ui/icon-button";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import { invalidateMessagesInbox, invalidateMessagesInboxOnFocus, readMessagesInbox } from "@/lib/messagesInboxClient";
+import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
 import { InboxLoading } from "@/components/messages/MessageLoading";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import {
@@ -54,9 +54,6 @@ import "./messages.css";
 // subscribes to nothing; the list loads when the reader comes back to it.
 
 const HANDLE_KEY = "pubmax_handle";
-const MessagesNewGroup = dynamic(() => import("@/components/messages/MessagesNewGroup"), {
-  loading: () => <p className="conversationPreview" role="status">Opening new message…</p>,
-});
 type InboxFilter = "all" | "unread" | "groups";
 const INBOX_FILTERS = [{ id: "all", label: "All" }, { id: "unread", label: "Unread" }, { id: "groups", label: "Groups" }] as const;
 type InboxSnapshot = { conversations: ConversationDTO[]; partial: boolean };
