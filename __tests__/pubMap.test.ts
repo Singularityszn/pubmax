@@ -1331,6 +1331,12 @@ describe("suggestedRouteWanted and reactiveLogIntentActive", () => {
     ).toBe(true);
   });
 
+  it("does not build a pub suggestion behind an active fixed landmark walk", () => {
+    expect(suggestedRouteWanted({ hasReactiveLogIntent: false, planningOpen: true, routeMapped: true, hasFixedWalk: true })).toBe(false);
+    expect(suggestedRouteWanted({ hasReactiveLogIntent: false, planningOpen: false, routeMapped: false, hasFixedWalk: true })).toBe(false);
+    expect(suggestedRouteWanted({ hasReactiveLogIntent: false, planningOpen: true, routeMapped: true, hasFixedWalk: false })).toBe(true);
+  });
+
   it("disarms a log intent the reader has left", () => {
     expect(reactiveLogIntentActive(true, false)).toBe(true);
     expect(reactiveLogIntentActive(true, true)).toBe(false);
