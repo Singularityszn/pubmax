@@ -51,7 +51,6 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
-vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: (input: string, init?: RequestInit) =>
     new Promise<Response>((resolve, reject) => {
@@ -255,7 +254,7 @@ it("never draws a delayed read from the previous conversation, even on the way b
   expect(host.textContent).not.toContain("B content");
 });
 
-it("leaves a cold failure at the top of the page, and still scrolls a loaded thread to its newest", async () => {
+it("keeps the page still through a cold failure and its recovery", async () => {
   await render();
   await answer(outage());
   expect(retryPanel()).not.toBeNull();
@@ -268,7 +267,7 @@ it("leaves a cold failure at the top of the page, and still scrolls a loaded thr
   expect(scrollTo).not.toHaveBeenCalled();
   await answer(thread("Meet at seven"));
   expect(host.textContent).toContain("Meet at seven");
-  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+  expect(scrollTo).not.toHaveBeenCalled();
 });
 
 

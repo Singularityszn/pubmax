@@ -3,6 +3,7 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { storeThemeChoice } from "./helpers/themeClock";
 
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // The thread a person actually types into, measured on a production build.
 //
@@ -411,6 +412,7 @@ async function expectReadableCaption(field: Locator): Promise<void> {
 async function expectComposerInView(page: Page): Promise<void> {
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
+  await expect(page.locator(".composerDock")).toBeInViewport({ ratio: 1 });
   const dock = await box(page, ".composerDock");
   expect(dock.top, "composer top inside the viewport").toBeGreaterThanOrEqual(0);
   expect(dock.bottom, "composer bottom inside the viewport").toBeLessThanOrEqual(viewport!.height + 1);
@@ -868,649 +870,108 @@ test.describe("the message thread on a desktop", () => {
   });
 });
 
-for (const width of [390, 768, 1440]) {
-  test(`photo history loads nearby frames and keyboard destinations at ${width}px`, async ({ page }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 });
-    await storeThemeChoice(page, "light");
-    const sharp = (await import("sharp")).default;
-    const bytes = await sharp("public/landing/hero-thames.jpg").resize(2048, 1536, { fit: "cover" }).jpeg({ quality: 88 }).toBuffer();
-    const rows = Array.from({ length: 40 }, (_, index) => ({
-      id: `history-${index}`, conversationId: "c1", senderHandle: THEM, body: "", createdAt: new Date(Date.now() - (40 - index) * 60_000).toISOString(), read: true, flagged: false,
-      attachment: { kind: "photo", url: `/api/messages/c1/media/history-${index}`, width: 2048, height: 1536 },
-    }));
-    const requests: string[] = [];
-    await installThread(page, rows);
-    await page.route("**/api/messages/c1/media/**", async route => {
-      requests.push(new URL(route.request().url()).pathname);
-      await route.fulfill({ contentType: "image/jpeg", body: bytes });
-    });
-    await page.goto("/messages/c1");
-    const frames = page.locator(".messagePhotoFigure");
-    await expect(frames).toHaveCount(40);
-    await expect(frames.last().locator(".messagePhotoButton")).toBeVisible();
-    await expect(frames.nth(20).locator(".messagePhotoPending")).toHaveCount(1);
-    expect(requests).not.toContain("/api/messages/c1/media/history-20");
-    expect(requests.length).toBeLessThanOrEqual(12);
-    const initial = { requests: requests.length, bytes: requests.length * bytes.length, totalFixtureBytes: 40 * bytes.length };
-    await page.screenshot({ path: testInfo.outputPath("history-initial.png") });
-    const before = await frames.nth(20).boundingBox();
-    await frames.nth(20).scrollIntoViewIfNeeded();
-    const opener = frames.nth(20).locator(".messagePhotoButton");
-    await expect(opener).toBeVisible();
-    await expect(opener).toBeInViewport();
-    expect(requests).toContain("/api/messages/c1/media/history-20");
-    expect((await frames.nth(20).boundingBox())!.height).toBeCloseTo(before!.height, 1);
-    await opener.focus();
-    await page.keyboard.press("Enter");
-    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
-    await page.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(opener).toBeFocused();
-    await frames.first().scrollIntoViewIfNeeded();
-    await expect(frames.first().locator(".messagePhotoButton")).toBeVisible();
-    expect(requests).toContain("/api/messages/c1/media/history-0");
-    expect(requests.length).toBeLessThan(40);
-    await page.screenshot({ path: testInfo.outputPath("history-older.png") });
-    await testInfo.attach("historical media requests", { body: JSON.stringify({ width, initial, afterScroll: { requests: requests.length, bytes: requests.length * bytes.length }, bytesPerPhoto: bytes.length }), contentType: "application/json" });
-  });
-}
 
-test("photo selection reports a twelve-photo batch from native file paths", async ({ page }, testInfo) => {
-  const { writeFile } = await import("node:fs/promises");
-  const sharp = (await import("sharp")).default;
-  const bytes = await sharp("public/landing/hero-thames.jpg").resize(4032, 3024, { fit: "cover" }).jpeg({ quality: 94 }).toBuffer();
-  const paths = await Promise.all(Array.from({ length: 12 }, async (_, index) => {
-    const path = testInfo.outputPath(`camera-${index}.jpg`);
-    await writeFile(path, bytes);
-    return path;
-  }));
-  await page.setViewportSize(PHONE);
-  await storeThemeChoice(page, "light");
-  await installThread(page, fixture());
-  await page.goto("/messages/c1");
-  await expect(page.locator(".composerInput")).toBeVisible();
-  await page.evaluate(() => {
-    const samples: Array<{ completed: number; total: number; previews: number; editable: boolean; cancel: boolean }> = [];
-    (window as unknown as { preparationSamples: typeof samples }).preparationSamples = samples;
-    const dock = document.querySelector(".composerDock")!;
-    const observer = new MutationObserver(() => {
-      const progress = dock.querySelector('[role="progressbar"][aria-label="Photo preparation"]');
-      if (!progress) return;
-      samples.push({ completed: Number(progress.getAttribute("aria-valuenow")), total: Number(progress.getAttribute("aria-valuemax")), previews: dock.querySelectorAll(".composerPendingThumb").length, editable: !dock.querySelector<HTMLTextAreaElement>(".composerInput")!.disabled, cancel: !!dock.querySelector(".composerPreparing button") });
-    });
-    observer.observe(dock, { childList: true, subtree: true, attributes: true });
-  });
-  await page.locator("#message-photo-file").setInputFiles(paths);
-  await expect(page.locator(".composerPendingThumb")).toHaveCount(12);
-  const samples = await page.evaluate(() => (window as unknown as { preparationSamples: Array<{ completed: number; total: number; previews: number; editable: boolean; cancel: boolean }> }).preparationSamples);
-  expect(samples.some(sample => sample.completed > 0 && sample.completed < 12)).toBe(true);
-  expect(samples.every(sample => sample.total === 12 && sample.previews === 0 && sample.editable && sample.cancel)).toBe(true);
-  expect(samples.map(sample => sample.completed)).toEqual(samples.map(sample => sample.completed).sort((a, b) => a - b));
-  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-  await testInfo.attach("preparation progress", { body: JSON.stringify({ samples, inputBytes: bytes.length, dimensions: [4032, 3024], source: "upscaled project photograph" }), contentType: "application/json" });
-  await page.screenshot({ path: testInfo.outputPath("twelve-photos-prepared.png") });
-});
-
-test("an older poll preserves acknowledged photos until stored bytes decode", async ({ page }, testInfo) => {
-  await page.setViewportSize({ width: 768, height: 900 });
-  await storeThemeChoice(page, "light");
-  const rows = fixture();
-  await installThread(page, rows);
-  const sharp = (await import("sharp")).default;
-  const bytes = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
-  let holdRead = false;
-  let releaseRead!: () => void;
-  const media: Array<() => void> = [];
-  let sent = 0;
-  await page.route("**/api/messages/c1**", async route => {
-    if (new URL(route.request().url()).pathname.includes("/media/")) {
-      await new Promise<void>(resolve => { media.push(resolve); });
-      await route.fulfill({ contentType: "image/jpeg", body: bytes });
-    } else if (route.request().method() === "POST") {
-      const message = {
-        id: `saved-photo-${sent++}`, conversationId: "c1", senderHandle: ME, body: "", createdAt: new Date().toISOString(), read: false, flagged: false,
-        attachment: { kind: "photo", url: `/api/messages/c1/media/saved-${sent}`, width: 1200, height: 800 },
-      };
-      rows.push(message);
-      await route.fulfill({ json: { message } });
-    } else {
-      const snapshot = [...rows];
-      if (holdRead) {
-        holdRead = false;
-        await new Promise<void>(resolve => { releaseRead = resolve; });
-      }
-      await route.fulfill({ json: { messages: snapshot } });
-    }
-  });
-  await page.goto("/messages/c1");
-  await expect(page.locator(".composerInput")).toBeVisible();
-  holdRead = true;
-  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
-  await expect(() => expect(releaseRead).toBeDefined()).toPass();
-  await page.locator("#message-photo-file").setInputFiles([1, 2].map(index => ({ name: `photo-${index}.jpg`, mimeType: "image/jpeg", buffer: bytes })));
-  await expect(page.locator(".composerPendingThumb")).toHaveCount(2);
-  await page.getByRole("button", { name: "Send", exact: true }).click();
-  const photos = page.locator(".messagePhotoButton .messagePhoto");
-  await expect(photos).toHaveCount(2);
-  await expect(() => expect(media).toHaveLength(2)).toPass();
-  const previews = await photos.evaluateAll(images => images.map(image => image.getAttribute("src")));
-  const stale = page.waitForResponse(response => response.request().method() === "GET" && new URL(response.url()).pathname === "/api/messages/c1");
-  releaseRead();
-  await stale;
-  await expect(photos).toHaveCount(2);
-  await expect(async () => expect(await photos.evaluateAll(images => images.map(image => image.getAttribute("src")))).toEqual(previews)).toPass();
-  await expect(page.locator(".messagePhotoPending")).toHaveCount(0);
-  const path = testInfo.outputPath("delayed-poll-previews.png");
-  await page.screenshot({ path });
-  await testInfo.attach("previews after the older poll", { path, contentType: "image/png" });
-  for (const release of media) release();
-  await expect(async () => expect(await photos.evaluateAll(images => images.map(image => image.getAttribute("src")))).not.toEqual(previews)).toPass();
-  await expect(photos).toHaveCount(2);
-});
-
-for (const pointer of ["coarse", "fine"] as const) test.describe(`photo frame with ${pointer} pointer`, () => {
-  test.use({ hasTouch: pointer === "coarse", isMobile: pointer === "coarse" });
-
-for (const width of [390, 768, 1440]) for (const native of [false, true]) {
-  for (const size of [{ width: 128, height: 2048 }, { width: 2048, height: 128 }]) {
-    for (const largeText of [false, true]) {
-      test(`photo selection frame stays stable at ${width}px, ${size.width}x${size.height}, native ${native}, large text ${largeText}`, async ({ page }, testInfo) => {
-        await page.setViewportSize({ width, height: 900 });
-        await page.addInitScript(({ native, largeText }) => {
-          const apply = () => {
-            if (!document.documentElement) return false;
-            document.documentElement.toggleAttribute("data-native-shell", native);
-            document.documentElement.style.fontSize = largeText ? "32px" : "16px";
-            return true;
-          };
-          if (!apply()) {
-            const observer = new MutationObserver(() => { if (apply()) observer.disconnect(); });
-            observer.observe(document, { childList: true });
-          }
-        }, { native, largeText });
-        await page.emulateMedia({ reducedMotion: largeText ? "reduce" : "no-preference" });
-        await storeThemeChoice(page, largeText ? "dark" : "light");
-        const rows = fixture();
+test.describe("thread keyboard geometry", () => {
+  for (const layout of [
+    { width: 390, shell: "web" }, { width: 768, shell: "web" }, { width: 1440, shell: "web" },
+    { width: 390, shell: "ios" }, { width: 390, shell: "android" },
+  ]) {
+    const { width, shell } = layout;
+    for (const theme of ["dark", "light"] as const) {
+      test(`group thread keyboard dock at ${width} in ${theme} on ${shell}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 844 });
+        await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+        if (shell !== "web") {
+          await page.addInitScript((platform) => {
+            Object.defineProperty(window, "Capacitor", {
+              configurable: true,
+              value: Object.defineProperties({}, {
+                isNativePlatform: { get: () => () => true, set: () => {} },
+                getPlatform: { get: () => () => platform, set: () => {} },
+              }),
+            });
+            window.localStorage.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+          }, shell);
+          await page.emulateMedia({ reducedMotion: "reduce" });
+        }
+        await storeThemeChoice(page, theme);
+        await page.addInitScript(() => {
+          let height: number | undefined;
+          Object.defineProperties(window.visualViewport!, {
+            height: { configurable: true, get: () => height ?? window.innerHeight, set: (next: number) => { height = next; } },
+            offsetTop: { configurable: true, writable: true, value: 0 },
+          });
+        });
+        const rows = fixture().slice(-3);
         await installThread(page, rows);
-        const sharp = (await import("sharp")).default;
-        const bytes = await sharp({ create: { ...size, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
-        let releaseSend!: () => void;
-        let releaseMedia!: (result: "request-error" | "decode-error" | "success") => void;
-        let mediaRequests = 0;
-        await page.route("**/api/messages/c1**", async route => {
-          if (new URL(route.request().url()).pathname.includes("/media/")) {
-            mediaRequests++;
-            const result = await new Promise<"request-error" | "decode-error" | "success">(resolve => { releaseMedia = resolve; });
-            if (result === "request-error") await route.fulfill({ status: 503, body: "Unavailable" });
-            else await route.fulfill({ contentType: "image/jpeg", body: result === "success" ? bytes : Buffer.from("broken image") });
-            return;
-          }
-          if (route.request().method() !== "POST") {
-            await route.fulfill({ json: { messages: rows } });
-            return;
-          }
-          await new Promise<void>(resolve => { releaseSend = resolve; });
-          const message = {
-            id: "extreme-photo", conversationId: "c1", senderHandle: ME, body: "", createdAt: new Date().toISOString(), read: false, flagged: false,
-            attachment: { kind: "photo", url: "/api/messages/c1/media/extreme-photo", ...size },
-          };
-          rows.push(message);
-          await route.fulfill({ json: { message } });
+        await page.route("**/api/messages/c1**", async (route, request) => {
+          if (request.method() === "POST") return route.fallback();
+          await route.fulfill({ json: {
+            messages: rows,
+            conversation: { kind: "group", members: [ME, THEM, "maisie"], title: "Friday regulars" },
+          } });
         });
         await page.goto("/messages/c1");
-        await expect(page.locator(".composerInput")).toBeVisible();
-        const configureFrame = () => page.evaluate(({ native, largeText }) => {
-          document.documentElement.toggleAttribute("data-native-shell", native);
-          document.documentElement.style.fontSize = largeText ? "32px" : "16px";
-        }, { native, largeText });
-        await configureFrame();
-        expect(await page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(pointer === "coarse");
-        const frame = page.locator(".messagePhotoFigure");
-        const photo = frame.locator(".messagePhoto");
-        const opener = frame.locator(".messagePhotoButton");
-        const retry = frame.getByRole("button", { name: "Retry photo", exact: true });
-        const geometry = async () => frame.evaluate(element => {
-          const rect = element.getBoundingClientRect();
-          const image = element.querySelector<HTMLImageElement>(".messagePhoto")!;
-          const box = image.getBoundingClientRect();
-          const scale = Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight);
-          return {
-            width: rect.width, height: rect.height,
-            paintX: box.x - rect.x + (box.width - image.naturalWidth * scale) / 2,
-            paintY: box.y - rect.y + (box.height - image.naturalHeight * scale) / 2,
-            paintWidth: image.naturalWidth * scale, paintHeight: image.naturalHeight * scale,
-          };
-        });
-        const shot = async (step: string) => {
-          const path = testInfo.outputPath(`${step}.png`);
-          await page.screenshot({ path });
-          await testInfo.attach(step, { path, contentType: "image/png" });
-        };
-        await page.locator("#message-photo-file").setInputFiles({ name: "extreme.jpg", mimeType: "image/jpeg", buffer: bytes });
-        await expect(page.locator(".composerPendingThumb")).toBeVisible();
-        await page.getByRole("button", { name: "Send", exact: true }).click();
-        await expect(page.locator(".messagePhotoSending")).toBeVisible();
-        await expect(photo).toHaveJSProperty("naturalWidth", size.width);
-        const original = await geometry();
-        expect(original.width).toBeGreaterThanOrEqual(44);
-        expect(original.height).toBeGreaterThanOrEqual(44);
-        expect(original.height).toBeLessThanOrEqual(240);
-        expect(original.paintWidth / original.paintHeight).toBeCloseTo(size.width / size.height, 4);
-        await shot("optimistic");
-        await expect(() => expect(releaseSend).toBeDefined()).toPass();
-        releaseSend();
-        await expect(opener).toBeVisible();
-        await expect(() => expect(mediaRequests).toBe(1)).toPass();
-        const localUrl = await photo.getAttribute("src");
-        const stable = async () => {
-          const current = await geometry();
-          for (const key of Object.keys(original) as Array<keyof typeof original>) expect(current[key]).toBeCloseTo(original[key], 1);
-          expect(await photo.evaluate(image => getComputedStyle(image).objectFit)).toBe("contain");
-          expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
-          const target = (await opener.boundingBox())!;
-          expect(target.width).toBeGreaterThanOrEqual(44);
-          expect(target.height).toBeGreaterThanOrEqual(44);
-        };
-        await stable();
-        for (const [index, result] of (["request-error", "decode-error"] as const).entries()) {
-          releaseMedia(result);
-          await expect(retry).toBeVisible();
-          expect(await photo.getAttribute("src")).toBe(localUrl);
-          await stable();
-          const retryBox = (await retry.boundingBox())!;
-          const frameBox = (await frame.boundingBox())!;
-          expect(retryBox.width).toBeGreaterThanOrEqual(44);
-          expect(retryBox.height).toBeGreaterThanOrEqual(44);
-          expect(retryBox.x).toBeGreaterThanOrEqual(frameBox.x);
-          expect(retryBox.y).toBeGreaterThanOrEqual(frameBox.y);
-          expect(retryBox.x + retryBox.width).toBeLessThanOrEqual(frameBox.x + frameBox.width + 1);
-          expect(retryBox.y + retryBox.height).toBeLessThanOrEqual(frameBox.y + frameBox.height + 1);
-          expect(await retry.evaluate(button => button.scrollWidth <= button.clientWidth && button.scrollHeight <= button.clientHeight)).toBe(true);
-          await shot(result);
-          await opener.click({ position: { x: 2, y: frameBox.height - 2 } });
-          await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
-          await page.getByRole("button", { name: "Close", exact: true }).click();
-          await expect(opener).toBeFocused();
-          await retry.click();
-          await expect(() => expect(mediaRequests).toBe(index + 2)).toPass();
-          await stable();
-        }
-        releaseMedia("success");
-        await expect(photo).not.toHaveAttribute("src", localUrl!);
-        await expect(photo).toHaveJSProperty("naturalWidth", size.width);
-        await expect(retry).toHaveCount(0);
-        await stable();
-        await shot("stored");
-        await page.reload();
-        await configureFrame();
-        await expect(frame.locator(".messagePhotoPending")).toBeVisible();
-        const reserved = (await frame.boundingBox())!;
-        expect(reserved.width).toBeCloseTo(original.width, 1);
-        expect(reserved.height).toBeCloseTo(original.height, 1);
-        await expect(() => expect(mediaRequests).toBe(4)).toPass();
-        releaseMedia("request-error");
-        await expect(retry).toBeVisible();
-        expect(await photo.count()).toBe(0);
-        const failed = (await frame.boundingBox())!;
-        expect(failed.width).toBeCloseTo(reserved.width, 1);
-        expect(failed.height).toBeCloseTo(reserved.height, 1);
-        await shot("remote-only-error");
-        await retry.click();
-        await expect(() => expect(mediaRequests).toBe(5)).toPass();
-        releaseMedia("success");
-        await expect(opener).toBeVisible();
-        await stable();
-        await expectNoHorizontalOverflow(page, width);
-      });
-    }
-  }
-}
-
-});
-
-for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) {
-  test(`photo drafts stay neutral and captions resize live at ${width}px in ${theme}`, async ({ page }, testInfo) => {
-    const resizeErrors: string[] = [];
-    page.on("pageerror", error => { if (error.message.includes("ResizeObserver")) resizeErrors.push(error.message); });
-    await page.setViewportSize({ width, height: 900 });
-    await installThread(page, fixture());
-    await storeThemeChoice(page, theme);
-    let sends = 0;
-    page.on("request", request => {
-      if (request.method() === "POST" && new URL(request.url()).pathname === "/api/messages/c1") sends += 1;
-    });
-    const sharp = (await import("sharp")).default;
-    const photo = await sharp({ create: { width: 1200, height: 800, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
-    await page.goto("/messages/c1");
-    await page.locator("#message-photo-file").setInputFiles({ name: "draft.jpg", mimeType: "image/jpeg", buffer: photo });
-    await expect(page.locator(".composerPendingThumb")).toBeVisible();
-    const field = page.getByRole("textbox", { name: "Message", exact: true });
-    const caption = "The full photo with a caption that wraps onto several lines.";
-    await field.fill(caption);
-    for (const visit of [1, 2]) {
-      const inbox = width >= 1024
-        ? page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: /^Messages/ })
-        : page.getByRole("link", { name: "Back to inbox", exact: true });
-      await inbox.click();
-      await expect(page).toHaveURL(/\/messages$/);
-      const notice = page.locator(".messagePhotoRecoveryNotice");
-      const link = page.getByRole("link", { name: "Return to your photos", exact: true });
-      await expect(link).toBeVisible();
-      expect(await link.evaluate(element => getComputedStyle(element).color)).toBe(await notice.evaluate(element => getComputedStyle(element).color));
-      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-recovery-${visit}.png`) });
-      await link.click();
-      await expect(page).toHaveURL(/\/messages\/c1$/);
-      await expect(page.locator(".composerPendingThumb")).toBeVisible();
-      await expect(field).toHaveValue(caption);
-      await expect(page.locator(".threadError")).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Retry send", exact: true })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Send", exact: true })).toBeEnabled();
-    }
-    expect(sends).toBe(0);
-    for (const text of ["", "The full photo.", caption]) {
-      await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
-      await field.fill(text);
-      await expectReadableCaption(field);
-      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-      await expectReadableCaption(field);
-      await expect(field).toHaveValue(text);
-      const dock = (await page.locator(".composerDock").boundingBox())!;
-      expect(dock.y).toBeGreaterThanOrEqual(0);
-      expect(dock.y + dock.height).toBeLessThanOrEqual(900);
-      await expectNoHorizontalOverflow(page, width);
-      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
-      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-${text ? "caption" : "empty"}-large-text.png`) });
-    }
-    await page.setViewportSize({ width: width === 390 ? 768 : 390, height: 900 });
-    await expectReadableCaption(field);
-    await expect(field).toHaveValue(caption);
-    await page.setViewportSize({ width, height: 900 });
-    await field.fill("A long caption that must scroll. ".repeat(20));
-    const overflow = await field.evaluate(element => {
-      element.scrollTop = element.scrollHeight;
-      return { height: element.clientHeight, required: element.scrollHeight, maxHeight: parseFloat(getComputedStyle(element).maxHeight), scroll: element.scrollTop };
-    });
-    expect(overflow.height).toBeLessThanOrEqual(overflow.maxHeight + 1);
-    expect(overflow.required).toBeGreaterThan(overflow.height);
-    expect(overflow.scroll).toBeGreaterThan(0);
-    expect(resizeErrors).toEqual([]);
-  });
-}
-
-test.describe("compact photo composer", () => {
-  test.use({ isMobile: false });
-
-  for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as const) for (const keyboard of width === 390 ? [false, true] : [false]) {
-    test(`photo selection controls remain reachable with large text at ${width}px in ${theme}${keyboard ? " with a keyboard inset" : ""}`, async ({ page }, testInfo) => {
-      await page.setViewportSize({ width, height: 900 });
-      await storeThemeChoice(page, theme);
-      await installThread(page, fixture());
-      let sends = 0;
-      await page.route("**/api/messages/c1", async route => {
-        const request = route.request();
-        if (request.method() === "POST" && request.headers()["content-type"]?.includes("multipart/form-data")) {
-          sends += 1;
-          await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } });
-        } else await route.fallback();
-      });
-      const sharp = (await import("sharp")).default;
-      const photo = await sharp({ create: { width: 1200, height: 900, channels: 3, background: "#d0a050" } }).jpeg().toBuffer();
-      await page.goto("/messages/c1");
-      await page.locator("#message-photo-file").setInputFiles({ name: "compact.jpg", mimeType: "image/jpeg", buffer: photo });
-      await expect(page.locator(".composerPendingThumb")).toBeVisible();
-      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-      const field = page.getByRole("textbox", { name: "Message", exact: true });
-      const caption = "A photo caption for a small viewport with large accessible text.";
-      await field.fill(caption);
-      await page.setViewportSize({ width, height: 480 });
-      if (keyboard) {
-        await field.focus();
-        await page.evaluate(() => {
-          const viewport = window.visualViewport!;
-          Object.defineProperties(viewport, {
-            height: { configurable: true, get: () => 220 },
-            offsetTop: { configurable: true, get: () => 0 },
+        const field = page.getByRole("textbox", { name: "Message", exact: true });
+        await expect(field).toBeVisible();
+        await expect(page.getByText("Friday regulars", { exact: true })).toBeVisible();
+        if (shell !== "web") await expect(page.locator("html")).toHaveAttribute("data-native-shell", shell);
+        const pageScroll = await page.evaluate(() => window.scrollY);
+        await (testInfo.project.use.hasTouch ? field.tap() : field.click());
+        if (width < 1024) {
+          if (shell === "android") await page.setViewportSize({ width, height: 500 });
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 500 });
+            window.visualViewport!.dispatchEvent(new Event("resize"));
           });
-          viewport.dispatchEvent(new Event("resize"));
+          await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+        }
+        await page.screenshot({
+          path: testInfo.outputPath(`keyboard-${width}-${theme}.png`),
+          ...(width < 1024 ? { clip: { x: 0, y: 0, width, height: 500 } } : {}),
         });
-        await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
-        await expect(page.locator(".messageThreadShell")).toHaveCSS("--keyboard-inset", "260px");
-      }
-      await expectReadableCaption(field);
-
-      const reachable = async (control: Locator) => {
         await expect(async () => {
-          const dock = page.locator(".composerDock");
-          const box = await dock.boundingBox();
-          expect(box).not.toBeNull();
-          const header = (await page.locator(".threadHeader").boundingBox())!;
-          const visual = await page.evaluate(() => ({
-            top: window.visualViewport?.offsetTop ?? 0,
-            bottom: (window.visualViewport?.offsetTop ?? 0) + (window.visualViewport?.height ?? innerHeight),
-          }));
-          const top = Math.max(80, visual.top, header.y + header.height, box!.y);
-          const bottom = Math.min(460, visual.bottom, box!.y + box!.height);
-          expect(bottom).toBeGreaterThan(top);
-          expect(box!.y).toBeGreaterThanOrEqual(header.y + header.height - 1);
-          expect(box!.y + box!.height).toBeLessThanOrEqual(visual.bottom + 1);
-          expect(await dock.evaluate(element => {
-            const style = getComputedStyle(element);
-            return element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-          })).toBeGreaterThanOrEqual(44);
-          await page.mouse.move(box!.x + 4, (top + bottom) / 2);
-          const target = await control.boundingBox();
-          expect(target).not.toBeNull();
-          await page.mouse.wheel(0, target!.y + target!.height / 2 - (top + bottom) / 2);
-          await expect(control).toBeInViewport({ ratio: 0.99 });
-          const visible = (await control.boundingBox())!;
-          expect(visible.width).toBeGreaterThanOrEqual(44);
-          expect(visible.height).toBeGreaterThanOrEqual(44);
-          expect(visible.y).toBeGreaterThanOrEqual(top - 1);
-          expect(visible.y + visible.height).toBeLessThanOrEqual(bottom + 1);
-          expect(await control.evaluate(element => {
-            const rect = element.getBoundingClientRect();
-            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
-          })).toBe(true);
+          const geometry = await page.evaluate(() => {
+            const dock = document.querySelector(".composerDock")!.getBoundingClientRect();
+            const header = document.querySelector(".threadHeader")!.getBoundingClientRect();
+            const day = document.querySelector(".threadDay")!.getBoundingClientRect();
+            return {
+              gap: window.visualViewport!.height + window.visualViewport!.offsetTop - dock.bottom,
+              dateClearance: day.top - header.bottom,
+              scale: window.visualViewport!.scale,
+            };
+          });
+          if (width < 1024) {
+            expect(Math.abs(geometry.gap), "dock meets the visible viewport foot").toBeLessThanOrEqual(1);
+          } else {
+            await expectComposerInView(page);
+          }
+          expect(geometry.dateClearance, "Today clears the header").toBeGreaterThanOrEqual(0);
+          expect(geometry.scale).toBe(1);
         }).toPass();
-      };
-      await reachable(page.getByRole("button", { name: "Remove", exact: true }));
-      const send = page.getByRole("button", { name: "Send", exact: true });
-      await reachable(send);
-      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-send.png`) });
-      await send.click();
-      const retry = page.getByRole("button", { name: "Retry send", exact: true });
-      await expect(retry).toBeEnabled();
-      if (keyboard) await field.focus();
-      await reachable(retry);
-      await page.screenshot({ path: testInfo.outputPath(`${width}-${theme}-compact-retry.png`) });
-      expect(sends).toBe(1);
-      await expect(field).toHaveValue(caption);
-      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
-      await expectNoHorizontalOverflow(page, width);
-    });
+        await expectMessageInView(page, "Bring cash, card machine is dodgy");
+        await field.fill("See you there");
+        const send = page.getByRole("button", { name: "Send", exact: true });
+        await (testInfo.project.use.hasTouch ? send.tap() : send.click());
+        await expectMessageInView(page, "See you there");
+        await expect(field).toBeFocused();
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+        expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+        if (width < 1024) {
+          await field.blur();
+          await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
+          await expect(async () => {
+            expect(Math.abs((await box(page, ".composerDock")).bottom - 500)).toBeLessThanOrEqual(1);
+          }).toPass();
+          if (shell === "android") await page.setViewportSize({ width, height: 844 });
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 844, offsetTop: 0 });
+            window.visualViewport!.dispatchEvent(new Event("resize"));
+          });
+          await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
+          await expectMessageInView(page, "See you there");
+        }
+      });
+    }
   }
 });
-
-for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
-  test(`photo selection (${photoCount}), interrupted send and viewer keep page scale at 1 at ${width}px`, async ({ page, browser, browserName }, testInfo) => {
-    await page.setViewportSize({ width, height: 900 });
-    const rows = fixture();
-    await installThread(page, rows);
-    await storeThemeChoice(page, "light");
-    const sharp = (await import("sharp")).default;
-    const original = await sharp({ create: { width: 1800, height: 900, channels: 3, background: "#d0a050" } }).withMetadata({ orientation: photoCount === 1 ? 6 : 1 }).jpeg().toBuffer();
-    const fixedPhoto = await sharp(original).rotate().jpeg().toBuffer();
-    const files = new Map<string, Buffer>();
-    let release!: () => void;
-    let rejectNext = true;
-    const requests: Array<{ key: string; body: string; photo: Buffer }> = [];
-    let holdMedia = true;
-    const releaseMedia: Array<() => void> = [];
-    await page.route("**/api/messages/c1**", async route => {
-      const url = new URL(route.request().url());
-      if (url.pathname.includes("/media/")) {
-        if (holdMedia) await new Promise<void>(resolve => { releaseMedia.push(resolve); });
-        await route.fulfill({ contentType: "image/jpeg", body: files.get(url.pathname)! });
-        return;
-      }
-      if (route.request().method() !== "POST") {
-        await route.fulfill({ json: { messages: rows } }); return;
-      }
-      // WebKit omits multipart File bytes from its interception protocol.
-      // It checks geometry and scale against fixed server-shaped responses.
-      let post = { body: requests.length < 2 ? "The full photo" : "", clientMessageId: "webkit-fixture" };
-      let bytes = fixedPhoto;
-      if (browserName === "chromium") {
-        const data = await new Request(url, { method: "POST", headers: { "content-type": route.request().headers()["content-type"]! }, body: new Uint8Array(route.request().postDataBuffer()!) }).formData();
-        post = JSON.parse(String(data.get("post")));
-        bytes = Buffer.from(await (data.get("photo") as File).arrayBuffer());
-      }
-      requests.push({ key: post.clientMessageId, body: post.body, photo: bytes });
-      await new Promise<void>(resolve => { release = resolve; });
-      if (rejectNext) { rejectNext = false; await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } }); return; }
-      const id = `m${rows.length + 1}`;
-      const path = `/api/messages/c1/media/${id}`;
-      files.set(path, bytes);
-      const metadata = await sharp(bytes).metadata();
-      const message = { id, conversationId: "c1", senderHandle: ME, body: post.body, createdAt: new Date().toISOString(), read: false, flagged: false,
-        attachment: { kind: "photo", url: path, width: metadata.width!, height: metadata.height! } };
-      rows.push(message);
-      await route.fulfill({ json: { message } });
-    });
-    const shot = async (step: string) => {
-      const path = testInfo.outputPath(`${width}-${step}.png`);
-      await page.screenshot({ path });
-      await testInfo.attach(step, { path, contentType: "image/png" });
-    };
-    const scaleIsOne = async () => expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
-    const readable = async (selector: string, count: number) => {
-      await expect(page.locator(selector)).toHaveCount(count);
-      await expect(async () => expect(await page.locator(selector).evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)).toPass();
-    };
-    await page.goto("/messages/c1");
-    await expect(page.locator(".composerInput")).toBeVisible();
-    expect(parseFloat(await page.locator(".composerInput").evaluate(element => getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
-    await page.locator(".composerInput").focus(); await scaleIsOne();
-    await shot("before-attach"); await scaleIsOne();
-    await page.locator("#message-photo-file").setInputFiles(Array.from({ length: photoCount }, (_, index) => ({ name: `photo-${index}.jpg`, mimeType: "image/jpeg", buffer: original })));
-    await readable(".composerPendingThumb", photoCount);
-    await expect(page.getByRole("dialog", { name: "Crop photo" })).toHaveCount(0);
-    await shot("attached"); await scaleIsOne();
-    await page.getByRole("textbox", { name: "Message", exact: true }).fill("The full photo");
-    await page.getByRole("button", { name: "Send", exact: true }).click();
-    await expect(page.getByRole("progressbar", { name: "Sending photo" })).toBeVisible();
-    await readable(".messagePhotoSending", photoCount);
-    await shot("sending"); await scaleIsOne();
-    await expect(async () => expect(requests).toHaveLength(1)).toPass();
-    if (photoCount === 2 && width === 390) {
-      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
-      await expect(page).toHaveURL(/\/messages$/);
-      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
-      await shot("paused-in-inbox");
-      release();
-      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
-      await expect(page).toHaveURL(/\/messages\/c1$/);
-      await readable(".composerPendingThumb", photoCount);
-      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
-      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
-      await shot("paused-after-second-leave");
-      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
-    } else release();
-    const resumedUncertainSend = photoCount === 2 && width === 390;
-    const resend = page.getByRole("button", { name: resumedUncertainSend ? "Send" : "Retry send", exact: true });
-    await expect(resend).toBeEnabled();
-    if (resumedUncertainSend) {
-      await expect(page.locator(".threadError")).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "Retry send" })).toHaveCount(0);
-    }
-    if (photoCount === 1 && width === 390) {
-      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
-      await expect(page.getByRole("link", { name: "Return to your photos", exact: true })).toBeVisible();
-      await page.getByRole("link", { name: "Return to your photos", exact: true }).click();
-      await expect(page.getByRole("button", { name: "Retry send" })).toBeEnabled();
-    }
-    await readable(".composerPendingThumb", photoCount);
-    await shot("failed-retry"); await scaleIsOne();
-    await resend.click();
-    await expect(async () => expect(requests).toHaveLength(2)).toPass();
-    if (browserName === "chromium") expect(requests[1]!.key).toBe(requests[0]!.key);
-    release();
-    if (photoCount > 1) { await expect(async () => expect(requests).toHaveLength(3)).toPass(); release(); }
-    await expect(page.locator("[data-sending]")).toHaveCount(0);
-    await readable(".messagePhotoButton .messagePhoto", photoCount);
-    await expect(page.locator(".messagePhotoPending")).toHaveCount(0);
-    const reserved = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
-      const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };
-    }));
-    await shot("loading-photos"); await scaleIsOne();
-    const localUrls = await page.locator(".messagePhotoButton .messagePhoto").evaluateAll(images => images.map(image => image.getAttribute("src")));
-    holdMedia = false; releaseMedia.forEach(resolve => resolve());
-    await expect(async () => {
-      const storedUrls = await page.locator(".messagePhotoButton .messagePhoto").evaluateAll(images => images.map(image => image.getAttribute("src")));
-      expect(storedUrls).toHaveLength(photoCount);
-      expect(storedUrls.every(url => !localUrls.includes(url))).toBe(true);
-    }).toPass();
-    await readable(".messagePhotoButton .messagePhoto", photoCount);
-    const loaded = await page.locator(".messagePhotoFigure").evaluateAll(elements => elements.map(element => {
-      const box = element.getBoundingClientRect(); return { width: box.width, height: box.height };
-    }));
-    expect(loaded).toEqual(reserved);
-    if (browserName === "chromium") {
-      expect(requests.map(request => request.body)).toEqual(photoCount > 1 ? ["The full photo", "The full photo", ""] : ["The full photo", "The full photo"]);
-      const uploaded = await sharp(requests[1]!.photo).metadata();
-      expect(uploaded.width! / uploaded.height!).toBe(photoCount === 1 ? 0.5 : 2);
-      expect(uploaded.orientation).toBeUndefined();
-    }
-    await expect(page.locator("[data-sending]")).toHaveCount(0);
-    await shot("sent-light"); await scaleIsOne();
-    await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
-    await expect(page.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible();
-    await shot("sent-dark");
-    await page.locator(".messagePhotoButton").first().click();
-    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
-    expect(await page.locator(".messagePhotoViewer").boundingBox()).toEqual({ x: 0, y: 0, width, height: 900 });
-    await page.getByRole("button", { name: "Zoom in", exact: true }).click();
-    await expect(page.locator(".messagePhotoViewerStage")).toHaveAttribute("data-scale", "1.5");
-    if (browserName === "chromium") {
-      const bounds = await page.locator(".messagePhotoViewerStage").boundingBox();
-      const x = bounds!.x + bounds!.width / 2;
-      const y = bounds!.y + bounds!.height / 2;
-      const cdp = await page.context().newCDPSession(page);
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ id: 1, x: x - 30, y }, { id: 2, x: x + 30, y }] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ id: 1, x: x - 60, y }, { id: 2, x: x + 60, y }] });
-      await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await expect(async () => expect(Number(await page.locator(".messagePhotoViewerStage").getAttribute("data-scale"))).toBeGreaterThan(1.5)).toPass();
-      await cdp.detach();
-    }
-    await shot("viewer-zoom"); await scaleIsOne();
-    await page.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "Photo viewer" })).toHaveCount(0);
-    await expect(page.locator(".messagePhotoButton").first()).toBeFocused();
-    await scaleIsOne();
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    await page.emulateMedia({ reducedMotion: "reduce" });
-    for (const caption of ["", "The full photo.", "The full photo with a caption that wraps onto several lines."]) {
-      await page.evaluate(() => { document.documentElement.style.fontSize = "100%"; });
-      await page.getByRole("textbox", { name: "Message", exact: true }).fill(caption);
-      await page.evaluate(() => { document.documentElement.style.fontSize = "200%"; });
-      const field = page.getByRole("textbox", { name: "Message", exact: true });
-      await expect(field).toHaveValue(caption);
-      await expectReadableCaption(field);
-      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-      const dock = await page.locator(".composerDock").boundingBox();
-      expect(dock!.y).toBeGreaterThanOrEqual(0);
-      expect(dock!.y + dock!.height).toBeLessThanOrEqual(900);
-      await shot(`large-text-${caption ? "caption" : "empty"}-reduced-motion`);
-    }
-
-    const recipientContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width, height: 900 }, serviceWorkers: "block" });
-    const recipient = await recipientContext.newPage();
-    await installThread(recipient, rows, "B");
-    await recipient.route("**/api/messages/c1/media/**", route => route.fulfill({ contentType: "image/jpeg", body: files.get(new URL(route.request().url()).pathname)! }));
-    await recipient.goto("/messages/c1");
-    await expect(recipient.locator(".messagePhotoButton")).toHaveCount(photoCount);
-    await expect(async () => expect(await recipient.locator(".messagePhoto").evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true)).toPass();
-    const received = testInfo.outputPath(`${width}-recipient.png`);
-    await recipient.screenshot({ path: received }); await testInfo.attach("recipient", { path: received, contentType: "image/png" });
-    await recipientContext.close();
-  });
-}

@@ -51,7 +51,11 @@ const FIREFOX_DESKTOP_MAP_CHROME_FIT =
 // a fresh clone installs Chromium alone and an absent browser would fail every
 // default `npm run test:e2e`.
 const WEBKIT_PROFILE_PHOTO_CROP = process.env.PW_WEBKIT_PROFILE_PHOTO_CROP === "1";
+<<<<<<< HEAD
 const WEBKIT_MESSAGE_PHOTOS = process.env.PW_WEBKIT_MESSAGE_PHOTOS === "1";
+=======
+const WEBKIT_MESSAGES = process.env.PW_WEBKIT_MESSAGES === "1";
+>>>>>>> 23e83c419 (fix(messages): keep the thread against the keyboard)
 const E2E_LOGIN = isE2ELoginEnabled();
 if (E2E_LOGIN) {
   loadEnvConfig(process.cwd());
@@ -317,11 +321,19 @@ export default defineConfig({
           use: { ...devices["Desktop Firefox"] },
         }]
       : []),
+<<<<<<< HEAD
     ...(WEBKIT_MESSAGE_PHOTOS
       ? [{
           name: "webkit-message-photos",
           testMatch: ["**/messages-thread.spec.ts"],
           grep: /photo |acknowledged photos/,
+=======
+    ...(WEBKIT_MESSAGES
+      ? [{
+          name: "webkit-messages",
+          testMatch: ["**/messages-thread.spec.ts"],
+          grep: /thread keyboard geometry|keyboard up/,
+>>>>>>> 23e83c419 (fix(messages): keep the thread against the keyboard)
           use: { ...devices["iPhone 14"], serviceWorkers: "block" as const },
         }]
       : []),
