@@ -114,10 +114,10 @@ test.describe("photo action and pinch regression", () => {
     await expect(page.locator(".messagePhotoButton")).toHaveCount(2);
   });
 
-  test("keyboard focus reveals photo message actions", async ({ page }) => {
+  test("keyboard focus reveals photo message actions", async ({ page, browserName }) => {
     const opener = page.locator(".messagePhotoButton").first();
     await opener.focus();
-    await page.keyboard.press("Tab");
+    await page.keyboard.press(browserName === "webkit" ? "Alt+Tab" : "Tab");
     const unsend = page.getByRole("button", { name: "Unsend", exact: true });
     await expect(unsend).toBeFocused();
     await expect(unsend).toBeInViewport();

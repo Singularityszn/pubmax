@@ -17,9 +17,9 @@
 // in a dialog, so the thread is still behind it and Escape is the way out on
 // every platform.
 //
-// The figure is rendered in EVERY state that has a box, carrying the photo's
-// own aspect, so the space reserved before the bytes land is the space the
-// photograph takes when they do.
+// The figure stays mounted while authenticated bytes load or retry. The
+// stylesheet owns its bounded frame, so the local preview and stored photo
+// occupy the same space.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -106,9 +106,7 @@ export default function MessagePhoto({
   const close = useCallback(() => setOpen(false), []);
   const viewerError = useCallback(() => { setOpen(false); setDialogError("Could not open photo. Try again."); }, []);
 
-  // The tile's own aspect, handed to the stylesheet once. The figure's width,
-  // the reserved box and the loaded photograph all read this one number, so
-  // there is no second copy to disagree with the first.
+  // The stylesheet can enlarge the tap target without cropping the photo.
   const tile = {
     [MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height),
   } as React.CSSProperties;
