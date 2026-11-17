@@ -291,6 +291,24 @@ describe("POST /api/summon", () => {
     expect(await inbox("summon_stranger_12")).toEqual([]);
   });
 
+  it("honours a mute made while the optional price read is pending", async () => {
+    const recipient = await mate("summon_ann_12");
+    let entered!: () => void;
+    const reading = new Promise<void>((resolve) => { entered = resolve; });
+    let release!: (detail: ReturnType<typeof lambDetail>) => void;
+    routeState.detail = () => {
+      entered();
+      return new Promise((resolve) => { release = resolve; });
+    };
+    const pending = summon({ venueId: PUB, time: "19:00", mates: ["summon_ann_12"] });
+    await reading;
+    setSocialMemoryMute(recipient.id, me.id, true);
+    release(lambDetail());
+    const response = await pending;
+    expect(await inbox("summon_ann_12")).toHaveLength(0);
+    expect(response.status).toBe(400);
+  });
+
   it("refuses when nobody named can be summoned, and sends nothing", async () => {
     const mutedByMe = await mate("summon_ann_12");
     setSocialMemoryMute(me.id, mutedByMe.id, true);

@@ -158,6 +158,9 @@ describe("summon price", () => {
     ["a bottle labelled as a half", { measure: "half", pint_name: "Amstel 330ml bottle" }],
     ["a mismatched wine volume", { measure: "125ml", pint_name: "White wine 330ml" }],
     ["a mismatched half volume", { measure: "half", pint_name: "Amstel 568ml" }],
+    ["a can labelled as a bottle", { measure: "bottle", pint_name: "Amstel 330ml can" }],
+    ["a double labelled as a single", { measure: "single", pint_name: "Gin double" }],
+    ["a single labelled as a double", { measure: "double", pint_name: "Gin single" }],
     ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
     ["no drink", { pint_name: " " }],
     ["no listing text", { price_text: "" }],
@@ -177,6 +180,9 @@ describe("summon price", () => {
   it.each([
     ["half", "Amstel 284ml"],
     ["175ml", "White wine 175ml"],
+    ["bottle", "Amstel 330ml bottle"],
+    ["single", "Gin single"],
+    ["double", "Gin double"],
   ] as const)("preserves a matching explicit %s serving", (measure, pint_name) => {
     expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
   });
