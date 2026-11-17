@@ -4,6 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import { createCrewAttendanceStore } from "@/lib/crewAttendanceStore.server";
 import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
+import { socialCrewErrorResponse } from "@/lib/socialCrewHttp";
 
 const CREW = "50000000-0000-4000-8000-000000000001";
 const ANA = "30000000-0000-4000-8000-000000000002";
@@ -85,6 +86,20 @@ describe("host attendance store", () => {
       expect(await failure(store.attest(actor, { crewId: CREW, memberId: ANA, state: "attended", expectedRevision: 0, idempotencyKey: KEY })),
         JSON.stringify(answer)).toBe(code);
     }
+  });
+
+  it("a conflict names its reason, and the API envelope carries it to the page", async () => {
+    for (const reason of ["stale", "closed", "not_open"]) {
+      const { store } = storeAnswering(() => ({ ok: false, code: reason }));
+      const error = await store.attest(actor, { crewId: CREW, memberId: ANA, state: "attended", expectedRevision: 0, idempotencyKey: KEY })
+        .then(() => null, (refusal: unknown) => refusal);
+      expect(error).toBeInstanceOf(SocialCrewStoreError);
+      const response = socialCrewErrorResponse(error);
+      expect(response.status).toBe(409);
+      expect(await response.json()).toMatchObject({ code: "SOCIAL_CREW_CONFLICT", details: { reason } });
+    }
+    const other = await socialCrewErrorResponse(new SocialCrewStoreError("CONFLICT", 409, "owner cannot leave")).json();
+    expect(other).not.toHaveProperty("details");
   });
 
   it("refuses a malformed write before it reaches the database", async () => {

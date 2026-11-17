@@ -5,7 +5,8 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 // Oracle: design v5, host attendance. A host or co-host marks accepted guests Here
 // or Not here with the revision they saw. A guest sees only their own mark. A
 // failed read says it is unavailable, never an empty list. API doubles stand in
-// for the protected crew and attendance routes only.
+// for the protected crew and attendance routes only. They prove the page, not auth
+// or the database; the PostgreSQL proofs cover those.
 
 const CREW = "50000000-0000-4000-8000-000000000071";
 const HOST = "30000000-0000-4000-8000-000000000071";
@@ -37,6 +38,29 @@ const hostRead = { canAttest: true, ...night, items: [
   { memberId: BEA, state: null, revision: 0, recordedAt: null, recordedBy: null },
 ] };
 
+const deferred = () => {
+  let release!: () => void;
+  const held = new Promise<void>((resolve) => { release = resolve; });
+  return { held, release };
+};
+const conflict = (reason: string) => ({ status: 409, json: { error: "Social Crew changed before this request.",
+  code: "SOCIAL_CREW_CONFLICT", retryable: false, details: { reason } } });
+const focusWindow = (page: Page) => page.evaluate(() => window.dispatchEvent(new Event("focus")));
+
+/** Every attendance phrase the page ever rendered, so a flash that came and went is still caught. */
+async function recordPhrases(page: Page) {
+  await page.addInitScript(() => {
+    const seen: string[] = [];
+    (window as unknown as { attendanceSeen: string[] }).attendanceSeen = seen;
+    const phrases = ["Checking attendance", "Attendance is unavailable", "Who came"];
+    new MutationObserver(() => {
+      const text = document.body?.textContent ?? "";
+      for (const phrase of phrases) if (text.includes(phrase) && !seen.includes(phrase)) seen.push(phrase);
+    }).observe(document, { subtree: true, childList: true, characterData: true });
+  });
+  return () => page.evaluate(() => (window as unknown as { attendanceSeen: string[] }).attendanceSeen);
+}
+
 async function open(page: Page, role: "owner" | "member", attendance: (route: Route) => Promise<void>) {
   const auth = await installAuthDoubles(page);
   await seedSignedIn(page, "A");
@@ -58,9 +82,11 @@ async function open(page: Page, role: "owner" | "member", attendance: (route: Ro
 
 test("a host marks a guest with the revision they saw, and the page says what saved", async ({ page }, info) => {
   const posts: Array<{ body: unknown; key: string | null }> = [];
+  const save = deferred();
   const section = await open(page, "owner", async (route) => {
     if (route.request().method() === "GET") return route.fulfill({ json: hostRead });
     posts.push({ body: route.request().postDataJSON(), key: route.request().headers()["idempotency-key"] ?? null });
+    await save.held;
     return route.fulfill({ json: { memberId: BEA, state: "attended", revision: 1 } });
   });
   await expect(section.getByText("It’s your word as host, not a check")).toBeVisible();
@@ -71,23 +97,71 @@ test("a host marks a guest with the revision they saw, and the page says what sa
   await section.screenshot({ path: info.outputPath("host-before.png") });
   await bea.getByRole("button", { name: "Here", exact: true }).focus();
   await page.keyboard.press("Enter");
+  const pressed = bea.getByRole("button", { name: "Saving…" });
+  await expect(pressed).toBeFocused();
+  await expect(section.getByRole("button", { name: "Saving…" })).toHaveCount(1);
+  await expect(bea.getByRole("button", { name: "Not here", exact: true })).toBeVisible();
+  save.release();
   await expect(section.getByRole("status")).toHaveText("@bea marked here.");
   await expect(bea.getByRole("button", { name: "Here", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(bea.getByRole("button", { name: "Here", exact: true })).toBeFocused();
   expect(posts).toEqual([{ body: { memberId: BEA, state: "attended", expectedRevision: 0 }, key: expect.stringMatching(/^crew-attendance-/) }]);
   await section.screenshot({ path: info.outputPath("host-after.png") });
 });
 
-test("a host whose revision is stale reads again and is told to check", async ({ page }) => {
+test("a host whose revision is stale keeps the list and their place while it reads again", async ({ page }, info) => {
   let reads = 0;
+  const second = deferred();
   const section = await open(page, "owner", async (route) => {
-    if (route.request().method() === "POST") return route.fulfill({ status: 409, json: { error: "changed", code: "SOCIAL_CREW_CONFLICT" } });
+    if (route.request().method() === "POST") return route.fulfill(conflict("stale"));
     reads += 1;
+    if (reads === 2) await second.held;
     return route.fulfill({ json: reads === 1 ? hostRead : { ...hostRead, items: [hostRead.items[0],
       { memberId: BEA, state: "absent", revision: 1, recordedAt: "2026-11-17T21:00:00.000Z", recordedBy: "host" }] } });
   });
-  await section.getByRole("group", { name: "Attendance for @bea" }).getByRole("button", { name: "Here", exact: true }).click();
+  const here = section.getByRole("group", { name: "Attendance for @bea" }).getByRole("button", { name: "Here", exact: true });
+  await here.focus();
+  await page.keyboard.press("Enter");
   await expect(section.getByRole("status")).toHaveText("That changed while you were looking. Check the list and mark again.");
+  await expect.poll(() => reads).toBe(2);
+  await expect(section.getByText("Not marked")).toBeVisible();
+  await expect(section.getByText("Checking attendance…")).toHaveCount(0);
+  await expect(here).toBeFocused();
+  second.release();
   await expect(section.getByText("Marked not here")).toBeVisible();
+  await expect(here).toBeFocused();
+  await expect(section.getByRole("status")).toHaveText("That changed while you were looking. Check the list and mark again.");
+  await section.screenshot({ path: info.outputPath("host-stale-focus.png") });
+});
+
+test("a refusal says whether marking has closed or not opened yet", async ({ page }) => {
+  const reasons = ["closed", "not_open"];
+  const section = await open(page, "owner", async (route) => {
+    if (route.request().method() === "POST") return route.fulfill(conflict(reasons.shift() as string));
+    return route.fulfill({ json: hostRead });
+  });
+  const bea = section.getByRole("group", { name: "Attendance for @bea" });
+  await bea.getByRole("button", { name: "Here", exact: true }).click();
+  await expect(section.getByRole("status")).toHaveText("Marking closed before that saved. A moderator can still correct a mark.");
+  await expect(bea.getByRole("button", { name: "Here", exact: true })).not.toHaveAttribute("aria-disabled", "true");
+  await bea.getByRole("button", { name: "Not here", exact: true }).click();
+  await expect(section.getByRole("status")).toHaveText("Marking has not opened yet. It opens on the day.");
+});
+
+test("the list reads again when marking opens, without polling", async ({ page }) => {
+  const opensAt = Date.parse("2026-11-17T12:00:00.000Z");
+  await page.clock.install({ time: opensAt - 30_000 });
+  let reads = 0;
+  const section = await open(page, "owner", (route) => {
+    reads += 1;
+    return route.fulfill({ json: reads === 1 ? { ...hostRead, open: false, opensAt: new Date(opensAt).toISOString() }
+      : { ...hostRead, opensAt: new Date(opensAt).toISOString() } });
+  });
+  await expect(section.getByText("Marking opens on the day.")).toBeVisible();
+  await page.clock.runFor(20_000);
+  expect(reads).toBe(1);
+  await page.clock.runFor(15_000);
+  await expect(section.getByText(/^Open until /)).toBeVisible();
   expect(reads).toBe(2);
 });
 
@@ -109,11 +183,37 @@ test("a failed read is unavailable, never an empty list, and retry recovers", as
   await expect(section.getByText("Not marked")).toBeVisible();
 });
 
-test("a guest sees only their own mark and no controls", async ({ page }, info) => {
+test("a guest never sees a loading or failed block, and an unmarked guest sees nothing", async ({ page }, info) => {
+  const seen = await recordPhrases(page);
+  const first = deferred();
+  let reads = 0;
+  const own = { canAttest: false, ...night, items: [] as unknown[] };
+  const section = await open(page, "member", async (route) => {
+    reads += 1;
+    if (reads === 1) { await first.held; return route.fulfill({ status: 503, json: { error: "down" } }); }
+    if (reads === 2) return route.fulfill({ json: own });
+    return route.fulfill({ json: { ...own, items: [{ memberId: ANA, state: "absent", revision: 1,
+      recordedAt: "2026-11-17T22:00:00.000Z", recordedBy: "host" }] } });
+  });
+  await expect(page.getByRole("heading", { name: "Thursday table" })).toBeVisible();
+  await expect.poll(() => reads).toBe(1);
+  first.release();
+  // A focus reads again only once the failed read has settled.
+  await expect(async () => { await focusWindow(page); expect(reads).toBeGreaterThanOrEqual(2); }).toPass();
+  await expect(async () => {
+    await focusWindow(page);
+    await expect(section.getByText("Your host marked you not here.")).toBeVisible();
+  }).toPass();
+  expect(await seen()).toEqual(["Who came"]);
+  await page.screenshot({ path: info.outputPath("guest-page.png"), fullPage: true });
+});
+
+test("a guest sees only their own mark, no controls, and how to ask for a correction", async ({ page }, info) => {
   const section = await open(page, "member", (route) => route.fulfill({ json: { canAttest: false, ...night,
     items: [{ memberId: ANA, state: "attended", revision: 2, recordedAt: "2026-11-17T22:00:00.000Z", recordedBy: "moderator" }] } }));
   await expect(section.getByText("A moderator marked you here.")).toBeVisible();
   await expect(section.getByRole("button")).toHaveCount(0);
   await expect(section.getByText("@bea")).toHaveCount(0);
+  await expect(section.getByRole("link", { name: "report it to a moderator" })).toHaveAttribute("href", "#crew-members-title");
   await section.screenshot({ path: info.outputPath("guest.png") });
 });

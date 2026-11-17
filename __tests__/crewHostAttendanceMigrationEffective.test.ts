@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
 import {
   type Person,
+  admit,
   DIGEST,
   MIGRATOR,
   NOT_FOUND,
@@ -31,9 +32,11 @@ import {
   mutual,
   outcome,
   person,
+  leave,
   remove,
   request,
   rpc,
+  state,
   stopCrewAdmissionDatabase,
   suspendCall,
   waitsOnAccountLock,
@@ -95,6 +98,30 @@ function tonight(host: Person, guests: Person[]) {
 }
 const item = (viewer: Person, crew: string, subject: Person) =>
   read(viewer, crew)?.items.find((entry) => entry.memberId === memberId(crew, subject));
+const receiptsAbout = (who: Person) =>
+  db().sql(`select count(*) from public.private_social_crew_write_receipts where subject_user_id='${who.user}'`);
+/** Time passes beyond the 30 days: the marks and the receipts about them expire. */
+const expireNight = (crew: string) => db().sql(`update public.social_crew_attendance set expires_at=now()-interval '1 second'
+  where crew_id='${crew}'; update public.private_social_crew_write_receipts set expires_at=now()-interval '1 second'
+  where operation='attendance:${crew}'`);
+const setRoleCall = (owner: Person, crew: string, who: Person, role: "cohost" | "member") =>
+  `set_social_crew_role_atomic('${owner.account}','${crew}','${memberId(crew, who)}','${role}','${key()}','${DIGEST}')`;
+let staffRoles = 0;
+function staffRoleFor(who: Person) {
+  const id = `a2478888-0000-4000-8000-${String(100 + ++staffRoles).padStart(12, "0")}`;
+  db().sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role) values ('${id}','${who.profile}','Moderator ${staffRoles}','moderator')`);
+  return id;
+}
+/** The runbook's operator query: the member's current unexpired revision and mark. */
+const operatorMark = (crew: string, member: string) => db().sql(`select member.state||'|'||coalesce(mark.revision,0)||'|'||coalesce(mark.state,'none')
+  from public.social_crew_members member
+  left join lateral (
+    select attendance.revision, attendance.state from public.social_crew_attendance attendance
+    where attendance.crew_id = member.crew_id and attendance.subject_account_id = member.social_account_id
+      and attendance.expires_at > now()
+    order by attendance.revision desc limit 1
+  ) mark on true
+  where member.crew_id = '${crew}' and member.id = '${member}'`);
 
 describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => {
   it("a host marks an accepted participant of the same night, and both read the same revision", () => {
@@ -142,6 +169,12 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(attest(cohost, crew, ana, "attended", 0)).toMatchObject({ ok: true, revision: 1 });
     expect(attest(ana, crew, bea, "attended", 0)).toEqual(NOT_FOUND);
     expect(attest(host, crew, host, "attended", 0)).toEqual(NOT_FOUND);
+    expect(attest(host, crew, cohost, "attended", 0)).toEqual(NOT_FOUND);
+    expect(attest(cohost, crew, host, "attended", 0)).toEqual(NOT_FOUND);
+    expect(attest(cohost, crew, cohost, "attended", 0)).toEqual(NOT_FOUND);
+    expect(item(host, crew, cohost)).toBeUndefined();
+    expect(item(cohost, crew, host)).toBeUndefined();
+    expect(item(host, crew, ana)).toMatchObject({ revision: 1 });
     startsIn(crew, "1 day");
     expect(request(pat, crew)).toMatchObject({ ok: true, code: "requested" });
     startsIn(crew, "-1 hour");
@@ -244,27 +277,155 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(attest(host, crew, ana, "absent", 1)).toMatchObject({ revision: 2 });
     expect(attest(host, crew, bea, "attended", 0)).toMatchObject({ revision: 1 });
     db().sql(`update public.social_crew_attendance set expires_at=now()-interval '1 minute' where subject_account_id='${ana.account}'`);
-    expect(purge(1)).toEqual({ ok: true, deleted: 1 });
-    expect(purge(5000)).toEqual({ ok: true, deleted: 1 });
-    expect(purge(1000)).toEqual({ ok: true, deleted: 0 });
+    expect(purge(1)).toMatchObject({ ok: true, deleted: 1 });
+    expect(purge(5000)).toMatchObject({ ok: true, deleted: 1 });
+    expect(purge(1000)).toMatchObject({ ok: true, deleted: 0 });
     expect(rows(crew)).toBe("1");
     db().sql(`insert into public.social_crew_attendance(crew_id,subject_account_id,subject_user_id,revision,state,actor_kind,attester_account_id,expires_at)
       select '${crew}','${bea.account}','${bea.user}',revision,'attended','host','${host.account}',now()-interval '1 minute'
       from generate_series(2,1201) revision`);
-    expect(purge(5000)).toEqual({ ok: true, deleted: 1000 });
-    expect(purge(5000)).toEqual({ ok: true, deleted: 200 });
+    expect(purge(5000)).toMatchObject({ ok: true, deleted: 1000 });
+    expect(purge(5000)).toMatchObject({ ok: true, deleted: 200 });
     expect(rows(crew)).toBe("1");
   });
 
-  it("deleting the participant's account removes their records in the same transaction", async () => {
+  it("a replayed key answers its stored mark only while that host may still mark that guest", () => {
+    const host = person(), cohost = person(), ana = person(), bea = person(), cal = person(), dee = person(), eli = person();
+    mutual(host, cohost);
+    const crew = tonight(host, [cohost, ana, bea, cal, dee, eli]);
+    makeCohost(crew, cohost);
+    const used = { ana: key(), bea: key(), cal: key(), dee: key(), eli: key() };
+    for (const [who, guest] of [["ana", ana], ["bea", bea], ["cal", cal], ["dee", dee]] as const) {
+      expect(attest(host, crew, guest, "attended", 0, used[who])).toMatchObject({ ok: true, code: "attested", revision: 1 });
+      expect(attest(host, crew, guest, "attended", 0, used[who])).toMatchObject({ ok: true, code: "replayed", revision: 1 });
+    }
+    expect(attest(cohost, crew, eli, "absent", 0, used.eli)).toMatchObject({ ok: true, code: "attested" });
+    block(ana, host);
+    expect(attest(host, crew, ana, "attended", 0, used.ana)).toEqual(NOT_FOUND);
+    expect(remove(host, crew, bea)).toMatchObject({ ok: true });
+    expect(attest(host, crew, bea, "attended", 0, used.bea)).toEqual(NOT_FOUND);
+    expect(call(suspendCall(cal))).toMatchObject({ ok: true });
+    expect(attest(host, crew, cal, "attended", 0, used.cal)).toEqual(NOT_FOUND);
+    expect(call(setRoleCall(host, crew, cohost, "member"))).toMatchObject({ ok: true });
+    expect(attest(cohost, crew, eli, "absent", 0, used.eli)).toEqual(NOT_FOUND);
+    startsIn(crew, "-13 hours");
+    expect(attest(host, crew, dee, "attended", 0, used.dee)).toMatchObject({ ok: true, code: "replayed", revision: 1 });
+    expireNight(crew);
+    expect(attest(host, crew, dee, "attended", 0, used.dee)).toEqual({ ok: false, code: "closed" });
+  });
+
+  it("a host marks guests only: a promotion that commits while the attestation waits is honoured", async () => {
+    const host = person(), ana = person();
+    mutual(host, ana);
+    const crew = tonight(host, [ana]);
+    const promotion = await holdRpc(setRoleCall(host, crew, ana, "cohost"));
+    let pending: Promise<{ ok: boolean; said: string }>;
+    try {
+      expect(promotion.result).toMatchObject({ ok: true });
+      pending = outcome("attendance_after_promotion", rpc(attestCall(host, crew, ana, "attended", 0)));
+      await expect.poll(() => waitsOnAnyLock("attendance_after_promotion")).toBe("t");
+    } finally { await promotion.finish(); }
+    const answer = await pending!;
+    expect(answer.ok, answer.said).toBe(true);
+    expect(json(answer.said)).toEqual(NOT_FOUND);
+    expect(rows(crew)).toBe("0");
+  });
+
+  it("a moderator who has ever been in that crew, in any role or state, never decides its disputes", () => {
+    const host = person(), ana = person(), demoted = person(), plain = person(), departed = person(), rejoined = person();
+    mutual(host, demoted);
+    const crew = tonight(host, [ana, demoted, plain, departed, rejoined]);
+    expect(call(setRoleCall(host, crew, demoted, "cohost"))).toMatchObject({ ok: true, code: "updated" });
+    expect(call(setRoleCall(host, crew, demoted, "member"))).toMatchObject({ ok: true, code: "updated" });
+    expect(leave(crew, departed)).toMatchObject({ ok: true });
+    expect(leave(crew, rejoined)).toMatchObject({ ok: true });
+    startsIn(crew, "1 day");
+    admit(host, crew, rejoined);
+    expect(state(crew, rejoined)).toBe("active");
+    startsIn(crew, "-1 hour");
+    expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    startsIn(crew, "-13 hours");
+    for (const insider of [demoted, plain, departed, rejoined]) {
+      expect(correct(crew, ana, "absent", 1, staffRoleFor(insider)), insider.handle).toEqual({ ok: false, code: "forbidden" });
+    }
+    expect(correct(crew, ana, "absent", 1, staffRoleFor(person()))).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+  });
+
+  it("a moderator corrects a mark after a block and a removed guest's mark, and the removal stands", () => {
+    const host = person(), ana = person(), bea = person();
+    const crew = tonight(host, [ana, bea]);
+    const anaMember = memberId(crew, ana), beaMember = memberId(crew, bea);
+    expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(attest(host, crew, bea, "attended", 0)).toMatchObject({ revision: 1 });
+    block(ana, host);
+    expect(read(host, crew)?.items.map((entry) => entry.memberId)).toEqual([beaMember]);
+    expect(operatorMark(crew, anaMember)).toBe("active|1|attended");
+    expect(correct(crew, ana, "absent", 1)).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+    expect(operatorMark(crew, anaMember)).toBe("active|2|absent");
+    expect(remove(host, crew, bea)).toMatchObject({ ok: true });
+    expect(operatorMark(crew, beaMember)).toBe("removed|1|attended");
+    expect(correct(crew, bea, "absent", 1)).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+    expect(state(crew, bea)).toBe("removed");
+    expect(operatorMark(crew, beaMember)).toBe("removed|2|absent");
+    expireNight(crew);
+    expect(operatorMark(crew, beaMember)).toBe("removed|0|none");
+  });
+
+  it("the export returns one record past the lane cap, so the account export can say it is truncated", () => {
     const host = person(), ana = person();
     const crew = tonight(host, [ana]);
+    db().sql(`insert into public.social_crew_attendance(crew_id,subject_account_id,subject_user_id,revision,state,actor_kind,attester_account_id,expires_at)
+      select '${crew}','${ana.account}','${ana.user}',revision,'attended','host','${host.account}',now()+interval '1 day'
+      from generate_series(1,1201) revision`);
+    expect(JSON.parse(db().sql(asServiceRole(`select jsonb_array_length(public.export_social_crew_attendance('${ana.user}',1001))::text`)))).toBe(1001);
+  });
+
+  it("the cleanup also deletes expired receipts about attendance, and leaves live ones", () => {
+    const host = person(), ana = person(), bea = person();
+    const crew = tonight(host, [ana]);
+    const other = tonight(host, [bea]);
     expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(attest(host, other, bea, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(receiptsAbout(ana)).toBe("1");
+    expireNight(crew);
+    expect(purge(1000)).toMatchObject({ ok: true, receipts: expect.any(Number) });
+    expect(receiptsAbout(ana)).toBe("0");
+    expect(receiptsAbout(bea)).toBe("1");
+  });
+
+  it("deleting the participant's account removes their records and the receipts about them in the same transaction", async () => {
+    const host = person(), ana = person();
+    const crew = tonight(host, [ana]);
+    const used = key();
+    const member = memberId(crew, ana);
+    expect(attest(host, crew, ana, "attended", 0, used)).toMatchObject({ revision: 1 });
+    expect(receiptsAbout(ana)).toBe("1");
     const held = await hold(deleteAccount(ana), "postgres");
     try {
       expect(await db().sqlAsync(`select count(*) from public.social_crew_attendance where crew_id='${crew}'`)).toBe("1");
+      expect(await db().sqlAsync(`select count(*) from public.private_social_crew_write_receipts where subject_user_id='${ana.user}'`)).toBe("1");
     } finally { await held.finish(); }
     expect(rows(crew)).toBe("0");
+    expect(receiptsAbout(ana)).toBe("0");
+    expect(call(`attest_social_crew_attendance_atomic('${host.account}','${crew}','${member}','attended',0,'${used}','${DIGEST}')`)).toEqual(NOT_FOUND);
+  });
+
+  it("a replay of a guest whose account deletion is in flight waits, then discloses nothing", async () => {
+    const host = person(), ana = person();
+    const crew = tonight(host, [ana]);
+    const used = key();
+    const replay = attestCall(host, crew, ana, "attended", 0, used);
+    expect(call(replay)).toMatchObject({ ok: true, code: "attested" });
+    const deletion = await hold(deleteAccount(ana), "postgres");
+    let pending: Promise<{ ok: boolean; said: string }>;
+    try {
+      pending = outcome("attendance_replay_after_deletion", rpc(replay));
+      await expect.poll(() => waitsOnAnyLock("attendance_replay_after_deletion")).toBe("t");
+    } finally { await deletion.finish(); }
+    const answer = await pending!;
+    expect(answer.ok, answer.said).toBe(true);
+    expect(answer.said).not.toMatch(REFUSED_BY_LOCKS);
+    expect(json(answer.said)).toEqual(NOT_FOUND);
   });
 
   it("two corrections from the same revision: the second waits and then answers stale", async () => {
@@ -376,7 +537,13 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(refused.said).toMatch(/would drop \d+ crew attendance records/);
     expect(await rollback("0:wrong")).toMatchObject({ ok: false });
     const count = db().sql("select count(*) from public.social_crew_attendance");
+    const others = db().sql("select count(*) from public.private_social_crew_write_receipts where operation not like 'attendance:%'");
+    expect(Number(db().sql("select count(*) from public.private_social_crew_write_receipts where operation like 'attendance:%'"))).toBeGreaterThan(0);
     expect(await rollback(count)).toMatchObject({ ok: true });
+    expect(db().sql("select count(*) from public.private_social_crew_write_receipts where operation like 'attendance:%'")).toBe("0");
+    expect(db().sql("select count(*) from public.private_social_crew_write_receipts where operation not like 'attendance:%'")).toBe(others);
+    expect(db().sql(`select count(*) from information_schema.columns where table_name='private_social_crew_write_receipts'
+      and column_name in ('subject_user_id','expires_at')`)).toBe("0");
     expect(db().sql("select to_regclass('public.social_crew_attendance') is null")).toBe("t");
     expect(db().sql("select to_regprocedure('public.read_social_crew_attendance(uuid,uuid,uuid)') is null")).toBe("t");
     applyForward();

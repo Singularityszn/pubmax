@@ -555,6 +555,16 @@ describe("buildAccountExport", () => {
       id: own.id, crewId: own.crewId, revision: 2, state: "absent", recordedAt: own.recordedAt,
       recordedBy: "moderator", expiresAt: own.expiresAt,
     }] });
+    const asked: number[] = [];
+    const many = await buildAccountExport(USER, fakeDeps({
+      crewAttendance: async (_userId, limit) => {
+        asked.push(limit);
+        return { status: "ready", records: Array.from({ length: limit }, (_, index) => ({ ...own, id: `attendance-${index}` })) };
+      },
+    }), NOW);
+    expect(asked).toEqual([1001]);
+    expect(many.crewAttendance).toMatchObject({ status: "complete", truncated: true });
+    expect(many.crewAttendance.items).toHaveLength(1000);
   });
 
   it("carries the caller's own table request and never another account's", async () => {
