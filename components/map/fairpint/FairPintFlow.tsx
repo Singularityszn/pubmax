@@ -7,7 +7,8 @@ import { createSlimShardLoader, type MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
-import { fairPence, readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
+import { fairPence } from "@/lib/fairPintPricing";
+import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { haptic } from "@/lib/nativeHaptics";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
@@ -74,10 +75,11 @@ export default function FairPintFlow({
     drawKey = JSON.stringify(drawBounds);
   useEffect(() => {
     let mounted = true;
-    if (early?.releases) {
+    const pendingReleases = early ? early.releases - (early.handledReleases ?? 0) : 0;
+    if (early && pendingReleases > 0) {
       writeFairPint(early.pence);
       onCommit(early.pence / 100);
-      for (let index = 0; index < early.releases; index++) void haptic("selection-kept");
+      for (let index = 0; index < pendingReleases; index++) void haptic("selection-kept");
     }
     void early?.location?.then((fix) => {
       if (!mounted) return;

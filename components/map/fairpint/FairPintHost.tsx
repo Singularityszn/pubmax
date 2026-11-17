@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useLayoutEffect,
@@ -11,7 +12,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { supportsFairPint } from "@/lib/fairPint";
+import { clearEarlyFairPint, setFairPintSession, supportsFairPint } from "@/lib/fairPint";
+import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { getCity, type CityId } from "@/lib/cities";
 import type { MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -54,6 +56,65 @@ export function FairPintMapBridge(props: Bridge) {
 export function FairPintHost({ children, cityId }: { children: ReactNode; cityId: CityId }) {
   const [bridge, setBridge] = useState<Bridge | null>(null);
   const queued = useRef<{ pounds?: number; route?: Parameters<Bridge["onRoute"]> }>({});
+  const commit = useCallback((pounds: number) => {
+    if (bridge) bridge.onCommit(pounds);
+    else queued.current.pounds = pounds;
+  }, [bridge]);
+  useEffect(() => {
+    if (!supportsFairPint(cityId)) {
+      if (!window.__pubmaxEarlyFairPint?.closed) clearEarlyFairPint();
+      setFairPintSession(false);
+      return;
+    }
+    const update = () => {
+      const early = window.__pubmaxEarlyFairPint;
+      if (!early) return;
+      const pending = early.releases - (early.handledReleases ?? 0);
+      if (pending > 0) {
+        early.handledReleases = early.releases;
+        commit((early.committedPence ?? early.pence) / 100);
+        void import("@/lib/nativeHaptics").then(({ haptic }) => {
+          for (let index = 0; index < pending; index++) void haptic("selection-kept");
+        }).catch(() => {});
+      }
+      setFairPintSession(!early.closed, early.pence);
+      if (early.closed) {
+        early.location = undefined;
+        suppressMapFirstVisitPrompts();
+      }
+    };
+    update();
+    window.addEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, update);
+    return () => window.removeEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, update);
+  }, [commit, cityId]);
+  useEffect(() => () => {
+    if (!window.__pubmaxEarlyFairPint?.closed) clearEarlyFairPint();
+    setFairPintSession(false);
+  }, []);
+  const [gateReady, setGateReady] = useState(false);
+  useEffect(() => {
+    if (gateReady || !supportsFairPint(cityId)) return;
+    let idle: number | undefined, timer: number | undefined;
+    const load = () => {
+      idle = undefined;
+      timer = undefined;
+      const early = window.__pubmaxEarlyFairPint;
+      if (!early?.dragging && !early?.closed) setGateReady(true);
+    };
+    const schedule = () => {
+      const early = window.__pubmaxEarlyFairPint;
+      if (idle !== undefined || timer !== undefined || early?.dragging || early?.closed) return;
+      if (typeof requestIdleCallback === "function") idle = requestIdleCallback(load);
+      else timer = window.setTimeout(load, 0);
+    };
+    schedule();
+    window.addEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, schedule);
+    return () => {
+      if (idle !== undefined) cancelIdleCallback(idle);
+      if (timer !== undefined) clearTimeout(timer);
+      window.removeEventListener(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, schedule);
+    };
+  }, [gateReady, cityId]);
   const [mobile, setMobile] = useState(false);
   useEffect(() => {
     const media = matchMedia("(max-width: 640px)");
@@ -82,17 +143,14 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
   return (
     <MapConnection.Provider value={setBridge}>
       {children}
-      {supportsFairPint(cityId) ? (
+      {gateReady && supportsFairPint(cityId) ? (
         <FairPintGate
           cityId={cityId}
           readerPosition={bridge?.position ?? null}
           mobile={mobile}
           bounds={bounds}
           center={bridge?.center ?? view.center}
-          onCommit={(pounds) => {
-            if (bridge) bridge.onCommit(pounds);
-            else queued.current.pounds = pounds;
-          }}
+          onCommit={commit}
           onRoute={(...route) => {
             if (bridge) bridge.onRoute(...route);
             else queued.current.route = route;
