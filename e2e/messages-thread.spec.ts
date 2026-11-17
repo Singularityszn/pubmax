@@ -64,6 +64,38 @@ function fixture(): Row[] {
   ];
 }
 
+for (const width of [390, 768, 1440]) for (const motion of ["no-preference", "reduce"] as const) {
+  test(`photo selection press feedback uses one scale at ${width}px with ${motion} motion`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 900 });
+    await page.emulateMedia({ reducedMotion: motion });
+    await storeThemeChoice(page, "light");
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    await page.getByRole("textbox", { name: "Message", exact: true }).fill("Photo caption");
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    await expect(send).toBeEnabled();
+    const resting = (await send.boundingBox())!;
+    await page.mouse.move(resting.x + resting.width / 2, resting.y + resting.height / 2);
+    await page.mouse.down();
+    try {
+      await send.evaluate(async button => {
+        button.getBoundingClientRect();
+        await Promise.all(button.getAnimations().map(animation => animation.finished));
+      });
+      const pressed = (await send.boundingBox())!;
+      const scale = pressed.width / resting.width;
+      await testInfo.attach("pressed scale", { body: JSON.stringify({ width, motion, scale }), contentType: "application/json" });
+      const path = testInfo.outputPath(`${width}-${motion}-pressed.png`);
+      await page.screenshot({ path });
+      await testInfo.attach("pressed composer", { path, contentType: "image/png" });
+      expect(scale).toBeCloseTo(motion === "reduce" ? 1 : 0.97, 3);
+    } finally {
+      await page.mouse.move(0, 0);
+      await page.mouse.up();
+    }
+  });
+}
+
 test.describe("photo action and pinch regression", () => {
   test.use({ hasTouch: true });
 

@@ -95,13 +95,3 @@
 @media (prefers-reduced-transparency: reduce) {
   .composerDock { backdrop-filter: none; background: var(--panel); }
 }
-
-@media (prefers-reduced-motion: no-preference) {
-  .messageThread button:not(:focus-visible):active:not(:disabled) { transform: scale(0.97); }
-  .messageThread button:not(:focus-visible) { transition: transform 120ms cubic-bezier(0.23, 1, 0.32, 1); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .messageThread button { transition: none; }
-  .messageThread button:active:not(:disabled) { transform: none; }
-}
