@@ -225,7 +225,7 @@ export default function ComparePubFlow({
   }
 
   async function save(chosenBand: SocialPubBand, settled: SocialPubComparison) {
-    if (!venue) return;
+    if (!venue || !sameAccount()) return;
     const subject = venue;
     setStep("saving");
     setNotice(null);

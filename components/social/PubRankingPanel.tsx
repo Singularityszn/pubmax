@@ -126,16 +126,26 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
         return;
       }
       const [compared, stars] = await Promise.allSettled([
-        readJson<unknown>("/api/social/rankings", controller.signal).catch(refuse),
+        readJson<unknown>("/api/social/rankings", controller.signal).then((body) => {
+          const entries = socialPubRankingPayload(body);
+          if (!entries) throw new RankingReadError("unavailable");
+          if (entries.length > 0 && !controller.signal.aborted && generation.current === requestGeneration) {
+            setLoaded({ scope, rows: comparedRows(entries), compared: entries });
+            setRetired(false);
+            setPhase("ready");
+          }
+          return entries;
+        }).catch(refuse),
         readJson<{ entries?: StarEntry[] }>("/api/social/reviews?limit=50&scope=mine", controller.signal).catch(refuse),
       ]);
       if (controller.signal.aborted || generation.current !== requestGeneration) return;
-      if (compared.status !== "fulfilled" || stars.status !== "fulfilled") throw new RankingReadError("unavailable");
-      const comparedEntries = socialPubRankingPayload(compared.value);
-      if (!comparedEntries || !Array.isArray(stars.value?.entries)) throw new RankingReadError("unavailable");
+      if (compared.status !== "fulfilled") throw new RankingReadError("unavailable");
+      const comparedEntries = compared.value;
+      if (comparedEntries.length > 0) return;
+      if (stars.status !== "fulfilled" || !Array.isArray(stars.value?.entries)) throw new RankingReadError("unavailable");
       setLoaded({
         scope,
-        rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars.value.entries),
+        rows: starRows(stars.value.entries),
         compared: comparedEntries,
       });
       setRetired(false);
