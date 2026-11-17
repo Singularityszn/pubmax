@@ -1,11 +1,13 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { createPortal } from "react-dom";
 
 import { authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
+import { rankingSaveLanded } from "@/lib/firstTenRankingSession";
 import {
   answerSocialPubComparison,
   nextSocialPubOpponent,
@@ -18,11 +20,27 @@ import {
   type SocialPubRankingEntry,
 } from "@/lib/socialPubRankings";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "./comparePub.css";
 
 type Venue = { id: string; name: string; borough?: string };
-type Step = "pick" | "band" | "compare" | "saving" | "done";
+type Step = "pick" | "band" | "compare" | "saving" | "checking" | "unconfirmed" | "done";
+type Neighbours = ReturnType<typeof socialPubComparisonNeighbours>;
+/** A save whose outcome only a fresh list can tell: its answer was lost, or the list moved. */
+type Unsettled = { kind: "lost"; band: SocialPubBand; neighbours: Neighbours } | { kind: "stale"; band: SocialPubBand };
+type SaveBody = { entries?: SocialPubRankingEntry[]; code?: string; error?: string };
+
+async function readRankings(signal: AbortSignal): Promise<SocialPubRankingEntry[] | null> {
+  try {
+    const reply = await authedFetch("/api/social/rankings", { credentials: "same-origin", signal }, { requiresIdentity: true });
+    if (!reply.ok) return null;
+    const body = (await reply.json()) as { entries?: unknown };
+    return Array.isArray(body.entries) ? (body.entries as SocialPubRankingEntry[]) : null;
+  } catch {
+    return null;
+  }
+}
 
 function formatScore(score: number): string {
   return score.toFixed(1);
@@ -33,16 +51,22 @@ function formatScore(score: number): string {
  * then answer "which did you prefer?" until it has a place. The questions are
  * a binary search over that band, so a long list still takes a few taps.
  * Saving tells the server which two pubs it landed between; if the list moved
- * meanwhile the server says so and the questions start again.
+ * meanwhile the server says so and the questions start again, on a list read
+ * fresh. A lost save answer is checked against a fresh list before anything
+ * else happens. The flow belongs to the account that opened it: a switch
+ * closes it and drops any late answer.
  */
 export default function ComparePubFlow({
   entries,
   startVenue,
+  progress,
   onClose,
   onSaved,
 }: {
   entries: SocialPubRankingEntry[];
   startVenue?: Venue | null;
+  /** A session's own count, announced politely as it moves. */
+  progress?: string;
   onClose: () => void;
   onSaved: (entries: SocialPubRankingEntry[]) => void;
 }) {
@@ -58,12 +82,33 @@ export default function ComparePubFlow({
   const [results, setResults] = useState<Venue[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [placed, setPlaced] = useState<SocialPubRankingEntry | null>(null);
+  const [unsettled, setUnsettled] = useState<Unsettled | null>(null);
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
+  const [openedRevision] = useState(accountRevision);
+  const mounted = useRef(false);
+  const reads = useRef<AbortController | null>(null);
   useDismissOnEscape(true, onClose, dialogRef);
 
   useEffect(() => {
-    const opener = document.activeElement as HTMLElement | null;
-    return () => opener?.focus?.();
+    mounted.current = true;
+    const controller = new AbortController();
+    reads.current = controller;
+    return () => {
+      mounted.current = false;
+      controller.abort();
+    };
   }, []);
+
+  useEffect(() => {
+    if (accountRevision !== openedRevision) onClose();
+  }, [accountRevision, openedRevision, onClose]);
+
+  function sameAccount(): boolean {
+    return readProviderAccountRevision() === openedRevision;
+  }
+
+  // Before the heading takes focus, so the trap keeps the opener to hand back.
+  useFocusTrap(true, dialogRef, "strict-modal");
 
   useEffect(() => {
     headingRef.current?.focus();
@@ -104,40 +149,90 @@ export default function ComparePubFlow({
     if (nextSocialPubOpponent(next) === null) void save(band, next);
   }
 
+  function acknowledge(subjectId: string, saved: SocialPubRankingEntry[]) {
+    onSaved(saved);
+    if (!mounted.current) return;
+    setUnsettled(null);
+    setList(saved);
+    setPlaced(saved.find((entry) => entry.venueId === subjectId) ?? null);
+    setStep("done");
+  }
+
+  async function reconcile(open: Unsettled) {
+    if (!venue || !mounted.current || !reads.current) return;
+    const subject = venue;
+    setUnsettled(open);
+    setNotice(null);
+    setStep("checking");
+    const fresh = await readRankings(reads.current.signal);
+    if (!mounted.current || !sameAccount()) return;
+    if (!fresh) {
+      setStep("unconfirmed");
+      return;
+    }
+    setUnsettled(null);
+    setList(fresh);
+    if (open.kind === "lost" && rankingSaveLanded(fresh, subject.id, open.band, open.neighbours)) {
+      acknowledge(subject.id, fresh);
+      return;
+    }
+    if (open.kind === "stale") {
+      setNotice("Your list changed in another tab. A couple more questions.");
+      begin(open.band, fresh);
+      return;
+    }
+    setNotice("That ranking did not save. Choose how it went again.");
+    setStep("band");
+  }
+
   async function save(chosenBand: SocialPubBand, settled: SocialPubComparison) {
     if (!venue) return;
+    const subject = venue;
     setStep("saving");
     setNotice(null);
     const neighbours = socialPubComparisonNeighbours(settled);
+    const lost: Unsettled = { kind: "lost", band: chosenBand, neighbours };
+    let saved: { response: Response; body: SaveBody };
     try {
-      const { response, body } = await authedActionJson<{ entries?: SocialPubRankingEntry[]; code?: string; error?: string }>(
+      saved = await authedActionJson<SaveBody>(
         "/api/social/rankings",
         {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ venueId: venue.id, band: chosenBand, ...neighbours }),
+          body: JSON.stringify({ venueId: subject.id, band: chosenBand, ...neighbours }),
         },
         { requiresIdentity: true },
       );
-      if (response.status === 409 && body.code === "STALE_RANKING") {
-        const fresh = await authedFetch("/api/social/rankings", { credentials: "same-origin" }, { requiresIdentity: true })
-          .then((reply) => (reply.ok ? reply.json() : { entries: list }))
-          .then((reply: { entries?: SocialPubRankingEntry[] }) => reply.entries ?? list);
-        setList(fresh);
-        setNotice("Your list changed in another tab. A couple more questions.");
-        begin(chosenBand, fresh);
+    } catch (cause) {
+      if (!sameAccount()) return;
+      // A session still waking never sent the save.
+      if ((cause as { code?: unknown } | null)?.code === "AUTH_SESSION_WAKING") {
+        if (!mounted.current) return;
+        setNotice(cause instanceof Error ? cause.message : "That ranking did not save. Try again.");
+        setStep("band");
         return;
       }
-      if (!response.ok || !body.entries) throw new Error(errorMessageFrom(body, "That ranking did not save. Try again."));
-      setList(body.entries);
-      setPlaced(body.entries.find((entry) => entry.venueId === venue.id) ?? null);
-      onSaved(body.entries);
-      setStep("done");
-    } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : "That ranking did not save. Try again.");
-      setStep("band");
+      await reconcile(lost);
+      return;
     }
+    if (!sameAccount()) return;
+    const { response, body } = saved;
+    if (response.ok && Array.isArray(body.entries)) {
+      acknowledge(subject.id, body.entries);
+      return;
+    }
+    if (response.status === 409 && body.code === "STALE_RANKING") {
+      await reconcile({ kind: "stale", band: chosenBand });
+      return;
+    }
+    if (response.ok || response.status >= 500) {
+      await reconcile(lost);
+      return;
+    }
+    if (!mounted.current) return;
+    setNotice(errorMessageFrom(body, "That ranking did not save. Try again."));
+    setStep("band");
   }
 
   const opponentId = session ? nextSocialPubOpponent(session) : null;
@@ -205,8 +300,27 @@ export default function ComparePubFlow({
           </>
         ) : null}
 
-        {step === "saving" ? (
-          <p id="compare-pub-title" className="comparePub__progress" role="status">Saving your ranking…</p>
+        {step === "saving" || step === "checking" ? (
+          <p id="compare-pub-title" className="comparePub__progress" role="status">
+            {step === "saving" ? "Saving your ranking…" : "Checking your list…"}
+          </p>
+        ) : null}
+
+        {step === "unconfirmed" && venue && unsettled ? (
+          <>
+            <h2 id="compare-pub-title" ref={headingRef} tabIndex={-1}>
+              {unsettled.kind === "lost" ? "We lost the answer" : "Your list changed"}
+            </h2>
+            <p className="comparePub__notice">
+              {unsettled.kind === "lost"
+                ? `${venue.name} may have saved. Check your list before you rank anything else.`
+                : "It changed in another tab, and the new list did not load. Check again before the next question."}
+            </p>
+            <div className="comparePub__actions">
+              <button type="button" onClick={onClose}>Close</button>
+              <button type="button" className="comparePub__primary" onClick={() => void reconcile(unsettled)}>Check again</button>
+            </div>
+          </>
         ) : null}
 
         {step === "done" && venue ? (
@@ -226,6 +340,7 @@ export default function ComparePubFlow({
           </>
         ) : null}
 
+        {progress ? <p className="comparePub__progress" aria-live="polite">{progress}</p> : null}
         {notice ? <p className="comparePub__notice" role="status">{notice}</p> : null}
       </div>
     </div>,

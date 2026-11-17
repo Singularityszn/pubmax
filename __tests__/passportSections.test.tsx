@@ -7,14 +7,16 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reads = vi.hoisted(() => ({ get: vi.fn(), action: vi.fn() }));
-vi.mock("@/lib/authedFetch", () => ({ authedFetch: reads.get, authedActionFetch: reads.action }));
-vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: null }) }));
+const reads = vi.hoisted(() => ({ get: vi.fn(), action: vi.fn(), json: vi.fn() }));
+vi.mock("@/lib/authedFetch", () => ({ authedFetch: reads.get, authedActionFetch: reads.action, authedActionJson: reads.json }));
+const auth = vi.hoisted(() => ({ user: null as { id: string } | null }));
+vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: auth.user }) }));
 
 import { deleteDiaryEntry } from "@/components/diary/diaryClient";
 import { usePassportRead } from "@/components/profile/PassportData";
 import { emitBeenHereChanged } from "@/lib/beenHere";
-import { PassportOverlapRows, PassportTasteCard } from "@/components/profile/PassportSections";
+import PassportSections, { PassportOverlapRows, PassportTasteCard } from "@/components/profile/PassportSections";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 const roots: Array<{ unmount(): void }> = [];
 
@@ -30,6 +32,8 @@ function render(element: React.ReactElement): HTMLDivElement {
 afterEach(() => {
   act(() => roots.splice(0).forEach((root) => root.unmount()));
   document.body.innerHTML = "";
+  auth.user = null;
+  reads.get.mockReset();
 });
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -97,5 +101,99 @@ describe("passport points refresh", () => {
     expect(host.textContent).toBe("70");
     await act(async () => { finishOld(points(10)); });
     expect(host.textContent).toBe("70");
+  });
+});
+
+function ranked(count: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    venueId: `pub-${index}`,
+    venueName: `The Pub ${index}`,
+    band: "loved",
+    place: index + 1,
+    score: 10 - index / 4,
+  }));
+}
+
+/** Answers the ranking read with each answer in turn; every other passport read is empty. */
+function rankingReads(...answers: Array<() => Promise<Response>>) {
+  reads.get.mockImplementation((url: string) => {
+    if (url === "/api/social/rankings") return (answers.shift() ?? (() => new Promise<Response>(() => {})))();
+    return Promise.resolve(new Response("{}", { status: 404 }));
+  });
+}
+
+function rankingJson(body: unknown, status = 200) {
+  return () => Promise.resolve(new Response(JSON.stringify(body), { status }));
+}
+
+async function renderOwner(): Promise<HTMLDivElement> {
+  let host!: HTMLDivElement;
+  await act(async () => {
+    host = render(createElement(PassportSections, { handle: "owner", isOwner: true }));
+  });
+  for (let i = 0; i < 4; i += 1) await act(async () => {});
+  return host;
+}
+
+function firstTen(): HTMLElement | null {
+  return document.querySelector<HTMLElement>("[role=group][aria-labelledby]");
+}
+
+describe("first ten ranking on the owner's profile", () => {
+  it("counts the saved pubs and offers to keep going", async () => {
+    auth.user = { id: "owner-account" };
+    setProviderIdentity("supabase", "owner-account");
+    rankingReads(rankingJson({ entries: ranked(3) }));
+    await renderOwner();
+    expect(firstTen()?.textContent).toContain("Rank your first ten");
+    expect(firstTen()?.textContent).toContain("3 of 10 ranked");
+    expect(firstTen()?.querySelector("button")?.textContent).toBe("Keep ranking");
+  });
+
+  it("offers nothing once ten are saved", async () => {
+    auth.user = { id: "owner-account" };
+    rankingReads(rankingJson({ entries: ranked(10) }));
+    const host = await renderOwner();
+    expect(host.textContent).toContain("The Pub 9");
+    expect(firstTen()).toBeNull();
+  });
+
+  it("shows a refused read as nothing, never as an empty list", async () => {
+    auth.user = { id: "under-age-account" };
+    rankingReads(rankingJson({ code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" }, 403));
+    const host = await renderOwner();
+    expect(host.textContent).not.toContain("Your pubs, ranked");
+    expect(host.textContent).not.toContain("0 of 10");
+    expect(firstTen()).toBeNull();
+  });
+
+  it("shows an unavailable read with a way to read it again", async () => {
+    auth.user = { id: "owner-account" };
+    rankingReads(rankingJson({ code: "RANKING_UNAVAILABLE" }, 503), rankingJson({ entries: [] }));
+    const host = await renderOwner();
+    expect(host.textContent).toContain("Your ranking is unavailable right now.");
+    expect(host.textContent).not.toContain("0 of 10");
+    const retry = [...host.querySelectorAll("button")].find((node) => node.textContent === "Try again")!;
+    await act(async () => retry.click());
+    for (let i = 0; i < 4; i += 1) await act(async () => {});
+    expect(firstTen()?.textContent).toContain("0 of 10 ranked");
+    expect(firstTen()?.querySelector("button")?.textContent).toBe("Start ranking");
+  });
+
+  it("closes an open session and drops the old read when the account changes", async () => {
+    auth.user = { id: "owner-account" };
+    setProviderIdentity("supabase", "owner-account");
+    rankingReads(rankingJson({ entries: ranked(2) }));
+    const host = await renderOwner();
+    await act(async () => firstTen()!.querySelector("button")!.click());
+    expect(document.querySelector("[role=dialog]")).not.toBeNull();
+
+    auth.user = { id: "other-account" };
+    await act(async () => {
+      setProviderIdentity("supabase", "other-account");
+    });
+    for (let i = 0; i < 4; i += 1) await act(async () => {});
+    expect(document.querySelector("[role=dialog]")).toBeNull();
+    expect(host.textContent).not.toContain("The Pub 1");
   });
 });

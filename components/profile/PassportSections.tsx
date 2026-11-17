@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import EmptyState from "@/components/ui/empty-state";
 import { authedFetch } from "@/lib/authedFetch";
 import { buildCrawlMapHref } from "@/lib/crawlUrl";
+import { rankingReadFailure } from "@/lib/firstTenRankingSession";
 import {
   PASSPORT_COPY,
   TASTE_COPY,
@@ -28,10 +29,12 @@ import {
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
+import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import BeenCardShare from "./BeenCardShare";
 import BeenCompareMap from "./BeenCompareMap";
+import FirstTenRanking from "./FirstTenRanking";
 import {
   usePassportRead,
   type PassportBeenRead,
@@ -112,12 +115,13 @@ function PassportBeen({ handle, isOwner }: { handle: string; isOwner: boolean })
   ) : null;
 }
 
-type RankingEntry = { venueId: string; venueName: string | null; place: number };
+type RankedRead = { account: string; entries: SocialPubRankingEntry[] } | { account: string; unavailable: true };
 
 function PassportRanked({ handle }: { handle: string }) {
   const { user } = useAuth();
   const account = user?.id ?? "";
-  const [read, setRead] = useState<{ account: string; entries: RankingEntry[] } | null>(null);
+  const [read, setRead] = useState<RankedRead | null>(null);
+  const [revision, setRevision] = useState(0);
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
 
@@ -125,19 +129,36 @@ function PassportRanked({ handle }: { handle: string }) {
     if (!account) return;
     const controller = new AbortController();
     void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const body = (await response.json()) as { entries?: RankingEntry[] };
-        return Array.isArray(body.entries) ? body.entries : [];
+      .then(async (response): Promise<RankedRead | null> => {
+        const body = (await response.json().catch(() => ({}))) as { entries?: SocialPubRankingEntry[]; code?: unknown };
+        if (response.ok) return { account, entries: Array.isArray(body.entries) ? body.entries : [] };
+        return rankingReadFailure(response.status, body.code) === "refused" ? null : { account, unavailable: true };
       })
-      .catch(() => null)
-      .then((entries) => {
-        if (!controller.signal.aborted && entries) setRead({ account, entries });
+      .catch((): RankedRead => ({ account, unavailable: true }))
+      .then((next) => {
+        if (controller.signal.aborted || !next) return;
+        // A list already read stays up when a later read fails.
+        setRead((current) => ("unavailable" in next && current?.account === account && "entries" in current ? current : next));
       });
     return () => controller.abort();
-  }, [account]);
+  }, [account, revision]);
 
   if (!read || read.account !== account) return null;
+  if ("unavailable" in read) {
+    return (
+      <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+        <h2 id="passport-ranked-title" className="passportSectionTitle">
+          {PASSPORT_COPY.rankedTitle}
+        </h2>
+        <p className="passportQuiet" role="status">Your ranking is unavailable right now.</p>
+        <p className="passportQuiet">
+          <Button type="button" variant="ghost" onClick={() => setRevision((value) => value + 1)}>
+            Try again
+          </Button>
+        </p>
+      </section>
+    );
+  }
   const entries = [...read.entries].sort((a, b) => a.place - b.place);
 
   async function share() {
@@ -186,9 +207,7 @@ function PassportRanked({ handle }: { handle: string }) {
           {shareLine}
         </p>
       ) : null}
-      {entries.length === 0 ? (
-        <EmptyState title="Nothing ranked yet.">{PASSPORT_COPY.rankedEmpty}</EmptyState>
-      ) : (
+      {entries.length === 0 ? null : (
         <ol className="passportList">
           {entries.map((entry) => (
             <li key={entry.venueId} className="passportRow">
@@ -200,6 +219,12 @@ function PassportRanked({ handle }: { handle: string }) {
           ))}
         </ol>
       )}
+      <FirstTenRanking
+        key={account}
+        entries={read.entries}
+        onSaved={(saved) => setRead({ account, entries: saved })}
+        onClosed={() => setRevision((value) => value + 1)}
+      />
     </section>
   );
 }
