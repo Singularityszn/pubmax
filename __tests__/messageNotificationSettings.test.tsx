@@ -17,7 +17,8 @@ vi.mock("@/lib/messageNotificationClient", () => ({
   messagePushFingerprint: vi.fn(),
   saveMessageNotificationSetting: state.save,
 }));
-vi.mock("@/lib/webPush", () => ({
+vi.mock("@/lib/webPush", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/webPush")>(),
   webPushSupport: () => "supported",
   registerWebPush: async () => "webpush:device",
 }));
@@ -159,4 +160,46 @@ it("shows a retry when timeout confirmation itself fails", async () => {
   await click(retry);
   expect(preview().checked).toBe(false);
   expect(host.querySelector('[role="status"]')).toBeNull();
+});
+
+
+it("leaves global loading and offers retry when the subscription never answers", async () => {
+  vi.useFakeTimers();
+  try {
+    state.token.mockImplementation(() => new Promise(() => {}));
+    await act(async () => root.render(createElement(MessageNotificationSettings)));
+    await click(toggle());
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    const retry = Array.from(host.querySelectorAll("button")).find(button => button.textContent === "Try again");
+    expect(retry).toBeDefined();
+    expect(toggle().getAttribute("aria-busy")).toBe("false");
+    state.token.mockResolvedValue(null);
+    await click(retry!);
+    expect(preview().checked).toBe(false);
+  } finally { vi.useRealTimers(); }
+});
+
+it("leaves confirmation busy state when the subscription lookup hangs", async () => {
+  vi.useFakeTimers();
+  try {
+    await act(async () => root.render(createElement(MessageNotificationSettings)));
+    await click(toggle());
+    state.save.mockRejectedValueOnce(new DOMException("Timed out", "TimeoutError"));
+    state.token.mockImplementation(() => new Promise(() => {}));
+    await click(preview());
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    expect(toggle().getAttribute("aria-busy")).toBe("false");
+    expect(host.querySelector("input")).toBeNull();
+    expect(Array.from(host.querySelectorAll("button")).some(button => button.textContent === "Try again")).toBe(true);
+  } finally { vi.useRealTimers(); }
+});
+
+it("does not confirm device activation from global consent alone", async () => {
+  state.fetch.mockImplementation(async () => Response.json({ ...settings, enabled: true, registered: false }));
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  state.save.mockRejectedValueOnce(new DOMException("Timed out", "TimeoutError"));
+  await click(action());
+  expect(host.querySelector('[role="status"]')).not.toBeNull();
+  expect(action().textContent).toBe("Turn on alerts on this device");
 });

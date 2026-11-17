@@ -92,3 +92,14 @@ it("reuses the visibility result when focus arrives after it has finished", asyn
   expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "fresh", unread: 2 }]);
   expect(state.fetch).toHaveBeenCalledOnce();
 });
+
+it("does not mark a read begun before visibility as the visibility result", async () => {
+  state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "before" }] }));
+  await readMessagesInbox("A", "reader");
+  await vi.advanceTimersByTimeAsync(1);
+  markMessagesInboxVisible("reader", performance.now());
+  invalidateMessagesInboxOnFocus("reader");
+  state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "after" }] }));
+  expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "after" }]);
+  expect(state.fetch).toHaveBeenCalledTimes(2);
+});
