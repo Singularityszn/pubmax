@@ -59,7 +59,7 @@ function hasCompleteAudit(report) {
 function collectAdvisories(name, vulnerabilities, seen = new Set()) {
   if (seen.has(name)) return [];
   seen.add(name);
-  const entry = vulnerabilities[name];
+  const entry = Object.hasOwn(vulnerabilities, name) ? vulnerabilities[name] : null;
   if (!entry) return [null];
   const advisories = [];
   for (const via of entry.via ?? []) {
@@ -79,7 +79,7 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   const waivedNames = [];
   const unwaivedNames = [];
   for (const [name, entry] of Object.entries(vulnerabilities)) {
-    if (!AUDIT_LEVELS.includes(entry.severity)) continue;
+    if (!AUDIT_LEVELS.includes(entry?.severity)) continue;
     const advisories = collectAdvisories(name, vulnerabilities);
     const fullyWaived =
       advisories.length > 0 && advisories.every((a) => a?.url && waived.get(a.url) === a.severity);
@@ -88,8 +88,8 @@ export function classifyFindings(report, waived = WAIVED_ADVISORIES) {
   return { waived: waivedNames, unwaived: unwaivedNames };
 }
 
-export function auditFailureExitCode(_report, exceptionsConfigured) {
-  return exceptionsConfigured ? 1 : 0;
+export function auditFailureExitCode(report, exceptionsConfigured) {
+  return exceptionsConfigured || report?.metadata?.vulnerabilities ? 1 : 0;
 }
 
 function main() {
