@@ -33,6 +33,20 @@ describe("message device ownership and foreground presence", () => {
     await store.removeToken("outsider", device);
     expect(await store.targets("owner", "thread")).toEqual([device]);
   });
+  it("keeps fresh thread presence on a same-session restore and clears it on a session change", async () => {
+    const now = vi.spyOn(Date, "now").mockReturnValue(100_000);
+    const device = token("restore-presence");
+    await store.saveToken("restoring-owner", device, "session-a");
+    await store.presence("restoring-owner", device, "thread");
+    now.mockReturnValue(110_000);
+    await store.saveToken("restoring-owner", device, "session-a");
+    expect(await store.targets("restoring-owner", "thread")).toEqual([]);
+    now.mockReturnValue(130_001);
+    expect(await store.targets("restoring-owner", "thread")).toEqual([device]);
+    await store.presence("restoring-owner", device, "thread");
+    await store.saveToken("restoring-owner", device, "session-b");
+    expect(await store.targets("restoring-owner", "thread")).toEqual([device]);
+  });
   it("does not let a stale session detach a newer account binding", async () => {
     const device = token("stale-session");
     await store.saveToken("A", device, "session-a");

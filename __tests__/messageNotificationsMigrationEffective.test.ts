@@ -31,6 +31,16 @@ describe("message notification privacy migration", () => {
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("private-token");
     database.sql(`update public.message_push_subscriptions set active_conversation_id='${THREAD}',last_seen=now()`);
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
+    const version = database.sql("select xmin::text from public.message_push_subscriptions where endpoint_hash='hash'");
+    expect(database.sql(`set role service_role; select public.message_notification_bind('${OWNER}', '${SESSION}', 'hash', 'private-token');`)).toBe("t");
+    database.sql("reset role;");
+    expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("");
+    expect(database.sql("select xmin::text from public.message_push_subscriptions where endpoint_hash='hash'")).toBe(version);
+    expect(database.sql(`select public.message_notification_bind('${OWNER}', '${SESSION}', 'hash', 'wrong-secret')`)).toBe("f");
+    expect(database.sql(`select public.message_notification_bind('${OWNER}', 'd0000000-0000-4000-8000-000000000002', 'hash', 'private-token')`)).toBe("t");
+    expect(database.sql("select active_conversation_id is null and last_seen is null from public.message_push_subscriptions where endpoint_hash='hash'")).toBe("t");
+    expect(database.sql(`select public.message_notification_bind('${OWNER}', '${SESSION}', 'hash', 'private-token')`)).toBe("t");
+    database.sql(`update public.message_push_subscriptions set active_conversation_id='${THREAD}',last_seen=now()`);
     database.sql("update public.message_push_subscriptions set last_seen=now()-interval '31 seconds'");
     expect(database.sql(`select token from public.message_notification_targets('${OWNER}', '${THREAD}')`)).toBe("private-token");
     expect(database.sql(`select enabled, preview from public.message_notification_preferences where user_id='${OWNER}'`)).toBe("f|f");
@@ -54,6 +64,7 @@ describe("message notification privacy migration", () => {
     expect(database.sql(`select public.message_notification_session_active('${OWNER}', '${SESSION}')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_session_active(uuid,uuid)', 'EXECUTE')`)).toBe("f");
     for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_targets(uuid,uuid)', 'EXECUTE')`)).toBe("f");
+    for (const role of ["anon", "authenticated"]) expect(database.sql(`select has_function_privilege('${role}', 'public.message_notification_bind(uuid,uuid,text,text)', 'EXECUTE')`)).toBe("f");
     database.sql(`delete from auth.users where id='${OWNER}'`);
     expect(database.sql("select count(*) from public.message_push_subscriptions")).toBe("0");
     expect(database.sql("select count(*) from public.message_notification_claims")).toBe("0");
