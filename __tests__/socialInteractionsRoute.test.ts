@@ -220,6 +220,13 @@ describe("Social interactions route", () => {
     expect(store.setMute).not.toHaveBeenCalled();
   });
 
+  it.each(["comment", "quote", "feature_update", "notification_read"])("keeps ordinary POST %s actions frozen", async (action) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const { POST } = await import("@/app/api/social/interactions/route");
+    const response = await POST(new Request(URL, { method: "POST", body: JSON.stringify({ action }) }));
+    expect(response.status).toBe(503);
+  });
+
   it("still validates the target of a frozen block change", async () => {
     vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
     const { PUT } = await import("@/app/api/social/interactions/route");
