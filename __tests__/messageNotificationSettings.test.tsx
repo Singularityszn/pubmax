@@ -7,12 +7,13 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   fetch: vi.fn<() => Promise<Response>>(),
   save: vi.fn<() => Promise<void>>(),
+  token: vi.fn<() => Promise<string | null>>(),
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => ({ user: { id: "recipient" } }) }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: state.fetch }));
 vi.mock("@/lib/messageNotificationClient", () => ({
-  currentMessagePushToken: async () => null,
+  currentMessagePushToken: state.token,
   messagePushFingerprint: vi.fn(),
   saveMessageNotificationSetting: state.save,
 }));
@@ -35,6 +36,7 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   state.fetch.mockReset().mockImplementation(async () => Response.json(settings));
   state.save.mockReset().mockResolvedValue(undefined);
+  state.token.mockReset().mockResolvedValue(null);
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -123,6 +125,7 @@ it("reconciles a committed change after a response timeout", async () => {
   await click(preview());
   expect(preview().checked).toBe(true);
   expect(toggle().getAttribute("aria-busy")).toBe("false");
+  expect(host.querySelector('[role="status"]')).toBeNull();
 });
 
 it("does not take focus from the control clicked outside the panel", async () => {
@@ -135,4 +138,25 @@ it("does not take focus from the control clicked outside the panel", async () =>
   expect(host.querySelector(".messageAlertsPanel")).toBeNull();
   expect(document.activeElement).toBe(outside);
   outside.remove();
+});
+
+it("loads thread mute settings even when the browser subscription does not answer", async () => {
+  state.token.mockImplementation(() => new Promise(() => {}));
+  state.fetch.mockImplementation(async () => Response.json({ ...settings, muted: true }));
+  await act(async () => root.render(createElement(MessageNotificationSettings, { conversationId: "thread" })));
+  expect(toggle().getAttribute("aria-label")).toMatch(/muted/);
+});
+
+it("shows a retry when timeout confirmation itself fails", async () => {
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  state.save.mockRejectedValueOnce(new DOMException("Timed out", "TimeoutError"));
+  state.fetch.mockRejectedValueOnce(new Error("No connection"));
+  await click(preview());
+  expect(host.querySelector("input")).toBeNull();
+  const retry = Array.from(host.querySelectorAll("button")).find(button => button.textContent === "Try again")!;
+  expect(retry).toBeDefined();
+  await click(retry);
+  expect(preview().checked).toBe(false);
+  expect(host.querySelector('[role="status"]')).toBeNull();
 });

@@ -6,7 +6,7 @@ vi.mock("@/lib/authProviderRevision", () => ({
   readProviderAccountSignal: () => state.provider.signal,
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: state.fetch }));
-import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
+import { invalidateMessagesInbox, readMessagesInbox, markMessagesInboxVisible, invalidateMessagesInboxOnFocus } from "@/lib/messagesInboxClient";
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -80,4 +80,15 @@ it("does not cache a failed response when the reader retries", async () => {
   state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "recovered" }] }));
   expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "recovered" }]);
   expect(state.fetch).toHaveBeenCalledTimes(2);
+});
+
+it("reuses the visibility result when focus arrives after it has finished", async () => {
+  state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "fresh", unread: 2 }] }));
+  const visibleAt = performance.now();
+  const visible = readMessagesInbox("A", "reader");
+  markMessagesInboxVisible("reader", visibleAt);
+  await visible;
+  invalidateMessagesInboxOnFocus("reader");
+  expect((await readMessagesInbox("A", "reader")).conversations).toEqual([{ id: "fresh", unread: 2 }]);
+  expect(state.fetch).toHaveBeenCalledOnce();
 });
