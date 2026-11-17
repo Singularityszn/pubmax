@@ -30,8 +30,8 @@ export default function FirstTenRanking({
   /** The list the server last answered for this account. */
   entries: SocialPubRankingEntry[];
   onSaved: (entries: SocialPubRankingEntry[]) => void;
-  /** The session ended. The owner reads the list again. */
-  onClosed: (pendingWrite?: Promise<void>, reason?: ComparePubCloseReason) => void;
+  /** The session ended, with the comparison flow's own close answer (see ComparePubFlow's onClose). */
+  onClosed: (refresh?: Promise<void>, reason?: ComparePubCloseReason) => void;
   disabled: boolean;
   completionFocusRef: RefObject<HTMLHeadingElement | null>;
 }): React.JSX.Element | null {
@@ -69,10 +69,10 @@ export default function FirstTenRanking({
         <ComparePubFlow
           entries={entries}
           progress={firstTenProgressLine(count)}
-          onClose={(pendingWrite, reason) => {
+          onClose={(refresh, reason) => {
             completedOnClose.current = reason !== "refused" && count >= FIRST_TEN_GOAL;
             setOpen(false);
-            onClosed(pendingWrite, reason);
+            onClosed(refresh, reason);
           }}
           onSaved={onSaved}
         />

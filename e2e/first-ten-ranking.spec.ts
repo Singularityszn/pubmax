@@ -50,6 +50,8 @@ type Fixture = {
   rows: Record<AccountKey, Row[]>;
   posts: Array<{ account: AccountKey; body: Record<string, unknown> }>;
   writes: string[];
+  /** Ranking list reads the fixture answered. */
+  reads: number;
   /** Answers the next ranking request of this method itself, once. */
   next: Partial<Record<"GET" | "POST", (route: Route, account: AccountKey) => Promise<void>>>;
   refuse: Partial<Record<AccountKey, { status: number; code: string }>>;
@@ -78,6 +80,7 @@ async function installRankingFixture(page: Page, fixture: Fixture): Promise<void
     const refused = fixture.refuse[account];
     if (refused) return route.fulfill({ status: refused.status, json: { code: refused.code, error: "Refused." } });
     if (method === "POST") fixture.posts.push({ account, body: request.postDataJSON() as Record<string, unknown> });
+    else fixture.reads += 1;
     const override = fixture.next[method];
     if (override) {
       delete fixture.next[method];
@@ -109,7 +112,7 @@ function commitThenDrop(fixture: Fixture) {
 }
 
 function newFixture(rows: Partial<Record<AccountKey, Row[]>> = {}): Fixture {
-  return { rows: { A: rows.A ?? [], B: rows.B ?? [] }, posts: [], writes: [], next: {}, refuse: {} };
+  return { rows: { A: rows.A ?? [], B: rows.B ?? [] }, posts: [], writes: [], reads: 0, next: {}, refuse: {} };
 }
 
 async function openProfile(page: Page, fixture: Fixture, account: AccountKey = "A"): Promise<void> {
@@ -166,10 +169,13 @@ test.describe("first ten ranking", () => {
     await pickPub(page, "royal", "The Old Royal Oak");
     await dialog(page).getByRole("button", { name: "Not for me" }).click();
     await expect(dialog(page).getByRole("heading", { name: `${LONG_NAME} is in` })).toBeVisible();
+    const readsBeforeDone = fixture.reads;
     await dialog(page).getByRole("button", { name: "Done" }).click();
     await expect(dialog(page)).toHaveCount(0);
     await expect(card(page)).toContainText("4 of 10 ranked");
     await expect(page.getByRole("link", { name: "The Anchor" })).toBeVisible();
+    // Both saves answered with the whole list, so closing reads nothing more.
+    expect(fixture.reads).toBe(readsBeforeDone);
 
     // Stopping below ten is a normal end. A reload keeps what the server holds.
     await page.reload();
@@ -355,7 +361,9 @@ test.describe("first ten ranking", () => {
     await installAuthDoubles(page);
     await installRankingFixture(page, fixture);
     await seedSignedIn(page, "A");
-    // A tap before the session is known reads as signed out on this door.
+    // The door ranks for the signed-in account, so the spec waits until the
+    // page knows the account. The tap itself is retried because a tap before
+    // hydration is dropped without a sign (e2e/AGENTS.md).
     const identity = page.waitForResponse((response) => new URL(response.url()).pathname === "/api/identity/handle/current" && response.ok());
     await page.goto("/pubs/venue-7qifhm");
     await identity;
