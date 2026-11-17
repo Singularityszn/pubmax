@@ -13,6 +13,7 @@ vi.mock("@/lib/pubPalLlmFence", async (original) => ({
 vi.mock("@/lib/palTaste.server", () => ({ readPalTaste: vi.fn(async () => null) }));
 
 import { offlineFetch } from "@/evals/pal/offlineFetch";
+import * as palConversationId from "@/lib/pubPalConversationId";
 import { runPalClaudeChatTurn, type PalClaudeClient } from "@/lib/palClaudeChat.server";
 import { __resetPubPalStore } from "@/lib/pubPalStore";
 import {
@@ -67,6 +68,7 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     __resetPubPalStore();
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
+    vi.restoreAllMocks();
   });
 
   it("answers a follow-up without the earlier ask's cards", async () => {
@@ -171,6 +173,7 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     ["how do I get to The Crown from London Bridge", "journey", { from: "London Bridge", to: "The Golden Lion beer garden" }],
   ] as const)("keeps an invented venue fact in Claude's %s arguments out of the answer", async (query, name, input) => {
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("offline"); }));
+    vi.spyOn(palConversationId, "newPalLocalThreadId").mockReturnValueOnce("conv_palILvHkE8vMpwSSiRKE2AMkOerQj7gvpoA");
     let round = 0;
     const client = scriptedClient(async () => {
       round += 1;
@@ -182,6 +185,8 @@ describe("typed Pub Pal chat on Claude, with the real turn store", () => {
     const outcome = await runPalClaudeChatTurn({ query, ownerId: OWNER }, undefined, { client });
 
     expect(outcome.ok).toBe(true);
-    expect(JSON.stringify(outcome)).not.toMatch(/golden lion|beer garden|dog.friendly|2am/i);
+    if (!outcome.ok) return;
+    expect(outcome.conversationId).toBe("conv_palILvHkE8vMpwSSiRKE2AMkOerQj7gvpoA");
+    expect(outcome.message).not.toMatch(/golden lion|beer garden|dog.friendly|2am/i);
   });
 });
