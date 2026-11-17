@@ -28,6 +28,7 @@ import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind } from "@/lib/venueKinds";
 import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import type { FairPintEvidence } from "@/lib/fairPint";
 import {
   INITIAL_SLIM_LOAD_LIFECYCLE,
   transitionSlimLoadLifecycle,
@@ -75,7 +76,7 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
-  fairPint?: import("@/lib/fairPint").FairPintEvidence;
+  fairPint?: FairPintEvidence;
   hasRecordedPrice?: boolean;
   cheapestPint?: string;
   measure?: string;
