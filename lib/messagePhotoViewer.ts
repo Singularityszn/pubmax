@@ -24,7 +24,7 @@ export function rawPhotoView(displayed: PhotoView, frame: Box, photo: Box): Phot
   const bounded = clampPhotoView(displayed, frame, photo);
   const raw = (offset: number, dimension: number) => {
     if (dimension <= 0) return 0;
-    const magnitude = Math.min(Math.abs(offset), dimension * (1 - Number.EPSILON));
+    const magnitude = Math.min(Math.abs(offset), dimension / 2);
     return Math.sign(offset) * magnitude * dimension / (0.55 * (dimension - magnitude));
   };
   return {

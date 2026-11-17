@@ -198,6 +198,31 @@ describe("photo viewer pan release", () => {
     }
   });
 
+  it.each((["x", "y"] as const).flatMap(axis =>
+    [1, -1].flatMap(direction => [600, 1000, 1_000_000].map(travel => ({ axis, direction, travel }))),
+  ))("keeps $axis responsive after a $direction-direction pinch travels $travel pixels", ({ axis, direction, travel }) => {
+    const delta = { x: 0, y: 0, [axis]: direction * travel };
+    pointer("pointerdown", 100, 100, 0);
+    pointer("pointerdown", 300, 300, 0, 2);
+    pointer("pointermove", 100 + delta.x, 100 + delta.y, 10);
+    pointer("pointermove", 300 + delta.x, 300 + delta.y, 20, 2);
+    const pinched = position();
+    expect(Number(stage.dataset.scale)).toBe(2);
+    expect(pinched[axis] * direction).toBeGreaterThan(200);
+    expect(pinched[axis] * direction).toBeLessThanOrEqual(400);
+    expect(pinched[axis === "x" ? "y" : "x"]).toBe(0);
+    pointer("pointerup", 100 + delta.x, 100 + delta.y, 30);
+    pointer("pointermove", 300 + delta.x, 300 + delta.y, 40, 2);
+    expect(position()[axis]).toBeCloseTo(pinched[axis]);
+    const inward = { x: 0, y: 0, [axis]: direction * 10 };
+    pointer("pointermove", 300 + delta.x - inward.x, 300 + delta.y - inward.y, 50, 2);
+    expect((pinched[axis] - position()[axis]) * direction).toBeGreaterThan(1);
+    pointer("pointerup", 300 + delta.x - inward.x, 300 + delta.y - inward.y, 150, 2);
+    frame(5_000);
+    expect(position()[axis]).toBe(direction * 200);
+    expect(frames.size).toBe(0);
+  });
+
   it.each(["alice", "bob"])("keeps %s's photo action revealed after viewer controls and close", async senderHandle => {
     await act(async () => root.render(null));
     state.messages = [{ id: "m1", conversationId: "c1", senderHandle, body: "", createdAt: "2026-11-17T10:00:00Z", read: true, flagged: false,
