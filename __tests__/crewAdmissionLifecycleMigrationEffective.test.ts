@@ -439,23 +439,24 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
   it("rollback waits for a correction in flight, counts it, and needs the export count to name every row", async () => {
     const first = removedAndCorrected();
     expect(correct(first.crew, first.removedMember)).toMatchObject({ ok: true, code: "corrected" });
+    const exported = Number(ledgerRows());
     const second = removedAndCorrected();
     const correction = await holdRpc(correctCall(second.crew, second.removedMember));
     let rolling: Promise<{ ok: boolean; said: string }> | null = null;
     try {
-      rolling = rollbackOutcome("rollback_after_correction", "1");
+      rolling = rollbackOutcome("rollback_after_correction", String(exported));
       await expect.poll(() => waitsOnAnyLock("rollback_after_correction")).toBe("t");
     } finally { await correction.finish(); }
     const refused = await rolling;
     expect(refused?.ok).toBe(false);
-    expect(refused?.said).toMatch(/would drop 2 crew removal corrections/);
-    expect(ledgerRows()).toBe("2");
+    expect(refused?.said).toContain(`would drop ${exported + 1} crew removal corrections`);
+    expect(ledgerRows()).toBe(String(exported + 1));
 
     const unacknowledged = await rollbackOutcome("rollback_without_export");
     expect(unacknowledged.ok).toBe(false);
-    expect(ledgerRows()).toBe("2");
+    expect(ledgerRows()).toBe(String(exported + 1));
 
-    expect(await rollbackOutcome("rollback_with_export", "2")).toMatchObject({ ok: true });
+    expect(await rollbackOutcome("rollback_with_export", String(exported + 1))).toMatchObject({ ok: true });
     expect(db().sql("select to_regclass('public.social_crew_removal_corrections') is null")).toBe("t");
     stageTo("after");
     const bea = person();
@@ -472,7 +473,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     let rolling: Promise<{ ok: boolean; said: string }> | null = null;
     let correcting: Promise<{ ok: boolean; said: string }> | null = null;
     try {
-      rolling = rollbackOutcome("rollback_behind_block");
+      rolling = rollbackOutcome("rollback_behind_block", ledgerRows());
       await expect.poll(() => waitsOnAnyLock("rollback_behind_block")).toBe("t");
       correcting = outcome("correction_during_rollback", rpc(correctCall(pending.crew, pending.removedMember)));
       await expect.poll(() => waitsOnAnyLock("correction_during_rollback")).toBe("t");

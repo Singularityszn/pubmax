@@ -50,12 +50,28 @@ The correction does not give the person a place. No message goes to the host or 
 
 Each correction writes one row to `public.social_crew_removal_corrections`: the crew, the member, the account, the reason, the staff role and the moderator's display name.
 
+What the ledger does today:
+
 - Only the service role can read the ledger or add a row. The service role cannot change or delete a row.
-- The ledger is crew history. Like membership rows, it is not part of the account export. It stays through account deletion and is deleted with its crew.
-- Rollback of 0243 stops while the ledger has rows. Export the rows first:
+- Rows are not in the account export, and they stay through account deletion.
+- The `crew_id` foreign key deletes rows with their crew. A crew with decided requests or invitations cannot be deleted today.
 
-  ```sql
-  select * from public.social_crew_removal_corrections order by created_at;
-  ```
+This describes the current implementation. It is not an agreed retention policy. Export, deletion and retention of the ledger are open release holds, owned outside migration 0243. Do not run a correction in production until the captain closes them.
 
-  Then run the rollback in a session that has run `set pubmax.crew_removal_corrections_exported = 'yes';`.
+## Rollback
+
+Rollback of 0243 locks the ledger against new corrections, then counts its rows. While the ledger has rows, the rollback stops.
+
+1. Export the rows and note how many there are.
+
+   ```sql
+   select * from public.social_crew_removal_corrections order by created_at;
+   ```
+
+2. In the session that runs the rollback, first run this, with the exact count from step 1:
+
+   ```sql
+   set pubmax.crew_removal_corrections_exported = '<row count>';
+   ```
+
+3. If a correction lands after your export, the count changes and the rollback stops. Export again and use the new count.

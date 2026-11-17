@@ -9,20 +9,27 @@
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
 --
--- THE LEDGER IS NOT DROPPED SILENTLY. When social_crew_removal_corrections holds a
--- row, this rollback stops. Export the rows first, then run the rollback in a session
--- that has run: set pubmax.crew_removal_corrections_exported = 'yes';
+-- THE LEDGER IS NOT DROPPED SILENTLY. The first statement locks
+-- social_crew_removal_corrections against new corrections and counts its rows. When
+-- there are rows, the rollback stops unless the session first ran
+-- set pubmax.crew_removal_corrections_exported = '<that exact row count>';
+-- A correction that commits a row while the rollback waits for that lock changes the
+-- count, so an export taken before it no longer matches and the rollback stops.
+
 begin;
 
 do $$
 declare v_rows bigint := 0;
 begin
   if to_regclass('public.social_crew_removal_corrections') is not null then
-    execute 'select count(*) from public.social_crew_removal_corrections' into v_rows;
+    -- SHARE ROW EXCLUSIVE waits for every correction that has written a row, then
+    -- stops new ones until this rollback commits. So the count is what the drop removes.
+    lock table public.social_crew_removal_corrections in share row exclusive mode;
+    select count(*) into v_rows from public.social_crew_removal_corrections;
   end if;
   if v_rows > 0
-    and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> 'yes' then
-    raise exception 'Rollback 0243 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported = ''yes'' and run it again.', v_rows;
+    and coalesce(current_setting('pubmax.crew_removal_corrections_exported', true), '') <> v_rows::text then
+    raise exception 'Rollback 0243 would drop % crew removal corrections. Export social_crew_removal_corrections, then set pubmax.crew_removal_corrections_exported to that row count and run it again.', v_rows;
   end if;
 end;
 $$;
@@ -465,8 +472,6 @@ begin
 end;
 $$;
 
-drop function if exists public.correct_social_crew_removal_admin(uuid,uuid,uuid,text);
-drop table if exists public.social_crew_removal_corrections;
 drop trigger if exists lock_social_accounts_on_auth_user_delete on auth.users;
 drop trigger if exists social_blocks_lock_participant_accounts on public.social_blocks;
 drop function if exists public._lock_social_auth_user_accounts();
@@ -474,5 +479,8 @@ drop function if exists public._lock_social_block_participants();
 drop function if exists public._social_crew_admission_refused(uuid,uuid);
 drop function if exists public._social_crew_admission_ineligible(uuid,uuid);
 drop function if exists public._lock_social_participant_accounts(uuid[]);
+-- The ledger goes last. The lock taken at the top still holds it.
+drop function if exists public.correct_social_crew_removal_admin(uuid,uuid,uuid,text);
+drop table if exists public.social_crew_removal_corrections;
 
 commit;
