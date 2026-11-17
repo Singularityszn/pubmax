@@ -35,6 +35,20 @@
 .curatedWalkSummary { margin-top: 8px; }
 .curatedWalkActions > button { white-space: nowrap; }
 .mobileSharedSheet[data-surface="solid"] > .mobileSharedSheetHeader { padding-bottom: 12px; }
+@media (min-width: 641px) {
+  .appShell.planning-open .mapStage[data-curated-walk-open="true"] .maplibregl-ctrl-top-right {
+    top: calc(var(--map-camera-stack-top) + var(--map-camera-stack-height, 44px) + var(--map-chrome-gap));
+  }
+}
+@media (min-width: 641px) and (max-width: 1023px) {
+  .appShell.planning-open .mapStage[data-curated-walk-open="true"] .maplibregl-ctrl-group {
+    display: flex;
+  }
+  .appShell.planning-open .mapStage[data-curated-walk-open="true"] .maplibregl-ctrl-group button + button {
+    border-top: 0;
+    border-left: 1px solid var(--line);
+  }
+}
 @media (min-width: 641px) and (max-width: 768px) {
   .mapStage[data-curated-walk-open="true"] {
     --map-top-clearance: calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px);
