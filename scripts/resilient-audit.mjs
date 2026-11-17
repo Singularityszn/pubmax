@@ -22,10 +22,20 @@ const AUDIT_LEVELS = ["high", "critical"];
 // inline rationale and a removal condition, and only while a second
 // production-only audit proves the chain is dev-only.
 //
-// The map is empty. The last entry, GHSA-vfj7-8cjw-p6xm (braces <=3.0.3),
-// was removed on 2026-10-28 because GitHub withdrew the advisory on
-// 2026-10-23 and npm audit no longer reports it.
-export const WAIVED_ADVISORIES = new Map();
+// picomatch is dev-only through Next ESLint, fast-glob, knip and vitest, and
+// is not shipped in the production bundle. No fixed release existed on
+// 2026-11-17. https://github.com/Singularityszn/pubmax/issues/2976 tracks it.
+// Remove this waiver when a fixed picomatch is published. It expires on
+// 2026-12-17 even if the dependency has not been fixed.
+export function waivedAdvisories(now = Date.now()) {
+  return new Map(
+    now < Date.parse("2026-12-17T00:00:00Z")
+      ? [["https://github.com/advisories/GHSA-fc5q-39xc-vjpf", "high"]]
+      : [],
+  );
+}
+
+export const WAIVED_ADVISORIES = waivedAdvisories();
 
 function runAudit(extraArgs = []) {
   const result = spawnSync("npm", ["audit", "--json", "--audit-level=high", ...extraArgs], {
