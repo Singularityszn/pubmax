@@ -193,6 +193,21 @@ it("keeps a confirmed send when an older poll answers afterward", async () => {
   expect(host.textContent).toContain("Earlier history");
 });
 
+it.each([false, true])("keeps the cold composer closed during a retry (overlapping poll=%s)", async overlap => {
+  await render();
+  await answer(outage());
+  await click(".threadRetryBtn");
+  if (overlap) await poll();
+
+  expect(host.querySelector(".composerInput")).toBeNull();
+  expect(host.querySelector(".composerSend")).toBeNull();
+  await answer(thread("Earlier history"));
+  if (overlap) await answer(thread("Earlier history"));
+
+  expect(host.querySelector(".messageBubble")?.textContent).toContain("Earlier history");
+  expect(host.querySelector(".composerInput")).not.toBeNull();
+});
+
 it("keeps an empty thread's learned name in its snapshot after a poll", async () => {
   await render();
   await answer(Response.json({ messages: [] }), "/messages/conversation-a?");
