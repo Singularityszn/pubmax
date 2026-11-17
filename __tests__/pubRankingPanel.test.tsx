@@ -86,6 +86,40 @@ it("waits for a closed write and refreshes before another comparison", async () 
   expect(host.querySelector("[role=dialog]")?.textContent).toContain("The lamb");
 });
 
+it.each([503, 429])("uses valid comparison rankings when optional reviews return %s", async (reviewStatus) => {
+  net.get.mockImplementation(async (url: string) => new Response(JSON.stringify(
+    url === "/api/social/rankings" ? { entries: saved } : { code: "REVIEWS_UNAVAILABLE", retryable: true },
+  ), { status: url === "/api/social/rankings" ? 200 : reviewStatus }));
+  await mount();
+  expect(host.textContent).toContain("The crown");
+  expect(button("Rank a pub")?.getAttribute("aria-disabled")).not.toBe("true");
+  await act(async () => button("Rank a pub").click());
+  expect(host.querySelector("[role=dialog]")?.textContent).toContain("The crown");
+});
+
+it("publishes fresh comparison entries while optional reviews are unavailable", async () => {
+  await mount();
+  const finish = await closePending();
+  net.get.mockImplementation(async (url: string) => new Response(JSON.stringify(
+    url === "/api/social/rankings" ? { entries: [entry("lamb")] } : { code: "REVIEWS_UNAVAILABLE", retryable: true },
+  ), { status: url === "/api/social/rankings" ? 200 : 503 }));
+  await act(async () => finish());
+  expect(host.textContent).toContain("The lamb");
+  expect(host.textContent).not.toContain("The crown");
+  expect(button("Rank a pub")?.getAttribute("aria-disabled")).not.toBe("true");
+});
+
+it("still retires comparison entries when the reviews read refuses access", async () => {
+  await mount();
+  const finish = await closePending();
+  net.get.mockImplementation(async (url: string) => new Response(JSON.stringify(
+    url === "/api/social/rankings" ? { entries: saved } : { code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" },
+  ), { status: url === "/api/social/rankings" ? 200 : 403 }));
+  await act(async () => finish());
+  expect(host.textContent).not.toContain("The crown");
+  expect(button("Rank a pub")).toBeUndefined();
+});
+
 it("makes a confirmed save the checkpoint at once and keeps it through an outage", async () => {
   await mount();
   await act(async () => button("Rank a pub").click());

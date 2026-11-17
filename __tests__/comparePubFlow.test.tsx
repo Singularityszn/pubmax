@@ -270,6 +270,18 @@ describe("a list that moved in another tab", () => {
 });
 
 describe("an account switch", () => {
+  it("does not send an old comparison after account revision changes before close commits", async () => {
+    await open(list(["crown", "loved"]));
+    const choose = button("It was fine")!;
+    net.post.mockResolvedValueOnce(answer({ entries: list(["crown", "loved"], ["lamb", "fine"]) }));
+    await act(async () => {
+      setProviderIdentity("supabase", "account-b");
+      choose.click();
+    });
+    expect(net.post).not.toHaveBeenCalled();
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+
   it("does not publish a result after the dialog has retired", async () => {
     await open(list(["crown", "loved"]));
     let finish!: (value: unknown) => void;
