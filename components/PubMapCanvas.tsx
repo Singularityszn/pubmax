@@ -154,6 +154,7 @@ import {
   PIN_PAINT_RETRY_NOTICE,
   basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES,
   openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
@@ -587,10 +588,6 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
 const PIN_RETRY_WAIT_MS = 6_000;
-// MapLibre's GeoJSON worker and render events can lead the phone compositor by
-// a few frames. Two animation frames after the render that includes the pub
-// layers confirm that paint before the loading chrome lifts.
-const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -1157,6 +1154,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   );
   /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
   const ukBaseResidentPubsRef = useRef<UkBasePub[]>([]);
+  const initialWalkRef = useRef(Boolean(walk));
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -1627,6 +1625,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
+    const preferLocalPins = initialWalkRef.current && !nationalBrowseRef.current;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     performance.clearMarks("pubmax:pin-entrance-settled");
@@ -2413,16 +2412,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
-        pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
-      // On a phone, local pub GeoJSON is the useful content that the reader
-      // is waiting for. Do not hold its first painted frame behind remote
-      // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below. A national overview is the other way round:
-      // there are no pins to paint yet, so the frame waits on the basemap.
+        pubsDeferredUntilZoom() || (!phoneFirstImpression && !preferLocalPins) || hasPinsPaintable(),
+      // Phone and fixed walks reveal their local source while remote tiles
+      // load. Basemap failures keep their independent retry lane. National
+      // overviews wait for tiles because they have no local pubs to paint.
       requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression,
+      preferLocalPins,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
-        ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
+        ? PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES
         : 0,
       scheduleFrame: (callback) => window.requestAnimationFrame(callback),
       cancelFrame: (handle) => window.cancelAnimationFrame(handle),
@@ -2478,11 +2476,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
-        // Lift parent loading chrome only after basemap paint. Phone adds the
-        // stricter pub-source and composite gates above because its unfinished
-        // frame otherwise looks settled. Desktop keeps its established tile
-        // gate. The ceiling degrades honestly if either required phone signal
-        // never arrives.
+        // Lift parent chrome after the selected paint gate. Phone and initial
+        // fixed walks confirm their local source and composite frame. Ordinary
+        // desktop maps retain the basemap gate. The ceiling degrades honestly
+        // if a required signal never arrives.
         onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT, {
           detail: { reason, generation },
@@ -2928,10 +2925,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // actual first reveal. Deliberately NOT marked fired yet.
       if (map.getLayoutProperty("pubs-point", "visibility") === "none") return;
       pinEntranceFired = true;
-      // Phone readiness waits for a frame with visible map content. Starting
+      // Local readiness waits for a frame with visible map content. Starting
       // the opacity entrance after that frame would immediately blank those
       // pins again while the parent loading chrome retires.
-      if (reducedRef.current || phoneFirstImpression) {
+      if (reducedRef.current || phoneFirstImpression || preferLocalPins) {
         markPinEntranceSettled();
         return;
       }
@@ -2970,11 +2967,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       sceneSettled = true;
       clearHangFailTimer();
       // Internal scene-built gate only: unblock the map's own data/camera
-      // effects now that the scene graph exists at style.load. The PARENT
-      // loading chrome is deliberately NOT lifted here — it stays up until the
-      // basemap actually PAINTS (pinRevealCoordinator.onReveal above), so a slow
-      // tile stream can't expose a background-only void behind a retired
-      // skeleton. Error/timeout paths still lift the chrome via reportMapError.
+      // effects now that the scene graph exists at style.load. The
+      // parent frame stays until pinRevealCoordinator confirms its
+      // selected source/paint gate. Error paths release it via reportMapError.
       setMapReady(true);
       startPinEntrance();
     };
