@@ -15,10 +15,10 @@ export default function MessagePhotoViewer({ url, alt, width, height, onClose, o
   const stage = useRef<HTMLDivElement>(null);
   const image = useRef<HTMLImageElement>(null);
   const view = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
-  const displayed = useRef<PhotoView>(view.current);
+  const displayed = useRef<PhotoView>({ scale: 1, x: 0, y: 0 });
   const pointers = useRef(new Map<number, Point>());
   const start = useRef({ points: [] as Point[], view: { scale: 1, x: 0, y: 0 } });
-  const sample = useRef({ view: view.current, time: 0, velocity: { x: 0, y: 0 } });
+  const sample = useRef({ view: { scale: 1, x: 0, y: 0 }, time: 0, velocity: { x: 0, y: 0 } });
   const animations = useRef<Array<() => void>>([]);
   const [zoomLevel, setZoomLevel] = useState(100);
   const announceZoom = useCallback(() => setZoomLevel(Math.round(view.current.scale * 100)), []);
