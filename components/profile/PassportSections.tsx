@@ -131,12 +131,16 @@ function PassportRanked({ handle }: { handle: string }) {
     void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response): Promise<RankedRead | null> => {
         const body = (await response.json().catch(() => ({}))) as { entries?: SocialPubRankingEntry[]; code?: unknown };
-        if (response.ok) return { account, entries: Array.isArray(body.entries) ? body.entries : [] };
+        if (response.ok) return Array.isArray(body.entries) ? { account, entries: body.entries } : { account, unavailable: true };
         return rankingReadFailure(response.status, body.code) === "refused" ? null : { account, unavailable: true };
       })
       .catch((): RankedRead => ({ account, unavailable: true }))
       .then((next) => {
-        if (controller.signal.aborted || !next) return;
+        if (controller.signal.aborted) return;
+        if (!next) {
+          setRead(null);
+          return;
+        }
         // A list already read stays up when a later read fails.
         setRead((current) => ("unavailable" in next && current?.account === account && "entries" in current ? current : next));
       });

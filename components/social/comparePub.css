@@ -11,6 +11,7 @@
 }
 
 .comparePub {
+  container-type: inline-size;
   position: relative;
   display: grid;
   gap: 14px;
@@ -125,7 +126,7 @@
 
 .comparePub__pair {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: stretch;
   gap: 8px;
 }
@@ -139,6 +140,7 @@
 }
 
 .comparePub__pair strong {
+  overflow-wrap: anywhere;
   font-family: var(--font-display);
   font-size: var(--text-base);
   line-height: 1.2;
@@ -162,6 +164,16 @@
   align-self: center;
   color: var(--ink-soft);
   font-size: var(--text-sm);
+}
+
+@container (max-width: 26rem) {
+  .comparePub__pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .comparePub__or {
+    justify-self: center;
+  }
 }
 
 .comparePub__tie {
