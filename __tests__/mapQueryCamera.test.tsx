@@ -183,6 +183,33 @@ describe("walk panel overview framing", () => {
     expect(easeTo).toHaveBeenCalledOnce();
     expect(fitBounds).not.toHaveBeenCalled();
   });
+  it("fits the laid-out phone target while its entrance is still moving", () => {
+    mapViewport = { width: 390, height: 664 };
+    const drawer = panel(new DOMRect(0, 664, 390, 365));
+    drawer.classList.add("mobileSharedSheet", "sheet-entering");
+    drawer.dataset.sheetMotion = "entering";
+    vi.stubGlobal("DOMMatrixReadOnly", class { m41 = 0; m42 = 365; });
+    try {
+      mountWalk(true);
+      expect(camera.cameraLanePending()).toBe(true);
+      for (let i = 0; i < 2; i += 1) {
+        const callback = pendingFrame;
+        pendingFrame = undefined;
+        act(() => callback?.(performance.now()));
+      }
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect(fitBounds.mock.calls[0]?.[1].padding.bottom).toBeGreaterThanOrEqual(397);
+    } finally { drawer.remove(); }
+  });
+  it("reserves the final horizontal drawer edge before its entrance moves", () => {
+    mountWalk();
+    const drawer = panel(new DOMRect(52, 80, 380, 820));
+    drawer.dataset.springAxis = "horizontal";
+    vi.stubGlobal("DOMMatrixReadOnly", class { m41 = -380; m42 = 0; });
+    try {
+      expect(frame().padding.left).toBeGreaterThanOrEqual(840);
+    } finally { drawer.remove(); }
+  });
   it("keeps the existing phone padding for an ordinary pub route", () => {
     mapViewport = { width: 390, height: 664 };
     vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
