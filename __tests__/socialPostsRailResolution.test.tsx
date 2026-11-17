@@ -51,6 +51,7 @@ const posts = { valid: true as const, tab: "posts" as const, feed: "following" a
 let host: HTMLDivElement;
 let root: Root;
 let style: HTMLStyleElement;
+let promotionBodyRead: Promise<void>;
 
 function setSession(phase: ViewerSession["phase"]): void {
   viewer.session = {
@@ -68,9 +69,18 @@ beforeEach(() => {
   viewer.auth.user = null;
   setSession("unresolved");
   calendar.day = null;
+  let finishPromotionBody!: () => void;
+  promotionBodyRead = new Promise<void>((resolve) => { finishPromotionBody = resolve; });
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     if (String(input) !== LOG_IN_PUBLIC_FEED_HREF) throw new Error(`Unexpected public request: ${String(input)}`);
-    return Response.json({ drops: [] });
+    const response = Response.json({ drops: [] });
+    const readJson = response.json.bind(response);
+    response.json = async () => {
+      const body = await readJson();
+      finishPromotionBody();
+      return body;
+    };
+    return response;
   }));
   transport.request.mockReset();
   transport.request.mockImplementation(async (input: RequestInfo | URL) => {
@@ -171,7 +181,10 @@ describe("Social Posts account resolution", () => {
     setSession("signed-out");
     calendar.day = "2026-11-17";
     await renderSocial();
-    await act(async () => { await vi.dynamicImportSettled(); });
+    await act(async () => {
+      await vi.dynamicImportSettled();
+      await promotionBodyRead;
+    });
     const promotion = door.querySelector(".socialLogInPublic");
     expect(promotion).not.toBeNull();
     expect(promotion!.getAttribute("aria-busy")).toBe("false");
