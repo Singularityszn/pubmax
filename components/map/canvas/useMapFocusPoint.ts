@@ -24,7 +24,7 @@ export function useMapFocusPoint(
       focusKeyRef.current = mapCameraFocusKey(focusPoint);
       cinematic(
         { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900,
-          ...(focusPoint.source === "landmark" ? { offset: walkSurfaceOffset() } : {}) },
+          ...(focusPoint.source === "landmark" ? { offset: walkSurfaceOffset() ?? [0, 0] } : {}) },
         cameraIntentForFocusSource(focusPoint.source),
         focusPoint.source === "opening-location" ? "automatic" : "user",
         focusPoint.source !== "opening-location" ? focusPoint.token : 0,

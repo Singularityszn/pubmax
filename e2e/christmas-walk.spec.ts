@@ -190,14 +190,8 @@ for (const theme of ["light", "dark"] as const) {
     await expect(page.locator(".mapCanvasWrap[data-route-stops]")).toHaveAttribute("data-route-stops", "13");
     await expectMapLoadingFrameReleased(page);
     await expectCameraRest(page);
-    if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
-    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
-    else await page.getByRole("button", { name: "View stops", exact: true }).click();
     const panel = page.getByRole("complementary", { name: "London Christmas walk", exact: true });
     const stops = panel.getByRole("list", { name: "Walking stops in order" });
-    await expectLayoutSettled(stops);
-    await expectCameraRest(page);
-    if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "Close planner", exact: true }).click();
     await page.locator(".mapCanvasWrap").getByRole("button", { name: "Show whole walk", exact: true }).click();
     await expectCameraRest(page);
     await expectWholeWalkVisible(page);
@@ -209,8 +203,18 @@ for (const theme of ["light", "dark"] as const) {
     const target = tap.current!;
     if (testInfo.project.use.hasTouch) await page.touchscreen.tap(target.x, target.y);
     else await page.mouse.click(target.x, target.y);
-    if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
     const targetIndex = christmasWalk.stops.findIndex((stop) => stop.id === target.id);
+    await expect.poll(() => page.evaluate(() => (window as typeof window & {
+      __pubmaxMapCamera?: { read(): { zoom: number } };
+    }).__pubmaxMapCamera?.read().zoom ?? 0)).toBeGreaterThanOrEqual(15.5);
+    await expectCameraRest(page);
+    const selectedStop = christmasWalk.stops[targetIndex]!;
+    await expectSelectedRoutePaint(page, [selectedStop.longitude, selectedStop.latitude]);
+    await expect(panel).toHaveCount(0);
+    await page.screenshot({ path: testInfo.outputPath(`closed-selection-${theme}.png`) });
+    if (page.viewportSize()!.width < 768) await page.getByRole("button", { name: "View active 13-stop walk", exact: true }).click();
+    else if (page.viewportSize()!.width < 1024) await page.getByRole("button", { name: "View walk", exact: true }).click();
+    else await page.getByRole("button", { name: "View stops", exact: true }).click();
     await expect(stops.getByRole("button").nth(targetIndex)).toHaveAttribute("aria-current", "step");
     await panel.getByRole("button", { name: "Copy walk link", exact: true }).click();
     await expect(panel.getByRole("status").filter({ hasText: "Link copied" })).toBeVisible();
