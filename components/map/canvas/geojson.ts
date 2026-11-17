@@ -1,5 +1,5 @@
 import type { MapRouteStop } from "@/lib/curatedWalk";
-import { fairPence } from "@/lib/fairPint";
+import { fairPence } from "@/lib/fairPintPricing";
 import { priceForBeer } from "@/lib/beers";
 import { priceBucket } from "@/lib/communityPrice";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";

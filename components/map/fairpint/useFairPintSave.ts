@@ -1,6 +1,7 @@
 import type { CityId } from "@/lib/cities";
 import { useEffect, useReducer, useRef, useState } from "react";
-import { transitionFairPintSave, type FairPintDrawn, type FairPintSaveState } from "@/lib/fairPint";
+import { transitionFairPintSave } from "@/lib/fairPintTransitions";
+import type { FairPintDrawn, FairPintSaveState } from "@/lib/fairPint";
 import { DEFAULT_PLAN_COMPOSER_TITLE } from "@/lib/plan";
 import { isPlanId } from "@/lib/planId";
 import { isNativeApp } from "@/lib/nativePlatform";

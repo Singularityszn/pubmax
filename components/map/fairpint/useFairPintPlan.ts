@@ -1,6 +1,7 @@
 import { holdFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { startTransition, useEffect, useReducer, useRef, useState } from "react";
-import { fairPintRequest, transitionFairPintPlan, type FairPintGenerated } from "@/lib/fairPint";
+import { fairPintRequest, transitionFairPintPlan } from "@/lib/fairPintTransitions";
+import type { FairPintGenerated } from "@/lib/fairPint";
 import { readApiJson, errorMessageFrom } from "@/lib/apiErrorMessage";
 import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 let timeModule: typeof import("@/lib/planIntake") | null = null;

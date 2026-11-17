@@ -1,4 +1,3 @@
-import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { budgetCeiling, readBudgetChoice } from "@/lib/budgetChoice";
 import { suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { safeLocalStorage } from "@/lib/safeStorage";
@@ -10,16 +9,6 @@ export type FairPintPin = { fairPint?: FairPintEvidence };
 export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 300 && value <= 800 && value % 10 === 0;
-}
-export function fairPence(pin: FairPintPin, now: number): number | null {
-  if (!pin.fairPint) return null;
-  const [pence, url, observedAt] = pin.fairPint;
-  const evidence = buildPriceEvidence({ pence, url, observedAt, label: "Pint Prices", now });
-  return priceEvidenceUsableForCeiling(evidence) ? evidence.pence : null;
-}
-export function isFairPint(pin: FairPintPin, ceiling: number, now: number): boolean {
-  const pence = fairPence(pin, now);
-  return pence !== null && pence <= ceiling;
 }
 export function readFairPint(storage = safeLocalStorage()): number {
   try {
@@ -80,14 +69,6 @@ export type FairPintGenerated = {
   groundingProof: string;
   operationKey: string;
 };
-export function fairPintRequest(cityId: string, nightArea: string, pence: number, planStartIso?: string) {
-  return {
-    cityId,
-    query: `maximum £${(pence / 100).toFixed(2)} per pint`,
-    context: { nightArea, stopCount: 3 },
-    ...(planStartIso ? { planStartIso } : {}),
-  };
-}
 export type FairPintDrawn = { generated: FairPintGenerated; pence: number; start: string; startIso: string };
 export type FairPintPlanState = {
   phase: "dial" | "drawing" | "result";
@@ -101,24 +82,6 @@ export type FairPintPlanEvent =
   | { type: "drawn"; request: number; last: FairPintDrawn }
   | { type: "failed"; request: number; error: string; retryAt: number }
   | { type: "back" };
-export function transitionFairPintPlan(state: FairPintPlanState, event: FairPintPlanEvent): FairPintPlanState {
-  switch (event.type) {
-    case "draw":
-      return { ...state, phase: "drawing", request: event.request, error: "", retryAt: 0 };
-    case "drawn":
-      return state.request !== event.request ? state : { ...state, phase: "result", last: event.last, error: "" };
-    case "failed":
-      return state.request !== event.request
-        ? state
-        : { ...state, phase: state.last ? "result" : "dial", error: event.error, retryAt: event.retryAt };
-    case "back":
-      return { ...state, phase: "dial" };
-    default: {
-      const never: never = event;
-      return never;
-    }
-  }
-}
 
 export type FairPintSaveState =
   | { phase: "editing"; scope: string; notice: string }
@@ -137,54 +100,12 @@ export type FairPintSaveEvent =
   | { type: "link"; scope: string; url: string | null }
   | { type: "notice"; scope: string; notice: string }
   | { type: "share"; scope: string; outcome: import("@/lib/shareSheet").ShareOutcome };
-export function transitionFairPintSave(state: FairPintSaveState, event: FairPintSaveEvent): FairPintSaveState {
-  if (event.type === "save") return { phase: "saving", scope: event.scope, notice: "" };
-  if (event.scope !== state.scope) return state;
-  switch (event.type) {
-    case "saved":
-      return {
-        phase: "locked",
-        scope: event.scope,
-        planId: event.planId,
-        notice: "",
-        link: { phase: "loading" },
-        share: null,
-      };
-    case "link":
-      return state.phase !== "locked"
-        ? state
-        : {
-            ...state,
-            link: event.url ? { phase: "ready", url: event.url } : { phase: "failed" },
-            notice: event.url ? "" : "Could not prepare the link. Try again.",
-          };
-    case "notice":
-      return state.phase === "saving"
-        ? { phase: "editing", scope: state.scope, notice: event.notice }
-        : { ...state, notice: event.notice };
-    case "share":
-      return state.phase !== "locked" || event.outcome === "cancelled"
-        ? state
-        : {
-            ...state,
-            share: event.outcome,
-            notice:
-              event.outcome === "shared"
-                ? "Shared."
-                : event.outcome === "whatsapp"
-                  ? "Opened WhatsApp."
-                  : "Could not open sharing. Copy the link instead.",
-          };
-    default: {
-      const never: never = event;
-      return never;
-    }
-  }
-}
 
 export type EarlyFairPint = {
   pence: number;
   releases: number;
+  committedPence?: number;
+  handledReleases?: number;
   dragging?: boolean;
   closed?: boolean;
   location?: Promise<GeolocationPosition | null>;
@@ -233,6 +154,7 @@ export function bootFairPintCard(
     const saved = stored && typeof stored === "object" && "pence" in stored ? stored.pence : null;
     const fallback = config.budgets[store.getItem(config.budgetKey) ?? ""];
     const early: EarlyFairPint = { pence: valid(saved) ? saved : valid(fallback) ? fallback : 550, releases: 0 };
+    early.committedPence = early.pence;
     window.__pubmaxEarlyFairPint = early;
     const range = card.querySelector<HTMLInputElement>("input[type=range]");
     const output = card.querySelector("output");
@@ -251,6 +173,7 @@ export function bootFairPintCard(
       if (dirty) {
         dirty = false;
         committed = early.pence;
+        early.committedPence = committed;
         early.releases++;
         try {
           store.setItem(config.priceKey, JSON.stringify({ pence: early.pence }));
@@ -314,3 +237,6 @@ export function bootFairPintCard(
     card.hidden = false;
   } catch {}
 }
+
+export { isFairPint } from "@/lib/fairPintPricing";
+export { fairPintRequest, transitionFairPintPlan } from "@/lib/fairPintTransitions";
