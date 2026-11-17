@@ -47,6 +47,42 @@ it("keeps the last route but rejects a cleared first-pint time", async () => {
   act(() => root.unmount());
 });
 
+it("honours Retry-After for time edits and draws, then validates the latest selected time", async () => {
+  await warmFairPintTime();
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-11-17T12:00:00Z"));
+  const fetcher = vi.fn()
+    .mockResolvedValueOnce(Response.json(generated("original")))
+    .mockResolvedValueOnce(Response.json({}, { status: 429, headers: { "retry-after": "30" } }))
+    .mockResolvedValueOnce(Response.json(generated("revalidated")));
+  vi.stubGlobal("fetch", fetcher);
+  let hook: ReturnType<typeof useFairPintPlan>;
+  function Host() { hook = useFairPintPlan("london", "camden", () => {}); return null; }
+  const root = createRoot(document.createElement("div"));
+  act(() => root.render(createElement(Host)));
+  try {
+    await act(async () => { await hook.draw(550); });
+    const last = hook!.state.last!;
+    act(() => hook!.lineReady("original"));
+    await act(async () => { await hook.changeStart("2026-11-18T18:00"); });
+    expect(hook!.state.error).toBe("Too many plans just now. Try again in a minute.");
+    act(() => hook!.editStart("2026-11-18T19:00"));
+    await act(async () => { await hook.changeStart("2026-11-18T19:00"); });
+    await act(async () => { await hook.draw(600); });
+    act(() => hook!.back());
+    await act(async () => { await hook.draw(600); });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(hook!.state.last).toBe(last);
+    expect(hook!.retrying).toBe(true);
+    await act(async () => { vi.advanceTimersByTime(30000); });
+    expect(hook!.retrying).toBe(false);
+    await act(async () => { await hook.changeStart("2026-11-18T19:00"); });
+    expect(fetcher).toHaveBeenCalledTimes(3);
+    expect(hook!.state.last).toMatchObject({ start: "2026-11-18T19:00", startIso: "2026-11-18T19:00:00.000Z", generated: { operationKey: "revalidated" } });
+    expect(JSON.parse(fetcher.mock.calls[2]![1].body)).toMatchObject({ planStartIso: "2026-11-18T19:00:00.000Z" });
+  } finally { act(() => root.unmount()); }
+});
+
 it.each(["pending", "failed"])("restores the validated time after a %s revalidation", async (mode) => {
   let finish!: (response: Response) => void, began!: () => void;
   const started = new Promise<void>((resolve) => { began = resolve; });

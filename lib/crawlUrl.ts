@@ -90,7 +90,7 @@ const CROSS_STYLES = new Set<CrawlStyle>([
   "dateNight",
   "noAlcoholFirst",
 ]);
-const MAX_PRICE = { min: 4, max: NO_PINT_PRICE_CAP };
+const MAX_PRICE = { min: 3, max: NO_PINT_PRICE_CAP };
 const STOPS = { min: 4, max: 7 };
 const WINDOW = { min: 15, max: 30 };
 

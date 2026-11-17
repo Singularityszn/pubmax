@@ -143,6 +143,7 @@ function pinToSlimVenue(pin: Venue): SlimVenue {
     lat: pin.latitude,
     lng: pin.longitude,
     cheapestPrice: pin.cheapestPrice,
+    ...(pin.fairPint ? { fairPint: pin.fairPint } : {}),
     ...(typeof pin.hasRecordedPrice === "boolean" ? { hasRecordedPrice: pin.hasRecordedPrice } : {}),
     ...(pin.cheapestPint ? { cheapestPint: pin.cheapestPint } : {}),
     ...(pin.measure !== undefined ? { measure: pin.measure } : {}),

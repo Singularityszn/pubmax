@@ -22,6 +22,8 @@ import { whenBottomSheetSettles } from "@/components/map/canvas/bottomSheetGeome
 import { fairPintNeedsPeek } from "./fairPintRouteInsets";
 import "./fairPint.css";
 type ResultProps = {
+  typedName: string | null;
+  onName: (value: string) => void;
   last: FairPintDrawn;
   venues: readonly SlimVenue[];
   start: string;
@@ -49,6 +51,8 @@ const readDay = (iso: string) =>
     day: "2-digit",
   }).format(new Date(iso));
 export default function FairPintResult({
+  typedName,
+  onName,
   last,
   venues,
   start,
@@ -73,7 +77,6 @@ export default function FairPintResult({
   const [nameAttempted, setNameAttempted] = useState(false);
   const [diagramReady, setDiagramReady] = useState(false);
   const [snap, setSnap] = useState<"half" | "peek">("half");
-  const [typedName, setName] = useState<string | null>(null);
   const name = typedName ?? handle ?? "";
   const { generated } = last;
   const save = useFairPintSave(last);
@@ -245,7 +248,7 @@ export default function FairPintResult({
           ref={nameField}
           disabled={locked || save.nameLocked || save.state.phase === "saving"}
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => onName(event.target.value)}
           aria-describedby="fair-pint-name-hint"
           autoComplete="given-name"
           maxLength={40}

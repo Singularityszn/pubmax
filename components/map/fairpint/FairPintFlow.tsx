@@ -60,6 +60,7 @@ export default function FairPintFlow({
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [returnToCard, setReturnToCard] = useState(false);
+  const [typedName, setTypedName] = useState<string | null>(null);
   const [data, setData] = useState<{
     rows: SlimVenue[];
     count: "loading" | "failed" | "ready";
@@ -177,6 +178,8 @@ export default function FairPintFlow({
         fallback={<FairPintResultFallback last={plan.state.last} onBack={back} />}
       >
         <FairPintResult
+          typedName={typedName}
+          onName={setTypedName}
           onLineReady={plan.lineReady}
           onEditStart={plan.editStart}
           cityId={cityId}

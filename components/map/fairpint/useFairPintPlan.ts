@@ -53,6 +53,7 @@ export function useFairPintPlan(cityId: string, area: string, onGenerated: (valu
     [],
   );
   async function draw(pence: number, chosenStart?: string, chosenArea = area) {
+    if (Date.now() < state.retryAt) return;
     pending.current?.abort();
     routePending.current = null;
     releaseDrawing();
