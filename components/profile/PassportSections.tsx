@@ -29,7 +29,7 @@ import {
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
-import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import BeenCardShare from "./BeenCardShare";
@@ -124,7 +124,7 @@ function PassportRanked({ handle }: { handle: string }) {
   const [revision, setRevision] = useState(0);
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
-  const [refresh, setRefresh] = useState<"ready" | "checking" | "unavailable">("ready");
+  const [refresh, setRefresh] = useState<"ready" | "checking" | "retrying" | "unavailable">("ready");
   const generation = useRef(0);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const focusAfterRead = useRef(false);
@@ -146,7 +146,8 @@ function PassportRanked({ handle }: { handle: string }) {
         const body = payload !== null && typeof payload === "object" && !Array.isArray(payload)
           ? payload as { entries?: SocialPubRankingEntry[]; code?: unknown; retryable?: unknown }
           : {};
-        if (response.ok) return Array.isArray(body.entries) ? { account, entries: body.entries } : { account, unavailable: true };
+        const entries = response.ok ? socialPubRankingPayload(payload) : null;
+        if (response.ok) return entries ? { account, entries } : { account, unavailable: true };
         return rankingReadFailure(response.status, body.code, body.retryable) === "refused" ? null : { account, unavailable: true };
       })
       .catch((): RankedRead => ({ account, unavailable: true }))
@@ -167,7 +168,7 @@ function PassportRanked({ handle }: { handle: string }) {
   function retry() {
     generation.current += 1;
     focusAfterRead.current = true;
-    setRefresh("checking");
+    setRefresh("retrying");
     setRevision((value) => value + 1);
   }
 
@@ -179,27 +180,30 @@ function PassportRanked({ handle }: { handle: string }) {
     });
   }
 
-  if (!read || read.account !== account) return null;
+  const statusText = read?.account !== account || refresh === "ready" ? ""
+    : refresh === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…";
+  const announcement = <p className="sr-only" role="status">{statusText}</p>;
+  if (!read || read.account !== account) return <>{announcement}</>;
   const retryStatus = refresh !== "ready" ? (
     <>
-      <p className="passportQuiet" role="status">
-        {refresh === "checking" ? "Checking your ranking…" : "Your ranking is unavailable right now."}
-      </p>
-      <p className="passportQuiet">
-        <Button type="button" variant="ghost" aria-disabled={refresh === "checking"} onClick={() => { if (refresh !== "checking") retry(); }}>
-          Try again
-        </Button>
-      </p>
+      <p className="passportQuiet" aria-hidden="true">{statusText}</p>
+      {refresh === "unavailable" || refresh === "retrying" ? (
+        <p className="passportQuiet">
+          <Button type="button" variant="ghost" aria-disabled={refresh === "retrying"} onClick={() => { if (refresh === "unavailable") retry(); }}>
+            Try again
+          </Button>
+        </p>
+      ) : null}
     </>
   ) : null;
   if ("unavailable" in read) {
     return (
-      <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+      <>{announcement}<section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
         <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
         </h2>
         {retryStatus}
-      </section>
+      </section></>
     );
   }
   const entries = [...read.entries].sort((a, b) => a.place - b.place);
@@ -233,7 +237,7 @@ function PassportRanked({ handle }: { handle: string }) {
   }
 
   return (
-    <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+    <>{announcement}<section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
       <div className="passportSectionHead">
         <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
@@ -275,7 +279,7 @@ function PassportRanked({ handle }: { handle: string }) {
         }}
         onClosed={closed}
       />
-    </section>
+    </section></>
   );
 }
 

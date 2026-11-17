@@ -14,6 +14,7 @@ import {
   SOCIAL_PUB_BAND_LABEL,
   SOCIAL_PUB_BANDS,
   socialPubComparisonNeighbours,
+  socialPubRankingPayload,
   startSocialPubComparison,
   type SocialPubBand,
   type SocialPubComparison,
@@ -29,14 +30,11 @@ type Step = "pick" | "band" | "compare" | "saving" | "checking" | "unconfirmed" 
 type Neighbours = ReturnType<typeof socialPubComparisonNeighbours>;
 /** A save whose outcome only a fresh list can tell: its answer was lost, or the list moved. */
 type Unsettled = { kind: "lost"; band: SocialPubBand; neighbours: Neighbours } | { kind: "stale"; band: SocialPubBand };
-type SaveBody = { entries?: SocialPubRankingEntry[]; code?: string; error?: string };
-
 async function readRankings(signal: AbortSignal): Promise<SocialPubRankingEntry[] | null> {
   try {
     const reply = await authedFetch("/api/social/rankings", { credentials: "same-origin", signal }, { requiresIdentity: true });
     if (!reply.ok) return null;
-    const body = (await reply.json()) as { entries?: unknown };
-    return Array.isArray(body.entries) ? (body.entries as SocialPubRankingEntry[]) : null;
+    return socialPubRankingPayload(await reply.json());
   } catch {
     return null;
   }
@@ -198,9 +196,9 @@ export default function ComparePubFlow({
     setNotice(null);
     const neighbours = socialPubComparisonNeighbours(settled);
     const lost: Unsettled = { kind: "lost", band: chosenBand, neighbours };
-    let saved: { response: Response; body: SaveBody };
+    let saved: { response: Response; body: unknown };
     try {
-      const request = authedActionJson<SaveBody>(
+      const request = authedActionJson<unknown>(
         "/api/social/rankings",
         {
           method: "POST",
@@ -226,15 +224,17 @@ export default function ComparePubFlow({
     }
     if (!sameAccount()) return;
     const { response, body } = saved;
-    if (response.ok && Array.isArray(body.entries)) {
-      acknowledge(subject.id, body.entries);
+    const entries = response.ok ? socialPubRankingPayload(body) : null;
+    if (entries) {
+      acknowledge(subject.id, entries);
       return;
     }
-    if (response.status === 409 && body.code === "STALE_RANKING") {
+    const code = body !== null && typeof body === "object" ? (body as { code?: unknown }).code : undefined;
+    if (response.status === 409 && code === "STALE_RANKING") {
       await reconcile({ kind: "stale", band: chosenBand });
       return;
     }
-    if (response.ok || response.status >= 500) {
+    if (response.ok || response.status === 409 || response.status >= 500) {
       await reconcile(lost);
       return;
     }

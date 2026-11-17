@@ -11,7 +11,9 @@ import { useIsSample } from "@/components/ui/sample-skeleton-context";
 import { authedFetch } from "@/lib/authedFetch";
 import { rankingReadFailure } from "@/lib/firstTenRankingSession";
 import type { SocialLotRankingEntry, SocialPubRankingEntry as StarEntry } from "@/lib/socialPostReviews";
-import { SOCIAL_PUB_BAND_LABEL, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { SOCIAL_PUB_BAND_LABEL, socialPubRankingPayload, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+
+import "./pubRankingState.css";
 
 const SHOWN = 5;
 
@@ -86,6 +88,15 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
     if (sampled) return;
     const requestGeneration = ++generation.current;
     const controller = new AbortController();
+    function refuse(error: unknown): never {
+      if (error instanceof RankingReadError && error.kind === "refused" &&
+        !controller.signal.aborted && generation.current === requestGeneration) {
+        setLoaded(null);
+        setPhase("refused");
+        controller.abort();
+      }
+      throw error;
+    }
     void (async () => {
       await pendingWrite.current;
       if (controller.signal.aborted) return;
@@ -97,16 +108,17 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
         setPhase("ready");
         return;
       }
-      const [compared, stars] = await Promise.all([
-        readJson<{ entries?: SocialPubRankingEntry[] }>("/api/social/rankings", controller.signal),
-        readJson<{ entries?: StarEntry[] }>("/api/social/reviews?limit=50&scope=mine", controller.signal),
+      const [compared, stars] = await Promise.allSettled([
+        readJson<unknown>("/api/social/rankings", controller.signal).catch(refuse),
+        readJson<{ entries?: StarEntry[] }>("/api/social/reviews?limit=50&scope=mine", controller.signal).catch(refuse),
       ]);
       if (controller.signal.aborted || generation.current !== requestGeneration) return;
-      if (!Array.isArray(compared?.entries) || !Array.isArray(stars?.entries)) throw new RankingReadError("unavailable");
-      const comparedEntries = compared.entries;
+      if (compared.status !== "fulfilled" || stars.status !== "fulfilled") throw new RankingReadError("unavailable");
+      const comparedEntries = socialPubRankingPayload(compared.value);
+      if (!comparedEntries || !Array.isArray(stars.value?.entries)) throw new RankingReadError("unavailable");
       setLoaded({
         scope,
-        rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars.entries),
+        rows: comparedEntries.length > 0 ? comparedRows(comparedEntries) : starRows(stars.value.entries),
         compared: comparedEntries,
       });
       setPhase("ready");
@@ -142,10 +154,11 @@ function RankingPanel({ refreshKey = "" }: { refreshKey?: string }) {
           </button>
         ))}
       </div>
-      {phase === "checking" && !sampled ? <p className="pubRanking__empty" role="status">Checking your ranking…</p> : null}
+      <p className={!sampled && phase !== "ready" ? "pubRanking__empty" : "sr-only"} role="status">
+        {sampled || phase === "ready" ? "" : phase === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…"}
+      </p>
       {phase === "unavailable" || phase === "retrying" ? (
         <>
-          <p className="pubRanking__empty" role="status">{phase === "retrying" ? "Checking your ranking…" : "Your ranking is unavailable right now."}</p>
           <button type="button" className="pubRanking__more" aria-disabled={phase === "retrying"} onClick={() => { if (phase === "unavailable") { focusAfterRead.current = true; refresh(true); } }}>Try again</button>
         </>
       ) : null}
