@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page, type TestInfo } from "@playwright/test";
 
+import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 import { proofShotPath } from "./helpers/proofShot";
 import { storeThemeChoice } from "./helpers/themeClock";
 
@@ -50,8 +52,14 @@ async function openSummon(page: Page): Promise<void> {
       },
     });
   });
+  await installDeterministicMapBasemap(page);
   const response = await page.goto(`/map?sel=${LAMB}`);
   expect(response?.status()).toBe(200);
+  if (page.viewportSize()!.width <= 640) {
+    const expand = page.getByRole("button", { name: "Expand sheet", exact: true });
+    await expect(expand).toBeVisible();
+    await expand.click();
+  }
   const summon = page.getByRole("button", { name: "Summon mates to The Lamb", exact: true });
   const dialog = summonDialog(page);
   // A tap before hydration is dropped, and the dialog's chunk loads on first open.
@@ -141,4 +149,45 @@ test("a conditional listing is quoted whole at 390 with large text", async ({ pa
   await shot(page, testInfo, "390-dark-large-conditions");
   await page.keyboard.press("Escape");
   await expect(dialog).toHaveCount(0);
+});
+
+test("a signed-out reader can close the sign-in gate and return to Summon", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await storeThemeChoice(page, "dark");
+  await fixtureLambDetail(page, null);
+  await openSummon(page);
+  await summonDialog(page).getByRole("button", { name: "Sign in", exact: true }).click();
+  const gate = page.getByRole("dialog", { name: "Sign in to contribute", exact: true });
+  await gate.getByRole("button", { name: "Not now", exact: true }).click();
+  await expect(gate).toHaveCount(0);
+  await summonDialog(page).getByRole("button", { name: "Not now", exact: true }).click();
+  await expect(summonDialog(page)).toHaveCount(0);
+});
+
+test("a table age check closes back to the unchanged request", async ({ page }) => {
+  const auth = await installAuthDoubles(page);
+  await seedSignedIn(page, "A");
+  auth.setServerHandle("karan");
+  await page.route("**/api/summon?*", (route) => route.fulfill({ json: { mates: [] } }));
+  await page.route("**/api/table-requests", (route) => route.fulfill({ status: 403, json: { status: "adult_check_required" } }));
+  await page.setViewportSize({ width: 390, height: 844 });
+  await storeThemeChoice(page, "dark");
+  await fixtureLambDetail(page, null);
+  await openSummon(page);
+  await summonDialog(page).getByRole("button", { name: "Not now", exact: true }).click();
+  const more = page.getByRole("button", { name: "More actions for The Lamb", exact: true });
+  if (await more.isVisible()) await more.click();
+  await page.getByRole("button", { name: "Ask for a table at The Lamb", exact: true }).click();
+  const table = page.getByRole("dialog", { name: "Ask The Lamb for a table", exact: true });
+  await table.getByLabel("Name the table is under", { exact: true }).fill("Karan Fixture");
+  await table.getByLabel("Day", { exact: true }).fill("2026-11-19");
+  await table.getByLabel("Time", { exact: true }).fill("20:00");
+  await table.getByLabel("Your email", { exact: true }).fill("fixture@example.test");
+  await table.getByRole("button", { name: "Send request", exact: true }).click();
+  const gate = page.getByRole("dialog", { name: "Confirm your age", exact: true });
+  await gate.getByRole("button", { name: "Not now", exact: true }).click();
+  await expect(gate).toHaveCount(0);
+  await expect(table.getByLabel("Name the table is under", { exact: true })).toHaveValue("Karan Fixture");
+  await table.getByRole("button", { name: "Not now", exact: true }).click();
+  await expect(table).toHaveCount(0);
 });

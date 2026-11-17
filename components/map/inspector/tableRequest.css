@@ -7,7 +7,7 @@
 .tableRequestBackdrop {
   position: fixed;
   inset: 0;
-  z-index: calc(var(--z-tabbar) + 1);
+  z-index: calc(var(--z-overlay-top) + 1);
   display: grid;
   place-items: center;
   padding: 1rem;

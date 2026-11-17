@@ -274,7 +274,7 @@ function SummonMatesForm({ venue, onClose, signedOut, accountRevision }: Props &
               />
             </label>
             {price && validTime ? (
-              <div className="tableRequestScript" role="group" aria-label="What your mates will read" data-summon-preview="">
+              <div className="tableRequestScript" role="group" aria-label="Listed price at this pub" data-summon-preview="">
                 <p>{summonText(venue.name, validTime, price)}</p>
               </div>
             ) : null}

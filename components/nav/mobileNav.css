@@ -398,6 +398,10 @@ body:has(.mapStage):has(.analyticsConsentPrompt):has(.palSummon, .palVoiceBar) {
     transform: translateY(110%);
   }
 
+  .mobileTabBar[inert] {
+    visibility: hidden;
+  }
+
   .mobileTabList {
     position: relative;
     display: flex;

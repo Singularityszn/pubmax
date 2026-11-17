@@ -87,6 +87,14 @@ function listingStatesAmount(listing: string, amount: number): boolean {
 
 function servingMatches(drink: string, measure: DrinkMeasure): boolean {
   if (measure === "pint") return isComparablePintServing({ measure, cheapestPint: drink });
+  if (measure !== "bottle" && /\b(?:bottles?|bottled|cans?|canned)\b/i.test(drink)) return false;
+  const expectedMl = measure === "half" ? 284 : /^(125|175|250)ml$/.test(measure) ? Number.parseInt(measure, 10) : null;
+  if (expectedMl !== null) {
+    for (const size of drink.matchAll(/\b(\d+(?:\.\d+)?)\s*(ml|cl|litres?|l)\b/gi)) {
+      const ml = Number(size[1]) * (size[2]!.toLowerCase() === "ml" ? 1 : size[2]!.toLowerCase() === "cl" ? 10 : 1000);
+      if (ml !== expectedMl) return false;
+    }
+  }
   const named = measureNamedInDrinkText(drink);
   return named === null || named === measure;
 }
@@ -116,7 +124,7 @@ function evidenceFromRow(venueId: string, row: VenuePrice, amount: number, nowMs
   if (scalar ? !sameAmount(Number(scalar[1]), amount) : !listingStatesAmount(priceText, amount)) return null;
 
   const source = namedLegacyPintPriceSource(row);
-  if (!source || source.url.length > SOURCE_URL_MAX || /\s/.test(source.url) || UNSAFE_TEXT.test(source.label)) {
+  if (!source || source.url.length > SOURCE_URL_MAX || /\s/.test(source.url) || UNSAFE_TEXT.test(source.url) || UNSAFE_TEXT.test(source.label)) {
     return null;
   }
 
