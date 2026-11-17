@@ -7,7 +7,8 @@ const THREAD = "11111111-1111-4111-8111-111111111111";
 
 async function seedSignedIn(page: Page, account: "A" | "B"): Promise<void> {
   await seedFixtureSignedIn(page, account);
-  await expect(page.getByRole("button", { name: "Sign in", exact: true }).or(page.getByRole("link", { name: "Sign in", exact: true })).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: `Account options for ${ACCOUNTS[account].name}`, exact: true })).toBeVisible();
 }
 
 async function pushRuntime(page: Page, legacy = false): Promise<void> {
