@@ -13,6 +13,8 @@ create table public.message_push_subscriptions (
   token text not null check (length(token) between 1 and 2048),
   active_conversation_id uuid references public.conversations(id) on delete set null,
   last_seen timestamptz,
+  presence_activity_id bigint not null default 0 check (presence_activity_id >= 0),
+  presence_revision bigint not null default 0 check (presence_revision >= 0),
   updated_at timestamptz not null default now()
 );
 create index message_push_subscriptions_session_idx on public.message_push_subscriptions(session_id);
@@ -50,7 +52,7 @@ begin
     values (p_endpoint_hash, p_user_id, p_session_id, p_token)
   on conflict (endpoint_hash) do update set
     user_id = excluded.user_id, session_id = excluded.session_id,
-    active_conversation_id = null, last_seen = null, updated_at = now()
+    active_conversation_id = null, last_seen = null, presence_activity_id = 0, presence_revision = 0, updated_at = now()
   where current.token = excluded.token
     and (current.user_id is distinct from excluded.user_id or current.session_id is distinct from excluded.session_id);
   get diagnostics changed = row_count;
@@ -61,6 +63,21 @@ end;
 $$;
 revoke all on function public.message_notification_bind(uuid, uuid, text, text) from public, anon, authenticated;
 grant execute on function public.message_notification_bind(uuid, uuid, text, text) to service_role;
+
+create function public.message_notification_presence(p_user_id uuid, p_session_id uuid, p_endpoint_hash text,
+  p_token text, p_conversation_id uuid, p_activity_id bigint, p_revision bigint)
+returns void language sql security definer set search_path = '' as $$
+  update public.message_push_subscriptions s set
+    presence_revision = p_revision,
+    presence_activity_id = p_activity_id,
+    active_conversation_id = p_conversation_id,
+    last_seen = now()
+  where s.endpoint_hash = p_endpoint_hash and s.token = p_token and s.user_id = p_user_id and s.session_id = p_session_id
+    and p_activity_id between 1 and 9007199254740991 and p_revision between 1 and 9007199254740991
+    and (p_activity_id > s.presence_activity_id or (p_activity_id = s.presence_activity_id and p_revision > s.presence_revision));
+$$;
+revoke all on function public.message_notification_presence(uuid, uuid, text, text, uuid, bigint, bigint) from public, anon, authenticated;
+grant execute on function public.message_notification_presence(uuid, uuid, text, text, uuid, bigint, bigint) to service_role;
 
 create function public.message_notification_session_active(p_user_id uuid, p_session_id uuid)
 returns boolean language plpgsql stable security definer set search_path = '' as $$

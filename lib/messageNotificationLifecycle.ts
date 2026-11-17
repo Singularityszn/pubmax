@@ -26,15 +26,28 @@ function applyBindingEvent(event: MessagePushBindingEvent): void {
       case "announce-departure":
         window.dispatchEvent(new Event(MESSAGE_PUSH_DEPARTURE));
         break;
-      case "persist-binding":
+      case "persist-binding": {
+        let saved = false;
         try {
-          if (bindingState.phase === "bound") safeSessionStorage()?.setItem(BOUND_KEY, JSON.stringify(bindingState.binding));
-          else safeSessionStorage()?.removeItem(BOUND_KEY);
-        } catch { /* The marker only avoids redundant release attempts. */ }
+          const storage = safeSessionStorage();
+          if (storage) {
+            if (bindingState.phase === "bound") storage.setItem(BOUND_KEY, JSON.stringify(bindingState.binding));
+            else storage.removeItem(BOUND_KEY);
+            saved = true;
+          }
+        } catch { saved = false; }
+        applyBindingEvent({ type: "storage-result", target: "binding", saved });
         break;
-      case "persist-releases":
-        try { safeLocalStorage()?.setItem(RELEASE_KEY, JSON.stringify(bindingState.pending)); } catch { /* The in-memory queue remains available. */ }
+      }
+      case "persist-releases": {
+        let saved = false;
+        try {
+          const storage = safeLocalStorage();
+          if (storage) { storage.setItem(RELEASE_KEY, JSON.stringify(bindingState.pending)); saved = true; }
+        } catch { saved = false; }
+        applyBindingEvent({ type: "storage-result", target: "releases", saved });
         break;
+      }
       default: {
         const unreachable: never = effect;
         return unreachable;

@@ -12,6 +12,7 @@ import "server-only";
 import { followStore } from "@/lib/followStore";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { messagesStore } from "@/lib/messagesStore";
+import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { eitherMutes, isUnmutedMate, type MateViewer } from "@/lib/socialMutual.server";
 import { SUMMON_MAX_MATES, summonText } from "@/lib/summonMates";
@@ -51,7 +52,9 @@ async function deliver(sender: string, mate: string, body: string, venueId: stri
   if (!conversationId) return false;
   const sent = await store.send(conversationId, sender, body, { kind: "venue", venueId });
   if (!sent) return false;
-  deferMessagesSignal(() => broadcastMessageSent(conversationId, [sender, mate]));
+  deferMessagesSignal(async () => {
+    await Promise.allSettled([broadcastMessageSent(conversationId, [sender, mate]), notifyMessageRecipients(sent.message)]);
+  });
   return true;
 }
 

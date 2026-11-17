@@ -4,9 +4,14 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { getAccessToken } from "@/lib/authClient";
 import { providerOwnsSession } from "@/lib/authProviderRevision";
 import { currentMessagePushToken, MESSAGE_PUSH_DEPARTURE } from "@/lib/messageNotificationLifecycle";
-import { authedActionFetch } from "@/lib/authedFetch";
 import { MESSAGE_NOTIFICATION_SETTINGS_CHANGED } from "@/lib/messageNotificationClient";
 import { discardBody } from "@/lib/responseBody";
+
+let lastPresenceActivity = 0;
+function nextPresenceActivity(): number {
+  lastPresenceActivity = Math.max(lastPresenceActivity + 1, Date.now() * 1_000);
+  return lastPresenceActivity;
+}
 
 export function useMessageThreadPresence(conversationId: string): void {
   const { user } = useAuth();
@@ -15,27 +20,34 @@ export function useMessageThreadPresence(conversationId: string): void {
     if (!userId) return;
     let disposed = false;
     let token: string | null = null;
+    let accessToken: string | null = null;
+    let revision = 0;
+    let activityId = 0;
     const controller = new AbortController();
     const clear = () => {
-      if (!token || !providerOwnsSession("supabase", userId)) return;
-      void getAccessToken().then((accessToken) => {
-        if (!accessToken || !providerOwnsSession("supabase", userId)) return;
-        return fetch("/api/message-notifications", {
+      revision += 1;
+      if (!token || !accessToken || !providerOwnsSession("supabase", userId)) return;
+      void fetch("/api/message-notifications", {
         method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
-        body: JSON.stringify({ action: "presence", token, conversationId: null }), keepalive: true,
+        body: JSON.stringify({ action: "presence", token, conversationId: null, activityId, revision }), keepalive: true,
         signal: AbortSignal.timeout(3_000),
-      }).then(discardBody);
-      }).catch(() => undefined);
+      }).then(discardBody).catch(() => undefined);
     };
     const heartbeat = async () => {
       if (disposed || document.visibilityState !== "visible") return;
-      token = await currentMessagePushToken();
-      if (!token || disposed) return;
-      const response = await authedActionFetch("/api/message-notifications", {
-        method: "POST", headers: { "content-type": "application/json" },
-        body: JSON.stringify({ action: "presence", token, conversationId }), signal: controller.signal,
-      }, { requiresIdentity: true });
+      const attempt = ++revision;
+      activityId = nextPresenceActivity();
+      const bearer = await getAccessToken();
+      const subscription = await currentMessagePushToken();
+      if (!subscription || !bearer || disposed || revision !== attempt || document.visibilityState !== "visible" || !providerOwnsSession("supabase", userId)) return;
+      token = subscription;
+      accessToken = bearer;
+      const response = await fetch("/api/message-notifications", {
+        method: "POST", headers: { "content-type": "application/json", authorization: `Bearer ${accessToken}` },
+        body: JSON.stringify({ action: "presence", token, conversationId, activityId, revision: attempt }), signal: controller.signal,
+      });
       discardBody(response);
+      if (disposed || revision !== attempt || document.visibilityState !== "visible") return;
       const registration = await navigator.serviceWorker.getRegistration();
       for (const notification of await registration?.getNotifications({ tag: `message:${conversationId}` }) ?? []) notification.close();
     };

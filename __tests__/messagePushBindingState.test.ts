@@ -18,6 +18,35 @@ const departing: MessagePushBindingState = { phase: "departing", revision: 4, pe
 const pending: MessagePushBindingState = { phase: "pending-release", revision: 4, pending: [a, c] };
 
 describe("private push binding transitions", () => {
+  it("keeps an unpersisted departure authoritative over readable empty storage", () => {
+    let state = transitionMessagePushBinding(bound, { type: "departure-started", storedBinding: b, storedReleases: [] }).state;
+    state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: false }).state;
+    state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [] }).state;
+    expect(state.pending).toEqual([b]);
+    state = transitionMessagePushBinding(state, { type: "binding-recorded", token: c.token, sessionId: c.sessionId, revision: state.revision, storedReleases: [] }).state;
+    expect(state.pending).toEqual([b]);
+  });
+  it("keeps an accepted binding authoritative when its session marker cannot be written", () => {
+    let state = transitionMessagePushBinding(unbound, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 3 }).state;
+    state = transitionMessagePushBinding(state, { type: "storage-result", target: "binding", saved: false }).state;
+    state = transitionMessagePushBinding(state, { type: "departure-started", storedBinding: null, storedReleases: [] }).state;
+    expect(state.pending).toEqual([b]);
+  });
+  it("does not restore a superseded release after a failed rebind write", () => {
+    let state = transitionMessagePushBinding(pending, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 4 }).state;
+    state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: false }).state;
+    state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [a, c] }).state;
+    expect(state).toMatchObject({ phase: "bound", binding: b, pending: [c] });
+    state = transitionMessagePushBinding(state, { type: "release-confirmed", binding: c }).state;
+    state = transitionMessagePushBinding(state, { type: "releases-loaded", bindings: [a, c] }).state;
+    expect(state.pending).toEqual([]);
+    state = transitionMessagePushBinding(state, { type: "storage-result", target: "releases", saved: true }).state;
+    expect(state.unsaved).toBeUndefined();
+  });
+  it("does not compensate an old completion against the same current binding", () => {
+    const state = { ...bound, pending: [] } as MessagePushBindingState;
+    expect(transitionMessagePushBinding(state, { type: "binding-recorded", token: b.token, sessionId: b.sessionId, revision: 2 })).toEqual({ state, effects: [] });
+  });
   it("starts with no account binding or release backlog", () => {
     expect(INITIAL_MESSAGE_PUSH_BINDING_STATE).toEqual({ phase: "unbound", revision: 0, pending: [] });
   });

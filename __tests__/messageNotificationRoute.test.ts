@@ -24,6 +24,25 @@ const request = (body: unknown, method = "POST") => new Request("https://pubmaxx
 beforeEach(() => { Object.assign(state, { userId: "owner", member: true, limited: false, allowed: true, muted: false, latestUnavailable: false, prefs: { enabled: false, preview: false } }); vi.clearAllMocks(); });
 
 describe("message notification ownership", () => {
+  it("scopes ordered presence to the verified session", async () => {
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/presence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
+    expect((await POST(request({ action: "presence", token, conversationId: THREAD, activityId: 1, revision: 2, sessionId: "asserted" }))).status).toBe(200);
+    expect(presence).toHaveBeenCalledWith("owner", token, THREAD, SESSION, 1, 2);
+    state.member = false;
+    expect((await POST(request({ action: "presence", token, conversationId: THREAD, activityId: 1, revision: 3 }))).status).toBe(404);
+    expect(presence).toHaveBeenCalledTimes(1);
+  });
+  it("rejects unordered presence instead of allowing a stale write", async () => {
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/presence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
+    expect((await POST(request({ action: "presence", token, conversationId: null }))).status).toBe(400);
+    expect(presence).not.toHaveBeenCalled();
+  });
+  it("refuses presence from a bearer that belongs to a different account", async () => {
+    state.userId = "different-user";
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/presence", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } });
+    expect((await POST(request({ action: "presence", token, conversationId: null, activityId: 1, revision: 2 }))).status).toBe(401);
+    expect(presence).not.toHaveBeenCalled();
+  });
   it.each(["", "different-user"])("returns no preview before allocating a per-user limit for %s", async (userId) => {
     state.userId = userId;
     state.limited = true;

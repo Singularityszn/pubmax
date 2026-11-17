@@ -18,7 +18,7 @@ type Store = {
   tokens(userId: string): Promise<string[]>;
   registered(userId: string, fingerprint: string): Promise<boolean>;
   targets(userId: string, conversationId: string): Promise<string[]>;
-  presence(userId: string, token: string, conversationId: string | null): Promise<void>;
+  presence(userId: string, token: string, conversationId: string | null, sessionId: string, activityId: number, revision: number): Promise<void>;
   release(token: string, sessionId?: string): Promise<void>;
   previewAllowed(token: string, userId: string, messageId: string, sessionId: string): Promise<boolean>;
   sessionActive(userId: string, sessionId: string): Promise<boolean>;
@@ -84,8 +84,11 @@ const durableMessageNotificationStore: Store = {
     if (error) throw error;
     return Boolean(data);
   },
-  async presence(userId, token, conversationId) {
-    const { error } = await admin().from(tokensTable).update({ active_conversation_id: conversationId, last_seen: new Date().toISOString() }).eq("endpoint_hash", endpointHash(token)).eq("user_id", userId).eq("token", token);
+  async presence(userId, token, conversationId, sessionId, activityId, revision) {
+    const { error } = await admin().rpc("message_notification_presence", {
+      p_user_id: userId, p_endpoint_hash: endpointHash(token), p_token: token, p_session_id: sessionId,
+      p_conversation_id: conversationId, p_activity_id: activityId, p_revision: revision,
+    });
     if (error) throw error;
   },
   async release(token, sessionId) {
@@ -118,7 +121,7 @@ const durableMessageNotificationStore: Store = {
 };
 
 const preferences = new Map<string, MessageNotificationPreferences>();
-const tokens = new Map<string, { userId: string; token: string; sessionId: string; conversationId?: string | null; lastSeen?: number }>();
+const tokens = new Map<string, { userId: string; token: string; sessionId: string; conversationId?: string | null; lastSeen?: number; activityId?: number; revision?: number }>();
 const mutes = new Set<string>();
 const claims = new Set<string>();
 export const memoryMessageNotificationStore: Store = {
@@ -144,9 +147,14 @@ export const memoryMessageNotificationStore: Store = {
   async tokens(userId) { return [...tokens.values()].filter((row) => row.userId === userId).map((row) => row.token).slice(-20); },
   async targets(userId, conversationId) { return [...tokens.values()].filter((row) => row.userId === userId && (row.conversationId !== conversationId || (row.lastSeen ?? 0) < Date.now() - 30_000)).map((row) => row.token).slice(-20); },
   async registered(userId, fingerprint) { return tokens.get(fingerprint)?.userId === userId; },
-  async presence(userId, token, conversationId) {
+  async presence(userId, token, conversationId, sessionId, activityId, revision) {
     const row = tokens.get(endpointHash(token));
-    if (row?.userId === userId && row.token === token) { row.conversationId = conversationId; row.lastSeen = Date.now(); }
+    if (row?.userId !== userId || row.token !== token || row.sessionId !== sessionId || !Number.isSafeInteger(activityId) || !Number.isSafeInteger(revision) || activityId <= 0 || revision <= 0
+      || activityId < (row.activityId ?? 0) || (activityId === row.activityId && revision <= (row.revision ?? 0))) return;
+    row.revision = revision;
+    row.activityId = activityId;
+    row.conversationId = conversationId;
+    row.lastSeen = Date.now();
   },
   async release(token, sessionId) {
     const key = endpointHash(token);

@@ -9,6 +9,12 @@ const routeState = vi.hoisted(() => ({
   access: null as unknown,
   limited: false,
 }));
+const notifications = vi.hoisted(() => ({ work: [] as Promise<unknown>[], send: vi.fn(async () => []) }));
+vi.mock("@/lib/messagesBroadcast.server", () => ({
+  broadcastMessageSent: async () => true,
+  deferMessagesSignal: (run: () => Promise<unknown>) => { notifications.work.push(run()); },
+}));
+vi.mock("@/lib/pushProvider", () => ({ selectPushProvider: () => ({ send: notifications.send }) }));
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/socialAccessServer", () => ({
@@ -35,6 +41,8 @@ import { __resetMemoryFollows, followStore } from "@/lib/followStore";
 import { __resetMemoryMessages, messagesStore } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { socialInteractionStore } from "@/lib/socialInteractionStore";
+import { memoryMessageNotificationStore } from "@/lib/messageNotificationStore";
+import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 import * as supabase from "@/lib/supabase";
 import * as relationships from "@/lib/socialRelationships.server";
 import {
@@ -78,12 +86,15 @@ async function inbox(handle: string) {
 }
 
 beforeEach(() => {
+  notifications.work = [];
+  notifications.send.mockClear();
   me = __seedMemoryOwnedProfile(ME, "user-me-12");
   routeState.access = { ok: true, actor: { accountId: "acct-me-12", profileId: me.id, handle: ME } };
   routeState.limited = false;
 });
 
-afterEach(() => {
+afterEach(async () => {
+  await Promise.all(notifications.work);
   vi.restoreAllMocks();
   __resetMemoryFollows();
   __resetMemoryProfiles();
@@ -196,6 +207,38 @@ describe("GET /api/summon", () => {
 });
 
 describe("POST /api/summon", () => {
+  it.each([true, false])("sends a private recipient alert only with consent=%s, excluding the sender", async (enabled) => {
+    await mate("summon_ann_12");
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/summon-recipient", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    const senderToken = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/summon-sender", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    await memoryMessageNotificationStore.savePreferences("user-summon_ann_12", { enabled, preview: false });
+    await memoryMessageNotificationStore.savePreferences("user-me-12", { enabled: true, preview: false });
+    await memoryMessageNotificationStore.saveToken("user-summon_ann_12", token, "session");
+    await memoryMessageNotificationStore.saveToken("user-me-12", senderToken, "session");
+    try {
+      expect((await summon({ venueId: PUB, time: "20:00", mates: [ME, "summon_ann_12"] })).status).toBe(201);
+      await Promise.all(notifications.work);
+      if (enabled) {
+        expect(notifications.send).toHaveBeenCalledOnce();
+        expect(notifications.send).toHaveBeenCalledWith([token], expect.objectContaining({ title: "New message", body: "Open PubMaxxing to read it.", data: expect.objectContaining({ recipientId: "user-summon_ann_12" }) }));
+      } else expect(notifications.send).not.toHaveBeenCalled();
+    } finally {
+      await memoryMessageNotificationStore.release(token);
+      await memoryMessageNotificationStore.release(senderToken);
+      await memoryMessageNotificationStore.savePreferences("user-summon_ann_12", { enabled: false, preview: false });
+      await memoryMessageNotificationStore.savePreferences("user-me-12", { enabled: false, preview: false });
+    }
+  });
+  it.each(["conversation", "message", "exception"])("schedules no alert when delivery fails at %s", async failure => {
+    await mate("summon_ann_12");
+    if (failure === "conversation") vi.spyOn(messagesStore(), "openConversation").mockResolvedValue(null);
+    else if (failure === "message") vi.spyOn(messagesStore(), "send").mockResolvedValue(null);
+    else vi.spyOn(messagesStore(), "send").mockRejectedValue(new Error("Store unavailable"));
+    const response = await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] });
+    expect(await response.json()).toEqual({ sent: [], failed: ["summon_ann_12"] });
+    expect(notifications.work).toEqual([]);
+    expect(notifications.send).not.toHaveBeenCalled();
+  });
   it.each([
     { label: "null", body: null },
     { label: "an array", body: [] },

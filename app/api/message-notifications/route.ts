@@ -84,9 +84,13 @@ export async function POST(request: Request): Promise<Response> {
       if (enabled) await store.saveToken(userId, body.token, sessionId);
       else await store.release(body.token);
       return jsonNoStore({ ok: true, bound: enabled, sessionId: enabled ? sessionId : null });
-    } else if (body.action === "presence" && validDeviceToken(body.token) && (body.conversationId === null || typeof body.conversationId === "string")) {
+    } else if (body.action === "presence" && validDeviceToken(body.token) && (body.conversationId === null || typeof body.conversationId === "string")
+      && typeof body.activityId === "number" && Number.isSafeInteger(body.activityId) && body.activityId > 0
+      && typeof body.revision === "number" && Number.isSafeInteger(body.revision) && body.revision > 0) {
+      const sessionId = messageNotificationSessionId(request, userId);
+      if (!sessionId || !await store.sessionActive(userId, sessionId)) return publicApiError("Sign in again to enable message alerts.", "UNAUTHENTICATED", 401);
       if (body.conversationId && !await conversationAccess(userId, body.conversationId)) return publicApiError("Conversation not found.", "NOT_FOUND", 404);
-      await store.presence(userId, body.token, body.conversationId);
+      await store.presence(userId, body.token, body.conversationId, sessionId, body.activityId, body.revision);
     } else {
       return publicApiError("Invalid request.", "INVALID_REQUEST", 400);
     }

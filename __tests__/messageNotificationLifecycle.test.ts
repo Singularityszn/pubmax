@@ -8,6 +8,18 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOrigina
 } }));
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 import { restoreMessagePushAccount, saveMessageNotificationSetting } from "@/lib/messageNotificationClient";
+import * as safeStorage from "@/lib/safeStorage";
+
+function fullStorage(storage: Storage): Storage {
+  return {
+    get length() { return storage.length; },
+    key: index => storage.key(index),
+    getItem: key => storage.getItem(key),
+    removeItem: key => storage.removeItem(key),
+    clear: () => storage.clear(),
+    setItem: () => { throw new DOMException("Full", "QuotaExceededError"); },
+  };
+}
 
 const unsubscribe = vi.fn(async () => true);
 const close = vi.fn();
@@ -33,6 +45,38 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it("detaches despite readable quota-full local storage containing an empty backlog", async () => {
+    localStorage.setItem("pubmax:pending-message-detach", "[]");
+    const write = vi.spyOn(safeStorage, "safeLocalStorage").mockReturnValue(fullStorage(localStorage));
+    const detach = vi.mocked(fetch);
+    try {
+      await releaseMessagePush();
+      expect(detach).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: expect.stringContaining("22222222-2222-4222-8222-222222222222") }));
+    } finally { write.mockRestore(); }
+    await flushMessagePushReleases();
+    expect(localStorage.getItem("pubmax:pending-message-detach")).toBe("[]");
+  });
+  it("detaches an accepted binding when its session marker cannot be written", async () => {
+    sessionStorage.clear();
+    const write = vi.spyOn(safeStorage, "safeSessionStorage").mockReturnValue(fullStorage(sessionStorage));
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    try {
+      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333");
+      await releaseMessagePush();
+      expect(fetch).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ token, sessionId: "33333333-3333-4333-8333-333333333333" }) }));
+    } finally { write.mockRestore(); }
+  });
+  it("releases a late accepted binding even when compensation cannot be persisted", async () => {
+    const revision = messagePushDepartureRevision();
+    await releaseMessagePush();
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/late-quota", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    const write = vi.spyOn(safeStorage, "safeLocalStorage").mockReturnValue(fullStorage(localStorage));
+    try {
+      recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333", revision);
+      await flushMessagePushReleases();
+      expect(fetch).toHaveBeenCalledWith("/api/message-notifications", expect.objectContaining({ method: "DELETE", body: JSON.stringify({ token, sessionId: "33333333-3333-4333-8333-333333333333" }) }));
+    } finally { write.mockRestore(); }
+  });
   it("retains a late accepted binding for release without replacing the current device binding", async () => {
     const revision = messagePushDepartureRevision();
     vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Offline"); }));

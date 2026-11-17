@@ -1,17 +1,20 @@
 export type MessagePushBinding = Readonly<{ token: string; sessionId: string }>;
 
-export type MessagePushBindingState =
+type StorageTarget = "binding" | "releases";
+export type MessagePushBindingState = (
   | { readonly phase: "unbound"; readonly revision: number; readonly pending: readonly [] }
   | { readonly phase: "bound"; readonly revision: number; readonly binding: MessagePushBinding; readonly pending: readonly MessagePushBinding[] }
   | { readonly phase: "departing"; readonly revision: number; readonly pending: readonly MessagePushBinding[] }
-  | { readonly phase: "pending-release"; readonly revision: number; readonly pending: readonly [MessagePushBinding, ...MessagePushBinding[]] };
+  | { readonly phase: "pending-release"; readonly revision: number; readonly pending: readonly [MessagePushBinding, ...MessagePushBinding[]] }
+) & { readonly unsaved?: readonly StorageTarget[] };
 
 export type MessagePushBindingEvent =
   | { type: "binding-recorded"; token: string; sessionId: string | null; revision: number; storedReleases?: readonly MessagePushBinding[] }
   | { type: "releases-loaded"; bindings: readonly MessagePushBinding[] }
   | { type: "release-confirmed"; binding: MessagePushBinding }
   | { type: "departure-started"; storedBinding: MessagePushBinding | null | undefined; storedReleases?: readonly MessagePushBinding[] }
-  | { type: "departure-settled"; revision: number };
+  | { type: "departure-settled"; revision: number }
+  | { type: "storage-result"; target: StorageTarget; saved: boolean };
 
 export type MessagePushBindingEffect = "announce-departure" | "persist-binding" | "persist-releases";
 export type MessagePushBindingTransition = { state: MessagePushBindingState; effects: readonly MessagePushBindingEffect[] };
@@ -22,11 +25,12 @@ const key = (binding: MessagePushBinding) => `${binding.sessionId}:${binding.tok
 function unique(bindings: readonly MessagePushBinding[]): MessagePushBinding[] {
   return [...new Map(bindings.map(binding => [key(binding), binding])).values()];
 }
-function detached(revision: number, pending: readonly MessagePushBinding[]): MessagePushBindingState {
+function detached(revision: number, pending: readonly MessagePushBinding[], unsaved?: readonly StorageTarget[]): MessagePushBindingState {
   const [first, ...rest] = pending;
-  return first
+  const state: MessagePushBindingState = first
     ? { phase: "pending-release", revision, pending: [first, ...rest] }
     : { phase: "unbound", revision, pending: [] };
+  return unsaved?.length ? { ...state, unsaved } : state;
 }
 function withPending(state: MessagePushBindingState, pending: readonly MessagePushBinding[]): MessagePushBindingState {
   switch (state.phase) {
@@ -35,7 +39,7 @@ function withPending(state: MessagePushBindingState, pending: readonly MessagePu
       return { ...state, pending };
     case "unbound":
     case "pending-release":
-      return detached(state.revision, pending);
+      return detached(state.revision, pending, state.unsaved);
     default: {
       const unreachable: never = state;
       return unreachable;
@@ -47,17 +51,19 @@ export function transitionMessagePushBinding(state: MessagePushBindingState, eve
   switch (event.type) {
     case "binding-recorded": {
       const binding = event.sessionId ? { token: event.token, sessionId: event.sessionId } : null;
+      const releases = state.unsaved?.includes("releases") ? state.pending : event.storedReleases ?? state.pending;
       if (event.revision !== state.revision) {
-        if (!binding) return { state, effects: [] };
-        return { state: withPending(state, unique([...(event.storedReleases ?? state.pending), binding])), effects: ["persist-releases"] };
+        if (!binding || (state.phase === "bound" && key(state.binding) === key(binding))) return { state, effects: [] };
+        return { state: withPending(state, unique([...releases, binding])), effects: ["persist-releases"] };
       }
-      const remaining = unique(event.storedReleases ?? state.pending).filter(item => item.token !== event.token);
+      const remaining = unique(releases).filter(item => item.token !== event.token);
       return {
-        state: binding ? { phase: "bound", revision: state.revision, binding, pending: remaining } : detached(state.revision, remaining),
+        state: binding ? { ...(state.unsaved ? { unsaved: state.unsaved } : {}), phase: "bound", revision: state.revision, binding, pending: remaining } : detached(state.revision, remaining, state.unsaved),
         effects: ["persist-binding", "persist-releases"],
       };
     }
     case "releases-loaded":
+      if (state.unsaved?.includes("releases")) return { state, effects: ["persist-releases"] };
       return { state: withPending(state, unique(event.bindings)), effects: [] };
     case "release-confirmed": {
       const pending = state.pending.filter(binding => key(binding) !== key(event.binding));
@@ -65,17 +71,24 @@ export function transitionMessagePushBinding(state: MessagePushBindingState, eve
       return { state: withPending(state, pending), effects: ["persist-releases"] };
     }
     case "departure-started": {
-      const binding = event.storedBinding === undefined ? (state.phase === "bound" ? state.binding : null) : event.storedBinding;
-      const pending = binding ? unique([...(event.storedReleases ?? state.pending), binding]) : state.pending;
+      const binding = event.storedBinding === undefined || state.unsaved?.includes("binding") ? (state.phase === "bound" ? state.binding : null) : event.storedBinding;
+      const releases = state.unsaved?.includes("releases") ? state.pending : event.storedReleases ?? state.pending;
+      const pending = binding ? unique([...releases, binding]) : state.pending;
       const effects: MessagePushBindingEffect[] = ["announce-departure"];
       if (binding) effects.push("persist-releases");
       effects.push("persist-binding");
-      return { state: { phase: "departing", revision: state.revision + 1, pending }, effects };
+      return { state: { ...(state.unsaved ? { unsaved: state.unsaved } : {}), phase: "departing", revision: state.revision + 1, pending }, effects };
     }
     case "departure-settled":
       return state.phase === "departing" && event.revision === state.revision
-        ? { state: detached(state.revision, state.pending), effects: [] }
+        ? { state: detached(state.revision, state.pending, state.unsaved), effects: [] }
         : { state, effects: [] };
+    case "storage-result": {
+      const { unsaved: previous = [], ...rest } = state;
+      const unsaved = previous.filter(target => target !== event.target);
+      if (!event.saved) unsaved.push(event.target);
+      return { state: unsaved.length ? { ...rest, unsaved } : rest, effects: [] };
+    }
     default: {
       const unreachable: never = event;
       return unreachable;
