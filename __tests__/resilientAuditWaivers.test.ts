@@ -64,6 +64,8 @@ describe("resilient-audit waivers", () => {
     ["changed severity", auditReport(PICOMATCH_URL, "critical"), auditReport()],
     ["unavailable production evidence", auditReport(PICOMATCH_URL), "registry unavailable"],
     ["unavailable full evidence", "registry unavailable", auditReport()],
+    ["incomplete production evidence", auditReport(PICOMATCH_URL), JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } })],
+    ["incomplete full evidence", JSON.stringify({ vulnerabilities: {}, metadata: { vulnerabilities: {} } }), auditReport()],
   ])("fails closed for %s", (_label, full, production) => {
     expect(runGate(full, production).status).toBe(1);
   });
