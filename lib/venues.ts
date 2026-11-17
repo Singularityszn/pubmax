@@ -152,6 +152,7 @@ export function hasPintPriceSemantics(
 }
 
 export type Venue = {
+  fairPint?: import("@/lib/fairPint").FairPintEvidence;
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;

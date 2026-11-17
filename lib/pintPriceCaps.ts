@@ -10,6 +10,7 @@ import { hasPintPriceCap, NO_PINT_PRICE_CAP } from "@/lib/pintPriceCapValue";
 // PR 2402).
 
 export type PintPriceCap = {
+  kind?: "custom";
   /** The `Filters.maxPrice` this cap writes. `NO_PINT_PRICE_CAP` is "Any". */
   maxPrice: number;
   /** The full label, for a chip with room for it: "Any", "≤ £5.50". */
@@ -94,5 +95,12 @@ export function nearestPintPriceCap(maxPrice: number): PintPriceCap {
  * while £6.25 still filtered the map was printing one cap and applying another.
  */
 export function appliedPintPriceCap(maxPrice: number): number {
-  return nearestPintPriceCap(maxPrice).maxPrice;
+  return Number.isFinite(maxPrice) && maxPrice >= 3 && maxPrice <= 8 && Math.abs(maxPrice * 10 - Math.round(maxPrice * 10)) < 1e-9
+    ? maxPrice : nearestPintPriceCap(maxPrice).maxPrice;
+}
+
+/** A dial value is an exact entry in the shared cap set. */
+export function pintPriceCapsFor(value: number): readonly PintPriceCap[] {
+  if (PINT_PRICE_CAPS.some((entry) => pintPriceCapIsActive(value, entry.maxPrice)) || !Number.isFinite(value) || value < 3 || value > 8) return PINT_PRICE_CAPS;
+  return [...PINT_PRICE_CAPS, { ...cap(value, value <= 5.5 ? "green" : "amber"), kind: "custom", shortLabel: formatGbp(value) }];
 }

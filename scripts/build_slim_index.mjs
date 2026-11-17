@@ -907,6 +907,11 @@ async function main() {
     throw new Error(`Expected an array in ${RAW_PATH}, got ${typeof rows}`);
   }
 
+  const { groupVenuePrices } = await tsImport("../lib/venues.ts", import.meta.url);
+  const { canonicalPintPriceInput } = await tsImport("../lib/planRouteEvidence.ts", import.meta.url);
+  const { compactFairPintPayload } = await tsImport("../lib/fairPint.ts", import.meta.url);
+  const canonical = new Map(groupVenuePrices(rows).map((venue) =>
+    [venue.id, canonicalPintPriceInput(venue, Date.now())]));
   const scrapedIds = await readScrapedIds();
   const bundleRows = await readBundleRows();
   const { softDrinkSubtypes, recordedPintVenueIds } = bundleSlimHints(bundleRows);
@@ -1009,6 +1014,7 @@ async function main() {
       lng,
       cheapestPrice,
       ...priceEvidence,
+      ...(canonical.get(id)?.pence != null ? { fairPint: [canonical.get(id).pence, canonical.get(id).url, canonical.get(id).observedAt] } : {}),
       borough: String(first.primary_borough || ""),
       ...slimLocalityField(locality),
       // Nearest-station fare zone (1–6, occasionally 7–9 at the London edge).
@@ -1118,7 +1124,7 @@ async function main() {
   manifest.priceDatasetDigest = priceDatasetDigest;
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify({ ...buildShardPayload(coreCell.venues), d: priceDatasetDigest });
+  const coreText = JSON.stringify({ ...buildShardPayload([]), ...compactFairPintPayload(coreCell.venues), d: priceDatasetDigest });
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -1134,7 +1140,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify({ ...buildShardPayload(venues), d: priceDatasetDigest });
+    const text = JSON.stringify({ ...buildShardPayload([]), ...compactFairPintPayload(venues), d: priceDatasetDigest });
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({

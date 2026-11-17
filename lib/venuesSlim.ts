@@ -74,6 +74,7 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  fairPint?: import("@/lib/fairPint").FairPintEvidence;
   hasRecordedPrice?: boolean;
   cheapestPint?: string;
   measure?: string;
@@ -259,6 +260,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(Array.isArray(venue.fairPint) && venue.fairPint.length === 3 ? { fairPint: venue.fairPint } : {}),
     ...(typeof venue.hasRecordedPrice === "boolean" ? { hasRecordedPrice: venue.hasRecordedPrice } : {}),
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
     ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),

@@ -1,4 +1,5 @@
 import type { MapRouteStop } from "@/lib/curatedWalk";
+import { fairPence } from "@/lib/fairPint";
 import { priceForBeer } from "@/lib/beers";
 import { priceBucket } from "@/lib/communityPrice";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
@@ -370,6 +371,7 @@ export function pubsToGeoJSON(
         type: "Feature" as const,
         properties: {
           id: venue.id,
+          fairPence: fairPence(venue, now),
           name: venue.name,
           kind: venue.kind ?? "pub",
           ...(venue.legacyOsmBar === true ? { legacyOsmBar: true } : {}),

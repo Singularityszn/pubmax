@@ -5,7 +5,7 @@ import MapKey from "@/components/map/MapKey";
 import PintCapMatchSummary from "@/components/map/PintCapMatchSummary";
 import type { MapPriceLegendModel } from "@/lib/mapPriceLegend";
 import type { PintCapMatches } from "@/lib/pintCapMatches";
-import { PINT_PRICE_CAPS, pintPriceCapIsActive } from "@/lib/pintPriceCaps";
+import { PINT_PRICE_CAPS, pintPriceCapIsActive, pintPriceCapsFor } from "@/lib/pintPriceCaps";
 import { Button } from "@/components/ui/button";
 
 import "./mobileFilterDisclosure.css";
@@ -54,7 +54,7 @@ export default function MobilePriceChoices({
               first segment closed its own box and read as a container in its
               own right (design judgement 2026-08-01, finding 2.4). */}
           <div className="mobilePriceChoicesGroup">
-            {PINT_PRICE_CAPS.map((cap) => {
+            {pintPriceCapsFor(maxPrice).map((cap) => {
               const on = pintPriceCapIsActive(maxPrice, cap.maxPrice);
               return (
                 <button

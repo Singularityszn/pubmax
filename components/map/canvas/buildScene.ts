@@ -1413,6 +1413,7 @@ export function buildPubs(ctx: SceneCtx) {
       // reads is decided per cluster in donutClusters.ts, from the counts
       // themselves.
       clusterProperties: {
+        minFairPence: ["min", ["coalesce", ["get", "fairPence"], 2147483647]],
         b0: ["+", ["case", ["==", ["get", "bucket"], 0], 1, 0]],
         b1: ["+", ["case", ["==", ["get", "bucket"], 1], 1, 0]],
         b2: ["+", ["case", ["==", ["get", "bucket"], 2], 1, 0]],

@@ -78,6 +78,7 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
       : undefined,
     prices: [],
     cheapestPrice: slim.cheapestPrice,
+    ...(slim.fairPint ? { fairPint: slim.fairPint } : {}),
     ...(typeof slim.hasRecordedPrice === "boolean" ? { hasRecordedPrice: slim.hasRecordedPrice } : {}),
     cheapestPint: slim.cheapestPint ?? "",
     ...(slim.measure !== undefined ? { measure: slim.measure } : {}),

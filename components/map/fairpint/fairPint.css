@@ -1,0 +1,10 @@
+.fairPintCard { position: fixed; z-index: calc(var(--z-tabbar) + 2); inset-inline: max(12px, env(safe-area-inset-left)); bottom: calc(var(--tabbar-height, 64px) + env(safe-area-inset-bottom) + 12px); display: grid; gap: 8px; padding: 24px; border-radius: 16px; background: var(--panel-raised); color: var(--ink); box-shadow: var(--shadow-lg); max-height: calc(100dvh - 180px); overflow-y: auto; overscroll-behavior: contain; }
+.fairPintCard h2 { margin: 0; padding-right: 24px; font-size: var(--text-lg); }
+.fairPintFigure { font-family: var(--font-data); font-size: 2.5rem; font-variant-numeric: tabular-nums; }
+.fairPintCount, .fairPintReason { margin: 0; font-size: var(--text-sm); line-height: 1.5; }
+.fairPintReason { color: var(--muted); }
+.fairPintClose { position: absolute; top: 8px; right: 8px; }
+.fairPintRange { width: 100%; height: 44px; accent-color: var(--ink); cursor: pointer; touch-action: pan-y; }
+.fairPintRange::-webkit-slider-thumb { min-width: 44px; min-height: 44px; }
+.fairPintRange::-moz-range-thumb { width: 44px; height: 44px; }
+@media (min-width: 641px) { .fairPintCard { left: auto; width: min(390px, calc(100vw - 48px)); right: 24px; bottom: 24px; } }

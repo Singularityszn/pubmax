@@ -1,12 +1,11 @@
-import { comparableVenuePint } from "@/lib/comparableVenuePint";
 import "server-only";
 
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { legacyPintPriceObservedAt } from "@/lib/drinks";
 import {
   buildPriceEvidence,
+  canonicalPintPriceInput,
   type AccessEvidenceSource,
   type PlanAccessEvidence,
   type PlanOpeningSchedule,
@@ -24,35 +23,13 @@ type EvidenceVenue = { id: string; name: string; area: string; lat: number; lng:
 
 let priceIndex: Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> | null = null;
 
-function canonicalGbpToPence(value: number | null): number | null {
-  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
-  const match = /^(\d+)(?:\.(\d{1,2}))?$/.exec(String(value));
-  if (!match) return null;
-  const pence = Number(match[1]) * 100 + Number((match[2] ?? "").padEnd(2, "0") || 0);
-  return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
-}
-
-async function readPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
+async function readPriceIndex() {
   const rows = JSON.parse(await readFile(
-    path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"),
-    "utf8",
+    path.join(process.cwd(), "public/data/pint_prices_app_dataset.json"), "utf8",
   )) as unknown;
   if (!Array.isArray(rows)) return new Map();
-  return new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) => {
-    const cheapest = venue.prices.find((row) => row.price_gbp === venue.cheapestPrice);
-    const attributed = cheapest && cheapest.source_datasets.trim()
-      && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
-    return [venue.id, {
-      pence: canonicalGbpToPence(comparableVenuePint(venue, null, false)),
-      // The label is the publisher's name alone. The raw dataset ids stay
-      // in this evidence object for anyone debugging a figure: printed,
-      // they read as plumbing beside a price on the invite stop list.
-      label: attributed ? "Pint Prices" : null,
-      url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
-      observedAt: cheapest ? legacyPintPriceObservedAt(cheapest) : null,
-      datasets: attributed ? cheapest.source_datasets : null,
-    }];
-  }));
+  return new Map(groupVenuePrices(rows as VenuePrice[]).map((venue) =>
+    [venue.id, canonicalPintPriceInput(venue, Date.now())]));
 }
 
 function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
