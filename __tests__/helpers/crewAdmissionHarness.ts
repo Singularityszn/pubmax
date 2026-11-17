@@ -100,6 +100,10 @@ export const accountOf = (who: Person) =>
     from public.private_social_accounts where profile_id='${who.profile}'),'none')`);
 export const makeCohost = (crew: string, who: Person) =>
   db().sql(`update public.social_crew_members set role='cohost' where crew_id='${crew}' and social_account_id='${who.account}'`);
+export const receipts = (who: Person) =>
+  db().sql(`select count(*) from public.private_social_crew_write_receipts where actor_account_id='${who.account}'`);
+export const leaveCall = (crew: string, who: Person) =>
+  `leave_social_crew_atomic('${who.account}','${crew}','${key()}','${DIGEST}')`;
 export const corrections = (crew: string) =>
   db().sql(`select count(*) from public.social_crew_removal_corrections where crew_id='${crew}'`);
 /** The forward file as the migration role, answering whether the database took it and what it said. */

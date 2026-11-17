@@ -34,11 +34,13 @@ import {
   inviteCall,
   json,
   key,
+  leaveCall,
   memberId,
   mutual,
   outcome,
   ownership,
   person,
+  receipts,
   remove,
   request,
   requestCall,
@@ -249,6 +251,73 @@ describe.skipIf(skipReason !== null)("after 0243: moderator correction of a mist
   });
 });
 
+
+describe.skipIf(skipReason !== null)("after 0243: Crew write receipts end with the account", () => {
+  beforeAll(() => { if (running()) stageTo("after"); });
+
+  it("deletion removes the deleted person's receipts and keeps everyone else's, a suspended person's and replays", () => {
+    const host = person(), ana = person(), xav = person(), bea = person();
+    const crew = crewWith(host, [ana, xav, bea]);
+    const other = crewWith(host);
+    request(xav, other);
+    request(bea, other);
+    expect(call(suspendCall(bea))).toMatchObject({ ok: true, code: "suspended" });
+    const anaKey = key();
+    const asking = () => call(`request_social_crew_join_atomic('${ana.account}','${other}','pending','${anaKey}','${DIGEST}')`);
+    expect(asking()).toMatchObject({ ok: true, code: "requested" });
+    const kept = [host, ana, bea].map(receipts);
+    expect(Number(receipts(xav))).toBeGreaterThan(0);
+    db().sql(deleteAccount(xav));
+    expect(receipts(xav)).toBe("0");
+    expect([host, ana, bea].map(receipts)).toEqual(kept);
+    expect(asking()).toMatchObject({ ok: true, code: "replayed" });
+    expect(state(crew, xav)).toBe("active");
+  });
+
+  it("a deletion waits for the person's own Crew write in flight, then removes the receipt it wrote", async () => {
+    const host = person(), ana = person(), xav = person();
+    const crew = crewWith(host, [ana, xav]);
+    const leaving = await holdRpc(leaveCall(crew, xav));
+    expect(leaving.result).toMatchObject({ ok: true, code: "left" });
+    let deletion: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      deletion = outcome("delete_after_leave", deleteAccount(xav), "postgres");
+      await expect.poll(() => waitsOnAnyLock("delete_after_leave")).toBe("t");
+    } finally { await leaving.finish(); }
+    const answer = await deletion;
+    expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(answer?.ok).toBe(true);
+    expect(state(crew, xav)).toBe("left");
+    expect(receipts(xav)).toBe("0");
+  });
+
+  it("a Crew write that meets the person's deletion in flight is undone whole and leaves no receipt", async () => {
+    const host = person(), ana = person(), xav = person(), yan = person();
+    const crew = crewWith(host, [ana, xav]);
+    const other = crewWith(host);
+    const seatOf = (who: Person) => db().sql(`select coalesce(seat.membership_revoked_at::text,'open') from public.plan_crew_members seat
+      join public.social_crew_members member on member.plan_member_id=seat.id where member.crew_id='${crew}' and member.social_account_id='${who.account}'`);
+    for (const [who, label, statement] of [
+      [xav, "leave", leaveCall(crew, xav)],
+      [yan, "request", requestCall(yan, other)],
+    ] as const) {
+      const deletion = await hold(deleteAccount(who), "postgres");
+      let writing: Promise<{ ok: boolean; said: string }> | null = null;
+      try {
+        writing = outcome(`${label}_after_delete`, rpc(statement));
+        await expect.poll(() => waitsOnAnyLock(`${label}_after_delete`)).toBe("t");
+      } finally { await deletion.finish(); }
+      const answer = await writing;
+      expect(answer?.said ?? "", label).not.toMatch(REFUSED_BY_LOCKS);
+      expect(answer?.ok, label).toBe(false);
+      expect(answer?.said, label).toContain("the account was deleted");
+      expect(receipts(who), label).toBe("0");
+    }
+    expect(state(crew, xav)).toBe("active");
+    expect(seatOf(xav)).toBe("open");
+    expect(db().sql(`select count(*) from public.social_crew_join_requests where requester_account_id='${yan.account}'`)).toBe("0");
+  });
+});
 
 describe.skipIf(skipReason !== null)("after 0243: owner and invitee deletion", () => {
   beforeAll(() => { if (running()) stageTo("after"); });

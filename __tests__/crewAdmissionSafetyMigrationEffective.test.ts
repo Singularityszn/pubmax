@@ -25,6 +25,7 @@ import {
   db,
   decide,
   decideCall,
+  deleteAccount,
   holdRpc,
   invite,
   inviteCall,
@@ -38,6 +39,7 @@ import {
   person,
   queueCall,
   queued,
+  receipts,
   remove,
   request,
   requestState,
@@ -86,6 +88,24 @@ describe.skipIf(skipReason !== null)("before 0243", () => {
     admit(host, removed, xav);
     expect(remove(host, removed, xav)).toMatchObject({ ok: true, code: "removed" });
     admit(host, removed, xav);
+  });
+});
+
+describe.skipIf(skipReason !== null)("applying 0243 over earlier deletions", () => {
+  beforeAll(() => { if (running()) stageTo("before"); });
+
+  it("removes receipts left by accounts deleted before 0243, and keeps suspended and unbound legacy accounts' receipts", () => {
+    const host = person(), xav = person(), bea = person(), leo = person();
+    const crew = crewWith(host);
+    for (const who of [xav, bea, leo]) request(who, crew);
+    db().sql(`update public.private_social_accounts set supabase_user_id=null where id='${leo.account}'`);
+    expect(call(suspendCall(bea))).toMatchObject({ ok: true, code: "suspended" });
+    db().sql(deleteAccount(xav));
+    expect(receipts(xav)).toBe("1");
+    const kept = [host, bea, leo].map(receipts);
+    stageTo("after");
+    expect(receipts(xav)).toBe("0");
+    expect([host, bea, leo].map(receipts)).toEqual(kept);
   });
 });
 
