@@ -231,6 +231,24 @@ describe("walk panel overview framing", () => {
       expect(camera.cameraLanePending()).toBe(false);
     } finally { portal.remove(); }
   });
+  it("keeps replaced automatic closing fits cancellable by the next user action", () => {
+    mountWalk();
+    const portal = document.createElement("div");
+    portal.className = "mobileSheetPortal";
+    portal.dataset.sheetExiting = "true";
+    portal.append(panel(new DOMRect(0, 563, 390, 28)));
+    document.body.append(portal);
+    try {
+      act(() => {
+        camera.fitRoute();
+        camera.fitRoute();
+        camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user");
+        pendingFrame?.(performance.now());
+      });
+      expect(easeTo).toHaveBeenCalledOnce();
+      expect(camera.cameraLanePending()).toBe(false);
+    } finally { portal.remove(); }
+  });
   it("reserves measured phone controls before their deferred components mount", () => {
     mapViewport = { width: 390, height: 664 };
     vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);

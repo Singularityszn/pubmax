@@ -45,7 +45,7 @@ export function palCameraDefaults({ nearbyRequestToken = 0 }: { nearbyRequestTok
 }
 
 export function whenWalkPanelSettles(done: () => void, waitForMount = false): () => void {
-  return whenBottomSheetSettles(0, () => done(), { waitForSheet: waitForMount, surfaceSelector: WALK_PANEL_SELECTOR, surfaceAncestor: ".mapDrawer.left.open" });
+  return whenBottomSheetSettles(0, () => done(), { waitForSheet: waitForMount, waitForMotion: !waitForMount, surfaceSelector: WALK_PANEL_SELECTOR, surfaceAncestor: ".mapDrawer.left.open" });
 }
 
 // Chrome the near-me camera must stay clear of. The top values are only a
@@ -160,6 +160,17 @@ function walkSurfacePadding(rect: DOMRect): Required<maplibregl.PaddingOptions> 
   if (!panel || panel.closest('[data-sheet-exiting="true"]')) return null;
   const cover = panel.getBoundingClientRect();
   let coverTop = cover.top;
+  let coverLeft = cover.left;
+  let coverRight = cover.right;
+  if (!panel.classList.contains("sheet-dragging") && typeof DOMMatrixReadOnly !== "undefined") {
+    const transform = new DOMMatrixReadOnly(getComputedStyle(panel).transform);
+    // Walk entrances lay out their resting size before the transform travels.
+    if (panel.classList.contains("mobileSharedSheet")) coverTop -= transform.m42;
+    if (panel.dataset.springAxis === "horizontal") {
+      coverLeft -= transform.m41;
+      coverRight -= transform.m41;
+    }
+  }
   if (panel.dataset.springAxis === "vertical" && !panel.classList.contains("sheet-dragging") && typeof DOMMatrixReadOnly !== "undefined") {
     const snap = SHEET_SNAP_ORDER.find((value) => panel.classList.contains(`sheet-${value}`));
     if (snap) {
@@ -172,8 +183,8 @@ function walkSurfacePadding(rect: DOMRect): Required<maplibregl.PaddingOptions> 
     document.querySelector(selector)?.getBoundingClientRect()).find((bounds) => bounds && bounds.width > 0 && bounds.height > 0);
   const padding = { top: Math.max(32, (chrome?.bottom ?? rect.top) - rect.top + 16), right: 32, bottom: 48, left: 32 };
   if (cover.width >= rect.width * 0.75) padding.bottom = Math.max(48, rect.bottom - coverTop + 32);
-  else if (cover.left < rect.left + rect.width / 2) padding.left = Math.max(32, cover.right - rect.left + 28);
-  else padding.right = Math.max(32, rect.right - cover.left + 28);
+  else if (coverLeft < rect.left + rect.width / 2) padding.left = Math.max(32, coverRight - rect.left + 28);
+  else padding.right = Math.max(32, rect.right - coverLeft + 28);
   return padding;
 }
 
@@ -336,6 +347,7 @@ export function measureBottomSheetTop(containerTop: number, selector = BOTTOM_SH
 export type BottomSheetSettleOptions = {
   /** Keep watching briefly when the sheet portal has not mounted yet. */
   waitForSheet?: boolean;
+  waitForMotion?: boolean;
   surfaceSelector?: string;
   surfaceAncestor?: string;
 };
@@ -343,7 +355,7 @@ export type BottomSheetSettleOptions = {
 export function whenBottomSheetSettles(
   containerTop: number,
   done: (coverTop: number | null) => void,
-  { waitForSheet = false, surfaceSelector = BOTTOM_SHEET_SELECTOR, surfaceAncestor }: BottomSheetSettleOptions = {},
+  { waitForSheet = false, waitForMotion = true, surfaceSelector = BOTTOM_SHEET_SELECTOR, surfaceAncestor }: BottomSheetSettleOptions = {},
 ): () => void {
   let cancelled = false;
   const finish = (coverTop: number | null) => {
@@ -396,7 +408,10 @@ export function whenBottomSheetSettles(
     const element = surface();
     const changing = surfaceAncestor && element ? getComputedStyle(element).willChange : "";
     const idle = !surfaceAncestor || !element?.closest('[data-sheet-exiting="true"]') && (!changing || changing === "auto") && (!element?.dataset.sheetMotion || element.dataset.sheetMotion === "idle");
-    const settled = (grown(current) || (Boolean(surfaceAncestor) && !waitForSheet && !element)) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES && idle;
+    const layout = element?.getBoundingClientRect();
+    const settled = waitForMotion
+      ? (grown(current) || (Boolean(surfaceAncestor) && !waitForSheet && !element)) && stableFrames >= SHEET_SETTLE_STABLE_FRAMES && idle
+      : Boolean(element && !element.closest('[data-sheet-exiting="true"]') && layout?.width && layout.height);
     if (settled || performance.now() - startedAt > SHEET_SETTLE_TIMEOUT_MS) {
       // A sheet that never grew is treated as no cover rather than as a band
       // pinned to the bottom of the screen.
