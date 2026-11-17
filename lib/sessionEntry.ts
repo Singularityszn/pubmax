@@ -12,6 +12,7 @@ function resolveSessionStorage(storage?: Storage | null): Storage | null {
   }
 }
 
+/** The entry decision survives SPA navigation but resets with the browser session. */
 export function hasConsumedSessionEntry(storage?: Storage | null): boolean {
   const store = resolveSessionStorage(storage);
   if (!store) return false;
@@ -28,9 +29,11 @@ export function markSessionEntryConsumed(storage?: Storage | null): void {
   try {
     store.setItem(SESSION_ENTRY_KEY, "1");
   } catch {
+    // Blocked storage must not prevent anonymous entry.
   }
 }
 
+/** A deep-linked boot consumes entry so a later home tap does not bounce to Tonight. */
 export function consumeDeepLinkBootEntry(path: string, storage?: Storage | null): boolean {
   if (path === "/") return false;
   markSessionEntryConsumed(storage);

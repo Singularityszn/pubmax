@@ -61,7 +61,7 @@ import {
 } from "@/lib/authCallbackClient";
 import { discardCancelledNativeSessionInstallation, ensureSupabaseBrowser, ensureSupabaseBrowserForSession, finishNativeSessionInstallation, hasStoredBrowserSession, installNativeSession, isAuthConfigured, nativeSessionInstallationPending } from "@/lib/authClient";
 import { authClientTurn, type AuthClientTurn } from "@/lib/authClientTurn";
-import { markPubmaxTiming, PINS_VISIBLE_EVENT } from "@/lib/performanceMarks";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
 import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
@@ -674,9 +674,8 @@ export function AuthProvider({
       }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
     };
 
-    // A signed-out reader opening the map loads the client after the pins
-    // (lib/authClientTurn.ts). The ceiling above starts when the load does.
-    // One durable-cookie read serves the wait below and the bootstrap.
+    // Only auth intent or session evidence loads the SDK. The bootstrap
+    // ceiling starts after release, and the hint is shared with restoration.
     let resumeHint: ReturnType<typeof fetchResumeHint> | null = null;
     const readResumeHint = () => (resumeHint ??= fetchResumeHint());
     markPubmaxTiming("pubmax:auth-provider-mounted");
@@ -684,23 +683,33 @@ export function AuthProvider({
       storedSession: hasStoredBrowserSession(browserLocalStorage()),
       storedSessionNow: () => hasStoredBrowserSession(browserLocalStorage()),
       pendingSignIn: hasPendingAuthAttempt(browserLocalStorage()),
-      pinsVisible: performance.getEntriesByName(PINS_VISIBLE_EVENT).length > 0,
       callback: callbackCapture.then((captured) => Boolean(captured?.attempt)),
       durableSession: () => readResumeHint().then((hint) => hint.status === "present"),
       clientBuilt: ensureSupabaseBrowserForSession,
     });
     pendingClientTurn.current = clientTurn;
-    // No stored session, no durable cookie and no callback is a signed-out
-    // reader. Say so now, so the sign-in invitation shows before the pins
-    // although the client loads after them. The bootstrap repeats the answer.
+    // A negative hint can answer an anonymous page without loading the SDK.
     let clientWaiting = clientTurn.waiting;
     void clientTurn.ready.then(() => { clientWaiting = false; });
+    const resumeSessionLoading = () => {
+      if (!active || sessionTransitions.current.currentUserId() !== null || readProviderAuthState("supabase") === "authenticated") return;
+      setProviderAuthState("supabase", "unresolved");
+      setSessionLoading(true);
+    };
+    let bootstrapMarked = false;
+    const markBootstrapSettled = () => {
+      if (bootstrapMarked) return;
+      bootstrapMarked = true;
+      markPubmaxTiming("pubmax:auth-bootstrap-settled");
+    };
     const checkDeferredSession = (retry = false) => {
       if (!clientWaiting) return;
+      if (retry && readProviderAuthState("supabase") !== "unavailable") return;
       if (retry) resumeHint = null;
       void Promise.all([callbackCapture, readResumeHint()]).then(([captured, hint]) => {
         if (!active || !clientWaiting) return;
         if (captured?.attempt || hint.status === "present") {
+          resumeSessionLoading();
           clientTurn.releaseForSignIn();
           return;
         }
@@ -723,6 +732,7 @@ export function AuthProvider({
     // signed-out variant over an intact session (lib/authClientLoad.ts).
     const loadClient = () => clientTurn.ready.then(() => {
       if (!active) return null;
+      if (clientTurn.waiting && hasStoredBrowserSession(browserLocalStorage())) resumeSessionLoading();
       armLoadingTimeout();
       return loadAuthClientWithRetry(ensureSupabaseBrowser, {
         delay: (ms) =>
@@ -919,7 +929,7 @@ export function AuthProvider({
               return current() ? handleClaimRouteAfterSignIn(
                 exchangedSession, captured.cleanUrl, browserLocalStorage(), undefined, current,
               ) : null;
-            })
+            }).catch(() => null)
             .then((destination) => {
               if (destination && current()) window.location.assign(destination);
             })
@@ -958,6 +968,7 @@ export function AuthProvider({
         // SIGNED_IN through the subscription above, so the session and identity
         // boundary are updated before this loading state is cleared.
         setSessionLoading(false);
+        markBootstrapSettled();
       };
 
       return (async () => {
@@ -1148,7 +1159,7 @@ export function AuthProvider({
       return ownsAccount()
         ? handleClaimRouteAfterSignIn(result.session, returnUrl, browserLocalStorage(), undefined, ownsAccount)
         : null;
-    }).then((destination) => {
+    }).catch(() => null).then((destination) => {
       if (ownsAccount()) {
         router.push(safeAuthNext(destination ?? returnUrl, window.location.origin) as Route);
       }

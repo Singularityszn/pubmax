@@ -23,7 +23,6 @@ export function authClientTurn(
   input: {
     storedSession: boolean;
     pendingSignIn: boolean;
-    pinsVisible: boolean;
     storedSessionNow?: () => boolean;
     /** Resolves true when an auth callback in the address has to be finished. */
     callback: Promise<boolean>;

@@ -10,8 +10,6 @@ const POSTCODE_OUTWARD_RE =
   /\b([a-z]{1,2}\d{1,2}[a-z]?)\s*\d[a-z]{2}\b/i;
 const OUTWARD_ONLY_RE = /\b([a-z]{1,2}\d{1,2}[a-z]?)\b/i;
 
-
-
 /** Outward half of a whole postcode in the text, lowercased. A lone outward token does not count. */
 export function fullPostcodeOutward(text: string): string | null {
   return text.match(POSTCODE_OUTWARD_RE)?.[1]?.toLowerCase() ?? null;

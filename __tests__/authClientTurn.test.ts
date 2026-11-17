@@ -21,7 +21,6 @@ function settled(promise: Promise<void>): Promise<boolean> {
 const SIGNED_OUT = {
   storedSession: false,
   pendingSignIn: false,
-  pinsVisible: false,
   callback: Promise.resolve(false),
   durableSession: () => Promise.resolve(false),
   clientBuilt: () => new Promise<unknown>(() => {}),
@@ -71,12 +70,6 @@ describe("when the browser auth client may load", () => {
     const turn = authClientTurn(fakeWindow(pathname), SIGNED_OUT);
 
     expect(await settled(turn.ready)).toBe(true);
-  });
-
-  it("keeps a signed-out map light even when its pins are already up", async () => {
-    const turn = authClientTurn(fakeWindow("/map"), { ...SIGNED_OUT, pinsVisible: true });
-
-    expect(await settled(turn.ready)).toBe(false);
   });
 
   it.each(["/map", "/map/manchester"])("keeps the SDK unloaded on signed-out %s after pins become visible", async (pathname) => {

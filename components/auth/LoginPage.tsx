@@ -697,12 +697,6 @@ export default function LoginPage({
     }
   }, [configured, showForm, supabaseAuthState]);
 
-  useEffect(() => {
-    if (showForm && !loading && supabaseAuthState === "signed-out") {
-      markPubmaxTiming("pubmax:auth-bootstrap-settled");
-    }
-  }, [showForm, loading, supabaseAuthState]);
-
   const head = loginPageHeadCopy({
     sessionKnown: headSessionKnown,
     adding,

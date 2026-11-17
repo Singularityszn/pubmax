@@ -20,7 +20,6 @@ export const LONDON_BOROUGH_NAMES = [
 
 export type LondonBoroughName = (typeof LONDON_BOROUGH_NAMES)[number];
 
-
 const BOROUGH_BY_CODE = new Map(LONDON_BOROUGH_NAMES.map((name) => [boroughCode(name), name]));
 
 type PintIndexSourceBase = {
