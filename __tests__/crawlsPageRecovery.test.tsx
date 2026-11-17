@@ -62,6 +62,18 @@ describe("/crawls shared-link recovery", () => {
     expect(html).toContain('data-photo-key="landing:piccadilly-circus"');
   });
 
+  it("keeps the server season choice when the browser clock crosses the season boundary", async () => {
+    try {
+      vi.setSystemTime(new Date("2027-01-06T15:00:00Z"));
+      const page = await CrawlsPage({});
+      expect(renderToStaticMarkup(page)).toContain("London Christmas walk");
+      vi.setSystemTime(new Date("2027-01-07T15:00:00Z"));
+      expect(renderToStaticMarkup(page)).toContain("London Christmas walk");
+    } finally {
+      vi.setSystemTime(new Date("2026-06-01T12:00:00Z"));
+    }
+  });
+
   it.each([{ s: sharedStory }, { s: [sharedStory, "invalid"] }])(
     "renders a valid shared story without the directory",
     async ({ s }) => {
