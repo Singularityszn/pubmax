@@ -33,8 +33,8 @@ const layerInput = {
   selectedIsCafe: false,
 } satisfies Omit<Parameters<typeof useLondonRestaurants>[0], "selectedVenueId">;
 
-function RestaurantLayer({ wanted, selected, fullLayer }: { wanted: boolean; selected?: string; fullLayer?: boolean }) {
-  const read = useLondonRestaurants({ ...layerInput, held: !wanted, selectedVenueId: selected ?? "", restaurantKindVisible: fullLayer ?? !selected });
+function RestaurantLayer({ wanted, selected, fullLayer, zoom = layerInput.zoom }: { wanted: boolean; selected?: string; fullLayer?: boolean; zoom?: number }) {
+  const read = useLondonRestaurants({ ...layerInput, zoom, held: !wanted, selectedVenueId: selected ?? "", restaurantKindVisible: fullLayer ?? !selected });
   const furnival = read.byId.get("venue-osm-n25496840");
   return createElement(
     "div",
@@ -127,6 +127,26 @@ it.each(["ok", "down"] as const)("preserves pending full-layer chunks across sel
     expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(2);
     expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("ready");
   }
+  expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBeGreaterThan(1000);
+});
+
+it("keeps the pending full-layer read while zooming below its drawing floor", async () => {
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+    const body = readFileSync(join(ROOT, "public", String(input).replace(/^\//, "")), "utf8");
+    if (String(input).includes("/packs/")) await pending;
+    return new Response(body, { status: 200 });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, zoom: 13 })));
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, zoom: 11 })));
+  await act(async () => root.render(createElement(RestaurantLayer, { wanted: true, zoom: 13 })));
+  expect(fetchMock.mock.calls.filter(([url]) => url === LONDON_RESTAURANT_PACK_PATH)).toHaveLength(1);
+  expect(fetchMock.mock.calls.filter(([url]) => String(url).includes("/packs/"))).toHaveLength(6);
+  await act(async () => release());
+  expect(container.querySelector("[data-status]")?.getAttribute("data-status")).toBe("ready");
   expect(Number(container.querySelector("[data-count]")?.getAttribute("data-count"))).toBeGreaterThan(1000);
 });
 

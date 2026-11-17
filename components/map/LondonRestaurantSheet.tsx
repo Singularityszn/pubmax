@@ -38,7 +38,7 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
       }).join(" · ")}</p> : null}
       {restaurant.openingHours ? <div className="venuePlacesDetails"><VenueOsmHours view={{ hours, hoursRaw: hours ? null : restaurant.openingHours, hoursCredit: dataCredit ?? "OpenStreetMap" }} /></div> : null}
       {osmRef ? (
-        <p className="londonRestaurantLead">
+        <p className="londonRestaurantMapRow">
           <a className="londonRestaurantMapLink" href={`https://www.openstreetmap.org/${osmType}/${osmRef[2]}`} target="_blank" rel="noreferrer">View on OpenStreetMap</a>
         </p>
       ) : null}
@@ -47,7 +47,7 @@ export default function LondonRestaurantSheet({ restaurant }: { restaurant: Lond
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">
           OpenStreetMap contributors
         </a>
-        , ODbL{dataCredit ? <>, <span className="londonRestaurantDate">{dataCredit}.</span></> : "."} <DataCreditsLink />
+        , ODbL{dataCredit ? `, ${dataCredit}.` : "."} <DataCreditsLink />
       </p>
     </div>
   );

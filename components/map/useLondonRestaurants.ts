@@ -40,7 +40,7 @@ export function useLondonRestaurants(input: LondonRestaurantLayerInput): LondonR
 
   useEffect(() => () => {
     if (!requested.current?.settled) requested.current = null;
-  }, [wanted, scope]);
+  }, [scope]);
 
   useEffect(() => {
     if (!wanted) {

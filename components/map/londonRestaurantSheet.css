@@ -82,6 +82,12 @@
   line-height: 1.45;
 }
 
+.londonRestaurantMapRow {
+  margin: 14px 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.35;
+}
+
 .londonRestaurantSource {
   margin: 16px 0 0;
   color: var(--muted);
@@ -100,7 +106,7 @@
   margin-top: 18px;
 }
 
-[data-london-restaurant] a,
+[data-london-restaurant] .londonRestaurantMapLink,
 [data-london-restaurant] summary {
   display: inline-block;
   max-width: 100%;
@@ -114,33 +120,31 @@
   color: var(--ink);
 }
 
-.londonRestaurantDate { white-space: nowrap; }
-
-[data-london-restaurant] a:active,
+[data-london-restaurant] .londonRestaurantMapLink:active,
 [data-london-restaurant] summary:active {
   --shared-press-scale: 1;
   transform: scale(0.97);
 }
 
-[data-london-restaurant] a:focus-visible,
+[data-london-restaurant] .londonRestaurantMapLink:focus-visible,
 [data-london-restaurant] summary:focus-visible {
   transform: none;
   transition: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  [data-london-restaurant] a,
+  [data-london-restaurant] .londonRestaurantMapLink,
   [data-london-restaurant] summary {
     transition: opacity var(--duration-press) var(--ease-out-strong);
   }
 
-  [data-london-restaurant] a:active,
+  [data-london-restaurant] .londonRestaurantMapLink:active,
   [data-london-restaurant] summary:active {
     transform: none;
     opacity: 0.7;
   }
 
-  [data-london-restaurant] a:focus-visible,
+  [data-london-restaurant] .londonRestaurantMapLink:focus-visible,
   [data-london-restaurant] summary:focus-visible {
     opacity: 1;
     transition: none;
