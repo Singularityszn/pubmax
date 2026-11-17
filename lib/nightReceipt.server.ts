@@ -10,7 +10,7 @@ import "server-only";
 
 import { verifyCallerAuth } from "@/lib/authServer";
 import { projectNightReceipt, type NightReceipt } from "@/lib/nightReceipt";
-import { planHostUserId } from "@/lib/planCrewIdentity";
+import { planHostUserIdResult } from "@/lib/planCrewIdentity";
 import { planMemberCookieCapability } from "@/lib/planMemberCapability";
 import { planMemberIdentityResult, planStateResult } from "@/lib/planStore";
 
@@ -32,8 +32,10 @@ export async function readOwnedNightReceipt(request: Request, planId: string): P
     const seat = await planMemberIdentityResult(planId, capability);
     if (!seat.ok) return UNAVAILABLE;
     if (seat.identity?.role !== "host") return REFUSED;
-    // An unclaimed host seat, or one we cannot read, is never this account's.
-    if ((await planHostUserId(planId)) !== auth.identity.id) return REFUSED;
+    const host = await planHostUserIdResult(planId);
+    if (!host.ok) return UNAVAILABLE;
+    // An unclaimed host seat is never this account's.
+    if (host.userId !== auth.identity.id) return REFUSED;
     const lookup = await planStateResult(planId);
     if (!lookup.ok) return UNAVAILABLE;
     if (!lookup.plan) return REFUSED;
