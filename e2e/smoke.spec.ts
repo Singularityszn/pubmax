@@ -1,6 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { openOverviewFold } from "./helpers/overviewFolds";
+import { holdLondonAfternoon } from "./helpers/themeClock";
 
 // P3.11 smoke suite. High-signal, non-flaky, WebGL-agnostic: nothing here asserts
 // that the MapLibre canvas actually paints (headless boxes have no GPU), only
@@ -29,6 +30,7 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   page,
 }) => {
   const errors = watchPageErrors(page);
+  await holdLondonAfternoon(page);
 
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);

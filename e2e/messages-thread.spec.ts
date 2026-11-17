@@ -293,24 +293,47 @@ test.describe("message action hit areas", () => {
 test.describe("message bubbles on touch", () => {
   test.use({ hasTouch: true, isMobile: true });
 
-  for (const rootFontPx of [16, 32]) {
-    test(`short own bubbles keep their natural width with ${rootFontPx}px text`, async ({ page }) => {
-      await page.setViewportSize(PHONE);
-      await installThread(page, [{ ...fixture()[5]!, body: "Ok" }]);
-      await page.goto("/messages/c1");
-      const bubble = page.locator(".messageBubble");
-      await expect(bubble).toHaveText("Ok");
-      await page.evaluate((size) => {
-        document.documentElement.style.fontSize = `${size}px`;
-      }, rootFontPx);
-      const before = await bubble.boundingBox();
-      expect(before!.width).toBeLessThan(PHONE.width / 2);
-      await bubble.tap();
-      await expect(page.locator(".messageMeta")).toHaveCSS("opacity", "1");
-      const after = await bubble.boundingBox();
-      expect(after!.width).toBe(before!.width);
-      expect(after!.x + after!.width).toBe(before!.x + before!.width);
-    });
+  for (const width of [390, 768, 1440]) {
+    for (const rootFontPx of [16, 32]) {
+      test(`short bubbles keep their natural width at ${width}px with ${rootFontPx}px text`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 900 });
+        await installThread(page, fixture().slice(4, 6).map((row) => ({ ...row, body: "Ok" })));
+        await page.goto("/messages/c1");
+        const bubbles = page.locator(".messageBubble");
+        await expect(bubbles).toHaveText(["Ok", "Ok"]);
+        await page.evaluate((size) => {
+          document.documentElement.style.fontSize = `${size}px`;
+        }, rootFontPx);
+        await page.evaluate(() => document.fonts.ready);
+        for (const index of [0, 1]) {
+          const bubble = bubbles.nth(index);
+          const row = page.locator(".messageRow").nth(index);
+          // A short text bubble needs only its text, padding and border, even if
+          // its hidden action line is wider. This oracle does not use flex sizing.
+          const naturalWidth = await bubble.evaluate((element) => {
+            const range = document.createRange();
+            range.selectNodeContents(element);
+            const style = getComputedStyle(element);
+            return range.getBoundingClientRect().width + parseFloat(style.paddingLeft)
+              + parseFloat(style.paddingRight) + parseFloat(style.borderLeftWidth)
+              + parseFloat(style.borderRightWidth);
+          });
+          const before = await bubble.boundingBox();
+          await page.screenshot({ path: testInfo.outputPath(`short-${index}-before.png`) });
+          expect(Math.abs(before!.width - naturalWidth)).toBeLessThanOrEqual(1);
+          await bubble.tap();
+          await expect(row.locator(".messageMeta")).toHaveCSS("opacity", "1");
+          const after = await bubble.boundingBox();
+          expect(after!.width).toBe(before!.width);
+          expect(after!.x).toBe(before!.x);
+          if (index === 0) {
+            const meta = await row.locator(".messageMeta").boundingBox();
+            expect(after!.width).toBeLessThan(meta!.width);
+          }
+          await page.screenshot({ path: testInfo.outputPath(`short-${index}-after.png`) });
+        }
+      });
+    }
   }
 });
 

@@ -217,11 +217,6 @@ html[data-theme="dark"] .messagesPage {
   margin-top: var(--space-2);
 }
 
-.messagesScreen--signedOut .screenPrimary > a {
-  min-width: 14rem;
-  max-width: 100%;
-}
-
 .messagesScreen--signedOut .emptyState {
   text-align: start;
 }
@@ -575,6 +570,7 @@ a.threadWith:active {
 .messageBubbleGroup {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   width: 100%;
   min-width: 0;
   max-width: 100%;
@@ -1229,7 +1225,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: var(--messages-accent, var(--brass));
+  background: var(--messages-accent);
   color: var(--color-on-accent);
   cursor: pointer;
 }

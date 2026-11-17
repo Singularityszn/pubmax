@@ -28,8 +28,14 @@ import { installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
 
 const VIEWPORTS = [
   { name: "phone 390", width: 390, height: 844 },
+  { name: "tablet 768", width: 768, height: 900 },
   { name: "desktop 1280", width: 1280, height: 800 },
-] as const;
+  { name: "desktop 1440", width: 1440, height: 900 },
+].flatMap((viewport) => [16, 32].map((rootFontPx) => ({
+  ...viewport,
+  name: `${viewport.name} with ${rootFontPx}px text`,
+  rootFontPx,
+})));
 
 /** The cap the stylesheet names, restated so the arithmetic can be checked. */
 const PHOTO_MAX_HEIGHT_PX = 240;
@@ -50,6 +56,7 @@ type MeasuredMedia = {
   landscapeBubble: Box;
   venueBubble: Box;
   venueCard: Box;
+  venueTextHeight: number;
   viewportHeight: number;
 };
 
@@ -59,6 +66,7 @@ type Measured = {
   rowWidth: number;
   right: number;
   rowRight: number;
+  actionWidth: number;
 };
 
 /**
@@ -140,6 +148,7 @@ async function measureBubbles(page: Page): Promise<Record<string, Measured>> {
         rowWidth: Math.round(rowBox.width),
         right: Math.round(box.right),
         rowRight: Math.round(rowBox.right),
+        actionWidth: row.querySelector(".messageMeta")!.getBoundingClientRect().width,
       };
     }
     return out;
@@ -262,6 +271,11 @@ async function measureMedia(page: Page, rootFontPx: number): Promise<MeasuredMed
         const rect = element.getBoundingClientRect();
         return { width: rect.width, height: rect.height };
       };
+      const venueCard = document.querySelector("#venue-mine .messageVenueCard")!;
+      const venueStyle = getComputedStyle(venueCard);
+      const venueTextHeight = venueCard.lastElementChild!.getBoundingClientRect().bottom
+        - venueCard.firstElementChild!.getBoundingClientRect().top
+        + parseFloat(venueStyle.paddingTop) + parseFloat(venueStyle.paddingBottom);
 
       const measured = {
         photo: box("#photo-mine .messagePhoto"),
@@ -271,6 +285,7 @@ async function measureMedia(page: Page, rootFontPx: number): Promise<MeasuredMed
         landscapeBubble: box("#photo-landscape .messageBubble"),
         venueBubble: box("#venue-mine .messageBubble"),
         venueCard: box("#venue-mine .messageVenueCard"),
+        venueTextHeight,
         viewportHeight: window.innerHeight,
       };
       document.documentElement.style.fontSize = "";
@@ -292,6 +307,10 @@ for (const viewport of VIEWPORTS) {
       const response = await page.goto("/messages");
       expect(response?.status()).toBe(200);
       await expect(page.locator(".messagesMain")).toBeVisible();
+      await page.evaluate((size) => {
+        document.documentElement.style.fontSize = `${size}px`;
+      }, viewport.rootFontPx);
+      await page.evaluate(() => document.fonts.ready);
     });
 
     test("a short message is one line, and a long one wraps at 75%", async ({ page }) => {
@@ -309,7 +328,8 @@ for (const viewport of VIEWPORTS) {
       // A long message stops at the line's 75%, and wraps rather than growing.
       const limit = Math.round(measured["long-mine"].rowWidth * 0.75);
       expect(measured["long-mine"].width).toBeLessThanOrEqual(limit + 1);
-      expect(measured["long-mine"].width).toBeGreaterThan(limit - 12);
+      const available = Math.min(limit, measured["long-mine"].rowWidth - measured["long-mine"].actionWidth);
+      expect(measured["long-mine"].width).toBeGreaterThan(available - 12);
       expect(measured["long-mine"].lines).toBeGreaterThan(1);
 
       // A pasted link breaks inside the bubble rather than pushing the page.
@@ -384,7 +404,7 @@ for (const viewport of VIEWPORTS) {
     });
 
     test("a photo stays inside the cap, the bubble and its own aspect", async ({ page }) => {
-      const measured = await measureMedia(page, 16);
+      const measured = await measureMedia(page, viewport.rootFontPx);
 
       const cap = Math.min(
         PHOTO_MAX_HEIGHT_PX,
@@ -428,10 +448,16 @@ for (const viewport of VIEWPORTS) {
           2,
         );
       }
+      // Larger text can leave less room inside the bubble. The photograph
+      // may shrink to fit, but must never grow or lose its aspect ratio.
+      const doubled = await measureMedia(page, 32);
+      expect(doubled.photo.height).toBeLessThanOrEqual(normal.photo.height);
+      expect(doubled.photo.width).toBeLessThanOrEqual(normal.photo.width);
+      expect(doubled.photo.width / doubled.photo.height).toBeCloseTo(PORTRAIT.width / PORTRAIT.height, 2);
     });
 
     test("the reserved box is the rectangle the photograph lands in", async ({ page }) => {
-      const measured = await measureMedia(page, 16);
+      const measured = await measureMedia(page, viewport.rootFontPx);
       // THE DEFECT: 87x109 reserved for a 192x240 tile, so the thread jumped
       // under a reader's thumb every time a photo's bytes arrived.
       expect(measured.pending.width).toBeCloseTo(measured.photo.width, 0);
@@ -439,9 +465,12 @@ for (const viewport of VIEWPORTS) {
     });
 
     test("a shared pub is a compact row rather than a preview", async ({ page }) => {
-      const measured = await measureMedia(page, 16);
-      // Three short lines of text. Nothing here may grow a tile of its own.
-      expect(measured.venueCard.height).toBeLessThan(PHOTO_MAX_HEIGHT_PX / 2);
+      const measured = await measureMedia(page, viewport.rootFontPx);
+      // A text row grows with wrapped text, with no extra preview frame.
+      expect(measured.venueCard.height).toBeCloseTo(measured.venueTextHeight, 0);
+      if (viewport.rootFontPx === 16) {
+        expect(measured.venueCard.height).toBeLessThan(PHOTO_MAX_HEIGHT_PX / 2);
+      }
       expect(measured.venueCard.width).toBeLessThanOrEqual(measured.venueBubble.width + 1);
     });
   });
