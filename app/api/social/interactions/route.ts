@@ -228,9 +228,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function PUT(request: Request): Promise<Response> {
-  const access = await writeActor(request);
-  if ("response" in access) return access.response;
   const input = await body(request);
+  const access = await writeActor(request, { bypassFreeze: input !== null && isTargetChange(input, "block") });
+  if ("response" in access) return access.response;
   if (!input || typeof input.action !== "string") {
     return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
@@ -262,9 +262,9 @@ export async function PUT(request: Request): Promise<Response> {
 }
 
 export async function DELETE(request: Request): Promise<Response> {
-  const access = await writeActor(request);
-  if ("response" in access) return access.response;
   const input = await body(request);
+  const access = await writeActor(request, { bypassFreeze: input !== null && isTargetChange(input, "block") });
+  if ("response" in access) return access.response;
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
     if (input.action === "desired" && exactKeys(input, ["action", "postId", "kind"])) {
