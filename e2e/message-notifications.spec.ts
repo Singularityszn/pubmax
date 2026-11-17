@@ -113,7 +113,8 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   const preview = page.getByRole("checkbox", { name: /Show the sender/ });
   stallNextSave = true;
   await preview.focus();
-  await preview.uncheck();
+  await expect(preview).toBeFocused();
+  await preview.press("Space");
   await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "true");
   await expect(page.getByText("Could not save message alerts. Try again.", { exact: true })).toBeVisible();
   await expect(preview).toBeChecked();
@@ -122,7 +123,11 @@ test("a recipient can choose message alerts without enabling public broadcasts",
   await preview.uncheck();
   await expect.poll(() => preferences.preview).toBe(false);
   await expect(page.getByRole("region", { name: "Message alerts", exact: true })).toHaveAttribute("aria-busy", "false");
-  await page.getByRole("button", { name: "Turn off alerts on all devices", exact: true }).click();
+  const disable = page.getByRole("button", { name: "Turn off alerts on all devices", exact: true });
+  await disable.focus();
+  await disable.press("Tab");
+  await expect(preview).toBeFocused();
+  await disable.click();
   await expect.poll(() => preferences.enabled).toBe(false);
 });
 
