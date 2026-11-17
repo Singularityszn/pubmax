@@ -20,7 +20,7 @@ Moved from [`scripts/AGENTS.md`](../../scripts/AGENTS.md). Authoritative policy 
 
 <a id="an-audit-waiver-is-a-documented-exception-not-a-mute-button"></a>
 
-- **An audit waiver is a documented exception, not a mute button.** `npm run verify` ends in `scripts/resilient-audit.mjs`, which fails on high and critical findings, tolerates primary registry outages, and waives only advisories named in its `WAIVED_ADVISORIES` set, each with an inline rationale and a removal condition, and only while a second production-only audit proves the chain is dev-only. Add an entry there only after upgrades and `overrides` are exhausted; never hide an advisory by raising `--audit-level`, omitting dev dependencies, or skipping the step. Pin: `__tests__/resilientAuditWaivers.test.ts`.
+- **An audit waiver is a documented exception, not a mute button.** `npm run verify` ends in `scripts/resilient-audit.mjs`, which fails on high and critical findings and tolerates primary registry outages. The script creates its `WAIVED_ADVISORIES` map at startup through `waivedAdvisories()`, which excludes expired entries. Only advisories in that map qualify for a waiver. Each exception has an inline rationale and a removal condition. A waiver applies only while a second production-only audit proves the chain is dev-only. If that audit is unavailable, the gate fails. OSV scanner exceptions live in `osv-scanner.toml`, with their reasons and expiry dates. Add an exception only after upgrades and `overrides` are exhausted. Never hide an advisory by raising `--audit-level`, omitting dev dependencies, or skipping the step. Pin: `__tests__/resilientAuditWaivers.test.ts`.
 
 <a id="generated-database-types-are-cut-from-the-harness-cluster-and-verify-refuses-drift"></a>
 
