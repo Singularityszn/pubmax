@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
+import { releaseMessagePush, flushMessagePushReleases, recordMessagePushBinding, messagePushDepartureRevision } from "@/lib/messageNotificationLifecycle";
 const account = vi.hoisted(() => ({ active: "A", owner: "", enabled: true, subscribe: null as null | ((signal?: AbortSignal | null) => Promise<Response>) }));
 vi.mock("@/lib/authedFetch", async (importOriginal) => ({ ...await importOriginal<typeof import("@/lib/authedFetch")>(), authedActionFetch: async (_url: string, init: RequestInit) => {
   if (init?.method === "POST") { if (account.subscribe) return account.subscribe(init.signal); account.owner = account.enabled ? account.active : ""; return Response.json({ ok: true, bound: account.enabled, sessionId: "22222222-2222-4222-8222-222222222222" }); }
@@ -33,6 +33,38 @@ afterEach(async () => {
 });
 
 describe("message alerts on account departure", () => {
+  it("retains a late accepted binding for release without replacing the current device binding", async () => {
+    const revision = messagePushDepartureRevision();
+    vi.stubGlobal("fetch", vi.fn(async () => { throw new TypeError("Offline"); }));
+    await releaseMessagePush();
+    const other = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/late-device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    recordMessagePushBinding(other, "33333333-3333-4333-8333-333333333333", revision);
+    expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toHaveLength(2);
+    expect(sessionStorage.getItem("pubmax:message-device-binding")).toBeNull();
+    recordMessagePushBinding(other, "44444444-4444-4444-8444-444444444444");
+    expect(JSON.parse(localStorage.getItem("pubmax:pending-message-detach")!)).toHaveLength(1);
+    expect(JSON.parse(sessionStorage.getItem("pubmax:message-device-binding")!)).toEqual({ token: other, sessionId: "44444444-4444-4444-8444-444444444444" });
+  });
+  it("preserves a newer binding when an older detach finishes", async () => {
+    let finish!: (response: Response) => void;
+    let entered!: () => void;
+    const started = new Promise<void>(resolve => { entered = resolve; });
+    const sessions: string[] = [];
+    vi.stubGlobal("fetch", vi.fn(async (_url, init: RequestInit) => {
+      sessions.push(JSON.parse(String(init.body)).sessionId);
+      if (sessions.length === 1) { entered(); return new Promise<Response>(resolve => { finish = resolve; }); }
+      return Response.json({ ok: true });
+    }));
+    const departure = releaseMessagePush();
+    await started;
+    const token = encodeWebPushSubscription({ endpoint: "https://web.push.apple.com/device", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } })!;
+    recordMessagePushBinding(token, "33333333-3333-4333-8333-333333333333");
+    finish(Response.json({ ok: true }));
+    await departure;
+    expect(JSON.parse(sessionStorage.getItem("pubmax:message-device-binding")!).sessionId).toBe("33333333-3333-4333-8333-333333333333");
+    await releaseMessagePush();
+    expect(sessions).toEqual(["22222222-2222-4222-8222-222222222222", "33333333-3333-4333-8333-333333333333"]);
+  });
   it.each(["restore", "subscribe"] as const)("does not let a delayed %s erase the detach after departure", async operation => {
     const registration = (await navigator.serviceWorker.getRegistration())!;
     const subscription = await registration.pushManager.getSubscription();
