@@ -175,6 +175,9 @@ describe("summon price", () => {
     ["a spirit double listing labelled as a pint", { measure: "pint", pint_name: "Gordon's gin", price_text: "£5.50 double measure" }],
     ["a bottle listing labelled as a pint", { price_gbp: 5.5, price_text: "£5.50 per 330ml bottle" }],
     ["a half listing labelled as a pint", { price_text: "£5.50 a half" }],
+    ["a conditional per-half listing labelled as a pint", { price_text: "£5.50 per half before 7pm" }],
+    ["a conditional a-half listing labelled as a pint", { price_text: "£5.50 a half until 7pm" }],
+    ["a weekday half listing labelled as a pint", { price_text: "£5.50 per half on weekdays" }],
     ["a can listing labelled as a bottle", { measure: "bottle", price_text: "£5.50 per 440ml can" }],
     ["a single listing labelled as a double", { measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 single measure" }],
     ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
@@ -206,6 +209,8 @@ describe("summon price", () => {
     ["double", "Single Malt Whisky"],
     ["pint", "Double IPA"],
     ["pint", "Double Chocolate Stout"],
+    ["pint", "Half Moon IPA"],
+    ["pint", "Other Half Green Diamond"],
   ] as const)("preserves a matching explicit %s serving for %s", (measure, pint_name) => {
     expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
   });
@@ -215,6 +220,14 @@ describe("summon price", () => {
       .toMatchObject({ measure: "bottle", statement: "£5.50 per 330ml bottle" });
     expect(selectSummonPrice(pub(row({ measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 double measure" })), NOW))
       .toMatchObject({ measure: "double" });
+    expect(selectSummonPrice(pub(row({ measure: "half", price_text: "£5.50 per half before 7pm" })), NOW))
+      .toMatchObject({ measure: "half", statement: "£5.50 per half before 7pm" });
+  });
+
+  it.each(["Half Moon IPA", "Other Half Green Diamond"])("keeps %s as a drink name inside the listing", (pint_name) => {
+    const price_text = `£5.50 for a ${pint_name} before 7pm`;
+    expect(selectSummonPrice(pub(row({ pint_name, price_text })), NOW))
+      .toMatchObject({ measure: "pint", drink: pint_name, statement: price_text });
   });
 
   it("never quotes a superseded row, a non-pub or a drinker's logged figure", () => {
