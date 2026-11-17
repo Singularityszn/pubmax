@@ -37,11 +37,17 @@ const manifest = readJson("data/london_venues/manifest.json") as {
   shards: { id: string; count: number }[];
   countsByKind: Record<string, number>;
 };
-const committedPack = readJson(LONDON_RESTAURANT_PACK_PATH) as {
-  layer: string;
-  count: number;
-  venues: unknown[][];
+const restaurantManifest = readJson(LONDON_RESTAURANT_PACK_PATH) as {
+  urlPrefix: string; count: number; shards: { id: string; count: number }[];
 };
+const chunks = restaurantManifest.shards.map((entry) => readJson(`${restaurantManifest.urlPrefix}${entry.id}.json`)) as {
+  layer: string; count: number; venues: unknown[][];
+}[];
+const committedPack = { ...chunks[0], count: restaurantManifest.count, venues: chunks.flatMap((chunk) => chunk.venues) };
+const snapshot = JSON.parse(readFileSync(path.join(__dirname, "..", "data", "osm", "uk", "london_osm_restaurants.json"), "utf8")) as {
+  venues: { osmId: string; cuisine: string | null; openingHours: string | null }[];
+};
+const facts = new Map(snapshot.venues.map((row) => [compactOsmRef(row.osmId), row]));
 
 function compactOsmRef(osmId: string): string {
   const [type, id] = osmId.split("/");
@@ -58,23 +64,15 @@ describe("the committed London restaurant pack", () => {
   it("is every restaurant row of the committed shards, cut from their generation", async () => {
     const rows = await restaurantRowsFromLayer(manifest, async (url) => readJson(url));
     expect(committedPack).toEqual(
-      JSON.parse(JSON.stringify(restaurantPackBody(manifest, rows))),
+      JSON.parse(JSON.stringify(restaurantPackBody(manifest, rows, facts))),
     );
     expect(committedPack.layer).toBe(manifest.urlPrefix);
     expect(committedPack.count).toBe(manifest.countsByKind.restaurant);
   });
 
-  it("holds every restaurant whose own website states it serves alcohol", () => {
-    const evidence = JSON.parse(
-      readFileSync(
-        path.join(__dirname, "..", "data", "london_restaurant_drinks", "evidence.json"),
-        "utf8",
-      ),
-    ) as { rows: { osmId: string }[] };
+  it("holds every restaurant in the OSM snapshot", () => {
     const packed = new Set(committedPack.venues.map((row) => row[0]));
-    const missing = evidence.rows.filter((row) => !packed.has(compactOsmRef(row.osmId)));
-    expect(evidence.rows.length).toBeGreaterThanOrEqual(900);
-    expect(missing).toEqual([]);
+    expect(snapshot.venues.filter((row) => !packed.has(compactOsmRef(row.osmId)))) .toEqual([]);
   });
 
   it("decodes in full on the map, under its read budget", () => {
@@ -82,8 +80,9 @@ describe("the committed London restaurant pack", () => {
     expect(restaurants).not.toBeNull();
     expect(restaurants).toHaveLength(committedPack.count);
     expect(restaurants?.[0]?.id).toBe(londonVenueIdFor(String(committedPack.venues[0]?.[0])));
-    const bytes = readFileSync(path.join(PUBLIC, LONDON_RESTAURANT_PACK_PATH)).byteLength;
-    expect(bytes).toBeLessThan(192 * 1024);
+    for (const entry of restaurantManifest.shards) {
+      expect(readFileSync(path.join(PUBLIC, `${restaurantManifest.urlPrefix}${entry.id}.json`)).byteLength).toBeLessThanOrEqual(192 * 1024);
+    }
   });
 
   it("finds a borough's restaurants by the borough's name, as it finds its curated pins", () => {
@@ -139,10 +138,10 @@ describe("restaurantPackBody", () => {
       ["n1", "Rules", "35 Maiden Lane", 51.51083, -0.12319, "restaurant"],
       ["n2", "Far Away", "", 52.2, 0.12, "restaurant"],
     ]);
-    expect(body.version).toBe(2);
+    expect(body.version).toBe(3);
     expect(body.venues).toEqual([
-      ["n1", "Rules", "35 Maiden Lane", 51.51083, -0.12319, "restaurant", "Westminster"],
-      ["n2", "Far Away", "", 52.2, 0.12, "restaurant", ""],
+      ["n1", "Rules", "35 Maiden Lane", 51.51083, -0.12319, "restaurant", "Westminster", "", ""],
+      ["n2", "Far Away", "", 52.2, 0.12, "restaurant", "", "", ""],
     ]);
   });
 });

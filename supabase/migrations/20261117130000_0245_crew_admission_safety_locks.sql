@@ -25,8 +25,8 @@
 --      (KEY SHARE), subject's account lock, ledger. No seat.
 --    - auth.users DELETE holds the auth row before any trigger. Its first BEFORE DELETE
 --      trigger, lock_social_accounts_on_auth_user_delete, takes the account lock, then
---      the person's own Plan and seat rows, before 0198's tombstone writes the account
---      and profile rows. It touches no crew, request or invitation row.
+--      the person's own Plan rows in ID order, then seat rows, before 0198's tombstone
+--      writes the account and profile rows. It touches no crew, request or invitation row.
 --    - set_social_account_suspension_admin: supabase user lock, auth row (KEY SHARE),
 --      account lock, profile and account rows.
 --    - provision_social_product_account: supabase user lock, auth row (KEY SHARE),
@@ -178,7 +178,7 @@ begin
   ));
   -- Before the tombstone writes the account row: a Crew write locks a seat row before
   -- it locks the account row for its receipt.
-  perform 1 from public.plans where owner_user_id=old.id for update;
+  perform 1 from public.plans where owner_user_id=old.id order by id for update;
   perform 1 from public.plan_crew_members where user_id=old.id for update;
   return old;
 end;

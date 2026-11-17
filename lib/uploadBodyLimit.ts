@@ -11,9 +11,9 @@
 // alike.
 //
 // This module is a pure leaf so the browser and the server read ONE number.
-// The browser resizes anything over it before the request is built
-// (`lib/momentPhotoFit.ts`), the crop step already lands every wall, profile
-// and message photo well under it, and each server allow-list reads it here
+// The browser fits oversized Moment photos through `lib/momentPhotoFit.ts`
+// and prepares message photos through `lib/preparePhotoUpload.ts`. Wall and
+// profile photos use the cropper. Each server allow-list reads the limit here
 // rather than restating a figure the platform will never let through.
 
 /**

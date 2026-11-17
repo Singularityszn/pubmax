@@ -67,6 +67,15 @@ describe("fitMomentPhoto", () => {
     expect(result.attempt.quality).toBe(MOMENT_FIT_QUALITIES[2]);
   });
 
+  it.each([[4032, 3024, 2048, 1536], [3024, 4032, 1536, 2048]])(
+    "caps message preparation at 2048 for %ix%i", async (width, height, expectedWidth, expectedHeight) => {
+      const deps = fakeDecoder({ width, height }, 0.1);
+      const result = await fitMomentPhoto(fixture(), UPLOAD_PHOTO_MAX_BYTES, deps, 2048);
+      expect(result).toMatchObject({ outcome: "fitted", width: expectedWidth, height: expectedHeight });
+      expect(deps.draws[0]).toEqual({ width: expectedWidth, height: expectedHeight, quality: 0.86 });
+    },
+  );
+
   it("says unreadable when the browser cannot decode the file, and draws nothing", async () => {
     const decode = vi.fn(async () => null);
     expect(await fitMomentPhoto(fixture(), UPLOAD_PHOTO_MAX_BYTES, { decode })).toEqual({ outcome: "unreadable" });
