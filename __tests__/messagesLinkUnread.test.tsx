@@ -20,7 +20,7 @@ const inbox = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({ usePathname: () => "/messages", useRouter: () => ({ prefetch: vi.fn() }) }));
 vi.mock("@/lib/messagesRealtime", () => ({ subscribeToInbox: (_handle: string, onIncoming: () => void) => {
-  inbox.onIncoming = onIncoming;
+  inbox.onIncoming = () => { invalidateMessagesInbox(_handle); onIncoming(); };
   return () => {};
 } }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => inbox.auth }));
@@ -39,6 +39,8 @@ vi.mock("@/lib/authedFetch", () => ({
 import MessagesLink from "@/components/nav/MessagesLink";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -52,6 +54,7 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(async () => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   inbox.unread = 1;
   inbox.reads = 0;

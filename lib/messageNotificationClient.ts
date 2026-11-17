@@ -1,4 +1,4 @@
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionFetch, compositeActionSignal } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { currentMessagePushToken, queueMessagePushOperation, messagePushDepartureRevision, flushMessagePushReleases, recordMessagePushBinding } from "@/lib/messageNotificationLifecycle";
 export { currentMessagePushToken, messagePushFingerprint } from "@/lib/messageNotificationLifecycle";
@@ -12,7 +12,8 @@ export function saveMessageNotificationSetting(body: Record<string, unknown>, si
     if (await currentMessagePushToken() !== body.token) throw new Error("This device needs a new subscription. Try again.");
     await writeSetting(body, AbortSignal.timeout(3_000));
   });
-  return writeSetting(body, signal);
+  const deadline = AbortSignal.timeout(3_000);
+  return writeSetting(body, signal ? compositeActionSignal([signal, deadline]) : deadline);
 }
 
 async function writeSetting(body: Record<string, unknown>, signal?: AbortSignal): Promise<void> {

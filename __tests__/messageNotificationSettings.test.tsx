@@ -43,6 +43,39 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   host.remove();
+  Reflect.deleteProperty(window, "Capacitor");
+});
+
+it("shows a muted thread before its settings panel opens", async () => {
+  state.fetch.mockResolvedValue(Response.json({ ...settings, muted: true }));
+  await act(async () => root.render(createElement(MessageNotificationSettings, { conversationId: "thread" })));
+  expect(toggle().getAttribute("aria-description")).toMatch(/muted/);
+  expect(host.querySelector(".messageAlertsPanel")).toBeNull();
+});
+
+it("closes with Escape and returns focus to the toggle", async () => {
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  preview().focus();
+  await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
+  expect(host.querySelector(".messageAlertsPanel")).toBeNull();
+  expect(document.activeElement).toBe(toggle());
+});
+
+it("retains focus while a save is pending and ignores repeat changes", async () => {
+  await act(async () => root.render(createElement(MessageNotificationSettings)));
+  await click(toggle());
+  let finish!: () => void;
+  state.save.mockImplementationOnce(() => new Promise<void>((resolve) => { finish = resolve; }));
+  preview().focus();
+  await click(preview());
+  expect(document.activeElement).toBe(preview());
+  expect(preview().disabled).toBe(false);
+  expect(preview().getAttribute("aria-disabled")).toBe("true");
+  await click(preview());
+  expect(state.save).toHaveBeenCalledOnce();
+  await act(async () => finish());
+  expect(preview().checked).toBe(true);
 });
 
 it.each(["preview", "enabled", "muted"] as const)("keeps a saved %s change when an older panel read finishes", async (kind) => {
@@ -55,10 +88,10 @@ it.each(["preview", "enabled", "muted"] as const)("keeps a saved %s change when 
   let finishSave!: () => void;
   state.save.mockImplementationOnce(() => new Promise<void>((resolve) => { finishSave = resolve; }));
   await click(kind === "preview" ? preview() : action());
-  expect(toggle().disabled).toBe(true);
+  expect(toggle().getAttribute("aria-busy")).toBe("true");
   await act(async () => finishSave());
   await act(async () => finishRead(Response.json(settings)));
-  expect(toggle().disabled).toBe(false);
+  expect(toggle().getAttribute("aria-busy")).toBe("false");
   if (kind === "preview") expect(preview().checked).toBe(true);
   else expect(action().textContent).toBe(kind === "muted" ? "Unmute this chat" : "Turn off alerts on all devices");
   expect(state.save).toHaveBeenCalledWith(kind === "muted"

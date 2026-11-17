@@ -12,6 +12,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => fixture.auth }
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ signedIn: true, signedOut: false, unresolved: false }),
 }));
+vi.mock("@/lib/authProviderRevision", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authProviderRevision")>(),
+  readProviderAccountRevision: () => fixture.auth.accountRevision,
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
@@ -28,6 +32,8 @@ const rows = [
   { id: "tom", otherHandle: "tom", lastBody: "At seven", unread: 0 },
   { id: "friday", kind: "group", title: "Friday regulars", otherHandle: "tom", memberHandles: ["alice", "tom", "maisie"], lastBody: "See you there", unread: 0 },
 ];
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 async function mount(): Promise<void> {
@@ -50,6 +56,7 @@ async function choose(label: string): Promise<void> {
   await act(async () => control!.click());
 }
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   fixture.auth = { user: { id: "alice-account" }, handle: "alice", accountRevision: 1 };
   fixture.request.mockReset().mockImplementation(() => Promise.resolve(Response.json({ conversations: rows })));

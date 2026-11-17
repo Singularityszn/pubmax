@@ -20,6 +20,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => state.auth }))
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: (url: string, init: RequestInit) => state.fetch(url, init) }));
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 import MessagesLink from "@/components/nav/MessagesLink";
 import NotificationBell from "@/components/nav/NotificationBell";
 
@@ -34,6 +35,7 @@ async function mount(component: typeof MessagesLink) {
   await act(async () => { await Promise.resolve(); });
 }
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   vi.useFakeTimers();
   state.auth = { user: { id: "user-ken" }, handle: "ken" };

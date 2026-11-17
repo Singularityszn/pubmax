@@ -47,6 +47,7 @@
 // so a cold open still upgrades to realtime.
 
 import { ensureSupabaseBrowserForSession, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 
 /** A zero-argument nudge — deliberately carries NO payload (see header). */
@@ -336,9 +337,10 @@ export function subscribeToInbox(
     shared = entry;
     inboxSubscriptions.set(topic, entry);
     entry.stop = subscribeBroadcast(topic, ["message"], () => {
+      invalidateMessagesInbox(handle);
       for (const reader of [...entry.listeners]) reader.signal();
     }, INBOX_CADENCE, {
-      poll: () => { for (const reader of [...entry.listeners]) reader.options?.poll?.(); },
+      poll: () => { invalidateMessagesInbox(handle, false); for (const reader of [...entry.listeners]) reader.options?.poll?.(); },
       onStatus: (status) => {
         entry.status = status;
         for (const reader of [...entry.listeners]) reader.options?.onStatus?.(status);

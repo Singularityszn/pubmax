@@ -248,15 +248,23 @@ export default function SiteNav({
     if (!node || !shell) return;
     const property = "--site-nav-floating-height";
     let published = "";
+    let noticeTop = "";
+    const root = document.documentElement;
     const sync = () => {
-      published = `${Math.ceil(node.getBoundingClientRect().height)}px`;
-      shell.style.setProperty(property, published);
+      const bounds = node.getBoundingClientRect();
+      const height = `${Math.ceil(bounds.height)}px`;
+      const top = `${Math.max(12, Math.ceil(bounds.bottom) + 12)}px`;
+      if (height !== published) { published = height; shell.style.setProperty(property, published); }
+      if (top !== noticeTop) { noticeTop = top; root.style.setProperty("--message-notice-top", noticeTop); }
     };
     sync();
     const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(sync);
     observer?.observe(node);
+    window.addEventListener("resize", sync);
     return () => {
       observer?.disconnect();
+      window.removeEventListener("resize", sync);
+      if (root.style.getPropertyValue("--message-notice-top") === noticeTop) root.style.removeProperty("--message-notice-top");
       if (shell.style.getPropertyValue(property) === published) shell.style.removeProperty(property);
     };
   }, [isMap]);

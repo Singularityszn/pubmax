@@ -7,7 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
 import type { ConversationDTO } from "@/lib/messages";
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { restoreMessagePushAccount } from "@/lib/messageNotificationClient";
@@ -17,7 +17,6 @@ import { readProviderAccountRevision, readProviderAccountSignal } from "@/lib/au
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageArrivalNotice from "@/components/messages/MessageArrivalNotice";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
-import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
@@ -95,22 +94,16 @@ export default function MessagesLink(): React.JSX.Element | null {
     const controller = new AbortController();
     abortRef.current = controller;
     try {
-      const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
-        signal: controller.signal,
-      }, { requiresIdentity: true });
-      if (!res.ok) {
-        discardBody(res);
-        return;
-      }
-      const body = (await res.json()) as { conversations?: ConversationDTO[] };
-      if (controller.signal.aborted || abortRef.current !== controller) return;
-      const total = (body.conversations ?? []).reduce((sum, c) => sum + (c.unread || 0), 0);
+      const read = await readMessagesInbox(user.id, h, controller.signal);
+      if (controller.signal.aborted || abortRef.current !== controller || read.status < 200 || read.status >= 300) return;
+      const rows = read.conversations;
+      const total = rows.reduce((sum, c) => sum + (c.unread || 0), 0);
       const previous = previousRef.current?.userId === user.id ? previousRef.current.rows : null;
-      const incoming = previous && (body.conversations ?? []).find((row) => {
+      const incoming = previous && rows.find((row) => {
         const old = previous.find((item) => item.id === row.id);
         return !row.lastFromMe && (row.unread ?? 0) > (old?.unread ?? 0) && (!old || row.lastAt !== old.lastAt);
       });
-      previousRef.current = { userId: user.id, rows: body.conversations ?? [] };
+      previousRef.current = { userId: user.id, rows };
       if (incoming && pathnameRef.current !== `/messages/${incoming.id}`) setArrival({ userId: user.id, conversation: incoming });
       setUnreadResult({ userId: user.id, handle: h, count: total });
     } catch {
@@ -145,7 +138,7 @@ export default function MessagesLink(): React.JSX.Element | null {
             reply.postMessage({ token: revision === readProviderAccountRevision() && !readProviderAccountSignal().aborted ? token : null });
           }).catch(() => reply.postMessage({ token: null }));
       }
-      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) void refresh(true);
+      if (event.data?.type === "pubmax:message-arrival" && event.data.recipientId === user.id) { invalidateMessagesInbox(effectiveHandle); void refresh(true); }
     };
     navigator.serviceWorker?.addEventListener("message", onPush);
     // A completed thread read supersedes an older unread-count request.

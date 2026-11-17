@@ -100,6 +100,8 @@ import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -168,6 +170,7 @@ async function releaseFetch(
 }
 
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   signedOut();
   routerState.push.mockClear();

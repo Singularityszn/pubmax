@@ -19,7 +19,7 @@ import { useViewerSession } from "@/components/auth/useViewerSession";
 import MessageAvatar from "@/components/messages/MessageAvatar";
 import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
 import MessagesNewGroup from "@/components/messages/MessagesNewGroup";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { invalidateMessagesInbox, readMessagesInbox } from "@/lib/messagesInboxClient";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import {
   conversationRowHandle,
@@ -30,7 +30,6 @@ import {
 import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { inboxTimeLabel } from "@/lib/messageTimeline";
-import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "./messages.css";
@@ -140,10 +139,14 @@ export default function MessagesInboxClient({
     promise: Promise<void>;
   } | null>(null);
   const liveRef = useRef(false);
+  const readsRef = useRef(new Set<AbortController>());
   useLayoutEffect(() => {
     accountRevisionRef.current = accountRevision;
     liveRef.current = !paneHidden;
+    const reads = readsRef.current;
     return () => {
+      for (const read of reads) read.abort();
+      reads.clear();
       liveRef.current = false;
       requestGenerationRef.current += 1;
       pendingReadRef.current = null;
@@ -197,40 +200,32 @@ export default function MessagesInboxClient({
         setLoadedRevision(requestRevision);
         return;
       }
+      const controller = new AbortController();
+      const abort = () => controller.abort();
+      signal?.addEventListener("abort", abort, { once: true });
+      readsRef.current.add(controller);
       const promise = Promise.resolve().then(async () => {
         try {
           if (!stillCurrent()) return;
-          const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
-            signal,
-          }, { requiresIdentity: true });
-          if (!stillCurrent()) {
-            discardBody(res);
-            return;
-          }
-          setHandleNotOwned(res.status === 403);
-          if (res.status === 401 || res.status === 403) {
-            discardBody(res);
-            setNeedsSignIn(res.status === 401);
+          const read = await readMessagesInbox(user.id, h, controller.signal);
+          if (!stillCurrent()) return;
+          setHandleNotOwned(read.status === 403);
+          if (read.status === 401 || read.status === 403) {
+            setNeedsSignIn(read.status === 401);
             setConversations([]);
             setFailed(false);
             setPartial(false);
             return;
           }
-          if (!res.ok) {
-            discardBody(res);
+          if (read.status < 200 || read.status >= 300) {
             setNeedsSignIn(false);
             setFailed(true);
             setPartial(false);
             return;
           }
           setNeedsSignIn(false);
-          const body = (await res.json()) as {
-            conversations?: ConversationDTO[];
-            status?: string;
-          };
-          if (!stillCurrent()) return;
-          const rows = Array.isArray(body.conversations) ? body.conversations : [];
-          const degraded = body.status === "degraded";
+          const rows = read.conversations;
+          const degraded = read.degraded;
           setConversations(rows);
           // Degraded WITH NO ROWS may never read as an empty inbox: nothing was
           // answered, so the honest surface is the same one a failed read gets.
@@ -246,6 +241,8 @@ export default function MessagesInboxClient({
             setPartial(false);
           }
         } finally {
+          signal?.removeEventListener("abort", abort);
+          readsRef.current.delete(controller);
           if (stillCurrent()) setLoadedRevision(requestRevision);
           if (pendingReadRef.current?.generation === generation) pendingReadRef.current = null;
         }
@@ -299,7 +296,7 @@ export default function MessagesInboxClient({
   // safety poll with one, nothing while the tab is hidden.
   useEffect(() => {
     if (paneHidden || !handle || handleNotOwned) return;
-    return subscribeToInbox(handle, () => void refresh(), { poll: () => void refresh() });
+    return subscribeToInbox(handle, () => void refresh(undefined, true), { poll: () => void refresh() });
   }, [refresh, handle, paneHidden, handleNotOwned]);
 
   // The open thread announces when it marks its messages read, and the nav
@@ -354,15 +351,17 @@ export default function MessagesInboxClient({
         viewerSession.signedOut ? (
           <Link href="/login?mode=signin&from=%2Fmessages">Sign in</Link>
         ) : (
-          <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
-            <SquarePen size={24} aria-hidden="true" />
-          </button>
+          <div className="messagesInboxActions">
+            <MessageNotificationSettings compact />
+            <button type="button" onClick={openCompose} aria-label="New message" disabled={!user || !handle || handleNotOwned}>
+              <SquarePen size={24} aria-hidden="true" />
+            </button>
+          </div>
         )
       }
     >
       {!viewerSession.signedOut && user ? (
         <>
-          <MessageNotificationSettings />
           <label className="messagesInboxSearch">
             <Search size={16} aria-hidden="true" />
             <input
@@ -391,6 +390,7 @@ export default function MessagesInboxClient({
               .map((conversation) => ({ handle: conversation.otherHandle, avatarUrl: conversation.otherAvatarUrl })) : []}
             onOpened={(conversationId) => {
               setComposeRevision(null);
+              invalidateMessagesInbox(handle);
               void refresh(undefined, true);
               router.push(`/messages/${encodeURIComponent(conversationId)}`);
             }}

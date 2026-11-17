@@ -35,13 +35,13 @@ it("shares one inbox read while each viewer keeps its own cancellation", async (
 
 it("invalidates on an arrival and shares the fresh unread result", async () => {
   state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "thread", unread: 1 }] }));
-  expect((await readMessagesInbox("A", "reader")).conversations[0].unread).toBe(1);
+  expect((await readMessagesInbox("A", "reader")).conversations[0]?.unread).toBe(1);
   invalidateMessagesInbox("reader");
   state.fetch.mockResolvedValueOnce(Response.json({ conversations: [{ id: "thread", unread: 2 }] }));
   const reads = await Promise.all([readMessagesInbox("A", "reader"), readMessagesInbox("A", "reader")]);
-  expect(reads.map((read) => read.conversations[0].unread)).toEqual([2, 2]);
+  expect(reads.map((read) => read.conversations[0]?.unread)).toEqual([2, 2]);
   expect(state.fetch).toHaveBeenCalledTimes(2);
-  expect((await readMessagesInbox("A", "reader")).conversations[0].unread).toBe(2);
+  expect((await readMessagesInbox("A", "reader")).conversations[0]?.unread).toBe(2);
   expect(state.fetch).toHaveBeenCalledTimes(2);
   await vi.advanceTimersByTimeAsync(250);
   state.fetch.mockResolvedValueOnce(Response.json({ conversations: [] }));
