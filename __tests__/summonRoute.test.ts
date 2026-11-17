@@ -235,7 +235,8 @@ describe("POST /api/summon", () => {
     else if (failure === "message") vi.spyOn(messagesStore(), "send").mockResolvedValue(null);
     else vi.spyOn(messagesStore(), "send").mockRejectedValue(new Error("Store unavailable"));
     const response = await summon({ venueId: PUB, time: "20:00", mates: ["summon_ann_12"] });
-    expect(await response.json()).toEqual({ sent: [], failed: ["summon_ann_12"] });
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
     expect(notifications.work).toEqual([]);
     expect(notifications.send).not.toHaveBeenCalled();
   });
