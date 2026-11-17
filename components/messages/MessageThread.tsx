@@ -598,13 +598,17 @@ export default function MessageThread({
         shell.style.removeProperty("height");
         shell.style.removeProperty("top");
         const normalTop = panel.getBoundingClientRect().top - panelShift;
-        panelShift = Math.max(0, top - normalTop);
+        const contentResized = shell.hasAttribute("data-viewport-reduced") && window.innerHeight < layoutHeight;
+        panelShift = (contentResized ? top : Math.max(top, normalTop)) - normalTop;
         const nextTop = `${panelShift}px`;
         const maxHeight = `${Math.max(0, top + height - normalTop - panelShift)}px`;
+        const nextHeight = contentResized ? maxHeight : "";
         if (panel.style.top !== nextTop) panel.style.top = nextTop;
+        if (panel.style.height !== nextHeight) panel.style.height = nextHeight;
         if (panel.style.maxHeight !== maxHeight) panel.style.maxHeight = maxHeight;
       } else {
         panel?.style.removeProperty("top");
+        panel?.style.removeProperty("height");
         panel?.style.removeProperty("max-height");
         panelShift = 0;
         const nextHeight = `calc(${height}px - var(--composer-clearance))`;
@@ -624,6 +628,7 @@ export default function MessageThread({
       viewport?.removeEventListener("scroll", fit);
       window.removeEventListener("resize", fit);
       panel?.style.removeProperty("top");
+      panel?.style.removeProperty("height");
       panel?.style.removeProperty("max-height");
     };
   }, []);
