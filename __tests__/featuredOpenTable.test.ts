@@ -210,6 +210,22 @@ describe("the selected upcoming night", () => {
 });
 
 describe("reads that cannot answer", () => {
+  it("shows the night when unused public attendance facts cannot answer", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.spyOn(stillTrueCountReader, "read").mockImplementation(() => new Promise(() => {}));
+      const answer = vi.fn();
+      void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
+      await vi.advanceTimersByTimeAsync(1500);
+      expect(answer).toHaveBeenCalledWith(expect.objectContaining({
+        status: "upcoming",
+        table: expect.objectContaining({ placesLeft: 5 }),
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("shows the night without a price when its optional detail read stalls", async () => {
     vi.useFakeTimers();
     try {
