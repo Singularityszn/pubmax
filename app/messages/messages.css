@@ -2019,6 +2019,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
 }
 
+.composerPickerActions > .composerVenueResult {
+  justify-content: center;
+}
+
 .composerPollOptions {
   list-style: none;
   margin: 0;

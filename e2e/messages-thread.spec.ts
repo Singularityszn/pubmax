@@ -546,6 +546,74 @@ test.describe("message action hit areas", () => {
 test.describe("message bubbles on touch", () => {
   test.use({ hasTouch: true, isMobile: true });
 
+  for (const senderHandle of [ME, THEM]) {
+    test(`thread keyboard geometry keeps revealed ${senderHandle === ME ? "Unsend" : "Report"} fully inside the list without moving history`, async ({ page }, testInfo) => {
+      await page.setViewportSize(PHONE);
+      await page.addInitScript(() => {
+        Object.defineProperty(window.visualViewport!, "height", {
+          configurable: true, writable: true, value: 844,
+        });
+      });
+      const rows = Array.from({ length: 60 }, (_, index) => ({
+        ...fixture()[0]!, id: `reveal-${index}`, senderHandle, body: `Earlier message ${index}`,
+      }));
+      await installThread(page, rows);
+      await page.goto("/messages/c1");
+      const list = page.locator(".threadMessages");
+      const bubbles = list.locator(".messageBubble");
+      await expect(bubbles).toHaveCount(60);
+      await expectMessageInView(page, "Earlier message 59");
+      await page.getByRole("textbox", { name: "Message", exact: true }).focus();
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport!, "height", { configurable: true, value: 500 });
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+      });
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+      await expectMessageInView(page, "Earlier message 59");
+      await bubbles.last().tap();
+      const newest = list.locator(".messageRow").last();
+      await expect(newest).toHaveAttribute("data-revealed", "");
+      const action = newest.getByRole("button", { name: senderHandle === ME ? "Unsend" : "Report", exact: true });
+      await expect(async () => {
+        const geometry = await action.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const listBounds = element.closest(".threadMessages")!.getBoundingClientRect();
+          const x = bounds.left + bounds.width / 2;
+          return {
+            height: bounds.height,
+            top: bounds.top,
+            bottom: bounds.bottom,
+            listTop: listBounds.top,
+            listBottom: listBounds.bottom,
+            edgesHittable: [bounds.top + 1, bounds.bottom - 1].every((y) =>
+              element.contains(document.elementFromPoint(x, y))),
+          };
+        });
+        expect(geometry.height).toBeGreaterThanOrEqual(44);
+        expect(geometry.top).toBeGreaterThanOrEqual(geometry.listTop);
+        expect(geometry.bottom).toBeLessThanOrEqual(geometry.listBottom);
+        expect(geometry.edgesHittable).toBe(true);
+      }).toPass();
+      await page.screenshot({ path: testInfo.outputPath("newest-action.png"), scale: "css" });
+      const originalTop = await list.evaluate((element) => new Promise<number>((resolve) => {
+        element.addEventListener("scroll", () => resolve(element.scrollTop), { once: true });
+        element.scrollTop -= 500;
+      }));
+      const historyIndex = await bubbles.evaluateAll((elements) => {
+        const listBounds = elements[0]!.closest(".threadMessages")!.getBoundingClientRect();
+        return elements.findIndex((element) => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.top >= listBounds.top + 44 && bounds.bottom <= listBounds.bottom - 44;
+        });
+      });
+      expect(historyIndex).toBeGreaterThanOrEqual(0);
+      await bubbles.nth(historyIndex).tap();
+      await expect(list.locator(".messageRow").nth(historyIndex)).toHaveAttribute("data-revealed", "");
+      expect(await list.evaluate((element) => element.scrollTop)).toBe(originalTop);
+      expect(await list.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight)).toBeGreaterThan(100);
+    });
+  }
+
   for (const width of [390, 768, 1440]) {
     for (const rootFontPx of [16, 32]) {
       test(`short bubbles keep their natural width at ${width}px with ${rootFontPx}px text`, async ({ page }, testInfo) => {

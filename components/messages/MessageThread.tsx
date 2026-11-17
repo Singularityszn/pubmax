@@ -639,7 +639,7 @@ export default function MessageThread({
 
   useLayoutEffect(() => {
     if (followingNewestRef.current) scrollToNewest();
-  }, [messages, outbox, scrollToNewest]);
+  }, [messages, outbox, revealedId, scrollToNewest]);
 
   const attachList = useCallback((list: HTMLUListElement | null) => {
     listRef.current = list;
