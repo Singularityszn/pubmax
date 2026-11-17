@@ -152,10 +152,10 @@ for (const width of [390, 768, 1440]) for (const motion of ["no-preference", "re
     await page.mouse.move(resting.x + resting.width / 2, resting.y + resting.height / 2);
     await page.mouse.down();
     try {
-      await send.evaluate(async button => {
-        button.getBoundingClientRect();
-        await Promise.all(button.getAnimations().map(animation => animation.finished));
-      });
+      await expect(async () => {
+        const pressed = (await send.boundingBox())!;
+        expect(pressed.width / resting.width).toBeCloseTo(motion === "reduce" ? 1 : 0.97, 3);
+      }).toPass();
       const pressed = (await send.boundingBox())!;
       const scale = pressed.width / resting.width;
       await testInfo.attach("pressed scale", { body: JSON.stringify({ width, motion, scale }), contentType: "application/json" });

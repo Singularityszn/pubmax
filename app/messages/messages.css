@@ -911,9 +911,9 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .messageThreadShell[data-compact-composer] .composerDock {
   --composer-field-padding: clamp(0px, (44px - 1em * var(--composer-line-height)) / 2, 0.65rem);
-  --composer-row-padding: 2px;
-  --composer-dock-gap: 4px;
-  --composer-dock-padding: 4px;
+  --composer-row-padding: 0px;
+  --composer-dock-gap: 2px;
+  --composer-dock-padding: 2px;
 }
 
 .composerPickerRegion {
@@ -1215,6 +1215,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: var(--panel);
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.composerSend > svg {
+  pointer-events: none;
 }
 
 .composerSend:focus-visible {
