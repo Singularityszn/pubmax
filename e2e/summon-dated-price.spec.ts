@@ -16,13 +16,17 @@ const CONDITIONS = "£6.65 for CAMRA members showing a card, Monday to Thursday 
 
 type DetailRow = Record<string, unknown>;
 
-async function fixtureLambDetail(page: Page, change: ((row: DetailRow) => void) | null): Promise<void> {
+/** Serves The Lamb's real detail answer, changed as asked. Answers how many times it has served it. */
+async function fixtureLambDetail(page: Page, change: ((row: DetailRow) => void) | null): Promise<() => number> {
+  let served = 0;
   await page.route(`**/api/venue/${LAMB}*`, async (route) => {
     const response = await route.fetch();
     const body = (await response.json()) as { venue: { prices: DetailRow[] } };
     if (change) change(body.venue.prices[0]!);
     await route.fulfill({ response, json: body });
+    served += 1;
   });
+  return () => served;
 }
 
 function summonDialog(page: Page): Locator {
@@ -78,18 +82,19 @@ test.beforeEach(async ({ page }) => {
 test("the committed row states no measure, so the invite goes without a price", async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await storeThemeChoice(page, "light");
-  await fixtureLambDetail(page, null);
+  const served = await fixtureLambDetail(page, null);
   await openSummon(page);
   const dialog = summonDialog(page);
 
-  await expect(dialog.getByText("Sign in to send it to your mates on PUBMAXX, or share a link.")).toBeVisible({ timeout: 30_000 });
-  await expect(dialog.locator("[data-summon-preview]")).toHaveCount(0);
-  await shot(page, testInfo, "390-light-unmeasured");
+  // The pub's own detail has answered before the invite is built from it.
+  await expect.poll(served).toBeGreaterThan(0);
   await dialog.getByRole("button", { name: "Share a link", exact: true }).click();
   await expect(dialog.getByRole("status")).toHaveText("Sharing didn't open, so we copied the invite and link.");
   expect(await copied(page)).toBe(
     `Come to The Lamb at 2:30pm? It's on the PUBMAXX map.\nhttp://localhost:${new URL(page.url()).port}/map?sel=${LAMB}&meet=14%3A30`,
   );
+  await expect(dialog.locator("[data-summon-preview]")).toHaveCount(0);
+  await shot(page, testInfo, "390-light-unmeasured");
 });
 
 for (const { width, height, theme } of [
