@@ -178,6 +178,19 @@ describe("summon price", () => {
     ["a conditional per-half listing labelled as a pint", { price_text: "£5.50 per half before 7pm" }],
     ["a conditional a-half listing labelled as a pint", { price_text: "£5.50 a half until 7pm" }],
     ["a weekday half listing labelled as a pint", { price_text: "£5.50 per half on weekdays" }],
+    ["an unqualified half with a condition", { price_text: "£5.50 half before 7pm" }],
+    ["plural halves with a condition", { price_text: "£5.50 halves before 7pm" }],
+    ["a for-half listing with a condition", { price_text: "£5.50 for half before 7pm" }],
+    ["an each-half listing with a condition", { price_text: "£5.50 each half before 7pm" }],
+    ["a slash-separated half with a condition", { price_text: "£5.50/half before 7pm" }],
+    ["a parenthesised half with a condition", { price_text: "£5.50 (a half) before 7pm" }],
+    ["a parenthesised per-half with a condition", { price_text: "£5.50 (per half) on weekdays" }],
+    ["a half separated from its condition by punctuation", { price_text: "£5.50 per half\u2014before 7pm" }],
+    ["a drink name inside the half word", { pint_name: "Alf", price_text: "£5.50 per half before 7pm" }],
+    ["a drink name at the start of the half word", { pint_name: "Hal", price_text: "£5.50 per half before 7pm" }],
+    ["a half listing under a wine measure", { measure: "125ml", pint_name: "House wine", price_text: "£5.50 halves before 7pm" }],
+    ["a half listing under a bottle measure", { measure: "bottle", pint_name: "Peroni", price_text: "£5.50 halves before 7pm" }],
+    ["a half listing under a spirit measure", { measure: "single", pint_name: "Gin", price_text: "£5.50 halves before 7pm" }],
     ["a can listing labelled as a bottle", { measure: "bottle", price_text: "£5.50 per 440ml can" }],
     ["a single listing labelled as a double", { measure: "double", pint_name: "Gordon's gin", price_text: "£5.50 single measure" }],
     ["markup in a publisher URL", { pub_url: "https://www.pint-prices.com/pub/<wrong>" }],
@@ -211,6 +224,7 @@ describe("summon price", () => {
     ["pint", "Double Chocolate Stout"],
     ["pint", "Half Moon IPA"],
     ["pint", "Other Half Green Diamond"],
+    ["pint", "A Half Decent Stout"],
   ] as const)("preserves a matching explicit %s serving for %s", (measure, pint_name) => {
     expect(selectSummonPrice(pub(row({ measure, pint_name })), NOW)?.measure).toBe(measure);
   });
@@ -224,7 +238,7 @@ describe("summon price", () => {
       .toMatchObject({ measure: "half", statement: "£5.50 per half before 7pm" });
   });
 
-  it.each(["Half Moon IPA", "Other Half Green Diamond"])("keeps %s as a drink name inside the listing", (pint_name) => {
+  it.each(["Half Moon IPA", "Other Half Green Diamond", "Half Moon (Cask)"])("keeps %s as a drink name inside the listing", (pint_name) => {
     const price_text = `£5.50 for a ${pint_name} before 7pm`;
     expect(selectSummonPrice(pub(row({ pint_name, price_text })), NOW))
       .toMatchObject({ measure: "pint", drink: pint_name, statement: price_text });
