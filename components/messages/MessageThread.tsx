@@ -815,6 +815,7 @@ export default function MessageThread({
           type="button"
           className="threadRetryBtn"
           onClick={() => {
+            setViewRevision(null);
             setState("loading");
             void refresh();
           }}
