@@ -206,6 +206,7 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     const crews = [crewWith(creator, [departedOwner]), crewWith(creator, [departedOwner])].sort();
     const [first, second] = crews as [string, string];
     const planOf = (crew: string) => db().sql(`select plan_id from public.social_crews where id='${crew}'`);
+    // Crew-ID order must oppose Plan-ID order in both heap fixtures.
     if (planOf(first) < planOf(second)) {
       const firstPlan = planOf(first), secondPlan = planOf(second);
       const parking = "b2464400-0000-4000-8000-000000000001";

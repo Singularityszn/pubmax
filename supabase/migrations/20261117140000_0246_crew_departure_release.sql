@@ -19,8 +19,8 @@
 --    - Admission and invitation paths that pass the host pre-checks release their
 --      crew's departed members before participant locks. A departure during those
 --      waits can remain pending until the next sweep or admission.
---    Lock order: crew row, member rows, Plan row, seat and invitation rows. It takes no
---    auth row and no account lock.
+--    Per-crew work locks member rows and may revoke seats before changing its Plan.
+--    It takes no auth row and no account lock.
 --    The sweep locks its whole batch of crew rows first and skips busy crews. It then
 --    releases them in Plan ID order, the order account deletion locks a person's Plans.
 -- 4. Rollback drops both functions and restores 0245's _social_crew_admission_refused.
