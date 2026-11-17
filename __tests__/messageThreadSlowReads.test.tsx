@@ -265,11 +265,15 @@ it("keeps the page still through a cold failure and its recovery", async () => {
   await act(async () => retry?.click());
   await settle();
   expect(scrollTo).not.toHaveBeenCalled();
-  vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
-  await answer(thread("Meet at seven"));
-  expect(host.textContent).toContain("Meet at seven");
-  expect(scrollTo).not.toHaveBeenCalled();
-  expect(host.querySelector<HTMLUListElement>(".threadMessages")?.scrollTop).toBe(976);
+  const listHeight = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
+  try {
+    await answer(thread("Meet at seven"));
+    expect(host.textContent).toContain("Meet at seven");
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(host.querySelector<HTMLUListElement>(".threadMessages")?.scrollTop).toBe(976);
+  } finally {
+    listHeight.mockRestore();
+  }
 });
 
 

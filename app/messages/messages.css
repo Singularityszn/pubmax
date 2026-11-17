@@ -2152,7 +2152,6 @@ html[data-theme="dark"] .messageBubblePhoto {
     left: 0;
     right: 0;
     height: calc(100dvh - var(--composer-clearance));
-    padding-inline: env(safe-area-inset-left, 0px) env(safe-area-inset-right, 0px);
     display: flex;
     flex-direction: column;
     background: var(--messages-surface, var(--paper));
@@ -2163,6 +2162,8 @@ html[data-theme="dark"] .messageBubblePhoto {
     flex-shrink: 0;
     margin: 0;
     padding-top: max(0.25rem, env(safe-area-inset-top, 0px));
+    padding-left: calc(0.5rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.5rem + env(safe-area-inset-right, 0px));
   }
 
   .messageThreadShell .threadBackLink {
@@ -2173,7 +2174,8 @@ html[data-theme="dark"] .messageBubblePhoto {
     min-height: 0;
     overflow-y: auto;
     overscroll-behavior-y: contain;
-    padding-inline: var(--messages-gutter, 20px);
+    padding-left: calc(var(--messages-gutter, 20px) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--messages-gutter, 20px) + env(safe-area-inset-right, 0px));
   }
 
   .messageThreadShell .composerDock {
@@ -2181,6 +2183,8 @@ html[data-theme="dark"] .messageBubblePhoto {
     flex-shrink: 0;
     margin: 0;
     padding-bottom: 0.5rem;
+    padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.75rem + env(safe-area-inset-right, 0px));
   }
 
 }
