@@ -10,6 +10,13 @@ import {
 import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
+  INITIAL_PLAN_ACCOUNT_CLAIM,
+  planAccountClaimOutcome,
+  transitionPlanAccountClaim,
+  type PlanAccountClaimEvent,
+  type PlanAccountClaimState,
+} from "@/lib/planAccountClaim";
+import {
   parsePlanCapabilitySnapshot,
   planAccountClaimEvent,
   planCapabilityEvent,
@@ -74,67 +81,78 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     if (!auth || (role !== "host" && role !== "guest")) {
       return;
     }
-    let disposed = false;
-    let answered = false;
-    let retryOnResume = false;
-    let lifetime = readProviderAccountSignal();
+    let state = INITIAL_PLAN_ACCOUNT_CLAIM;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
-    const live = (signal: AbortSignal): boolean => !disposed && !signal.aborted;
-    const wait = (delayMs: number): Promise<void> => new Promise((resolve) => {
-      retryTimer = setTimeout(resolve, delayMs);
-    });
-    const claim = async (signal: AbortSignal): Promise<void> => {
-      for (const delayMs of [0, 250, 1_000]) {
-        if (!live(signal)) return;
-        if (delayMs > 0) await wait(delayMs);
-        if (!live(signal)) return;
-        try {
-          const response = await accountBoundFetch(
-            auth,
-            `/api/plans/${id}/session`,
-            { method: "PUT", signal },
-          );
-          const retryableStatus = response.status === 429 || response.status === 503;
+    let watched: { lifetime: number; signal: AbortSignal; stop: () => void } | undefined;
+    const watch = (lifetime: number): AbortSignal => {
+      if (watched?.lifetime === lifetime) return watched.signal;
+      watched?.stop();
+      const signal = readProviderAccountSignal();
+      // Another provider can end the shared account lifetime while this
+      // Supabase account stays signed in. Only then does the claim go on.
+      const interrupted = () => step({
+        type: "interrupted",
+        lifetime,
+        sameAccount: providerOwnsSession("supabase", auth.userId),
+      });
+      signal.addEventListener("abort", interrupted, { once: true });
+      watched = { lifetime, signal, stop: () => signal.removeEventListener("abort", interrupted) };
+      return signal;
+    };
+    const send = (lifetime: number, attempt: number): void => {
+      void accountBoundFetch(auth, `/api/plans/${id}/session`, { method: "PUT", signal: watch(lifetime) }).then(
+        (response) => {
+          const outcome = planAccountClaimOutcome(response);
           discardBody(response);
-          if (!live(signal)) return;
-          if (response.ok) window.dispatchEvent(new Event(planAccountClaimEvent(id)));
-          if (response.ok || !retryableStatus) {
-            answered = true;
-            return;
-          }
-        } catch {
-          // A session or network race gets the same bounded retry as a 503.
+          step({ type: "answered", lifetime, attempt, outcome });
+        },
+        () => step({ type: "answered", lifetime, attempt, outcome: planAccountClaimOutcome(null) }),
+      );
+    };
+    const enter = (next: PlanAccountClaimState): void => {
+      switch (next.phase) {
+        case "sending":
+          send(next.lifetime, next.attempt);
+          return;
+        case "waiting":
+          watch(next.lifetime);
+          retryTimer = setTimeout(
+            () => step({ type: "waited", lifetime: next.lifetime, attempt: next.attempt }),
+            next.delayMs,
+          );
+          return;
+        case "exhausted":
+          watch(next.lifetime);
+          return;
+        case "claimed":
+          window.dispatchEvent(new Event(planAccountClaimEvent(id)));
+          return;
+        case "refused":
+        case "stopped":
+          return;
+        default: {
+          const unreachable: never = next;
+          return unreachable;
         }
       }
-      retryOnResume = live(signal);
     };
-    // Another provider can end the shared account lifetime while this
-    // Supabase account stays signed in. Only then does the claim go on.
-    const interrupted = (): void => {
-      if (disposed || answered || !providerOwnsSession("supabase", auth.userId)) {
-        retryOnResume = false;
-        return;
-      }
-      if (retryTimer) clearTimeout(retryTimer);
-      renew();
-      if (!retryOnResume) void claim(lifetime);
-    };
-    const renew = (): void => {
-      lifetime = readProviderAccountSignal();
-      lifetime.addEventListener("abort", interrupted, { once: true });
-    };
-    const stopRecovery = subscribeToReconnectRecovery(() => {
-      if (!retryOnResume || disposed) return;
-      retryOnResume = false;
-      void claim(lifetime);
-    }, { events: ["online", "visible", "focus"] });
-    lifetime.addEventListener("abort", interrupted, { once: true });
-    void claim(lifetime);
+    function step(event: PlanAccountClaimEvent): void {
+      const next = transitionPlanAccountClaim(state, event);
+      if (next === state) return;
+      state = next;
+      clearTimeout(retryTimer);
+      retryTimer = undefined;
+      enter(next);
+    }
+    const stopRecovery = subscribeToReconnectRecovery(
+      () => step({ type: "resumed" }),
+      { events: ["online", "visible", "focus"] },
+    );
+    enter(state);
     return () => {
-      disposed = true;
+      step({ type: "disposed" });
       stopRecovery();
-      lifetime.removeEventListener("abort", interrupted);
-      if (retryTimer) clearTimeout(retryTimer);
+      watched?.stop();
     };
   }, [id, role, session, user?.id]);
 
