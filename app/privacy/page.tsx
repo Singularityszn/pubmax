@@ -1086,8 +1086,9 @@ export default function PrivacyPage() {
             showing them and leaves them out of your export, and an operator
             cleanup deletes them with your reports in batches. Deleting your
             account deletes them, your reports and the write receipts that name
-            you, at once. Crew safety cases opened by a block expire 30 days
-            after the night closes, and from then no moderator can see them.
+            you, at once. Crew safety cases receive a fixed expiry when they
+            open, set to 30 days after the night&apos;s planned close. From then
+            no moderator can see them.
             Deleting either account deletes them at once. Deleting the Crew
             deletes them, except that a block made while the Crew is being
             deleted can leave one that no moderator can see. Expired and

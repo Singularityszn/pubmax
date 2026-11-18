@@ -242,10 +242,7 @@ describe.skipIf(skipReason !== null)("after 0245: moderator correction of a mist
       expect(await asking).toMatchObject({ ok: true, code: "requested" });
     } finally { await correction.finish(); }
   });
-
-
 });
-
 
 describe.skipIf(skipReason !== null)("after 0245: Crew write receipts end with the account", () => {
   beforeAll(() => { if (running()) stageTo("after"); });

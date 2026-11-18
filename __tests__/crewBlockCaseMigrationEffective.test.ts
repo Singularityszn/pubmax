@@ -623,7 +623,7 @@ describe.skipIf(skipReason !== null)("0248: rollback", () => {
     expect(casesIn(crew).map(directions)).toEqual([[arrow(ana, bea)]]);
   });
 
-  it("refuses at once while a writer holds a trigger table, so a Plan delete beside it never deadlocks, and every object and case stays", async () => {
+  it("refuses at once while a reader holds a trigger table, so a Plan delete beside it never deadlocks, and every object and case stays", async () => {
     const { crew } = blockedPair();
     const other = blockedPair();
     const reader = await hold("lock table public.social_blocks in access share mode", "postgres");

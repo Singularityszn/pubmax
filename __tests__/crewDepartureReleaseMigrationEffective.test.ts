@@ -311,8 +311,6 @@ describe.skipIf(skipReason !== null)("0246: a deleted account's crew places", ()
     expect(db().sql(`select count(*) from auth.users where id='${creator.user}'`)).toBe("0");
   });
 
-
-
   it("rollback keeps freed places and cancelled nights, stops releasing, and reapplying releases again", async () => {
     const host = person(), ana = person(), xav = person(), yan = person();
     const crew = crewWith(host, [ana, xav, yan]);
