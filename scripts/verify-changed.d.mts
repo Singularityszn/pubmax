@@ -9,6 +9,7 @@ export type CheckPlan = {
   readonly validateData: boolean;
   readonly dbTypes: boolean;
   readonly e2eSkips: boolean;
+  readonly e2eWaits: boolean;
   readonly chatgptMap: boolean;
 };
 

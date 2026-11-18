@@ -316,6 +316,11 @@ describe("a change-scoped plan", () => {
     expect(plan(modified("scripts/rls/session-fixture.sql")).dbTypes).toBe(true);
     expect(plan(modified("scripts/qa/migration-apply-list.mjs")).dbTypes).toBe(true);
     expect(plan(modified("e2e/map.spec.ts")).e2eSkips).toBe(true);
+    // The wait gate reads the spec tree and the Playwright configs beside it.
+    expect(plan(modified("e2e/map.spec.ts")).e2eWaits).toBe(true);
+    expect(plan(modified("playwright.config.ts")).e2eWaits).toBe(true);
+    expect(plan(modified("scripts/assert-e2e-waits.mjs")).e2eWaits).toBe(true);
+    expect(plan(modified("lib/x.ts")).e2eWaits).toBe(false);
     expect(plan(modified("scripts/chatgpt-map/src/server.ts")).chatgptMap).toBe(true);
   });
 
