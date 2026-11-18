@@ -253,6 +253,7 @@ beforeEach(() => {
           people: init?.method === "DELETE" ? [] : [{ memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() }],
         });
       }
+      if (String(input).endsWith("/attendance")) return Response.json({}, { status: 404 });
       const revision = state.accountRevision;
       const response = Response.json({
         lot: [revision === 2 ? "dave" : "bob-from-old-account"],

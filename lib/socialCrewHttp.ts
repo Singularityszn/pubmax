@@ -163,7 +163,10 @@ export function socialCrewErrorResponse(error: unknown): Response {
     if (error.code === "INVALID") return socialCrewInvalidResponse();
     if (error.code === "NOT_FOUND") return socialCrewNotFoundResponse();
     if (error.code === "CONFLICT") {
-      return publicApiError("Social Crew changed before this request.", "SOCIAL_CREW_CONFLICT", 409, { headers: { "Cache-Control": "private, no-store" } });
+      return publicApiError("Social Crew changed before this request.", "SOCIAL_CREW_CONFLICT", 409, {
+        headers: { "Cache-Control": "private, no-store" },
+        ...(error.reason ? { details: { reason: error.reason } } : {}),
+      });
     }
   }
   return socialCrewUnavailableResponse();
