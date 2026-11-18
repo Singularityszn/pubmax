@@ -471,6 +471,27 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(db().sql(`select formed_at is null and expires_at=choice_expires_at from public.social_crew_see_again_pairs where crew_id='${crew}'`)).toBe("t");
   });
 
+  it("exports only currently visible connections, independently of short directional retention", () => {
+    const { host, a, b, crew } = matched();
+    const connections = () => call(`export_visible_crew_see_again('${a.user}',100)`);
+    expect(connections()).toEqual([{ crewId: crew, memberId: memberId(crew, b), context: "friendship" }]);
+    starts(crew, "-85 hours");
+    db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=now()-interval '1 hour',
+      formed_at=now()-interval '2 days',expires_at=now()+interval '26 days' where crew_id='${crew}';
+      update public.social_crew_see_again_choices set expires_at=now()-interval '1 hour' where crew_id='${crew}'`);
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual([]);
+    expect(connections()).toHaveLength(1);
+    choose(b, crew, a, "friendship", "withdraw");
+    expect(connections()).toEqual([]);
+    expect(call(`export_visible_crew_see_again('${host.user}',100)`)).toEqual([]);
+  });
+
+  it("rechecks safety before a visible connection can enter an export", async () => {
+    const { a, b } = matched();
+    await serial(rpc(blockCall(a, b)),rpc(`export_visible_crew_see_again('${a.user}',100)`),"w6-block-vs-visible-export");
+    expect(call(`export_visible_crew_see_again('${a.user}',100)`)).toEqual([]);
+  });
+
   it("rolls back under the migration role and reapplies", async () => {
     const retained = db().sql("select count(*) from public.social_crew_see_again_pairs");
     expect(Number(retained)).toBeGreaterThan(0);
