@@ -29,6 +29,7 @@ import {
   SOCIAL_PUB_BANDS,
   settleSocialPubComparison,
   socialPubComparisonNeighbours,
+  socialPubRankingReadFailure,
   startSocialPubComparison,
   type SocialPubBand,
   type SocialPubComparison,
@@ -41,8 +42,7 @@ import {
 import { useTellYourLot } from "./useTellYourLot";
 import {
   rankingSubject,
-  socialPubRankingPayload,
-  socialPubRankingReadFailure,
+  postVisitRankingPayload,
   socialPubRankingSaveAnswer,
 } from "@/lib/rankAfterVisitCheckpoint";
 
@@ -63,7 +63,7 @@ async function readList(venueId: string, signal: AbortSignal): Promise<VisitRank
     );
     const body: unknown = await response.json().catch(() => null);
     if (!response.ok) return { kind: socialPubRankingReadFailure(response.status, body) };
-    const entries = socialPubRankingPayload(body);
+    const entries = postVisitRankingPayload(body);
     const subject = rankingSubject(body);
     return entries && subject !== "unavailable"
       ? { kind: "entries", list: { entries, subject } } : { kind: "unavailable" };
@@ -178,7 +178,7 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
         { requiresIdentity: true },
       );
       if (!ownsRequest()) return;
-      const saved = response.ok ? socialPubRankingPayload(body) : null;
+      const saved = response.ok ? postVisitRankingPayload(body) : null;
       if (saved?.some((entry) => entry.venueId === venueId && entry.band === band)) {
         const shared = (body as { shared?: unknown }).shared;
         send({ type: "saved", requestId: saving.requestId, entries: saved,
