@@ -181,6 +181,31 @@ describe("runtime data-pack tracing", () => {
     }
   });
 
+  it("ships a summon the price rows and none of the venue sheet's enrichment packs", () => {
+    const includes = tracingIncludes();
+    const packFiles = (id: string) => {
+      const pack = RUNTIME_DATA_PACKS.find((candidate) => candidate.id === id);
+      expect(pack, `${id} must stay a declared pack`).toBeDefined();
+      return pack?.files ?? [];
+    };
+
+    for (const file of packFiles("venue-detail-index")) {
+      expect(includes["/api/summon"]).toContain(file);
+    }
+    for (const id of [
+      "venue-osm-index",
+      "osm-pub-facts",
+      "venue-site-facts",
+      "places-enrichment",
+      "venue-record-copy",
+      "venue-menu-enrichment",
+    ]) {
+      for (const file of packFiles(id)) {
+        expect(includes["/api/summon"], `/api/summon must not ship ${id}`).not.toContain(file);
+      }
+    }
+  });
+
   it("carries the shared Pint Price reader to the landing pages and the sitemap", () => {
     const pack = RUNTIME_DATA_PACKS.find(
       (candidate) => candidate.id === "pint-price-landing-dataset",
