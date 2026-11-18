@@ -194,7 +194,7 @@ describe("runtime data-pack tracing", () => {
     }
     expect(includes["/api/summon"]).not.toContain("./public/data/pint_prices_app_dataset.json");
     for (const file of packFiles("venue-detail-index")) {
-      expect(includes["/api/leagues/\\[id\\]/invite"]).not.toContain(file);
+      expect(includes["/api/leagues/\\[id\\]/invite"] ?? []).not.toContain(file);
     }
     for (const id of [
       "venue-osm-index",
