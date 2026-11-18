@@ -57,7 +57,8 @@ vi.mock("@/lib/authServer", () => ({
 import { POST as CREATE } from "@/app/api/plans/route";
 import { GET } from "@/app/api/plans/[id]/route";
 import type { PlanMemberRole, PlanState } from "@/lib/plan";
-import { projectNightReceipt } from "@/lib/nightReceipt";
+import { projectNightReceipt, type NightReceipt } from "@/lib/nightReceipt";
+import { INITIAL_NIGHT_RECEIPT_READ, nextNightReceiptRead } from "@/lib/nightReceiptRead";
 import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberCookieName } from "@/lib/planMemberCapability";
 import { __resetMemoryPlans, hashPlanMemberToken, memoryPlanStore, planMemberIdentity, planStore } from "@/lib/planStore";
@@ -105,6 +106,62 @@ function completedState(overrides: Partial<PlanState> = {}): PlanState {
 function project(state: PlanState | null, role: PlanMemberRole | null = "host") {
   return projectNightReceipt({ state, role });
 }
+
+describe("private receipt read ordering", () => {
+  const capability = "host-capability";
+  const scope = {};
+  const receipt: NightReceipt = { title: "A private night", plannedFor: null, stops: [], ending: null, paid: "not_recorded" };
+  const reading = () => nextNightReceiptRead(INITIAL_NIGHT_RECEIPT_READ, { type: "scope", capability, scope, host: true });
+  const answer = (request: number) => ({ type: "answer", capability, scope, request, answer: { status: "ready", receipt } } as const);
+
+  it.each(["claim first", "answer first"])("keeps one authorised read with %s", order => {
+    const pending = reading();
+    const settled = order === "claim first"
+      ? nextNightReceiptRead(nextNightReceiptRead(pending, { type: "claimed" }), answer(pending.request))
+      : nextNightReceiptRead(nextNightReceiptRead(pending, answer(pending.request)), { type: "claimed" });
+    expect(settled).toMatchObject({ phase: "ready", request: pending.request, receipt });
+  });
+
+  it("checks once more after a claim overlaps the first refusal, then stops if access is still refused", () => {
+    const pending = reading();
+    const claimed = nextNightReceiptRead(pending, { type: "claimed" });
+    const retry = nextNightReceiptRead(claimed, { type: "answer", capability, scope, request: pending.request, answer: { status: "refused" } });
+    expect(retry).toMatchObject({ phase: "reading", request: pending.request + 1 });
+    const refused = nextNightReceiptRead(retry, { type: "answer", capability, scope, request: retry.request, answer: { status: "refused" } });
+    expect(refused).toMatchObject({ phase: "refused", request: retry.request });
+  });
+
+  it.each(["request", "capability", "credentials"])("rejects a late answer from different %s", changed => {
+    const pending = reading();
+    expect(nextNightReceiptRead(pending, {
+      ...answer(pending.request),
+      request: pending.request + (changed === "request" ? 1 : 0),
+      capability: changed === "capability" ? "retired-capability" : capability,
+      scope: changed === "credentials" ? {} : scope,
+    })).toBe(pending);
+  });
+
+  it("clears private data on an unavailable check and coalesces retries while it is pending", () => {
+    const first = reading();
+    const ready = nextNightReceiptRead(first, answer(first.request));
+    const check = nextNightReceiptRead(ready, { type: "check" });
+    const unavailable = nextNightReceiptRead(check, { type: "answer", capability, scope, request: check.request, answer: { status: "unavailable" } });
+    expect(unavailable.phase).toBe("unavailable");
+    expect(unavailable).not.toHaveProperty("receipt");
+    const retry = nextNightReceiptRead(unavailable, { type: "check" });
+    expect(retry).toMatchObject({ phase: "reading", recovering: true, receipt: null });
+    expect(nextNightReceiptRead(retry, { type: "check" })).toBe(retry);
+  });
+
+  it("retires a revoked host scope before accepting any previous private answer", () => {
+    const pending = reading();
+    const revoked = nextNightReceiptRead(pending, { type: "scope", capability: "no-capability", scope: {}, host: false });
+    expect(revoked.phase).toBe("hidden");
+    expect(nextNightReceiptRead(revoked, answer(pending.request))).toBe(revoked);
+    expect(nextNightReceiptRead(revoked, { type: "check" })).toBe(revoked);
+    expect(nextNightReceiptRead(revoked, { type: "claimed" })).toBe(revoked);
+  });
+});
 
 describe("the private Night Receipt projection", () => {
   it("shows nothing to a reader who only has the public preview", () => {
