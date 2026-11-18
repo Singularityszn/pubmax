@@ -2,7 +2,25 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
-type ReadingPosition = { scope: string | null; newest: boolean; outbox: Set<string>; viewportTop: number };
+type MessageAnchor = { element: HTMLElement; top: number };
+type ReadingPosition = {
+  scope: string | null;
+  newest: boolean;
+  outbox: Set<string>;
+  viewportTop: number;
+  anchors: MessageAnchor[];
+};
+
+function visibleAnchors(list: HTMLUListElement): MessageAnchor[] {
+  const viewport = list.getBoundingClientRect();
+  const anchors: MessageAnchor[] = [];
+  for (const element of list.querySelectorAll<HTMLElement>(".messageRow")) {
+    const rect = element.getBoundingClientRect();
+    if (rect.top >= viewport.bottom) break;
+    if (rect.bottom > viewport.top) anchors.push({ element, top: rect.top });
+  }
+  return anchors;
+}
 
 export function useThreadReadingPosition({
   listRef, scope, ready, current, history, outbox, keyboardOpen, revealedId, recovery,
@@ -26,23 +44,29 @@ export function useThreadReadingPosition({
   }, [listRef]);
 
   useLayoutEffect(() => {
-    if (!enabled || !listRef.current) {
+    const list = listRef.current;
+    if (!enabled || !list) {
       position.current = null;
       return;
     }
     const previous = position.current?.scope === scope ? position.current : null;
     const sent = outbox.some(row => !previous?.outbox.has(row.id));
-    const viewportTop = listRef.current.getBoundingClientRect().top;
+    const viewportTop = list.getBoundingClientRect().top;
     if (previous && !previous.newest && !sent) {
-      listRef.current.scrollTop += viewportTop - previous.viewportTop;
+      const anchor = previous.anchors.find(row => list.contains(row.element));
+      list.scrollTop += anchor
+        ? anchor.element.getBoundingClientRect().top - anchor.top
+        : viewportTop - previous.viewportTop;
     }
     position.current = {
       scope,
       newest: !previous || previous.newest || sent,
       outbox: new Set(outbox.map(row => row.id)),
       viewportTop,
+      anchors: [],
     };
     scrollToNewest();
+    if (!position.current.newest) position.current.anchors = visibleAnchors(list);
   }, [enabled, scope, history, outbox, keyboardOpen, revealedId, recovery, listRef, scrollToNewest]);
 
   useEffect(() => {
@@ -54,6 +78,8 @@ export function useThreadReadingPosition({
       if (!position.current || list.clientHeight !== height) return;
       const remaining = list.scrollHeight - list.clientHeight - list.scrollTop;
       position.current.newest = remaining <= 24;
+      position.current.viewportTop = list.getBoundingClientRect().top;
+      position.current.anchors = position.current.newest ? [] : visibleAnchors(list);
     };
     const onResize = () => {
       window.cancelAnimationFrame(frame);

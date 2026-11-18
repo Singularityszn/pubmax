@@ -6,7 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const fixture = vi.hoisted(() => ({
-  auth: { user: { id: "alice-account" }, handle: "alice", accountRevision: 1 },
+  auth: { user: { id: "alice-account" }, handle: "alice" as string | null, accountRevision: 1 },
   request: vi.fn(),
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => fixture.auth }));
@@ -73,6 +73,20 @@ afterEach(async () => {
 });
 
 describe("message inbox filters", () => {
+  it("renders without a saved handle when the storage getter throws", async () => {
+    fixture.auth.handle = null;
+    const blocked = vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new DOMException("Blocked", "SecurityError"); });
+    try {
+      await mount();
+      expect(host.querySelector("h1")?.textContent).toBe("Messages");
+      expect(host.querySelector('[aria-label="New message"]')?.hasAttribute("disabled")).toBe(true);
+      expect(names()).toEqual([]);
+      expect(fixture.request).not.toHaveBeenCalled();
+    } finally {
+      blocked.mockRestore();
+    }
+  });
+
   it.each(["alice", "ALICE"])("preserves a pending inbox read across equivalent auth updates (%s)", async (handle) => {
     let answer!: (response: Response) => void;
     fixture.request.mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));

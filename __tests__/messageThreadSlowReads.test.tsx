@@ -590,6 +590,52 @@ it("follows incoming history when the reader stays at the newest position", asyn
   expect(scrollTo).not.toHaveBeenCalled();
 });
 
+it.each([
+  { removed: 1, nativeAnchor: false, viewportShift: 0 },
+  { removed: 1, nativeAnchor: true, viewportShift: 0 },
+  { removed: 100, nativeAnchor: false, viewportShift: 0 },
+  { removed: 1, nativeAnchor: false, viewportShift: 60 },
+])("keeps visible history fixed after replacement ($removed, native=$nativeAnchor, shift=$viewportShift)", async ({ removed, nativeAnchor, viewportShift }) => {
+  const height = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(10000);
+  const viewport = vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  let listTop = 100;
+  let browserAnchored = false;
+  const rect = vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+    const list = host.querySelector<HTMLUListElement>(".threadMessages");
+    if (this === list) {
+      if (nativeAnchor && !browserAnchored && list?.querySelector(".messageBubble")?.textContent === "History 2") {
+        list.scrollTop -= 50;
+        browserAnchored = true;
+      }
+      return new DOMRect(0, listTop, 300, 400);
+    }
+    const rows = Array.from(list?.querySelectorAll(".messageRow") ?? []);
+    const index = rows.indexOf(this);
+    return new DOMRect(0, listTop + index * 50 - (list?.scrollTop ?? 0), 300, 50);
+  });
+  onTestFinished(() => { height.mockRestore(); viewport.mockRestore(); rect.mockRestore(); });
+  const messages = Array.from({ length: 201 }, (_, index) => ({
+    id: `history-${index + 1}`, conversationId: "conversation-a", senderHandle: "bridget",
+    body: `History ${index + 1}`, createdAt: "2026-10-04T12:00:00Z", read: true, flagged: false,
+  }));
+  await render();
+  await answer(Response.json({ messages: messages.slice(0, 200) }));
+  const list = host.querySelector<HTMLUListElement>(".threadMessages")!;
+  await act(async () => {
+    list.scrollTop = 4975;
+    list.dispatchEvent(new Event("scroll"));
+  });
+  const visible = Array.from(list.querySelectorAll(".messageRow")).find(row => row.querySelector(".messageBubble")?.textContent === "History 101")!;
+  expect(Array.from(list.querySelectorAll(".messageRow")).indexOf(visible)).toBe(100);
+  const before = visible.getBoundingClientRect().top;
+  await poll();
+  listTop += viewportShift;
+  await answer(Response.json({ messages: messages.filter((_, index) => index + 1 !== removed) }));
+  expect(visible.isConnected).toBe(true);
+  expect(visible.getBoundingClientRect().top).toBe(before);
+  expect(list.scrollTop).toBe(4925 + viewportShift);
+});
+
 it.each([true, false])("keeps the reading position when recovery appears (newest=%s)", async newest => {
   const list = await readHistoryAt("Retained history", newest);
   await poll();

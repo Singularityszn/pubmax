@@ -9,6 +9,7 @@ import { subscribeToInbox } from "@/lib/messagesRealtime";
 import { subscribeMessagesRead } from "@/lib/messagesUnreadSignal";
 import { messageSnapshotKey, rememberMessageSnapshot } from "@/lib/messageReadSnapshots";
 import { normalizeHandle } from "@/lib/profiles";
+import { safeLocalStorage } from "@/lib/safeStorage";
 import { forgetSurfaceSnapshot, readSurfaceSnapshot } from "@/lib/surfaceDataCache";
 
 const HANDLE_KEY = "pubmax_handle";
@@ -20,8 +21,7 @@ type InboxThreadsLoaderOptions = Pick<ReturnType<typeof useAuth>, "accountRevisi
 };
 
 function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
+  return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
 export function useInboxThreadsLoader({
