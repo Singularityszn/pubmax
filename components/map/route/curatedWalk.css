@@ -24,7 +24,7 @@
 .curatedWalkDrawerTitle { grid-column: 2; grid-row: 1; min-width: 0; }
 .curatedWalkDrawerTitle h2 { margin: 0; font-size: var(--text-lg); }
 .curatedWalkDrawerTitle .curatedWalkKicker { font-size: var(--text-xs); }
-.plannerSheetHead:has(.curatedWalkDrawerTitle) { display: grid; }
+.plannerSheetHead:has(.curatedWalkDrawerTitle) { display: grid; background: var(--sheet-material-solid); }
 .curatedWalkMetrics small { display: block; color: var(--muted); font-size: var(--text-xs); }
 
 .curatedWalkSummary { flex-wrap: wrap; }

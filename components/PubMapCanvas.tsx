@@ -617,8 +617,7 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
 // does not rerun on every render of a pint map.
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 
-// Every pub-source layer, gated together through the basemap gate on desktop
-// and the stricter source-aware visible-frame handoff on phone.
+// Every pub-source layer shares the paint gate in pinRevealCoordinator.
 const PUB_PIN_LAYERS = [
   "uk-base-overview",
   "uk-base-overview-count",
@@ -4493,7 +4492,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     });
   }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData, walk]);
 
-  // Road-following upgrade (T4). The effect above paints the straight line
+  // Pub-crawl road upgrade. Fixed walks retain their stored path.
+  // The effect above paints the straight line
   // instantly (routeToLine, drawn dashed as "approximate"); the endpoint
   // upgrades the same ordered stops to real walking roads.
   // On an "ors" success we swap routeLineRef to the road LineString and repaint
@@ -5216,7 +5216,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           appeared and vanished with the map's own attitude; a compass the
           reader opens the map's own control to reach is not that. */}
       {canRecenter ? (
-        <div className="mapCameraControls" aria-label="Map camera controls">
+        <div className="mapCameraControls" aria-label="Map camera controls" data-focus-trap-exempt="">
           <button
             type="button"
             className="mapRecenterBtn"

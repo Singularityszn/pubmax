@@ -938,16 +938,16 @@ export function buildRoute(ctx: SceneCtx) {
   // drawn the way a maps app draws directions: thick, solid, on its own edge,
   // and wider as the reader leans in.
   // Three layers off the one `route-line` source, whose single LineString
-  // feature carries a `source` property ("ors" | "straight", set by
-  // lib/walkRoute legsToLineString):
+  // feature carries a `source` property from lib/walkRoute or lib/curatedWalk
+  // ("ors" | "curated" | "straight"):
   //   1. casing — an opposite-luminance edge so the line stays legible over both
   //      the pale Positron paper and the OLED-dark basemap (the two-layer
   //      casing/colour idiom copied from tube-lines above).
-  //   2. the solid coloured line — full strength for a real routed line ("ors"),
+  //   2. the solid coloured line, full strength for routed or curated paths,
   //      dropped to a faint underlay for the straight fallback so the dash reads.
   //   3. the marching-ants dash — shown ONLY for the "straight" fallback, where
   //      it now MEANS "approximate, not routed"; hidden for a real routed line.
-  // Opacity is data-driven off the feature's `source`, so the ors/straight look
+  // Opacity is data-driven off the feature's `source`, so the solid/dashed look
   // flips with the data (and survives a theme setStyle rebuild) without any
   // imperative repaint. The dash animation (RAF loop in PubMapCanvas) is already
   // reduced-motion gated, so a static dash holds for reduced-motion users.

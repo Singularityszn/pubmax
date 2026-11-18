@@ -4,6 +4,7 @@ import { storeThemeChoice } from "./helpers/themeClock";
 import { installNativeShell } from "./helpers/nativeShell";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { selectFirstToolbarVenue } from "./helpers/mapToolbar";
 import christmasWalk from "../data/curated-walks/london-christmas.json";
 import { writeFile } from "node:fs/promises";
 import { fork } from "node:child_process";
@@ -254,6 +255,21 @@ for (const theme of ["light", "dark"] as const) {
     if (browserName === "chromium") {
       const copied = new URL(await page.evaluate(() => navigator.clipboard.readText()));
       expect(copied.searchParams.get("crawl")).toBe("london-christmas-walk");
+    }
+    if (page.viewportSize()!.width >= 1024) {
+      await selectFirstToolbarVenue(page, "The Harp");
+      const detail = page.getByRole("dialog", { name: "Pub detail", exact: true });
+      await expect(detail).toBeVisible();
+      await page.locator(".mapCanvasWrap").getByRole("button", { name: "Show whole walk", exact: true }).click();
+      await expectCameraRest(page);
+      await expect.poll(async () => { tap.current = await painted(); return Boolean(tap.current); }).toBe(true);
+      const recoveredTarget = tap.current!;
+      await page.mouse.click(recoveredTarget.x, recoveredTarget.y);
+      await expect(detail).toHaveCount(0);
+      const recoveredStop = christmasWalk.stops.find((stop) => stop.id === recoveredTarget.id)!;
+      await expectCameraRest(page);
+      await expectSelectedRoutePaint(page, [recoveredStop.longitude, recoveredStop.latitude]);
+      await page.screenshot({ path: testInfo.outputPath(`pub-stop-recovery-${theme}.png`) });
     }
   });
   test(`a Christmas walk can be hidden, restored and left in ${theme}`, async ({ page }, testInfo) => {

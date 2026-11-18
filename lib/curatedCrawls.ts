@@ -14,10 +14,6 @@ import type { CuratedWalk } from "@/lib/curatedWalk";
 import type { LngLat } from "@/lib/routeMiniMap";
 import { londonDayKey } from "@/lib/londonHour";
 
-// Named "generational" curated crawls — hand-picked routes through pubs that
-// genuinely cluster in a themed patch of London, so an older drinker's pub
-// knowledge becomes a walkable, shareable route for the next generation.
-//
 // venueId values are the content-hashed stable ids for the real dataset rows
 // (stableVenueIdFromKey(venueGroupingKey(row)), see lib/venues.ts). They are
 // pinned against public/data/pint_prices_app_dataset.json by

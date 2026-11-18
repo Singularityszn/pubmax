@@ -106,7 +106,7 @@ This is the pure, framework-free core of PubMaxxing: it turns the flat price dat
 | `lib/curation.ts` | The provenance model: `Provenance`, `ClaimKind`, `VenueClaim`, `VenueCuration`; the hand-curated `curatedVenues` map + water/heritage keyword lists; `getVenueCuration` (heritage inference) and `buildVenueClaims` (the never-flatten claim list). Also the writer identity/sources. |
 | `lib/pintDrops.ts` | The community layer: `PintDropInput`/`PintDrop` types, `validatePintDrop` (the trust boundary), the in-memory store, rate limiting (`isRateLimited`/`isLimited`), and moderation (`reportPintDrop`, `restore`/`keepHidden`, `REPORT_HIDE_THRESHOLD`). |
 | `lib/pintDropSeeds.ts` | Nine hand-written `"demo"`-tagged Pint Drops pinned to specific heritage venues so the community layer looks alive on day one. |
-| `lib/curatedCrawls.ts` | Four named "generational" routes as ordered lists of venue ids. |
+| `lib/curatedCrawls.ts` | Curated route catalogue. See the [map URL contract](MAP_URL_PARAMS.md#history-and-filter-synchronisation) for route resolution. |
 | `lib/nearby.ts` | `nearestVenueIds` — haversine "pubs near me" from a lat/lng. |
 | `lib/crawlUrl.ts` | `encodeCrawl` / `decodeCrawl` / `seedCrawlState` — shareable-URL round-trip for the whole crawl state. |
 | `public/data/pint_prices_app_dataset.json` | Product price rows fetched client-side and fed into `groupVenuePrices`. |
@@ -130,7 +130,7 @@ This is the pure, framework-free core of PubMaxxing: it turns the flat price dat
 
 **Raw row → Venue with claims:** `PubMap.tsx` fetches the JSON → `groupVenuePrices` groups + hashes the id → `getVenueCuration` attaches provenance-stamped curation → `mergeVenueDrops` folds community drops into *derived signals only* → `VenueInspector` calls `buildVenueClaims` to render the non-collapsing claim list.
 
-**Resolving a crawl to venue ids:** shared URL → `seedCrawlState(location.search)` → `decodeCrawl` (clamps numbers, drops unknowns); curated crawl → `curatedCrawls[i].venueIds`; near-me → `nearestVenueIds(lat, lng, venues, n)`. All three produce **stable ids** resolved against the `venueById` map.
+**Resolving route stops.** The [map URL contract](MAP_URL_PARAMS.md#history-and-filter-synchronisation) owns shared-link and curated-route resolution.
 
 ### Gotchas & invariants
 
@@ -337,7 +337,7 @@ Five state atoms: `mode`, `filters`, `builtIds`, `selectedVenueId`, `rows`. A se
 
 `ThemeToggle` preserves a valid active attribute when it mounts. If the attribute is missing or invalid, the mount effect resolves the saved choice first, then the system appearance. The effect writes the attribute without setting React state.
 
-**Features hang off the state:** Featured routes (`loadCuratedCrawl` → build mode + `builtIds`, instantly shareable); Pubs near me (`startNearbyCrawl`, an event handler, feature-detects geolocation, degrades gracefully); Pint Drops (`usePintDrops` owns all API traffic + client photo validation); The Landlord (`LandlordPanel`).
+**Features hang off the state:** Featured routes (see the [curated-route guide](../README.md#features)); Pubs near me (`startNearbyCrawl`, an event handler, feature-detects geolocation, degrades gracefully); Pint Drops (`usePintDrops` owns all API traffic + client photo validation); The Landlord (`LandlordPanel`).
 
 **Responsive.** Desktop is a 3-column grid (`356px | 1fr | 372px`). At ≤1050px → single column, map hoisted to top; at ≤768px the map becomes a sticky `60svh` hero and the rails read as scrollable bottom sheets — **pure CSS, no JS**.
 
