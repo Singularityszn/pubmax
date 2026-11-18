@@ -166,7 +166,9 @@ When one person blocks another while both hold a place on the same crew night, a
 
 A later person who is blocked either way with an accepted member cannot join. Request, approval, invitation and invitation acceptance all answer "not found", as for an unknown crew (0245). The earlier accepted member keeps the place.
 
-There is no app screen for these cases. The `/admin` safety queue is bound to one configured moderator, so it cannot leave out a moderator who is tied to the crew. Use these service-only calls. Nothing alerts a moderator to a new case, and no one is assigned to read the queue. A case that nobody decides leaves the queue when the night closes.
+There is no app screen for these cases. The `/admin` safety queue is bound to one configured moderator, so it cannot leave out a moderator who is tied to the crew. Use these service-only calls. The code sends no alert and assigns no operator. A case that nobody decides leaves the queue when the night closes.
+
+Before a hosted pilot launches, the captain must name an independent operator and a backup and confirm the coverage in the approved pilot plan. From publication, the operator must check the pre-event queue at least daily and resolve cases before the event or cancel that occurrence for an independent safety reason. The pilot plan also requires live coverage and checks at least every four hours during the post-night choice window. Without confirmed coverage and a backup, the occurrence must not launch. This migration does not establish that staffing or activate a schedule.
 
 1. Read the open cases that you may decide. The list leaves out every case of a crew that you own, have any member row in (in any role or state), or have a pending request or invitation for. It also leaves out every case where you and either person are blocked either way. It leaves out a case after either person leaves or is removed, after every block between the two is lifted, after the night closes or is cancelled, and after expiry. Each entry names `caseId`, `crewId`, `nightStartsAt`, `expiresAt` and `people`: the two people, earlier accepted first. Each person has `memberId`, `handle`, `role`, `joinedAt` and `blocksOther`. `blocksOther` says whether that person blocks the other one now. The list does not say who opened the case.
 
@@ -190,13 +192,15 @@ There is no app screen for these cases. The `/admin` safety queue is bound to on
 | Answer | Meaning |
 | --- | --- |
 | `decided` | The case is closed with your decision, your name and your reason. No one is notified. |
-| `unchanged` | The case was already decided with this decision and this person. The answer names that decision. Nothing changed. |
+| `unchanged` | The case was already decided with this decision and this person. The original moderator and reason stay recorded. This call adds no audit record or new reason. |
 | `already_decided` | The case was already decided differently. The answer names that decision. Nothing changed. |
 | `forbidden` | You are tied to the crew or to either person, as step 1 describes. Ask a moderator with no such tie. |
 | `stale` | The case is no longer live: a person left or was removed, every block between them was lifted, or the night closed or was cancelled. Nothing changed. Read the queue again. |
 | `invalid` | The decision, member or reason is not valid. The member must be one of the two people, and not the owner. |
 | `expired`, `not_found` | The case expired, or the case, its crew or one of the two accounts was deleted. |
 | error `staff required` | The staff role is not an active moderator. |
+
+The decision checks committed eligibility at its live-rule statement. An overlapping unblock or standalone cancellation can commit first while the removal still completes. Such overlapping actions use the serial order of that eligibility read.
 
 To lift a mistaken removal, use the correction in "Correct the removal" above. A new block after a decision opens a new case.
 
@@ -206,14 +210,14 @@ A case can name the crew's owner, for example when a guest blocks the host. You 
 
 ### Retention
 
-A case expires 30 days after the night closes (start plus 12 hours). From expiry the queue and the decision refuse it, but the row stays until the cleanup deletes it. Nothing schedules the cleanup. Run this until it answers `"deleted": 0`. Each call deletes at most 1,000 expired cases and cases whose crew is gone.
+A case receives a fixed expiry when it opens, set to 30 days after the planned close (start plus 12 hours). A later Plan start change does not move that expiry. The retained case and decision support removal reviews and appeals. Only privileged operators can inspect that history directly. The service queue shows open cases only. From expiry the queue and the decision refuse it, but the row stays until the cleanup deletes it. Nothing schedules the cleanup. Run this until it answers `"deleted": 0`. Each call deletes at most 1,000 expired cases and cases whose crew is gone.
 
 ```sql
 set role service_role;
 select public.purge_expired_social_crew_block_cases(1000);
 ```
 
-Deleting either person's account deletes their cases in the same transaction. Deleting the crew's Plan deletes its cases. A block that lands while the Plan is being deleted can leave a case without a crew. No call reads it. Only the cleanup above deletes it, so it stays until an operator runs the cleanup. The own-record export does not include cases. Rolling back 0248 deletes every case and decision. It takes `social_blocks`, `private_social_accounts`, `social_crews` and the case table without waiting. If one is busy, it stops with `could not obtain lock` and changes nothing. It stops while cases exist, unless the session sets `pubmax.crew_block_cases_discarded` to the exact row count. A removal a moderator decided stays after the rollback.
+Deleting either person's account deletes their cases in the same transaction. Deleting the crew's Plan deletes its cases. A block that lands while the Plan is being deleted can leave a case without a crew. No call reads it. Only the cleanup above deletes it, so it stays until an operator runs the cleanup. The own-record export does not include cases. Rolling back 0248 deletes every case and decision. It takes `social_blocks`, `private_social_accounts`, `social_crews` and the case table without waiting. If one is busy, it stops with `could not obtain lock` and changes nothing. Reads and writes of those tables wait while the rollback holds its locks. It stops while cases exist, unless the session sets `pubmax.crew_block_cases_discarded` to the exact row count. A removal a moderator decided stays after the rollback.
 
 ## Rollback
 

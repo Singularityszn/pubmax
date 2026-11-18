@@ -38,10 +38,11 @@
 --    deletion holds the auth row while it deletes the cases that name the account.
 --    The live rule needs no account lock. Leave, host removal, admission and 0246 take
 --    the crew row first, so a decision sees what they committed. A block only adds a
---    block. An unblock and a Plan cancellation outside 0246 take no lock that a
---    decision takes: committed before the rule runs, they make the case stale;
---    committed after it, they follow the decision.
--- 6. Retention, the 0247 rule: a case expires 30 days after the night's close. Reads and
+--    block. The live rule uses its statement's committed snapshot. An overlapping
+--    unblock or standalone Plan cancellation unseen by that snapshot follows the
+--    decision in serial order, even if it commits first. Cancellation and removal
+--    can share live-location row locks; neither order takes a participant account lock.
+-- 6. A case's expiry is fixed when it opens, 30 days after the planned close. Reads and
 --    decisions deny it from expiry. purge_expired_social_crew_block_cases deletes at most
 --    1,000 expired cases, and cases whose crew is gone, per call. Nothing schedules it.
 --    A case goes with either person's account deletion, in the same transaction, and

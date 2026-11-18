@@ -9,8 +9,8 @@
 -- the case table, and it counts the rows. A writer on a trigger table opens or deletes
 -- cases, so taking the case table first, or waiting later to drop a trigger, could close
 -- a cycle with that writer. When a table is busy the rollback stops at once with "could
--- not obtain lock" and changes nothing; run it again. Blocks, account writes and crew
--- writes wait while it runs. When there are rows, export what must be kept, then set
+-- not obtain lock" and changes nothing; run it again. Reads and writes of these tables
+-- wait while it holds the locks. When there are rows, export what must be kept, then set
 -- pubmax.crew_block_cases_discarded to that exact count and run it again.
 begin;
 
