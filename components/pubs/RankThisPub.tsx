@@ -50,7 +50,7 @@ async function readRanking(): Promise<PubPageRankingRead> {
  * the account it was for.
  */
 export default function RankThisPub(props: Props) {
-  const { signedOut } = useViewerSession();
+  const { signedOut, unresolved } = useViewerSession();
   const generation = useLiveAccountGeneration();
   if (signedOut) {
     return (
@@ -60,15 +60,22 @@ export default function RankThisPub(props: Props) {
     );
   }
   const scope = `${generation}:${props.venueId}`;
-  return <RankIt key={scope} {...props} scope={scope} />;
+  return <RankIt key={scope} {...props} scope={scope} sessionPending={unresolved} />;
 }
 
-function RankIt({ venueId, venueName, scope }: Props & { scope: string }) {
+function RankIt({ venueId, venueName, scope, sessionPending }: Props & { scope: string; sessionPending: boolean }) {
   const [state, send] = useReducer(transitionPubPageRanking, initialPubPageRanking(scope, venueId));
   const placed = state.checkpoint;
 
   useEffect(() => {
     if (state.kind !== "loading") return;
+    // The first account restore rotates its signal. Keep the tap here until
+    // that account exists, rather than binding a request to the empty session.
+    if (sessionPending) {
+      const timer = setTimeout(() => send({ type: "read", scope: state.scope, requestId: state.requestId,
+        result: { kind: "failed", message: new AuthActionSessionError().message } }), 2_000);
+      return () => clearTimeout(timer);
+    }
     let active = true;
     const read = async () => {
       if (state.origin === "closed") await state.pendingWrite;
@@ -78,7 +85,7 @@ function RankIt({ venueId, venueName, scope }: Props & { scope: string }) {
     };
     void read();
     return () => { active = false; };
-  }, [state]);
+  }, [state, sessionPending]);
 
   function close(value?: unknown, reason?: "refused") {
     if (reason === "refused") {
