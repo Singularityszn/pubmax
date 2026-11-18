@@ -47,6 +47,7 @@ export default function CrewAttendance({ identityKey, ...props }: Props & { iden
 
 function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: string }) {
   const path = `/api/social/crews/${encodeURIComponent(crewId)}/attendance`;
+  const roster = members.map(({ memberId, role }) => `${memberId}:${role}`).sort().join(",");
   const [view, dispatch] = useReducer(nextCrewAttendanceView, CREW_ATTENDANCE_LOADING);
   const [attempt, setAttempt] = useState(0);
   const [report, setReport] = useState<GuestReport | null>(null);
@@ -62,6 +63,7 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
         // A mark this account still has in flight on this crew lands before the read.
         await afterCrewAttendanceWrite(scope);
         if (controller.signal.aborted) return;
+        dispatch({ type: "refresh" });
         const response = await authedFetch(path, { cache: "no-store", signal: controller.signal }, { requiresIdentity: true });
         const data = response.ok ? parseCrewAttendance(await response.json().catch(() => null)) : null;
         if (controller.signal.aborted) return;
@@ -72,7 +74,7 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
       }
     })();
     return () => controller.abort();
-  }, [path, attempt, scope]);
+  }, [path, attempt, scope, roster, hosts]);
 
   useRefreshAt(view.status === "ready" ? view.boundary : null, view.status === "ready" || view.status === "unavailable", reload);
 
