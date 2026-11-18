@@ -308,6 +308,13 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(() => queue(NO_CREW)).toThrow(/staff required/);
     expect(openRows(crew)).toBe("1");
     expect(decideCase(caseId, "kept")).toEqual({ ok: true, code: "decided", decision: "kept" });
+    const history = () => db().sql(`select jsonb_build_array(reason, staff_role_id, staff_display_name, decided_at)::text
+      from public.social_crew_block_cases where id='${caseId}'`);
+    const recorded = history();
+    const otherStaff = staffRoleFor(person());
+    expect(decideCase(caseId, "kept", null, otherStaff, "A different moderator reason"))
+      .toEqual({ ok: true, code: "unchanged", decision: "kept" });
+    expect(history()).toBe(recorded);
     expect(decideCase(caseId, "kept")).toEqual({ ok: true, code: "unchanged", decision: "kept" });
     expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: false, code: "already_decided", decision: "kept" });
     expect(state(crew, ana)).toBe("active");
@@ -397,6 +404,12 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     const decided = blockedPair();
     const decidedId = onlyCase(decided.crew);
     expect(decideCase(decidedId, "kept")).toEqual({ ok: true, code: "decided", decision: "kept" });
+    expect(db().sql(`select block_case.expires_at = plan.start_time + interval '12 hours' + interval '30 days'
+      from public.social_crew_block_cases block_case join public.social_crews crew on crew.id=block_case.crew_id
+      join public.plans plan on plan.id=crew.plan_id where block_case.id='${caseId}'`)).toBe("t");
+    const originalExpiry = db().sql(`select expires_at from public.social_crew_block_cases where id='${caseId}'`);
+    startsIn(crew, "2 days");
+    expect(db().sql(`select expires_at from public.social_crew_block_cases where id='${caseId}'`)).toBe(originalExpiry);
     db().sql(`update public.social_crew_block_cases set expires_at=now()-interval '1 second' where crew_id in ('${crew}','${decided.crew}')`);
     expect(casesIn(crew)).toEqual([]);
     expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "expired" });
@@ -409,28 +422,6 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(caseRows(crew)).toBe("0");
     expect(caseRows(decided.crew)).toBe("0");
     expect(caseRows(NO_CREW)).toBe("0");
-  });
-
-  it("no browser role and not the service role reads the cases, and only the service role runs the moderator calls", () => {
-    expect(db().sql(`select relrowsecurity::text from pg_class where oid='public.social_crew_block_cases'::regclass`)).toBe("true");
-    for (const role of ["anon", "authenticated", "service_role"]) {
-      expect(db().sql(`select has_table_privilege('${role}','public.social_crew_block_cases','select,insert,update,delete,truncate,references,trigger')::text`)).toBe("false");
-    }
-    const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
-      "public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text)",
-      "public.purge_expired_social_crew_block_cases(integer)"];
-    const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
-      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
-      "public._social_crew_block_case_live(uuid,uuid,uuid)"];
-    for (const fn of [...callable, ...internal]) {
-      for (const role of ["public", "anon", "authenticated"]) {
-        const grantee = role === "public" ? "PUBLIC" : role;
-        expect(db().sql(`select exists(select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
-          where p.oid='${fn}'::regprocedure and acl.privilege_type='EXECUTE'
-            and acl.grantee=${grantee === "PUBLIC" ? 0 : `'${grantee}'::regrole`})::text`)).toBe("false");
-      }
-      expect(db().sql(`select has_function_privilege('service_role','${fn}','execute')::text`)).toBe(String(callable.includes(fn)));
-    }
   });
 });
 

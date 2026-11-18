@@ -162,6 +162,8 @@ A report goes with the mark it disputes: at expiry the list leaves it out, and t
 
 ## Blocks between accepted members (0248)
 
+Applying 0248 takes `auth.users` and the three Social tables in SHARE ROW EXCLUSIVE mode through the backfill. It waits for busy writers. Sign-ins and other writes to `auth.users` can wait until the migration commits.
+
 When one person blocks another while both hold a place on the same crew night, a private case opens for a moderator. The night continues. Nobody loses a place or a seat, and nobody is notified. No attendee, host or co-host can read the case. The blocker keeps the private **Leave this crew** action, which frees their place at once. A block never pauses or cancels the night.
 
 A later person who is blocked either way with an accepted member cannot join. Request, approval, invitation and invitation acceptance all answer "not found", as for an unknown crew (0245). The earlier accepted member keeps the place.
@@ -169,6 +171,8 @@ A later person who is blocked either way with an accepted member cannot join. Re
 There is no app screen for these cases. The `/admin` safety queue is bound to one configured moderator, so it cannot leave out a moderator who is tied to the crew. Use these service-only calls. The code sends no alert and assigns no operator. A case that nobody decides leaves the queue when the night closes.
 
 Before a hosted pilot launches, the captain must name an independent operator and a backup and confirm the coverage in the approved pilot plan. From publication, the operator must check the pre-event queue at least daily and resolve cases before the event or cancel that occurrence for an independent safety reason. The pilot plan also requires live coverage and checks at least every four hours during the post-night choice window. Without confirmed coverage and a backup, the occurrence must not launch. This migration does not establish that staffing or activate a schedule.
+
+A guarded operator call to cancel one occurrence is not implemented. The legacy Plan status call refuses Crew-bound Plans. Before launch, provide and verify that operator path. Until then, keep the occurrence unlaunched. The cancellation race proof uses a direct operator status update, not an approved launch procedure.
 
 1. Read the open cases that you may decide. The list leaves out every case of a crew that you own, have any member row in (in any role or state), or have a pending request or invitation for. It also leaves out every case where you and either person are blocked either way. It leaves out a case after either person leaves or is removed, after every block between the two is lifted, after the night closes or is cancelled, and after expiry. Each entry names `caseId`, `crewId`, `nightStartsAt`, `expiresAt` and `people`: the two people, earlier accepted first. Each person has `memberId`, `handle`, `role`, `joinedAt` and `blocksOther`. `blocksOther` says whether that person blocks the other one now. The list does not say who opened the case.
 

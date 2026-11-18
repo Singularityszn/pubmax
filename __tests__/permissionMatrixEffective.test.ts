@@ -3503,6 +3503,30 @@ describe("private Crew attendance (0247)", () => {
 
 });
 
+describe("private Crew block cases (0248)", () => {
+  it("no browser role and not the service role reads the cases, and only the service role runs the moderator calls", () => {
+    expect(truth(`select relrowsecurity::text from pg_class where oid='public.social_crew_block_cases'::regclass`)).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_table_privilege('${role}','public.social_crew_block_cases','select,insert,update,delete,truncate,references,trigger')::text`)).toBe("false");
+    }
+    const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
+      "public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text)",
+      "public.purge_expired_social_crew_block_cases(integer)"];
+    const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
+      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
+      "public._social_crew_block_case_live(uuid,uuid,uuid)"];
+    for (const fn of [...callable, ...internal]) {
+      for (const role of ["public", "anon", "authenticated"]) {
+        const grantee = role === "public" ? "PUBLIC" : role;
+        expect(truth(`select exists(select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+          where p.oid='${fn}'::regprocedure and acl.privilege_type='EXECUTE'
+            and acl.grantee=${grantee === "PUBLIC" ? 0 : `'${grantee}'::regrole`})::text`)).toBe("false");
+      }
+      expect(truth(`select has_function_privilege('service_role','${fn}','execute')::text`)).toBe(String(callable.includes(fn)));
+    }
+  });
+});
+
 describe("account deletion", () => {
   it("anonymous is refused and nothing is deleted", async () => {
     const response = await defined(handlers.deleteAccount)(

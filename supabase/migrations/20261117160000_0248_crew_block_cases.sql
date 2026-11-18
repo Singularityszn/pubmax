@@ -71,6 +71,8 @@ $$;
 
 -- An account deletion and a block both reach these tables. Take them in deletion's
 -- order, and before any trigger is created, so no writer interleaves with the backfill.
+-- These locks wait for busy writers and hold through backfill. Sign-ins and other
+-- auth.users writes can wait until this transaction commits.
 lock table auth.users, public.private_social_accounts, public.social_blocks, public.social_crews
   in share row exclusive mode;
 

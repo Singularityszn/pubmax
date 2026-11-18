@@ -634,9 +634,11 @@ export default function PrivacyPage() {
           Crew night, a private safety case opens for a moderator. The night
           goes on, and nobody on it is told about the case. The case names the
           Crew, who blocked whom, and any moderator decision with its reason.
-          Only a moderator with no tie to that Crew or to either person, and
-          the operators who run PubMaxxing, can see it. You can still leave the
-          Crew yourself. Your data export does not include the case.
+          Moderators who own that Crew or have ever held a place on it cannot
+          read the case. A pending request or invitation to the Crew also
+          prevents access. So does a block with either person. The operators
+          who run PubMaxxing can also read it. You can still leave the Crew
+          yourself. Your data export does not include the case.
         </p>
         <p className="legalBody">
           After account deletion, we free your guest places and cancel the
