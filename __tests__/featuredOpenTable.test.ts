@@ -112,6 +112,11 @@ describe("featured open table selection", () => {
 });
 
 describe("the selected upcoming night", () => {
+  it.each([8, 9])("falls back when %i members leave no guest places", async (memberCount) => {
+    store.readShareCard.mockResolvedValue({ ...shareSource, memberCount });
+    await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toEqual({ status: "missing" });
+  });
+
   it("projects only the public facts of the exact selected crew", async () => {
     const result = await loadFeaturedOpenTable(SELECTION, NOW);
 
