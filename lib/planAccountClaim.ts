@@ -1,7 +1,7 @@
 // One attempt to bind a host or guest Plan seat to the signed-in account.
 // A lifetime is one span of the shared provider account signal.
 
-export const PLAN_ACCOUNT_CLAIM_DELAYS_MS = [0, 250, 1_000] as const;
+const PLAN_ACCOUNT_CLAIM_DELAYS_MS = [0, 250, 1_000] as const;
 
 export type PlanAccountClaimOutcome = "claimed" | "refused" | "transient";
 
