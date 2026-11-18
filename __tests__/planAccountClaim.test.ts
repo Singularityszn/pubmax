@@ -8,17 +8,19 @@ import {
   type PlanAccountClaimState,
 } from "@/lib/planAccountClaim";
 
-const sending = (attempt: number, lifetime = 0): PlanAccountClaimState => ({ phase: "sending", lifetime, attempt });
-const waiting = (attempt: number, lifetime = 0): PlanAccountClaimState =>
+type Sending = Extract<PlanAccountClaimState, { phase: "sending" }>;
+type Waiting = Extract<PlanAccountClaimState, { phase: "waiting" }>;
+const sending = (attempt: Sending["attempt"], lifetime = 0): PlanAccountClaimState => ({ phase: "sending", lifetime, attempt });
+const waiting = (attempt: Waiting["attempt"], lifetime = 0): PlanAccountClaimState =>
   ({ phase: "waiting", lifetime, attempt });
 const exhausted = (lifetime = 0): PlanAccountClaimState => ({ phase: "exhausted", lifetime });
 const claimed: PlanAccountClaimState = { phase: "claimed" };
 const refused: PlanAccountClaimState = { phase: "refused" };
 const stopped: PlanAccountClaimState = { phase: "stopped" };
 
-const answered = (outcome: "claimed" | "refused" | "transient", attempt = 0, lifetime = 0): PlanAccountClaimEvent =>
+const answered = (outcome: "claimed" | "refused" | "transient", attempt: Sending["attempt"] = 0, lifetime = 0): PlanAccountClaimEvent =>
   ({ type: "answered", lifetime, attempt, outcome });
-const waited = (attempt: number, lifetime = 0): PlanAccountClaimEvent => ({ type: "waited", lifetime, attempt });
+const waited = (attempt: Waiting["attempt"], lifetime = 0): PlanAccountClaimEvent => ({ type: "waited", lifetime, attempt });
 const interrupted = (sameAccount: boolean, lifetime = 0): PlanAccountClaimEvent =>
   ({ type: "interrupted", lifetime, sameAccount });
 const resumed: PlanAccountClaimEvent = { type: "resumed" };
@@ -32,8 +34,8 @@ describe("the Plan account claim lifecycle", () => {
   it.each([
     ["a claim ends claimed", sending(0), answered("claimed"), claimed],
     ["a definite refusal ends refused", sending(2), answered("refused", 2), refused],
-    ["a first transient answer waits 250 ms", sending(0), answered("transient"), waiting(1)],
-    ["a second transient answer waits 1,000 ms", sending(1), answered("transient", 1), waiting(2)],
+    ["a first transient answer schedules the first retry", sending(0), answered("transient"), waiting(1)],
+    ["a second transient answer schedules the final retry", sending(1), answered("transient", 1), waiting(2)],
     ["a third transient answer waits for the app", sending(2), answered("transient", 2), exhausted()],
     ["a finished wait sends its attempt", waiting(1), waited(1), sending(1)],
     ["a same-account interruption while sending starts again", sending(2), interrupted(true), sending(0, 1)],
@@ -42,7 +44,7 @@ describe("the Plan account claim lifecycle", () => {
     ["a departed account stops a send", sending(0), interrupted(false), stopped],
     ["a departed account stops a wait", waiting(2), interrupted(false), stopped],
     ["a departed account stops an exhausted claim", exhausted(3), interrupted(false, 3), stopped],
-    ["the app's return restarts an exhausted claim", exhausted(2), resumed, sending(0, 2)],
+    ["the app's return starts a fresh lifetime after exhaustion", exhausted(2), resumed, sending(0, 3)],
     ["disposal stops a send", sending(1), disposed, stopped],
     ["disposal stops a wait", waiting(1), disposed, stopped],
     ["disposal stops an exhausted claim", exhausted(), disposed, stopped],

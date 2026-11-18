@@ -8,9 +8,11 @@ import {
   captureAccountAuth,
 } from "@/lib/accountBoundFetch";
 import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { compositeActionSignal } from "@/lib/authedFetch";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   INITIAL_PLAN_ACCOUNT_CLAIM,
+  PLAN_ACCOUNT_CLAIM_DEADLINE_MS,
   planAccountClaimDelay,
   planAccountClaimOutcome,
   transitionPlanAccountClaim,
@@ -29,7 +31,7 @@ import { subscribeToReconnectRecovery } from "@/lib/useReconnectRecovery";
 
 // Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
 // Night Mode card can surface it across every screen. Renders nothing — it's a
-// pure side-effect marker mounted by the plan page.
+// side-effect marker mounted by the plan page.
 //
 // Gated on the same plan-member capability seam PlanCrew and NightCrawlMode
 // read (lib/planSessionCapability, backed by the HttpOnly session in
@@ -84,6 +86,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     }
     let state = INITIAL_PLAN_ACCOUNT_CLAIM;
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    let stopRequest: (() => void) | undefined;
     let watched: { lifetime: number; signal: AbortSignal; stop: () => void } | undefined;
     const watch = (lifetime: number): AbortSignal => {
       if (watched?.lifetime === lifetime) return watched.signal;
@@ -100,26 +103,41 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
       watched = { lifetime, signal, stop: () => signal.removeEventListener("abort", interrupted) };
       return signal;
     };
-    const send = (lifetime: number, attempt: number): void => {
-      void accountBoundFetch(auth, `/api/plans/${id}/session`, { method: "PUT", signal: watch(lifetime) }).then(
+    const send = ({ lifetime, attempt }: Extract<PlanAccountClaimState, { phase: "sending" }>): void => {
+      const controller = new AbortController();
+      const signal = compositeActionSignal([watch(lifetime), controller.signal]);
+      const deadline = setTimeout(
+        () => step({ type: "answered", lifetime, attempt, outcome: "transient" }),
+        PLAN_ACCOUNT_CLAIM_DEADLINE_MS,
+      );
+      const stop = () => { clearTimeout(deadline); controller.abort(); };
+      stopRequest = stop;
+      const answered = (outcome: ReturnType<typeof planAccountClaimOutcome>) => {
+        if (stopRequest === stop) {
+          clearTimeout(deadline);
+          stopRequest = undefined;
+        }
+        step({ type: "answered", lifetime, attempt, outcome });
+      };
+      void accountBoundFetch(auth, `/api/plans/${id}/session`, { method: "PUT", signal }).then(
         (response) => {
           const outcome = planAccountClaimOutcome(response);
           discardBody(response);
-          step({ type: "answered", lifetime, attempt, outcome });
+          answered(outcome);
         },
-        () => step({ type: "answered", lifetime, attempt, outcome: planAccountClaimOutcome(null) }),
+        () => answered(planAccountClaimOutcome(null)),
       );
     };
     const enter = (next: PlanAccountClaimState): void => {
       switch (next.phase) {
         case "sending":
-          send(next.lifetime, next.attempt);
+          send(next);
           return;
         case "waiting":
           watch(next.lifetime);
           retryTimer = setTimeout(
             () => step({ type: "waited", lifetime: next.lifetime, attempt: next.attempt }),
-            planAccountClaimDelay(next.attempt),
+            planAccountClaimDelay(next),
           );
           return;
         case "exhausted":
@@ -143,6 +161,9 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
       state = next;
       clearTimeout(retryTimer);
       retryTimer = undefined;
+      const stop = stopRequest;
+      stopRequest = undefined;
+      stop?.();
       enter(next);
     }
     const stopRecovery = subscribeToReconnectRecovery(

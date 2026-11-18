@@ -1,21 +1,23 @@
-// One attempt to bind a host or guest Plan seat to the signed-in account.
-// A lifetime is one span of the shared provider account signal.
+// A lifetime fences one bounded claim run, including a new run after resume.
 
-const PLAN_ACCOUNT_CLAIM_DELAYS_MS = [0, 250, 1_000] as const;
+type RetryAttempt = 1 | 2;
+type ClaimAttempt = 0 | RetryAttempt;
+const PLAN_ACCOUNT_CLAIM_DELAYS_MS: Record<RetryAttempt, number> = { 1: 250, 2: 1_000 };
+export const PLAN_ACCOUNT_CLAIM_DEADLINE_MS = 8_000;
 
 export type PlanAccountClaimOutcome = "claimed" | "refused" | "transient";
 
 export type PlanAccountClaimState =
-  | { phase: "sending"; lifetime: number; attempt: number }
-  | { phase: "waiting"; lifetime: number; attempt: number }
+  | { phase: "sending"; lifetime: number; attempt: ClaimAttempt }
+  | { phase: "waiting"; lifetime: number; attempt: RetryAttempt }
   | { phase: "exhausted"; lifetime: number }
   | { phase: "claimed" }
   | { phase: "refused" }
   | { phase: "stopped" };
 
 export type PlanAccountClaimEvent =
-  | { type: "answered"; lifetime: number; attempt: number; outcome: PlanAccountClaimOutcome }
-  | { type: "waited"; lifetime: number; attempt: number }
+  | { type: "answered"; lifetime: number; attempt: ClaimAttempt; outcome: PlanAccountClaimOutcome }
+  | { type: "waited"; lifetime: number; attempt: RetryAttempt }
   | { type: "interrupted"; lifetime: number; sameAccount: boolean }
   | { type: "resumed" }
   | { type: "disposed" };
@@ -27,14 +29,13 @@ export function planAccountClaimOutcome(response: { ok: boolean; status: number 
   return response.ok ? "claimed" : "refused";
 }
 
-export function planAccountClaimDelay(attempt: number): number | undefined {
-  return PLAN_ACCOUNT_CLAIM_DELAYS_MS[attempt];
+export function planAccountClaimDelay(state: Extract<PlanAccountClaimState, { phase: "waiting" }>): number {
+  return PLAN_ACCOUNT_CLAIM_DELAYS_MS[state.attempt];
 }
 
-function retry(lifetime: number, attempt: number): PlanAccountClaimState {
-  const next = attempt + 1;
-  const delayMs = PLAN_ACCOUNT_CLAIM_DELAYS_MS[next];
-  return delayMs === undefined ? { phase: "exhausted", lifetime } : { phase: "waiting", lifetime, attempt: next };
+function retry(lifetime: number, attempt: ClaimAttempt): PlanAccountClaimState {
+  return attempt === 2 ? { phase: "exhausted", lifetime }
+    : { phase: "waiting", lifetime, attempt: attempt === 0 ? 1 : 2 };
 }
 
 export function transitionPlanAccountClaim(
@@ -68,7 +69,7 @@ export function transitionPlanAccountClaim(
       return state.phase === "exhausted" ? { phase: "exhausted", lifetime } : { phase: "sending", lifetime, attempt: 0 };
     }
     case "resumed":
-      return state.phase === "exhausted" ? { phase: "sending", lifetime: state.lifetime, attempt: 0 } : state;
+      return state.phase === "exhausted" ? { phase: "sending", lifetime: state.lifetime + 1, attempt: 0 } : state;
     case "disposed":
       return "lifetime" in state ? { phase: "stopped" } : state;
     default: {

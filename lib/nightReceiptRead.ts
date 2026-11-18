@@ -16,7 +16,7 @@ type NightReceiptReadState = Scope & (
 
 export const INITIAL_NIGHT_RECEIPT_READ: NightReceiptReadState = { phase: "hidden", capability: "", request: 0, scope: null };
 
-type Event =
+type NightReceiptReadEvent =
   | { type: "scope"; capability: string; scope: object; host: boolean }
   | { type: "check" }
   | { type: "claimed" }
@@ -33,21 +33,37 @@ function begin(state: NightReceiptReadState, capability = state.capability, scop
   };
 }
 
-export function nextNightReceiptRead(state: NightReceiptReadState, event: Event): NightReceiptReadState {
-  if (event.type === "scope") {
-    return event.host ? begin(state, event.capability, event.scope)
-      : { phase: "hidden", capability: event.capability, scope: event.scope, request: state.request + 1 };
+export function nextNightReceiptRead(state: NightReceiptReadState, event: NightReceiptReadEvent): NightReceiptReadState {
+  switch (event.type) {
+    case "scope":
+      return event.host ? begin(state, event.capability, event.scope)
+        : { phase: "hidden", capability: event.capability, scope: event.scope, request: state.request + 1 };
+    case "check":
+      return state.phase === "hidden" || state.phase === "reading" ? state : begin(state);
+    case "claimed":
+      if (state.phase === "reading") return { ...state, claimedDuringRead: true };
+      return state.phase === "refused" || state.phase === "unavailable" ? begin(state) : state;
+    case "interrupted":
+    case "answer": {
+      if (state.phase !== "reading" || state.capability !== event.capability || state.scope !== event.scope || state.request !== event.request) return state;
+      if (event.type === "interrupted") return begin(state);
+      const scope = { capability: state.capability, scope: state.scope, request: state.request };
+      switch (event.answer.status) {
+        case "ready":
+          return { ...scope, phase: "ready", receipt: event.answer.receipt };
+        case "refused":
+          return state.claimedDuringRead ? begin(state) : { ...scope, phase: "refused" };
+        case "unavailable":
+          return { ...scope, phase: "unavailable" };
+        default: {
+          const unreachable: never = event.answer;
+          return unreachable;
+        }
+      }
+    }
+    default: {
+      const unreachable: never = event;
+      return unreachable;
+    }
   }
-  if (event.type === "check") return state.phase === "hidden" || state.phase === "reading" ? state : begin(state);
-  if (event.type === "claimed") {
-    if (state.phase === "reading") return { ...state, claimedDuringRead: true };
-    return state.phase === "refused" || state.phase === "unavailable" ? begin(state) : state;
-  }
-  if (state.phase !== "reading" || state.capability !== event.capability || state.scope !== event.scope || state.request !== event.request) return state;
-  // The provider seam ended the read, but the same account is still signed in.
-  if (event.type === "interrupted") return begin(state);
-  const scope = { capability: state.capability, scope: state.scope, request: state.request };
-  if (event.answer.status === "ready") return { ...scope, phase: "ready", receipt: event.answer.receipt };
-  if (event.answer.status === "refused" && state.claimedDuringRead) return begin(state);
-  return { ...scope, phase: event.answer.status };
 }

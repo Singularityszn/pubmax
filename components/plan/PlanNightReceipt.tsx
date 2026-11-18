@@ -227,7 +227,7 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
         <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
           <Kicker>Host receipt</Kicker>
           <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
-          <p>{status}</p>
+          <p aria-hidden="true">{status}</p>
           <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={() => {
             if (busy) return;
             retryRequested.current = true;
