@@ -5,7 +5,7 @@ import type { FeaturedOpenTableSelection } from "@/lib/featuredOpenTableSelectio
 import { openCrawlJoinWindow, openCrawlPlacesLine } from "@/lib/openCrawl";
 import { loadOpenCrawlPublicPreview } from "@/lib/openCrawlShareCard.server";
 import { selectSummonPrice, summonPriceSentence } from "@/lib/summonPrice";
-import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 
 /** The public facts one selected night may print. No stored id beyond the crew's own link. */
@@ -59,7 +59,7 @@ async function datedPrice(venueId: string, nowMs: number): Promise<FeaturedOpenT
   try {
     // The detail reader cannot be cancelled. Its late answer must not delay Social.
     const detail = await Promise.race([
-      lookupVenueDetail(venueId),
+      lookupPricedVenue(venueId),
       new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 1500); }),
     ]);
     if (!detail || detail.status !== "found" || detail.venue.id !== venueId) return null;

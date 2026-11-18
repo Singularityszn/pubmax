@@ -52,7 +52,7 @@ function lambDetail(rows = [priceRow()]) {
 
 const store = vi.hoisted(() => ({ readShareCard: vi.fn() }));
 const resolveMeeting = vi.hoisted(() => ({ resolveOpenMeetingPoint: vi.fn() }));
-const venues = vi.hoisted(() => ({ lookupVenueDetail: vi.fn() }));
+const venues = vi.hoisted(() => ({ lookupPricedVenue: vi.fn() }));
 const index = vi.hoisted(() => ({ lookupCanonicalVenue: vi.fn() }));
 
 vi.mock("@/lib/socialCrewStore", async (importOriginal) => ({
@@ -60,7 +60,7 @@ vi.mock("@/lib/socialCrewStore", async (importOriginal) => ({
   createSocialCrewStore: () => store,
 }));
 vi.mock("@/lib/openSocialCrew.server", () => resolveMeeting);
-vi.mock("@/lib/venueDetailIndex", () => venues);
+vi.mock("@/lib/venueDetailArtifact.server", () => venues);
 vi.mock("@/lib/venueIndex", () => index);
 
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
@@ -77,7 +77,7 @@ beforeEach(() => {
     ok: true,
     meetingPoint: { kind: "venue", name: "The Lamb", lat: 51.5226, lng: -0.1188, cityId: "london" },
   });
-  venues.lookupVenueDetail.mockResolvedValue(lambDetail());
+  venues.lookupPricedVenue.mockResolvedValue(lambDetail());
   index.lookupCanonicalVenue.mockImplementation(async (id: string) => ({
     status: "found",
     canonicalId: id,
@@ -234,7 +234,7 @@ describe("reads that cannot answer", () => {
   it("shows the night without a price when its optional detail read stalls", async () => {
     vi.useFakeTimers();
     try {
-      venues.lookupVenueDetail.mockImplementation(() => new Promise(() => {}));
+      venues.lookupPricedVenue.mockImplementation(() => new Promise(() => {}));
       const answer = vi.fn();
       void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
 
@@ -278,14 +278,14 @@ describe("reads that cannot answer", () => {
   });
 
   it.each([
-    ["the detail read fails", () => venues.lookupVenueDetail.mockRejectedValue(new Error("down"))],
-    ["the detail names another pub", () => venues.lookupVenueDetail.mockResolvedValue({
+    ["the detail read fails", () => venues.lookupPricedVenue.mockRejectedValue(new Error("down"))],
+    ["the detail names another pub", () => venues.lookupPricedVenue.mockResolvedValue({
       ...lambDetail(), venue: { ...lambDetail().venue, id: OTHER_PUB },
     })],
-    ["the price is stale", () => venues.lookupVenueDetail.mockResolvedValue(
+    ["the price is stale", () => venues.lookupPricedVenue.mockResolvedValue(
       lambDetail([priceRow({ scraped_at_values: "2026-10-01T12:00:00Z" })]),
     )],
-    ["the price states no measure", () => venues.lookupVenueDetail.mockResolvedValue(
+    ["the price states no measure", () => venues.lookupPricedVenue.mockResolvedValue(
       lambDetail([priceRow({ measure: undefined })]),
     )],
   ])("shows the night without a price when %s", async (_label, arrange) => {
@@ -296,7 +296,7 @@ describe("reads that cannot answer", () => {
 
   it("quotes a conditional listing whole", async () => {
     const conditions = "£5.50 for CAMRA members showing a card, Monday to Thursday from 5pm until 7pm";
-    venues.lookupVenueDetail.mockResolvedValue(lambDetail([priceRow({ price_text: conditions })]));
+    venues.lookupPricedVenue.mockResolvedValue(lambDetail([priceRow({ price_text: conditions })]));
     const result = await loadFeaturedOpenTable(SELECTION, NOW);
     expect(result).toMatchObject({
       status: "upcoming",
