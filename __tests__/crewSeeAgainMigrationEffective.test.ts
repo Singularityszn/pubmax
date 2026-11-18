@@ -624,9 +624,12 @@ describe("0250 private event-bound friendship reconnection", () => {
       expect(JSON.parse(original.said)).toMatchObject({ ok: true, code: "decided" });
     } finally { await accounts.finish(); }
     const c = adult(); admit(host, crew, c);
+    const d = adult(); admit(host, crew, d); mutual(host, d);
     expect(call(removeCall(host, crew, c))).toMatchObject({ ok: true, code: "removed" });
     expect(call(`update_social_crew_visibility_atomic('${host.account}','${crew}','private',(select authority_revision from public.social_crews where id='${crew}'),'${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "updated" });
     expect(call(`leave_social_crew_atomic('${a.account}','${crew}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "left" });
+    expect(call(`set_social_crew_role_atomic('${host.account}','${crew}','${memberId(crew, d)}','cohost','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "updated" });
+    expect(call(`transfer_social_crew_owner_atomic('${host.account}','${crew}','${memberId(crew, d)}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "transferred" });
     apply(migration);
     expect(read(adult(), "a2509999-0000-4000-8000-000000000001")).toBeNull();
   });

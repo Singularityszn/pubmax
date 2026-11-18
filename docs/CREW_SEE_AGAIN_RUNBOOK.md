@@ -58,7 +58,8 @@ Paired reads, choices and withdrawals take these locks:
 Roster locks are taken once. A read cannot accumulate account locks in display order.
 The pair key uses both account IDs and is stable across different Crews and contexts.
 Every live eligibility check runs after the locks wait.
-Leave, host removal and visibility changes take roster auth/account locks before member, seat and receipt writes.
+Leave, host removal, role, ownership and visibility changes take roster auth/account locks before member, seat and receipt writes.
+Ownership transfer also locks its Plan before pair invalidation. A standalone cancellation takes that Plan lock before invalidation too.
 Moderator removal takes both participant auth/account locks before its case row.
 Membership is checked again under the Crew lock.
 

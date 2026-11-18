@@ -4,9 +4,10 @@
 -- stable unordered pair, then private rows. Reads take the same locks as writes.
 -- Safety triggers never acquire another participant account from an AFTER trigger.
 -- Subject account writers exclude paired transactions with that subject.
--- Leave, host removal and visibility changes lock roster auth/accounts before
--- invalidation, seat closure and receipt writes. Moderator removal locks both
--- participant auth/accounts before its case row. Crew-scoped raw status writes
+-- Leave, host removal, role, ownership and visibility changes lock roster
+-- auth/accounts before invalidation, seat closure and receipt writes. Ownership
+-- transfer also locks its Plan before pair invalidation, as cancellation does.
+-- Moderator removal locks participant auth/accounts before its case row. Crew-scoped raw status writes
 -- take pair locks in canonical order, as does the full visible-export batch.
 -- Block and suspension invalidation spans Crews.
 -- Rollback destroys private choices and requires an exact row-count acknowledgement.
@@ -258,6 +259,55 @@ begin
     returning authority_revision into v_revision;
   v_response:=jsonb_build_object('ok',true,'code','updated','authority_revision',v_revision);
   return public._social_crew_finish_write(p_actor_account_id,'visibility',p_idempotency_key,p_payload_digest,v_response);
+end;
+$$;
+
+create or replace function public.set_social_crew_role_atomic(
+  p_actor_account_id uuid,p_crew_id uuid,p_target_member_id uuid,p_role text,
+  p_idempotency_key text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_replay jsonb; v_target public.social_crew_members%rowtype; v_response jsonb;
+begin
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,'set-role',p_idempotency_key,p_payload_digest);
+  if v_replay is not null then return v_replay; end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  perform public._see_again_lock_roster(p_crew_id);
+  if public._social_crew_member_role(p_crew_id,p_actor_account_id) is distinct from 'owner' or p_role is null or p_role not in ('cohost','member')
+    then return public._social_crew_fail_write(p_actor_account_id,'set-role',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_target from public.social_crew_members where id=p_target_member_id and crew_id=p_crew_id and state='active' for update;
+  if not found or v_target.role='owner' then return public._social_crew_fail_write(p_actor_account_id,'set-role',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  update public.social_crew_members set role=p_role,updated_at=now() where id=v_target.id;
+  update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id;
+  v_response:=jsonb_build_object('ok',true,'code','updated','member_id',v_target.id);
+  return public._social_crew_finish_write(p_actor_account_id,'set-role',p_idempotency_key,p_payload_digest,v_response);
+end;
+$$;
+
+create or replace function public.transfer_social_crew_owner_atomic(
+  p_actor_account_id uuid,p_crew_id uuid,p_target_member_id uuid,
+  p_idempotency_key text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_replay jsonb; v_target public.social_crew_members%rowtype; v_old uuid; v_plan uuid; v_response jsonb;
+begin
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,'transfer-owner',p_idempotency_key,p_payload_digest);
+  if v_replay is not null then return v_replay; end if;
+  select plan_id into v_plan from public.social_crews where id=p_crew_id for update;
+  perform public._see_again_lock_roster(p_crew_id);
+  if public._social_crew_member_role(p_crew_id,p_actor_account_id) is distinct from 'owner' then return public._social_crew_fail_write(p_actor_account_id,'transfer-owner',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_target from public.social_crew_members where id=p_target_member_id and crew_id=p_crew_id and state='active' for update;
+  if not found or v_target.role='owner' or public._social_crew_relationship_between_accounts(v_target.social_account_id,p_actor_account_id) is distinct from 'mutual'
+    then return public._social_crew_fail_write(p_actor_account_id,'transfer-owner',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  -- A standalone cancellation holds its Plan before invalidating pairs.
+  perform 1 from public.plans where id=v_plan for update;
+  select id into v_old from public.social_crew_members where crew_id=p_crew_id and social_account_id=p_actor_account_id and state='active' for update;
+  update public.social_crew_members set role='cohost',updated_at=now() where id=v_old;
+  update public.social_crew_members set role='owner',updated_at=now() where id=v_target.id;
+  update public.social_crews set owner_account_id=v_target.social_account_id,authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id;
+  update public.plans set social_owner_account_id=v_target.social_account_id where id=v_plan;
+  v_response:=jsonb_build_object('ok',true,'code','transferred','member_id',v_target.id);
+  return public._social_crew_finish_write(p_actor_account_id,'transfer-owner',p_idempotency_key,p_payload_digest,v_response);
 end;
 $$;
 

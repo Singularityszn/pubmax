@@ -146,7 +146,7 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
     <p>Reconnection could not load. Your choices stay private.</p>
     <Button variant="secondary" onClick={reload}>Retry reconnection</Button>
   </section>;
-  return <section ref={section} className="crews" aria-labelledby="crew-see-again-title" aria-busy={waiting}>
+  return <section ref={section} className="crews crewSeeAgain" aria-labelledby="crew-see-again-title" aria-busy={waiting}>
     <h2 tabIndex={-1} id="crew-see-again-title" className="crews__title">See a mate again</h2>
     <p>Your host marked you as here. This does not independently check who attended.</p>
     <p>Choose someone you would like to meet again as a friend. Only a mutual choice appears, privately, to the two of you.</p>
