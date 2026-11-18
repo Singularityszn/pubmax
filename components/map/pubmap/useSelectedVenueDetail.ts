@@ -19,6 +19,13 @@ type SelectedVenueDetailArgs = {
   resolveMapSelection: (requestedVenueId: string, canonicalVenueId: string) => void;
 };
 
+export type SelectedVenueDetail = {
+  /** The dated device copy the sheet is showing, or null for a live read. */
+  savedAt: string | null;
+  /** Re-asks `/api/venue/[id]` for the selected pub after a failed read. */
+  retryDetail: () => void;
+};
+
 /**
  * Loads the selected pub's full detail into the sheet, and keeps a copy of
  * each pub opened so its sheet still reads with no signal. A displayed copy
@@ -32,7 +39,7 @@ export function useSelectedVenueDetail({
   setSelectedVenueId,
   setSelectionNotice,
   resolveMapSelection,
-}: SelectedVenueDetailArgs): string | null {
+}: SelectedVenueDetailArgs): SelectedVenueDetail {
   const selectionRef = useRef({ detailById, selectedVenueId });
   useEffect(() => {
     selectionRef.current = { detailById, selectedVenueId };
@@ -101,6 +108,24 @@ export function useSelectedVenueDetail({
     return () => window.removeEventListener("online", refreshSavedCopies);
   }, [acceptDetail]);
 
+  // A failed read is not cached, so asking again is a real retry. The status
+  // entry clears first so the sheet reads "loading" rather than "unavailable"
+  // while the new answer is in flight.
+  const retryDetail = useCallback(() => {
+    const requestedVenueId = selectionRef.current.selectedVenueId;
+    if (!requestedVenueId || isRecordlessMapSelection(requestedVenueId)) return;
+    setDetailStatusById((current) => {
+      if (!current.has(requestedVenueId)) return current;
+      const next = new Map(current);
+      next.delete(requestedVenueId);
+      return next;
+    });
+    const held = selectionRef.current.detailById.get(requestedVenueId);
+    void warmVenueDetail(requestedVenueId).then((result) => {
+      acceptDetail(requestedVenueId, result, held);
+    });
+  }, [acceptDetail, setDetailStatusById]);
+
   const selectedDetail = detailById.get(selectedVenueId);
   useEffect(() => {
     if (!selectedVenueId || isRecordlessMapSelection(selectedVenueId)) return;
@@ -124,5 +149,8 @@ export function useSelectedVenueDetail({
     selectedVenueId,
   ]);
 
-  return selectedDetail ? savedVenueCopyAt(selectedDetail) : null;
+  return {
+    savedAt: selectedDetail ? savedVenueCopyAt(selectedDetail) : null,
+    retryDetail,
+  };
 }
