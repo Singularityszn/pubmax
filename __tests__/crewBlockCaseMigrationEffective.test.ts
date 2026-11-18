@@ -316,7 +316,7 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
       "public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text)",
       "public.purge_expired_social_crew_block_cases(integer)"];
-    const internal = ["public._open_social_crew_block_cases()", "public._delete_social_crew_block_cases_on_unbind()",
+    const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
       "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid)"];
     for (const fn of [...callable, ...internal]) {
       for (const role of ["public", "anon", "authenticated"]) {
@@ -426,6 +426,30 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
       expect(answer.said).not.toMatch(REFUSED_BY_LOCKS);
       expect(JSON.parse(answer.said)).toEqual(NOT_FOUND);
     } finally { await deletion.finish(); }
+    expect(caseRows(crew)).toBe("0");
+  });
+
+  it("a removal held on its member row and the removed guest's deletion never deadlock: the deletion waits on the auth row", async () => {
+    const { bea, crew } = blockedPair();
+    const caseId = onlyCase(crew);
+    const member = memberId(crew, bea);
+    const memberRow = await hold(`select 1 from public.social_crew_members where id='${member}' for update`, "postgres");
+    let removing: Promise<{ ok: boolean; said: string }> | null = null;
+    let deleting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      removing = outcome("remove_on_member_row_0248", rpc(decideCaseCall(caseId, "removed", member)));
+      await expect.poll(() => waitsOnAnyLock("remove_on_member_row_0248")).toBe("t");
+      deleting = outcome("delete_during_remove_0248", deleteAccount(bea), "postgres");
+      await expect.poll(() => waitsOnAnyLock("delete_during_remove_0248")).toBe("t");
+      expect(await db().sqlAsync(`select exists(select 1 from pg_locks lock join pg_stat_activity activity on activity.pid=lock.pid
+        where activity.application_name='delete_during_remove_0248' and lock.locktype='tuple'
+          and lock.relation='auth.users'::regclass)`)).toBe("t");
+    } finally { await memberRow.finish(); }
+    const [removed, deleted] = await Promise.all([removing, deleting]);
+    for (const answer of [removed, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(JSON.parse(removed?.said ?? "{}")).toEqual({ ok: true, code: "decided", decision: "removed" });
+    expect(deleted?.ok).toBe(true);
+    expect(state(crew, bea)).toBe("removed");
     expect(caseRows(crew)).toBe("0");
   });
 
