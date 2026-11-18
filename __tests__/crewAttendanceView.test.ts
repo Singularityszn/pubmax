@@ -21,6 +21,21 @@ const run = (view: CrewAttendanceView, ...events: Parameters<typeof nextCrewAtte
 const ready = run(CREW_ATTENDANCE_LOADING, { type: "loaded", data: hostRead, now: NOW });
 
 describe("host attendance view", () => {
+  it.each(["host", "moderator"] as const)("keeps the %s recorder and time when the saved revision is unchanged", (recordedBy) => {
+    const mark = { ...hostRead.items[0]!, revision: 2, recordedBy };
+    const read = run(CREW_ATTENDANCE_LOADING, { type: "loaded", data: { ...hostRead, items: [mark] }, now: NOW });
+    const saved = run(read, { type: "save", memberId: ANA, state: "attended" },
+      { type: "saved", memberId: ANA, state: "attended", revision: 2, now: NOW });
+    expect(saved).toMatchObject({ status: "ready", saving: null, data: { items: [mark] } });
+  });
+
+  it("does not replace a newer read with an older save acknowledgement", () => {
+    const mark = { ...hostRead.items[0]!, state: "absent" as const, revision: 3, recordedBy: "moderator" as const };
+    const read = run(CREW_ATTENDANCE_LOADING, { type: "loaded", data: { ...hostRead, items: [mark] }, now: NOW });
+    const saved = run(read, { type: "saved", memberId: ANA, state: "attended", revision: 2, now: NOW });
+    expect(saved).toMatchObject({ status: "ready", data: { items: [mark] } });
+  });
+
   it("a conflict keeps the rows and the pressed control while it reads again, and says which refusal it was", () => {
     const refused = run(ready, { type: "save", memberId: BEA, state: "attended" }, { type: "refused", reason: "stale" });
     expect(refused).toMatchObject({ status: "ready", refreshing: true, saving: null, notice: { kind: "refused", reason: "stale" } });
