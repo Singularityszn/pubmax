@@ -272,6 +272,51 @@ describe("buildMapVenueListModel — ordering (mirrors the eye)", () => {
     );
   });
 
+  it("keeps a figure the cheapest order cannot rank ahead of a venue with no price at all", () => {
+    // A zone estimate prints a figure but may not lead the cheapest order, so
+    // it follows the ranked rows. A nearer venue the map cannot price at all
+    // must not jump ahead of that figure.
+    const zoneIndex = {
+      rows: [{ zone: 1 as const, medianGbp: 4.5, pricedCount: 50, enough: true }],
+      ranked: [],
+      dearest: null,
+      cheapest: null,
+      taxGbp: null,
+      computedAt: "2026-11-10T00:00:00Z",
+    };
+    const estimated = venue({
+      id: "estimated",
+      name: "Estimated Arms",
+      latitude: 51.7,
+      longitude: -0.4,
+      cheapestPrice: null,
+      zone: 1,
+      publicPricePresence: "absent",
+      hasRecordedPrice: false,
+    });
+    const none = venue({
+      id: "none",
+      name: "No Price",
+      latitude: 51.5,
+      longitude: -0.12,
+      cheapestPrice: null,
+    });
+    const model = buildMapVenueListModel(
+      [estimated, none],
+      [-0.12, 51.5],
+      undefined,
+      null,
+      "this view",
+      "ready",
+      "cheapest",
+      null,
+      zoneIndex,
+    );
+    expect(model.rows.map((r) => r.id)).toEqual(["estimated", "none"]);
+    expect(model.rows[0]?.priceLabel).toContain("est.");
+    expect(model.rows[1]?.priceLabel).toBe("Price TBD");
+  });
+
   it("cheapest sort uses active drink lens prices, not the pint baseline", () => {
     const softCheap = venue({
       id: "soft-cheap",
