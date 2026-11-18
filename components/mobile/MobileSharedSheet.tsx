@@ -121,7 +121,6 @@ export default function MobileSharedSheet({
   homeTitle = "the map",
   onInterruptReveal,
   venueRevealSettleSequence = 0,
-  surface = "material",
   returnFocus,
   children,
 }: {
@@ -150,7 +149,6 @@ export default function MobileSharedSheet({
   /** Drop entrance classes on scroll, drag, Escape, or a second pick. */
   onInterruptReveal?: () => void;
   venueRevealSettleSequence?: number;
-  surface?: "material" | "solid";
   returnFocus?: () => HTMLElement | null;
   children: React.ReactNode;
 }) {
@@ -395,7 +393,6 @@ export default function MobileSharedSheet({
         data-sheet-motion={
           dragging ? "dragging" : settling ? "settling" : entering ? "entering" : "idle"
         }
-        data-sheet-surface={surface}
         className={`mapDrawer mobileSharedSheet ${presented.kind === "venue" ? "right" : presented.kind === "planner" ? "left" : "contextual"} open sheet-${sheetSnap}${dragging ? " sheet-dragging" : ""}${settling ? " sheet-settling" : ""}${entering ? " sheet-entering" : ""}`}
         role={sheetModal ? "dialog" : undefined}
         // Primary navigation stays reachable outside this map surface. A
