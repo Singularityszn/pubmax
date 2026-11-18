@@ -71,7 +71,7 @@ it("keeps a saved plan locked when its invite cannot be read", async () => {
 });
 
 it.each([null, "fixture-account"].flatMap((ownerId) =>
-  ["cancelled", "failed", "unavailable"].map((outcome) => ({ ownerId, outcome })),
+  ["unattempted", "cancelled", "failed", "unavailable"].map((outcome) => ({ ownerId, outcome })),
 ))("resumes a saved night after $outcome sharing and reload (account $ownerId)", async ({ ownerId, outcome }) => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(new Date(last.startIso));
@@ -85,7 +85,7 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
   const { default: Result } = await import("@/components/map/fairpint/FairPintResult");
   vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => createElement(Fragment));
   vi.stubGlobal("navigator", { ...navigator, share: vi.fn() });
-  if (outcome !== "unavailable") share.mockResolvedValueOnce(outcome);
+  if (outcome !== "unavailable" && outcome !== "unattempted") share.mockResolvedValueOnce(outcome);
   const fetcher = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
     if (input === "/api/plans") {
       expect(new Headers(options?.headers).has("authorization")).toBe(false);
@@ -101,6 +101,7 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
     return Response.json({ active: true, role: "host", collaborationAuthorized: true });
   });
   vi.stubGlobal("fetch", fetcher);
+  const initialShareAttempts = share.mock.calls.length;
   const host = document.createElement("div");
   document.body.append(host);
   let root = createRoot(host);
@@ -126,14 +127,16 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
       const shareButton = [...host.querySelectorAll("button")].find((button) => button.textContent === "Share with the group chat")!;
       expect(shareButton.disabled).toBe(true);
       expect(host.textContent).toContain("Could not prepare the link. Try again.");
-    } else {
+    } else if (outcome !== "unattempted") {
       const beforeShare = fetcher.mock.calls.length;
       await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Share with the group chat")!.click());
       expect(share).toHaveBeenLastCalledWith(expect.objectContaining({ url: expect.stringContaining(`/invite/${token}`) }));
       expect(fetcher.mock.calls).toHaveLength(beforeShare);
       expect(host.textContent).toContain(outcome === "cancelled" ? "Share with the group chat" : "Could not open sharing. Copy the link instead.");
     }
+    const shareAttempts = share.mock.calls.length;
     act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
+    expect(share.mock.calls).toHaveLength(outcome === "unattempted" ? initialShareAttempts : shareAttempts);
     expect(closed).toBe(true);
     act(() => root.unmount());
     clearPlanCapability(id);
