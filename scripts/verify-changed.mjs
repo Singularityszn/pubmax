@@ -205,6 +205,7 @@ export function checkSteps(plan) {
   if (plan.e2eSkips) steps.push({ label: "gate:e2e-skips", command: "npm", args: ["run", "gate:e2e-skips"] });
   if (plan.chatgptMap) steps.push({ label: "test:chatgpt-map", command: "npm", args: ["run", "test:chatgpt-map"] });
   steps.push({ label: "deadcode", command: "npm", args: ["run", "deadcode"] });
+  steps.push({ label: "gate:no-python-network", command: "npm", args: ["run", "gate:no-python-network"] });
   // A new advisory needs no diff. Keep the local audit alongside Security CI.
   steps.push({ label: "dependency audit", command: "node", args: ["scripts/resilient-audit.mjs"] });
   steps.push({
