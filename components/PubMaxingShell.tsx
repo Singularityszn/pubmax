@@ -1,7 +1,6 @@
 "use client";
 
-import { FairPintHost } from "@/components/map/fairpint/FairPintHost";
-import dynamic from "next/dynamic";
+import FairPintMapLoader from "@/components/map/fairpint/FairPintMapLoader";
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import CityPubsOnlyNoteMount from "@/components/map/CityPubsOnlyNote";
@@ -35,11 +34,6 @@ function DynamicMapSkeleton() {
     />
   );
 }
-
-const PubMap = dynamic(() => import("./PubMap"), {
-  ssr: false,
-  loading: () => <DynamicMapSkeleton />,
-});
 
 // Cold /map (London prerendered document only): start the MapLibre canvas
 // chunk as soon as this module evaluates, instead of waiting for useEffect.
@@ -144,13 +138,14 @@ export default function PubMaxingShell({
       <MapPricesReadContext.Provider value={pricesReadLine}>
         <h1 className="sr-only">{mapDisplayName} pub map</h1>
         {fairPintPrelude}
-        <FairPintHost cityId={cityId}><PubMap
+        <FairPintMapLoader
+          loading={<DynamicMapSkeleton />}
           key={cityId}
           cityId={cityId}
           placeArrival={placeArrival}
           nationalBrowse={ukNationalBrowse}
           zonePintIndex={zonePintIndex}
-        /></FairPintHost>
+        />
         {/* A city with no listed prices says so (lib/cityPubsOnlyNote.ts). It
             mounts here, outside the edit-locked PubMap, and portals into the
             map stage so the banner staging rules reach it. A UK place arrival

@@ -1,14 +1,12 @@
 "use client";
 
+import type { fairPence } from "@/lib/fairPintPricing";
 import FairPintGate from "./FairPintGate";
+import { MapConnection, type Bridge } from "./FairPintBridge";
 import { dismissMapFirstVisitArrival } from "@/lib/mapFirstVisitArrival";
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
-  useLayoutEffect,
-  useMemo,
   useRef,
   useState,
   type ReactNode,
@@ -17,43 +15,8 @@ import { clearEarlyFairPint, setFairPintSession, supportsFairPint } from "@/lib/
 import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT, suppressMapFirstVisitPrompts } from "@/lib/mapFirstVisitArrivalGate";
 import { getCity, type CityId } from "@/lib/cities";
 import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
-import type { MapBounds } from "@/lib/slimShards";
-import type { SlimVenue } from "@/lib/venuesSlim";
-import type { NightAreaSlug } from "@/lib/nightAreas";
 
-type Bridge = {
-  bounds: MapBounds;
-  center: [number, number];
-  position?: { lat: number; lng: number } | null;
-  onCommit: (pounds: number) => void;
-  onRoute: (area: NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
-};
-const MapConnection = createContext<(value: Bridge | null) => void>(() => {});
-
-export function FairPintMapBridge(props: Bridge) {
-  const publish = useContext(MapConnection);
-  const current = useRef(props);
-  useLayoutEffect(() => {
-    current.current = props;
-  });
-  const actions = useMemo(
-    () => ({
-      onCommit: (pounds: number) => current.current.onCommit(pounds),
-      onRoute: (area: NightAreaSlug | null, ids: string[], rows: SlimVenue[]) =>
-        current.current.onRoute(area, ids, rows),
-    }),
-    [],
-  );
-  const { west, south, east, north } = props.bounds;
-  const [lng, lat] = props.center;
-  useEffect(() => {
-    publish({ bounds: { west, south, east, north }, center: [lng, lat], position: props.position ?? null, ...actions });
-  }, [publish, actions, west, south, east, north, lng, lat, props.position]);
-  useEffect(() => () => publish(null), [publish]);
-  return null;
-}
-
-export function FairPintHost({ children, cityId }: { children: ReactNode; cityId: CityId }) {
+export function FairPintHost({ children, cityId, priceReader }: { children: ReactNode; cityId: CityId; priceReader: typeof fairPence }) {
   const [bridge, setBridge] = useState<Bridge | null>(null);
   const queued = useRef<{ pounds?: number; route?: Parameters<Bridge["onRoute"]> }>({});
   const commit = useCallback((pounds: number) => {
@@ -138,6 +101,7 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
       {children}
       {gateReady && supportsFairPint(cityId) ? (
         <FairPintGate
+          priceReader={priceReader}
           cityId={cityId}
           readerPosition={bridge?.position ?? null}
           mobile={mobile}

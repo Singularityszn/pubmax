@@ -7,7 +7,7 @@ import { createSlimShardLoader, type MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
-import { fairPence } from "@/lib/fairPintPricing";
+import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
@@ -34,6 +34,7 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= km;
 }
 export default function FairPintFlow({
+  priceReader,
   cityId,
   bounds,
   center,
@@ -42,6 +43,7 @@ export default function FairPintFlow({
   mobile,
   readerPosition = null,
 }: {
+  priceReader: typeof fairPence;
   readerPosition?: { lat: number; lng: number } | null;
   mobile: boolean;
   cityId: CityId;
@@ -135,7 +137,7 @@ export default function FairPintFlow({
       cancelled = true;
     };
   }, [loader, countKey, drawKey, attempt]);
-  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: fairPence(row, now) })), [data.rows, now]);
+  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
   const counts = (pence: number, draw = false): FairPintCounts => {
     const phase = draw
       ? data.drawKey === drawKey

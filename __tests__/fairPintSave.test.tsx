@@ -3,6 +3,7 @@ import { act, createElement, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { useFairPintSave } from "@/components/map/fairpint/useFairPintSave";
+import { fairPence } from "@/lib/fairPintPricing";
 import { inferNightContext } from "@/lib/nightPlanning";
 import type { FairPintDrawn } from "@/lib/fairPint";
 const share = vi.hoisted(() => vi.fn().mockResolvedValue("shared"));
@@ -109,7 +110,7 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
   try {
     await act(async () => root.render(createElement(Result, {
       typedName: "Alex", onName: () => {}, last, venues: [], start: last.start,
-      busy: false, error: "", mobile: false, cityId: "london",
+      busy: false, error: "", priceReader: fairPence, mobile: false, cityId: "london",
       onLineReady: () => {}, onEditStart: () => {}, onStart: () => {}, onBack: () => {},
       onClose: () => { closed = true; root.render(null); }, returnFocus: () => null,
     })));
@@ -180,6 +181,7 @@ it.each([null, "hosthandle"])("keeps an entered organiser name through time reva
     expect(input).toBe("/api/plans");
     return Response.json({ plan: { plan: { id: "11111111-1111-4111-8111-111111111111", inviteToken: "a".repeat(32) } } });
   });
+  await import("@/components/map/fairpint/FairPintResult");
   const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
   const host = document.createElement("div"), root = createRoot(host);
   document.body.append(host);
@@ -190,12 +192,13 @@ it.each([null, "hosthandle"])("keeps an entered organiser name through time reva
   localStorage.clear();
   try {
     await act(async () => root.render(createElement(Flow, {
-      mobile: false, cityId: "london", center: [-0.13, 51.514],
+      priceReader: fairPence, mobile: false, cityId: "london", center: [-0.13, 51.514],
       bounds: { west: -0.135, east: -0.125, south: 51.51, north: 51.518 },
       onCommit: () => {}, onRoute: () => {},
     })));
     await act(async () => { await vi.dynamicImportSettled(); });
     await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Draw my night"))!.click());
+    await act(async () => { await vi.dynamicImportSettled(); });
     const name = () => host.querySelector<HTMLInputElement>("#fair-pint-name")!;
     expect(name().value).toBe(handle ?? "");
     act(() => setInput(name(), "Alex"));

@@ -2,6 +2,7 @@
 import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { expect, it, vi } from "vitest";
+import { fairPence } from "@/lib/fairPintPricing";
 import FairPintCard from "@/components/map/fairpint/FairPintCard";
 import { FAIR_PINT_KEY, readFairPint, writeFairPint } from "@/lib/fairPint";
 import { appliedPintPriceCap, pintPriceCapsFor } from "@/lib/pintPriceCaps";
@@ -44,7 +45,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
   const host = document.createElement("div"), mounted = createRoot(host);
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
-  act(() => mounted.render(createElement(Flow, { mobile: true, cityId: "london", bounds: { west: -0.13, east: -0.12, south: 51.53, north: 51.54 }, center: [-0.125, 51.535], onCommit: () => {}, onRoute: () => {} })));
+  act(() => mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: { west: -0.13, east: -0.12, south: 51.53, north: 51.54 }, center: [-0.125, 51.535], onCommit: () => {}, onRoute: () => {} })));
   await act(async () => { viewReady = true; finishView([{ id: "priced", name: "Listed pub", cheapestPrice: 5, borough: "Camden", lat: 51.535, lng: -0.125, fairPint: [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] }]); });
   expect(host.textContent).toContain("1 pub in view lists a pint");
   expect(host.textContent).toContain("Checking prices in");
@@ -70,7 +71,7 @@ it("starts the deferred planner on Draw and permits retry after refusal", async 
   const host = document.createElement("div"), root = createRoot(host);
   const draw = () => [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Draw my night"))!;
   try {
-    await act(async () => root.render(<Flow mobile cityId="london" bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} />));
+    await act(async () => root.render(<Flow priceReader={fairPence} mobile cityId="london" bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} />));
     expect(draw().disabled).toBe(false);
     expect(fetcher).not.toHaveBeenCalled();
     const slider = host.querySelector("input")!;
@@ -127,7 +128,7 @@ it.each(["pan", "retry"])("keeps loaded prices and draw readiness after %s", asy
   const host = document.createElement("div"), root = createRoot(host);
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
   const props = {
-    mobile: true, cityId: "london" as const, center: [-0.13, 51.514] as [number, number],
+    priceReader: fairPence, mobile: true, cityId: "london" as const, center: [-0.13, 51.514] as [number, number],
     bounds: { west: -0.135, east: -0.125, south: 51.51, north: 51.518 },
     onCommit: () => {}, onRoute: () => {},
   };
@@ -200,7 +201,8 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
 });
 
 it("keeps an early release when Close arrives before the controller loads", async () => {
-  const { FairPintHost, FairPintMapBridge } = await import("@/components/map/fairpint/FairPintHost");
+  const { FairPintHost } = await import("@/components/map/fairpint/FairPintHost");
+  const { FairPintMapBridge } = await import("@/components/map/fairpint/FairPintBridge");
   const { clearEarlyFairPint } = await import("@/lib/fairPint");
   const native = await import("@/lib/nativeHaptics");
   const haptic = vi.spyOn(native, "haptic").mockResolvedValue(undefined);
@@ -213,7 +215,7 @@ it("keeps an early release when Close arrives before the controller loads", asyn
   const host = document.createElement("div"), root = createRoot(host);
   try {
     await act(async () => root.render(
-      <FairPintHost cityId="london">
+      <FairPintHost priceReader={fairPence} cityId="london">
         <FairPintMapBridge bounds={{ west: -0.13, east: -0.12, south: 51.53, north: 51.54 }} center={[-0.125, 51.535]} onCommit={commit} onRoute={() => {}} />
       </FairPintHost>,
     ));
@@ -233,4 +235,27 @@ it("authorises the early card script with the dynamic document nonce", async () 
   const host = document.createElement("div");
   host.innerHTML = renderToStaticMarkup(<Prelude area="Soho" nonce="request-nonce" />);
   expect(host.querySelector("script")?.nonce).toBe("request-nonce");
+});
+
+it.each(["release", "cancel", "close"])("waits for an early drag before loading the map, then continues on %s", async (ending) => {
+  const { waitForFairPintRelease } = await import("@/components/map/fairpint/FairPintBridge");
+  const { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } = await import("@/lib/mapFirstVisitArrivalGate");
+  const early = { pence: 530, releases: 0, dragging: true, closed: false };
+  window.__pubmaxEarlyFairPint = early;
+  let loads = 0;
+  const loading = waitForFairPintRelease().then(() => { loads++; });
+  try {
+    await Promise.resolve();
+    expect(loads).toBe(0);
+    if (ending === "close") early.closed = true;
+    else early.dragging = false;
+    window.dispatchEvent(new Event(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT));
+    await Promise.resolve();
+    expect(loads).toBe(1);
+  } finally {
+    early.dragging = false;
+    window.dispatchEvent(new Event(MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT));
+    await loading;
+    delete window.__pubmaxEarlyFairPint;
+  }
 });

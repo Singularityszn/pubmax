@@ -514,7 +514,7 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
-import { FairPintMapBridge } from "@/components/map/fairpint/FairPintHost";
+import { FairPintMapBridge } from "@/components/map/fairpint/FairPintBridge";
 import { supportsFairPint } from "@/lib/fairPint";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
