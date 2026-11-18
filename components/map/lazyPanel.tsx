@@ -27,7 +27,9 @@ import "./lazyPanel.css";
 
 type Loader<P> = () => Promise<{ default: ComponentType<P> }>;
 
-type BoundaryProps = { fallback: ReactNode; onFailed: () => void; children: ReactNode };
+export const SEARCH_CHUNK_RELOAD_KEY = "pubmax:search-chunk-reload";
+
+type BoundaryProps = { fallback: ReactNode; onFailed: (error: Error) => void; children: ReactNode };
 type BoundaryState = { failed: boolean };
 
 class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
@@ -39,7 +41,7 @@ class PanelBoundary extends Component<BoundaryProps, BoundaryState> {
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[lazy panel]", error, info.componentStack);
-    this.props.onFailed();
+    this.props.onFailed(error);
   }
 
   render() {
@@ -51,9 +53,13 @@ export function lazyPanel<P extends object>(
   load: Loader<P>,
   failedLabel: string,
 ): ComponentType<P> {
-  let current = lazy(load);
+  const loadPanel: Loader<P> = () => load().then((panel) => {
+    try { sessionStorage.removeItem(SEARCH_CHUNK_RELOAD_KEY); } catch { /* Storage may be unavailable. */ }
+    return panel;
+  });
+  let current = lazy(loadPanel);
   const reload = () => {
-    current = lazy(load);
+    current = lazy(loadPanel);
   };
   function LazyPanel(props: P) {
     // Each attempt owns its own boundary (the key), so a retry starts from a
@@ -64,7 +70,15 @@ export function lazyPanel<P extends object>(
     return (
       <PanelBoundary
         key={attempt}
-        onFailed={reload}
+        onFailed={(error) => {
+          reload();
+          if (attempt === 0 || error.name !== "ChunkLoadError") return;
+          try {
+            if (sessionStorage.getItem(SEARCH_CHUNK_RELOAD_KEY) === location.href) return;
+            sessionStorage.setItem(SEARCH_CHUNK_RELOAD_KEY, location.href);
+            location.reload();
+          } catch { /* Without storage, do not risk a reload loop. */ }
+        }}
         fallback={
           <div className="lazyPanelFailed" role="alert">
             <span className="lazyPanelFailedCopy">{failedLabel}</span>
