@@ -3479,3 +3479,35 @@ describe("account deletion", () => {
     expect(truth(`select count(*) from public.plans where id = '${PLAN_ID}' and owner_user_id = '${ALICE}'`)).toBe("1");
   });
 });
+
+describe("the whole public schema: row level security is never off", () => {
+  it("every table in public has relrowsecurity set after ALL migrations", () => {
+    // The matrix proves the cells it names. This proves there is no cell it
+    // missed: a table created without `enable row level security` answers
+    // every browser role with its rows, and no per-table assertion above
+    // would ever have named it. RLS on with no policy is the STRONGEST answer
+    // (deny-all), so the sweep asks the catalog flag only and never demands a
+    // policy - see the rls_enabled_no_policy note above.
+    const offenders = truth(`
+      select coalesce(string_agg(c.relname, ', ' order by c.relname), '')
+        from pg_class c
+        join pg_namespace n on n.oid = c.relnamespace
+       where n.nspname = 'public'
+         and c.relkind in ('r', 'p')
+         and not c.relrowsecurity
+    `);
+    expect(offenders).toBe("");
+    // A vacuous pass proves nothing: the sweep must actually see the tables.
+    expect(
+      Number(
+        truth(`
+          select count(*)
+            from pg_class c
+            join pg_namespace n on n.oid = c.relnamespace
+           where n.nspname = 'public'
+             and c.relkind in ('r', 'p')
+        `),
+      ),
+    ).toBeGreaterThan(50);
+  });
+});
