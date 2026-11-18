@@ -5943,8 +5943,8 @@ export default function PubMap({
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
         <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
-          <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
-            <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
+          <label style={{ minHeight: "var(--control-height, 44px)" }}>
+            <input type="checkbox" aria-label={SAVED_ONLY_ARIA_LABEL} checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
             Saved only
           </label>
           {savedOnly && !hasSavedPub ? (
