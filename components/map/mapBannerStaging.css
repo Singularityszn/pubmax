@@ -9,8 +9,8 @@
    lib/promptBudget.ts. Keying CSS staging on element presence avoids lifting
    each banner's private data eligibility.
 
-   Desktop only (min-width:641px), matching where these banners mount, so the
-   mobile map shell and its own Tonight pill are never affected.
+   The ambient banner cascade starts at min-width:641px, matching where these
+   banners mount. Panel and walk exceptions follow below.
 
    Policy:
    1. Location owns first paint while available, so onboarding eligibility
@@ -22,6 +22,10 @@
       exactly the next one down. An OPEN Tonight panel is the exception: it is
       asked for rather than ambient, so it takes the surface off the two
       banners above it for as long as it is open. */
+
+body:has(.mapConciergeAsk--open) .palSummon {
+  display: none;
+}
 
 @media (min-width: 641px) {
   /* 1. Onboarding open — suppress ambient status and Tonight. */
@@ -272,5 +276,36 @@
 
   .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mappedRouteChip {
     bottom: 12px;
+  }
+
+  .appShell:not(.detail-open):not(.planning-open):has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk {
+    display: flex;
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk--collapsed {
+    left: max(16px, env(safe-area-inset-left, 0px));
+    right: auto;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+    padding: 0;
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAskPill {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    justify-content: center;
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAskPill > span {
+    display: none;
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAsk--open {
+    bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  }
+
+  .appShell:has(.mapCanvasWrap[data-route-stops]:not([data-route-stops="0"])) .mapConciergeAskPanel {
+    box-sizing: border-box;
+    max-height: calc(100dvh - var(--map-top-clearance) - var(--map-toolbar-resting-height) - 28px - env(safe-area-inset-bottom, 0px));
   }
 }

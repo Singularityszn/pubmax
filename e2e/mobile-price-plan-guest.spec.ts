@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 import { pinLondonEvening, setFirstPintIn } from "./helpers/planFirstPint";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 test("a phone user checks a price, corrects an incomplete plan, and invites a guest", async ({ page, browser }, testInfo) => {
   testInfo.setTimeout(120_000);
@@ -16,29 +17,30 @@ test("a phone user checks a price, corrects an incomplete plan, and invites a gu
   await answer.click();
   const pub = page.getByRole("dialog", { name: venueName, exact: true });
   await expect(pub).toContainText(price!);
-  await expect(pub.getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible();
+  await expect(pub.getByRole("tabpanel", { name: "Overview" }).getByRole("link", { name: "Pint Prices", exact: true })).toBeVisible();
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   await pub.getByRole("button", { name: `Make it Stop 1: ${venueName}` }).click();
   await expect(page).toHaveURL(/\/plan$/);
 
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
-  // Since week 1 hygiene a walk word never refuses a plan, so the incomplete
-  // route is asked for with a need the area cannot meet: step-free access.
+  // The kept pub has no confirmed step-free access, so the request must say so.
   await description.fill("Three pubs in Clapham, all step-free, with listed pint prices.");
   const incomplete = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
-  expect((await (await incomplete).json()).outcome).toBe("anchor-only");
+  const incompleteBody = await (await incomplete).json();
+  expect(incompleteBody.outcome).toBe("anchor-conflict");
+  expect(incompleteBody.reason).toBe("ANCHOR_ROUTE_CONFLICT");
   await expect(page.locator("#plan-route-status")).toHaveText(
-    `We kept ${venueName}. We could not build the 3-stop route you asked for. Change the details or add pubs.`,
+    "We can't confirm step-free access at that pub for your plan. Your draft is kept.",
   );
   await page.screenshot({ path: testInfo.outputPath("incomplete-plan-explained.png") });
 
-  await page.getByRole("button", { name: "Tune details" }).click();
   await expect(page.getByRole("combobox", { name: "Stops", exact: true })).toHaveValue("3");
   await description.fill("Three pubs in Clapham with listed pint prices.");
   const corrected = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
-  await page.getByRole("button", { name: "Plan it again", exact: true }).click();
+  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
   const response = await corrected;
   expect(response.request().postDataJSON().context.transportConstraints).toEqual([]);
   expect((await response.json()).outcome).toBe("route");
@@ -99,13 +101,13 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await pinLondonEvening(page);
   await page.goto("/near?patch=clapham");
   await page.getByRole("button", { name: /The Coach & Horses.*View pub/ }).click();
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   await page.getByRole("dialog", { name: "The Coach & Horses", exact: true })
     .getByRole("button", { name: "Make it Stop 1: The Coach & Horses" }).click();
   const description = page.getByRole("textbox", { name: "Where, how many, what budget" });
   await description.fill("Five pubs in Clapham, all step-free, with listed pint prices.");
   await page.getByRole("button", { name: "Make a plan", exact: true }).click();
-  await expect(page.locator("#plan-route-status")).toContainText("5-stop route");
-  await page.getByRole("button", { name: "Tune details", exact: true }).click();
+  await expect(page.locator("#plan-route-status")).toHaveText("We can't confirm step-free access at that pub for your plan. Your draft is kept.");
   const stops = page.getByRole("combobox", { name: "Stops", exact: true });
   await expect(stops).toHaveValue("5");
   await description.click();
@@ -114,7 +116,7 @@ test("a five-stop incomplete plan keeps its count after clearing, then accepts a
   await expect(description).toHaveValue("");
   const cleared = page.waitForResponse((response) =>
     response.request().method() === "POST" && response.url().endsWith("/api/plans/generate"));
-  await page.getByRole("button", { name: "Plan it again", exact: true }).click();
+  await page.getByRole("button", { name: "Make a plan", exact: true }).click();
   const response = await cleared;
   const clearedRequest = response.request().postDataJSON();
   const clearedResult = await response.json();

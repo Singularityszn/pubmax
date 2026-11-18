@@ -100,6 +100,8 @@ import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -168,6 +170,7 @@ async function releaseFetch(
 }
 
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   signedOut();
   routerState.push.mockClear();
@@ -215,7 +218,7 @@ describe("message sign-in doors", () => {
     unread: 0,
   };
 
-  it.each(["success", "http-failure", "network-failure"])("publishes slow %s reads despite recurring polls, focus and realtime", async (outcome) => {
+  it.each(["success", "http-failure", "network-failure"])("publishes %s reads within the deadline despite recurring polls, focus and realtime", async (outcome) => {
     vi.useFakeTimers();
     signedIn();
     fetchState.pending = true;
@@ -223,7 +226,7 @@ describe("message sign-in doors", () => {
     expect(fetchState.calls).toBe(1);
     expect(inboxEvents.poll).not.toBeNull();
     expect(inboxEvents.signal).not.toBeNull();
-    window.setInterval(() => inboxEvents.poll?.(), 15_000);
+    window.setInterval(() => inboxEvents.poll?.(), 1_500);
     const finishRead = (first: boolean) => {
       const request = fetchState.requests.shift()!;
       if (first && outcome === "network-failure") request.reject(new Error("network"));
@@ -231,8 +234,8 @@ describe("message sign-in doors", () => {
         ? new Response("unavailable", { status: 503 })
         : Response.json({ conversations: [{ ...createdGroup, title: first ? createdGroup.title : "Updated pub crew" }] }));
     };
-    window.setTimeout(() => finishRead(true), 16_000);
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    window.setTimeout(() => finishRead(true), 1_600);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
       inboxEvents.signal!();
@@ -240,16 +243,16 @@ describe("message sign-in doors", () => {
     expect(fetchState.calls).toBe(1);
     expect(fetchState.requests).toHaveLength(1);
     expect(host.textContent).toContain("With you in a sec.");
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(fetchState.requests).toHaveLength(0);
     expect(host.textContent).not.toContain("With you in a sec.");
     if (outcome === "success") expect(host.textContent).toContain(createdGroup.title);
     else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Couldn’t load your conversations.");
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(14_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_400); });
     expect(fetchState.calls).toBe(2);
     expect(fetchState.requests).toHaveLength(1);
-    window.setTimeout(() => finishRead(false), 16_000);
+    window.setTimeout(() => finishRead(false), 1_600);
     if (outcome !== "success") {
       const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Try again")!;
       retry.focus();
@@ -259,10 +262,10 @@ describe("message sign-in doors", () => {
       expect(document.activeElement).toBe(retry);
       expect(host.querySelector('[role="alert"]')).not.toBeNull();
     }
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
     expect(fetchState.calls).toBe(2);
     expect(fetchState.requests).toHaveLength(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(host.textContent).toContain("Updated pub crew");
     expect(host.querySelector('[role="alert"]')).toBeNull();
     expect(host.textContent).not.toContain("With you in a sec.");

@@ -67,7 +67,7 @@ for (const host of [{ name: 'Home', path: '/', header: '.lpNav' }, { name: 'Map'
       await page.keyboard.press('Enter');
       await expect(select).toHaveValue('borough-bingo');
       if (host.name === 'Home') {
-        await expect(page.locator(host.header).getByText('Sign in', { exact: true })).toBeVisible();
+        await expect(page.locator(host.header).getByRole('link', { name: 'Sign in', exact: true })).toBeVisible();
       }
       const nav = await page.locator(host.header).boundingBox();
       const box = await select.boundingBox();

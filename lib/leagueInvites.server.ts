@@ -5,6 +5,7 @@ import { leagueInvitePath } from "@/lib/leagues";
 import type { LeagueViewer } from "@/lib/leagues.server";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
 import { messagesStore } from "@/lib/messagesStore";
+import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
 import { summonableMates } from "@/lib/summonMates.server";
@@ -30,6 +31,8 @@ export async function sendLeagueInvite(
   const link = new URL(leagueInvitePath(found.league.inviteCode), PRODUCTION_SITE_ORIGIN).href;
   const message = await store.send(conversationId, sender, `Join us in ${found.league.name}. ${link}`);
   if (!message) return "unavailable";
-  deferMessagesSignal(() => broadcastMessageSent(conversationId, [sender, mate]));
+  deferMessagesSignal(async () => {
+    await Promise.allSettled([broadcastMessageSent(conversationId, [sender, mate]), notifyMessageRecipients(message.message)]);
+  });
   return "sent";
 }

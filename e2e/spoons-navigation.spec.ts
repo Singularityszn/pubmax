@@ -130,28 +130,24 @@ test.describe("short phone Drink sheet", () => {
 });
 
 for (const width of [390, 1440]) {
-  test(`${width}px Drink exposes Lucia under soft drinks and opens the existing price list`, async ({ page }, testInfo) => {
+  test(`${width}px Drink keeps soft drinks and the Spoons ranking reachable`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 844 });
     await page.goto("/map?drink=soft-drink");
     if (width <= 640) await expectMobileMapShellReady(page);
     const open = width <= 640
       ? await mobileMapShellControl(page, "drink")
       : page.locator(".mapToolbarDrinkLaneBtn").first();
-    const lucia = page.getByRole("link", { name: /Lucia 🐐/ });
+    const softDrinks = page.getByRole("button", { name: "Soft drinks", exact: true });
     await expect(async () => {
-      await open.click();
-      await expect(lucia).toBeVisible({ timeout: 1_000 });
+      if (await open.getAttribute("aria-expanded") !== "true") await open.click();
+      await expect(softDrinks).toBeVisible({ timeout: 1_000 });
     }).toPass({ timeout: 30_000 });
-    if (width <= 640) {
-      await expect(page.locator(".mobileSharedSheet")).toHaveClass(/sheet-full/);
-    }
-    await expect(lucia.locator(".drinkLanePickerLuciaLane")).toHaveText("Soft drinks");
-    await page.screenshot({ path: testInfo.outputPath(`lucia-drink-${width}.png`) });
-    await lucia.click();
-    await expect(page).toHaveURL(/\/soft-drinks-and-water\?sub=soft-drink-lucia-special$/);
-    await expect(page.getByRole("tab", { name: "Lucia 🐐", exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(page.getByRole("link", { name: "Open the map", exact: true })).toHaveAttribute(
-      "href", "/map?drink=soft-drink&sub=soft-drink-lucia-special",
-    );
+    await expect(softDrinks).toHaveAttribute("aria-pressed", "true");
+    await expect(page.getByRole("link", { name: /Lucia 🐐/ })).toHaveCount(0);
+    const ranking = page.getByRole("link", { name: "See the ranking", exact: true });
+    await expect(ranking).toHaveAttribute("href", "/spoons-value");
+    await page.screenshot({ path: testInfo.outputPath(`soft-drink-${width}.png`) });
+    await ranking.click();
+    await expect(page).toHaveURL(/\/spoons-value$/);
   });
 }

@@ -43,7 +43,7 @@ async function expectRecovered(page: Page, surface: string) {
     await expect(page.locator(".profileDisplayName")).toHaveText(ACCOUNTS.A.name);
   } else {
     await expect(page.locator(".socialBoundary")).toHaveCount(0);
-    await expect(page.getByText("No posts here yet.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Post", exact: true })).toBeEnabled();
   }
   await expect(page.locator("html")).toHaveAttribute("data-f14-document", "original");
 }
