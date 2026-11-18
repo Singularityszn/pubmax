@@ -1,16 +1,18 @@
 "use client";
 
-import { useEffect, useState, useSyncExternalStore } from "react";
+import { useEffect, useMemo, useReducer, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import Kicker from "@/components/ui/kicker";
+import { Button } from "@/components/ui/button";
 import { accountBoundFetch, captureAccountAuth, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { compositeActionSignal } from "@/lib/authedFetch";
 import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { formatPence } from "@/lib/formatGbp";
 import { readNightReceiptPayload, type NightReceipt } from "@/lib/nightReceipt";
+import { INITIAL_NIGHT_RECEIPT_READ, nextNightReceiptRead, type NightReceiptAnswer } from "@/lib/nightReceiptRead";
 import type { CrawlEnding } from "@/lib/plan";
 import {
   parsePlanCapabilitySnapshot,
@@ -71,35 +73,51 @@ function usePlanCapabilitySnapshot(planId: string): string {
   );
 }
 
-/** The receipt this account may see, or null for any refusal or doubt. */
-async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signal: AbortSignal): Promise<NightReceipt | null> {
+async function readOwnedReceipt(auth: AccountAuthSnapshot, planId: string, signal: AbortSignal): Promise<NightReceiptAnswer> {
   try {
     const response = await accountBoundFetch(auth, `/api/plans/${planId}?view=receipt`, { cache: "no-store", signal });
     if (!response.ok) {
       discardBody(response);
-      return null;
+      return { status: [401, 403, 404].includes(response.status) ? "refused" : "unavailable" };
     }
-    return readNightReceiptPayload(await response.json());
+    const payload: unknown = await response.json();
+    const receipt = readNightReceiptPayload(payload);
+    if (receipt) return { status: "ready", receipt };
+    return payload !== null && typeof payload === "object" && "receipt" in payload && payload.receipt === null
+      ? { status: "ready", receipt: null } : { status: "unavailable" };
   } catch {
-    return null;
+    return { status: "unavailable" };
   }
 }
 
-function useRecheckCount(planId: string): number {
-  const [count, setCount] = useState(0);
+function useReceiptRead(planId: string, userId: string, accessToken: string, capability: string, host: boolean) {
+  const [state, dispatch] = useReducer(nextNightReceiptRead, INITIAL_NIGHT_RECEIPT_READ);
+  const scope = useMemo(() => ({ capability, userId, accessToken }), [accessToken, capability, userId]);
+  useEffect(() => { dispatch({ type: "scope", capability, scope, host }); }, [capability, host, scope]);
   useEffect(() => {
-    const recheck = () => {
-      if (document.visibilityState !== "hidden") setCount((current) => current + 1);
+    const claimed = () => {
+      if (document.visibilityState !== "hidden") dispatch({ type: "claimed" });
     };
-    const stopRecovery = subscribeToReconnectRecovery(recheck, { events: ["visible", "focus"] });
-    const claimed = planAccountClaimEvent(planId);
-    window.addEventListener(claimed, recheck);
+    const stopRecovery = subscribeToReconnectRecovery(() => dispatch({ type: "check" }), { events: ["online", "visible", "focus"] });
+    const event = planAccountClaimEvent(planId);
+    window.addEventListener(event, claimed);
     return () => {
       stopRecovery();
-      window.removeEventListener(claimed, recheck);
+      window.removeEventListener(event, claimed);
     };
   }, [planId]);
-  return count;
+  const reading = state.phase === "reading" && state.scope === scope;
+  const request = state.request;
+  useEffect(() => {
+    if (!host || !reading) return;
+    const retired = new AbortController();
+    const signal = compositeActionSignal([retired.signal, readProviderAccountSignal()]);
+    void readOwnedReceipt({ userId, accessToken }, planId, signal).then((answer) => {
+      if (!signal.aborted) dispatch({ type: "answer", capability, scope, request, answer });
+    });
+    return () => retired.abort();
+  }, [accessToken, capability, host, planId, reading, request, scope, userId]);
+  return { state, retry: () => dispatch({ type: "check" }) };
 }
 
 function Receipt({ receipt }: { receipt: NightReceipt }) {
@@ -114,7 +132,7 @@ function Receipt({ receipt }: { receipt: NightReceipt }) {
         </p>
       ) : null}
       {receipt.stops.length ? (
-        <ol className="planNightReceipt__stops" aria-label="Stops on the plan">
+        <ol className="planNightReceipt__stops" role="list" aria-label="Stops on the plan">
           {receipt.stops.map((stop) => (
             <li key={`${stop.position}-${stop.venueName}`} className="planNightReceipt__stop">
               <span className="planNightReceipt__number" aria-hidden="true">{stop.position + 1}</span>
@@ -162,18 +180,19 @@ function Receipt({ receipt }: { receipt: NightReceipt }) {
 function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId: string; accessToken: string }) {
   const capability = usePlanCapabilitySnapshot(planId);
   const { role } = parsePlanCapabilitySnapshot(capability);
-  const returns = useRecheckCount(planId);
-  const [shown, setShown] = useState<{ capability: string; receipt: NightReceipt } | null>(null);
-  useEffect(() => {
-    if (role !== "host") return;
-    const retired = new AbortController();
-    const signal = compositeActionSignal([retired.signal, readProviderAccountSignal()]);
-    void readOwnedReceipt({ userId, accessToken }, planId, signal).then((receipt) => {
-      if (!signal.aborted) setShown(receipt ? { capability, receipt } : null);
-    });
-    return () => retired.abort();
-  }, [accessToken, capability, planId, returns, role, userId]);
-  return shown?.capability === capability ? <Receipt receipt={shown.receipt} /> : null;
+  const { state, retry } = useReceiptRead(planId, userId, accessToken, capability, role === "host");
+  if (role !== "host" || state.capability !== capability) return null;
+  if ((state.phase === "ready" || state.phase === "reading") && state.receipt) return <Receipt receipt={state.receipt} />;
+  const busy = state.phase === "reading";
+  if (state.phase !== "unavailable" && !(busy && state.recovering)) return null;
+  return (
+    <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
+      <Kicker>Private to you</Kicker>
+      <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
+      <p role="status">{busy ? "Checking your receipt…" : "We couldn't load your night receipt."}</p>
+      <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}>Try again</Button></div>
+    </section>
+  );
 }
 
 export default function PlanNightReceipt({ planId }: { planId: string }) {

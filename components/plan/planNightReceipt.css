@@ -17,6 +17,10 @@
   max-width: 36rem;
 }
 
+.planNightReceipt[data-pending="true"] {
+  --shared-press-scale: 1;
+}
+
 .planNightReceipt .kicker,
 .planNightReceipt p,
 .planNightReceipt dl,
