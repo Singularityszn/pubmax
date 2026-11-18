@@ -187,8 +187,9 @@ describe("Social Posts account resolution", () => {
       await vi.dynamicImportSettled();
       await promotionBodyRead;
     });
-    const promotion = door.querySelector(".socialLogInPublic");
-    expect(promotion).not.toBeNull();
+    const promotions = host.querySelectorAll(".socialLogInPublic");
+    expect(promotions).toHaveLength(1);
+    const promotion = promotions[0]!;
     expect(promotion!.getAttribute("aria-busy")).toBe("false");
     expect(promotion!.querySelector(".logInPublicEmpty")).not.toBeNull();
     expect(promotion!.querySelector("button")).toBeNull();
@@ -211,9 +212,8 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
-    // The promotion's hydration shift is tracked separately in issue 2970.
-    const stableChildren = Array.from(door.children).filter((child) => !child.matches(".socialLogInPublic"));
-    expect(stableChildren.slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
+    // Main places the promotion after the door. Its hydration shift remains in issue 2970.
+    expect(Array.from(door.children).slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
   });
 
   it("keeps an unanswered account neutral and hides stale signed-out copy when resolution restarts", async () => {
