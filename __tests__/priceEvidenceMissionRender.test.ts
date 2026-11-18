@@ -75,7 +75,7 @@ describe("price evidence mission render", () => {
       }),
     );
     expect(html).toContain('value=""');
-    expect(html).toContain("Common prices");
+    expect(html).toContain("Quick-add price");
     expect(html).toContain('role="radiogroup"');
     expect(html).toContain(`>${submitCategoryLabel("gin")}<`);
     expect(html).toMatch(
@@ -117,7 +117,7 @@ describe("price evidence mission render", () => {
     // nothing about whether this figure is a pint (review finding F-2).
     expect(html).not.toContain("vpsubCats");
     expect(html).toContain("measureChips");
-    expect(html).not.toContain("Common prices");
+    expect(html).not.toContain("Quick-add price");
     expect(html).toContain('value=""');
   });
 
@@ -137,6 +137,38 @@ describe("price evidence mission render", () => {
     expect(html).toContain("Checking...");
     expect(html).not.toContain(">Log it<");
     expect(html).not.toContain("pemHeading");
+  });
+
+  it("labels the quick-price row as tap-fills and marks the venue's price on record", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenuePriceSubmit, {
+        venueId: "venue-record",
+        venueName: "The Crown",
+        communityPrices,
+        baselinePriceGbp: 4.8,
+      }),
+    );
+    // The chips fill the field with what the drinker paid; they are not a
+    // claim about what the pint costs. Only the chip carrying the venue's own
+    // recorded figure says so, and it says it in words.
+    expect(html).toContain("Tap what you paid");
+    expect(html).toContain("Quick-add price");
+    expect(html.match(/vpsubQuickTag/g)).toHaveLength(1);
+    expect(html).toContain('title="The price on record here"');
+    expect(html.indexOf("£4.80")).toBeLessThan(html.indexOf("vpsubQuickTag"));
+  });
+
+  it("marks no chip when the venue has no price on record", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenuePriceSubmit, {
+        venueId: "venue-none",
+        venueName: "The Crown",
+        communityPrices,
+      }),
+    );
+    expect(html).toContain("Tap what you paid");
+    expect(html).not.toContain("vpsubQuickTag");
+    expect(html).not.toContain('title="The price on record here"');
   });
 
   it("keeps the sheet form after a failed write by leaving the composer mounted", () => {
