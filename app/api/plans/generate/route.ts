@@ -2,7 +2,6 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { DEFAULT_CITY_ID, parseCityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
-import { loadConciergeVenues } from "@/lib/concierge/venues.server";
 import { cultureOutingCosts, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { planCultureOpenerFields } from "@/lib/cultureCrawl.server";
 import { dryRoundWire, type DryRoundAlcoholFree, type DryRoundWire } from "@/lib/dryRound";
@@ -18,7 +17,6 @@ import {
 	type GroundedRouteTimingSummary,
 } from "@/lib/planGenerationDto";
 import {
-	loadPlanGenerationBaselineWhatsOn,
 	preparePlanGeneration,
 	runAnchoredGeneration,
 } from "@/lib/planGeneration.server";
@@ -37,6 +35,7 @@ import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrou
 import { planGroundingUnmintableResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { planAreaName } from "@/lib/nightAreaFocus";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
+import { warmPlanGeneration } from "@/lib/planWarmup.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
@@ -44,17 +43,13 @@ assertServerEnv();
 /**
  * Best-effort planning warmup. It loads only the stable public venue index and
  * never creates a plan, records a location, or consumes a generation budget.
+ * lib/planWarmup.server.ts shares one run per city per TTL window, so repeat
+ * unauthenticated pings cannot each pay a What's-On store read.
  */
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const cityId = parseCityId(url.searchParams.get("cityId") ?? "") ?? DEFAULT_CITY_ID;
-  await loadConciergeVenues(cityId);
-  await loadPlanGenerationBaselineWhatsOn(Date.now()).catch((error) => {
-    console.warn(
-      "[plans/generate] What's-On warmup degraded:",
-      error instanceof Error ? error.message : String(error),
-    );
-  });
+  await warmPlanGeneration(cityId);
   return new Response(null, {
     status: 204,
     headers: { "cache-control": "no-store" },
