@@ -8,6 +8,7 @@ import { execFile, execFileSync } from "node:child_process";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
+import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
   type Person,
   admit,
@@ -271,6 +272,23 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
       where id='${String(done.auditId)}'`)).toBe(`moderator|${STAFF_ROLE}|Moderator|Host marked the wrong person`);
     expect(correct(crew, ana, "absent", 2)).toMatchObject({ ok: true, code: "unchanged", revision: 2 });
   });
+
+  it.each<StaffInterruption>(["crew-wait", "revocation-commits", "revocation-rolls-back"])(
+    "checks current moderator authority after %s", async (interruption) => {
+      const host = person(), ana = person();
+      const crew = tonight(host, [ana]);
+      expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+      const staff = staffRoleFor(person());
+      const answer = await moderatorDuringInterruption(crew, staff, correctCall(crew, ana, "absent", 1, staff), interruption);
+      if (interruption === "revocation-rolls-back") {
+        expect(answer.ok).toBe(true);
+        expect(item(host, crew, ana)).toMatchObject({ revision: 2, state: "absent" });
+      } else {
+        expect(answer).toMatchObject({ ok: false, said: expect.stringContaining("staff required") });
+        expect(item(host, crew, ana)).toMatchObject({ revision: 1, state: "attended" });
+      }
+    },
+  );
 
   it("a moderator who is the participant cannot correct their own record", () => {
     const host = person(), ana = person();
