@@ -392,6 +392,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
       status: "ready" as const,
       requests: userId === USER ? [ownTableRequest, strangerTableRequest] : [strangerTableRequest],
     }),
+    crewRemovalCorrections: async () => ({ status: "ready" as const, corrections: [] }),
     pubListNightDrafts: async () => [],
     leagues: async () => [],
     nearbyVisits: async () => [],
@@ -425,7 +426,7 @@ describe("buildAccountExport", () => {
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
-      "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
+      "crewRemovalCorrections", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
     ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
@@ -525,6 +526,21 @@ describe("buildAccountExport", () => {
     ]);
     expect(document.socialLinks.items).toEqual([socialLink]);
     expect(document.nightProfile.items).toEqual([nightProfileRow]);
+  });
+
+  it("exports only the account's own crew correction outcome, without private review notes", async () => {
+    const own = { id: "correction-own", crewId: "crew-one", subjectUserId: USER,
+      correctedAt: "2026-11-17T12:00:00.000Z", reason: "private review note", staffDisplayName: "Private moderator" };
+    const other = { ...own, id: "correction-other", subjectUserId: "another-user" };
+    const document = await buildAccountExport(USER, fakeDeps({
+      crewRemovalCorrections: async () => ({ status: "ready", corrections: [own, other] }),
+    }), NOW);
+    expect(document.crewRemovalCorrections).toEqual({ status: "complete", truncated: false, items: [{
+      id: own.id, crewId: own.crewId, correctedAt: own.correctedAt, previousState: "removed", state: "left",
+    }] });
+    expect(JSON.stringify(document.crewRemovalCorrections)).not.toContain(own.reason);
+    expect(JSON.stringify(document.crewRemovalCorrections)).not.toContain(own.staffDisplayName);
+    expect(JSON.stringify(document.crewRemovalCorrections)).not.toContain(other.id);
   });
 
   it("carries the caller's own table request and never another account's", async () => {
@@ -722,6 +738,7 @@ describe("buildAccountExport", () => {
       socialPosts: { socialPosts: async () => { throw new Error("posts unreadable"); } },
       crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
       tableRequests: { tableRequests: async () => ({ status: "degraded" as const, requests: [] }) },
+      crewRemovalCorrections: { crewRemovalCorrections: async () => ({ status: "degraded" as const, corrections: [] }) },
       leagues: { leagues: async () => { throw new Error("leagues unreadable"); } },
       nearbyVisits: { nearbyVisits: async () => { throw new Error("nearby visits unreadable"); } },
     } satisfies Record<string, Partial<AccountExportDeps>>;
