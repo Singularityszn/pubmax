@@ -1,7 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 import {
   ACCOUNTS, installAuthDoubles, readDeviceIdentity, seedSignedIn,
-  readDeviceAccounts, switchRememberedAccount,
+  expectBothAccountsRemembered, switchRememberedAccount,
 } from "./helpers/authDoubles";
 import { storeThemeChoice } from "./helpers/themeClock";
 
@@ -129,7 +129,7 @@ test("loaded old-owner marks disappear during a mounted account switch", async (
   await stub.signedInAs("B");
   await page.goto("/today");
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-  await expect.poll(async () => (await readDeviceAccounts(page)).length).toBe(2);
+  await expectBothAccountsRemembered(page);
   await stub.signedInAs("A");
   await page.route("**/data/venues_slim.json*", (route) => route.fulfill({ json: { revision: "local", rows: [row(lamb.venueId, "Camden")] } }));
   await page.goto(`/u/${ACCOUNTS.A.handle}`);

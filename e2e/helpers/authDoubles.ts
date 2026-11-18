@@ -376,6 +376,17 @@ export async function readDeviceAccounts(
   }, DEVICE_ACCOUNTS_KEY);
 }
 
+/**
+ * Both accounts are remembered with their own handles. Count alone is not
+ * enough: a row's handle lands after its session, from the identity read, and
+ * `switchRememberedAccount` finds a row by that handle.
+ */
+export async function expectBothAccountsRemembered(page: Page): Promise<void> {
+  await expect
+    .poll(async () => (await readDeviceAccounts(page)).map((row) => row.handle).sort())
+    .toEqual([ACCOUNTS.A.handle, ACCOUNTS.B.handle].sort());
+}
+
 export async function readDeviceIdentity(page: Page): Promise<Record<string, string | null>> {
   return page.evaluate((handleKey) => {
     const read = (key: string) => {
