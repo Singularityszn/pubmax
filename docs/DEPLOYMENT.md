@@ -336,7 +336,7 @@ detail pack:
 Do not commit the `data/generated/` detail binaries. Vercel/CI regenerates all
 build-time packs in `npm run build`; the UK base pack remains committed so first
 paint never needs server-side generation. If venue detail artifacts are absent
-locally, `lib/venueDetailIndex.ts` falls back to the raw pint dataset plus
+locally, `lib/venueDetailArtifact.server.ts` falls back to the raw pint dataset plus
 `data/famous_venues/` outside production so `/api/venue/[id]` still works in
 dev/test.
 

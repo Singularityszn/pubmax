@@ -52,6 +52,7 @@ const FIREFOX_DESKTOP_MAP_CHROME_FIT =
 // default `npm run test:e2e`.
 const WEBKIT_PROFILE_PHOTO_CROP = process.env.PW_WEBKIT_PROFILE_PHOTO_CROP === "1";
 const WEBKIT_MESSAGE_PHOTOS = process.env.PW_WEBKIT_MESSAGE_PHOTOS === "1";
+const WEBKIT_MESSAGES = process.env.PW_WEBKIT_MESSAGES === "1";
 const E2E_LOGIN = isE2ELoginEnabled();
 if (E2E_LOGIN) {
   loadEnvConfig(process.cwd());
@@ -322,6 +323,14 @@ export default defineConfig({
           name: "webkit-message-photos",
           testMatch: ["**/messages-thread.spec.ts"],
           grep: /photo |acknowledged photos/,
+          use: { ...devices["iPhone 14"], serviceWorkers: "block" as const },
+        }]
+      : []),
+    ...(WEBKIT_MESSAGES
+      ? [{
+          name: "webkit-messages",
+          testMatch: ["**/messages-thread.spec.ts"],
+          grep: /thread keyboard geometry|keyboard up/,
           use: { ...devices["iPhone 14"], serviceWorkers: "block" as const },
         }]
       : []),

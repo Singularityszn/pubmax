@@ -1,3 +1,7 @@
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Summon your mates: the route reaches only live mates with no block or mute
@@ -9,6 +13,7 @@ const routeState = vi.hoisted(() => ({
   access: null as unknown,
   limited: false,
   detail: null as null | (() => Promise<unknown>),
+  overlayStalled: false,
 }));
 const notifications = vi.hoisted(() => ({ work: [] as Promise<unknown>[], send: vi.fn(async () => []) }));
 vi.mock("@/lib/messagesBroadcast.server", () => ({
@@ -25,23 +30,43 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
   return { ...actual, isLimited: async () => routeState.limited };
 });
-vi.mock("@/lib/venueIndex", () => ({
-  lookupCanonicalVenue: async (id: string) =>
-    id === PUB
-      ? {
-          status: "found",
-          canonicalId: PUB,
-          venue: { id: PUB, name: "The Lamb", kind: "pub" },
-          slimVenue: { id: PUB, kind: "pub" },
-        }
-      : { status: "unknown", canonicalId: id },
-}));
+vi.mock("@/lib/venueIndex", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
+  return {
+    ...actual,
+    lookupCanonicalVenue: async (id: string) =>
+      id === PUB
+        ? {
+            status: "found",
+            canonicalId: PUB,
+            venue: { id: PUB, name: "The Lamb", kind: "pub" },
+            slimVenue: { id: PUB, kind: "pub" },
+          }
+        : actual.lookupCanonicalVenue(id),
+  };
+});
 
-// The pub's public detail, as `GET /api/venue/[id]` reads it. A summon reads it
-// again on the server and never takes a price from the request.
-vi.mock("@/lib/venueDetailIndex", () => ({
-  lookupVenueDetail: async () => routeState.detail ? routeState.detail() : { status: "missing" },
-}));
+// The price rows the pub's public detail serves. A summon reads them again on
+// the server and never takes a price from the request. A real pub with no
+// injected rows reads the real artifact.
+vi.mock("@/lib/venueDetailArtifact.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueDetailArtifact.server")>();
+  return {
+    ...actual,
+    lookupPricedVenue: async (id: string) => routeState.detail ? routeState.detail() : actual.lookupPricedVenue(id),
+  };
+});
+
+// The website and menu overlay is a network read in production. It can stall.
+vi.mock("@/lib/harvestOverlayStore", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/harvestOverlayStore")>();
+  return {
+    ...actual,
+    harvestOverlayStore: (...args: Parameters<typeof actual.harvestOverlayStore>) => routeState.overlayStalled
+      ? { upsertMany: async () => ({ written: 0 }), getByVenueId: () => new Promise(() => {}) }
+      : actual.harvestOverlayStore(...args),
+  };
+});
 
 import { GET, POST } from "@/app/api/summon/route";
 import { __resetMemoryFollows, followStore } from "@/lib/followStore";
@@ -58,7 +83,8 @@ import {
   setSocialMemoryBlock,
   setSocialMemoryMute,
 } from "@/lib/socialBlockMemory";
-import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
+import { resetVenueDetailCachesForTests, setVenueDetailIndexFileForTests, setVenueDetailRowsFileForTests } from "@/lib/venueDetailIndex";
+import { groupVenuePrices, stableVenueIdFromKey, venueGroupingKey, type Venue, type VenuePrice } from "@/lib/venues";
 
 const PUB = "summon-test-pub";
 const ME = "summon_me_12";
@@ -117,10 +143,46 @@ function lambDetail(overrides: Partial<VenuePrice> = {}, id = PUB): { status: "f
   return { status: "found", venue: { ...venue!, id } };
 }
 
+const WHITBY = "venue-16pnwmm";
+const WHITBY_SOURCE = "https://www.pint-prices.com/pub/57%20Wapping%20Wall/Prospect%20of%20Whitby";
+const artifactDirectories: string[] = [];
+
+/** Serve this pub's detail artifact from one dated Amstel row, through the real detail files. */
+function servePricedArtifact(id: string): void {
+  const dataset = JSON.parse(
+    readFileSync(path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json"), "utf8"),
+  ) as VenuePrice[];
+  const seed = dataset.find((row) => stableVenueIdFromKey(venueGroupingKey(row)) === id);
+  if (!seed) throw new Error(`${id} is not in the bundled dataset`);
+  const row = {
+    ...seed,
+    pint_name: "Amstel",
+    measure: "pint",
+    price_gbp: 5.5,
+    price_text: "£5.50",
+    pub_url: WHITBY_SOURCE,
+    scraped_at_values: "2026-11-09T13:07:13+00:00",
+  } as VenuePrice;
+  delete row.price_superseded;
+  const directory = mkdtempSync(path.join(tmpdir(), "summon-price-"));
+  artifactDirectories.push(directory);
+  const line = `${JSON.stringify({ id, rows: [row] })}\n`;
+  writeFileSync(path.join(directory, "venue_details.jsonl"), line);
+  writeFileSync(path.join(directory, "venue_detail_index.json"), JSON.stringify({
+    version: 1,
+    detailsFile: "venue_details.jsonl",
+    count: 1,
+    venues: { [id]: { offset: 0, length: Buffer.byteLength(line), rowCount: 1 } },
+  }));
+  setVenueDetailIndexFileForTests(path.join(directory, "venue_detail_index.json"));
+  setVenueDetailRowsFileForTests(path.join(directory, "venue_details.jsonl"));
+}
+
 beforeEach(() => {
   vi.useFakeTimers({ toFake: ["Date"] });
   vi.setSystemTime(NOW);
   routeState.detail = null;
+  routeState.overlayStalled = false;
   notifications.work = [];
   notifications.send.mockClear();
   me = __seedMemoryOwnedProfile(ME, "user-me-12");
@@ -136,6 +198,8 @@ afterEach(async () => {
   __resetMemoryProfiles();
   __resetMemoryMessages();
   clearSocialMemoryBlocks();
+  resetVenueDetailCachesForTests();
+  for (const directory of artifactDirectories.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
 describe("GET /api/summon", () => {
@@ -479,5 +543,16 @@ describe("POST /api/summon", () => {
     expect(await response.json()).toEqual({ sent: ["summon_ann_12"], failed: ["summon_bo_12"] });
     expect((await inbox("summon_ann_12"))[0]?.body).toBe(`Come to The Lamb at 8pm? ${PRICED_LINE}`);
     expect(await inbox("summon_bo_12")).toEqual([]);
+  });
+
+  it("quotes a real pub's listed price without waiting for its website overlay", async () => {
+    servePricedArtifact(WHITBY);
+    routeState.overlayStalled = true;
+    await mate("summon_ann_12");
+
+    expect((await summon({ venueId: WHITBY, time: "20:00", mates: ["summon_ann_12"] })).status).toBe(201);
+    expect((await inbox("summon_ann_12"))[0]?.body).toBe(
+      `Come to Prospect of Whitby at 8pm? Pint Prices listed Amstel (pint) at £5.50, read 9 November 2026. Source: ${WHITBY_SOURCE}`,
+    );
   });
 });
