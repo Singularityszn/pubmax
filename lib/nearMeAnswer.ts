@@ -138,6 +138,8 @@ export type NearMeCard = {
   borough: string;
   /** Always a finite number — a card only exists for a priced pub. */
   cheapestPrice: number;
+  priceSource?: string;
+  priceObservedAt?: string;
   /** Great-circle km from the user. Absent in borough-picker mode (no fix). */
   distanceKm?: number;
   /** Walking minutes derived from distanceKm. Absent in borough-picker mode. */
@@ -445,7 +447,12 @@ export function rankCityCheapest(
 }
 
 function toCheapestCard(point: PricedPoint): NearMeCard {
-  return { ...toBranchNamed(point), cheapestPrice: point.cheapestPrice as number };
+  return {
+    ...toBranchNamed(point),
+    cheapestPrice: point.cheapestPrice as number,
+    priceSource: point.priceSource,
+    priceObservedAt: point.priceObservedAt,
+  };
 }
 
 /** Boroughs (from the slim index) that actually have at least one priced pub,
