@@ -117,6 +117,7 @@ async function settle() {
 
 beforeEach(() => {
   setProviderIdentity("clerk", null);
+  setProviderIdentity("supabase", null);
   calls = [];
   bodyRead = Promise.resolve();
   receiptAnswer = ownerOnly;
@@ -141,6 +142,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   setProviderIdentity("clerk", null);
+  setProviderIdentity("supabase", null);
   container.remove();
   vi.unstubAllGlobals();
   vi.useRealTimers();
@@ -557,5 +559,110 @@ describe("the private Night Receipt on the Plan page", () => {
     finishLate(json({ receipt: RECEIPT }));
     await settle();
     expect(receiptOnScreen()).toBeNull();
+  });
+});
+
+// AuthProvider publishes the Supabase account to the shared provider seam
+// before its children render. ClerkAuthRevision publishes Clerk later, which
+// aborts every action bound to the shared account signal.
+describe("a provider interruption while the same account stays signed in", () => {
+  const held: Answer = ({ signal }) => new Promise<Response>((_resolve, reject) => {
+    signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+  });
+  const claims = () => calls.filter((call) => call.url === `/api/plans/${PLAN_ID}/session`);
+  const statusText = () => container.querySelector('[role="status"]')?.textContent ?? "";
+  const mountBoth = async () => {
+    await act(async () => {
+      root.render(createElement(Fragment, null,
+        createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+        createElement(PlanNightReceipt, { planId: PLAN_ID }),
+      ));
+    });
+    await settle();
+  };
+
+  beforeEach(() => { setProviderIdentity("supabase", ACCOUNT_A.id); });
+
+  it("reads the receipt again with a fresh lifetime instead of reporting an outage", async () => {
+    receiptAnswer = held;
+    await show();
+    receiptAnswer = ownerOnly;
+    await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
+    await settle();
+    expect(receiptReads()).toHaveLength(2);
+    expect(receiptReads()[0]?.signal?.aborted).toBe(true);
+    expect(receiptReads()[1]?.signal?.aborted).toBe(false);
+    expect(container.querySelector("button")).toBeNull();
+    expect(statusText()).toBe("");
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it("bounds the fresh read by its own receipt deadline", async () => {
+    vi.useFakeTimers();
+    receiptAnswer = held;
+    await show();
+    await act(async () => { await vi.advanceTimersByTimeAsync(3_000); });
+    await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(7_999); });
+    expect(receiptReads()).toHaveLength(2);
+    expect(container.querySelector("button")).toBeNull();
+    await act(async () => { await vi.advanceTimersByTimeAsync(1); });
+    expect(receiptReads()[1]?.signal?.aborted).toBe(true);
+    expect(receiptReads()).toHaveLength(2);
+    expect(container.querySelector("button")?.textContent).toBe("Try again");
+  });
+
+  it.each([
+    ["another account", ACCOUNT_B.id],
+    ["sign-out", null],
+  ])("never reads again for the departed account after %s", async (_name, next) => {
+    let late!: (response: Response) => void;
+    receiptAnswer = () => new Promise<Response>((resolve) => { late = resolve; });
+    await show();
+    await act(async () => { setProviderIdentity("supabase", next); });
+    await settle();
+    expect(receiptReads()).toHaveLength(1);
+    expect(receiptReads()[0]?.signal?.aborted).toBe(true);
+    await act(async () => { late(json({ receipt: RECEIPT })); });
+    await settle();
+    expect(receiptOnScreen()).toBeNull();
+    expect(receiptReads()).toHaveLength(1);
+  });
+
+  it("claims the host seat again and then shows the receipt", async () => {
+    let bound = false;
+    claimAnswer = held;
+    receiptAnswer = async () => (bound ? json({ receipt: RECEIPT }) : refused());
+    await mountBoth();
+    expect(claims()).toHaveLength(1);
+    expect(receiptOnScreen()).toBeNull();
+    claimAnswer = async () => { bound = true; return json({ claimed: true }); };
+    await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
+    await settle();
+    expect(claims()).toHaveLength(2);
+    expect(claims()[0]?.signal?.aborted).toBe(true);
+    expect(claims()[1]?.signal?.aborted).toBe(false);
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it("does not claim again for the departed account", async () => {
+    claimAnswer = held;
+    receiptAnswer = async () => refused();
+    await mountBoth();
+    await act(async () => { setProviderIdentity("supabase", ACCOUNT_B.id); });
+    await settle();
+    expect(claims()).toHaveLength(1);
+    expect(claims()[0]?.signal?.aborted).toBe(true);
+  });
+
+  it("sends no second claim or read when the claim and receipt already finished", async () => {
+    claimAnswer = async () => json({ claimed: false, role: "host" });
+    await mountBoth();
+    expect(receiptOnScreen()).not.toBeNull();
+    await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
+    await settle();
+    expect(claims()).toHaveLength(1);
+    expect(receiptReads()).toHaveLength(1);
+    expect(receiptOnScreen()).not.toBeNull();
   });
 });
