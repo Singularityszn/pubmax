@@ -29,7 +29,7 @@ const MOBILE_MAP_SHELL_SLACK_MS = 5_000;
  * shell's own readiness ceiling, read from the product rather than retyped,
  * plus the slack above.
  */
-const MOBILE_MAP_SHELL_READY_MS =
+export const MOBILE_MAP_SHELL_READY_MS =
   MAP_CANVAS_READINESS_CEILING_MS + MOBILE_MAP_SHELL_SLACK_MS;
 
 /** Wait for the shared loading frame before capturing a selected venue. */
