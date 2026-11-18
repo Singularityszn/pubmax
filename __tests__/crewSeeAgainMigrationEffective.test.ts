@@ -496,11 +496,13 @@ describe("0250 private event-bound friendship reconnection", () => {
     ["leave", "participant", false], ["leave", "participant", true],
     ["remove", "participant", false], ["remove", "participant", true],
     ["remove", "host", false], ["remove", "host", true],
+    ["visibility", "host", false], ["visibility", "host", true],
   ] as const)("serialises %s with %s deletion, deletion first: %s", async (action, deleted, deletionFirst) => {
     const { host, a, b, crew } = matched();
     const writer = rpc(action === "leave"
       ? `leave_social_crew_atomic('${a.account}','${crew}','${key()}','${DIGEST}')`
-      : removeCall(host, crew, a));
+      : action === "remove" ? removeCall(host, crew, a)
+      : `update_social_crew_visibility_atomic('${host.account}','${crew}','private',(select authority_revision from public.social_crews where id='${crew}'),'${key()}','${DIGEST}')`);
     const removal = { name: "w6-departure-pair-order", statement: writer, role: "service_role" as const };
     const deletion = { name: "w6-deletion-pair-order", statement: deleteAccount(deleted === "host" ? host : a), role: "postgres" as const };
     const [first, second] = deletionFirst ? [deletion, removal] : [removal, deletion];
@@ -516,7 +518,7 @@ describe("0250 private event-bound friendship reconnection", () => {
       finally { await Promise.all([one, two]); }
     }
     for (const result of await Promise.all([one!, two!])) {
-      expect(result.ok, result.said).toBe(true);
+      expect(result.ok || (deletionFirst && result.said.includes("social crew write refused: the account was deleted")), result.said).toBe(true);
       expect(result.said).not.toMatch(/40P01|deadlock|lock timeout|statement timeout/i);
     }
     expect(db().sql(`select count(*) from auth.users where id='${(deleted === "host" ? host : a).user}'`)).toBe("0");
