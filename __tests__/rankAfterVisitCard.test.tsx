@@ -9,7 +9,23 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const session = vi.hoisted(() => ({ signedIn: true }));
+const session = vi.hoisted(() => ({ signedIn: true, userId: "receipt-owner" }));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: { id: session.userId },
+    session: { user: { id: session.userId }, access_token: "fixture-token" },
+    rejectedContributionAuth: null,
+  }),
+}));
+vi.mock("@/components/identity/ContributionGateDialog", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/components/identity/ContributionGateDialog")>(),
+  useContributionGate: () => ({
+    requestContribution: async (action: (auth: { userId: string; accessToken: string }) => unknown) => {
+      await action({ userId: session.userId, accessToken: "fixture-token" });
+    },
+    contributionGateDialog: null,
+  }),
+}));
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({
     phase: session.signedIn ? "signed-in" : "signed-out",
@@ -26,7 +42,9 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
+import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import { __resetTellYourLot } from "@/components/pubs/useTellYourLot";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -49,11 +67,23 @@ function json(body: unknown, status = 200): Response {
 }
 
 async function flush() {
-  for (let i = 0; i < 5; i += 1) {
-    await act(async () => {
-      await Promise.resolve();
-    });
-  }
+  await act(async () => {});
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((accept) => { resolve = accept; });
+  return { promise, resolve };
+}
+
+async function receipt() {
+  root = createRoot(host);
+  await act(async () => {
+    root!.render(<DiaryLogPanel venueId="seven-stars" venueName="The Seven Stars" />);
+  });
+  await click('[data-testid="diary-log-open"]');
+  await click('[data-testid="diary-log-submit"]');
+  expect(host.querySelector(".visitReportOk")).not.toBeNull();
 }
 
 async function render(visits = [{ venueId: "seven-stars", venueName: "The Seven Stars" }]) {
@@ -76,6 +106,11 @@ beforeEach(() => {
   host = document.createElement("div");
   document.body.append(host);
   session.signedIn = true;
+  session.userId = "receipt-owner";
+  setProviderIdentity("supabase", session.userId);
+  vi.stubGlobal("fetch", vi.fn(async () => json({
+    entry: { visitedOn: "2026-11-17" }, shared: false,
+  }, 201)));
   window.localStorage.clear();
   __resetTellYourLot();
   net.get.mockReset();
@@ -93,9 +128,86 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   host.remove();
+  vi.unstubAllGlobals();
 });
 
 describe("RankAfterVisitCard", () => {
+  it.each([
+    {}, { entries: null }, { entries: {} }, { entries: [null] },
+    { entries: [{ ...LIST[0], band: "invented" }] },
+  ])("keeps a malformed checkpoint out of the mounted diary receipt: %j", async (body) => {
+    net.get.mockResolvedValue(json({ ...body, subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } }));
+    await receipt();
+    expect(host.querySelector('[data-band]')).toBeNull();
+    expect(host.querySelector('[data-testid="rank-after-visit-retry"]')).not.toBeNull();
+    net.get.mockImplementation(async () => json({ entries: LIST, subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } }));
+    await click('[data-testid="rank-after-visit-retry"]');
+    await click('[data-band="loved"]');
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).not.toBeNull();
+  });
+
+  it("checks a lost committed answer without repeating its public share", async () => {
+    let saved = false;
+    let shares = 0;
+    const check = deferred<Response>();
+    net.get.mockImplementation(async () => saved ? check.promise : json({ entries: [], subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } }));
+    net.post.mockImplementation(async (_url: string, init: RequestInit) => {
+      saved = true;
+      if (JSON.parse(String(init.body)).shareToLot) shares += 1;
+      throw new TypeError("The response was lost");
+    });
+    await receipt();
+    await click('.rankAfterVisit__lot input');
+    await click('[data-band="loved"]');
+    expect(host.querySelector('[data-band]')).toBeNull();
+    await act(async () => check.resolve(json({ entries: [{ ...LIST[0], venueId: "seven-stars" }] })));
+    expect(host.querySelector('[data-testid="rank-after-visit"]')?.textContent).toContain("is in your pubs, ranked.");
+    expect(host.textContent).not.toContain("Your lot will see it.");
+    expect(host.textContent).not.toContain("It stayed private this time.");
+    expect(shares).toBe(1);
+    expect(net.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds an unresolved save until a valid read allows a fresh placement", async () => {
+    let attempts = 0;
+    net.post.mockImplementation(async () => {
+      attempts += 1;
+      if (attempts === 1) throw new TypeError("The response was lost");
+      return { response: json({}), body: { entries: [{ ...LIST[0], venueId: "seven-stars" }] } };
+    });
+    await receipt();
+    net.get.mockResolvedValue(json({ subject: { venueId: "seven-stars" } }));
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-band]')).toBeNull();
+    expect(host.querySelector('.rankAfterVisit__lot input')).toBeNull();
+    net.get.mockResolvedValue(json({ entries: LIST }));
+    await click('[data-testid="rank-after-visit-retry"]');
+    expect(host.querySelector('.rankAfterVisit__lot input')).not.toBeNull();
+    await click('[data-band="loved"]');
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).not.toBeNull();
+    expect(attempts).toBe(1);
+    await click('.rankAfterVisit__quiet');
+    expect(attempts).toBe(2);
+    expect(host.textContent).toContain("is in your pubs, ranked.");
+  });
+
+  it("retires a comparison on the real receipt when the account changes", async () => {
+    await receipt();
+    await click('[data-band="loved"]');
+    const nextRead = deferred<Response>();
+    net.get.mockReturnValue(nextRead.promise);
+    await act(async () => {
+      session.userId = "next-owner";
+      setProviderIdentity("supabase", session.userId);
+      root!.render(<DiaryLogPanel venueId="seven-stars" venueName="The Seven Stars" />);
+    });
+    expect(host.querySelector(".visitReportOk")).not.toBeNull();
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
+    await act(async () => nextRead.resolve(json({ entries: [], subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } })));
+    expect(host.querySelector('[data-band]')).not.toBeNull();
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
+  });
+
   it("renders nothing for a signed-out viewer and never asks the list", async () => {
     session.signedIn = false;
     await render();
