@@ -5,7 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole } from "./helpers/postgres";
 import {
   type Person, MIGRATOR, STAFF_ROLE, DIGEST, admit, blockCall, bootCrewAdmissionDatabase, call, crewWith, db,
-  deleteAccount, hold, key, memberId, outcome, person, rpc, stopCrewAdmissionDatabase,
+  deleteAccount, hold, key, memberId, mutual, outcome, person, rpc, stopCrewAdmissionDatabase,
   suspendCall, waitsOnAnyLock, waitsOnAccountLock,
 } from "./helpers/crewAdmissionHarness";
 import { nextSeeAgainPair, seeAgainWindow, SEE_AGAIN_MUTUAL_MS, type SeeAgainPairState, type SeeAgainPairEvent } from "@/lib/crewSeeAgain";
@@ -498,12 +498,17 @@ describe("0250 private event-bound friendship reconnection", () => {
     ["remove", "participant", false], ["remove", "participant", true],
     ["remove", "host", false], ["remove", "host", true],
     ["visibility", "host", false], ["visibility", "host", true],
+    ["set-role", "host", false], ["set-role", "host", true],
+    ["transfer", "host", false], ["transfer", "host", true],
   ] as const)("serialises %s with %s deletion, deletion first: %s", async (action, deleted, deletionFirst) => {
     const { host, a, b, crew } = matched();
+    if (action === "transfer") mutual(host, a);
     const writer = rpc(action === "leave"
       ? `leave_social_crew_atomic('${a.account}','${crew}','${key()}','${DIGEST}')`
       : action === "remove" ? removeCall(host, crew, a)
-      : `update_social_crew_visibility_atomic('${host.account}','${crew}','private',(select authority_revision from public.social_crews where id='${crew}'),'${key()}','${DIGEST}')`);
+      : action === "visibility" ? `update_social_crew_visibility_atomic('${host.account}','${crew}','private',(select authority_revision from public.social_crews where id='${crew}'),'${key()}','${DIGEST}')`
+      : action === "set-role" ? `set_social_crew_role_atomic('${host.account}','${crew}','${memberId(crew, a)}','cohost','${key()}','${DIGEST}')`
+      : `transfer_social_crew_owner_atomic('${host.account}','${crew}','${memberId(crew, a)}','${key()}','${DIGEST}')`);
     const removal = { name: "w6-departure-pair-order", statement: writer, role: "service_role" as const };
     const deletion = { name: "w6-deletion-pair-order", statement: deleteAccount(deleted === "host" ? host : a), role: "postgres" as const };
     const [first, second] = deletionFirst ? [deletion, removal] : [removal, deletion];
@@ -523,6 +528,31 @@ describe("0250 private event-bound friendship reconnection", () => {
       expect(result.said).not.toMatch(/40P01|deadlock|lock timeout|statement timeout/i);
     }
     expect(db().sql(`select count(*) from auth.users where id='${(deleted === "host" ? host : a).user}'`)).toBe("0");
+  });
+
+  it.each([false, true])("serialises ownership transfer with standalone cancellation, cancellation first: %s", async cancellationFirst => {
+    const { host, a, b, crew } = matched(); mutual(host, a);
+    const transfer = { name: "w6-transfer-plan-order", role: "service_role" as const,
+      statement: rpc(`transfer_social_crew_owner_atomic('${host.account}','${crew}','${memberId(crew, a)}','${key()}','${DIGEST}')`) };
+    const cancellation = { name: "w6-cancel-transfer-order", role: "postgres" as const,
+      statement: `update public.plans set status='abandoned' where id=(select plan_id from public.social_crews where id='${crew}')` };
+    const [first, second] = cancellationFirst ? [cancellation, transfer] : [transfer, cancellation];
+    const barrier = await hold(`select public._see_again_pair_lock('${a.account}','${b.account}')`, "postgres");
+    let one: ReturnType<typeof outcome> | null = null, two: ReturnType<typeof outcome> | null = null;
+    try {
+      one = outcome(first.name, first.statement, first.role);
+      await expect.poll(() => waitsOnAccountLock(first.name)).toBe("t");
+      two = outcome(second.name, second.statement, second.role);
+      await expect.poll(() => waitsOnAnyLock(second.name)).toBe("t");
+    } finally {
+      try { await barrier.finish(); } finally { await Promise.all([one, two]); }
+    }
+    for (const result of await Promise.all([one!, two!])) {
+      expect(result.ok, result.said).toBe(true);
+      expect(result.said).not.toMatch(/40P01|deadlock|lock timeout|statement timeout/i);
+    }
+    expect(db().sql(`select status from public.plans where id=(select plan_id from public.social_crews where id='${crew}')`)).toBe("abandoned");
+    expect(read(a, crew)).toBeNull();
   });
 
   it.each(["host removal", "visibility"] as const)("orders visible export pairs globally against cross-Crew %s", async (change) => {
