@@ -55,6 +55,7 @@ import { fileURLToPath } from "node:url";
 import { gunzipSync } from "node:zlib";
 
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { fetchFollowingPermittedRedirects } from "../lib/harvest/redirectChain.ts";
 import {
   harvestRedirectLanding,
   harvestSource,
@@ -164,8 +165,28 @@ function createSourceReader(source, { fetchImpl, robots }) {
     if (!onSourceHost(url, origin)) throw new Error(`${url} is not on ${origin}, so it is not read`);
     const decision = await robots(url);
     if (!decision.allowed) throw new Error(`robots.txt refuses ${url}: ${decision.evidence}`);
-    const response = await fetchImpl(url, { headers: { "user-agent": USER_AGENT }, redirect: "follow" });
-    const landing = harvestRedirectLanding(url, response.url);
+    // Redirects are followed by hand so each hop stays on the source's own
+    // host and passes robots BEFORE it is requested; `redirect: "follow"`
+    // would send the request first and only then let the landing check refuse.
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      { headers: { "user-agent": USER_AGENT } },
+      {
+        fetchImpl,
+        permitHop: async (next) => {
+          if (!onSourceHost(next, origin)) {
+            return { allowed: false, reason: "redirect-left-source", evidence: `${next} is not on ${origin}` };
+          }
+          const hop = await robots(next);
+          return hop.allowed ? hop : { ...hop, reason: "redirect-robots-refused" };
+        },
+      },
+    );
+    if (followed.refusal) {
+      throw new Error(`${url} redirected to ${followed.refusal.url}: ${followed.refusal.evidence}`);
+    }
+    const response = followed.response;
+    const landing = harvestRedirectLanding(url, followed.url);
     if (landing.outcome === "refused" || !onSourceHost(landing.url, origin)) {
       await response.body?.cancel?.();
       throw new Error(`${url} redirected outside the source to ${landing.url}`);
