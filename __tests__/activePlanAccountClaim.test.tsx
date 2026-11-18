@@ -446,6 +446,28 @@ describe("the claim lifecycle across retries, interruptions and resume", () => {
     expect(announced).toBe(1);
   });
 
+  it("ignores an expired answer from the first attempt after an exhausted run resumes", async () => {
+    let late!: (response: Response) => void;
+    state.accountBoundFetch
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { late = resolve; }))
+      .mockImplementation(held);
+    await mount();
+    await advance(8_000);
+    await advance(250);
+    await advance(8_000);
+    await advance(1_000);
+    await advance(8_000);
+    expect(sent()).toBe(3);
+    await resume();
+    expect(sent()).toBe(4);
+    await act(async () => { late(new Response(null, { status: 200 })); });
+    await advance(0);
+    expect(announced).toBe(0);
+    await advance(8_000);
+    await advance(250);
+    expect(sent()).toBe(5);
+  });
+
   it("aborts a stalled claim and removes its deadline on unmount", async () => {
     state.accountBoundFetch.mockImplementation(held);
     await mount();
