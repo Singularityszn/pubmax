@@ -374,7 +374,7 @@ export default function MobileSharedSheet({
       data-map-interactive={mapRemainsInteractive ? "true" : undefined}
       data-sheet-kind={presented.kind}
       data-sheet-exiting={visibleExit ? "true" : undefined}
-      inert={visibleExit ? true : undefined}
+      inert={!!visibleExit}
       aria-hidden={visibleExit ? true : undefined}
       /* How deep the reader is. Present so a browser test can assert the trail
          rather than infer it from which glyph happens to be drawn. */

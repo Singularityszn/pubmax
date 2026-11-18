@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import type { FairPintDrawn } from "@/lib/fairPint";
 import FairPintStops, { listedFairPintStops } from "./FairPintStops";
 import { Button } from "@/components/ui/button";
 import { planningConfidenceLabel } from "@/lib/planIntelligence";
 
-export default function FairPintResultFallback({ last, onBack }: { last: FairPintDrawn; onBack: () => void }) {
+export default function FairPintResultFallback({ last, onBack, onLineReady }: { last: FairPintDrawn; onBack: () => void; onLineReady: (operationKey: string) => void }) {
+  useEffect(() => { onLineReady(last.generated.operationKey); }, [last.generated.operationKey, onLineReady]);
   return (
     <section className="fairPintCard fairPintResult fairPintResultFallback" aria-label="Your Pint Line">
       <h2>Your Pint Line</h2>

@@ -3,6 +3,8 @@ import { act, createElement } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { useFairPintPlan, warmFairPintTime } from "@/components/map/fairpint/useFairPintPlan";
+import FairPintResultFallback from "@/components/map/fairpint/FairPintResultFallback";
+import type { FairPintGenerated } from "@/lib/fairPint";
 import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { inferNightContext } from "@/lib/nightPlanning";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -113,22 +115,79 @@ it.each(["pending", "failed"])("restores the validated time after a %s revalidat
   act(() => root.unmount());
 });
 
-it("releases map reads when the diagram never reports completion", async () => {
+it.each([1900, 2100])("releases map reads but waits for the result after a %ims response", async (responseMs) => {
   await warmFairPintTime(); vi.useFakeTimers();
-  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(generated("no-diagram"))));
+  let finish!: (value: Response) => void;
+  vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
+  let hook: ReturnType<typeof useFairPintPlan>;
+  let drawing!: Promise<void>;
+  const applied = vi.fn();
+  function Host() { hook = useFairPintPlan("london", "camden", applied); return null; }
+  const root = createRoot(document.createElement("div"));
+  act(() => root.render(createElement(Host)));
+  try {
+    act(() => { drawing = hook.draw(550); });
+    expect(fairPintDrawPending()).toBe(true);
+    const reader = waitForFairPintDraw();
+    await act(async () => {
+      vi.advanceTimersByTime(responseMs);
+      finish(Response.json(generated("delayed-result")));
+      await drawing;
+    });
+    expect(hook!.state.last?.generated.operationKey).toBe("delayed-result");
+    expect(applied).not.toHaveBeenCalled();
+    await act(async () => { vi.advanceTimersByTime(2000); });
+    expect(fairPintDrawPending()).toBe(false);
+    await reader;
+    expect(applied).not.toHaveBeenCalled();
+    act(() => hook!.lineReady("delayed-result"));
+    expect(applied).toHaveBeenCalledOnce();
+    expect(applied.mock.calls[0]?.[0].operationKey).toBe("delayed-result");
+    act(() => hook!.lineReady("delayed-result"));
+    expect(applied).toHaveBeenCalledOnce();
+  } finally { act(() => root.unmount()); }
+});
+
+it.each(["back", "edit", "unmount"])("ignores delayed readiness after %s", async (action) => {
+  await warmFairPintTime(); vi.useFakeTimers();
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(generated("obsolete-result"))));
   let hook: ReturnType<typeof useFairPintPlan>;
   const applied = vi.fn();
   function Host() { hook = useFairPintPlan("london", "camden", applied); return null; }
   const root = createRoot(document.createElement("div"));
   act(() => root.render(createElement(Host)));
   try {
-    await act(async () => { await hook.draw(550); });
-    expect(fairPintDrawPending()).toBe(true);
-    const reader = waitForFairPintDraw();
-    await act(async () => { vi.advanceTimersByTime(2000); });
+    await act(async () => { await hook.draw(550); vi.advanceTimersByTime(2000); });
+    act(() => {
+      if (action === "back") hook!.back();
+      else if (action === "edit") hook!.editStart("");
+      else root.unmount();
+      hook!.lineReady("obsolete-result");
+    });
+    expect(applied).not.toHaveBeenCalled();
     expect(fairPintDrawPending()).toBe(false);
-    await reader;
+  } finally { if (action !== "unmount") act(() => root.unmount()); }
+});
+
+it("activates the fallback route only after its result surface mounts", async () => {
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(generated("fallback-result"))));
+  let hook: ReturnType<typeof useFairPintPlan>;
+  const applied = vi.fn((_value: FairPintGenerated) => { expect(document.querySelector(".fairPintResultFallback")).not.toBeNull(); });
+  function Host() {
+    hook = useFairPintPlan("london", "camden", applied);
+    return hook.state.last
+      ? createElement(FairPintResultFallback, { last: hook.state.last, onBack: hook.back, onLineReady: hook.lineReady })
+      : null;
+  }
+  const container = document.createElement("div");
+  document.body.append(container);
+  const root = createRoot(container);
+  act(() => root.render(createElement(Host)));
+  try {
+    expect(applied).not.toHaveBeenCalled();
+    await act(async () => { await hook.draw(550); });
     expect(applied).toHaveBeenCalledOnce();
-    expect(applied.mock.calls[0]?.[0].operationKey).toBe("no-diagram");
-  } finally { act(() => root.unmount()); }
+    expect(applied.mock.calls[0]?.[0].operationKey).toBe("fallback-result");
+    expect(fairPintDrawPending()).toBe(false);
+  } finally { act(() => root.unmount()); container.remove(); }
 });

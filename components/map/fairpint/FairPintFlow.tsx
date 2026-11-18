@@ -175,7 +175,7 @@ export default function FairPintFlow({
     return (
       <CrawlPresentationBoundary
         key={plan.state.last.generated.operationKey}
-        fallback={<FairPintResultFallback last={plan.state.last} onBack={back} />}
+        fallback={<FairPintResultFallback last={plan.state.last} onBack={back} onLineReady={plan.lineReady} />}
       >
         <FairPintResult
           typedName={typedName}
