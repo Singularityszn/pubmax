@@ -50,6 +50,10 @@ const state = vi.hoisted(() => ({
   crewReadResult: null as null | 403 | 404 | "preview",
   liveLocationEnabled: false,
   sharing: false,
+  attendanceEnabled: false,
+  attendanceReads: 0,
+  attendanceMembers: [] as Array<{ memberId: string; handle: string; role: string; joinedAt: string }>,
+  attendanceMark: null as null | (() => Promise<Response>),
 }));
 
 vi.mock("next/link", () => ({
@@ -125,6 +129,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
           handle: "alice",
         },
         members: [
+          ...state.attendanceMembers,
           {
             memberId: "30000000-0000-4000-8000-000000000001",
             handle: "alice",
@@ -177,8 +182,12 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => ({
           { status: 409 },
         );
       }
+      if (state.attendanceEnabled) state.attendanceMembers.push({
+        memberId: "30000000-0000-4000-8000-000000000002", handle: "bob", role: "member", joinedAt: "2026-08-24T18:30:00Z",
+      });
       return Response.json({ code: "accepted", replayed: false });
     }
+    if (url.endsWith("/attendance") && init?.method === "POST" && state.attendanceMark) return state.attendanceMark();
     if (url.endsWith("/arrival") && init?.method === "POST") {
       if (state.arrivalFails) return Response.json({ error: "Arrival unavailable." }, { status: 503 });
       if (JSON.parse(String(init.body)).here !== true) return Response.json({}, { status: 422 });
@@ -211,6 +220,10 @@ async function settle(): Promise<void> {
 }
 
 beforeEach(() => {
+  state.attendanceEnabled = false;
+  state.attendanceReads = 0;
+  state.attendanceMembers = [];
+  state.attendanceMark = null;
   state.crewReadResult = null;
   state.liveLocationEnabled = false;
   state.sharing = false;
@@ -253,7 +266,14 @@ beforeEach(() => {
           people: init?.method === "DELETE" ? [] : [{ memberId: "mate", name: "Private mate", latitude: 51.5, longitude: -0.13, accuracyM: 10, updatedAt: new Date().toISOString() }],
         });
       }
-      if (String(input).endsWith("/attendance")) return Response.json({}, { status: 404 });
+      if (String(input).endsWith("/attendance")) {
+        if (!state.attendanceEnabled) return Response.json({}, { status: 404 });
+        state.attendanceReads += 1;
+        return Response.json({ canAttest: true, open: true,
+          opensAt: new Date(Date.now() - 60_000).toISOString(), closesAt: new Date(Date.now() + 3_600_000).toISOString(),
+          items: state.attendanceMembers.map(({ memberId }) => ({ memberId, state: null, revision: 0, recordedAt: null, recordedBy: null })),
+        });
+      }
       const revision = state.accountRevision;
       const response = Response.json({
         lot: [revision === 2 ? "dave" : "bob-from-old-account"],
@@ -433,6 +453,35 @@ it.each(["focus", "visibilitychange"])("refreshes arrival availability on %s", a
 });
 
 describe("host join-request queue", () => {
+  it.each([false, true])("adds attendance controls after accepting a guest, pending mark=%s", async (pendingMark) => {
+    state.attendanceEnabled = true;
+    state.attendanceMembers = [{ memberId: "30000000-0000-4000-8000-000000000003", handle: "cara", role: "member", joinedAt: "2026-08-22T18:30:00Z" }];
+    let finishMark!: () => void;
+    state.attendanceMark = () => new Promise<Response>((resolve) => {
+      finishMark = () => resolve(Response.json({ state: "attended", revision: 1 }));
+    });
+    await act(async () => root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null })));
+    const attendance = (handle: string) => container.querySelector<HTMLElement>(`[role="group"][aria-label="Attendance for @${handle}"]`);
+    expect(attendance("cara")).not.toBeNull();
+    if (pendingMark) await act(async () => attendance("cara")!.querySelector<HTMLButtonElement>("button")!.click());
+    const initialReads = state.attendanceReads;
+    try {
+      const accept = container.querySelector<HTMLButtonElement>('button[aria-label="Accept @bob"]');
+      expect(accept).not.toBeNull();
+      await act(async () => accept!.click());
+      expect(container.querySelector('a[href="/u/bob"]')).not.toBeNull();
+      if (pendingMark) {
+        expect(state.attendanceReads).toBe(initialReads);
+        expect(attendance("cara")!.querySelector("button")!.getAttribute("aria-disabled")).toBe("true");
+        await act(async () => finishMark());
+      }
+      expect(attendance("bob")).not.toBeNull();
+      expect(attendance("bob")!.querySelectorAll("button")).toHaveLength(2);
+    } finally {
+      if (pendingMark && finishMark) await act(async () => finishMark());
+    }
+  });
+
   it("lets a host accept a pending request from the crew page", async () => {
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
