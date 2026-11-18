@@ -67,14 +67,14 @@ async function open(page: Page) {
 
 for (const width of [390, 768, 1440]) {
   for (const theme of ["light", "dark"] as const) {
-    test(`private friendship at ${width}px in ${theme}`, async ({ page }, info) => {
+    test(`private friendship at ${width}px in ${theme}`, async ({ page, hasTouch }, info) => {
       await page.setViewportSize({ width, height: 1000 });
       await storeThemeChoice(page, theme);
       await page.emulateMedia({ reducedMotion: "reduce" });
       const fixture = await open(page);
       const choose = fixture.section.getByRole("button", { name: `See @${candidate.handle} again as a mate` });
       await expect(choose).toBeDisabled();
-      if (width === 390) await fixture.section.getByRole("checkbox").tap();
+      if (width === 390 && hasTouch) await fixture.section.getByRole("checkbox").tap();
       else { await fixture.section.getByRole("checkbox").focus(); await page.keyboard.press("Space"); }
       await choose.click();
       await expect(fixture.section.getByRole("button", { name: `Withdraw choice for @${candidate.handle}` })).toBeVisible();
