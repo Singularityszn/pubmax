@@ -142,7 +142,7 @@ function Receipt({ receipt }: { receipt: NightReceipt }) {
                   <span className="planNightReceipt__price">
                     <PriceBadge variant="neutral">{formatPence(stop.price.pence)}</PriceBadge>
                     <span className="planNightReceipt__source">
-                      {stop.price.drink}, logged by a drinker{" "}
+                      {stop.price.drink}, logged by a drinker on{" "}
                       <time dateTime={stop.price.reportedAt}>{formatObservedDate(new Date(stop.price.reportedAt))}</time>
                       {" · "}Serving size not recorded
                     </span>
@@ -190,7 +190,7 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
       <Kicker>Private to you</Kicker>
       <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
       <p role="status">{busy ? "Checking your receipt…" : "We couldn't load your night receipt."}</p>
-      <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}>Try again</Button></div>
+      <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}>{busy ? "Checking…" : "Try again"}</Button></div>
     </section>
   );
 }
