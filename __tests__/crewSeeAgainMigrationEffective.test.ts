@@ -11,7 +11,7 @@ import {
 import { nextSeeAgainPair, seeAgainWindow, SEE_AGAIN_MUTUAL_MS, type SeeAgainPairState, type SeeAgainPairEvent } from "@/lib/crewSeeAgain";
 import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
 
-const migration = "20261118100000_0250_crew_see_again.sql";
+const migration = "20261118110000_0250_crew_see_again.sql";
 const migrations = join(process.cwd(), "supabase/migrations");
 function apply(file: string) {
   execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`, "-f", join(migrations, file)], { stdio: "pipe" });
