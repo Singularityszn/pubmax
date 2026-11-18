@@ -8,7 +8,7 @@ import { messagesStore } from "@/lib/messagesStore";
 import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { PRODUCTION_SITE_ORIGIN } from "@/lib/siteUrlConfig.mjs";
-import { summonableMates } from "@/lib/summonMates.server";
+import { summonableMates } from "@/lib/summonMatesAudience.server";
 
 export async function leagueInviteMates(viewer: LeagueViewer, id: string): Promise<string[] | null> {
   if (!(await leagueStore().read(id, viewer.authUserId))) return null;

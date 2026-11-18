@@ -25,6 +25,9 @@ import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { eitherMutes, isUnmutedMate, type MateViewer } from "@/lib/socialMutual.server";
 import { SUMMON_MAX_MATES, summonText } from "@/lib/summonMates";
+import type { SummonMateDependencies } from "@/lib/summonMatesAudience.server";
+
+export { summonableMates } from "@/lib/summonMatesAudience.server";
 import { selectSummonPrice, type SummonPriceEvidence } from "@/lib/summonPrice";
 import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
@@ -36,18 +39,12 @@ export type SummonViewer = MateViewer;
 /** How long a send waits for the optional price before it goes without one. */
 export const SUMMON_PRICE_READ_MS = 1_500;
 
-/** The most mutuals one list read checks, so a large follow graph stays a bounded read. */
-const SUMMON_MUTUALS_CHECKED = 60;
-
 type SummonPub =
   | { status: "found"; venueId: string; name: string }
   | { status: "unknown" }
   | { status: "unavailable" };
 
-export type SummonDependencies = {
-  listMutuals(handle: string): Promise<string[]>;
-  /** True when either side has muted the other. Throws when it cannot tell. */
-  eitherMutes(viewer: SummonViewer, handle: string): Promise<boolean>;
+export type SummonDependencies = SummonMateDependencies & {
   lookupPub(venueId: string): Promise<SummonPub>;
   /** The dated price for this canonical pub, or null. Never throws. */
   lookupPrice(venueId: string): Promise<SummonPriceEvidence | null>;
@@ -113,23 +110,6 @@ const defaultDependencies = (): SummonDependencies => ({
 
 function summonable(viewer: SummonViewer, handle: string, deps: SummonDependencies): Promise<boolean> {
   return isUnmutedMate(viewer, handle, deps.eitherMutes);
-}
-
-/** The mates this viewer may summon, sorted by handle. */
-export async function summonableMates(
-  viewer: SummonViewer,
-  dependencies: Partial<SummonDependencies> = {},
-): Promise<string[]> {
-  const deps = { ...defaultDependencies(), ...dependencies };
-  const self = normalizeViewerHandle(viewer.handle);
-  const mutuals = [
-    ...new Set((await deps.listMutuals(viewer.handle)).map(normalizeViewerHandle)),
-  ]
-    .filter((handle) => handle && handle !== self)
-    .sort()
-    .slice(0, SUMMON_MUTUALS_CHECKED);
-  const allowed = await Promise.all(mutuals.map((handle) => summonable(viewer, handle, deps)));
-  return mutuals.filter((_, index) => allowed[index]);
 }
 
 export type SummonSendResult =
