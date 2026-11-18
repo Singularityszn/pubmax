@@ -9,6 +9,7 @@ import { Sheet } from "@/components/ui/sheet";
 import { useSheetFooterSlot } from "@/components/mobile/sheetFooterContext";
 import PintLine from "@/components/wild/PintLine";
 import { Button } from "@/components/ui/button";
+import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { type FairPintDrawn } from "@/lib/fairPint";
 import { priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
@@ -179,6 +180,7 @@ export default function FairPintResult({
   );
   const content = (
     <>
+      {saveState.phase === "locked" ? <ActivePlanMarker id={saveState.planId} startTime={last.startIso} /> : null}
       <form
         id="fair-pint-lock-form"
         className="fairPintResultBody"

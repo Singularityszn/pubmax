@@ -6,9 +6,23 @@ import { useFairPintSave } from "@/components/map/fairpint/useFairPintSave";
 import { inferNightContext } from "@/lib/nightPlanning";
 import type { FairPintDrawn } from "@/lib/fairPint";
 const share = vi.hoisted(() => vi.fn().mockResolvedValue("shared"));
+const account = vi.hoisted(() => ({
+  id: null as string | null,
+  session: { access_token: "fixture-account-token", user: { id: "fixture-account" } },
+}));
+vi.mock("@/components/auth/authContext", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/components/auth/authContext")>()),
+  useAuth: () => ({
+    user: account.id ? account.session.user : null,
+    session: account.id ? account.session : null,
+    loading: false,
+    identityResolved: true,
+    getCurrentUserId: () => account.id,
+  }),
+}));
 vi.mock("@/lib/shareSheet", () => ({ shareNightObject: share }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
-afterEach(() => { vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
+afterEach(() => { account.id = null; vi.unstubAllGlobals(); vi.restoreAllMocks(); vi.useRealTimers(); localStorage.clear(); });
 const last: FairPintDrawn = { pence: 550, start: "2026-11-18T18:00", startIso: "2026-11-18T18:00:00.000Z", generated: { operationKey: "fair-pint-create-operation", groundingProof: "fixture-proof", inferredContext: inferNightContext("three stops in Camden").context, planningConfidence: { level: "low", score: 0, routeReady: false, missingEvidence: [], warnings: [], provenance: [] }, stops: [1, 2, 3].map((id) => ({ venueId: `venue-${id}`, venueName: `Pub ${id}` })) } };
 it("retries an uncertain create once, prepares a join URL, and shares without another fetch", async () => {
   const id = "11111111-1111-4111-8111-111111111111", token = "a".repeat(32);
@@ -53,6 +67,90 @@ it("keeps a saved plan locked when its invite cannot be read", async () => {
   expect(hook!.state).toMatchObject({ phase: "locked", planId: id, link: { phase: "failed" } });
   expect(hook!.url).toBeNull();
   act(() => root.unmount());
+});
+
+it.each([null, "fixture-account"].flatMap((ownerId) =>
+  ["cancelled", "failed", "unavailable"].map((outcome) => ({ ownerId, outcome })),
+))("resumes a saved night after $outcome sharing and reload (account $ownerId)", async ({ ownerId, outcome }) => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date(last.startIso));
+  account.id = ownerId;
+  const id = "33333333-3333-4333-8333-333333333333";
+  const token = "b".repeat(32);
+  const { clearPlanCapability, parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot } = await import("@/lib/planSessionCapability");
+  const { clearPlanInviteToken } = await import("@/lib/planInviteTokenClient");
+  const { readOwnedActivePlan } = await import("@/lib/activePlan");
+  const { useActivePlan } = await import("@/components/night/useActivePlan");
+  const { default: Result } = await import("@/components/map/fairpint/FairPintResult");
+  vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => null);
+  vi.stubGlobal("navigator", { ...navigator, share: vi.fn() });
+  if (outcome !== "unavailable") share.mockResolvedValueOnce(outcome);
+  const fetcher = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
+    if (input === "/api/plans") {
+      expect(new Headers(options?.headers).has("authorization")).toBe(false);
+      return Response.json({ plan: { plan: { id, inviteToken: outcome === "unavailable" ? null : token } }, memberToken: "fixture-member" });
+    }
+    if (input === `/api/plans/${id}`) return Response.json({ inviteToken: null });
+    expect(input).toBe(`/api/plans/${id}/session`);
+    if (options?.method === "PUT") {
+      expect(ownerId).not.toBeNull();
+      expect(new Headers(options.headers).get("authorization")).toBe("Bearer fixture-account-token");
+      return Response.json({ claimed: true });
+    }
+    return Response.json({ active: true, role: "host", collaborationAuthorized: true });
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const host = document.createElement("div");
+  document.body.append(host);
+  let root = createRoot(host);
+  let closed = false;
+  let resumed: ReturnType<typeof useActivePlan> | undefined;
+  function Resume() { resumed = useActivePlan(); return null; }
+  try {
+    await act(async () => root.render(createElement(Result, {
+      typedName: "Alex", onName: () => {}, last, venues: [], start: last.start,
+      busy: false, error: "", mobile: false, cityId: "london",
+      onLineReady: () => {}, onEditStart: () => {}, onStart: () => {}, onBack: () => {},
+      onClose: () => { closed = true; root.render(null); }, returnFocus: () => null,
+    })));
+    await act(async () => {
+      host.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await vi.dynamicImportSettled();
+    });
+    expect(host.textContent).toContain("Locked in.");
+    expect(readOwnedActivePlan(ownerId)).toMatchObject({ id, startTime: last.startIso, role: "host" });
+    const claims = fetcher.mock.calls.filter(([, options]) => options?.method === "PUT");
+    expect(claims).toHaveLength(ownerId ? 1 : 0);
+    if (outcome === "unavailable") {
+      const shareButton = [...host.querySelectorAll("button")].find((button) => button.textContent === "Share with the group chat")!;
+      expect(shareButton.disabled).toBe(true);
+      expect(host.textContent).toContain("Could not prepare the link. Try again.");
+    } else {
+      const beforeShare = fetcher.mock.calls.length;
+      await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Share with the group chat")!.click());
+      expect(share).toHaveBeenLastCalledWith(expect.objectContaining({ url: expect.stringContaining(`/invite/${token}`) }));
+      expect(fetcher.mock.calls).toHaveLength(beforeShare);
+      expect(host.textContent).toContain(outcome === "cancelled" ? "Share with the group chat" : "Could not open sharing. Copy the link instead.");
+    }
+    act(() => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close")!.click());
+    expect(closed).toBe(true);
+    act(() => root.unmount());
+    clearPlanCapability(id);
+    clearPlanInviteToken(id);
+    root = createRoot(host);
+    await act(async () => root.render(createElement(Resume)));
+    expect(resumed).toMatchObject({ visible: true, ref: { id, ownerId, role: "host" } });
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(id))).toMatchObject({ role: "host", collaborationAuthorized: true });
+    expect(readOwnedActivePlan(ownerId ? "different-account" : "fixture-account")).toBeNull();
+    const continuity = localStorage.getItem("pubmax_active_plan");
+    expect(continuity).not.toContain("fixture-member");
+    expect(continuity).not.toContain("fixture-account-token");
+  } finally {
+    act(() => root.unmount());
+    clearPlanCapability(id);
+    clearPlanInviteToken(id);
+    host.remove();
+  }
 });
 
 it.each([null, "hosthandle"])("keeps an entered organiser name through time revalidation (handle %s)", async (handle) => {
