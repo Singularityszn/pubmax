@@ -1,6 +1,6 @@
 "use client";
 
-import dynamic from "next/dynamic";
+import FairPintGate from "./FairPintGate";
 import {
   createContext,
   useCallback,
@@ -19,8 +19,6 @@ import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 import type { MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { NightAreaSlug } from "@/lib/nightAreas";
-
-const FairPintGate = dynamic(() => import("./FairPintGate"), { ssr: false });
 
 type Bridge = {
   bounds: MapBounds;

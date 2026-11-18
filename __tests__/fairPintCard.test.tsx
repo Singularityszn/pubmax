@@ -52,6 +52,45 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
+it("starts the deferred planner on Draw and permits retry after refusal", async () => {
+  localStorage.clear();
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const rows = ["one", "two", "three"].map((id) => ({
+    id, name: id, cheapestPrice: 5, borough: "Westminster", lat: 51.513, lng: -0.13,
+    fairPint: [500, "https://www.pint-prices.com/pub/listed", new Date().toISOString()] as const,
+  }));
+  const factory = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
+    ...loader, inBounds: async () => rows, coverageComplete: () => true,
+  });
+  const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async () =>
+    Response.json({ error: { message: "Planner unavailable." } }, { status: 503 }),
+  );
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const host = document.createElement("div"), root = createRoot(host);
+  const draw = () => [...host.querySelectorAll("button")].find((button) => button.textContent?.startsWith("Draw my night"))!;
+  try {
+    await act(async () => root.render(<Flow mobile cityId="london" bounds={{ west: -0.14, east: -0.12, south: 51.50, north: 51.52 }} center={[-0.13, 51.513]} onCommit={() => {}} onRoute={() => {}} />));
+    expect(draw().disabled).toBe(false);
+    expect(fetcher).not.toHaveBeenCalled();
+    const slider = host.querySelector("input")!;
+    act(() => { slider.value = "530"; slider.dispatchEvent(new Event("input", { bubbles: true })); });
+    await act(async () => { draw().click(); await vi.dynamicImportSettled(); });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetcher.mock.calls[0]![1]!.body as string)).toMatchObject({
+      cityId: "london", query: "maximum £5.30 per pint", context: { stopCount: 3 },
+    });
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Planner unavailable.");
+    expect(host.querySelector("output")?.textContent).toBe("£5.30");
+    expect(draw().disabled).toBe(false);
+    await act(async () => { draw().click(); });
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  } finally {
+    act(() => root.unmount()); factory.mockRestore(); fetcher.mockRestore(); localStorage.clear();
+  }
+});
+
 it.each(["pan", "retry"])("keeps loaded prices and draw readiness after %s", async (scenario) => {
   const shards = await import("@/lib/slimShards");
   const { offlineCache } = await import("@/lib/offlineCache");

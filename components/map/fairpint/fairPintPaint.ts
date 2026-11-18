@@ -37,7 +37,18 @@ export function wireFairPintPaint(map: MapLibreMap) {
   );
   const painted = new Map<string | number, number>();
   let installed = false;
+  let restoring = false;
   let frame = 0;
+
+  const restore = () => {
+    restoring = false;
+    installed = false;
+    layers.forEach(([id, property], index) => {
+      if (!map.getLayer(id)) return;
+      map.setPaintProperty(id, property, baseline[index]);
+      map.setPaintProperty(id, `${property}-transition`, transitions[index] ?? undefined);
+    });
+  };
 
   const syncFeatures = () => {
     frame = 0;
@@ -57,6 +68,22 @@ export function wireFairPintPaint(map: MapLibreMap) {
   };
   const sync = () => {
     const { active } = fairPintSession();
+    if (active && restoring) {
+      map.off("idle", restore);
+      restoring = false;
+    }
+    if (!active && installed) {
+      if (frame) cancelAnimationFrame(frame);
+      frame = 0;
+      if (!restoring) {
+        restoring = true;
+        // Drain state updates before replacing MapLibre's state-dependent binders.
+        map.removeFeatureState({ source: "pubs" }, STATE);
+        painted.clear();
+        map.once("idle", restore);
+      }
+      return;
+    }
     if (active !== installed) {
       installed = active;
       layers.forEach(([id, property], index) => {
@@ -68,10 +95,6 @@ export function wireFairPintPaint(map: MapLibreMap) {
         );
         map.setPaintProperty(id, property, active ? ["coalesce", ["feature-state", STATE], 0.25] : baseline[index]);
       });
-      if (!active) {
-        map.removeFeatureState({ source: "pubs" }, STATE);
-        painted.clear();
-      }
     }
     schedule();
   };
@@ -92,6 +115,7 @@ export function wireFairPintPaint(map: MapLibreMap) {
     map.off("moveend", schedule);
     map.off("zoom", schedule);
     map.off("idle", schedule);
+    map.off("idle", restore);
     map.off("remove", dispose);
     layers.forEach(([id, property], index) => {
       if (

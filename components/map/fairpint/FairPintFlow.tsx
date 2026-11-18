@@ -1,7 +1,8 @@
 "use client";
 import dynamic from "next/dynamic";
-import { useEffect, useMemo, useState } from "react";
-import { useFairPintPlan, warmFairPintTime } from "./useFairPintPlan";
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import type { useFairPintPlan } from "./useFairPintPlan";
+import type { FairPintGenerated } from "@/lib/fairPint";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
 import { createSlimShardLoader, type MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -16,6 +17,7 @@ import CrawlPresentationBoundary from "@/components/wild/CrawlPresentationBounda
 import FairPintResultFallback from "./FairPintResultFallback";
 
 const FairPintResult = dynamic(() => import("./FairPintResult"));
+const FairPintPlanner = lazy(() => import("./FairPintPlanner"));
 const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
   .find((element) => element.getClientRects().length > 0) ?? null;
 const resultReturnFocus = () => document.querySelector<HTMLElement>(".fairPintCard:not([data-fair-prelude]) input.fairPintRange") ?? mapSearchControl();
@@ -61,6 +63,7 @@ export default function FairPintFlow({
   const [attempt, setAttempt] = useState(0);
   const [returnToCard, setReturnToCard] = useState(false);
   const [typedName, setTypedName] = useState<string | null>(null);
+  const [firstDraw, setFirstDraw] = useState<{ pence: number; area: string } | null>(null);
   const [data, setData] = useState<{
     rows: SlimVenue[];
     count: "loading" | "failed" | "ready";
@@ -69,13 +72,12 @@ export default function FairPintFlow({
     drawKey?: string;
   }>({ rows: [], count: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
-  const plan = useFairPintPlan(cityId, area?.slug ?? "", (generated) =>
+  const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
       generated.inferredContext.nightArea,
       generated.stops.map((stop) => stop.venueId),
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
-    ),
-  );
+    );
   const position = chosenPosition === null ? null : (readerPosition ?? chosenPosition);
   const countBounds = position ? circleBounds(position.lat, position.lng, 0.8) : bounds;
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
@@ -96,8 +98,6 @@ export default function FairPintFlow({
       setLocationOff(!position);
       if (position) latchMapReaderLocationWatch();
     });
-    void warmFairPintTime().catch(() => {});
-    void import("./FairPintResult").catch(() => {});
     setFairPintSession(true, start);
     setMapFirstVisitArrivalCardVisible(true);
     const sync = () => setOffline(!navigator.onLine);
@@ -161,17 +161,18 @@ export default function FairPintFlow({
       ).length,
     };
   };
+  if (!area) return null;
+  const render = (plan?: ReturnType<typeof useFairPintPlan>) => {
   const close = () => {
     setFairPintSession(false);
     dismissMapFirstVisitArrival(undefined, Date.now(), true);
-    if (plan.state.phase === "dial") mapSearchControl()?.focus({ preventScroll: true });
+    if (!plan || plan.state.phase === "dial") mapSearchControl()?.focus({ preventScroll: true });
   };
   const back = () => {
     setReturnToCard(true);
-    plan.back();
+    plan?.back();
   };
-  if (!area) return null;
-  if (plan.state.last && plan.state.phase !== "dial")
+  if (plan?.state.last && plan.state.phase !== "dial")
     return (
       <CrawlPresentationBoundary
         key={plan.state.last.generated.operationKey}
@@ -207,9 +208,9 @@ export default function FairPintFlow({
         located={position !== null}
         locationOff={locationOff}
         offline={offline}
-        drawUnavailable={plan.retrying}
-        pending={plan.state.phase === "drawing"}
-        error={plan.state.error}
+        drawUnavailable={plan?.retrying ?? false}
+        pending={firstDraw !== null && (!plan || plan.state.phase === "drawing")}
+        error={plan?.state.error ?? ""}
         onInput={(pence) => setFairPintSession(true, pence)}
         onCommit={(pence) => {
           setCommitted(pence);
@@ -238,11 +239,24 @@ export default function FairPintFlow({
         onRetry={() => setAttempt((held) => held + 1)}
         onClose={close}
         onDraw={(pence) => {
-          if (plan.retrying) return;
+          if (plan?.retrying) return;
           void import("./FairPintResult").catch(() => {});
-          void plan.draw(pence);
+          void import("@/lib/planIntake").catch(() => {});
+          if (plan) void plan.draw(pence);
+          else {
+            setCommitted(pence);
+            setFirstDraw({ pence, area: area.slug });
+          }
         }}
       />
     </>
+  );
+  };
+  return firstDraw === null ? render() : (
+    <Suspense fallback={render()}>
+      <FairPintPlanner cityId={cityId} area={area.slug} initialArea={firstDraw.area} pence={firstDraw.pence} onGenerated={activateRoute}>
+        {render}
+      </FairPintPlanner>
+    </Suspense>
   );
 }

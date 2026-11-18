@@ -15,6 +15,7 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
   vi.stubGlobal("cancelAnimationFrame", vi.fn());
   const values = new Map<string, unknown>();
   const listeners = new Map<string, (...args: unknown[]) => void>();
+  let idle: (() => void) | undefined;
   const paint = vi.fn((id: string, key: string, value: unknown) => values.set(id + key, value));
   const state = vi.fn();
   const map = {
@@ -23,6 +24,7 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
     setPaintProperty: paint, setFeatureState: state, removeFeatureState: vi.fn(),
     querySourceFeatures: () => [{ id: 1, properties: { fairPence: 600 } }, { id: 2, properties: { cluster: true, minFairPence: 600 } }, { id: 3, properties: { cluster: true } }],
     on: (event: string, fn: (...args: unknown[]) => void) => listeners.set(event, fn),
+    once: (_event: string, fn: () => void) => { idle = fn; },
     off: () => {},
   } as unknown as MapLibreMap;
   setFairPintSession(true, 500);
@@ -36,6 +38,8 @@ it("updates feature state per frame, restores once, and leaves inactive paint al
   setPintPaint(map, "pubs-point", "icon-opacity", 0.6);
   expect(values.get("pubs-pointicon-opacity")).toEqual(["coalesce", ["feature-state", "fairPintOpacity"], 0.25]);
   setFairPintSession(false);
+  expect(values.get("pubs-pointicon-opacity")).toEqual(["coalesce", ["feature-state", "fairPintOpacity"], 0.25]);
+  idle!();
   expect(values.get("pubs-pointicon-opacity")).toBe(0.6);
   paint("pubs-point", "icon-opacity", 0.6); paint.mockClear();
   listeners.get("idle")!();
