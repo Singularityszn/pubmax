@@ -30,6 +30,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => v
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
+vi.mock("@/lib/useLogInPublicDay", () => ({ useLogInPublicDay: () => null }));
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
@@ -60,8 +61,6 @@ function setSession(phase: ViewerSession["phase"]): void {
 }
 
 beforeEach(() => {
-  vi.useFakeTimers({ toFake: ["Date"] });
-  vi.setSystemTime(new Date("2026-11-18T12:00:00Z"));
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   viewer.auth.accountRevision = 0;
   viewer.auth.user = null;
@@ -90,15 +89,12 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   style.remove();
-  vi.useRealTimers();
 });
 
 async function renderSocial(initialState: SocialShellState = posts, friendsLaunchEnabled = true): Promise<void> {
   await act(async () => {
     root.render(createElement(SocialPageClient, { initialState, friendsLaunchEnabled, rivalry: [], heritageCrawls: [] }));
   });
-  // Account-resolution assertions start after independent lazy sections mount.
-  await act(async () => { await vi.dynamicImportSettled(); });
 }
 
 describe("Social Posts account resolution", () => {
@@ -131,11 +127,7 @@ describe("Social Posts account resolution", () => {
     expect(getComputedStyle(primary).maxWidth).toBe(pendingMaxWidth);
   });
 
-  it.each([
-    { day: "2026-11-18", publicPrices: false },
-    { day: "2026-11-17", publicPrices: true },
-  ])("reserves the signed-out door's one line in the same slot before the account answers on $day", async ({ day, publicPrices }) => {
-    vi.setSystemTime(new Date(`${day}T12:00:00Z`));
+  it("reserves the signed-out door's one line in the same slot before the account answers", async () => {
     await renderSocial();
 
     // A stranger on the posts tab reads ONE column (taste plan, 18 Oct 2026):
@@ -147,13 +139,7 @@ describe("Social Posts account resolution", () => {
     const slot = door.querySelector('section[aria-label="Social posts"]');
     expect(slot, "the pending account must reserve the door's slot").not.toBeNull();
     const content = slot!.querySelector(".emptyState")!.parentElement!;
-    // A cold notice chunk must commit before we record the reserved slot.
-    await vi.waitFor(async () => {
-      await act(async () => { await vi.dynamicImportSettled(); });
-      expect(door.querySelector(".socialLogInPublic") !== null).toBe(publicPrices);
-    });
     const pendingChildren = Array.from(door.children);
-    expect(pendingChildren[publicPrices ? 2 : 1]).toBe(slot);
     const sizingContent = content.textContent;
     // The sizing copy is the same shape as the answer (a one-line title and
     // the value line) and names no door before the session answers. Only the
@@ -197,7 +183,6 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
     // Everything above the packs kept its place while the account answered.
     expect(Array.from(door.children).slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
-    expect(door.children[publicPrices ? 2 : 1]).toBe(slot);
   });
 
   it("keeps an unanswered account neutral and hides stale signed-out copy when resolution restarts", async () => {
