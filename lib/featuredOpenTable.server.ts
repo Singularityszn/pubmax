@@ -91,7 +91,7 @@ export async function loadFeaturedOpenTable(
     meetingVenueId === selection.meetingVenueId &&
     startMs === Date.parse(selection.startsAt) &&
     insideJoinWindow(startMs, nowMs);
-  if (!matches) return MISSING;
+  if (!matches || card.placesLeft === 0) return MISSING;
 
   const london = await londonPub(selection.meetingVenueId);
   if (london !== "listed") return london === "unavailable" ? UNAVAILABLE : MISSING;
