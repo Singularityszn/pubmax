@@ -251,6 +251,7 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   host.remove();
+  vi.useRealTimers();
 });
 
 describe("RankThisPub", () => {
@@ -262,12 +263,43 @@ describe("RankThisPub", () => {
     expect(rankButton()).toBeNull();
   });
 
+  it("opens from one early tap after the first account resolves", async () => {
+    session.phase = "unresolved";
+    session.userId = null;
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    expect(net.read).not.toHaveBeenCalled();
+    expect(notice()).toBe("Checking your ranking…");
+
+    session.phase = "signed-in";
+    session.userId = "account-a";
+    await render();
+    expect(compare()).toBe("seven-stars:lamb");
+    expect(net.read).toHaveBeenCalledOnce();
+  });
+
+  it("bounds an early tap when the browser cannot resolve the account", async () => {
+    vi.useFakeTimers();
+    session.phase = "unresolved";
+    session.userId = null;
+    await render();
+    await clickRank();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(notice()).toBe("Still waking your session. Try again.");
+    expect(net.read).not.toHaveBeenCalled();
+    expect(rankButton()?.getAttribute("aria-busy")).toBe("false");
+  });
+
   it("keeps an unresolved session neutral and turns a session still waking into a retry", async () => {
     session.phase = "unresolved";
     session.userId = null;
     await render();
     expect(signInDoor()).toBeNull();
 
+    session.phase = "signed-in";
+    session.userId = "account-a";
+    await render();
     net.read.mockRejectedValueOnce(new AuthActionSessionError());
     await clickRank();
     expect(signInDoor()).toBeNull();
