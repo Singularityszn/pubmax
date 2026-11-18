@@ -1,8 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
-import { storeThemeChoice } from "./helpers/themeClock";
-
 import { ACCOUNTS, installAuthDoubles, seedSignedIn } from "./helpers/authDoubles";
+import { storeThemeChoice } from "./helpers/themeClock";
 
 // The thread a person actually types into, measured on a production build.
 //
@@ -24,6 +23,81 @@ const DESKTOP = { width: 1440, height: 900 };
 
 const ME = ACCOUNTS.A.handle;
 const THEM = "karansznx";
+
+for (const width of [390, 1440]) {
+  for (const theme of ["light", "dark"] as const) {
+    for (const forcedColors of ["none", "active"] as const) {
+      test(`thread keyboard geometry gives the typing ring only to Message at ${width}, ${theme}, ${forcedColors}`, async ({ page, browserName }, testInfo) => {
+        await page.setViewportSize({ width, height: 844 });
+        await storeThemeChoice(page, theme);
+        await page.emulateMedia({ forcedColors });
+        await installThread(page, fixture());
+        await page.route("**/api/messages/c1", async (route) => {
+          if (!route.request().headers()["content-type"]?.startsWith("multipart/form-data")) {
+            await route.fallback();
+            return;
+          }
+          await route.fulfill({ json: { message: {
+            ...fixture()[0], id: "focus-photo", senderHandle: ME, body: "", createdAt: new Date().toISOString(),
+            attachment: { kind: "photo", url: "/api/messages/c1/focus-photo", width: 600, height: 600 },
+          } } });
+        });
+        await page.route("**/api/messages/c1/focus-photo?**", (route) =>
+          route.fulfill({ path: "e2e/fixtures/bill.jpg", contentType: "image/jpeg" }),
+        );
+        await page.goto("/messages/c1");
+        const field = page.getByRole("textbox", { name: "Message", exact: true });
+        const composer = page.locator(".composer");
+        const send = page.getByRole("button", { name: "Send", exact: true });
+        const add = page.getByRole("button", { name: width < 640 ? "Add an attachment" : "More to attach", exact: true });
+        await field.fill("See you there");
+        await expect(field).toBeFocused();
+        await expect(composer).toHaveCSS("outline-style", "solid");
+        await expect(field).toHaveCSS("outline-style", "none");
+        const nextControlKey = browserName === "webkit" ? "Alt+Tab" : "Tab";
+        await expect(send).toBeEnabled();
+        await field.press(nextControlKey);
+        await expect(send).toBeFocused();
+        await expect(send).toHaveCSS("outline-style", "solid");
+        await expect(composer).toHaveCSS("outline-style", "none");
+        await add.focus();
+        await add.press("Enter");
+        const chooser = page.getByRole("dialog", { name: "Add to message", exact: true });
+        await expect(chooser).toBeVisible();
+        await page.keyboard.press("Escape");
+        await expect(chooser).toBeHidden();
+        await expect(add).toBeFocused();
+        await expect(add).toHaveCSS("outline-style", "solid");
+        await expect(composer).toHaveCSS("outline-style", "none");
+        await page.screenshot({ path: testInfo.outputPath("chooser-focus.png") });
+
+        await field.fill("");
+        await add.click();
+        const [fileChooser] = await Promise.all([
+          page.waitForEvent("filechooser"),
+          chooser.getByRole("button", { name: "Photos", exact: true }).click(),
+        ]);
+        await fileChooser.setFiles("e2e/fixtures/bill.jpg");
+        await expect(page.getByText("Photo ready to send", { exact: true })).toBeVisible();
+        await field.focus();
+        await expect(composer).toHaveCSS("outline-style", "solid");
+        await expect(send).toBeEnabled();
+        await field.press(nextControlKey);
+        await expect(send).toBeFocused();
+        await expect(send).toHaveCSS("outline-style", "solid");
+        await expect(composer).toHaveCSS("outline-style", "none");
+        await send.click();
+        await expect(page.getByRole("img", { name: `Photo from @${ME}`, exact: true })).toBeVisible();
+        await expect(page.getByText("Photo ready to send", { exact: true })).toBeHidden();
+        expect(await composer.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const drawn = style.outlineStyle !== "none" && style.outlineStyle !== "hidden" && parseFloat(style.outlineWidth) > 0;
+          return drawn === (element.querySelector("textarea") === document.activeElement);
+        })).toBe(true);
+      });
+    }
+  }
+}
 
 type Row = {
   id: string;
@@ -78,10 +152,10 @@ for (const width of [390, 768, 1440]) for (const motion of ["no-preference", "re
     await page.mouse.move(resting.x + resting.width / 2, resting.y + resting.height / 2);
     await page.mouse.down();
     try {
-      await send.evaluate(async button => {
-        button.getBoundingClientRect();
-        await Promise.all(button.getAnimations().map(animation => animation.finished));
-      });
+      await expect(async () => {
+        const pressed = (await send.boundingBox())!;
+        expect(pressed.width / resting.width).toBeCloseTo(motion === "reduce" ? 1 : 0.97, 3);
+      }).toPass();
       const pressed = (await send.boundingBox())!;
       const scale = pressed.width / resting.width;
       await testInfo.attach("pressed scale", { body: JSON.stringify({ width, motion, scale }), contentType: "application/json" });
@@ -301,16 +375,21 @@ test.describe("photo action and pinch regression", () => {
   }
 });
 
-/** Sign the page in as account A and answer the messages API in the browser. */
-async function installThread(page: Page, rows: Row[], account: "A" | "B" = "A"): Promise<void> {
-  const stub = await installAuthDoubles(page);
+/** Sign the page in and answer the messages API in the browser. */
+async function installThread(page: Page, rows: Row[], { analyticsConsent = "denied", account = "A" }: { analyticsConsent?: "denied" | "pending"; account?: "A" | "B" } = {}): Promise<void> {
+  const stub = await installAuthDoubles(page, { analyticsConsent });
+  await page.route("**/today", (route) => route.fulfill({ contentType: "text/html", body: "<html></html>" }));
   await seedSignedIn(page, account);
   await stub.signedInAs(account);
-  await page.addInitScript((handle) => {
+  await page.addInitScript(({ pending, handle }) => {
+    if (pending) {
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+      window.sessionStorage.setItem("pubmax:consent-first-route:v1", "/today");
+    }
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax_handle", handle);
-  }, ACCOUNTS[account].handle);
+  }, { pending: analyticsConsent === "pending", handle: ACCOUNTS[account].handle });
   await page.route("**/api/messages?**", (route) =>
     route.fulfill({
       status: 200,
@@ -411,6 +490,7 @@ async function expectReadableCaption(field: Locator): Promise<void> {
 async function expectComposerInView(page: Page): Promise<void> {
   const viewport = page.viewportSize();
   expect(viewport).not.toBeNull();
+  await expect(page.locator(".composerDock")).toBeInViewport({ ratio: 1 });
   const dock = await box(page, ".composerDock");
   expect(dock.top, "composer top inside the viewport").toBeGreaterThanOrEqual(0);
   expect(dock.bottom, "composer bottom inside the viewport").toBeLessThanOrEqual(viewport!.height + 1);
@@ -544,6 +624,74 @@ test.describe("message action hit areas", () => {
 test.describe("message bubbles on touch", () => {
   test.use({ hasTouch: true, isMobile: true });
 
+  for (const senderHandle of [ME, THEM]) {
+    test(`thread keyboard geometry keeps revealed ${senderHandle === ME ? "Unsend" : "Report"} fully inside the list without moving history`, async ({ page }, testInfo) => {
+      await page.setViewportSize(PHONE);
+      await page.addInitScript(() => {
+        Object.defineProperty(window.visualViewport!, "height", {
+          configurable: true, writable: true, value: 844,
+        });
+      });
+      const rows = Array.from({ length: 60 }, (_, index) => ({
+        ...fixture()[0]!, id: `reveal-${index}`, senderHandle, body: `Earlier message ${index}`,
+      }));
+      await installThread(page, rows);
+      await page.goto("/messages/c1");
+      const list = page.locator(".threadMessages");
+      const bubbles = list.locator(".messageBubble");
+      await expect(bubbles).toHaveCount(60);
+      await expectMessageInView(page, "Earlier message 59");
+      await page.getByRole("textbox", { name: "Message", exact: true }).focus();
+      await page.evaluate(() => {
+        Object.defineProperty(window.visualViewport!, "height", { configurable: true, value: 500 });
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+      });
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+      await expectMessageInView(page, "Earlier message 59");
+      await bubbles.last().tap();
+      const newest = list.locator(".messageRow").last();
+      await expect(newest).toHaveAttribute("data-revealed", "");
+      const action = newest.getByRole("button", { name: senderHandle === ME ? "Unsend" : "Report", exact: true });
+      await expect(async () => {
+        const geometry = await action.evaluate((element) => {
+          const bounds = element.getBoundingClientRect();
+          const listBounds = element.closest(".threadMessages")!.getBoundingClientRect();
+          const x = bounds.left + bounds.width / 2;
+          return {
+            height: bounds.height,
+            top: bounds.top,
+            bottom: bounds.bottom,
+            listTop: listBounds.top,
+            listBottom: listBounds.bottom,
+            edgesHittable: [bounds.top + 1, bounds.bottom - 1].every((y) =>
+              element.contains(document.elementFromPoint(x, y))),
+          };
+        });
+        expect(geometry.height).toBeGreaterThanOrEqual(44);
+        expect(geometry.top).toBeGreaterThanOrEqual(geometry.listTop);
+        expect(geometry.bottom).toBeLessThanOrEqual(geometry.listBottom);
+        expect(geometry.edgesHittable).toBe(true);
+      }).toPass();
+      await page.screenshot({ path: testInfo.outputPath("newest-action.png"), scale: "css" });
+      const originalTop = await list.evaluate((element) => new Promise<number>((resolve) => {
+        element.addEventListener("scroll", () => resolve(element.scrollTop), { once: true });
+        element.scrollTop -= 500;
+      }));
+      const historyIndex = await bubbles.evaluateAll((elements) => {
+        const listBounds = elements[0]!.closest(".threadMessages")!.getBoundingClientRect();
+        return elements.findIndex((element) => {
+          const bounds = element.getBoundingClientRect();
+          return bounds.top >= listBounds.top + 44 && bounds.bottom <= listBounds.bottom - 44;
+        });
+      });
+      expect(historyIndex).toBeGreaterThanOrEqual(0);
+      await bubbles.nth(historyIndex).tap();
+      await expect(list.locator(".messageRow").nth(historyIndex)).toHaveAttribute("data-revealed", "");
+      expect(await list.evaluate((element) => element.scrollTop)).toBe(originalTop);
+      expect(await list.evaluate((element) => element.scrollHeight - element.scrollTop - element.clientHeight)).toBeGreaterThan(100);
+    });
+  }
+
   for (const width of [390, 768, 1440]) {
     for (const rootFontPx of [16, 32]) {
       test(`short bubbles keep their natural width at ${width}px with ${rootFontPx}px text`, async ({ page }, testInfo) => {
@@ -638,11 +786,7 @@ test.describe("the message thread on a phone", () => {
   for (const viewport of [PHONE, NARROW]) {
     test(`a first-run reader's one-message thread opens on the message and the composer, above the consent card @${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
       await page.setViewportSize(viewport);
-      await installThread(page, [fixture()[6]!]);
-      await page.addInitScript(() => {
-        window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
-        window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
-      });
+      await installThread(page, [fixture()[6]!], { analyticsConsent: "pending" });
       await page.goto("/messages/c1");
       await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(1);
       const card = page.getByLabel("Anonymous analytics choice");
@@ -748,6 +892,333 @@ test.describe("the message thread at 320", () => {
   });
 });
 
+async function expectThreadControlsReachable(page: Page, visibleFoot: number): Promise<void> {
+  await expect(async () => {
+    const header = await box(page, ".threadHeader");
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    await expect(send).toBeEnabled();
+    expect(header.top).toBeGreaterThanOrEqual(0);
+    for (const target of [field, send, page.locator(".threadHeader button").first()]) {
+      const rect = (await target.boundingBox())!;
+      expect(rect.height).toBeGreaterThanOrEqual(44);
+      expect(rect.width).toBeGreaterThanOrEqual(44);
+      expect(rect.y).toBeGreaterThanOrEqual(target === field || target === send ? header.bottom : header.top);
+      expect(rect.y + rect.height).toBeLessThanOrEqual(visibleFoot);
+      expect(await target.evaluate((element) => {
+        const r = element.getBoundingClientRect();
+        const x = r.left + r.width / 2;
+        const y = r.top + r.height / 2;
+        return [[x, y], [x, r.top + 1], [x, r.bottom - 1], [r.left + 1, y], [r.right - 1, y]]
+          .every(([px, py]) => element.contains(document.elementFromPoint(px, py)));
+      })).toBe(true);
+    }
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+  }).toPass();
+}
+
+test.describe("thread keyboard geometry with touch input", () => {
+  test.use({ hasTouch: true });
+  for (const startWidth of [1180, 820]) {
+    test(`thread keyboard geometry clears visual-only dismissal after rotation from ${startWidth}`, async ({ page }) => {
+      const startHeight = startWidth === 1180 ? 820 : 1180;
+      const endWidth = startHeight;
+      const endHeight = startWidth;
+      await page.setViewportSize({ width: startWidth, height: startHeight });
+      await installThread(page, fixture(), { analyticsConsent: "pending" });
+      await page.addInitScript((height) => {
+        Object.defineProperties(window.visualViewport!, {
+          height: { configurable: true, writable: true, value: height },
+          offsetTop: { configurable: true, writable: true, value: 0 },
+        });
+      }, startHeight);
+      await page.goto("/messages/c1");
+      const shell = page.locator(".messageThreadShell");
+      const consent = page.getByLabel("Anonymous analytics choice");
+      await expect(consent).toBeVisible();
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await field.fill("Hello");
+      const resizeVisual = async (height: number) => {
+        await page.evaluate((height) => {
+          Object.assign(window.visualViewport!, { height });
+          window.visualViewport!.dispatchEvent(new Event("resize"));
+        }, height);
+      };
+      await resizeVisual(startHeight === 820 ? 400 : 700);
+      await expect(shell).toHaveAttribute("data-keyboard-open", "");
+      await expectThreadControlsReachable(page, startHeight === 820 ? 400 : 700);
+      await page.evaluate((height) => Object.assign(window.visualViewport!, { height }), endHeight === 820 ? 400 : 700);
+      await page.setViewportSize({ width: endWidth, height: endHeight });
+      await resizeVisual(endHeight === 820 ? 400 : 700);
+      await expect(shell).toHaveAttribute("data-keyboard-open", "");
+      await expectThreadControlsReachable(page, endHeight === 820 ? 400 : 700);
+      await resizeVisual(endHeight);
+      await expect(shell).not.toHaveAttribute("data-keyboard-open", "");
+      await expect(shell).not.toHaveAttribute("data-viewport-reduced", "");
+      await expect(field).toBeFocused();
+      await expect(consent).toBeVisible();
+      await expectThreadControlsReachable(page, endHeight);
+      expect((await box(page, ".composerDock")).bottom).toBeLessThanOrEqual((await consent.boundingBox())!.y);
+      await resizeVisual(endHeight === 820 ? 400 : 700);
+      await expect(shell).toHaveAttribute("data-keyboard-open", "");
+      await expectThreadControlsReachable(page, endHeight === 820 ? 400 : 700);
+    });
+  }
+
+  for (const startWidth of [844, 1180]) {
+    test(`thread keyboard geometry survives rotation from ${startWidth}`, async ({ page }) => {
+      const startHeight = startWidth === 844 ? 390 : 820;
+      const endWidth = startWidth === 844 ? 1180 : 844;
+      const endHeight = endWidth === 844 ? 390 : 820;
+      await page.setViewportSize({ width: startWidth, height: startHeight });
+      await installThread(page, fixture());
+      await page.addInitScript((height) => {
+        Object.defineProperties(window.visualViewport!, {
+          height: { configurable: true, writable: true, value: height },
+          offsetTop: { configurable: true, writable: true, value: 0 },
+        });
+      }, startHeight);
+      await page.goto("/messages/c1");
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await field.fill("Hello");
+      const resize = async (width: number, height: number) => {
+        await page.evaluate((height) => Object.assign(window.visualViewport!, { height }), height);
+        await page.setViewportSize({ width, height });
+        await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+      };
+      await resize(startWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(endWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await field.blur();
+      await expectThreadControlsReachable(page, 200);
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-viewport-reduced", "");
+      await resize(endWidth, endHeight);
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+      await expectThreadControlsReachable(page, endHeight);
+      await field.focus();
+      await resize(endWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(startWidth, 200);
+      await expectThreadControlsReachable(page, 200);
+      await resize(startWidth, startHeight);
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+      await expectThreadControlsReachable(page, startHeight);
+    });
+  }
+
+  for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    for (const resizeContent of [false, true]) {
+      test(`thread keyboard geometry clears visible consent with content resize ${resizeContent} and ${reducedMotion}`, async ({ page }, testInfo) => {
+        await page.emulateMedia({ reducedMotion });
+        await storeThemeChoice(page, "dark");
+        await page.setViewportSize({ width: 1180, height: 820 });
+        await installThread(page, fixture(), { analyticsConsent: "pending" });
+        await page.addInitScript(() => {
+          Object.defineProperties(window.visualViewport!, {
+            height: { configurable: true, writable: true, value: 820 },
+            offsetTop: { configurable: true, writable: true, value: 0 },
+          });
+        });
+        await page.goto("/messages/c1");
+        const consent = page.getByLabel("Anonymous analytics choice");
+        await expect(consent).toBeVisible();
+        const field = page.getByRole("textbox", { name: "Message", exact: true });
+        await field.fill("Hello");
+        await page.evaluate(() => Object.assign(window.visualViewport!, { height: 400 }));
+        if (resizeContent) await page.setViewportSize({ width: 1180, height: 400 });
+        await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+        await expectThreadControlsReachable(page, 400);
+        await expect(consent).toBeHidden();
+        expect((await box(page, ".composerDock")).bottom).toBeLessThanOrEqual(400);
+        if (resizeContent) {
+          await page.evaluate(() => Object.assign(window.visualViewport!, { height: 200 }));
+          await page.setViewportSize({ width: 1180, height: 200 });
+          await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+          await page.screenshot({ path: testInfo.outputPath("short-consent-200.png"), scale: "css" });
+          await expect(async () => {
+            const panel = await box(page, ".messagesSplit");
+            const header = await box(page, ".threadHeader");
+            for (const control of [field, page.getByRole("button", { name: "Send", exact: true })]) {
+              const bounds = (await control.boundingBox())!;
+              expect(bounds.height).toBeGreaterThanOrEqual(44);
+              expect(bounds.y).toBeGreaterThanOrEqual(header.bottom);
+              expect(bounds.y + bounds.height).toBeLessThanOrEqual(panel.bottom);
+            }
+          }).toPass();
+          await expectThreadControlsReachable(page, 200);
+          await expect(consent).toBeHidden();
+        }
+        await page.evaluate(() => Object.assign(window.visualViewport!, { height: 820 }));
+        await page.setViewportSize({ width: 1180, height: 820 });
+        await page.evaluate(() => window.visualViewport!.dispatchEvent(new Event("resize")));
+        await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-viewport-reduced", "");
+        await expect(consent).toBeVisible();
+        await expect(field).toBeFocused();
+        await expectThreadControlsReachable(page, 820);
+        expect((await box(page, ".composerDock")).bottom).toBeLessThanOrEqual((await consent.boundingBox())!.y);
+      });
+    }
+  }
+
+  for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    for (const width of [844, 1180]) {
+      test(`thread keyboard geometry bounds tall drafts and attachment errors at ${width} with ${reducedMotion}`, async ({ page }, testInfo) => {
+        await page.emulateMedia({ reducedMotion });
+        const originalHeight = width >= 1024 ? 820 : 390;
+        await page.setViewportSize({ width, height: originalHeight });
+        await storeThemeChoice(page, "dark");
+        await page.addInitScript((height) => {
+          window.localStorage.setItem("pubmax-tour-v1-done", "1");
+          window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+          Object.defineProperties(window.visualViewport!, {
+            height: { configurable: true, writable: true, value: height },
+            offsetTop: { configurable: true, writable: true, value: 0 },
+          });
+        }, originalHeight);
+        await installThread(page, fixture());
+        await page.goto("/messages/c1");
+        const field = page.getByRole("textbox", { name: "Message", exact: true });
+        const send = page.getByRole("button", { name: "Send", exact: true });
+        await field.fill(Array.from({ length: 8 }, () => "One more line").join("\n"));
+        const restingDockBottom = (await box(page, ".composerDock")).bottom;
+        if (width >= 1024) {
+          const restingHeaderTop = (await box(page, ".threadHeader")).top;
+          await page.evaluate((height) => {
+            Object.assign(window.visualViewport!, { height: height - 20 });
+          }, originalHeight);
+          await page.setViewportSize({ width, height: originalHeight - 20 });
+          await expect(async () => {
+            expect((await box(page, ".threadHeader")).top).toBe(restingHeaderTop);
+            expect((await box(page, ".composerDock")).bottom).toBe(restingDockBottom - 20);
+          }).toPass();
+          await page.evaluate((height) => {
+            Object.assign(window.visualViewport!, { height });
+          }, originalHeight);
+          await page.setViewportSize({ width, height: originalHeight });
+        }
+        await page.evaluate((width) => {
+          Object.assign(window.visualViewport!, { height: 200, offsetTop: width >= 1024 ? 200 : 0 });
+          window.visualViewport!.dispatchEvent(new Event("resize"));
+        }, width);
+        let visibleTop = width >= 1024 ? 200 : 0;
+        let visibleFoot = visibleTop + 200;
+        let dockFoot = visibleFoot;
+        const expectReachable = async () => {
+          await expect(async () => {
+            const header = await box(page, ".threadHeader");
+            const dock = await box(page, ".composerDock");
+            const panel = width >= 1024 ? await box(page, ".messagesSplit") : null;
+            const input = await field.boundingBox();
+            const button = await send.boundingBox();
+            expect(header.top).toBeGreaterThanOrEqual(visibleTop);
+            expect(header.bottom).toBeLessThanOrEqual(visibleFoot);
+            expect(dock.top).toBeGreaterThanOrEqual(header.bottom);
+            expect(dock.bottom).toBeLessThanOrEqual(visibleFoot);
+            expect(Math.abs(dock.bottom - dockFoot)).toBeLessThanOrEqual(1);
+            expect(input!.y).toBeGreaterThanOrEqual(header.bottom);
+            expect(input!.height).toBeGreaterThanOrEqual(44);
+            expect(input!.y + input!.height).toBeLessThanOrEqual(visibleFoot);
+            expect(button!.y).toBeGreaterThanOrEqual(header.bottom);
+            expect(button!.height).toBeGreaterThanOrEqual(44);
+            expect(button!.y + button!.height).toBeLessThanOrEqual(visibleFoot);
+            if (panel) {
+              expect(header.top).toBeGreaterThanOrEqual(panel.top);
+              expect(input!.y + input!.height).toBeLessThanOrEqual(panel.bottom);
+              expect(button!.y + button!.height).toBeLessThanOrEqual(panel.bottom);
+            }
+          }).toPass();
+          for (const target of [field, send]) {
+            expect(await target.evaluate((element) => {
+              const rect = element.getBoundingClientRect();
+              return [rect.top + 1, rect.bottom - 1].every((y) =>
+                element.contains(document.elementFromPoint(rect.left + rect.width / 2, y)),
+              );
+            })).toBe(true);
+          }
+          expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+          expect(await page.evaluate(() => window.scrollY)).toBe(0);
+        };
+        await expectReachable();
+        expect(await field.evaluate((element: HTMLTextAreaElement) => element.scrollHeight > element.clientHeight)).toBe(true);
+        await page.screenshot({ path: testInfo.outputPath("tall-draft.png"), scale: "css" });
+        await field.fill("Short");
+        await expectReachable();
+        await page.getByRole("button", { name: "More to attach", exact: true }).click();
+        await page.getByRole("button", { name: "Start a poll", exact: true }).click();
+        const poll = page.getByRole("group", { name: "Start a poll", exact: true });
+        await poll.getByRole("textbox", { name: "Question", exact: true }).fill("Where tonight?");
+        await poll.getByRole("textbox", { name: "Option 1", exact: true }).fill("The Lamb");
+        await poll.getByRole("textbox", { name: "Option 2", exact: true }).fill("The Crown");
+        await poll.getByRole("button", { name: "Attach poll", exact: true }).click();
+        await field.fill(Array.from({ length: 8 }, () => "One more line").join("\n"));
+        await expectReachable();
+        await page.route("**/api/messages/c1", (route) => route.fulfill({ status: 503, json: { error: "Try again later" } }));
+        await send.click();
+        await expect(page.locator(".composerDock").getByRole("alert")).toBeVisible();
+        await expectReachable();
+        await page.screenshot({ path: testInfo.outputPath("pending-and-error.png"), scale: "css" });
+        if (width >= 1024) {
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 200, offsetTop: 0 });
+          });
+          await page.setViewportSize({ width, height: 200 });
+          visibleTop = 0;
+          visibleFoot = 200;
+          dockFoot = visibleFoot;
+          await expectReachable();
+          await field.fill("Short");
+          await expectReachable();
+          await field.fill(Array.from({ length: 8 }, () => "One more line").join("\n"));
+          await expectReachable();
+          await field.fill("x".repeat(910) + "\n".repeat(8));
+          await expectReachable();
+          await page.screenshot({ path: testInfo.outputPath("resized-content.png"), scale: "css" });
+          await page.evaluate((height) => {
+            Object.assign(window.visualViewport!, { height, offsetTop: 0 });
+          }, originalHeight);
+          await page.setViewportSize({ width, height: originalHeight });
+          visibleFoot = originalHeight;
+          dockFoot = restingDockBottom;
+          await expectReachable();
+          for (const offsetTop of [0, 120]) {
+            await page.evaluate((offsetTop) => {
+              Object.assign(window.visualViewport!, { height: 400, offsetTop });
+              window.visualViewport!.dispatchEvent(new Event("resize"));
+              window.visualViewport!.dispatchEvent(new Event("scroll"));
+            }, offsetTop);
+            visibleTop = offsetTop;
+            visibleFoot = offsetTop + 400;
+            dockFoot = visibleFoot;
+            await expectReachable();
+          }
+          await page.evaluate((height) => {
+            Object.assign(window.visualViewport!, { height, offsetTop: 0 });
+            window.visualViewport!.dispatchEvent(new Event("resize"));
+            window.visualViewport!.dispatchEvent(new Event("scroll"));
+          }, originalHeight);
+          visibleTop = 0;
+          visibleFoot = originalHeight;
+          dockFoot = restingDockBottom;
+          await expectReachable();
+          await page.setViewportSize({ width: 844, height: originalHeight });
+          await expect(async () => {
+            await expectComposerInView(page);
+            expect((await box(page, ".messageThreadShell")).width).toBe(844);
+          }).toPass();
+          await page.setViewportSize({ width, height: originalHeight });
+          await expectReachable();
+        }
+        await field.fill("x".repeat(910) + "\n".repeat(8));
+        await expectReachable();
+        const counter = await box(page, ".composerCount");
+        expect(counter.bottom).toBeLessThanOrEqual(visibleFoot);
+      });
+    }
+  }
+});
+
 test.describe("the inbox on a phone", () => {
   test("filters conversations and starts a pub plan without sending it", async ({ page }, testInfo) => {
     await page.setViewportSize(PHONE);
@@ -845,11 +1316,7 @@ test.describe("the message thread on a desktop", () => {
     // viewport-sized box while the body reserved the card's lane under it,
     // so the card sat on the composer row. The panel gives the lane back.
     await page.setViewportSize(DESKTOP);
-    await installThread(page, fixture());
-    await page.addInitScript(() => {
-      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
-      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
-    });
+    await installThread(page, fixture(), { analyticsConsent: "pending" });
     await page.goto("/messages/c1");
     await expect(page.locator(".threadMessages .messageBubble")).toHaveCount(8);
     const card = page.getByLabel("Anonymous analytics choice");
@@ -868,6 +1335,395 @@ test.describe("the message thread on a desktop", () => {
   });
 });
 
+
+for (const width of [641, 768, 1023]) {
+  test(`thread keyboard geometry clears unanswered consent at ${width}`, async ({ page }, testInfo) => {
+    await page.setViewportSize({ width, height: 844 });
+    await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+    await storeThemeChoice(page, "dark");
+    await installThread(page, fixture().slice(-3), { analyticsConsent: "pending" });
+    await page.addInitScript(() => {
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, writable: true, value: 844 },
+        offsetTop: { configurable: true, writable: true, value: 0 },
+      });
+    });
+    await page.goto("/messages/c1");
+    const card = page.getByLabel("Anonymous analytics choice");
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await expect(card).toBeVisible();
+    const expectConsentClearance = async () => {
+      await expect(async () => {
+        const [dock, cardBox] = await Promise.all([box(page, ".composerDock"), card.boundingBox()]);
+        expect(Math.abs(dock.bottom - cardBox!.y)).toBeLessThanOrEqual(1);
+      }).toPass();
+      await expectComposerInView(page);
+      await expectMessageInView(page, "Bring cash, card machine is dodgy");
+    };
+    await expectConsentClearance();
+    await field.focus();
+    const dockBottom = await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 480 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+      return document.querySelector(".composerDock")!.getBoundingClientRect().bottom;
+    });
+    expect(Math.abs(dockBottom - 480)).toBeLessThanOrEqual(1);
+    await expect(card).toBeHidden();
+    await expectComposerInView(page);
+    await field.fill("See you there");
+    const send = page.getByRole("button", { name: "Send", exact: true });
+    expect(await send.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+    })).toBe(true);
+    await field.blur();
+    await expect(card).toBeHidden();
+    await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 844 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expect(card).toBeVisible();
+    await expectConsentClearance();
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+    await page.screenshot({ path: testInfo.outputPath(`tablet-consent-${width}.png`), scale: "css" });
+    await card.getByRole("button", { name: "No thanks", exact: true }).click();
+    await expect(card).toHaveCount(0);
+    expect(Math.abs((await box(page, ".composerDock")).bottom - 844)).toBeLessThanOrEqual(1);
+  });
+}
+
+for (const action of ["Cancel", "Attach poll"]) {
+  test(`expanded poll keeps ${action} and the composer reachable above the keyboard`, async ({ page }, testInfo) => {
+    await page.setViewportSize(PHONE);
+    await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+    await storeThemeChoice(page, "dark");
+    await page.addInitScript(() => {
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, writable: true, value: 844 },
+        offsetTop: { configurable: true, writable: true, value: 0 },
+      });
+    });
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    await page.getByRole("button", { name: "Add an attachment", exact: true }).click();
+    await page.getByRole("button", { name: "Start a poll", exact: true }).click();
+    const poll = page.getByRole("group", { name: "Start a poll", exact: true });
+    await poll.getByRole("textbox", { name: "Question", exact: true }).fill("Where tonight?");
+    for (let index = 0; index < 4; index += 1) {
+      await poll.getByRole("button", { name: "Add an option", exact: true }).click();
+    }
+    for (let index = 1; index <= 6; index += 1) {
+      await poll.getByRole("textbox", { name: `Option ${index}`, exact: true }).fill(`Pub ${index}`);
+    }
+    const option = poll.getByRole("textbox", { name: "Option 6", exact: true });
+    await option.blur();
+    await expectComposerInView(page);
+    await option.focus();
+    for (const viewport of [{ height: 480, offsetTop: 0 }, { height: 320, offsetTop: 120 }]) {
+      const geometry = await page.evaluate((next) => {
+        Object.assign(window.visualViewport!, next);
+        window.visualViewport!.dispatchEvent(new Event("resize"));
+        const dock = document.querySelector(".composerDock")!.getBoundingClientRect();
+        const header = document.querySelector(".threadHeader")!.getBoundingClientRect();
+        return { bottom: dock.bottom, top: dock.top, headerBottom: header.bottom };
+      }, viewport);
+      expect(Math.abs(geometry.bottom - viewport.height - viewport.offsetTop)).toBeLessThanOrEqual(1);
+      expect(geometry.top).toBeGreaterThanOrEqual(geometry.headerBottom);
+      const listHeight = (await box(page, ".threadMessages")).height;
+      const lineHeight = await page.locator(".messageBubble").last().evaluate((element) =>
+        parseFloat(getComputedStyle(element).lineHeight),
+      );
+      expect(listHeight === 0 || listHeight >= lineHeight, "the list collapses without a clipped line").toBe(true);
+      await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+      const button = poll.getByRole("button", { name: action, exact: true });
+      await button.scrollIntoViewIfNeeded();
+      await expect(button).toBeInViewport({ ratio: 1 });
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox!.y).toBeGreaterThanOrEqual(geometry.top);
+      expect(buttonBox!.y + buttonBox!.height).toBeLessThanOrEqual(viewport.height + viewport.offsetTop);
+      expect(await button.evaluate((element) => {
+        const rect = element.getBoundingClientRect();
+        return element.contains(document.elementFromPoint(rect.left + rect.width / 2, rect.top + rect.height / 2));
+      })).toBe(true);
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      await expect(field).toBeInViewport({ ratio: 1 });
+      await expect(page.getByRole("button", { name: "Send", exact: true })).toBeInViewport({ ratio: 1 });
+      expect(await page.evaluate(() => window.scrollY)).toBe(0);
+      expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+    }
+    await page.screenshot({ path: testInfo.outputPath(`expanded-poll-${action}.png`), scale: "css" });
+    await poll.getByRole("button", { name: action, exact: true }).click();
+    await expect(poll).toHaveCount(0);
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await field.fill("See you there");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expectMessageInView(page, "See you there");
+    await field.blur();
+    await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 844, offsetTop: 0 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expectComposerInView(page);
+    await expectMessageInView(page, "See you there");
+  });
+}
+
+test.describe("thread keyboard geometry", () => {
+  for (const layout of [
+    { width: 390, shell: "web" }, { width: 768, shell: "web" }, { width: 1440, shell: "web" },
+    { width: 390, shell: "ios" }, { width: 390, shell: "android" },
+  ]) {
+    const { width, shell } = layout;
+    for (const theme of ["dark", "light"] as const) {
+      test(`group thread keyboard dock at ${width} in ${theme} on ${shell}`, async ({ page }, testInfo) => {
+        await page.setViewportSize({ width, height: 844 });
+        await page.clock.setFixedTime(new Date("2026-11-16T14:00:00Z"));
+        if (shell !== "web") {
+          await page.addInitScript((platform) => {
+            Object.defineProperty(window, "Capacitor", {
+              configurable: true,
+              value: Object.defineProperties({}, {
+                isNativePlatform: { get: () => () => true, set: () => {} },
+                getPlatform: { get: () => () => platform, set: () => {} },
+              }),
+            });
+            window.localStorage.setItem("pubmax:nativeFirstRun:routed:v1", "1");
+          }, shell);
+          await page.emulateMedia({ reducedMotion: "reduce" });
+        }
+        await storeThemeChoice(page, theme);
+        await page.addInitScript(() => {
+          let height: number | undefined;
+          Object.defineProperties(window.visualViewport!, {
+            height: { configurable: true, get: () => height ?? window.innerHeight, set: (next: number) => { height = next; } },
+            offsetTop: { configurable: true, writable: true, value: 0 },
+          });
+        });
+        const rows = fixture().slice(-3);
+        await installThread(page, rows);
+        await page.route("**/api/messages/c1**", async (route, request) => {
+          if (request.method() === "POST") return route.fallback();
+          await route.fulfill({ json: {
+            messages: rows,
+            conversation: { kind: "group", members: [ME, THEM, "maisie"], title: "Friday regulars" },
+          } });
+        });
+        await page.goto("/messages/c1");
+        const field = page.getByRole("textbox", { name: "Message", exact: true });
+        await expect(field).toBeVisible();
+        await expect(page.getByText("Friday regulars", { exact: true })).toBeVisible();
+        if (shell !== "web") await expect(page.locator("html")).toHaveAttribute("data-native-shell", shell);
+        const pageScroll = await page.evaluate(() => window.scrollY);
+        await (testInfo.project.use.hasTouch ? field.tap() : field.click());
+        if (width < 1024) {
+          if (shell === "android") await page.setViewportSize({ width, height: 500 });
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 500 });
+            window.visualViewport!.dispatchEvent(new Event("resize"));
+            const dock = document.querySelector(".composerDock")!.getBoundingClientRect();
+            if (Math.abs(dock.bottom - 500) > 1) throw new Error(`Immediate keyboard geometry: ${JSON.stringify({
+              gap: 500 - dock.bottom, scale: window.visualViewport!.scale,
+              shellBottom: document.querySelector(".messageThreadShell")!.getBoundingClientRect().bottom,
+              shellHeight: getComputedStyle(document.querySelector(".messageThreadShell")!).height,
+              transition: getComputedStyle(document.querySelector(".messageThreadShell")!).transition,
+              listHeight: document.querySelector(".threadMessages")!.getBoundingClientRect().height,
+              listTransition: getComputedStyle(document.querySelector(".threadMessages")!).transition,
+              animations: document.querySelector(".messageThreadShell")!.getAnimations().map(animation => animation.effect?.getTiming()),
+              height: window.visualViewport!.height, layoutHeight: window.innerHeight,
+              style: document.querySelector(".messageThreadShell")!.getAttribute("style"),
+              keyboard: document.querySelector(".messageThreadShell")!.hasAttribute("data-keyboard-open"),
+              reduced: document.querySelector(".messageThreadShell")!.hasAttribute("data-viewport-reduced"),
+            })}`);
+          });
+          await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+        }
+        await expect(async () => {
+          const geometry = await page.evaluate(() => {
+            const dock = document.querySelector(".composerDock")!.getBoundingClientRect();
+            const header = document.querySelector(".threadHeader")!.getBoundingClientRect();
+            const day = document.querySelector(".threadDay")!.getBoundingClientRect();
+            return {
+              gap: window.visualViewport!.height + window.visualViewport!.offsetTop - dock.bottom,
+              dateClearance: day.top - header.bottom,
+              scale: window.visualViewport!.scale,
+            };
+          });
+          if (width < 1024) {
+            expect(Math.abs(geometry.gap), "dock meets the visible viewport foot").toBeLessThanOrEqual(1);
+          } else {
+            await expectComposerInView(page);
+          }
+          expect(geometry.dateClearance, "Today clears the header").toBeGreaterThanOrEqual(0);
+          expect(geometry.scale).toBe(1);
+        }).toPass();
+        await expectMessageInView(page, "Bring cash, card machine is dodgy");
+        expect(await field.evaluate((element) => parseFloat(getComputedStyle(element).fontSize))).toBeGreaterThanOrEqual(16);
+        await page.screenshot({
+          path: testInfo.outputPath(`keyboard-${width}-${theme}.png`), scale: "css",
+          ...(width < 1024 ? { clip: { x: 0, y: 0, width, height: 500 } } : {}),
+        });
+        if (width < 1024) {
+          const panned = await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 380, offsetTop: 120 });
+            window.visualViewport!.dispatchEvent(new Event("scroll"));
+            return {
+              header: document.querySelector(".threadHeader")!.getBoundingClientRect().top,
+              dock: document.querySelector(".composerDock")!.getBoundingClientRect().bottom,
+            };
+          });
+          expect(panned.header).toBe(120);
+          expect(Math.abs(panned.dock - 500)).toBeLessThanOrEqual(1);
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 500, offsetTop: 0 });
+            window.visualViewport!.dispatchEvent(new Event("scroll"));
+          });
+        }
+        await field.fill("See you there");
+        const send = page.getByRole("button", { name: "Send", exact: true });
+        await (testInfo.project.use.hasTouch ? send.tap() : send.click());
+        await expectMessageInView(page, "See you there");
+        await expect(field).toBeFocused();
+        expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+        expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+        if (width < 1024) {
+          await field.fill("Next round?");
+          await field.blur();
+          await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
+          await expect(async () => {
+            expect(Math.abs((await box(page, ".composerDock")).bottom - 500)).toBeLessThanOrEqual(1);
+          }).toPass();
+          await expect(send).toBeEnabled();
+          await expect(async () => {
+            for (const target of [field, send]) {
+              expect(await target.evaluate((element) => {
+                const rect = element.getBoundingClientRect();
+                return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+              })).toBe(true);
+            }
+            if (width <= 640) {
+              const [dock, bar] = await Promise.all([box(page, ".composerDock"), box(page, ".mobileTabBar")]);
+              expect(bar.top).toBeGreaterThanOrEqual(dock.bottom);
+            }
+          }).toPass();
+          expect(await page.evaluate(() => window.scrollY)).toBe(pageScroll);
+          expect(await page.evaluate(() => window.visualViewport!.scale)).toBe(1);
+          if (shell === "android") await page.setViewportSize({ width, height: 844 });
+          await page.evaluate(() => {
+            Object.assign(window.visualViewport!, { height: 844, offsetTop: 0 });
+            window.visualViewport!.dispatchEvent(new Event("resize"));
+          });
+          await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-keyboard-open", "");
+          await expectComposerInView(page);
+          if (width <= 640) {
+            await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+          }
+          await expectMessageInView(page, "See you there");
+        }
+      });
+    }
+  }
+});
+
+
+for (const width of [390, 1440]) {
+  test(`thread keyboard geometry preserves the reader's position while the field grows at ${width}`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 844 });
+    const rows = Array.from({ length: 60 }, (_, index) => ({
+      ...fixture()[0], id: `history-${index}`, body: `Earlier message ${index}`,
+    }));
+    await installThread(page, rows);
+    await page.goto("/messages/c1");
+    const list = page.locator(".threadMessages");
+    await expect(list.locator(".messageBubble")).toHaveCount(60);
+    await expectMessageInView(page, "Earlier message 59");
+    const original = await list.evaluate((element) => new Promise<{ top: number; height: number }>((resolve) => {
+      element.addEventListener("scroll", () => resolve({ top: element.scrollTop, height: element.clientHeight }), { once: true });
+      element.scrollTop = element.scrollHeight - element.clientHeight - 500;
+    }));
+    const field = page.getByRole("textbox", { name: "Message", exact: true });
+    await field.fill("First line\nSecond line\nThird line\nFourth line");
+    await expect(async () => {
+      expect(await list.evaluate((element) => element.clientHeight)).toBeLessThan(original.height);
+    }).toPass();
+    await page.evaluate(() => new Promise(requestAnimationFrame));
+    expect(await list.evaluate((element) => element.scrollTop)).toBe(original.top);
+    await list.evaluate((element) => new Promise<void>((resolve) => {
+      element.addEventListener("scroll", () => resolve(), { once: true });
+      element.scrollTop = element.scrollHeight;
+    }));
+    await field.fill("Short");
+    await expectMessageInView(page, "Earlier message 59");
+    await field.fill("First line\nSecond line\nThird line\nFourth line");
+    await expectMessageInView(page, "Earlier message 59");
+  });
+}
+
+
+test.describe("thread keyboard geometry on a large touch screen", () => {
+  test.use({ hasTouch: true });
+  test("keeps the composer above a landscape tablet keyboard", async ({ page }, testInfo) => {
+    await page.setViewportSize({ width: 1180, height: 820 });
+    await page.addInitScript(() => {
+      let height: number | undefined;
+      Object.defineProperties(window.visualViewport!, {
+        height: { configurable: true, get: () => height ?? innerHeight, set: (value: number) => { height = value; } },
+        offsetTop: { configurable: true, writable: true, value: 0 },
+      });
+    });
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
+    await expect(page.locator(".siteNavBar")).toBeVisible();
+    await page.getByRole("textbox", { name: "Message", exact: true }).tap();
+    const geometry = await page.evaluate(() => {
+      Object.assign(window.visualViewport!, { height: 400, offsetTop: 120 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+      window.visualViewport!.dispatchEvent(new Event("scroll"));
+      return {
+        top: document.querySelector(".threadHeader")!.getBoundingClientRect().top,
+        bottom: document.querySelector(".composerDock")!.getBoundingClientRect().bottom,
+        panelTop: document.querySelector(".messagesSplit")!.getBoundingClientRect().top,
+        gutter: document.querySelector(".messageBubble")!.getBoundingClientRect().left
+          - document.querySelector(".messagesThreadPane")!.getBoundingClientRect().left,
+      };
+    });
+    expect(geometry.panelTop).toBe(120);
+    expect(geometry.top).toBe(121);
+    expect(Math.abs(geometry.bottom - 520)).toBeLessThanOrEqual(1);
+    expect(geometry.gutter).toBeGreaterThanOrEqual(20);
+    await expect(page.locator(".messagesInboxPane")).toBeVisible();
+    await expectMessageInView(page, "Bring cash, card machine is dodgy");
+    await page.screenshot({ path: testInfo.outputPath("tablet-touch-keyboard.png"), scale: "css", clip: { x: 0, y: 120, width: 1180, height: 400 } });
+  });
+});
+
+
+test("thread keyboard geometry reserves the newest photo before its bytes arrive", async ({ page }) => {
+  await page.setViewportSize(PHONE);
+  const rows = [...fixture(), {
+    ...fixture()[0], id: "delayed-photo", senderHandle: ME, body: "Latest photo",
+    attachment: { kind: "photo" as const, url: "/api/messages/c1/photo-delayed", width: 600, height: 600 },
+  }];
+  await installThread(page, rows);
+  let releasePhoto!: () => void;
+  const ready = new Promise<void>((resolve) => { releasePhoto = resolve; });
+  await page.route("**/api/messages/c1/photo-delayed?**", async (route) => {
+    await ready;
+    await route.fulfill({ path: `${process.cwd()}/e2e/fixtures/bill.jpg`, contentType: "image/jpeg" });
+  });
+  await page.goto("/messages/c1");
+  await expect(page.getByText("Loading photo", { exact: true })).toBeVisible();
+  await expectMessageInView(page, "Latest photo");
+  const before = await page.locator(".messagePhotoFigure").boundingBox();
+  releasePhoto();
+  const photo = page.getByRole("img", { name: /Photo/ });
+  await expect(photo).toBeVisible();
+  await photo.evaluate((element: HTMLImageElement) => element.decode());
+  const after = await page.locator(".messagePhotoFigure").boundingBox();
+  expect(after!.height).toBe(before!.height);
+  await expectMessageInView(page, "Latest photo");
+});
 for (const width of [390, 768, 1440]) {
   test(`photo history loads nearby frames and keyboard destinations at ${width}px`, async ({ page }, testInfo) => {
     await page.setViewportSize({ width, height: 900 });
@@ -1236,6 +2092,81 @@ for (const width of [390, 768, 1440]) for (const theme of ["light", "dark"] as c
   });
 }
 
+test.describe("compact photo counter", () => {
+  test.use({ hasTouch: true, isMobile: false });
+
+  for (const theme of ["light", "dark"] as const) for (const reducedMotion of ["no-preference", "reduce"] as const) {
+    test(`a long caption and its counter fit with a pending photo and send error in ${theme} with ${reducedMotion}`, async ({ page }, testInfo) => {
+      await page.emulateMedia({ reducedMotion });
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await storeThemeChoice(page, theme);
+      await installThread(page, fixture());
+      await page.route("**/api/messages/c1", async route => {
+        if (route.request().method() === "POST") {
+          await route.fulfill({ status: 503, json: { error: "Upload interrupted. Try again." } });
+        } else await route.fallback();
+      });
+      await page.goto("/messages/c1");
+      await page.locator("#message-photo-file").setInputFiles("e2e/fixtures/bill.jpg");
+      await expect(page.locator(".composerPendingThumb")).toBeVisible();
+      const field = page.getByRole("textbox", { name: "Message", exact: true });
+      const send = page.getByRole("button", { name: "Send", exact: true });
+      const caption = "x".repeat(900);
+      await field.fill(caption);
+      await send.click();
+      const retry = page.getByRole("button", { name: "Retry send", exact: true });
+      await expect(retry).toBeEnabled();
+      await field.focus();
+      await page.setViewportSize({ width: 1180, height: 200 });
+      await expect(async () => {
+        const composer = await box(page, ".composer");
+        const input = await box(page, ".composerInput");
+        const counter = await box(page, ".composerCount");
+        expect(input.height).toBeGreaterThanOrEqual(44);
+        expect(counter.top).toBeGreaterThanOrEqual(input.bottom);
+        expect(counter.bottom).toBeLessThanOrEqual(composer.bottom - 1);
+      }).toPass();
+      for (const control of [page.getByRole("button", { name: "Remove", exact: true }), retry, send, field]) {
+        await control.scrollIntoViewIfNeeded();
+        await expect(async () => {
+          const header = await box(page, ".threadHeader");
+          const bounds = (await control.boundingBox())!;
+          expect(bounds.width).toBeGreaterThanOrEqual(44);
+          expect(bounds.height).toBeGreaterThanOrEqual(44);
+          expect(bounds.y).toBeGreaterThanOrEqual(header.bottom);
+          expect(bounds.y + bounds.height).toBeLessThanOrEqual(200);
+          await expect(control).toBeInViewport({ ratio: 0.99 });
+          expect(await control.evaluate(element => {
+            const rect = element.getBoundingClientRect();
+            return element.contains(document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2));
+          })).toBe(true);
+        }).toPass();
+      }
+      await expect(field).toHaveValue(caption);
+      await field.press("End");
+      await field.press("Backspace");
+      await expect(field).toHaveValue(caption.slice(0, -1));
+      await expect(page.locator(".composerCount")).toHaveCount(0);
+      const overflow = await field.evaluate((element: HTMLTextAreaElement) => {
+        element.scrollTop = element.scrollHeight;
+        return { height: element.clientHeight, scroll: element.scrollHeight, end: element.scrollTop + element.clientHeight };
+      });
+      expect(overflow.scroll).toBeGreaterThan(overflow.height);
+      expect(overflow.end).toBeGreaterThanOrEqual(overflow.scroll - 1);
+      expect(await page.evaluate(() => window.visualViewport?.scale)).toBe(1);
+      await field.fill(caption);
+      await page.screenshot({ path: testInfo.outputPath("compact-photo-counter.png") });
+      await page.setViewportSize({ width: 1180, height: 820 });
+      await expect(async () => {
+        const composer = await box(page, ".composer");
+        const counter = await box(page, ".composerCount");
+        expect(counter.bottom).toBeLessThanOrEqual(composer.bottom - 1);
+      }).toPass();
+      await expect(page.locator(".messageThreadShell")).not.toHaveAttribute("data-compact-composer", "");
+    });
+  }
+});
+
 test.describe("compact photo composer", () => {
   test.use({ isMobile: false });
 
@@ -1261,6 +2192,7 @@ test.describe("compact photo composer", () => {
       const field = page.getByRole("textbox", { name: "Message", exact: true });
       const caption = "A photo caption for a small viewport with large accessible text.";
       await field.fill(caption);
+      await expectReadableCaption(field);
       await page.setViewportSize({ width, height: 480 });
       if (keyboard) {
         await field.focus();
@@ -1273,9 +2205,21 @@ test.describe("compact photo composer", () => {
           viewport.dispatchEvent(new Event("resize"));
         });
         await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
-        await expect(page.locator(".messageThreadShell")).toHaveCSS("--keyboard-inset", "260px");
+        await expect(async () => {
+          const shell = await box(page, ".messageThreadShell");
+          expect(shell.top).toBe(0);
+          expect(shell.bottom).toBe(220);
+        }).toPass();
       }
-      await expectReadableCaption(field);
+      await expect(async () => {
+        const captionGeometry = await field.evaluate((element: HTMLTextAreaElement) => {
+          element.scrollTop = element.scrollHeight;
+          return { height: element.clientHeight, end: element.scrollTop + element.clientHeight, required: element.scrollHeight, maxHeight: parseFloat(getComputedStyle(element).maxHeight) };
+        });
+        expect(captionGeometry.height).toBeGreaterThanOrEqual(44);
+        expect(captionGeometry.height).toBeLessThanOrEqual(captionGeometry.maxHeight + 1);
+        expect(captionGeometry.end).toBeGreaterThanOrEqual(captionGeometry.required - 1);
+      }).toPass();
 
       const reachable = async (control: Locator) => {
         await expect(async () => {
@@ -1296,10 +2240,15 @@ test.describe("compact photo composer", () => {
             const style = getComputedStyle(element);
             return element.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
           })).toBeGreaterThanOrEqual(44);
-          await page.mouse.move(box!.x + 4, (top + bottom) / 2);
+          const region = control.locator("xpath=ancestor::div[contains(@class, 'composerPickerRegion')]");
+          const scroller = await region.count() ? region : dock;
+          const scrollBox = (await scroller.boundingBox())!;
+          const scrollTop = Math.max(top, scrollBox.y);
+          const scrollBottom = Math.min(bottom, scrollBox.y + scrollBox.height);
+          await page.mouse.move(scrollBox.x + 4, (scrollTop + scrollBottom) / 2);
           const target = await control.boundingBox();
           expect(target).not.toBeNull();
-          await page.mouse.wheel(0, target!.y + target!.height / 2 - (top + bottom) / 2);
+          await page.mouse.wheel(0, target!.y + target!.height / 2 - (scrollTop + scrollBottom) / 2);
           await expect(control).toBeInViewport({ ratio: 0.99 });
           const visible = (await control.boundingBox())!;
           expect(visible.width).toBeGreaterThanOrEqual(44);
@@ -1462,8 +2411,18 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
     }
     await expect(page.locator("[data-sending]")).toHaveCount(0);
     await shot("sent-light"); await scaleIsOne();
+    if (width < 1024) {
+      await page.getByRole("link", { name: "Back to inbox", exact: true }).click();
+      await expect(page).toHaveURL(/\/messages$/);
+    }
     await page.getByRole("button", { name: "Switch to dark theme", exact: true }).click();
     await expect(page.getByRole("button", { name: "Switch to light theme", exact: true })).toBeVisible();
+    if (width < 1024) {
+      await page.getByRole("link", { name: new RegExp(THEM) }).click();
+      await expect(page).toHaveURL(/\/messages\/c1$/);
+      await readable(".messagePhotoButton .messagePhoto", photoCount);
+    }
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
     await shot("sent-dark");
     await page.locator(".messagePhotoButton").first().click();
     await expect(page.getByRole("dialog", { name: "Photo viewer" })).toBeVisible();
@@ -1504,7 +2463,7 @@ for (const width of [390, 768, 1440]) for (const photoCount of [1, 2]) {
 
     const recipientContext = await browser.newContext({ baseURL: testInfo.project.use.baseURL, viewport: { width, height: 900 }, serviceWorkers: "block" });
     const recipient = await recipientContext.newPage();
-    await installThread(recipient, rows, "B");
+    await installThread(recipient, rows, { account: "B" });
     await recipient.route("**/api/messages/c1/media/**", route => route.fulfill({ contentType: "image/jpeg", body: files.get(new URL(route.request().url()).pathname)! }));
     await recipient.goto("/messages/c1");
     await expect(recipient.locator(".messagePhotoButton")).toHaveCount(photoCount);

@@ -465,6 +465,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   With message alerts enabled, a new incoming message can show an in-app notice linking to its chat. The notice shows the conversation name, with no message text. It excludes the chat you are viewing and respects chat mutes, sender mutes and blocks. Choose **Dismiss message notification** to close it.
 
+  Scroll within the message list to read earlier messages. While you read earlier messages, new messages preserve your reading position. Sending a message returns to the newest message.
+
   In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
 
   Open **Chat options** in the thread header. Choose **Delete chat**. Confirm to remove the chat and its existing history from your view. Other participants keep their messages. A later message restores the chat in your inbox with only the messages sent after deletion. Deleting a group chat keeps your membership. Choose **Back to inbox** to see later messages after deletion.
@@ -477,7 +479,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. During preparation, a counter shows completed photos and the batch total. **Cancel** stops preparation. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
 
-  On a short screen or with large text, scroll within the composer to reach its controls.
+  Attachment forms scroll within their own area above the message field. On a short screen or with large text, the composer can also scroll.
 
   If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread.
 

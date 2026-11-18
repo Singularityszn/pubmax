@@ -36,13 +36,12 @@ import MessageNotificationSettings from "@/components/messages/MessageNotificati
 import { useMessageThreadPresence } from "@/components/messages/useMessageThreadPresence";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
-import MessageVenuePicker, {
-} from "@/components/messages/MessageVenuePicker";
+import { useThreadViewportFit } from "@/components/messages/useThreadViewportFit";
+import MessageVenuePicker from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { useKeyboardInset } from "@/lib/keyboardInset";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
@@ -118,16 +117,11 @@ import "@/components/messages/messagePhotos.css";
 //
 // Bubble width constraints: app/messages/messages.css.
 //
-// Timeline, reveal and read-state rules:
+// Timeline, layout, reveal and read-state rules:
 // docs/rules/components-venue-plan-and-message-surfaces.md.
 //
 // Delivery and retry rules:
 // docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries.
-//
-// THE COMPOSER IS PINNED, above the phone tab bar and above the keyboard.
-// lib/keyboardInset.ts measures the covered strip; lib/softKeyboard.ts says
-// whether the bar has stepped aside. Both ride the root as data, so the
-// stylesheet decides the geometry.
 //
 // Attachment rules: lib/messageAttachments.ts.
 
@@ -299,7 +293,6 @@ export default function MessageThread({
     setRemoving(false);
     setRemovalError("");
   }
-  const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
   const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
@@ -345,28 +338,6 @@ export default function MessageThread({
     getMobileViewportSnapshot,
     () => false,
   );
-  const keyboardInset = useKeyboardInset();
-  const measureThreadHeader = useCallback((header: HTMLDivElement | null) => {
-    if (!header) return;
-    const shell = header.parentElement!;
-    const measure = () => {
-      shell.style.setProperty("--thread-header-bottom", `${Math.max(window.visualViewport?.offsetTop ?? 0, header.getBoundingClientRect().bottom)}px`);
-    };
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(header);
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, { passive: true });
-    window.visualViewport?.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("scroll", measure);
-    measure();
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("scroll", measure);
-    };
-  }, []);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
@@ -576,48 +547,13 @@ export default function MessageThread({
     };
   }, [conversationId, refresh]);
 
-  // The newest message is what a thread opens on and what a send lands on.
-  // The list scrolls on its own inside the desktop split; on a phone the page
-  // is the scroller and the composer is pinned over its foot, so the end
-  // marker is scrolled clear of the composer rather than merely into view.
-  // With no thread drawn (loading, not found, the retry panel) there is no
-  // newest to show: pinning the page foot then pushed the retry panel above a
-  // phone's fold, so a cold failure is left where the page starts.
-  const scrollToNewest = useCallback(() => {
-    const list = listRef.current;
-    if (!list) return;
-    if (getComputedStyle(list).overflowY === "auto") {
-      list.scrollTop = list.scrollHeight;
-      return;
-    }
-    const page = document.documentElement;
-    // A page no taller than its viewport has nowhere to scroll to (and a DOM
-    // with no layout, as in a unit test, measures zero here).
-    if (page.scrollHeight <= window.innerHeight) return;
-    window.scrollTo({ top: page.scrollHeight });
-  }, []);
-
-  useEffect(() => {
-    scrollToNewest();
-  }, [messages, outbox, keyboardInset, scrollToNewest]);
-
-  // A viewport that changes height under an open thread (a keyboard on a
-  // browser that shrinks the layout viewport, a rotation) keeps the newest
-  // message in view rather than leaving the reader looking at the middle.
-  useEffect(() => {
-    let frame = 0;
-    const onResize = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(scrollToNewest);
-    };
-    window.addEventListener("resize", onResize);
-    window.visualViewport?.addEventListener("resize", onResize);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", onResize);
-      window.visualViewport?.removeEventListener("resize", onResize);
-    };
-  }, [scrollToNewest]);
+  const { attachViewport, attachList, followingNewestRef } = useThreadViewportFit({
+    conversationId,
+    accountRevision,
+    messages,
+    outbox,
+    revealedId,
+  });
 
   const over = draft.length > MAX_MESSAGE_BODY;
   const hasSomething = draft.trim().length > 0 || pending !== null;
@@ -630,6 +566,7 @@ export default function MessageThread({
   }, []);
 
   function sendMessage(): void {
+    followingNewestRef.current = true;
     setPicking(null); setMobileAttachOpen(false); void send();
   }
 
@@ -993,6 +930,37 @@ export default function MessageThread({
     return null;
   }
 
+  function renderPickerRegion(): React.JSX.Element | null {
+    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
+    return visibleError || preparationProgress || picking || pending ? (
+      <div className="composerPickerRegion">
+        {visibleError ? <div className="threadError" role="alert">{visibleError}
+          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
+        </div> : null}
+        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
+
+        {renderPicker()}
+
+        {pending ? (
+          <div className="composerPending">
+            {pending.kind === "photo" ? (
+              <span className="composerPhotoPreviews">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
+                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
+              </span>
+            ) : (
+              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
+            )}
+            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
+            <button type="button" className="composerPendingRemove" onClick={clearPending}>
+              Remove
+            </button>
+          </div>
+        ) : null}
+      </div>
+    ) : null;
+  }
+
   /** Who the thread is with. A group is named by its people, never linked to. */
   function renderThreadWith(): React.JSX.Element {
     if (isGroup) {
@@ -1034,33 +1002,10 @@ export default function MessageThread({
   }
 
   function renderComposer(): React.JSX.Element {
-    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
     return (
       <div className="composerDock">
         <MessagePhotoRecoveryNotice activeConversationId={conversationId} />
-        {visibleError ? <div className="threadError" role="alert">{visibleError}
-          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
-        </div> : null}
-        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
-
-        {renderPicker()}
-
-        {pending ? (
-          <div className="composerPending">
-            {pending.kind === "photo" ? (
-              <span className="composerPhotoPreviews">
-                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
-                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
-              </span>
-            ) : (
-              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
-            )}
-            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
-            <button type="button" className="composerPendingRemove" onClick={clearPending}>
-              Remove
-            </button>
-          </div>
-        ) : null}
+        {renderPickerRegion()}
 
         <div className="composer">
           <div className="composerControls">
@@ -1162,6 +1107,9 @@ export default function MessageThread({
             className="composerSend"
             aria-label="Send"
             disabled={!canSend}
+            onMouseDown={(event) => {
+              if (document.activeElement === event.currentTarget.parentElement?.querySelector(".composerInput")) event.preventDefault();
+            }}
             onClick={() => sendMessage()}
           >
             <Send size={20} aria-hidden="true" />
@@ -1173,14 +1121,13 @@ export default function MessageThread({
 
   return (
     <div className="messageThread">
-      {/* The shell is `display: contents`: it carries the keyboard facts as
-          data for the stylesheet, and draws no box of its own. */}
+      {/* The shell owns the visible viewport on phones and tablets. */}
       <div
+        ref={attachViewport}
         className="messageThreadShell"
         data-keyboard-open={keyboardOpen ? "" : undefined}
-        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-      <div className="threadHeader" ref={measureThreadHeader}>
+      <div className="threadHeader">
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
@@ -1196,7 +1143,7 @@ export default function MessageThread({
       {state === "loading" ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : (
-        <ul className="threadMessages" ref={listRef}>
+        <ul className="threadMessages" ref={attachList}>
           {timeline.length === 0 ? (
             <li className="threadEmpty" aria-live="polite">
               {otherHandle ? (
