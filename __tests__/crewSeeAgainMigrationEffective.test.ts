@@ -1,12 +1,14 @@
 import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole } from "./helpers/postgres";
+import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
   type Person, MIGRATOR, STAFF_ROLE, DIGEST, admit, blockCall, bootCrewAdmissionDatabase, call, crewWith, db,
   deleteAccount, hold, key, memberId, mutual, outcome, person, rpc, stopCrewAdmissionDatabase,
-  suspendCall, waitsOnAnyLock, waitsOnAccountLock,
+  state, suspendCall, waitsOnAnyLock, waitsOnAccountLock,
 } from "./helpers/crewAdmissionHarness";
 import { nextSeeAgainPair, seeAgainWindow, SEE_AGAIN_MUTUAL_MS, type SeeAgainPairState, type SeeAgainPairEvent } from "@/lib/crewSeeAgain";
 import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
@@ -21,6 +23,7 @@ beforeAll(async () => {
   await bootCrewAdmissionDatabase("crew-see-again-0250", "after");
   apply("20261117150000_0247_crew_host_attendance.sql");
   apply("20261117160000_0248_crew_block_cases.sql");
+  apply("20261118100000_0249_crew_occurrence_cancellation.sql");
   if (existsSync(join(migrations, migration))) apply(migration);
 }, 600_000);
 afterAll(stopCrewAdmissionDatabase);
@@ -63,13 +66,46 @@ async function serial(first: string, second: string, label: string, firstRole: "
   const held = await hold(first, firstRole);
   const pending = outcome(label, second, "postgres");
   try { await expect.poll(() => waitsOnAnyLock(label)).toBe("t"); }
-  finally { await held.finish(); }
+  finally { try { await held.finish(); } finally { await pending; } }
   const result = await pending;
   expect(result.ok, result.said).toBe(true);
   return result.said;
 }
 
 describe("0250 private event-bound friendship reconnection", () => {
+  it.each<StaffInterruption>(["crew-wait", "revocation-commits", "revocation-rolls-back"])(
+    "checks the redefined case moderator after %s", async (interruption) => {
+      const host = person(), a = person(), b = person(), moderator = person();
+      const crew = crewWith(host, [a, b]), staff = randomUUID();
+      db().sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role)
+        values ('${staff}','${moderator.profile}','Independent moderator','moderator')`);
+      call(blockCall(a, b));
+      const caseId = db().sql(`select id from public.social_crew_block_cases where crew_id='${crew}'`);
+      const command = `decide_social_crew_block_case_admin('${staff}','${caseId}',array['${memberId(crew, a)}']::uuid[],
+        'removed','${memberId(crew, b)}','Review the current case')`;
+      const answer = await moderatorDuringInterruption(crew, staff, command, interruption);
+      expect(answer.ok).toBe(interruption === "revocation-rolls-back");
+      expect(state(crew, b)).toBe(answer.ok ? "removed" : "active");
+      if (!answer.ok) expect(answer.said).toContain("staff required");
+    },
+  );
+
+  it.each(["cancellation-first", "choice-first"])("serialises the guarded cancellation RPC and a private choice: %s", async order => {
+    const { a, b, crew } = night();
+    if (order === "cancellation-first") starts(crew, "-1 hour");
+    const revision = db().sql(`select authority_revision from public.social_crews where id='${crew}'`);
+    const plan = db().sql(`select plan_id from public.social_crews where id='${crew}'`);
+    const status = db().sql(`select status from public.plans where id='${plan}'`);
+    const cancellation = rpc(`cancel_social_crew_occurrence_admin('${STAFF_ROLE}','${crew}',${revision},'${status}','Independent safety reason')`);
+    const pick = rpc(chooseCall(a, crew, b));
+    const said = await serial(order === "cancellation-first" ? cancellation : pick,
+      order === "cancellation-first" ? pick : cancellation, `w6-guarded-${order}`);
+    expect(JSON.parse(said)).toEqual(order === "cancellation-first" ? neutral : { ok: false, code: "closed" });
+    expect(db().sql(`select status from public.plans where id='${plan}'`)).toBe(order === "cancellation-first" ? "abandoned" : status);
+    expect(db().sql(`select count(*) from public.social_crew_see_again_choices where crew_id='${crew}'`))
+      .toBe(order === "cancellation-first" ? "0" : "1");
+  });
+
   it("keeps a single choice private and reveals a same-context mutual only on each participant's read", () => {
     const { host, a, b, crew } = night();
     expect(choose(a, crew, b)).toEqual(neutral);
