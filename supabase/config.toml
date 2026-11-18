@@ -1,9 +1,10 @@
 # Supabase project configuration.
 #
 # Present so the GitHub preview-branch integration recognises this as a valid
-# Supabase project directory. Migrations in ./migrations are applied to every
-# preview branch automatically; no other config (API/Auth/seed) is required for
-# the branch check to pass, so this file is intentionally minimal.
+# Supabase project directory. Migrations on preview branches are disabled
+# below: preview deployments carry the production Supabase values, so a branch
+# must never run them. Migrations reach production only through the captain's
+# explicit apply (see supabase/AGENTS.md).
 #
 # project_id is the linked project ref (used by the CLI / `[remotes]` blocks).
 # It is NOT a secret — it appears in the public project URL.
@@ -13,3 +14,8 @@ project_id = "iankajxliutqogqkmvdg"
 # Version of the Postgres image used for local/preview branches. Must match the
 # production major version so migrations behave identically.
 major_version = 17
+
+[db.migrations]
+# Branching must not apply migrations. Preview deployments share the production
+# Supabase project, so an automatic branch migration could write production.
+enabled = false
