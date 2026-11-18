@@ -196,7 +196,7 @@ let handlers: Record<string, Handler> = {};
 let hashPlanMemberToken: (token: string) => string = () => "";
 const nativeFetch = globalThis.fetch;
 
-const context = (values: Record<string, string>) => ({ params: Promise.resolve(values) });
+const context = <T extends Record<string, string>>(values: T) => ({ params: Promise.resolve(values) });
 
 function request(
   path: string,

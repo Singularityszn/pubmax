@@ -6,7 +6,7 @@ import { asServiceRole } from "./helpers/postgres";
 import {
   type Person, MIGRATOR, STAFF_ROLE, DIGEST, blockCall, bootCrewAdmissionDatabase, call, crewWith, db,
   deleteAccount, hold, key, memberId, outcome, person, rpc, stopCrewAdmissionDatabase,
-  suspendCall, waitsOnAnyLock,
+  suspendCall, waitsOnAnyLock, waitsOnAccountLock,
 } from "./helpers/crewAdmissionHarness";
 import { nextSeeAgainPair, seeAgainWindow, SEE_AGAIN_MUTUAL_MS, type SeeAgainPairState, type SeeAgainPairEvent } from "@/lib/crewSeeAgain";
 import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
@@ -323,7 +323,43 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(item(a, crew, b)?.mutual).toBe(true);
   });
 
-  it("rolls back under the migration role and reapplies", () => {
+  it.each(["block", "mute"])("keeps unrelated mutuals when a %s target has no product account", kind => {
+    const { a, b, crew } = matched();
+    const legacy = person({ account: false });
+    call(kind === "block" ? blockCall(a, legacy) : `set_social_mute('${a.profile}','${legacy.profile}',true)`);
+    expect(item(a, crew, b)?.mutual).toBe(true);
+  });
+
+  it("orders moderator removal before case locks when a simultaneous block owns the participant locks", async () => {
+    const host = adult(), a = adult(), b = adult(), crew = crewWith(host, [a, b]);
+    call(blockCall(b, a));
+    const caseId = db().sql(`select id from public.social_crew_block_cases where crew_id='${crew}' limit 1`);
+    const member = memberId(crew, b);
+    const decide = `decide_social_crew_block_case_admin('${STAFF_ROLE}','${caseId}',array['${member}'::uuid],'removed','${member}','Independent safety decision')`;
+    db().sql(`create function public.w6_pause_block_for_case_order() returns trigger language plpgsql as $$
+      begin perform pg_advisory_xact_lock(2500250); return null; end; $$;
+      create trigger aaa_w6_pause_block after insert on public.social_blocks
+      for each row execute function public.w6_pause_block_for_case_order()`);
+    const barrier = await hold("select pg_advisory_xact_lock(2500250)", "postgres");
+    let blocking: ReturnType<typeof outcome> | null = null, removing: ReturnType<typeof outcome> | null = null;
+    try {
+      blocking = outcome("w6-block-before-case", rpc(blockCall(a, b)));
+      await expect.poll(() => waitsOnAccountLock("w6-block-before-case")).toBe("t");
+      removing = outcome("w6-moderator-case-order", rpc(decide));
+      await expect.poll(() => waitsOnAccountLock("w6-moderator-case-order")).toBe("t");
+      await barrier.finish();
+      const results = await Promise.all([blocking, removing]);
+      for (const result of results) expect(result.ok, result.said).toBe(true);
+      // The new block direction changes what the moderator must acknowledge.
+      expect(JSON.parse(results[1]!.said)).toMatchObject({ ok: false, code: "stale" });
+    } finally {
+      await barrier.finish();
+      await Promise.allSettled([blocking, removing].filter(Boolean));
+      db().sql("drop trigger aaa_w6_pause_block on public.social_blocks; drop function public.w6_pause_block_for_case_order()");
+    }
+  });
+
+  it("rolls back under the migration role and reapplies", async () => {
     const retained = db().sql("select count(*) from public.social_crew_see_again_pairs");
     expect(Number(retained)).toBeGreaterThan(0);
     expect(() => apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`)).toThrow();
@@ -331,6 +367,16 @@ describe("0250 private event-bound friendship reconnection", () => {
     db().sql("delete from public.social_crew_see_again_pairs");
     apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`);
     expect(db().sql("select to_regclass('public.social_crew_see_again_pairs') is null")).toBe("t");
+    const host = adult(), a = adult(), b = adult(), crew = crewWith(host, [a, b]);
+    call(blockCall(b, a));
+    const caseId = db().sql(`select id from public.social_crew_block_cases where crew_id='${crew}' limit 1`);
+    const member = memberId(crew, b);
+    const accounts = await hold(`select public._lock_social_participant_accounts(array['${a.account}'::uuid,'${b.account}'::uuid])`, "postgres");
+    try {
+      const original = await outcome("w6-rollback-case-order", rpc(`decide_social_crew_block_case_admin('${STAFF_ROLE}','${caseId}',array['${member}'::uuid],'removed','${member}','Independent safety decision')`));
+      expect(original.ok, original.said).toBe(true);
+      expect(JSON.parse(original.said)).toMatchObject({ ok: true, code: "decided" });
+    } finally { await accounts.finish(); }
     apply(migration);
     expect(read(adult(), "a2509999-0000-4000-8000-000000000001")).toBeNull();
   });

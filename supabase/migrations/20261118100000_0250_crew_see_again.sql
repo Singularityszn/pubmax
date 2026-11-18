@@ -1,12 +1,13 @@
--- 0250: private friendship choices after the host attendance v_window.
+-- 0250: private friendship choices after the host attendance window.
 -- No dating context is enabled. No moderator choice reader or browser grants exist.
 -- Lock order: Crew, auth rows in ID order, participant accounts in ID order,
 -- stable unordered pair, then private rows. Reads take the same locks as writes.
 -- Safety triggers reuse the writer's subject account lock, then pair locks only.
 -- They never acquire a second participant account from an AFTER trigger. The
 -- subject lock alone excludes every pair transaction involving that subject.
--- Membership removal holds the Crew lock and takes its subject account before
--- invalidating that Crew's pairs. Block and suspension invalidation spans Crews.
+-- Membership removal holds the Crew lock before invalidating that Crew's pairs.
+-- Moderator removal additionally locks both accounts before its case row.
+-- Block and suspension invalidation spans Crews.
 -- Rollback destroys private choices and requires an exact row-count acknowledgement.
 begin;
 lock table auth.users, public.private_social_accounts, public.social_blocks,
@@ -51,9 +52,77 @@ create table public.social_crew_see_again_choices (
   unique (pair_id,picker_account_id),
   check ((choice='withdrawn')=(withdrawn_at is not null))
 );
+create index social_crew_see_again_choices_owner_idx
+  on public.social_crew_see_again_choices(picker_user_id,chosen_at,pair_id);
 alter table public.social_crew_see_again_pairs enable row level security;
 alter table public.social_crew_see_again_choices enable row level security;
 revoke all on public.social_crew_see_again_pairs, public.social_crew_see_again_choices from public,anon,authenticated,service_role;
+
+-- Evolve the existing guarded moderator writer inside this migration only.
+create or replace function public.decide_social_crew_block_case_admin(
+  p_staff_role_id uuid,p_case_id uuid,p_seen_blockers uuid[],p_decision text,p_member_id uuid,p_reason text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_staff public.private_social_staff_roles; v_case public.social_crew_block_cases;
+  v_member public.social_crew_members; v_reason text:=btrim(coalesce(p_reason,'')); v_seen uuid[];
+begin
+  select * into v_staff from public.private_social_staff_roles
+  where id=p_staff_role_id and active and revoked_at is null and role='moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  if p_decision is null or p_decision not in ('kept','removed') or char_length(v_reason) not between 3 and 500
+    or (p_decision='removed') <> (p_member_id is not null)
+    or p_seen_blockers is null or exists(select 1 from pg_catalog.unnest(p_seen_blockers) seen where seen is null) then
+    return jsonb_build_object('ok',false,'code','invalid'); end if;
+  v_seen:=array(select distinct seen from pg_catalog.unnest(p_seen_blockers) seen order by seen);
+  select * into v_case from public.social_crew_block_cases where id=p_case_id;
+  if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  perform 1 from public.social_crews where id=v_case.crew_id for update;
+  if not found then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  -- Item 5: both auth rows before the case row. A deletion in flight holds its auth row
+  -- while it deletes the case, so this waits, and then the case is gone.
+  perform 1 from auth.users auth_user
+    join public.private_social_accounts account on account.supabase_user_id=auth_user.id
+    where account.id in (v_case.blocker_account_id,v_case.blocked_account_id)
+    order by auth_user.id
+    for key share of auth_user;
+  -- W6 invalidation can wait for pair locks. Take account locks before the case,
+  -- and before the live blockers check, never from a membership AFTER trigger.
+  perform public._lock_social_participant_accounts(array[v_case.blocker_account_id,v_case.blocked_account_id]);
+  select * into v_case from public.social_crew_block_cases where id=p_case_id for update;
+  if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  if public._social_crew_block_case_moderator_conflicted(v_staff.profile_id,v_case.crew_id,
+      v_case.blocker_account_id,v_case.blocked_account_id) then
+    return jsonb_build_object('ok',false,'code','forbidden'); end if;
+  if v_case.expires_at <= pg_catalog.statement_timestamp() then
+    return jsonb_build_object('ok',false,'code','expired'); end if;
+  if v_case.decided_at is not null then
+    if v_case.decision=p_decision and v_case.removed_member_id is not distinct from p_member_id then
+      return jsonb_build_object('ok',true,'code','unchanged','decision',v_case.decision); end if;
+    return jsonb_build_object('ok',false,'code','already_decided','decision',v_case.decision);
+  end if;
+  -- Item 4: the queue's rule and blockers again, under the crew row, after the waits
+  -- above, in one statement so both read one snapshot.
+  if not public._social_crew_block_case_live(v_case.crew_id,v_case.blocker_account_id,v_case.blocked_account_id)
+    or public._social_crew_block_case_blockers(v_case.crew_id,v_case.blocker_account_id,v_case.blocked_account_id)
+      is distinct from v_seen then
+    return jsonb_build_object('ok',false,'code','stale'); end if;
+  if p_decision='removed' then
+    select * into v_member from public.social_crew_members
+    where id=p_member_id and crew_id=v_case.crew_id
+      and social_account_id in (v_case.blocker_account_id,v_case.blocked_account_id)
+    for update;
+    if v_member.id is null or v_member.role='owner' then return jsonb_build_object('ok',false,'code','invalid'); end if;
+    if v_member.state<>'active' then return jsonb_build_object('ok',false,'code','stale'); end if;
+    update public.social_crew_members set state='removed',ended_at=now(),updated_at=now() where id=v_member.id;
+    update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=v_case.crew_id;
+  end if;
+  update public.social_crew_block_cases
+  set decision=p_decision, removed_member_id=v_member.id, reason=v_reason, staff_role_id=v_staff.id,
+    staff_display_name=v_staff.display_name, decided_at=pg_catalog.statement_timestamp()
+  where id=v_case.id;
+  return jsonb_build_object('ok',true,'code','decided','decision',p_decision);
+end;
+$$;
 
 -- accountIsAdult parity: a stored DOB wins, otherwise a recorded assertion passes.
 -- Month/day comparison preserves the existing London leap-day birthday rule.
@@ -231,19 +300,21 @@ begin
   if tg_table_name='social_blocks' then
     select id into subject from public.private_social_accounts where profile_id=new.blocker_profile_id;
     select id into other_account from public.private_social_accounts where profile_id=new.blocked_profile_id;
-    perform public._see_again_invalidate(subject,null,other_account);
+    if subject is not null and other_account is not null then
+      perform public._see_again_invalidate(subject,null,other_account);
+    end if;
   elsif tg_table_name='social_mutes' then
     select id into subject from public.private_social_accounts where profile_id=new.muter_profile_id;
     select id into other_account from public.private_social_accounts where profile_id=new.muted_profile_id;
-    perform public._see_again_invalidate(subject,null,other_account);
+    if subject is not null and other_account is not null then
+      perform public._see_again_invalidate(subject,null,other_account);
+    end if;
   elsif tg_table_name='social_crew_attendance' then
     perform public._see_again_invalidate(new.subject_account_id,new.crew_id);
   elsif tg_table_name='social_crew_members' then
-    -- Crew row is already held by both host and moderator removal. Deletion is
-    -- likewise excluded by the Crew row. No additional account is acquired.
-    subject:=old.social_account_id;
-    perform public._lock_social_participant_accounts(array[subject]);
-    perform public._see_again_invalidate(subject,old.crew_id);
+    -- The Crew lock excludes paired operations in this occurrence. Acquire no
+    -- account here: case and seat writers can already hold later row locks.
+    perform public._see_again_invalidate(old.social_account_id,old.crew_id);
   elsif tg_table_name='private_social_accounts' then
     if new.supabase_user_id is null then
       -- Auth deletion has already taken its subject account lock. No Crew lock.

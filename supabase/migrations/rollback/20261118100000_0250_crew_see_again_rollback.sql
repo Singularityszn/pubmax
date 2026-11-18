@@ -16,6 +16,69 @@ begin
   end if;
 end;
 $$;
+-- Restore the exact 0248 moderator writer, before removing W6 invalidation.
+create or replace function public.decide_social_crew_block_case_admin(
+  p_staff_role_id uuid,p_case_id uuid,p_seen_blockers uuid[],p_decision text,p_member_id uuid,p_reason text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_staff public.private_social_staff_roles; v_case public.social_crew_block_cases;
+  v_member public.social_crew_members; v_reason text:=btrim(coalesce(p_reason,'')); v_seen uuid[];
+begin
+  select * into v_staff from public.private_social_staff_roles
+  where id=p_staff_role_id and active and revoked_at is null and role='moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  if p_decision is null or p_decision not in ('kept','removed') or char_length(v_reason) not between 3 and 500
+    or (p_decision='removed') <> (p_member_id is not null)
+    or p_seen_blockers is null or exists(select 1 from pg_catalog.unnest(p_seen_blockers) seen where seen is null) then
+    return jsonb_build_object('ok',false,'code','invalid'); end if;
+  v_seen:=array(select distinct seen from pg_catalog.unnest(p_seen_blockers) seen order by seen);
+  select * into v_case from public.social_crew_block_cases where id=p_case_id;
+  if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  perform 1 from public.social_crews where id=v_case.crew_id for update;
+  if not found then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  -- Item 5: both auth rows before the case row. A deletion in flight holds its auth row
+  -- while it deletes the case, so this waits, and then the case is gone.
+  perform 1 from auth.users auth_user
+    join public.private_social_accounts account on account.supabase_user_id=auth_user.id
+    where account.id in (v_case.blocker_account_id,v_case.blocked_account_id)
+    order by auth_user.id
+    for key share of auth_user;
+  select * into v_case from public.social_crew_block_cases where id=p_case_id for update;
+  if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  if public._social_crew_block_case_moderator_conflicted(v_staff.profile_id,v_case.crew_id,
+      v_case.blocker_account_id,v_case.blocked_account_id) then
+    return jsonb_build_object('ok',false,'code','forbidden'); end if;
+  if v_case.expires_at <= pg_catalog.statement_timestamp() then
+    return jsonb_build_object('ok',false,'code','expired'); end if;
+  if v_case.decided_at is not null then
+    if v_case.decision=p_decision and v_case.removed_member_id is not distinct from p_member_id then
+      return jsonb_build_object('ok',true,'code','unchanged','decision',v_case.decision); end if;
+    return jsonb_build_object('ok',false,'code','already_decided','decision',v_case.decision);
+  end if;
+  -- Item 4: the queue's rule and blockers again, under the crew row, after the waits
+  -- above, in one statement so both read one snapshot.
+  if not public._social_crew_block_case_live(v_case.crew_id,v_case.blocker_account_id,v_case.blocked_account_id)
+    or public._social_crew_block_case_blockers(v_case.crew_id,v_case.blocker_account_id,v_case.blocked_account_id)
+      is distinct from v_seen then
+    return jsonb_build_object('ok',false,'code','stale'); end if;
+  if p_decision='removed' then
+    select * into v_member from public.social_crew_members
+    where id=p_member_id and crew_id=v_case.crew_id
+      and social_account_id in (v_case.blocker_account_id,v_case.blocked_account_id)
+    for update;
+    if v_member.id is null or v_member.role='owner' then return jsonb_build_object('ok',false,'code','invalid'); end if;
+    if v_member.state<>'active' then return jsonb_build_object('ok',false,'code','stale'); end if;
+    update public.social_crew_members set state='removed',ended_at=now(),updated_at=now() where id=v_member.id;
+    update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=v_case.crew_id;
+  end if;
+  update public.social_crew_block_cases
+  set decision=p_decision, removed_member_id=v_member.id, reason=v_reason, staff_role_id=v_staff.id,
+    staff_display_name=v_staff.display_name, decided_at=pg_catalog.statement_timestamp()
+  where id=v_case.id;
+  return jsonb_build_object('ok',true,'code','decided','decision',p_decision);
+end;
+$$;
+
 drop trigger see_again_lock_account on public.private_social_accounts;
 drop trigger see_again_account_invalidated on public.private_social_accounts;
 drop trigger see_again_block_invalidated on public.social_blocks;

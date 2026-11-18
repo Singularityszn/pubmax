@@ -65,8 +65,13 @@ The existing subject account lock excludes every paired transaction involving th
 Block and suspension invalidation spans every Crew for those people.
 Unblock and reinstatement do not revive an invalidated pair.
 
-Membership changes hold the Crew row and take only the affected subject account before invalidation.
-The moderator case writer retains its Crew/auth/case/member order.
+Membership changes hold the Crew row and acquire no account lock from an AFTER trigger.
+Migration 0250 evolves the existing moderator case writer to take both ordered participant accounts after auth and before the case row.
+Its live blocker check runs after those locks wait, so a new block direction requires a fresh acknowledgement.
+This pre-close moderation writer also serialises with post-night operations involving the same people on other Crews.
+The rollback restores the exact 0248 body. The 0248 forward file stays unchanged.
+Host removal and departure cleanup retain the Crew exclusion before pair invalidation.
+An unrelated block or mute against a profile without a product account invalidates no pair.
 Mute inserts take ordered account locks before their invalidation trigger.
 SQL reads current age evidence after the participant locks wait.
 Existing identity and assertion writers retain their own order.
