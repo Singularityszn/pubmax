@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, Fragment } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 import { useFairPintSave } from "@/components/map/fairpint/useFairPintSave";
@@ -82,7 +82,7 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
   const { readOwnedActivePlan } = await import("@/lib/activePlan");
   const { useActivePlan } = await import("@/components/night/useActivePlan");
   const { default: Result } = await import("@/components/map/fairpint/FairPintResult");
-  vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => null);
+  vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => createElement(Fragment));
   vi.stubGlobal("navigator", { ...navigator, share: vi.fn() });
   if (outcome !== "unavailable") share.mockResolvedValueOnce(outcome);
   const fetcher = vi.fn(async (input: RequestInfo | URL, options?: RequestInit) => {
@@ -166,7 +166,7 @@ it.each([null, "hosthandle"])("keeps an entered organiser name through time reva
     ...loader, inBounds: async () => rows, coverageComplete: () => true,
   });
   const viewer = vi.spyOn(await import("@/components/auth/useViewerHandle"), "useViewerHandle").mockReturnValue(handle);
-  const diagram = vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => null);
+  const diagram = vi.spyOn(await import("@/components/wild/PintLine"), "default").mockImplementation(() => createElement(Fragment));
   const fetcher = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, options) => {
     if (input === "/api/plans/generate") {
       const { planStartIso } = JSON.parse(String(options?.body));
