@@ -3,7 +3,7 @@ import { expectSelectedRoutePaint } from "./helpers/routeStopPaint";
 import { storeThemeChoice } from "./helpers/themeClock";
 import { installNativeShell } from "./helpers/nativeShell";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
-import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 import { selectFirstToolbarVenue } from "./helpers/mapToolbar";
 import christmasWalk from "../data/curated-walks/london-christmas.json";
 import { writeFile } from "node:fs/promises";
@@ -100,7 +100,7 @@ test("a returning map visitor can choose the seasonal walk", async ({ page }) =>
   await page.goto("/map");
   await expectMapLoadingFrameReleased(page);
   if (page.viewportSize()!.width < 768) {
-    await page.getByRole("button", { name: "More map controls", exact: true }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     await page.getByRole("tab", { name: "Layers", exact: true }).click();
   }
   await page.getByRole("button", { name: "Plan an outing", exact: true }).click();
@@ -117,7 +117,7 @@ test("the map leaves the seasonal walk out before its promotion window", async (
   await expect(page.locator(".mapCanvasWrap")).toBeVisible();
   await expectMapLoadingFrameReleased(page);
   if (page.viewportSize()!.width < 768) {
-    await page.getByRole("button", { name: "More map controls", exact: true }).click();
+    await (await mobileMapShellControl(page, "more")).click();
     await page.getByRole("tab", { name: "Layers", exact: true }).click();
   }
   await page.getByRole("button", { name: "Plan an outing", exact: true }).click();

@@ -51,7 +51,7 @@
     border-left: 1px solid var(--line);
   }
 }
-@media (min-width: 641px) and (max-width: 768px) {
+@media (min-width: 641px) and (max-width: 900px) {
   .mapStage[data-curated-walk-open="true"] {
     --map-top-clearance: calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px);
   }
