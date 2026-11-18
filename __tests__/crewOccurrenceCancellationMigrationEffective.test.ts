@@ -115,13 +115,8 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     expect(revision(crew)).toBe(seen);
   });
 
-  it("requires the service role and an active moderator, with no direct audit writes", () => {
+  it("requires an active moderator before recording a cancellation", () => {
     const crew = crewWith(person());
-    for (const role of ["anon", "authenticated"]) {
-      expect(db().expectRefusal(`set role ${role}; ${rpc(cancelCall(crew))}`)).toMatch(/permission denied/);
-      expect(db().expectRefusal(`set role ${role}; select * from public.social_crew_occurrence_cancellations`))
-        .toMatch(/permission denied/);
-    }
     for (const staff of [NO_CREW, staffFor(person(), "product_staff")]) {
       expect(() => call(cancelCall(crew, revision(crew), "ready", staff))).toThrow(/staff required/);
     }
@@ -129,15 +124,7 @@ describe("0249: independently authorised cancellation of one Crew occurrence", (
     db().sql(`update public.private_social_staff_roles set revoked_at=now() where id='${revoked}'`);
     expect(() => call(cancelCall(crew, revision(crew), "ready", revoked))).toThrow(/staff required/);
     expect(call(cancelCall(crew))).toMatchObject({ code: "cancelled" });
-    const saved = ledger(crew);
-    for (const statement of [
-      `update public.social_crew_occurrence_cancellations set reason='Overwritten' where crew_id='${crew}'`,
-      `delete from public.social_crew_occurrence_cancellations where crew_id='${crew}'`,
-      `insert into public.social_crew_occurrence_cancellations select * from public.social_crew_occurrence_cancellations`,
-    ]) expect(db().expectRefusal(`set role service_role; ${statement}`)).toMatch(/permission denied/);
-    expect(ledger(crew)).toBe(saved);
-    expect(db().sql(`set role service_role; select count(*) from public.social_crew_occurrence_cancellations
-      where crew_id='${crew}'`)).toBe("1");
+    expect(JSON.parse(ledger(crew))).toMatchObject({ staff_role_id: STAFF_ROLE, reason });
   });
 
   it.each(["owner", "cohost", "member", "left", "removed", "requested", "invited"])(

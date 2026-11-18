@@ -2144,6 +2144,34 @@ describe("Social Crew: the removed member", () => {
 });
 
 describe("Social Crew: at the table", () => {
+  it("keeps occurrence cancellation service-only and its audit read-only for operators", () => {
+    const table = "public.social_crew_occurrence_cancellations";
+    const signature = "public.cancel_social_crew_occurrence_admin(uuid,uuid,bigint,text,text)";
+    const call = `select public.cancel_social_crew_occurrence_admin('${ALICE_PROFILE}','${CREW_PLAN_ID}',1,'ready','Safety review')`;
+    const before = truth(`select count(*) from ${table}`);
+    for (const role of ["anon", "authenticated"] as const) {
+      for (const sub of role === "anon" ? [null] : [ALICE, BOB, CAROL, DAVE]) {
+        for (const statement of [`select * from ${table}`, call]) {
+          const result = requireSession().sql(statement, { asRole: role, sub });
+          expect(result.ok).toBe(false);
+          expect(result.err).toMatch(/permission denied/i);
+        }
+      }
+    }
+    expect(truth(`select has_function_privilege('service_role','${signature}','EXECUTE')`)).toBe("true");
+    expect(requireSession().sql(`select count(*) from ${table}`, { asRole: "service_role" }).out).toBe(before);
+    for (const statement of [
+      `insert into ${table} default values`,
+      `update ${table} set reason='Overwritten'`,
+      `delete from ${table}`,
+    ]) {
+      const result = requireSession().sql(statement, { asRole: "service_role" });
+      expect(result.ok).toBe(false);
+      expect(result.err).toMatch(/permission denied/i);
+    }
+    expect(truth(`select count(*) from ${table}`)).toBe(before);
+  });
+
   it("no browser role may read a Crew row or call the Crew entry points, whoever they are", () => {
     for (const table of [
       "social_crews",
