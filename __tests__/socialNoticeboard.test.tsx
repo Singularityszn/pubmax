@@ -34,11 +34,11 @@ import type { SocialPostsShellState } from "@/lib/socialShell";
 let host: HTMLDivElement;
 let root: ReturnType<typeof createRoot>;
 const feedPost = (body: string, hour: number): SocialPostDTO => ({
-  id: body, body, createdAt: `2026-11-16T${hour}:00:00Z`, author: { handle: "bob" },
+  id: body, body, createdAt: `2026-11-16T${String(hour).padStart(2, "0")}:00:00Z`, author: { handle: "bob" },
   ownedByViewer: false, venueName: null, hashtags: [], kind: "standard", visibility: "friends",
   area: null, venueId: null, venueProjected: false, commentPolicy: "open", photo: null,
   nameHidden: false, moderationState: "approved", featureRequest: null, revision: 0,
-  mutationVersion: 0, editedAt: null, updatedAt: `2026-11-16T${hour}:00:00Z`,
+  mutationVersion: 0, editedAt: null, updatedAt: `2026-11-16T${String(hour).padStart(2, "0")}:00:00Z`,
 });
 function feedResponse<T extends { posts: Pick<SocialPostDTO, "id" | "createdAt">[]; nextCursor: string | null }>(page: T): Response {
   const last = page.posts.at(-1);
@@ -639,7 +639,7 @@ it("keeps posts after a failed next page and reads new posts on focus without a 
     if (href === "/api/social/access") return Response.json({ state: "verified", draftScope: "a".repeat(43), viewerHandle: "alice" });
     if (href.includes("cursor=")) return Response.json({ error: "Unavailable" }, { status: 503 });
     if (href.startsWith("/api/social/posts")) return feedResponse({
-      posts: [post("First post", "2026-11-16T10:00:00Z"), ...(newest ? [post("New post", "2026-11-16T11:00:00Z")] : [])], nextCursor: "older",
+      posts: [...(newest ? [post("New post", "2026-11-16T11:00:00Z")] : []), post("First post", "2026-11-16T10:00:00Z")], nextCursor: "older",
     });
     return Response.json({ items: [] });
   });

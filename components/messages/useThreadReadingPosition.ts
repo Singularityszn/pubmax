@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 
-type ReadingPosition = { scope: string | null; newest: boolean; outbox: Set<string> };
+type ReadingPosition = { scope: string | null; newest: boolean; outbox: Set<string>; viewportTop: number };
 
 export function useThreadReadingPosition({
   listRef, scope, ready, current, history, outbox, keyboardOpen, recovery,
@@ -35,10 +35,15 @@ export function useThreadReadingPosition({
     }
     const previous = position.current?.scope === scope ? position.current : null;
     const sent = outbox.some(row => !previous?.outbox.has(row.id));
+    const viewportTop = listRef.current.getBoundingClientRect().top;
+    if (previous && !previous.newest && !sent && getComputedStyle(listRef.current).overflowY === "auto") {
+      listRef.current.scrollTop += viewportTop - previous.viewportTop;
+    }
     position.current = {
       scope,
       newest: !previous || previous.newest || sent,
       outbox: new Set(outbox.map(row => row.id)),
+      viewportTop,
     };
     scrollToNewest();
   }, [enabled, scope, history, outbox, keyboardOpen, recovery, listRef, scrollToNewest]);
