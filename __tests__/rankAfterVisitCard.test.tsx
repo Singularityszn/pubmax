@@ -36,7 +36,8 @@ vi.mock("@/components/auth/useViewerSession", () => ({
 }));
 
 const net = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
-vi.mock("@/lib/authedFetch", () => ({
+vi.mock("@/lib/authedFetch", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authedFetch")>(),
   authedFetch: net.get,
   authedActionJson: net.post,
 }));
@@ -45,6 +46,7 @@ import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import { __resetTellYourLot } from "@/components/pubs/useTellYourLot";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { AuthActionJsonParseError } from "@/lib/authedFetch";
 import { startSocialPubComparison, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 import {
   startVisitRanking, transitionVisitRanking,
@@ -322,6 +324,15 @@ describe("RankAfterVisitCard", () => {
     await receipt();
     net.post.mockRejectedValue(new TypeError("Lost answer"));
     net.get.mockResolvedValue(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: false }, status));
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-testid="rank-after-visit"]')).toBeNull();
+    expect(host.querySelector(".visitReportOk")).not.toBeNull();
+  });
+
+  it.each([401, 403])("retires an unreadable save refusal without depending on a later list read (%s)", async (status) => {
+    await receipt();
+    net.post.mockRejectedValue(new AuthActionJsonParseError(status));
+    net.get.mockResolvedValue(json({ code: "STORE_UNAVAILABLE", retryable: true }, 503));
     await click('[data-band="not_for_me"]');
     expect(host.querySelector('[data-testid="rank-after-visit"]')).toBeNull();
     expect(host.querySelector(".visitReportOk")).not.toBeNull();
