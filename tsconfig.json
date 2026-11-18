@@ -44,6 +44,7 @@
     "e2e",
     "skills",
     ".next-*",
-    "test-results"
+    "test-results",
+    "artifacts"
   ]
 }
