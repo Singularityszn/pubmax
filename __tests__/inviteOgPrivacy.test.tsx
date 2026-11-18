@@ -5,11 +5,15 @@ import type { PlanState } from "@/lib/plan";
 
 const store = vi.hoisted(() => ({ resolve: vi.fn(), state: vi.fn() }));
 vi.mock("@/lib/planStore", () => ({ resolvePlanIdByInviteToken: store.resolve, planStateResult: store.state }));
-vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: async () => ({ status: "found", venue: { cheapestPrice: 6.5 } }) }));
+vi.mock("@/lib/venueDetailIndex", () => ({ lookupVenueDetail: async () => { throw new Error("Link previews must not load venue details"); } }));
+vi.mock("@/lib/openCrawlInvite.server", () => ({ openCrawlCrewIdForPlan: async () => ({ ok: true, crewId: null }) }));
+vi.mock("@/components/plan/PlanInviteRsvp", () => ({ default: () => null }));
+vi.mock("@/components/plan/InvitePageView", () => ({ default: () => null }));
 vi.mock("next/og", () => ({ ImageResponse: class extends Response {
   constructor(element: ReactElement) { super(renderToStaticMarkup(element)); }
 } }));
 import Image from "@/app/invite/[token]/opengraph-image";
+import { generateMetadata } from "@/app/invite/[token]/page";
 
 const plan: PlanState = {
   plan: { id: "plan-1", title: "Secret celebration", startTime: "2026-07-18T19:00:00.000Z", createdAt: "2026-07-15T12:00:00.000Z", routeRevision: 1, status: "ready" },
@@ -55,5 +59,38 @@ describe("invite share image privacy", () => {
     expect(output).toContain("A pub crawl planned on PUBMAXX.");
     expect(output).not.toContain("Shoreditch");
     expect(output).not.toContain("Hidden Arms");
+  });
+});
+
+describe("invite link metadata privacy", () => {
+  it("limits document, Open Graph and Twitter metadata to the private preview", async () => {
+    const metadata = await generateMetadata({ params: Promise.resolve({ token: "valid-token" }) });
+    const preview = {
+      title: "Shoreditch",
+      description: "2 stops · First pint 20:00. Join the crew to see the route",
+    };
+    expect(metadata).toEqual({
+      ...preview,
+      robots: { index: false, follow: true, googleBot: { index: false, follow: true } },
+      openGraph: { ...preview, type: "website", url: "/invite/valid-token" },
+      twitter: { ...preview, card: "summary_large_image" },
+    });
+    for (const secret of ["Secret celebration", "Private Host", "Hidden Arms", "Secret Tap", "secret-id-one", "secret-id-two", "£"]) {
+      expect(JSON.stringify(metadata)).not.toContain(secret);
+    }
+  });
+
+  it("uses safe metadata labels when the area and start time are unavailable", async () => {
+    store.state.mockResolvedValue({ ok: true, plan: { ...plan, context: null, plan: { ...plan.plan, startTime: "invalid" } } });
+    const metadata = await generateMetadata({ params: Promise.resolve({ token: "valid-token" }) });
+    const preview = {
+      title: "You’re invited",
+      description: "2 stops · First pint Time to be confirmed. Join the crew to see the route",
+    };
+    expect(metadata).toMatchObject({
+      ...preview,
+      openGraph: preview,
+      twitter: preview,
+    });
   });
 });
