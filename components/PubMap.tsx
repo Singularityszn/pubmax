@@ -986,6 +986,18 @@ const DETAIL_WARNING_STYLE: CSSProperties = {
   background: "rgba(209, 99, 83, 0.12)",
 };
 
+const DETAIL_WARNING_ACTION_STYLE: CSSProperties = {
+  marginLeft: "0.75em",
+  padding: 0,
+  border: "none",
+  background: "none",
+  color: "inherit",
+  font: "inherit",
+  textDecoration: "underline",
+  textUnderlineOffset: "2px",
+  cursor: "pointer",
+};
+
 // VenueDetailStatus, detailStatusFor and venueUpdateKey (all pure) now live in
 // @/lib/pubMap.
 
@@ -5222,15 +5234,16 @@ export default function PubMap({
     ukBaseRestoreMissing,
   ]);
 
-  const savedVenueCopyAt = useSelectedVenueDetail({
-    selectedVenueId,
-    detailById,
-    setDetailById,
-    setDetailStatusById,
-    setSelectedVenueId,
-    setSelectionNotice,
-    resolveMapSelection,
-  });
+  const { savedAt: savedVenueCopyAt, retryDetail: retrySelectedVenueDetail } =
+    useSelectedVenueDetail({
+      selectedVenueId,
+      detailById,
+      setDetailById,
+      setDetailStatusById,
+      setSelectedVenueId,
+      setSelectionNotice,
+      resolveMapSelection,
+    });
 
   useEffect(() => {
     const notice = mapSelectionNotice({
@@ -5677,6 +5690,13 @@ export default function PubMap({
         {selectedDetailStatus === "unavailable" ? (
           <div style={DETAIL_WARNING_STYLE} role="status">
             {selectedVenueLabels.unavailableLabel}
+            <button
+              type="button"
+              style={DETAIL_WARNING_ACTION_STYLE}
+              onClick={retrySelectedVenueDetail}
+            >
+              Try again
+            </button>
           </div>
         ) : null}
         <SavedVenueNote savedAt={savedVenueCopyAt} />

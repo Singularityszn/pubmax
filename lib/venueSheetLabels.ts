@@ -22,6 +22,6 @@ export function venueSheetLabels(
     detailLabel,
     closeLabel: `Close ${noun} detail`,
     loadingLabel: `Loading full ${noun} details…`,
-    unavailableLabel: "Got the pin. Full notes didn’t load.",
+    unavailableLabel: "We could not load the full listing. What you see is the map pin.",
   };
 }

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, useCallback, useState } from "react";
+import { act, createElement, useCallback, useEffect, useState } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
@@ -14,6 +14,7 @@ const noop = () => {};
 let host: HTMLDivElement;
 let root: Root;
 let online: boolean;
+let retryDetail: () => void = noop;
 
 function Sheet({ id, initialDetails = new Map<string, Venue>() }: {
   id: string;
@@ -31,7 +32,7 @@ function Sheet({ id, initialDetails = new Map<string, Venue>() }: {
     setPreviousId(id);
     setSelectedVenueId(id);
   }
-  const savedAt = useSelectedVenueDetail({
+  const detail = useSelectedVenueDetail({
     selectedVenueId,
     detailById,
     setDetailById,
@@ -40,8 +41,11 @@ function Sheet({ id, initialDetails = new Map<string, Venue>() }: {
     setSelectionNotice: noop,
     resolveMapSelection,
   });
+  useEffect(() => {
+    retryDetail = detail.retryDetail;
+  });
   return createElement("output", {
-    "data-saved-at": savedAt ?? "",
+    "data-saved-at": detail.savedAt ?? "",
     "data-held": [...detailById.keys()].join(","),
     "data-selected": selectedVenueId,
     "data-resolution": resolution,
@@ -52,6 +56,7 @@ function Sheet({ id, initialDetails = new Map<string, Venue>() }: {
 beforeEach(() => {
   vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
   online = false;
+  retryDetail = noop;
   vi.spyOn(navigator, "onLine", "get").mockImplementation(() => online);
   localStorage.clear();
   host = document.createElement("div");
@@ -97,6 +102,39 @@ it("keeps the displayed copy dated after prefetch and refreshes every saved shee
   await act(async () => root.render(createElement(Sheet, { id: "venue-a" })));
   expect(host.textContent).toBe("Live venue-a");
   expect(host.querySelector("output")?.dataset.savedAt).toBe("");
+});
+
+it("retries a failed detail read through the sheet's retry action", async () => {
+  const fetchMock = vi.fn()
+    .mockResolvedValueOnce({ ok: false, status: 503 })
+    .mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ venue: { id: "venue-flaky", name: "Flaky Arms", prices: [] } }),
+    });
+  vi.stubGlobal("fetch", fetchMock);
+  await act(async () => root.render(createElement(Sheet, { id: "venue-flaky" })));
+
+  expect(host.querySelector("output")?.dataset.status).toBe("unavailable");
+  expect(host.textContent).toBe("loading");
+
+  await act(async () => { retryDetail(); });
+
+  expect(host.textContent).toBe("Flaky Arms");
+  expect(host.querySelector("output")?.dataset.status).toBe("");
+  expect(fetchMock).toHaveBeenCalledTimes(2);
+});
+
+it("keeps the unavailable status when the retry also fails", async () => {
+  const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 503 });
+  vi.stubGlobal("fetch", fetchMock);
+  await act(async () => root.render(createElement(Sheet, { id: "venue-down" })));
+  expect(host.querySelector("output")?.dataset.status).toBe("unavailable");
+
+  await act(async () => { retryDetail(); });
+
+  expect(host.querySelector("output")?.dataset.status).toBe("unavailable");
+  expect(host.textContent).toBe("loading");
+  expect(fetchMock).toHaveBeenCalledTimes(2);
 });
 
 it("saves an already hydrated stop and restores its evicted copy when reopened", async () => {

@@ -23,7 +23,7 @@ describe("venueSheetLabels", () => {
       closeLabel: "Close venue detail",
       loadingLabel: "Loading full venue details…",
       unavailableLabel:
-        "Got the pin. Full notes didn’t load.",
+        "We could not load the full listing. What you see is the map pin.",
     });
   });
 
@@ -54,7 +54,7 @@ describe("venueSheetLabels", () => {
         closeLabel: "Close bar detail",
         loadingLabel: "Loading full bar details…",
         unavailableLabel:
-          "Got the pin. Full notes didn’t load.",
+          "We could not load the full listing. What you see is the map pin.",
       },
     ],
     [
@@ -66,7 +66,7 @@ describe("venueSheetLabels", () => {
         closeLabel: "Close late-food venue detail",
         loadingLabel: "Loading full late-food venue details…",
         unavailableLabel:
-          "Got the pin. Full notes didn’t load.",
+          "We could not load the full listing. What you see is the map pin.",
       },
     ],
   ] as const)("uses kind-honest selected-sheet copy for %s venues", (kind, expected) => {
