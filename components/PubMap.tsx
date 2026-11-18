@@ -21,7 +21,7 @@ import { priceBand, priceBandAreaForVenue } from "@/lib/priceBand";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type ReactNode } from "react";
 import type { SunChaserMap } from "@/components/map/sunChaser/SunChaserLayer";
 import { useSunChaserEnabled } from "@/components/map/sunChaser/sunChaserStore";
 
@@ -497,6 +497,7 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { useSelectedVenueDetail } from "@/components/map/pubmap/useSelectedVenueDetail";
 import SavedVenueNote from "@/components/map/SavedVenueNote";
+import DetailLoadNotice from "@/components/map/DetailLoadNotice";
 import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   createMapResumeWriter,
@@ -968,35 +969,6 @@ const PROVISIONAL_BASE_SETTLE_MS = 1_000;
  * for the rest of the session.
  */
 const PROVISIONAL_BASE_RESTORE_WAIT_MS = 8_000;
-
-const DETAIL_STATUS_STYLE: CSSProperties = {
-  margin: "0 18px 10px",
-  padding: "10px 12px",
-  border: "1px solid rgba(211, 164, 74, 0.28)",
-  borderRadius: "8px",
-  background: "rgba(211, 164, 74, 0.1)",
-  color: "var(--ink)",
-  fontSize: "0.82rem",
-  fontWeight: 700,
-};
-
-const DETAIL_WARNING_STYLE: CSSProperties = {
-  ...DETAIL_STATUS_STYLE,
-  borderColor: "rgba(209, 99, 83, 0.34)",
-  background: "rgba(209, 99, 83, 0.12)",
-};
-
-const DETAIL_WARNING_ACTION_STYLE: CSSProperties = {
-  marginLeft: "0.75em",
-  padding: 0,
-  border: "none",
-  background: "none",
-  color: "inherit",
-  font: "inherit",
-  textDecoration: "underline",
-  textUnderlineOffset: "2px",
-  cursor: "pointer",
-};
 
 // VenueDetailStatus, detailStatusFor and venueUpdateKey (all pure) now live in
 // @/lib/pubMap.
@@ -5688,16 +5660,10 @@ export default function PubMap({
           />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (
-          <div style={DETAIL_WARNING_STYLE} role="status">
-            {selectedVenueLabels.unavailableLabel}
-            <button
-              type="button"
-              style={DETAIL_WARNING_ACTION_STYLE}
-              onClick={retrySelectedVenueDetail}
-            >
-              Try again
-            </button>
-          </div>
+          <DetailLoadNotice
+            label={selectedVenueLabels.unavailableLabel}
+            onRetry={retrySelectedVenueDetail}
+          />
         ) : null}
         <SavedVenueNote savedAt={savedVenueCopyAt} />
         <VenueInspector
