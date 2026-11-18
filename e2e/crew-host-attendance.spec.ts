@@ -269,12 +269,44 @@ test("a guest never sees a loading or failed block, and an unmarked guest sees n
   await page.screenshot({ path: info.outputPath("guest-page.png"), fullPage: true });
 });
 
-test("a guest sees only their own mark, no controls, and how to ask for a correction", async ({ page }, info) => {
+test("a guest reports their own mark from the panel, and the report names its revision", async ({ page }, info) => {
+  const reports: unknown[] = [];
+  const sent = deferred();
   const section = await open(page, "member", (route) => route.fulfill({ json: { canAttest: false, ...night,
     items: [{ memberId: ANA, state: "attended", revision: 2, recordedAt: "2026-11-17T22:00:00.000Z", recordedBy: "moderator" }] } }));
+  await page.route(`${api}/attendance/report`, async (route) => {
+    reports.push(route.request().postDataJSON());
+    await sent.held;
+    return route.fulfill({ status: 202, json: { code: "reported", revision: 2 } });
+  });
   await expect(section.getByText("A moderator marked you here.")).toBeVisible();
-  await expect(section.getByRole("button")).toHaveCount(0);
   await expect(section.getByText("@bea")).toHaveCount(0);
-  await expect(section.getByRole("link", { name: "report it to a moderator" })).toHaveAttribute("href", "#crew-members-title");
+  await expect(section.getByRole("button")).toHaveCount(1);
   await section.screenshot({ path: info.outputPath("guest.png") });
+  const report = section.getByRole("button", { name: "Report this mark" });
+  await report.focus();
+  await page.keyboard.press("Enter");
+  await expect(section.getByRole("button", { name: "Sending…" })).toBeFocused();
+  sent.release();
+  await expect(section.getByRole("status")).toHaveText("Reported. A moderator who wasn’t in this crew checks it.");
+  await expect(section.getByRole("button", { name: "Reported" })).toBeFocused();
+  await expect(section.getByRole("button", { name: "Reported" })).toHaveAttribute("aria-disabled", "true");
+  await section.getByRole("button", { name: "Reported" }).press("Enter");
+  expect(reports).toEqual([{ revision: 2 }]);
+  await section.screenshot({ path: info.outputPath("guest-reported.png") });
+});
+
+test("a guest whose mark changed before the report reads it again and is told", async ({ page }) => {
+  let changed = false;
+  const section = await open(page, "member", (route) => route.fulfill({ json: { canAttest: false, ...night, items: [{ memberId: ANA,
+    state: changed ? "attended" : "absent", revision: changed ? 2 : 1, recordedAt: "2026-11-17T22:00:00.000Z", recordedBy: "host" }] } }));
+  await page.route(`${api}/attendance/report`, (route) => {
+    changed = true;
+    return route.fulfill(conflict("stale"));
+  });
+  await expect(section.getByText("Your host marked you not here.")).toBeVisible();
+  await section.getByRole("button", { name: "Report this mark" }).click();
+  await expect(section.getByText("Your host marked you here.")).toBeVisible();
+  await expect(section.getByRole("status")).toHaveText("Your mark changed. Check it, then report it if it’s wrong.");
+  await expect(section.getByRole("button", { name: "Report this mark" })).toBeVisible();
 });

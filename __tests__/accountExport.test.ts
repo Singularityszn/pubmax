@@ -544,16 +544,17 @@ describe("buildAccountExport", () => {
     expect(JSON.stringify(document.crewRemovalCorrections)).not.toContain(other.id);
   });
 
-  it("exports the account's own host attendance records, without who recorded them or why", async () => {
+  it("exports the account's own host attendance records and when they reported one, without who recorded them or why", async () => {
     const own = { id: "attendance-own", crewId: "crew-one", subjectUserId: USER, revision: 2, state: "absent" as const,
-      recordedAt: "2026-11-17T23:00:00.000Z", recordedBy: "moderator" as const, expiresAt: "2026-12-18T08:00:00.000Z" };
+      recordedAt: "2026-11-17T23:00:00.000Z", recordedBy: "moderator" as const, expiresAt: "2026-12-18T08:00:00.000Z",
+      reportedAt: "2026-11-18T09:00:00.000Z" };
     const other = { ...own, id: "attendance-other", subjectUserId: "another-user" };
     const document = await buildAccountExport(USER, fakeDeps({
       crewAttendance: async () => ({ status: "ready", records: [own, other] }),
     }), NOW);
     expect(document.crewAttendance).toEqual({ status: "complete", truncated: false, items: [{
       id: own.id, crewId: own.crewId, revision: 2, state: "absent", recordedAt: own.recordedAt,
-      recordedBy: "moderator", expiresAt: own.expiresAt,
+      recordedBy: "moderator", expiresAt: own.expiresAt, reportedAt: own.reportedAt,
     }] });
     const asked: number[] = [];
     const many = await buildAccountExport(USER, fakeDeps({

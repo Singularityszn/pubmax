@@ -123,6 +123,16 @@ const operatorMark = (crew: string, member: string) => db().sql(`select member.s
   ) mark on true
   where member.crew_id = '${crew}' and member.id = '${member}'`);
 
+/** The guest reports the mark they read: the night and the revision. */
+const reportMark = (who: Person, crew: string, revision: number) =>
+  call(`report_social_crew_attendance('${who.account}','${who.profile}','${crew}',${revision})`);
+/** The moderator's queue of open attendance reports, as that moderator may read it. */
+const reportQueue = (staff = STAFF_ROLE) =>
+  JSON.parse(db().sql(asServiceRole(`select public.read_social_crew_attendance_reports_admin('${staff}',50)::text`))) as Array<Record<string, unknown>>;
+const reportRows = (crew: string) => db().sql(`select count(*) from public.social_crew_attendance_reports report
+  join public.social_crew_attendance mark on mark.id=report.attendance_id where mark.crew_id='${crew}'`);
+const handleOf = (who: Person) => db().sql(`select handle from public.profiles where id='${who.profile}'`);
+
 describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => {
   it("a host marks an accepted participant of the same night, and both read the same revision", () => {
     const host = person(), ana = person(), bea = person();
@@ -371,6 +381,80 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(operatorMark(crew, beaMember)).toBe("removed|0|none");
   });
 
+  it("a guest reports the mark they read, and an independent moderator reads that night, revision and recorder", () => {
+    const host = person(), ana = person();
+    const first = tonight(host, [ana]);
+    const second = tonight(host, [ana]);
+    expect(attest(host, first, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(attest(host, second, ana, "absent", 0)).toMatchObject({ revision: 1 });
+    expect(reportMark(ana, second, 2)).toEqual({ ok: false, code: "stale" });
+    expect(reportMark(host, second, 1)).toEqual(NOT_FOUND);
+    expect(reportMark(ana, second, 1)).toEqual({ ok: true, code: "reported", revision: 1 });
+    expect(reportMark(ana, second, 1)).toEqual({ ok: true, code: "reported", revision: 1 });
+    expect(reportRows(second)).toBe("1");
+    const ours = (staff?: string) => reportQueue(staff).filter((entry) => entry.crewId === first || entry.crewId === second);
+    expect(ours()).toEqual([expect.objectContaining({
+      crewId: second, memberId: memberId(second, ana), memberState: "active", subjectHandle: handleOf(ana),
+      disputed: expect.objectContaining({ revision: 1, state: "absent", recordedBy: "host", hostHandle: handleOf(host), staffDisplayName: null }),
+      current: { revision: 1, state: "absent" },
+    })]);
+    expect(Date.parse(String(ours()[0].nightStartsAt))).toBe(Date.parse(db().sql(`select to_char(plan.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+      from public.social_crews crew join public.plans plan on plan.id=crew.plan_id where crew.id='${second}'`)));
+
+    // The first night closes, and a moderator who was never in it changes the mark.
+    startsIn(first, "-13 hours");
+    const corrector = staffRoleFor(person());
+    expect(correct(first, ana, "absent", 1, corrector)).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+    expect(read(ana, first)?.items).toEqual([expect.objectContaining({ revision: 2, recordedBy: "moderator" })]);
+    expect(reportMark(ana, first, 2)).toEqual({ ok: true, code: "reported", revision: 2 });
+    const independent = staffRoleFor(person());
+    expect(ours(independent).map((entry) => entry.crewId).sort()).toEqual([first, second].sort());
+    expect(ours(independent).find((entry) => entry.crewId === first)).toMatchObject({
+      memberId: memberId(first, ana),
+      disputed: { revision: 2, state: "absent", recordedBy: "moderator", hostHandle: null,
+        staffDisplayName: expect.stringMatching(/^Moderator \d+$/), recordedAt: expect.any(String) },
+      current: { revision: 2, state: "absent" },
+    });
+    // The moderator whose mark is disputed neither reads that report nor decides it.
+    expect(ours(corrector).map((entry) => entry.crewId)).toEqual([second]);
+    expect(correct(first, ana, "attended", 2, corrector)).toEqual({ ok: false, code: "forbidden" });
+    // A host's moderator role and a guest's never read their own crew's reports.
+    expect(ours(staffRoleFor(host))).toEqual([]);
+    expect(ours(staffRoleFor(ana))).toEqual([]);
+
+    // Deciding closes the report: a change, or keeping the mark as it is.
+    expect(correct(first, ana, "attended", 2, independent)).toMatchObject({ ok: true, code: "corrected", revision: 3 });
+    expect(correct(second, ana, "absent", 1, independent)).toMatchObject({ ok: true, code: "unchanged", revision: 1 });
+    expect(ours(independent)).toEqual([]);
+    expect(reportMark(ana, second, 1)).toEqual({ ok: true, code: "decided", revision: 1 });
+    expect(ours(independent)).toEqual([]);
+    expect(reportMark(ana, first, 3)).toEqual({ ok: true, code: "reported", revision: 3 });
+    expect(ours(independent)).toEqual([expect.objectContaining({ crewId: first, disputed: expect.objectContaining({ revision: 3 }) })]);
+  });
+
+  it("a report goes with the mark: no queue entry after expiry, the cleanup or the guest's account deletion", () => {
+    const host = person(), ana = person(), bea = person();
+    const crew = tonight(host, [ana]);
+    const other = tonight(host, [bea]);
+    expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(attest(host, other, bea, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(reportMark(ana, crew, 1)).toMatchObject({ ok: true, code: "reported" });
+    expect(reportMark(bea, other, 1)).toMatchObject({ ok: true, code: "reported" });
+    expect(exported(ana)).toEqual([expect.objectContaining({ revision: 1, reportedAt: expect.any(String) })]);
+    const independent = staffRoleFor(person());
+    const crews = () => reportQueue(independent).map((entry) => entry.crewId);
+    expect(crews()).toEqual(expect.arrayContaining([crew, other]));
+    expireNight(crew);
+    expect(crews()).not.toContain(crew);
+    expect(reportMark(ana, crew, 1)).toEqual(NOT_FOUND);
+    expect(reportRows(crew)).toBe("1");
+    expect(purge(1000)).toMatchObject({ ok: true });
+    expect(reportRows(crew)).toBe("0");
+    db().sql(deleteAccount(bea));
+    expect(reportRows(other)).toBe("0");
+    expect(crews()).not.toContain(other);
+  });
+
   it("the export returns one record past the lane cap, so the account export can say it is truncated", () => {
     const host = person(), ana = person();
     const crew = tonight(host, [ana]);
@@ -508,11 +592,13 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(rows(crew)).toBe("0");
   });
 
-  it("only the service role calls the four entry points, and no browser role reads the table", () => {
+  it("only the service role calls the entry points, and no browser role reads the tables", () => {
     const entries = [
       "public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text)",
       "public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text)",
       "public.read_social_crew_attendance(uuid,uuid,uuid)",
+      "public.report_social_crew_attendance(uuid,uuid,uuid,integer)",
+      "public.read_social_crew_attendance_reports_admin(uuid,integer)",
       "public.export_social_crew_attendance(uuid,integer)",
       "public.purge_expired_social_crew_attendance(integer)",
     ];
@@ -522,16 +608,19 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
       }
       expect(db().sql(`select has_function_privilege('service_role','${entry}','execute')`), entry).toBe("t");
     }
-    for (const role of ["anon", "authenticated", "service_role"]) {
-      expect(db().sql(`select has_table_privilege('${role}','public.social_crew_attendance','select,insert,update,delete')`), role).toBe("f");
+    for (const table of ["public.social_crew_attendance", "public.social_crew_attendance_reports"]) {
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        expect(db().sql(`select has_table_privilege('${role}','${table}','select,insert,update,delete')`), `${role} ${table}`).toBe("f");
+      }
+      expect(db().sql(`select relrowsecurity::text from pg_class where oid='${table}'::regclass`)).toBe("true");
     }
-    expect(db().sql("select relrowsecurity::text from pg_class where oid='public.social_crew_attendance'::regclass")).toBe("true");
   });
 
   it("rollback stops while records exist, drops them only on the exact acknowledgement, and reapplying works", async () => {
     const host = person(), ana = person();
     const crew = tonight(host, [ana]);
     expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+    expect(reportMark(ana, crew, 1)).toMatchObject({ ok: true, code: "reported" });
     const refused = await rollback();
     expect(refused.ok).toBe(false);
     expect(refused.said).toMatch(/would drop \d+ crew attendance records/);
@@ -545,6 +634,8 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(db().sql(`select count(*) from information_schema.columns where table_name='private_social_crew_write_receipts'
       and column_name in ('subject_user_id','expires_at')`)).toBe("0");
     expect(db().sql("select to_regclass('public.social_crew_attendance') is null")).toBe("t");
+    expect(db().sql("select to_regclass('public.social_crew_attendance_reports') is null")).toBe("t");
+    expect(db().sql("select to_regprocedure('public.report_social_crew_attendance(uuid,uuid,uuid,integer)') is null")).toBe("t");
     expect(db().sql("select to_regprocedure('public.read_social_crew_attendance(uuid,uuid,uuid)') is null")).toBe("t");
     applyForward();
     expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ ok: true, revision: 1 });
