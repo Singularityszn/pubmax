@@ -287,6 +287,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If **Tonight near me** cannot select a checked area, type an area in the description. Choose **Plan it**. You can still make an editable draft. Check the [opening and travel notice beside the stops](docs/rules/components-venue-plan-and-message-surfaces.md#the-plan-result-is-a-route-and-the-settings-sit-behind-it) before you go. Restored drafts also show when these checks are unavailable.
 
+  Classic Plan invite link previews show only the broad area, first-pint time, stop count and **Join the crew to see the route**. The preview image and page metadata omit pub names and identifiers, the organiser's name, the custom Plan title and all prices. Opening the invite still shows its route, listed total and RSVP controls.
+
   On a shared invite, **Open the plan** stays available when this browser restores guest access, including after a page reload.
 
   After the host chooses **Open it up**, the existing invite link opens the public crew page. Follow the [public joining guide](#one-pub-nights).
