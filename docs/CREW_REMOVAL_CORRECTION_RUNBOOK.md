@@ -147,11 +147,74 @@ select public.release_departed_social_crew_places(100);
 
 The sweep locks the selected crew rows before it changes any Plan. It skips busy crews. It changes their Plans in Plan ID order, the order an account deletion locks the Plans it owns. A `"crews": 0` answer can therefore mean pending crews are busy. Check the pending query after each call. Cleanup is complete when that query returns no rows. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
+## Host attendance (0247)
+
+Run staff-role revocation as a standalone statement while moderator corrections can run.
+
+A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for moderators. A guest reports a wrong mark with "Report this mark" in the attendance panel. The report names the exact mark and revision. It does not go to the Social safety queue in `/admin`, so read it here.
+
+A moderator with any member row in that crew, in any role or state, cannot decide its disputes. Roles change in place, so a former co-host looks like a guest. The calls also refuse the crew's owner, anyone who marked in it, the guest, and the moderator whose own mark an open report disputes. Ask a moderator who was never in that crew.
+
+1. Read the open reports that you may decide. The list leaves out every report you may not decide. Each entry names `crewId`, `nightStartsAt`, `memberId`, `memberState`, `subjectHandle`, the `disputed` revision, state and time, who recorded it (`hostHandle`, or `staffDisplayName` for a moderator), and the `current` revision.
+
+   ```sql
+   set role service_role;
+   select jsonb_pretty(public.read_social_crew_attendance_reports_admin('<staff role id>', 50));
+   ```
+
+   To check a member without a report, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark. The service role cannot read the attendance tables, so `reset role` first returns to the SQL editor's own role. Step 2 sets the service role again.
+
+   ```sql
+   reset role;
+   select member.id as member_id, member.state, member.role, profile.handle,
+     coalesce(mark.revision, 0) as current_revision, mark.state as mark, mark.actor_kind, mark.expires_at
+   from public.social_crew_members member
+   join public.private_social_accounts account on account.id = member.social_account_id
+   join public.profiles profile on profile.id = account.profile_id
+   left join lateral (
+     select attendance.revision, attendance.state, attendance.actor_kind, attendance.expires_at
+     from public.social_crew_attendance attendance
+     where attendance.crew_id = member.crew_id and attendance.subject_account_id = member.social_account_id
+       and attendance.expires_at > now()
+     order by attendance.revision desc
+     limit 1
+   ) mark on true
+   where member.crew_id = '<crew id>';
+   ```
+
+2. Decide as the service role. Use `memberId` and the `current` revision from step 1. Give the state that is right: the other state changes the mark, and the same state keeps it (`unchanged`). Either answer closes the open reports about that member's marks in that crew.
+
+   ```sql
+   set role service_role;
+   select public.correct_social_crew_attendance_admin(
+     '<staff role id>', '<crew id>', '<member id>', 'attended' or 'absent', <current revision>, '<reason>'
+   );
+   ```
+
+The correction works for a member who is `active`, `left` or `removed`. It never changes the member row, so a removed guest stays removed.
+
+| Answer | Meaning |
+| --- | --- |
+| `corrected` | A new revision records the mark, the moderator and the reason. No one is notified. |
+| `unchanged` | The mark already has that state. |
+| `stale` | The revision is not the current one. Read it again. |
+| `forbidden` | The moderator has been in that crew, owns it, marked in it, is the guest, or made the mark that an open report disputes. Ask another moderator. |
+| `expired` | The record is past its 30 days. |
+| `not_found`, `gone`, `invalid` | No such member, the account was deleted, or the reason or state is not valid. |
+
+Marks, corrections and the write receipts about them expire 30 days after the close. The app's reads, replays and exports stop at expiry, but the rows stay until the cleanup deletes them. Nothing schedules that. Run this until it answers `"deleted": 0, "receipts": 0`. Each call deletes at most 1,000 of each.
+
+```sql
+set role service_role;
+select public.purge_expired_social_crew_attendance(1000);
+```
+
+A report goes with the mark it disputes: at expiry the list leaves it out, and the cleanup deletes it with the mark. Deleting a guest's account deletes their marks, their reports and the receipts about them in the same transaction. Rolling back 0247 deletes every mark, every report and every attendance receipt. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
+
 ## Rollback
 
-Roll back 0249 before removing its Crew prerequisites. Its rollback removes only the cancellation operation. It retains the audit, cancelled Plans and completed cleanup. Reapplying 0249 restores the operation and safe replay. When present, roll back 0249, 0248, 0247, 0246 and 0245 in that order.
+Roll back 0249 before removing its Crew prerequisites. Its rollback removes only the cancellation operation. It retains the audit, cancelled Plans and completed cleanup. Reapplying 0249 restores the operation and safe replay. When present, roll back 0249, 0248, 0247, 0246 and 0245 in that order. The 0245 rollback refuses while the 0246 release function exists.
 
-Roll back 0246 before 0245. The 0245 rollback refuses to start while the 0246 release function exists.
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 

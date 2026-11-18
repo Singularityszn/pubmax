@@ -1,3 +1,4 @@
+import { crewAttendanceExportStore, type CrewAttendanceExportRead } from "@/lib/crewAttendanceStore.server";
 import { crewRemovalCorrectionStore, type CrewRemovalCorrectionRead } from "@/lib/crewRemovalCorrectionStore.server";
 import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
 import type { NearbyVisit } from "@/lib/nearbyVisit";
@@ -50,6 +51,7 @@ import {
   unavailableLane,
   type AccountExport,
   type AccountExportConversation,
+  type AccountExportCrewAttendance,
   type AccountExportCrewRemovalCorrection,
   type AccountExportCoverPhoto,
   type AccountExportCrowdReport,
@@ -206,6 +208,7 @@ export type AccountExportDeps = {
     limit: number,
   ): Promise<{ status: "ready" | "degraded"; requests: TableRequest[] }>;
   crewRemovalCorrections(userId: string, limit: number): Promise<CrewRemovalCorrectionRead>;
+  crewAttendance(userId: string, limit: number): Promise<CrewAttendanceExportRead>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   leagues(userId: string): Promise<LeagueExportRecord[]>;
   nearbyVisits(userId: string): Promise<NearbyVisit[]>;
@@ -338,6 +341,7 @@ function storeDeps(): AccountExportDeps {
     kitchenReports: (userId, limit) => kitchenReportsStore().listForOwner(userId, limit),
     tableRequests: (userId, limit) => tableRequestsStore().listForRequester(userId, limit),
     crewRemovalCorrections: (userId, limit) => crewRemovalCorrectionStore().listForUser(userId, limit),
+    crewAttendance: (userId, limit) => crewAttendanceExportStore().listForUser(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     leagues: (userId) => leagueStore().exportFor(userId),
     nearbyVisits: (userId) => nearbyVisitStore().list(userId),
@@ -858,6 +862,23 @@ export async function buildAccountExport(
     };
   });
 
+  const crewAttendance = await lane<AccountExportCrewAttendance>(async () => {
+    const read = await deps.crewAttendance(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return {
+      degraded: read.status === "degraded",
+      items: read.records.filter((row) => row.subjectUserId === userId).map((row) => ({
+        id: row.id,
+        crewId: row.crewId,
+        revision: row.revision,
+        state: row.state,
+        recordedAt: row.recordedAt,
+        recordedBy: row.recordedBy,
+        expiresAt: row.expiresAt,
+        reportedAt: row.reportedAt,
+      })),
+    };
+  });
+
   const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
     degraded: false,
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
@@ -912,6 +933,7 @@ export async function buildAccountExport(
     kitchenReports,
     tableRequests,
     crewRemovalCorrections,
+    crewAttendance,
     pubListNightDrafts,
     leagues,
     nearbyVisits,

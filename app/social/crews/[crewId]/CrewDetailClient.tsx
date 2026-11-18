@@ -19,6 +19,7 @@ import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
+import CrewAttendance from "@/components/social/CrewAttendance";
 import ReportPerson from "@/components/social/ReportPerson";
 import PlanLiveLocation from "@/components/plan/PlanLiveLocation";
 import { liveShareCrewStopSeat, subscribeLiveShare } from "@/lib/planLiveLocationShare";
@@ -26,6 +27,7 @@ import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { trackCrewArrivedReceipts, trackHostLoopStep } from "@/lib/hostLoopAnalytics";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
+import { useRefreshAt } from "@/lib/useRefreshAt";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import type {
@@ -122,23 +124,8 @@ export default function CrewDetailClient({
     && crew?.kind === "member" && crew.visibility === "open" && Boolean(crew.arrival);
   const arrival = crew?.kind === "member" ? crew.arrival : undefined;
 
-  useEffect(() => {
-    if (!canRefreshArrival) return;
-    const refresh = () => setAttempt((value) => value + 1);
-    const resume = () => {
-      if (document.visibilityState === "visible") refresh();
-    };
-    window.addEventListener("focus", refresh);
-    document.addEventListener("visibilitychange", resume);
-    const timer = typeof arrival?.refreshAt === "number"
-      ? setTimeout(refresh, Math.min(2_147_483_647, Math.max(1_000, arrival.refreshAt - Date.now())))
-      : undefined;
-    return () => {
-      window.removeEventListener("focus", refresh);
-      document.removeEventListener("visibilitychange", resume);
-      clearTimeout(timer);
-    };
-  }, [arrival, canRefreshArrival, scopeKey]);
+  const refreshCrew = useCallback(() => setAttempt((value) => value + 1), []);
+  useRefreshAt(arrival, canRefreshArrival, refreshCrew);
 
   useEffect(() => {
     if (previousScopeKey.current === scopeKey) return;
@@ -169,7 +156,8 @@ export default function CrewDetailClient({
     if (!identityResolved) return;
     let active = true;
     const controller = new AbortController();
-    void Promise.resolve().then(() => setStatus("loading"));
+    // A read again for the same account keeps the page, so a control in use stays put.
+    void Promise.resolve().then(() => setStatus((current) => (current === "ready" ? current : "loading")));
     authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
       cache: "no-store",
       credentials: "same-origin",
@@ -706,6 +694,7 @@ export default function CrewDetailClient({
         {crew.visibility === "open" && crew.arrival ? (
           <CrewArrivalControl arrival={crew.arrival} busy={busy} onMark={() => void markArrival()} />
         ) : null}
+        {crew.visibility === "open" ? <CrewAttendance crewId={crew.crewId} members={crew.members} identityKey={identityKey} hosts={canManageCrew(crew.viewer.role)} /> : null}
 
         <section aria-labelledby="crew-members-title">
           <h2 id="crew-members-title" className="crews__title">

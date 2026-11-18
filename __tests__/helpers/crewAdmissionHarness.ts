@@ -190,7 +190,7 @@ export function crewWith(host: Person, guests: Person[] = []): string {
 
 export type Held = { said: string; finish(): Promise<void> };
 /** One real transaction that has run its statement and stays open until finish(). */
-export async function hold(statement: string, role: "service_role" | "postgres" = "service_role"): Promise<Held> {
+export async function hold(statement: string, role: "service_role" | "postgres" = "service_role", end: "commit" | "rollback" = "commit"): Promise<Held> {
   const child = spawn(db().psql, [...db().databaseArgs, "-X", "-qAt"], { stdio: ["pipe", "pipe", "pipe"] });
   let output = "";
   let errors = "";
@@ -216,7 +216,7 @@ export async function hold(statement: string, role: "service_role" | "postgres" 
   const finish = async () => {
     if (finished) return;
     finished = true;
-    child.stdin.end("commit;\n");
+    child.stdin.end(`${end};\n`);
     await exited;
   };
   return { said, finish };
