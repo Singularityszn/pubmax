@@ -29,7 +29,8 @@
 -- 4a. report_social_crew_attendance: the participant reports their own current mark
 --    by the revision they read, while they can read it. One report per revision; a
 --    repeat answers 'reported', or 'decided' once a moderator has closed it. It does
---    not stop for a block or a Social freeze, like every report.
+--    not stop for a block or a Social freeze, like every report. It locks the crew row
+--    first, as a correction does, so a moderator never decides a report filed mid-decision.
 -- 4b. read_social_crew_attendance_reports_admin: an active moderator reads the open
 --    reports they may decide, each with its crew, night, member, the disputed
 --    revision, state, time and who recorded it (the host's handle, or the moderator's
@@ -353,6 +354,10 @@ as $$
 declare v_mark public.social_crew_attendance; v_report public.social_crew_attendance_reports;
 begin
   if p_revision is null or p_revision<1 then return jsonb_build_object('ok',false,'code','invalid'); end if;
+  -- A decision holds the crew row from its conflict check until it commits, so a
+  -- report waits for it and then reads the current mark.
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  if not found then return jsonb_build_object('ok',false,'code','not_found'); end if;
   select mark.* into v_mark
   from public.private_social_accounts account
   join public.social_crew_members member on member.social_account_id=account.id
