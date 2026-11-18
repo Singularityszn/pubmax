@@ -9,6 +9,7 @@ import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole, postgresSkipReason } from "./helpers/postgres";
+import { moderatorDuringInterruption, type StaffInterruption } from "./helpers/crewModeratorAuthorityHarness";
 import {
   type Person,
   DIGEST,
@@ -303,6 +304,15 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     }
     expect(openRows(crew)).toBe("1");
     expect(casesIn(crew)).toHaveLength(1);
+  });
+
+  it.each<StaffInterruption>(["crew-wait", "revocation-commits", "revocation-rolls-back"])("checks case moderator authority after %s", async (interruption) => {
+    const { crew, bea } = blockedPair(), staff = staffRoleFor(person());
+    const answer = await moderatorDuringInterruption(crew, staff,
+      decideCaseCall(onlyCase(crew), "removed", memberId(crew, bea), staff), interruption);
+    expect(answer.ok).toBe(interruption === "revocation-rolls-back");
+    expect(state(crew, bea)).toBe(answer.ok ? "removed" : "active");
+    if (!answer.ok) expect(answer.said).toContain("staff required");
   });
 
   it("a moderator keeps both places with a reason, a replay answers unchanged, and bad input changes nothing", () => {
