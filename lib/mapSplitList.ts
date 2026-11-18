@@ -326,9 +326,11 @@ function byDistance(left: MapSplitListRow, right: MapSplitListRow): number {
 
 /**
  * The column's order. "cheapest" ranks every row whose figure the map paints,
- * lowest first, then lists the rest nearest first; "nearest" is distance
- * alone. The distance is from the reader when the map knows where they are,
- * else from the middle of the map, the way List view measures it.
+ * lowest first; the rows it cannot rank follow, a row that still prints a
+ * figure (a report waiting for a second drinker, a split, an aged report, an
+ * estimate) before a row with none, nearest first inside each; "nearest" is
+ * distance alone. The distance is from the reader when the map knows where
+ * they are, else from the middle of the map, the way List view measures it.
  */
 export function sortMapSplitListRows(
   rows: readonly MapSplitListRow[],
@@ -347,7 +349,10 @@ export function sortMapSplitListRows(
     }
     if (leftRank !== null) return -1;
     if (rightRank !== null) return 1;
-    return byDistance(left, right);
+    return (
+      (left.price?.figure ? 0 : 1) - (right.price?.figure ? 0 : 1) ||
+      byDistance(left, right)
+    );
   });
 }
 
