@@ -3454,6 +3454,28 @@ describe("Open crawl: Open it up (0208)", () => {
   });
 });
 
+describe("private Crew correction and release (0245, 0246)", () => {
+  it("only the service role corrects a removal and appends to its ledger", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select (has_function_privilege('${role}','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+        or has_table_privilege('${role}','public.social_crew_removal_corrections','select,insert,update,delete'))::text`)).toBe("false");
+    }
+    expect(truth(`select (has_function_privilege('service_role','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+      and has_table_privilege('service_role','public.social_crew_removal_corrections','select,insert')
+      and not has_table_privilege('service_role','public.social_crew_removal_corrections','update,delete'))::text`)).toBe("true");
+  });
+
+  it("only the service role runs the sweep and no API role calls its internal step", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select has_function_privilege('${role}','public.release_departed_social_crew_places(integer)','execute')::text`), role).toBe("false");
+    }
+    expect(truth("select has_function_privilege('service_role','public.release_departed_social_crew_places(integer)','execute')::text")).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_function_privilege('${role}','public._release_departed_crew_places(uuid)','execute')::text`), role).toBe("false");
+    }
+  });
+});
+
 describe("private Crew attendance (0247)", () => {
   it("only the service role calls the entry points, and no browser role reads the tables", () => {
     const entries = [

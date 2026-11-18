@@ -243,15 +243,7 @@ describe.skipIf(skipReason !== null)("after 0245: moderator correction of a mist
     } finally { await correction.finish(); }
   });
 
-  it("browser roles cannot run the correction or read its ledger, and the ledger only grows", () => {
-    for (const role of ["anon", "authenticated"]) {
-      expect(db().sql(`select has_function_privilege('${role}','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
-        or has_table_privilege('${role}','public.social_crew_removal_corrections','select,insert,update,delete')`)).toBe("f");
-    }
-    expect(db().sql(`select has_function_privilege('service_role','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
-      and has_table_privilege('service_role','public.social_crew_removal_corrections','select,insert')
-      and not has_table_privilege('service_role','public.social_crew_removal_corrections','update,delete')`)).toBe("t");
-  });
+
 });
 
 

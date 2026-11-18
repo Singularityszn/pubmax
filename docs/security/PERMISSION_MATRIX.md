@@ -171,6 +171,8 @@ no side effect, as above.
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
+| Removal correction ledger (`social_crew_removal_corrections`, 0245) and direct correction RPC | denied | denied | denied | denied | denied | denied | denied. The service role may call the correction and select/insert the append-only ledger, but may not update/delete it. |
+| Departure sweep (`release_departed_social_crew_places`, 0246) called directly | denied | denied | denied | denied | denied | denied | denied. Only the service role runs the sweep. No API role may call the internal per-crew step. |
 | Crew block cases (`social_crew_block_cases`, 0248) and their moderator calls (`read_social_crew_block_cases_admin`, `decide_social_crew_block_case_admin`, `purge_expired_social_crew_block_cases`) at the database | denied | denied | denied | denied | denied | denied | Denied. RLS is on with no policy. No role reads the table, the service role included. Only the service role runs the three calls. |
 | Read Crew attendance (`GET .../attendance`) | denied | denied | own unexpired mark while still active | denied | own unexpired mark | denied | markable guest list, also for a co-host |
 | Record Crew attendance (`POST .../attendance`) | denied | denied | denied for a blocked target | denied | denied | denied | owner or co-host, eligible active guests only, during the night |
