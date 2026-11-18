@@ -115,7 +115,8 @@ const onlyCase = (crew: string) => {
 type Decision = "kept" | "removed" | "paused";
 const decideCaseCall = (caseId: string, decision: Decision, member: string | null = null, staff = STAFF_ROLE,
   reason = "Reviewed before the night") =>
-  `decide_social_crew_block_case_admin('${staff}','${caseId}','${decision}',${member ? `'${member}'` : "null"},'${reason}')`;
+  `decide_social_crew_block_case_admin('${staff}','${caseId}',array[${(seen.get(caseId) ?? []).map((id) => `'${id}'`)}]::uuid[],
+    '${decision}',${member ? `'${member}'` : "null"},'${reason}')`;
 const decideCase = (caseId: string, decision: Decision, member?: string | null, staff?: string, reason?: string) =>
   call(decideCaseCall(caseId, decision, member ?? null, staff, reason));
 const purge = (limit: number) => call(`purge_expired_social_crew_block_cases(${limit})`);
@@ -311,6 +312,10 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(decideCase(caseId, "paused")).toEqual({ ok: false, code: "invalid" });
     expect(decideCase(caseId, "kept", memberId(crew, bea))).toEqual({ ok: false, code: "invalid" });
     expect(decideCase(caseId, "removed")).toEqual({ ok: false, code: "invalid" });
+    for (const seenBlockers of ["null", "array[null]::uuid[]"]) {
+      expect(call(`decide_social_crew_block_case_admin('${STAFF_ROLE}','${caseId}',${seenBlockers},'kept',null,'Reviewed')`))
+        .toEqual({ ok: false, code: "invalid" });
+    }
     expect(decideCase(NO_CREW, "kept")).toEqual(NOT_FOUND);
     expect(() => decideCase(caseId, "kept", null, NO_CREW)).toThrow(/staff required/);
     expect(() => queue(NO_CREW)).toThrow(/staff required/);
@@ -393,6 +398,7 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
       const pair = blockedPair();
       const { ana, bea, crew } = pair;
       const caseId = onlyCase(crew);
+      const read = seen.get(caseId) ?? [];
       const before = revision(crew);
       change(pair);
       for (const target of [memberId(crew, ana), memberId(crew, bea)]) {
@@ -404,6 +410,12 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
       expect(caseHistory(caseId)).toBe("[null, null, null, null, null, null]");
       expect(casesIn(crew).map((entry) => [entry.caseId, directions(entry)])).toEqual([[caseId, now(pair)]]);
       expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: true, code: "decided", decision: "removed" });
+      const recorded = caseHistory(caseId);
+      seen.set(caseId, read);
+      expect(decideCase(caseId, "removed", memberId(crew, bea), staffRoleFor(person()), "Old read"))
+        .toEqual({ ok: true, code: "unchanged", decision: "removed" });
+      expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "already_decided", decision: "removed" });
+      expect(caseHistory(caseId)).toBe(recorded);
     }
   });
 

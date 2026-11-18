@@ -174,6 +174,10 @@ Before a hosted pilot launches, the captain must name an independent operator an
 
 A guarded operator call to cancel one occurrence is not implemented. The legacy Plan status call refuses Crew-bound Plans. Before launch, provide and verify that operator path. Until then, keep the occurrence unlaunched. The cancellation race proof uses a direct operator status update, not an approved launch procedure.
 
+Use your own active moderator staff role ID in every call. The calls check that the role is an active moderator role. They cannot check which person runs the service-role session, because the service credentials are shared. A decision records the role you give and its display name, so a borrowed role ID records the wrong moderator.
+
+The queue read writes no audit record. The pilot spec says that moderation access needs a case, an authorised staff role and an audit event, in its rules for see-again (W6) mutual outcomes. Whether that rule also covers these block-case reads is an open policy question for the captain. 0248 does not add a read audit.
+
 1. Read the open cases that you may decide. The list leaves out every case of a crew that you own, have any member row in (in any role or state), or have a pending request or invitation for. It also leaves out every case where you and either person are blocked either way. It leaves out a case after either person leaves or is removed, after every block between the two is lifted, after the night closes or is cancelled, and after expiry. Each entry names `caseId`, `crewId`, `nightStartsAt`, `expiresAt` and `people`: the two people, earlier accepted first. Each person has `memberId`, `handle`, `role`, `joinedAt` and `blocksOther`. `blocksOther` says whether that person blocks the other one now. The list does not say who opened the case.
 
    ```sql
@@ -181,15 +185,16 @@ A guarded operator call to cancel one occurrence is not implemented. The legacy 
    select jsonb_pretty(public.read_social_crew_block_cases_admin('<staff role id>', 50));
    ```
 
-2. Decide. Keep both places with `'kept'` and no member. Or remove one of the two people with `'removed'` and that person's `memberId`. A removal works as a host removal does: that crew bars the person, their seat ends and the roster revision moves. The owner cannot be removed. The reason must have 3 to 500 characters.
+2. Decide. Name the blockers that you read in step 1: the `memberId` of each person whose `blocksOther` is `true`. Keep both places with `'kept'` and no member. Or remove one of the two people with `'removed'` and that person's `memberId`. A removal works as a host removal does: that crew bars the person, their seat ends and the roster revision moves. The owner cannot be removed. The reason must have 3 to 500 characters.
 
    ```sql
    set role service_role;
    select public.decide_social_crew_block_case_admin(
-     '<staff role id>', '<case id>', 'kept', null, '<reason>'
+     '<staff role id>', '<case id>', array['<blocker member id>']::uuid[], 'kept', null, '<reason>'
    );
    select public.decide_social_crew_block_case_admin(
-     '<staff role id>', '<case id>', 'removed', '<member id>', '<reason>'
+     '<staff role id>', '<case id>', array['<blocker member id>', '<other blocker member id>']::uuid[],
+     'removed', '<member id>', '<reason>'
    );
    ```
 
@@ -199,12 +204,14 @@ A guarded operator call to cancel one occurrence is not implemented. The legacy 
 | `unchanged` | The case was already decided with this decision and this person. The original moderator and reason stay recorded. This call adds no audit record or new reason. |
 | `already_decided` | The case was already decided differently. The answer names that decision. Nothing changed. |
 | `forbidden` | You are tied to the crew or to either person, as step 1 describes. Ask a moderator with no such tie. |
-| `stale` | The case is no longer live: a person left or was removed, every block between them was lifted, or the night closed or was cancelled. Nothing changed. Read the queue again. |
-| `invalid` | The decision, member or reason is not valid. The member must be one of the two people, and not the owner. |
+| `stale` | The case is no longer live, or the blockers changed since you read them. A person left or was removed, a block was added or lifted, or the night closed or was cancelled. Nothing changed. Read the queue again and decide on what it shows now. |
+| `invalid` | The decision, member, blockers or reason is not valid. The member must be one of the two people, and not the owner. The blockers must be a list with no empty entry. |
 | `expired`, `not_found` | The case expired, or the case, its crew or one of the two accounts was deleted. |
 | error `staff required` | The staff role is not an active moderator. |
 
-The decision checks committed eligibility at its live-rule statement. An overlapping unblock or standalone cancellation can commit first while the removal still completes. Such overlapping actions use the serial order of that eligibility read.
+The decision checks committed eligibility and the blockers you named in one statement, with one snapshot. Only a new decision compares the blockers. A replay of a decided case answers `unchanged` or `already_decided` without that comparison. A block or an unblock takes no crew lock. An unblock never waits for a decision. A new block between the same two people can wait for a decision that closes their case, then follows it. An overlapping block, unblock or standalone cancellation can commit first while the removal still completes. Such overlapping actions follow the decision in the serial order of that snapshot. The check compares what you read with that snapshot. It is not a revision number.
+
+A moderator removal takes no participant account lock. A future see-again choice write (W6) must therefore check membership again under the crew row lock. The account locks alone do not keep out a removal.
 
 To lift a mistaken removal, use the correction in "Correct the removal" above. A new block after a decision opens a new case.
 
@@ -214,7 +221,7 @@ A case can name the crew's owner, for example when a guest blocks the host. You 
 
 ### Retention
 
-A case receives a fixed expiry when it opens, set to 30 days after the planned close (start plus 12 hours). A later Plan start change does not move that expiry. The retained case and decision support removal reviews and appeals. Only privileged operators can inspect that history directly. The service queue shows open cases only. From expiry the queue and the decision refuse it, but the row stays until the cleanup deletes it. Nothing schedules the cleanup. Run this until it answers `"deleted": 0`. Each call deletes at most 1,000 expired cases and cases whose crew is gone.
+A case receives a fixed expiry when it opens, set to 30 days after the planned close (start plus 12 hours). A later Plan start change does not move that expiry. An expired case that nobody decided still holds the open slot for its pair in that crew until the cleanup deletes it. This matters only when someone moves the Plan's start more than 30 days later: a new block between the two then opens no case. A raw edit of the Plan's start does not reset the expiry or the open slot, and it is not an approved way to reschedule. A new occurrence needs its own crew, or a guarded reschedule path that is provided and verified separately. The retained case and decision support removal reviews and appeals. Only privileged operators can inspect that history directly. The service queue shows open cases only. From expiry the queue and the decision refuse it, but the row stays until the cleanup deletes it. Nothing schedules the cleanup. Run this until it answers `"deleted": 0`. Each call deletes at most 1,000 expired cases and cases whose crew is gone.
 
 ```sql
 set role service_role;

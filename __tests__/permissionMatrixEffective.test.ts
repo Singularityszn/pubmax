@@ -2168,7 +2168,7 @@ describe("Social Crew: at the table", () => {
       `select public.remove_social_crew_member_atomic('${BOB_ACCOUNT}'::uuid, '${crew.id}'::uuid, '${crew.bobMemberId}'::uuid, 'pm-matrix-key-000000', repeat('a', 64))`,
       `select public.social_relationship_between_profiles('${ALICE_PROFILE}'::uuid, '${BOB_PROFILE}'::uuid)`,
       `select public.read_social_crew_block_cases_admin('${UNKNOWN_ID}'::uuid, 1)`,
-      `select public.decide_social_crew_block_case_admin('${UNKNOWN_ID}'::uuid, '${UNKNOWN_ID}'::uuid, 'kept', null, 'pm-matrix reason')`,
+      `select public.decide_social_crew_block_case_admin('${UNKNOWN_ID}'::uuid, '${UNKNOWN_ID}'::uuid, array[]::uuid[], 'kept', null, 'pm-matrix reason')`,
       `select public.purge_expired_social_crew_block_cases(1)`,
     ]) {
       const attempted = attemptAsRole("authenticated", BOB, call);
@@ -3510,11 +3510,11 @@ describe("private Crew block cases (0248)", () => {
       expect(truth(`select has_table_privilege('${role}','public.social_crew_block_cases','select,insert,update,delete,truncate,references,trigger')::text`)).toBe("false");
     }
     const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
-      "public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text)",
+      "public.decide_social_crew_block_case_admin(uuid,uuid,uuid[],text,uuid,text)",
       "public.purge_expired_social_crew_block_cases(integer)"];
     const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
       "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
-      "public._social_crew_block_case_live(uuid,uuid,uuid)"];
+      "public._social_crew_block_case_live(uuid,uuid,uuid)", "public._social_crew_block_case_blockers(uuid,uuid,uuid)"];
     for (const fn of [...callable, ...internal]) {
       for (const role of ["public", "anon", "authenticated"]) {
         const grantee = role === "public" ? "PUBLIC" : role;

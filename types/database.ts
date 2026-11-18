@@ -7980,6 +7980,14 @@ export type Database = {
         };
         Returns: Json;
       };
+      _social_crew_block_case_blockers: {
+        Args: {
+          p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
+        };
+        Returns: string[];
+      };
       _social_crew_block_case_live: {
         Args: {
           p_crew: string | null;
@@ -8786,6 +8794,7 @@ export type Database = {
         Args: {
           p_staff_role_id: string | null;
           p_case_id: string | null;
+          p_seen_blockers: string[] | null;
           p_decision: string | null;
           p_member_id: string | null;
           p_reason: string | null;
