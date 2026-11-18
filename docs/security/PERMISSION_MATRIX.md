@@ -160,6 +160,7 @@ no side effect, as above.
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
+| Crew block cases (`social_crew_block_cases`, 0248) and their moderator calls (`read_social_crew_block_cases_admin`, `decide_social_crew_block_case_admin`, `purge_expired_social_crew_block_cases`) at the database | denied | denied | denied | denied | denied | denied | Denied. RLS is on with no policy. No role reads the table, the service role included. Only the service role runs the three calls. |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
 | Message alert preferences (`/api/message-notifications`) | 401 | own preferences only | own preferences only | n/a | own preferences only | n/a | A thread mute requires current membership. An asserted user id never selects the owner. |
