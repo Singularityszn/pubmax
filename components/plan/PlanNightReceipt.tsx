@@ -142,7 +142,7 @@ function useReceiptRead(planId: string, userId: string, accessToken: string, cap
 function Receipt({ receipt, headingRef }: { receipt: NightReceipt; headingRef: Ref<HTMLHeadingElement> }) {
   return (
     <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-testid="plan-night-receipt">
-      <Kicker>Private to you</Kicker>
+      <Kicker>Host receipt</Kicker>
       <h2 ref={headingRef} tabIndex={-1} id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
       <p className="planNightReceipt__name">{receipt.title}</p>
       {receipt.plannedFor ? (
@@ -191,7 +191,7 @@ function Receipt({ receipt, headingRef }: { receipt: NightReceipt; headingRef: R
           </div>
         ) : null}
       </dl>
-      <p className="planNightReceipt__privacy">Crew names stay off this receipt. We share none of it.</p>
+      <p className="planNightReceipt__privacy">Plan members can still see the route. Crew names stay off this receipt.</p>
     </section>
   );
 }
@@ -225,7 +225,7 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
       <p className="sr-only" role="status" data-testid="plan-night-receipt-status">{status}</p>
       {receipt ? <Receipt receipt={receipt} headingRef={headingRef} /> : unavailable ? (
         <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
-          <Kicker>Private to you</Kicker>
+          <Kicker>Host receipt</Kicker>
           <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
           <p>{status}</p>
           <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={() => {
