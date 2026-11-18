@@ -12,7 +12,7 @@
 begin;
 lock table auth.users, public.private_social_accounts, public.social_blocks,
   public.social_mutes, public.social_crews, public.social_crew_members,
-  public.social_crew_attendance in share row exclusive mode;
+  public.social_crew_attendance, public.plans in share row exclusive mode;
 
 create table public.social_crew_see_again_pairs (
   id uuid primary key default gen_random_uuid(),
@@ -24,13 +24,14 @@ create table public.social_crew_see_again_pairs (
   high_user_id uuid not null references auth.users(id) on delete cascade,
   low_attendance_revision integer not null check (low_attendance_revision>0),
   high_attendance_revision integer not null check (high_attendance_revision>0),
-  state text not null check (state in ('open','mutual','withdrawn','dismissed','invalidated')),
+  state text not null check (state in ('open','mutual','closed')),
   revision integer not null default 1 check (revision>0),
   formed_at timestamptz,
+  choice_expires_at timestamptz not null,
   expires_at timestamptz not null,
   unique (crew_id,context,low_account_id,high_account_id),
-  check ((state in ('mutual','dismissed') and formed_at is not null)
-    or (state in ('open','withdrawn') and formed_at is null) or state='invalidated')
+  check ((state='mutual' and formed_at is not null and expires_at<=formed_at+interval '30 days')
+    or (state in ('open','closed') and formed_at is null and expires_at=choice_expires_at))
 );
 create index social_crew_see_again_pairs_low_idx on public.social_crew_see_again_pairs(low_user_id);
 create index social_crew_see_again_pairs_high_idx on public.social_crew_see_again_pairs(high_user_id);
@@ -48,6 +49,7 @@ create table public.social_crew_see_again_choices (
   choice text not null check (choice in ('chosen','withdrawn')),
   chosen_at timestamptz not null default clock_timestamp(),
   withdrawn_at timestamptz,
+  expires_at timestamptz not null,
   primary key (crew_id,context,picker_account_id,picked_account_id),
   unique (pair_id,picker_account_id),
   check ((choice='withdrawn')=(withdrawn_at is not null))
@@ -140,9 +142,24 @@ language sql stable security definer set search_path='' as $$
         - case when to_char(clock_timestamp() at time zone 'Europe/London','MMDD')<to_char(i.date_of_birth,'MMDD') then 1 else 0 end >=18
       else s.asserted_at is not null and pg_catalog.isfinite(s.asserted_at) end);
 $$;
+-- Match the existing Crew authority and seat boundary, without a full snapshot.
+create function public._see_again_crew_access(p_crew uuid,p_account uuid) returns boolean
+language sql stable security definer set search_path='' as $$
+  select exists(select 1 from public.social_crews c
+    join public.plans plan on plan.id=c.plan_id and plan.social_owner_account_id=c.owner_account_id and plan.status<>'abandoned'
+    join public.private_social_accounts host on host.id=c.owner_account_id and host.ownership_state='active'
+    join auth.users u on u.id=host.supabase_user_id
+    join public.profiles profile on profile.id=host.profile_id and profile.user_id=u.id and profile.tombstoned_at is null
+    join public.social_crew_members owner on owner.crew_id=c.id and owner.social_account_id=host.id and owner.state='active' and owner.role='owner'
+    join public.plan_crew_members owner_seat on owner_seat.id=owner.plan_member_id and owner_seat.plan_id=plan.id and owner_seat.social_account_id=host.id
+    join public.social_crew_members member on member.crew_id=c.id and member.social_account_id=p_account and member.state='active'
+    join public.plan_crew_members seat on seat.id=member.plan_member_id and seat.plan_id=plan.id and seat.social_account_id=p_account
+    where c.id=p_crew and c.visibility='open'
+    and public._social_crew_relationship_between_accounts(p_account,host.id) is distinct from 'blocked');
+$$;
 create function public._see_again_participant(p_crew uuid,p_account uuid) returns boolean
 language sql stable security definer set search_path='' as $$
-  select public._see_again_adult(p_account)
+  select public._see_again_adult(p_account) and public._see_again_crew_access(p_crew,p_account)
     and exists(select 1 from public.social_crew_members m where m.crew_id=p_crew and m.social_account_id=p_account and m.state='active' and m.role='member')
     and exists(select 1 from public._social_crew_attendance_current(p_crew,p_account) mark where mark.state='attended');
 $$;
@@ -163,10 +180,8 @@ $$;
 -- Shared with nextSeeAgainPair in lib/crewSeeAgain.ts. Terminal states never reopen.
 create function public._see_again_next(p_state text,p_event text) returns text
 language sql immutable set search_path='' as $$
-  select case when p_event='invalidate' then 'invalidated'
-    when p_state='open' and p_event='form' then 'mutual'
-    when p_state='open' and p_event='withdraw' then 'withdrawn'
-    when p_state='mutual' and p_event='withdraw' then 'dismissed' else p_state end;
+  select case when p_event in ('invalidate','withdraw') then 'closed'
+    when p_state='open' and p_event='form' then 'mutual' else p_state end;
 $$;
 
 -- Caller holds the Crew row. Take every roster auth/account lock once in order.
@@ -210,28 +225,32 @@ begin
   if v_now>=v_window.closes_at+interval '72 hours' and (p_action<>'withdraw' or pair.state is distinct from 'mutual') then
     return '{"ok":true}'::jsonb; end if;
   if pair.id is not null and pair.expires_at<=v_now then return '{"ok":true}'::jsonb; end if;
+  if p_action='withdraw' and pair.id is not null and v_now>=pair.choice_expires_at then
+    delete from public.social_crew_see_again_pairs where id=pair.id;
+    return '{"ok":true}'::jsonb;
+  end if;
   if pair.id is null then
     insert into public.social_crew_see_again_pairs(crew_id,context,low_account_id,high_account_id,low_user_id,high_user_id,
-      low_attendance_revision,high_attendance_revision,state,expires_at)
-    select p_crew,p_context,low_id,high_id,l.supabase_user_id,h.supabase_user_id,lm.revision,hm.revision,'open',v_window.closes_at+interval '72 hours'
+      low_attendance_revision,high_attendance_revision,state,choice_expires_at,expires_at)
+    select p_crew,p_context,low_id,high_id,l.supabase_user_id,h.supabase_user_id,lm.revision,hm.revision,'open',v_window.closes_at+interval '72 hours',v_window.closes_at+interval '72 hours'
       from public.private_social_accounts l,public.private_social_accounts h,
         public._social_crew_attendance_current(p_crew,low_id) lm,public._social_crew_attendance_current(p_crew,high_id) hm
       where l.id=low_id and h.id=high_id returning * into pair;
   end if;
   if p_action='withdraw' then
-    insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice,withdrawn_at)
-      select pair.id,p_crew,p_context,p_actor,other_account,p_member,supabase_user_id,'withdrawn',v_now
+    insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice,withdrawn_at,expires_at)
+      select pair.id,p_crew,p_context,p_actor,other_account,p_member,supabase_user_id,'withdrawn',v_now,pair.choice_expires_at
       from public.private_social_accounts where id=p_actor
       on conflict (crew_id,context,picker_account_id,picked_account_id) do update set choice='withdrawn',withdrawn_at=excluded.withdrawn_at;
-    update public.social_crew_see_again_pairs set state=public._see_again_next(pair.state,'withdraw'),revision=revision+1
+    update public.social_crew_see_again_pairs set state=public._see_again_next(pair.state,'withdraw'),formed_at=null,expires_at=choice_expires_at,revision=revision+1
       where id=pair.id and revision=pair.revision;
   elsif p_action='choose' then
-    insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice)
-      select pair.id,p_crew,p_context,p_actor,other_account,p_member,supabase_user_id,'chosen' from public.private_social_accounts where id=p_actor
+    insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice,expires_at)
+      select pair.id,p_crew,p_context,p_actor,other_account,p_member,supabase_user_id,'chosen',pair.choice_expires_at from public.private_social_accounts where id=p_actor
       on conflict do nothing;
     if pair.state='open' and (select count(*) from public.social_crew_see_again_choices where pair_id=pair.id and choice='chosen')=2 then
       update public.social_crew_see_again_pairs set state=public._see_again_next(pair.state,'form'),revision=revision+1,
-        formed_at=v_now,expires_at=v_now+interval '30 days' where id=pair.id and revision=pair.revision;
+        formed_at=v_now,expires_at=least(v_now+interval '30 days',v_window.expires_at) where id=pair.id and revision=pair.revision;
     end if;
   end if;
   return '{"ok":true}'::jsonb;
@@ -264,7 +283,7 @@ begin
       and pair.low_attendance_revision=(select revision from public._social_crew_attendance_current(p_crew,pair.low_account_id))
       and pair.high_attendance_revision=(select revision from public._social_crew_attendance_current(p_crew,pair.high_account_id)),false);
     if v_now>=v_window.closes_at+interval '72 hours' and not is_mutual then continue; end if;
-    select choice into own_choice from public.social_crew_see_again_choices where pair_id=pair.id and picker_account_id=p_actor;
+    select choice into own_choice from public.social_crew_see_again_choices where pair_id=pair.id and picker_account_id=p_actor and expires_at>clock_timestamp();
     candidates:=candidates||jsonb_build_array(jsonb_build_object('memberId',candidate.id,'handle',candidate.handle,
       'choice',coalesce(own_choice,'none'),'mutual',is_mutual));
   end loop;
@@ -278,18 +297,26 @@ $$;
 -- Caller has the subject account lock, or the Crew row for a scoped removal.
 -- Never take another account lock here. Invalidation must also survive unblock,
 -- reinstatement and attendance correction back to attended.
-create function public._see_again_invalidate(p_subject uuid,p_crew uuid default null,p_other uuid default null) returns void
+create function public._see_again_invalidate(p_subject uuid,p_crew uuid default null,p_other uuid default null,p_authority boolean default false) returns void
 language plpgsql security definer set search_path='' as $$
 declare pair record;
 begin
-  for pair in select id,low_account_id,high_account_id,revision from public.social_crew_see_again_pairs
-    where (low_account_id=p_subject or high_account_id=p_subject)
-      and (p_crew is null or crew_id=p_crew) and (p_other is null or low_account_id=p_other or high_account_id=p_other)
-      and state<>'invalidated' order by low_account_id,high_account_id,id
+  if p_subject is null and p_crew is null then return; end if;
+  for pair in select p.* from public.social_crew_see_again_pairs p join public.social_crews c on c.id=p.crew_id
+    where (p_crew is null or p.crew_id=p_crew) and (
+      ((p_subject is null or p.low_account_id=p_subject or p.high_account_id=p_subject)
+        and (p_other is null or p.low_account_id=p_other or p.high_account_id=p_other))
+      or (p_authority and ((c.owner_account_id=p_subject and (p_other is null or p.low_account_id=p_other or p.high_account_id=p_other))
+        or (c.owner_account_id=p_other and (p.low_account_id=p_subject or p.high_account_id=p_subject)))))
+      and p.state<>'closed' order by p.low_account_id,p.high_account_id,p.id
   loop
     perform public._see_again_pair_lock(pair.low_account_id,pair.high_account_id);
-    update public.social_crew_see_again_pairs set state=public._see_again_next(state,'invalidate'),revision=revision+1
-      where id=pair.id and revision=pair.revision;
+    if pair.choice_expires_at<=clock_timestamp() then
+      delete from public.social_crew_see_again_pairs where id=pair.id;
+    else
+      update public.social_crew_see_again_pairs set state='closed',formed_at=null,expires_at=choice_expires_at,revision=revision+1
+        where id=pair.id and revision=pair.revision;
+    end if;
   end loop;
 end;
 $$;
@@ -301,7 +328,7 @@ begin
     select id into subject from public.private_social_accounts where profile_id=new.blocker_profile_id;
     select id into other_account from public.private_social_accounts where profile_id=new.blocked_profile_id;
     if subject is not null and other_account is not null then
-      perform public._see_again_invalidate(subject,null,other_account);
+      perform public._see_again_invalidate(subject,null,other_account,true);
     end if;
   elsif tg_table_name='social_mutes' then
     select id into subject from public.private_social_accounts where profile_id=new.muter_profile_id;
@@ -314,12 +341,17 @@ begin
   elsif tg_table_name='social_crew_members' then
     -- The Crew lock excludes paired operations in this occurrence. Acquire no
     -- account here: case and seat writers can already hold later row locks.
-    perform public._see_again_invalidate(old.social_account_id,old.crew_id);
+    perform public._see_again_invalidate(old.social_account_id,old.crew_id,null,true);
   elsif tg_table_name='private_social_accounts' then
     if new.supabase_user_id is null then
       -- Auth deletion has already taken its subject account lock. No Crew lock.
+      perform public._see_again_invalidate(new.id,null,null,true);
       delete from public.social_crew_see_again_pairs where low_account_id=new.id or high_account_id=new.id;
-    elsif new.ownership_state<>'active' then perform public._see_again_invalidate(new.id); end if;
+    elsif new.ownership_state<>'active' then perform public._see_again_invalidate(new.id,null,null,true); end if;
+  elsif tg_table_name='social_crews' then
+    perform public._see_again_invalidate(null,new.id);
+  elsif tg_table_name='plans' then
+    perform public._see_again_invalidate(null,(select id from public.social_crews where plan_id=new.id));
   end if;
   return null;
 end;
@@ -357,6 +389,13 @@ create trigger see_again_member_invalidated after update of state,role on public
   for each row when (old.state is distinct from new.state or old.role is distinct from new.role)
   execute function public._see_again_safety_trigger();
 
+create trigger see_again_crew_hidden after update of visibility on public.social_crews
+  for each row when (old.visibility is distinct from new.visibility and new.visibility<>'open')
+  execute function public._see_again_safety_trigger();
+create trigger see_again_plan_cancelled after update of status on public.plans
+  for each row when (old.status is distinct from new.status and new.status='abandoned')
+  execute function public._see_again_safety_trigger();
+
 -- Own directional records only. No other person's pick, outcome, DOB or assertion.
 create function public.export_social_crew_see_again(p_user uuid,p_limit integer) returns jsonb
 language sql stable security definer set search_path='' as $$
@@ -364,28 +403,60 @@ language sql stable security definer set search_path='' as $$
     select jsonb_build_object('crewId',choice.crew_id,'pickedMemberId',choice.picked_member_id,'context',choice.context,'choice',choice.choice,
       'chosenAt',choice.chosen_at,'withdrawnAt',choice.withdrawn_at) entry
     from public.social_crew_see_again_choices choice join public.social_crew_see_again_pairs pair on pair.id=choice.pair_id
-    where choice.picker_user_id=p_user and pair.expires_at>clock_timestamp()
+    where choice.picker_user_id=p_user and choice.expires_at>clock_timestamp()
     order by choice.chosen_at,choice.pair_id limit greatest(0,least(coalesce(p_limit,0),1001))
   ) owned;
 $$;
 
 create function public.purge_expired_social_crew_see_again(p_limit integer default 1000) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare pair record; deleted integer:=0; count_choices integer; bounded integer:=greatest(3,least(coalesce(p_limit,1000),1000));
+declare pair record; deleted integer:=0; count_choices integer;
+  bounded integer:=greatest(0,least(coalesce(p_limit,1000),1000)); ids uuid[]; crews uuid[];
 begin
-  -- Each pair has at most two directions. This bound includes cascade deletion.
-  for pair in select * from public.social_crew_see_again_pairs where expires_at<=clock_timestamp()
-    order by expires_at,id limit bounded/3
+  -- Reserve at most three physical rows per pair, including cascading directions.
+  ids:=array(select p.id from public.social_crew_see_again_pairs p
+    where p.expires_at<=clock_timestamp() or exists(select 1 from public.social_crew_see_again_choices d
+      where d.pair_id=p.id and d.expires_at<=clock_timestamp())
+      or (p.state='mutual' and (not public._see_again_allowed(p.crew_id,p.low_account_id,p.high_account_id)
+        or p.low_attendance_revision<>(select revision from public._social_crew_attendance_current(p.crew_id,p.low_account_id))
+        or p.high_attendance_revision<>(select revision from public._social_crew_attendance_current(p.crew_id,p.high_account_id))))
+    order by p.expires_at,p.id limit bounded/3);
+  -- Acquire each lock class for the whole batch in one order across all Crews.
+  crews:=array(select c.id from public.social_crews c where c.id in
+    (select p.crew_id from public.social_crew_see_again_pairs p where p.id=any(ids)) order by c.id for update skip locked);
+  ids:=array(select p.id from public.social_crew_see_again_pairs p where p.id=any(ids) and p.crew_id=any(crews));
+  perform 1 from auth.users u where u.id in (
+    select a.supabase_user_id from public.private_social_accounts a join public.social_crew_members m on m.social_account_id=a.id
+      where m.crew_id=any(crews) and m.state='active'
+    union select p.low_user_id from public.social_crew_see_again_pairs p where p.id=any(ids)
+    union select p.high_user_id from public.social_crew_see_again_pairs p where p.id=any(ids))
+    order by u.id for key share of u;
+  perform public._lock_social_participant_accounts(array(select m.social_account_id from public.social_crew_members m
+    where m.crew_id=any(crews) and m.state='active'
+    union select p.low_account_id from public.social_crew_see_again_pairs p where p.id=any(ids)
+    union select p.high_account_id from public.social_crew_see_again_pairs p where p.id=any(ids)));
+  for pair in select * from public.social_crew_see_again_pairs where id=any(ids) order by low_account_id,high_account_id,id
   loop
-    perform 1 from public.social_crews where id=pair.crew_id for update skip locked;
-    if not found then continue; end if;
-    perform 1 from auth.users where id in (pair.low_user_id,pair.high_user_id) order by id for key share;
-    perform public._lock_social_participant_accounts(array[pair.low_account_id,pair.high_account_id]);
     perform public._see_again_pair_lock(pair.low_account_id,pair.high_account_id);
-    if not exists(select 1 from public.social_crew_see_again_pairs where id=pair.id and expires_at<=clock_timestamp()) then continue; end if;
-    select count(*) into count_choices from public.social_crew_see_again_choices where pair_id=pair.id;
-    delete from public.social_crew_see_again_pairs where id=pair.id;
-    deleted:=deleted+1+count_choices;
+    if pair.state='mutual' and (not public._see_again_allowed(pair.crew_id,pair.low_account_id,pair.high_account_id)
+      or pair.low_attendance_revision<>(select revision from public._social_crew_attendance_current(pair.crew_id,pair.low_account_id))
+      or pair.high_attendance_revision<>(select revision from public._social_crew_attendance_current(pair.crew_id,pair.high_account_id))) then
+      select count(*) into count_choices from public.social_crew_see_again_choices where pair_id=pair.id;
+      perform public._see_again_invalidate(pair.low_account_id,pair.crew_id,pair.high_account_id);
+      if not exists(select 1 from public.social_crew_see_again_pairs where id=pair.id) then
+        deleted:=deleted+1+count_choices;
+        continue;
+      end if;
+    end if;
+    if exists(select 1 from public.social_crew_see_again_pairs where id=pair.id and expires_at<=clock_timestamp()) then
+      select count(*) into count_choices from public.social_crew_see_again_choices where pair_id=pair.id;
+      delete from public.social_crew_see_again_pairs where id=pair.id;
+      deleted:=deleted+1+count_choices;
+    else
+      delete from public.social_crew_see_again_choices where pair_id=pair.id and expires_at<=clock_timestamp();
+      get diagnostics count_choices=row_count;
+      deleted:=deleted+count_choices;
+    end if;
   end loop;
   return jsonb_build_object('ok',true,'deleted',deleted);
 end;

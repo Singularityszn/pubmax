@@ -4,7 +4,7 @@
 begin;
 lock table auth.users in share row exclusive mode;
 lock table public.private_social_accounts,public.social_blocks,public.social_mutes,
-  public.social_crews,public.social_crew_members,public.social_crew_attendance,
+  public.social_crews,public.social_crew_members,public.social_crew_attendance,public.plans,
   public.private_account_identities,public.adult_self_assertions,
   public.social_crew_see_again_pairs,public.social_crew_see_again_choices in share row exclusive mode nowait;
 do $$
@@ -85,6 +85,8 @@ drop trigger see_again_block_invalidated on public.social_blocks;
 drop trigger see_again_mute_lock on public.social_mutes;
 drop trigger see_again_mute_invalidated on public.social_mutes;
 drop trigger see_again_attendance_invalidated on public.social_crew_attendance;
+drop trigger see_again_crew_hidden on public.social_crews;
+drop trigger see_again_plan_cancelled on public.plans;
 drop trigger see_again_member_invalidated on public.social_crew_members;
 drop function public.write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean);
 drop function public.read_social_crew_see_again(uuid,uuid,uuid);
@@ -93,10 +95,11 @@ drop function public.purge_expired_social_crew_see_again(integer);
 drop function public._see_again_safety_trigger();
 drop function public._see_again_lock_account_write();
 drop function public._see_again_lock_mute();
-drop function public._see_again_invalidate(uuid,uuid,uuid);
+drop function public._see_again_invalidate(uuid,uuid,uuid,boolean);
 drop function public._see_again_lock_roster(uuid);
 drop function public._see_again_allowed(uuid,uuid,uuid);
 drop function public._see_again_participant(uuid,uuid);
+drop function public._see_again_crew_access(uuid,uuid);
 drop function public._see_again_adult(uuid);
 drop function public._see_again_pair_lock(uuid,uuid);
 drop function public._see_again_next(text,text);

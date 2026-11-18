@@ -126,3 +126,17 @@ test("the private mutual reaches the existing Add mate confirmation without an a
   await expect(page.locator(".confirmFollow[role=status]")).toBeVisible();
   expect(follows).toBe(1);
 });
+
+
+test("a visible connection remains dismissible after its own choices expire", async ({ page }) => {
+  const fixture = await open(page);
+  fixture.set({ open: false, closesAt: "2026-11-17T08:00:00Z", items: [{ ...candidate, choice: "none", mutual: true }] });
+  await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+  await expect(fixture.section.getByRole("checkbox")).toHaveCount(0);
+  await Promise.all([
+    page.waitForResponse(response => response.url().endsWith("/see-again") && response.request().method() === "POST"),
+    fixture.section.getByRole("button", { name: `Dismiss reconnection with @${candidate.handle}` }).click(),
+  ]);
+  expect(fixture.writes).toEqual([{ memberId: BEA, context: "friendship", action: "withdraw", consent: false }]);
+  await expect(fixture.section.getByRole("button", { name: /Add @/ })).toHaveCount(0);
+});

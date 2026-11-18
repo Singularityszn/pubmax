@@ -188,9 +188,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(item(b, crew, a)).toMatchObject({ choice: "withdrawn", mutual: false });
   });
 
-  it("withdrawal after formation hides the outcome for both and keeps its original expiry", () => {
+  it("withdrawal after formation hides the outcome for both until the short choice deadline", () => {
     const { a, b, crew } = matched();
-    const before = db().sql(`select expires_at from public.social_crew_see_again_pairs where crew_id='${crew}'`);
+    const before = db().sql(`select choice_expires_at from public.social_crew_see_again_pairs where crew_id='${crew}'`);
     choose(a, crew, b, "friendship", "withdraw");
     expect(item(a, crew, b)?.mutual).toBe(false);
     expect(item(b, crew, a)?.mutual).toBe(false);
@@ -262,16 +262,16 @@ describe("0250 private event-bound friendship reconnection", () => {
   it("expires unmatched and matched records immediately and deletes them in bounded batches", async () => {
     const n = matched();
     const remaining = Number(db().sql(`select extract(epoch from expires_at-formed_at) from public.social_crew_see_again_pairs where crew_id='${n.crew}'`));
-    expect(remaining).toBe(30 * 86400);
-    db().sql(`update public.social_crew_see_again_pairs set expires_at=clock_timestamp()-interval '1 second' where crew_id='${n.crew}'`);
+    expect(remaining).toBeGreaterThan(0);
+    expect(remaining).toBeLessThanOrEqual(30 * 86400);
+    db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=statement_timestamp()-interval '1 second',expires_at=statement_timestamp()-interval '1 second' where crew_id='${n.crew}'`);
     expect(read(n.a, n.crew)?.items.some(x => x.mutual) ?? false).toBe(false);
     expect(choose(n.a, n.crew, n.b)).toEqual(neutral);
     expect(call("purge_expired_social_crew_see_again(1000)")).toMatchObject({ ok: true, deleted: 3 });
     expect(rows(n.crew)).toBe("0");
     const u = night(); choose(u.a, u.crew, u.b);
-    db().sql(`update public.social_crew_see_again_pairs set expires_at=clock_timestamp()-interval '1 second' where crew_id='${u.crew}'`);
+    db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=statement_timestamp()-interval '1 second',expires_at=statement_timestamp()-interval '1 second' where crew_id='${u.crew}'`);
     await serial(rpc("purge_expired_social_crew_see_again(1000)"), rpc(chooseCall(u.b, u.crew, u.a)), "w6-expiry");
-    // The original window is still open in this fixture, but an expired pair is not recreated.
     expect(item(u.a, u.crew, u.b)?.mutual).toBe(false);
   });
 
@@ -285,7 +285,7 @@ describe("0250 private event-bound friendship reconnection", () => {
   });
 
   it("keeps the SQL state machine equal to the policy leaf, including every terminal refusal", () => {
-    for (const state of ["open", "mutual", "withdrawn", "dismissed", "invalidated"] as SeeAgainPairState[]) {
+    for (const state of ["open", "mutual", "closed"] as SeeAgainPairState[]) {
       for (const event of ["form", "withdraw", "invalidate"] as SeeAgainPairEvent[]) {
         expect(db().sql(`select public._see_again_next('${state}','${event}')`)).toBe(nextSeeAgainPair(state, event));
       }
@@ -310,14 +310,14 @@ describe("0250 private event-bound friendship reconnection", () => {
   it("bounds a batch including cascade-deleted directions and leaves unexpired choices intact", () => {
     const { a, b, crew } = matched();
     db().sql(`insert into public.social_crew_see_again_pairs(crew_id,context,low_account_id,high_account_id,low_user_id,high_user_id,
-      low_attendance_revision,high_attendance_revision,state,expires_at)
-      select '${crew}','friendship','${a.account}',('ff250000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'${a.user}','${b.user}',1,1,'open',now()-interval '1 second'
+      low_attendance_revision,high_attendance_revision,state,choice_expires_at,expires_at)
+      select '${crew}','friendship','${a.account}',('ff250000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'${a.user}','${b.user}',1,1,'open',now()-interval '1 second',now()-interval '1 second'
       from generate_series(1,335) n;
-      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice)
-      select p.id,p.crew_id,p.context,p.low_account_id,p.high_account_id,'${memberId(crew, b)}','${a.user}','chosen'
+      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice,expires_at)
+      select p.id,p.crew_id,p.context,p.low_account_id,p.high_account_id,'${memberId(crew, b)}','${a.user}','chosen',p.choice_expires_at
       from public.social_crew_see_again_pairs p where p.crew_id='${crew}' and p.state='open';
-      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice)
-      select p.id,p.crew_id,p.context,p.high_account_id,p.low_account_id,'${memberId(crew, a)}','${b.user}','chosen'
+      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice,expires_at)
+      select p.id,p.crew_id,p.context,p.high_account_id,p.low_account_id,'${memberId(crew, a)}','${b.user}','chosen',p.choice_expires_at
       from public.social_crew_see_again_pairs p where p.crew_id='${crew}' and p.state='open'`);
     expect(call("purge_expired_social_crew_see_again(100000)")).toEqual({ ok: true, deleted: 999 });
     expect(call("purge_expired_social_crew_see_again(100000)")).toEqual({ ok: true, deleted: 6 });
@@ -423,6 +423,52 @@ describe("0250 private event-bound friendship reconnection", () => {
     call(blockCall(host, a));
     expect(read(a, crew)).toBeNull();
     expect(item(b, crew, a)).toBeUndefined();
+  });
+
+  it("serialises short choice cleanup against a retained mutual read in both orders", async () => {
+    for (const order of ["read-first", "purge-first"]) {
+      const { a, b, crew } = matched();
+      starts(crew, "-85 hours");
+      db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=now()-interval '1 hour',
+        formed_at=now()-interval '2 days',expires_at=now()+interval '26 days' where crew_id='${crew}';
+        update public.social_crew_see_again_choices set expires_at=now()-interval '1 hour' where crew_id='${crew}'`);
+      const purge = rpc("purge_expired_social_crew_see_again(1000)"), reveal = rpc(readCall(a, crew));
+      if (order === "read-first") {
+        const held = await hold(reveal);
+        try {
+          // A busy Crew is skipped, so the executor never waits behind this read.
+          expect(call("purge_expired_social_crew_see_again(1000)")).toMatchObject({ ok: true });
+          expect(db().sql(`select count(*) from public.social_crew_see_again_choices where crew_id='${crew}'`)).toBe("2");
+        } finally { await held.finish(); }
+        call("purge_expired_social_crew_see_again(1000)");
+      } else await serial(purge, reveal, `w6-choice-expiry-${order}`);
+      expect(item(a, crew, b)).toMatchObject({ choice: "none", mutual: true });
+      expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual([]);
+      expect(db().sql(`select count(*) from public.social_crew_see_again_choices where crew_id='${crew}'`)).toBe("0");
+    }
+  });
+
+  it.each(["host-block", "host-suspension", "host-delete", "cancellation"])("revokes retained connections on %s in both reveal transaction orders", async kind => {
+    for (const order of ["reveal-first", "invalidation-first"]) {
+      const { host, a, b, crew } = matched();
+      const invalidation = kind === "host-block" ? rpc(blockCall(host, a))
+        : kind === "host-suspension" ? rpc(suspendCall(host)) : kind === "host-delete" ? deleteAccount(host)
+        : `update public.plans set status='abandoned' where id=(select plan_id from public.social_crews where id='${crew}')`;
+      await serial(order === "reveal-first" ? rpc(readCall(a, crew)) : invalidation,
+        order === "reveal-first" ? invalidation : rpc(readCall(a, crew)), `w6-${kind}-${order}`,
+        order === "invalidation-first" && ["host-delete", "cancellation"].includes(kind) ? "postgres" : "service_role");
+      expect(read(a, crew)).toBeNull();
+      expect(item(b, crew, a)).toBeUndefined();
+      expect(db().sql(`select count(*) from public.social_crew_see_again_pairs where crew_id='${crew}' and state='mutual'`)).toBe("0");
+    }
+  });
+
+  it("never revives a connection when the host unblocks the participant", () => {
+    const { host, a, b, crew } = matched();
+    call(blockCall(host, a));
+    db().sql(`delete from public.social_blocks where blocker_profile_id='${host.profile}' and blocked_profile_id='${a.profile}'`);
+    expect(item(a, crew, b)?.mutual).toBe(false);
+    expect(db().sql(`select formed_at is null and expires_at=choice_expires_at from public.social_crew_see_again_pairs where crew_id='${crew}'`)).toBe("t");
   });
 
   it("rolls back under the migration role and reapplies", async () => {

@@ -2,13 +2,13 @@ import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
 
 const SEE_AGAIN_CHOICE_MS = 72 * 60 * 60 * 1000;
 export const SEE_AGAIN_MUTUAL_MS = 30 * 24 * 60 * 60 * 1000;
-export type SeeAgainPairState = "open" | "mutual" | "withdrawn" | "dismissed" | "invalidated";
+export type SeeAgainPairState = "open" | "mutual" | "closed";
 export type SeeAgainPairEvent = "form" | "withdraw" | "invalidate";
 export function nextSeeAgainPair(state: SeeAgainPairState, event: SeeAgainPairEvent): SeeAgainPairState {
   switch (event) {
-    case "invalidate": return "invalidated";
+    case "invalidate": return "closed";
     case "form": return state === "open" ? "mutual" : state;
-    case "withdraw": return state === "open" ? "withdrawn" : state === "mutual" ? "dismissed" : state;
+    case "withdraw": return "closed";
   }
 }
 export function seeAgainWindow(startsAt: number) {
@@ -33,7 +33,7 @@ export function parseSeeAgain(value: unknown): SeeAgainDTO | null {
     const item = raw as Record<string, unknown>;
     if (!uuid(item.memberId) || seen.has(item.memberId) || typeof item.handle !== "string" || !item.handle.trim()
       || !["none", "chosen", "withdrawn"].includes(String(item.choice)) || typeof item.mutual !== "boolean"
-      || (item.mutual && item.choice !== "chosen")) return null;
+      || (item.mutual && item.choice === "withdrawn")) return null;
     seen.add(item.memberId);
     items.push({ memberId: item.memberId, handle: item.handle, choice: item.choice as SeeAgainItem["choice"], mutual: item.mutual });
   }

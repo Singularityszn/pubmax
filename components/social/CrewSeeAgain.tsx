@@ -139,9 +139,9 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
             <Button variant="ghost" onClick={() => setAdding(null)}>Keep this private</Button>
           </div> : null}
         </> : item.choice === "chosen" ? <p>Your private choice is saved.</p> : null}
-        {item.choice === "none" && view.data.open ? <Button variant="secondary" disabled={!consent || view.phase === "saving"}
+        {item.choice === "none" && !item.mutual && view.data.open ? <Button variant="secondary" disabled={!consent || view.phase === "saving"}
           onClick={() => void change(item, "choose")}>See {displayHandle(item.handle)} again as a mate</Button> : null}
-        {item.choice === "chosen" ? <Button variant="ghost" disabled={view.phase === "saving"}
+        {item.choice === "chosen" || item.mutual ? <Button variant="ghost" disabled={view.phase === "saving"}
           onClick={() => void change(item, "withdraw")}>{item.mutual ? `Dismiss reconnection with ${displayHandle(item.handle)}` : `Withdraw choice for ${displayHandle(item.handle)}`}</Button> : null}
       </li>)}
     </ul> : <p>There is nobody to choose here right now.</p>}

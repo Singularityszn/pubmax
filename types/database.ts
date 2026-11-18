@@ -5524,6 +5524,7 @@ export type Database = {
           choice: string;
           chosen_at: string;
           withdrawn_at: string | null;
+          expires_at: string;
         };
         Insert: {
           pair_id: string;
@@ -5536,6 +5537,7 @@ export type Database = {
           choice: string;
           chosen_at?: string;
           withdrawn_at?: string | null;
+          expires_at: string;
         };
         Update: {
           pair_id?: string;
@@ -5548,6 +5550,7 @@ export type Database = {
           choice?: string;
           chosen_at?: string;
           withdrawn_at?: string | null;
+          expires_at?: string;
         };
         Relationships: [
           {
@@ -5573,6 +5576,7 @@ export type Database = {
           state: string;
           revision: number;
           formed_at: string | null;
+          choice_expires_at: string;
           expires_at: string;
         };
         Insert: {
@@ -5588,6 +5592,7 @@ export type Database = {
           state: string;
           revision?: number;
           formed_at?: string | null;
+          choice_expires_at: string;
           expires_at: string;
         };
         Update: {
@@ -5603,6 +5608,7 @@ export type Database = {
           state?: string;
           revision?: number;
           formed_at?: string | null;
+          choice_expires_at?: string;
           expires_at?: string;
         };
         Relationships: [
@@ -8024,11 +8030,19 @@ export type Database = {
         };
         Returns: boolean;
       };
+      _see_again_crew_access: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
+      };
       _see_again_invalidate: {
         Args: {
           p_subject: string | null;
           p_crew?: string | null;
           p_other?: string | null;
+          p_authority?: boolean | null;
         };
         Returns: undefined;
       };

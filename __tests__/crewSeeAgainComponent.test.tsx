@@ -69,6 +69,14 @@ describe("private see-again mounted component", () => {
     expect(fixture.writes).toEqual([]);
   });
 
+  it("can dismiss a visible connection after both directional choices have expired", async () => {
+    fixture.data = { open: false, closesAt: "2026-11-17T00:00:00Z", items: [{ ...row(true), choice: "none" }] };
+    await mount();
+    expect(host.querySelector('input[type="checkbox"]')).toBeNull();
+    await act(async () => button("Dismiss reconnection with @bea").click());
+    expect(fixture.writes).toEqual([{ memberId, context: "friendship", action: "withdraw", consent: false }]);
+  });
+
   it("drops prior account data when the identity changes", async () => {
     await mount();
     fixture.data = null;
