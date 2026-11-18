@@ -1,0 +1,11 @@
+.socialOpenTable .openTableSmallPrint {
+  margin: var(--space-2) 0 0;
+}
+
+.socialOpenTable .openTableSource {
+  display: flex;
+  align-items: center;
+  width: fit-content;
+  min-height: 44px;
+  margin-block: var(--space-2) 0;
+}
