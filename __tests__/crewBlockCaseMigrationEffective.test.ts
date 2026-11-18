@@ -98,7 +98,13 @@ const arrow = (from: Person, to: Person) => `${from.handle}>${to.handle}`;
 const unblock = (blocker: Person, blocked: Person) =>
   call(`set_social_block('${blocker.profile}','${blocked.profile}',false)`);
 const queueCall = (staff = STAFF_ROLE) => `read_social_crew_block_cases_admin('${staff}',50)`;
-const queue = (staff = STAFF_ROLE) => JSON.parse(db().sql(asServiceRole(rpc(queueCall(staff))))) as BlockCase[];
+/** Each case's blockers, by member ID, as the latest queue read showed them. */
+const seen = new Map<string, string[]>();
+const queue = (staff = STAFF_ROLE) => {
+  const entries = JSON.parse(db().sql(asServiceRole(rpc(queueCall(staff))))) as BlockCase[];
+  for (const { caseId, people } of entries) seen.set(caseId, people.filter((p) => p.blocksOther).map((p) => p.memberId));
+  return entries;
+};
 const casesIn = (crew: string, staff?: string) => queue(staff).filter((entry) => entry.crewId === crew);
 const onlyCase = (crew: string) => {
   const [only, ...more] = casesIn(crew);
@@ -172,6 +178,8 @@ const waitsOnPosition = (waiter: string, holder: string, ctid: string) => db().s
     and position.relation='public.plan_live_locations'::regclass and format('(%s,%s)',position.page,position.tuple)='${ctid}'
   where waiting.application_name='${waiter}' and waiting.wait_event_type='Lock' and waiting.wait_event='transactionid'
     and pg_blocking_pids(waiting.pid)=array[holding.pid])`);
+const caseHistory = (caseId: string) => db().sql(`select jsonb_build_array(decision, removed_member_id, reason,
+  staff_role_id, staff_display_name, decided_at)::text from public.social_crew_block_cases where id='${caseId}'`);
 const decisionOf = (caseId: string) => db().sql(`select decision||'|'||coalesce(removed_member_id::text,'none')
   from public.social_crew_block_cases where id='${caseId}'`);
 
@@ -372,6 +380,30 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
       expect(kept).toEqual(["active", "active"]);
       expect(openRows(pair.crew)).toBe("1");
       if (changed.every((value) => value === "active")) expect(revision(pair.crew)).toBe(before);
+    }
+  });
+
+  it("a decision on directions read before a block changed answers stale and changes nothing, and a fresh read decides", () => {
+    const changes: [(pair: ReturnType<typeof blockedPair>) => void, (pair: ReturnType<typeof blockedPair>) => string[]][] = [
+      [({ ana, bea }) => { expect(unblock(ana, bea)).toBe(true); expect(block(bea, ana)).toBe(true); },
+        ({ ana, bea }) => [arrow(bea, ana)]],
+      [({ ana, bea }) => expect(block(bea, ana)).toBe(true), ({ ana, bea }) => [arrow(ana, bea), arrow(bea, ana)].sort()],
+    ];
+    for (const [change, now] of changes) {
+      const pair = blockedPair();
+      const { ana, bea, crew } = pair;
+      const caseId = onlyCase(crew);
+      const before = revision(crew);
+      change(pair);
+      for (const target of [memberId(crew, ana), memberId(crew, bea)]) {
+        expect(decideCase(caseId, "removed", target)).toEqual({ ok: false, code: "stale" });
+      }
+      expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "stale" });
+      for (const who of [ana, bea]) expect([state(crew, who), seatOpen(crew, who)]).toEqual(["active", "true"]);
+      expect(revision(crew)).toBe(before);
+      expect(caseHistory(caseId)).toBe("[null, null, null, null, null, null]");
+      expect(casesIn(crew).map((entry) => [entry.caseId, directions(entry)])).toEqual([[caseId, now(pair)]]);
+      expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: true, code: "decided", decision: "removed" });
     }
   });
 
