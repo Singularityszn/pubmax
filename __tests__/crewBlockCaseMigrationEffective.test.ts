@@ -30,6 +30,7 @@ import {
   hold,
   holdRpc,
   invite,
+  json,
   key,
   leave,
   leaveCall,
@@ -141,6 +142,38 @@ function blockedPair() {
   expect(block(ana, bea)).toBe(true);
   return { host, ana, bea, crew };
 }
+/** blockedPair, with a stored live position for Ana and for Bea. */
+function sharingPair() {
+  const pair = blockedPair();
+  db().sql(`insert into public.plan_live_locations(plan_id,member_id,latitude,longitude,accuracy_m,updated_at,expires_at)
+    select crew.plan_id, member.plan_member_id, 51.5, -0.12, 10, now(), now()+interval '1 hour'
+    from public.social_crew_members member join public.social_crews crew on crew.id=member.crew_id
+    where member.crew_id='${pair.crew}' and member.social_account_id in ('${pair.ana.account}','${pair.bea.account}')`);
+  return pair;
+}
+/** The physical address of that person's live position, or 'none'. */
+const positionOf = (crew: string, who: Person) => db().sql(`select coalesce((select location.ctid::text
+  from public.plan_live_locations location join public.social_crew_members member on member.plan_member_id=location.member_id
+  where member.crew_id='${crew}' and member.social_account_id='${who.account}'), 'none')`);
+const positions = (crew: string) => db().sql(`select count(*) from public.plan_live_locations where plan_id='${planOf(crew)}'`);
+// update_legacy_plan_status_context_atomic answers not_found for a crew-bound Plan, so a
+// standalone cancellation of one is this status write, with the Plan triggers it fires.
+const cancelNight = (crew: string) => `update public.plans set status='abandoned' where id='${planOf(crew)}'`;
+/**
+ * True only while `waiter` waits on the transaction named `holder`, and on nothing else,
+ * holding the tuple lock on the live position at `ctid`.
+ */
+const waitsOnPosition = (waiter: string, holder: string, ctid: string) => db().sqlAsync(`select exists(
+  select 1 from pg_stat_activity waiting
+  join pg_stat_activity holding on holding.application_name='${holder}'
+  join pg_locks xact on xact.pid=waiting.pid and xact.locktype='transactionid' and not xact.granted
+    and xact.transactionid=holding.backend_xid
+  join pg_locks position on position.pid=waiting.pid and position.locktype='tuple' and position.granted
+    and position.relation='public.plan_live_locations'::regclass and format('(%s,%s)',position.page,position.tuple)='${ctid}'
+  where waiting.application_name='${waiter}' and waiting.wait_event_type='Lock' and waiting.wait_event='transactionid'
+    and pg_blocking_pids(waiting.pid)=array[holding.pid])`);
+const decisionOf = (caseId: string) => db().sql(`select decision||'|'||coalesce(removed_member_id::text,'none')
+  from public.social_crew_block_cases where id='${caseId}'`);
 
 describe.skipIf(skipReason !== null)("0248: a block between accepted members opens a private moderator case", () => {
   it("opens one case, and the night, both places, both seats and the roster revision stay as they were", () => {
@@ -582,6 +615,64 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(unblock(second.ana, second.bea)).toBe(true);
     expect(decideCase(caseId, "removed", memberId(second.crew, second.bea))).toEqual({ ok: false, code: "stale" });
     expect(state(second.crew, second.bea)).toBe("active");
+  });
+
+  /** The serial order both interleavings below end in: the removal, then the cancellation. */
+  function removedThenCancelled({ ana, bea, crew }: ReturnType<typeof sharingPair>, caseId: string, before: number) {
+    expect(planStatus(crew)).toBe("abandoned");
+    expect(state(crew, bea)).toBe("removed");
+    expect(seatOpen(crew, bea)).toBe("false");
+    expect(state(crew, ana)).toBe("active");
+    expect(Number(revision(crew))).toBe(before + 1);
+    expect(decisionOf(caseId)).toBe(`removed|${memberId(crew, bea)}`);
+    expect(positions(crew)).toBe("0");
+    expect(casesIn(crew)).toEqual([]);
+  }
+
+  it("a removal reads the night before a cancellation in flight, waits on the removed guest's live position, and lands as the earlier change", async () => {
+    const pair = sharingPair();
+    const { bea, crew } = pair;
+    const caseId = onlyCase(crew);
+    const position = positionOf(crew, bea);
+    expect(position).not.toBe("none");
+    const before = Number(revision(crew));
+    const cancelling = await hold(`set local application_name='cancel_before_remove_0248'; ${cancelNight(crew)}`, "postgres");
+    let removing: Promise<Record<string, unknown>> | undefined;
+    try {
+      removing = waitingRpcResult("remove_during_cancel_0248", decideCaseCall(caseId, "removed", memberId(crew, bea)));
+      await expect.poll(() => waitsOnPosition("remove_during_cancel_0248", "cancel_before_remove_0248", position)).toBe("t");
+      expect(planStatus(crew)).toBe("ready");
+      expect(state(crew, bea)).toBe("active");
+    } finally {
+      try { await cancelling.finish(); } finally { await removing?.catch(() => undefined); }
+    }
+    expect(await removing).toEqual({ ok: true, code: "decided", decision: "removed" });
+    removedThenCancelled(pair, caseId, before);
+  });
+
+  it("a cancellation waits on the live position a held removal already deleted, then lands after it", async () => {
+    const pair = sharingPair();
+    const { bea, crew } = pair;
+    const caseId = onlyCase(crew);
+    const position = positionOf(crew, bea);
+    expect(position).not.toBe("none");
+    const before = Number(revision(crew));
+    const removal = await hold(`set local application_name='remove_before_cancel_0248';
+      ${rpc(decideCaseCall(caseId, "removed", memberId(crew, bea)))}`);
+    let cancelling: ReturnType<typeof waiting> | undefined;
+    try {
+      expect(json(removal.said)).toEqual({ ok: true, code: "decided", decision: "removed" });
+      cancelling = waiting("cancel_after_remove_0248", cancelNight(crew), "postgres");
+      await expect.poll(() => waitsOnPosition("cancel_after_remove_0248", "remove_before_cancel_0248", position)).toBe("t");
+      expect(planStatus(crew)).toBe("ready");
+      expect(state(crew, bea)).toBe("active");
+    } finally {
+      try { await removal.finish(); } finally { await cancelling?.catch(() => undefined); }
+    }
+    const cancelled = await cancelling;
+    expect(cancelled?.said).not.toMatch(REFUSED_BY_LOCKS);
+    expect(cancelled?.ok).toBe(true);
+    removedThenCancelled(pair, caseId, before);
   });
 
   it("a block that lands beside an operator Plan delete leaves no readable case, and the cleanup deletes it", async () => {
