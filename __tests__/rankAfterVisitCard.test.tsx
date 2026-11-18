@@ -45,7 +45,11 @@ import RankAfterVisitCard from "@/components/pubs/RankAfterVisitCard";
 import DiaryLogPanel from "@/components/diary/DiaryLogPanel";
 import { __resetTellYourLot } from "@/components/pubs/useTellYourLot";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
-import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import { startSocialPubComparison, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
+import {
+  startVisitRanking, transitionVisitRanking,
+  type VisitRankingEventInput, type VisitRankingState,
+} from "@/lib/rankAfterVisitState";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -58,6 +62,63 @@ const LIST: SocialPubRankingEntry[] = Array.from({ length: 16 }, (_, index) => (
   score: 10 - index * 0.2,
   listedPrice: 5 + index / 10,
 }));
+
+describe("post-visit ranking transitions", () => {
+  const scope = { venueId: "seven-stars", accountRevision: 7 };
+  const list = { entries: LIST, subject: { venueId: scope.venueId, venueName: "The Seven Stars", listedPrice: null } };
+  const step = (state: VisitRankingState, event: VisitRankingEventInput) => transitionVisitRanking(state, { ...scope, ...event }, 3);
+  const loading = startVisitRanking(scope);
+  const band = step(loading, { type: "read", requestId: 0, result: { kind: "entries", list } });
+  const unavailable = step(loading, { type: "read", requestId: 0, result: { kind: "unavailable" } });
+  const session = startSocialPubComparison(LIST.map((entry) => entry.venueId), scope.venueId);
+  const comparing = step(band, { type: "compare", band: "loved", session });
+  const saving = step(band, { type: "save" });
+  const pending = { band: "loved" as const, neighbours: { aboveVenueId: null, belowVenueId: "pub-0" }, shareRequested: true, uncertain: true };
+  const checking = step(saving, { type: "check", pending });
+  const recover = step(checking, { type: "read", requestId: checking.requestId, result: { kind: "unavailable" } });
+  const refused = step(saving, { type: "refused", requestId: saving.requestId });
+  const landed = { ...list, entries: [{ venueId: scope.venueId, venueName: "The Seven Stars", band: "loved" as const, place: 1, score: 10 }, ...LIST] };
+  const cases: [string, VisitRankingState, VisitRankingEventInput, VisitRankingState["kind"]][] = [
+    ["load", loading, { type: "read", requestId: 0, result: { kind: "entries", list } }, "band"],
+    ["load outage", loading, { type: "read", requestId: 0, result: { kind: "unavailable" } }, "unavailable"],
+    ["retry load", unavailable, { type: "retry" }, "loading"],
+    ["begin comparison", band, { type: "compare", band: "loved", session }, "compare"],
+    ["answer comparison", comparing, { type: "answer", session }, "compare"],
+    ["start save", band, { type: "save" }, "saving"],
+    ["acknowledge save", saving, { type: "saved", requestId: saving.requestId, entries: landed.entries, shared: false }, "done"],
+    ["reject before write", saving, { type: "rejected", requestId: saving.requestId, notice: "retryable" }, "band"],
+    ["refuse access", saving, { type: "refused", requestId: saving.requestId }, "refused"],
+    ["check uncertain save", saving, { type: "check", pending }, "checking"],
+    ["unavailable readback", checking, { type: "read", requestId: checking.requestId, result: { kind: "unavailable" } }, "recover"],
+    ["retry readback", recover, { type: "check", pending }, "checking"],
+    ["confirm recovered placement", checking, { type: "read", requestId: checking.requestId, result: { kind: "entries", list: landed } }, "done"],
+    ["renew explicit choice", checking, { type: "read", requestId: checking.requestId, result: { kind: "entries", list } }, "band"],
+  ];
+  it.each(cases)("accepts %s", (_name, state, event, kind) => {
+    const next = step(state, event);
+    expect(next).not.toBe(state);
+    expect(next.kind).toBe(kind);
+  });
+
+  it.each([
+    ["second save", saving, { type: "save" }],
+    ["second readback", checking, { type: "check", pending }],
+    ["retired retry", refused, { type: "retry" }],
+    ["refusal after settled read", band, { type: "refused", requestId: 0 }],
+    ["late save answer", checking, { type: "saved", requestId: saving.requestId, entries: landed.entries, shared: true }],
+    ["old load answer", step(unavailable, { type: "retry" }), { type: "read", requestId: 0, result: { kind: "entries", list } }],
+    ["question beyond cap", { ...comparing, asked: 3 }, { type: "answer", session }],
+  ] satisfies [string, VisitRankingState, VisitRankingEventInput][])("refuses %s without changing state", (_name, state, event) => {
+    expect(step(state, event)).toBe(state);
+  });
+
+  it("drops another account or venue's answer without retaining private data", () => {
+    const event = { type: "read" as const, requestId: 0, result: { kind: "entries" as const, list } };
+    expect(transitionVisitRanking(loading, { ...scope, ...event, accountRevision: 8 }, 3)).toBe(loading);
+    expect(transitionVisitRanking(loading, { ...scope, ...event, venueId: "another-pub" }, 3)).toBe(loading);
+    expect(refused).not.toHaveProperty("loaded");
+  });
+});
 
 let host: HTMLDivElement;
 let root: Root | null = null;

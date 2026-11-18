@@ -32,8 +32,11 @@ import {
   startSocialPubComparison,
   type SocialPubBand,
   type SocialPubComparison,
-  type SocialPubRankingEntry,
 } from "@/lib/socialPubRankings";
+import {
+  startVisitRanking, transitionVisitRanking, visitRankingBusy,
+  type VisitRankingEventInput, type VisitRankingRead, type VisitRankingSave,
+} from "@/lib/rankAfterVisitState";
 
 import { useTellYourLot } from "./useTellYourLot";
 import {
@@ -41,32 +44,17 @@ import {
   socialPubRankingPayload,
   socialPubRankingReadFailure,
   socialPubRankingSaveAnswer,
-  type RankSubject,
-} from "./rankAfterVisitCheckpoint";
+} from "@/lib/rankAfterVisitCheckpoint";
 
 import "./rankAfterVisit.css";
 
 export type RankVisit = { venueId: string; venueName: string };
 
-type Loaded = { entries: SocialPubRankingEntry[]; subject: RankSubject | null };
-type PendingSave = {
-  band: SocialPubBand;
-  neighbours: { aboveVenueId: string | null; belowVenueId: string | null };
-  shareRequested: boolean;
-  uncertain: boolean;
-};
-type Phase =
-  | { kind: "loading" | "unavailable" | "band" | "saving" }
-  | { kind: "compare"; band: SocialPubBand; session: SocialPubComparison }
-  | { kind: "checking" | "recover"; pending: PendingSave }
-  | { kind: "done"; shared: boolean | null };
-type ListRead = { kind: "entries"; list: Loaded } | { kind: "refused" } | { kind: "unavailable" };
-
 function priceLine(price: number | null | undefined): string {
   return typeof price === "number" ? formatGbp(price) : "No price listed";
 }
 
-async function readList(venueId: string, signal: AbortSignal): Promise<ListRead> {
+async function readList(venueId: string, signal: AbortSignal): Promise<VisitRankingRead> {
   try {
     const response = await authedFetch(
       `/api/social/rankings?venue=${encodeURIComponent(venueId)}`,
@@ -104,44 +92,45 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
   onSkip: () => void;
   accountRevision: number;
 }) {
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [refused, setRefused] = useState(false);
-  const [phase, setPhase] = useState<Phase>({ kind: "loading" });
+  const visitId = visit.venueId;
+  const [phase, setPhase] = useState(() => startVisitRanking({ venueId: visitId, accountRevision }));
   const currentPhase = useRef(phase);
-  const [notice, setNotice] = useState<string | null>(null);
-  const [loadAttempt, setLoadAttempt] = useState(0);
   const [tellYourLot, setTellYourLot] = useTellYourLot();
   const scope = useRef<AbortController | null>(null);
-  const busy = useRef(true);
-  const asked = useRef(0);
-  const visitId = visit.venueId;
 
-  useEffect(() => {
-    const controller = new AbortController();
-    scope.current = controller;
-    busy.current = true;
-    void readList(visitId, controller.signal).then((result) => {
-      if (controller.signal.aborted || readProviderAccountRevision() !== accountRevision) return;
-      busy.current = false;
-      if (result.kind !== "entries") {
-        if (result.kind === "refused") setRefused(true);
-        else setPhase({ kind: "unavailable" });
-        return;
-      }
+  const send = useCallback((event: VisitRankingEventInput) => {
+    const next = transitionVisitRanking(currentPhase.current, { ...event, venueId: visitId, accountRevision }, RANK_AFTER_VISIT_MAX_COMPARISONS);
+    if (next !== currentPhase.current) {
+      currentPhase.current = next;
+      setPhase(next);
+    }
+    return next;
+  }, [accountRevision, visitId]);
+
+  const readInitial = useCallback(async (controller: AbortController, requestId: number) => {
+    const result = await readList(visitId, controller.signal);
+    if (controller.signal.aborted || readProviderAccountRevision() !== accountRevision) return;
+    if (currentPhase.current.kind !== "loading" || currentPhase.current.requestId !== requestId) return;
+    if (result.kind === "entries") {
       const { subject, entries } = result.list;
       if (!subject || entries.some((entry) => entry.venueId === visitId || entry.venueId === subject.venueId)) {
         controller.abort();
         onSkip();
         return;
       }
-      setLoaded(result.list);
-      currentPhase.current = { kind: "band" };
-      setPhase(currentPhase.current);
-    });
-    return () => controller.abort();
-  }, [visitId, accountRevision, loadAttempt, onSkip]);
+    }
+    send({ type: "read", requestId, result });
+  }, [accountRevision, onSkip, send, visitId]);
 
-  if (refused || phase.kind === "loading") return null;
+  useEffect(() => {
+    const controller = new AbortController();
+    scope.current = controller;
+    void readInitial(controller, currentPhase.current.requestId);
+    return () => controller.abort();
+  }, [readInitial]);
+
+  if (phase.kind === "refused" || phase.kind === "loading") return null;
+  const loaded = "loaded" in phase ? phase.loaded : null;
   const entries = loaded?.entries ?? [];
   const subject = loaded?.subject;
   const venueName = subject?.venueName ?? visit.venueName;
@@ -151,58 +140,33 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
     return scope.current !== null && !scope.current.signal.aborted && readProviderAccountRevision() === accountRevision;
   }
 
-  function move(next: Phase) {
-    currentPhase.current = next;
-    setPhase(next);
-  }
-
-  function retire() {
+  function retire(requestId: number) {
+    send({ type: "refused", requestId });
     scope.current?.abort();
-    setLoaded(null);
-    setNotice(null);
-    setRefused(true);
   }
 
   function skip() {
-    if (busy.current || !ownsRequest()) return;
+    if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
     scope.current?.abort();
     onSkip();
   }
 
-  async function reconcile(pending: PendingSave) {
+  async function reconcile(pending: VisitRankingSave) {
     if (!ownsRequest()) return;
-    busy.current = true;
-    move({ kind: "checking", pending });
-    setNotice(null);
+    const previous = currentPhase.current;
+    const checking = send({ type: "check", pending });
+    if (checking === previous || checking.kind !== "checking") return;
     const result = await readList(visitId, scope.current!.signal);
     if (!ownsRequest()) return;
-    busy.current = false;
-    if (result.kind === "refused") { retire(); return; }
-    if (result.kind === "unavailable") {
-      move({ kind: "recover", pending });
-      return;
-    }
-    const fresh = result.list;
-    setLoaded({ ...fresh, subject: fresh.subject ?? subject ?? null });
-    const inBand = fresh.entries.filter((entry) => entry.band === pending.band).map((entry) => entry.venueId);
-    const position = inBand.indexOf(venueId);
-    const landed = position !== -1 && (inBand[position - 1] ?? null) === pending.neighbours.aboveVenueId &&
-      (inBand[position + 1] ?? null) === pending.neighbours.belowVenueId;
-    if (pending.uncertain && landed) {
-      move({ kind: "done", shared: null });
-      if (pending.shareRequested) setNotice("We could not confirm whether your lot saw it.");
-    } else {
-      move({ kind: "band" });
-      setNotice(pending.uncertain ? "Your list is checked. Choose how to rank it again." : "Your list changed in another tab. One more go.");
-    }
+    send({ type: "read", requestId: checking.requestId, result });
+    if (result.kind === "refused") scope.current?.abort();
   }
 
   async function save(band: SocialPubBand, settled: SocialPubComparison) {
-    if (busy.current || !ownsRequest()) return;
-    busy.current = true;
-    move({ kind: "saving" });
-    setNotice(null);
-    const pending: PendingSave = { band, neighbours: socialPubComparisonNeighbours(settled), shareRequested: tellYourLot, uncertain: true };
+    if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
+    const saving = send({ type: "save" });
+    if (saving.kind !== "saving") return;
+    const pending: VisitRankingSave = { band, neighbours: socialPubComparisonNeighbours(settled), shareRequested: tellYourLot, uncertain: true };
     try {
       const { response, body } = await authedActionJson<unknown>(
         "/api/social/rankings",
@@ -216,27 +180,24 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
       if (!ownsRequest()) return;
       const saved = response.ok ? socialPubRankingPayload(body) : null;
       if (saved?.some((entry) => entry.venueId === venueId && entry.band === band)) {
-        busy.current = false;
-        setLoaded({ entries: saved, subject: subject ?? null });
         const shared = (body as { shared?: unknown }).shared;
-        move({ kind: "done", shared: pending.shareRequested && typeof shared === "boolean" ? shared : null });
+        send({ type: "saved", requestId: saving.requestId, entries: saved,
+          shared: pending.shareRequested && typeof shared === "boolean" ? shared : null });
         return;
       }
       const outcome = socialPubRankingSaveAnswer(response.status, body);
-      if (outcome === "refused") { retire(); return; }
+      if (outcome === "refused") { retire(saving.requestId); return; }
       if (outcome === "rejected") {
-        busy.current = false;
-        setNotice(errorMessageFrom(body, "That ranking did not save. Try again."));
-        move({ kind: "band" });
+        send({ type: "rejected", requestId: saving.requestId,
+          notice: errorMessageFrom(body, "That ranking did not save. Try again.") });
         return;
       }
       await reconcile({ ...pending, uncertain: outcome !== "stale" });
     } catch (cause) {
       if (!ownsRequest()) return;
       if ((cause as { code?: unknown } | null)?.code === "AUTH_SESSION_WAKING") {
-        busy.current = false;
-        setNotice(cause instanceof Error ? cause.message : "Still waking your session. Try again.");
-        move({ kind: "band" });
+        send({ type: "rejected", requestId: saving.requestId,
+          notice: cause instanceof Error ? cause.message : "Still waking your session. Try again." });
         return;
       }
       await reconcile(pending);
@@ -244,23 +205,24 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
   }
 
   function begin(band: SocialPubBand) {
-    if (!loaded || busy.current || !ownsRequest() || currentPhase.current.kind !== "band") return;
+    const current = currentPhase.current;
+    if (current.kind !== "band" || !ownsRequest()) return;
     const inBand = entries.filter((entry) => entry.band === band).map((entry) => entry.venueId);
     const session = startSocialPubComparison(inBand, venueId);
-    setNotice(null);
-    if (nextSocialPubOpponent(session) === null || asked.current >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
+    if (nextSocialPubOpponent(session) === null || current.asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
       void save(band, settleSocialPubComparison(session));
-    } else move({ kind: "compare", band, session });
+    } else send({ type: "compare", band, session });
   }
 
   function answer(preferred: "new" | "existing" | "tie") {
     const current = currentPhase.current;
-    if (current.kind !== "compare" || busy.current || !ownsRequest()) return;
+    if (current.kind !== "compare" || !ownsRequest()) return;
     const next = answerSocialPubComparison(current.session, preferred);
-    asked.current += 1;
-    if (nextSocialPubOpponent(next) === null || asked.current >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
+    const advanced = send({ type: "answer", session: next });
+    if (advanced === current) return;
+    if (nextSocialPubOpponent(next) === null || advanced.asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
       void save(current.band, settleSocialPubComparison(next));
-    } else move({ ...current, session: next });
+    }
   }
 
   const opponentId = phase.kind === "compare" ? nextSocialPubOpponent(phase.session) : null;
@@ -312,9 +274,12 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
             {phase.kind === "recover" ? "We could not confirm your ranking. Check your list before ranking again." : "Your ranking is unavailable right now."}
           </p>
           <button type="button" className="rankAfterVisit__quiet" data-testid="rank-after-visit-retry" onClick={() => {
-            if (busy.current || !ownsRequest()) return;
-            if (phase.kind === "recover") void reconcile(phase.pending);
-            else { busy.current = true; move({ kind: "loading" }); setLoadAttempt((attempt) => attempt + 1); }
+            if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
+            if (currentPhase.current.kind === "recover") void reconcile(currentPhase.current.pending);
+            else {
+              const retrying = send({ type: "retry" });
+              if (retrying.kind === "loading" && scope.current) void readInitial(scope.current, retrying.requestId);
+            }
           }}>
             Check your list
           </button>
@@ -356,7 +321,7 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
         </div>
       ) : null}
 
-      {notice ? <p className="rankAfterVisit__notice" role="status">{notice}</p> : null}
+      {phase.notice ? <p className="rankAfterVisit__notice" role="status">{phase.notice}</p> : null}
     </section>
   );
 }

@@ -11,7 +11,7 @@ function price(value: unknown): boolean {
   return value === null || (typeof value === "number" && Number.isFinite(value) && value >= 0);
 }
 
-// Keep the payload and refusal vocabulary compatible with the shared ranking flow.
+// These exports preserve the shared ranking flow's payload and refusal contract.
 export function socialPubRankingPayload(body: unknown): SocialPubRankingEntry[] | null {
   const entries = record(body)?.entries;
   if (!Array.isArray(entries)) return null;
