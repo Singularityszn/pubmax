@@ -117,6 +117,22 @@ describe("the selected upcoming night", () => {
     await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toEqual({ status: "missing" });
   });
 
+  it.each(["bar", "restaurant", "food", "club"])("rejects a canonical London %s as the meeting pub", async (kind) => {
+    index.lookupCanonicalVenue.mockImplementation(async (id: string) => ({
+      status: "found", canonicalId: id,
+      venue: { id, name: "The Lamb", kind },
+      slimVenue: { kind },
+    }));
+    await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toEqual({ status: "missing" });
+  });
+
+  it("keeps the established pub default when the indexed kind is absent", async () => {
+    index.lookupCanonicalVenue.mockImplementation(async (id: string) => ({
+      status: "found", canonicalId: id, venue: { id, name: "The Lamb" }, slimVenue: {},
+    }));
+    await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toMatchObject({ status: "upcoming" });
+  });
+
   it("projects only the public facts of the exact selected crew", async () => {
     const result = await loadFeaturedOpenTable(SELECTION, NOW);
 
