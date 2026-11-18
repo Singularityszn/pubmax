@@ -45,6 +45,11 @@ begin
     for key share of auth_user;
   select * into v_case from public.social_crew_block_cases where id=p_case_id for update;
   if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  -- Revocation can commit during the waits. SHARE keeps authority through the write.
+  select staff.* into v_staff from public.private_social_staff_roles staff
+  where staff.id=p_staff_role_id and staff.profile_id=v_staff.profile_id
+    and staff.active and staff.revoked_at is null and staff.role='moderator' for share;
+  if v_staff.id is null then raise exception 'staff required'; end if;
   if public._social_crew_block_case_moderator_conflicted(v_staff.profile_id,v_case.crew_id,
       v_case.blocker_account_id,v_case.blocked_account_id) then
     return jsonb_build_object('ok',false,'code','forbidden'); end if;
