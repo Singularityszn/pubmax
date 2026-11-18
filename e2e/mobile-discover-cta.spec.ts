@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+import { expectHydrated, expectStreamedPageSettled } from "./helpers/streamedPage";
+
 test("mobile discover Plan an outing card opens a mapped crawl on the map", async ({ page }) => {
   test.setTimeout(90_000);
 
@@ -11,10 +13,12 @@ test("mobile discover Plan an outing card opens a mapped crawl on the map", asyn
 
   const response = await page.goto("/discover", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
+  await expectStreamedPageSettled(page);
 
-  await page.getByRole("heading", { name: "Ways to drink through the city" }).scrollIntoViewIfNeeded();
   const planTonightCta = page.getByRole("link", { name: "Plan an outing" });
   await expect(planTonightCta).toBeVisible();
+  await expectHydrated(planTonightCta);
+  await planTonightCta.scrollIntoViewIfNeeded();
 
   const ctaBox = await planTonightCta.boundingBox();
   expect(ctaBox, "Discover Plan an outing CTA has a tappable box").not.toBeNull();
