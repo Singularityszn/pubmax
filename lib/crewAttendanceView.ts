@@ -71,7 +71,7 @@ export function nextCrewAttendanceView(view: CrewAttendanceView, event: CrewAtte
       return { ...view, saving: { memberId: event.memberId, state: event.state }, notice: null };
     case "saved": {
       const recordedAt = new Date(event.now).toISOString();
-      const items = view.data.items.map((item): CrewAttendanceItem => item.memberId !== event.memberId ? item
+      const items = view.data.items.map((item): CrewAttendanceItem => item.memberId !== event.memberId || event.revision <= item.revision ? item
         : { ...item, state: event.state, revision: event.revision, recordedAt, recordedBy: "host" });
       return { ...view, data: { ...view.data, items }, saving: null,
         notice: { kind: "saved", memberId: event.memberId, state: event.state } };
