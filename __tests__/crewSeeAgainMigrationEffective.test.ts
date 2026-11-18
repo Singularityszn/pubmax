@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { asServiceRole } from "./helpers/postgres";
 import {
-  type Person, MIGRATOR, STAFF_ROLE, DIGEST, blockCall, bootCrewAdmissionDatabase, call, crewWith, db,
+  type Person, MIGRATOR, STAFF_ROLE, DIGEST, admit, blockCall, bootCrewAdmissionDatabase, call, crewWith, db,
   deleteAccount, hold, key, memberId, outcome, person, rpc, stopCrewAdmissionDatabase,
   suspendCall, waitsOnAnyLock, waitsOnAccountLock,
 } from "./helpers/crewAdmissionHarness";
@@ -490,6 +490,85 @@ describe("0250 private event-bound friendship reconnection", () => {
     const { a, b } = matched();
     await serial(rpc(blockCall(a, b)),rpc(`export_visible_crew_see_again('${a.user}',100)`),"w6-block-vs-visible-export");
     expect(call(`export_visible_crew_see_again('${a.user}',100)`)).toEqual([]);
+  });
+
+  it.each([
+    ["leave", "participant", false], ["leave", "participant", true],
+    ["remove", "participant", false], ["remove", "participant", true],
+    ["remove", "host", false], ["remove", "host", true],
+  ] as const)("serialises %s with %s deletion, deletion first: %s", async (action, deleted, deletionFirst) => {
+    const { host, a, b, crew } = matched();
+    const writer = rpc(action === "leave"
+      ? `leave_social_crew_atomic('${a.account}','${crew}','${key()}','${DIGEST}')`
+      : removeCall(host, crew, a));
+    const removal = { name: "w6-departure-pair-order", statement: writer, role: "service_role" as const };
+    const deletion = { name: "w6-deletion-pair-order", statement: deleteAccount(deleted === "host" ? host : a), role: "postgres" as const };
+    const [first, second] = deletionFirst ? [deletion, removal] : [removal, deletion];
+    const barrier = await hold(`select public._see_again_pair_lock('${a.account}','${b.account}')`, "postgres");
+    let one: ReturnType<typeof outcome> | null = null, two: ReturnType<typeof outcome> | null = null;
+    try {
+      one = outcome(first.name, first.statement, first.role);
+      await expect.poll(() => waitsOnAccountLock(first.name)).toBe("t");
+      two = outcome(second.name, second.statement, second.role);
+      await expect.poll(() => waitsOnAnyLock(second.name)).toBe("t");
+    } finally {
+      try { await barrier.finish(); }
+      finally { await Promise.all([one, two]); }
+    }
+    for (const result of await Promise.all([one!, two!])) {
+      expect(result.ok, result.said).toBe(true);
+      expect(result.said).not.toMatch(/40P01|deadlock|lock timeout|statement timeout/i);
+    }
+    expect(db().sql(`select count(*) from auth.users where id='${(deleted === "host" ? host : a).user}'`)).toBe("0");
+  });
+
+  it.each(["host removal", "visibility"] as const)("orders visible export pairs globally against cross-Crew %s", async (change) => {
+    const a = adult(), b = adult(), c = adult();
+    const crews = [adult(), adult()].map(host => ({ host, crew: crewWith(host) })).sort((x, y) => x.crew.localeCompare(y.crew));
+    for (const [index, current] of crews.entries()) {
+      const other = index === 0 ? c : b;
+      for (const guest of [a, other]) admit(current.host, current.crew, guest);
+      starts(current.crew, "-1 hour");
+      for (const guest of [a, other]) call(`attest_social_crew_attendance_atomic('${current.host.account}','${current.crew}','${memberId(current.crew, guest)}','attended',0,'${key()}','${DIGEST}')`);
+      starts(current.crew, "-13 hours");
+      choose(a, current.crew, other); choose(other, current.crew, a);
+      expect(item(a, current.crew, other)?.mutual).toBe(true);
+    }
+    const z = night([a, b, c]);
+    choose(a, z.crew, b); choose(a, z.crew, c);
+    expect(call(`export_visible_crew_see_again('${a.user}',100)`)).toHaveLength(2);
+    db().sql(`alter function public._see_again_pair_lock(uuid,uuid) rename to w6_original_pair_lock;
+      create function public._see_again_pair_lock(p_a uuid,p_b uuid) returns void
+      language plpgsql security definer set search_path='' as $$ begin
+        perform public.w6_original_pair_lock(p_a,p_b);
+        if current_setting('application_name',true)='w6-export-pair-order'
+          and least(p_a,p_b)='${a.account}'::uuid and greatest(p_a,p_b)='${c.account}'::uuid then
+          perform pg_advisory_xact_lock(2500251);
+        end if;
+      end; $$;
+      grant execute on function public._see_again_pair_lock(uuid,uuid) to ${MIGRATOR}`);
+    const barrier = await hold("select pg_advisory_xact_lock(2500251)", "postgres");
+    let exporting: ReturnType<typeof outcome> | null = null, changing: ReturnType<typeof outcome> | null = null;
+    try {
+      exporting = outcome("w6-export-pair-order", rpc(`export_visible_crew_see_again('${a.user}',100)`));
+      await expect.poll(() => waitsOnAccountLock("w6-export-pair-order")).toBe("t");
+      changing = outcome("w6-other-crew-invalidation", change === "host removal"
+        ? rpc(removeCall(z.host, z.crew, a)) : `update public.social_crews set visibility='private' where id='${z.crew}'`,
+      change === "host removal" ? "service_role" : "postgres");
+      await expect.poll(() => waitsOnAnyLock("w6-other-crew-invalidation")).toBe("t");
+    } finally {
+      try { await barrier.finish(); }
+      finally {
+        await Promise.all([exporting, changing]);
+        db().sql(`drop function public._see_again_pair_lock(uuid,uuid);
+          alter function public.w6_original_pair_lock(uuid,uuid) rename to _see_again_pair_lock`);
+      }
+    }
+    for (const result of await Promise.all([exporting!, changing!])) {
+      expect(result.ok, result.said).toBe(true);
+      expect(result.said).not.toMatch(/40P01|deadlock|lock timeout|statement timeout/i);
+    }
+    expect(call(`export_visible_crew_see_again('${a.user}',100)`)).toHaveLength(2);
   });
 
   it("rolls back under the migration role and reapplies", async () => {

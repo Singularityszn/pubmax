@@ -84,4 +84,21 @@ describe("private see-again mounted component", () => {
     expect(host.querySelector('input[type="checkbox"]')).toBeNull();
     expect(host.querySelector("li")).toBeNull();
   });
+
+  it.each(["choose", "withdraw", "add"] as const)("preserves keyboard position while authorising %s", async action => {
+    if (action !== "choose") fixture.data = { open: true, closesAt: "2099-11-20T00:00:00Z", items: [row(true)] };
+    await mount();
+    if (action === "choose") await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    const control = button(action === "choose" ? "See @bea again as a mate"
+      : action === "withdraw" ? "Dismiss reconnection with @bea" : "Add @bea as a mate");
+    control.focus();
+    let resolve!: (value: Response) => void;
+    fixture.pauseNext = new Promise<Response>(yes => { resolve = yes; });
+    await act(async () => control.click());
+    expect(control.isConnected).toBe(true);
+    expect(document.activeElement).toBe(control);
+    await act(async () => resolve(Response.json(fixture.data)));
+    if (action === "add") expect(document.activeElement).toBe(host.querySelector('a[href="/add/bea"]'));
+    else expect(host.contains(document.activeElement)).toBe(true);
+  });
 });
