@@ -20,6 +20,7 @@ type Event =
   | { type: "scope"; capability: string; scope: object; host: boolean }
   | { type: "check" }
   | { type: "claimed" }
+  | { type: "interrupted"; capability: string; scope: object; request: number }
   | { type: "answer"; capability: string; scope: object; request: number; answer: NightReceiptAnswer };
 
 function begin(state: NightReceiptReadState, capability = state.capability, scope = state.scope): NightReceiptReadState {
@@ -43,6 +44,8 @@ export function nextNightReceiptRead(state: NightReceiptReadState, event: Event)
     return state.phase === "refused" || state.phase === "unavailable" ? begin(state) : state;
   }
   if (state.phase !== "reading" || state.capability !== event.capability || state.scope !== event.scope || state.request !== event.request) return state;
+  // The provider seam ended the read, but the same account is still signed in.
+  if (event.type === "interrupted") return begin(state);
   const scope = { capability: state.capability, scope: state.scope, request: state.request };
   if (event.answer.status === "ready") return { ...scope, phase: "ready", receipt: event.answer.receipt };
   if (event.answer.status === "refused" && state.claimedDuringRead) return begin(state);

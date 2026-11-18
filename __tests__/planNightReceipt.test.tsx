@@ -197,7 +197,7 @@ describe("the private Night Receipt on the Plan page", () => {
     expect(document.activeElement).toBe(document.body);
   });
 
-  it("settles a cancelled read when another provider rotates, then permits recovery", async () => {
+  it("settles a cancelled read when the live Supabase account is not confirmed, then permits recovery", async () => {
     let answer!: (response: Response) => void;
     receiptAnswer = () => new Promise<Response>(resolve => { answer = resolve; });
     await show();
@@ -586,12 +586,13 @@ describe("a provider interruption while the same account stays signed in", () =>
   it("reads the receipt again with a fresh lifetime instead of reporting an outage", async () => {
     receiptAnswer = held;
     await show();
-    receiptAnswer = ownerOnly;
+    let abortedWhenSent: boolean | undefined;
+    receiptAnswer = (call) => { abortedWhenSent = call.signal?.aborted; return ownerOnly(call); };
     await act(async () => { setProviderIdentity("clerk", "clerk-account"); });
     await settle();
     expect(receiptReads()).toHaveLength(2);
     expect(receiptReads()[0]?.signal?.aborted).toBe(true);
-    expect(receiptReads()[1]?.signal?.aborted).toBe(false);
+    expect(abortedWhenSent).toBe(false);
     expect(container.querySelector("button")).toBeNull();
     expect(statusText()).toBe("");
     expect(receiptOnScreen()).not.toBeNull();

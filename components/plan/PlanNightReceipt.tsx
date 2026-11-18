@@ -8,7 +8,7 @@ import Kicker from "@/components/ui/kicker";
 import { Button } from "@/components/ui/button";
 import { accountBoundFetch, captureAccountAuth, type AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { compositeActionSignal } from "@/lib/authedFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { formatObservedDate } from "@/lib/dataFreshnessFormat";
 import { formatPence } from "@/lib/formatGbp";
 import { readNightReceiptPayload, type NightReceipt } from "@/lib/nightReceipt";
@@ -115,7 +115,10 @@ function useReceiptRead(planId: string, userId: string, accessToken: string, cap
     const accountSignal = readProviderAccountSignal();
     const signal = compositeActionSignal([retired.signal, accountSignal]);
     const aborted = () => {
-      if (!retired.signal.aborted) dispatch({ type: "answer", capability, scope, request, answer: { status: "unavailable" } });
+      if (retired.signal.aborted) return;
+      // Another provider changed while this Supabase account stayed signed in.
+      if (providerOwnsSession("supabase", userId)) dispatch({ type: "interrupted", capability, scope, request });
+      else dispatch({ type: "answer", capability, scope, request, answer: { status: "unavailable" } });
     };
     accountSignal.addEventListener("abort", aborted, { once: true });
     if (accountSignal.aborted) aborted();
