@@ -237,7 +237,6 @@ function retainedThreadHead(key: ThreadReadKey, identity: ThreadIdentity | null,
   };
 }
 
-
 /** Which picker is open. One at a time, because one attachment rides at a time. */
 type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
 
@@ -403,7 +402,6 @@ export default function MessageThread({
     setState("ready");
   }, []);
 
->>>>>>> 6e2d043f1 (fix(social): retain messages and refresh feed windows safely)
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
   // Wave I2: 401 without sign-in -> signedout; Bearer via authedActionFetch.
@@ -618,7 +616,6 @@ export default function MessageThread({
     recovery: sameThreadReadKey(failedRead, conversationId, accountRevision),
   });
 
-
   const over = draft.length > MAX_MESSAGE_BODY;
   const hasSomething = draft.trim().length > 0 || pending !== null;
   const canSend = hasSomething && !over && !sending && !preparing;
@@ -632,9 +629,6 @@ export default function MessageThread({
   function sendMessage(): void {
     setPicking(null); setMobileAttachOpen(false); void send();
   }
-
-
-
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
