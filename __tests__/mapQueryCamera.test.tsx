@@ -10,6 +10,8 @@ import { useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useNearMeRequests } from "@/components/map/pubmap/useNearMeRequests";
 import { useMapOpeningCamera } from "@/components/map/useMapOpeningCamera";
+import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
+import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
 import { useMapFocusPoint } from "@/components/map/canvas/useMapFocusPoint";
 import { wireClickRouting } from "@/components/map/canvas/interactions";
 import { PIN_MIN_ZOOM } from "@/components/map/canvas/buildScene";
@@ -30,6 +32,7 @@ let host: HTMLDivElement;
 let root: Root;
 let pendingFrame: FrameRequestCallback | undefined;
 let camera: ReturnType<typeof useMapCamera>;
+let mapViewport = { width: 1280, height: 900 };
 const fitBounds = vi.fn();
 const easeTo = vi.fn();
 
@@ -43,6 +46,7 @@ describe("Pal camera defaults", () => {
 });
 
 beforeEach(() => {
+  mapViewport = { width: 1280, height: 900 };
   host = document.createElement("div");
   document.body.append(host);
   root = createRoot(host);
@@ -72,7 +76,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
   routeLineRef: { current: GeoJSON.FeatureCollection } = { current: { type: "FeatureCollection", features: [] } },
   nearbyRequest = { current: 0 }, nearby = false,
   planRef?: { current: ReturnType<typeof useMapPlanCoordinator> | null },
-  opening = { resolved: false, area: null as MapCameraFocus | null },
+  opening: { resolved: boolean; area: MapCameraFocus | null; walkPanelOpen?: boolean } = { resolved: false, area: null },
   readiness = { current: true }, canvasMounted = { current: true }, searchRecovery = { current: 0 }, selectedVenue: { current: string; requestToken?: number } = { current: "" },
   search = { current: "" }, planData: { venues: Venue[]; activePlanRoute: Venue[]; settledBuiltStopIds?: ReadonlySet<string> } = { venues: route, activePlanRoute: [] }) {
   function Canvas({ plan }: { plan: ReturnType<typeof useMapPlanCoordinator> }) {
@@ -87,8 +91,8 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
         searchRecovery.current, opening.area?.token ?? 0, selectedVenue.current ? selectedVenue.requestToken ?? 0 : 0),
       mapRef: { current: {
         stop: vi.fn(), fitBounds, easeTo, getBearing: () => -8,
-        getContainer: () => ({ clientWidth: 1280, clientHeight: 900,
-          getBoundingClientRect: () => ({ top: 0, width: 1280, height: 900 }) }),
+        getContainer: () => ({ clientWidth: mapViewport.width, clientHeight: mapViewport.height, querySelector: () => null,
+          getBoundingClientRect: () => new DOMRect(0, 0, mapViewport.width, mapViewport.height) }),
       } as unknown as MapLibreMap },
       reducedRef: { current: true },
       cityViewRef: { current: { center: [-0.13, 51.51], zoom: 12, pitch: 40, bearing: -8 } },
@@ -106,6 +110,7 @@ function mount(queryVenuesRef: { current: Venue[] }, route: Venue[] = [], gestur
       locationFirstMapView: { center: [-2.3216, 54.5232], zoom: 14 },
       cancelOpeningLocation: () => {},
     });
+    useCuratedWalkFraming(Boolean(opening.walkPanelOpen), readiness.current, camera.fitRoute);
     useMapFocusPoint(readiness.current, opening.area ?? location.openingLocationFocus, useRef(null), camera.cinematic);
     useEffect(() => {
       if (readiness.current && searchRecovery.current) camera.fitQueryVenues("search-recovery", searchRecovery.current);
@@ -141,6 +146,184 @@ function fitQuery() {
     pendingFrame = undefined;
   });
 }
+
+describe("walk panel overview framing", () => {
+  function mountWalk(open = false) {
+    mount({ current: soho }, soho, undefined, { current: {
+      type: "FeatureCollection", features: [{ type: "Feature", properties: { source: "curated" },
+        geometry: { type: "LineString", coordinates: soho.map((stop) => [stop.longitude, stop.latitude]) } }],
+    } }, undefined, false, undefined, { resolved: false, area: null, walkPanelOpen: open });
+  }
+  function panel(rect: DOMRect) {
+    const element = document.createElement("section");
+    element.className = "mapDrawer left open";
+    element.innerHTML = '<aside class="curatedWalkPanel"></aside>';
+    document.body.append(element);
+    vi.spyOn(element, "getBoundingClientRect").mockReturnValue(rect);
+    return element;
+  }
+  function frame() {
+    act(() => {
+      camera.fitRoute("user");
+      const callback = pendingFrame;
+      pendingFrame = undefined;
+      callback?.(performance.now());
+    });
+    return fitBounds.mock.calls.at(-1)?.[1];
+  }
+  it("reports an opening walk fit as pending and lets a newer action cancel it", () => {
+    mountWalk(true);
+    expect(fitBounds).not.toHaveBeenCalled();
+    expect(camera.cameraLanePending()).toBe(true);
+    act(() => {
+      camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user");
+      pendingFrame?.(performance.now());
+    });
+    expect(camera.cameraLanePending()).toBe(false);
+    expect(easeTo).toHaveBeenCalledOnce();
+    expect(fitBounds).not.toHaveBeenCalled();
+  });
+  it("fits the laid-out phone target while its entrance is still moving", () => {
+    mapViewport = { width: 390, height: 664 };
+    const drawer = panel(new DOMRect(0, 664, 390, 365));
+    drawer.classList.add("mobileSharedSheet", "sheet-entering");
+    drawer.dataset.sheetMotion = "entering";
+    vi.stubGlobal("DOMMatrixReadOnly", class { m41 = 0; m42 = 365; });
+    try {
+      mountWalk(true);
+      expect(camera.cameraLanePending()).toBe(true);
+      for (let i = 0; i < 2; i += 1) {
+        const callback = pendingFrame;
+        pendingFrame = undefined;
+        act(() => callback?.(performance.now()));
+      }
+      expect(fitBounds).toHaveBeenCalledOnce();
+      expect(fitBounds.mock.calls[0]?.[1].padding.bottom).toBeGreaterThanOrEqual(397);
+    } finally { drawer.remove(); }
+  });
+  it("reserves the final horizontal drawer edge before its entrance moves", () => {
+    mountWalk();
+    const drawer = panel(new DOMRect(52, 80, 380, 820));
+    drawer.dataset.springAxis = "horizontal";
+    vi.stubGlobal("DOMMatrixReadOnly", class { m41 = -380; m42 = 0; });
+    try {
+      expect(frame().padding.left).toBeGreaterThanOrEqual(840);
+    } finally { drawer.remove(); }
+  });
+  it("keeps the existing phone padding for an ordinary pub route", () => {
+    mapViewport = { width: 390, height: 664 };
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    mount({ current: soho }, soho);
+    expect(frame().padding).toMatchObject({ right: 28, bottom: 200 });
+  });
+  it("releases a closing-sheet wait when a newer camera action takes ownership", () => {
+    mountWalk();
+    const portal = document.createElement("div");
+    portal.className = "mobileSheetPortal";
+    portal.dataset.sheetExiting = "true";
+    portal.append(panel(new DOMRect(0, 563, 390, 28)));
+    document.body.append(portal);
+    try {
+      frame();
+      expect(camera.cameraLanePending()).toBe(true);
+      act(() => { camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user"); pendingFrame?.(performance.now()); });
+      expect(easeTo).toHaveBeenCalled();
+      expect(camera.cameraLanePending()).toBe(false);
+    } finally { portal.remove(); }
+  });
+  it("keeps replaced automatic closing fits cancellable by the next user action", () => {
+    mountWalk();
+    const portal = document.createElement("div");
+    portal.className = "mobileSheetPortal";
+    portal.dataset.sheetExiting = "true";
+    portal.append(panel(new DOMRect(0, 563, 390, 28)));
+    document.body.append(portal);
+    try {
+      act(() => {
+        camera.fitRoute();
+        camera.fitRoute();
+        camera.cinematic({ center: [-0.2, 51.5], zoom: 15 }, "area", "user");
+        pendingFrame?.(performance.now());
+      });
+      expect(easeTo).toHaveBeenCalledOnce();
+      expect(camera.cameraLanePending()).toBe(false);
+    } finally { portal.remove(); }
+  });
+  it("reserves measured phone controls before their deferred components mount", () => {
+    mapViewport = { width: 390, height: 664 };
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    mountWalk();
+    const padding = frame().padding;
+    expect(padding.right).toBeGreaterThanOrEqual(88);
+    expect(padding.bottom).toBeGreaterThanOrEqual(280);
+  });
+  it("keeps a closed phone overview clear of the visible Pal and map utility controls", () => {
+    mapViewport = { width: 390, height: 664 };
+    vi.spyOn(window, "matchMedia").mockReturnValue({ matches: true } as MediaQueryList);
+    mountWalk();
+    const surfaces = [
+      ["palSummon", new DOMRect(68, 402, 246, 52)],
+      ["mobileMapUtilityCorner", new DOMRect(326, 78, 52, 311)],
+      ["mobileTabBar", new DOMRect(0, 600, 390, 64)],
+    ] as const;
+    const elements = surfaces.map(([className, rect]) => {
+      const element = document.createElement("div");
+      element.className = className;
+      document.body.append(element);
+      vi.spyOn(element, "getBoundingClientRect").mockReturnValue(rect);
+      return element;
+    });
+    try {
+      const padding = frame().padding;
+      expect(padding.right).toBeGreaterThanOrEqual(88);
+      expect(padding.bottom).toBeGreaterThanOrEqual(278);
+    } finally { elements.forEach((element) => element.remove()); }
+  });
+  it("reserves the final tablet sheet position when its entrance has not moved yet", () => {
+    mapViewport = { width: 768, height: 1024 };
+    mountWalk();
+    const drawer = panel(new DOMRect(0, 1024, 768, 1024));
+    drawer.classList.add("springDrawer", "sheet-half");
+    drawer.dataset.springAxis = "vertical";
+    vi.stubGlobal("DOMMatrixReadOnly", class { m42 = 1082; });
+    try {
+      expect(frame().padding.bottom).toBeGreaterThanOrEqual(653);
+    } finally { drawer.remove(); }
+  });
+  it("keeps a recovery fit pending while the walk sheet is closing", () => {
+    mountWalk();
+    const portal = document.createElement("div");
+    portal.className = "mobileSheetPortal";
+    portal.dataset.sheetExiting = "true";
+    const drawer = panel(new DOMRect(0, 563, 390, 28));
+    portal.append(drawer);
+    document.body.append(portal);
+    try {
+      frame();
+      expect(fitBounds).not.toHaveBeenCalled();
+      expect(camera.cameraLanePending()).toBe(true);
+    } finally { portal.remove(); }
+  });
+  it("fits the walk in a flat plane without changing ordinary route pitch", () => {
+    mountWalk();
+    const drawer = panel(new DOMRect(0, 80, 400, 820));
+    try {
+      expect(frame().pitch).toBe(0);
+      drawer.remove();
+      mount({ current: soho }, soho);
+      expect(frame()).not.toHaveProperty("pitch");
+    } finally { drawer.remove(); }
+  });
+  it("keeps usable map space when a walk panel fills the viewport", () => {
+    mountWalk();
+    const drawer = panel(new DOMRect(0, 0, 1280, 900));
+    try {
+      const padding = frame().padding;
+      expect(padding.top + padding.bottom).toBeLessThanOrEqual(900 - 48);
+      expect(padding.left + padding.right).toBeLessThanOrEqual(1280 - 48);
+    } finally { drawer.remove(); }
+  });
+});
 
 describe("query camera with contextual price pins", () => {
   const picks = [{ lng: -0.22, lat: 51.56 }, { lng: -0.21, lat: 51.57 }];
@@ -1429,4 +1612,48 @@ describe("closing a route stop", () => {
     if (moved) expect(fitRoute).not.toHaveBeenCalled();
     else expect(fitRoute).toHaveBeenCalledWith("user", closeToken);
   });
+});
+
+it("restores selection as soon as a replacement route source arrives, before worker data", () => {
+  const states = new Map<string, { selected: boolean }>();
+  const listeners = new Map<string, (event: { sourceId: string }) => void>();
+  let sourceReady = true;
+  let source = {};
+  const map = {
+    getSource: () => sourceReady ? source : undefined,
+    getFeatureState: ({ id }: { id: string }) => states.get(id) ?? {},
+    setFeatureState: ({ id }: { id: string }, state: { selected: boolean }) => states.set(id, state),
+    on: (event: string, listener: (event: { sourceId: string }) => void) => listeners.set(event, listener),
+    off: (event: string) => listeners.delete(event),
+  } as unknown as MapLibreMap;
+  function SelectedStop({ id }: { id: string }) {
+    const mapRef = useRef(map);
+    useRouteStopSelection(true, mapRef, id);
+    return null;
+  }
+  act(() => root.render(createElement(SelectedStop, { id: "christmas-1" })));
+  expect(states.get("christmas-1")?.selected).toBe(true);
+  act(() => {
+    states.clear();
+    sourceReady = false;
+    listeners.get("style.load")?.({ sourceId: "route-stops" });
+    source = {};
+    sourceReady = true;
+    listeners.get("styledata")?.({ sourceId: "route-stops" });
+  });
+  expect(states.get("christmas-1")?.selected).toBe(true);
+  act(() => {
+    states.clear();
+    sourceReady = false;
+    listeners.get("styledata")?.({ sourceId: "route-stops" });
+    source = {};
+    sourceReady = true;
+    listeners.get("sourcedata")?.({ sourceId: "route-stops" });
+  });
+  expect(states.get("christmas-1")?.selected).toBe(true);
+  act(() => root.render(createElement(SelectedStop, { id: "christmas-6" })));
+  expect(states.get("christmas-1")?.selected).toBe(false);
+  expect(states.get("christmas-6")?.selected).toBe(true);
+  act(() => root.render(null));
+  expect(listeners.size).toBe(0);
 });

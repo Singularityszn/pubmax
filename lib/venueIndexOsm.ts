@@ -15,6 +15,7 @@ import {
 } from "@/lib/venueIndex";
 
 const cityOsmCache = new Map<string, Map<string, IndexedVenue>>();
+const cityOsmLoads = new Map<string, Promise<Map<string, IndexedVenue> | null>>();
 
 async function attachCityOsmIds(
   cityId: string,
@@ -80,7 +81,7 @@ async function attachCityOsmIds(
   }
 }
 
-async function getCityVenueIndex(
+async function loadCityVenueIndex(
   city: { id: string; slimVenuesPath: string },
 ): Promise<Map<string, IndexedVenue> | null> {
   const publicPath = city.slimVenuesPath;
@@ -97,6 +98,17 @@ async function getCityVenueIndex(
   return index;
 }
 
+function getCityVenueIndex(city: { id: string; slimVenuesPath: string }) {
+  const key = city.slimVenuesPath;
+  const pending = cityOsmLoads.get(key);
+  if (pending) return pending;
+  const loading = loadCityVenueIndex(city).finally(() => {
+    if (cityOsmLoads.get(key) === loading) cityOsmLoads.delete(key);
+  });
+  cityOsmLoads.set(key, loading);
+  return loading;
+}
+
 export function resetVenueOsmIndexForTests(): void {
   if (
     process.env.NODE_ENV === "test" ||
@@ -104,6 +116,7 @@ export function resetVenueOsmIndexForTests(): void {
     Boolean(process.env.VITEST_WORKER_ID)
   ) {
     cityOsmCache.clear();
+    cityOsmLoads.clear();
   }
 }
 

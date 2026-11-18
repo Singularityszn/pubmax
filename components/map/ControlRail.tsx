@@ -27,7 +27,7 @@ import {
   pintPriceCapLabel,
 } from "@/lib/pintPriceCaps";
 import { pubSources, writerProfile } from "@/lib/curation";
-import { curatedCrawls as londonCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls as londonCuratedCrawls, curatedCrawlStopCount, discoveredCuratedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { LAST_ORDERS_FILTER_CAPTION } from "@/lib/lastOrdersList";
@@ -254,18 +254,18 @@ export default function ControlRail({
         </div>
         <p className="featuredHint">Hand-picked crawls. One generation&rsquo;s pubs, handed to the next.</p>
         <div className="featuredList">
-          {curatedCrawls.map((crawl) => (
+          {discoveredCuratedCrawls(curatedCrawls).map((crawl) => (
             <button
               key={crawl.id}
               className="featuredCrawl"
               data-crawl-style={crawl.crawlStyle}
-              aria-label={`Map ${crawl.name} with ${crawl.venueIds.length} ${crawl.venueIds.length === 1 ? "stop" : "stops"}`}
+              aria-label={`Map ${crawl.name} with ${curatedCrawlStopCount(crawl)} ${curatedCrawlStopCount(crawl) === 1 ? "stop" : "stops"}`}
               onClick={() => onLoadCrawl(crawl)}
             >
               <span className="featuredCrawlHead">
                 <strong>{crawl.name}</strong>
                 <span className="featuredCount">
-                  {crawl.venueIds.length} stop{crawl.venueIds.length === 1 ? "" : "s"}
+                  {curatedCrawlStopCount(crawl)} stop{curatedCrawlStopCount(crawl) === 1 ? "" : "s"}
                 </span>
               </span>
               <span className="featuredBlurb">{crawl.blurb}</span>

@@ -4,7 +4,7 @@ import { nextCameraRequestToken, type CameraIntentKind } from "@/lib/cameraInten
 // source in the focus key so an opening result cannot consume an area pick.
 
 /** Who asked for the camera. A closed set: every owner names itself. */
-type MapCameraFocusSource = "opening-location" | "area";
+type MapCameraFocusSource = "opening-location" | "area" | "landmark";
 
 export type MapCameraFocus = {
   center: [number, number];
@@ -50,6 +50,7 @@ export function mapCameraFocusMoves(
 const CAMERA_INTENT_BY_FOCUS_SOURCE: Record<MapCameraFocusSource, CameraIntentKind> = {
   "opening-location": "opening-location",
   area: "area",
+  landmark: "landmark",
 };
 
 /**

@@ -1,5 +1,7 @@
 "use client";
 
+import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
+
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHydration";
 import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/pubmap/useNearMeRequests";
@@ -187,13 +189,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
-const MobilePlanActivation = dynamic(
-  () =>
-    import("@/components/plan/MobilePlanActivation").then(
-      (m) => m.MobilePlanActivation,
-    ),
-  { ssr: false },
-);
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const SpoonsValueLensControl = dynamic(
   () => import("@/components/map/SpoonsValueLensControl"),
@@ -276,13 +271,7 @@ const MobileTflPanel = dynamic(() => import("@/components/mobile/MobileTflPanel"
 // them via next/dynamic (ssr:false — the whole PubMap tree is already client
 // only) splits each into its own lazy chunk fetched on demand, so a cold mobile
 // /map load ships materially less JS to parse before first tile paint.
-const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
-  ssr: false,
-});
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
-const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
-  ssr: false,
-});
 const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip"), {
   ssr: false,
 });
@@ -399,6 +388,9 @@ import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { useLogPickerLocation } from "@/components/map/pubmap/useLogPickerLocation";
 import { useLogIntentRevealScope } from "@/components/map/pubmap/useLogIntentRevealScope";
+import { curatedPlannerTitle, curatedWalkSheetProps } from "@/lib/curatedWalk";
+import { PlannerDrawerHeader } from "@/components/map/route/PlannerDrawerHeader";
+import { useCuratedWalkFocus } from "@/components/map/route/useCuratedWalkFocus";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 const MapOnboardingOverlay = dynamic(
@@ -412,6 +404,8 @@ import { LogIntentFallback } from "@/components/map/pubmap/LogIntentFallback";
 import { useActivePlanPalNextStop, useActivePlanRoute } from "@/components/map/pubmap/useActivePlanRoute";
 import { useCrewPals } from "@/components/map/pubmap/useCrewPals";
 import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useCuratedCrawlHydration } from "@/components/map/pubmap/useCuratedCrawlHydration";
+import type { CuratedCrawlHydration } from "@/lib/mapSeedCrawl";
 import { planStopsToRouteVenues } from "@/lib/activePlanRoute";
 import { seedCrawlState, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
@@ -705,8 +699,6 @@ import {
   type MapSelectionNotice,
   type VenueDetailStatus,
   builtStopCountFor,
-  phonePlannerOrder,
-  plannerDefaultDrinkSelection,
   routeDrinkLensCategory,
   routeDrinkSelection,
 } from "@/lib/pubMap";
@@ -967,13 +959,6 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 
 const TONIGHT_OVERLAY_DISMISSED_KEY = "pubmaxx.tonightOverlay.dismissed";
 const EMPTY_ROUTE: Venue[] = [];
-/** No crawl held: the three fields RoutePanel reads travel together or not at all. */
-const EMPTY_CRAWL_FIELDS = {
-  blurb: undefined,
-  name: undefined,
-  id: undefined,
-} satisfies { blurb?: string; name?: string; id?: string };
-
 /** Camera-settle debounce before one viewport's base pubs are read for marks. */
 const PROVISIONAL_BASE_SETTLE_MS = 1_000;
 /**
@@ -1779,6 +1764,7 @@ export default function PubMap({
     routeMapped: seed.routeMapped,
     nightArea: restoredSession.nightArea,
     planningOpen: restoredSession.plannerOpen,
+    crawlId: seed.crawlId,
   }, reactiveAcceptanceSearch);
   // Issue #15 story bands: the active band id ("" = none), seeded from the URL
   // and synced back so a band link reproduces. The band overlay + picker live
@@ -1844,88 +1830,24 @@ export default function PubMap({
   // ?crawl= / matching pubs= on curated arrival; cleared when the user mutates stops
   // or the mounted map adopts a walking-route link.
   const [activeCrawl, setActiveCrawl] = useActiveCuratedCrawl<CuratedCrawl>(seed.activeCrawl, walkRequest);
+  const curatedWalk = activeCrawl?.walk;
   // Issue #31 alt crawl style ("kind of night" label). Seeded from the URL and
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
   const [altStyle, setAltStyle] = useState<AltCrawlStyle>(seed.altStyle);
-  const planSnapshotRef = useRef({
-    mode,
-    builtIds,
-    activeCrawl,
-    filters,
-    altStyle,
-    routeMapped,
+  const applyCuratedCrawlHydration = useCallback((hydration: CuratedCrawlHydration) => {
+    setMode("build");
+    setBuiltIds(hydration.crawl.venueIds);
+    setRouteMapped(true);
+    setFilters(hydration.filters);
+    setAltStyle(hydration.altStyle);
+    setActiveCrawl(hydration.crawl);
+  }, [setActiveCrawl, setBuiltIds, setFilters, setMode, setRouteMapped]);
+  const crawlHydrationPending = useCuratedCrawlHydration({
+    arrivalSearch, cityId, seed, walkRequest,
+    snapshot: { mode, builtIds, activeCrawl, filters, altStyle, routeMapped },
+    onHydrate: applyCuratedCrawlHydration,
   });
-  useLayoutEffect(() => {
-    planSnapshotRef.current = {
-      mode,
-      builtIds,
-      activeCrawl,
-      filters,
-      altStyle,
-      routeMapped,
-    };
-  }, [activeCrawl, altStyle, builtIds, filters, mode, routeMapped]);
-  // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
-  // before paint so shared ?crawl= links still map-first.
-  const [crawlHydrationPending, setCrawlHydrationPending] = useState(() =>
-    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
-  );
-  useLayoutEffect(() => {
-    let cancelled = false;
-    if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
-      return;
-    }
-    const planSnapshot = {
-      mode: seed.mode,
-      builtIds: seed.builtIds,
-      activeCrawl: seed.activeCrawl,
-      filters: seed.filters,
-      altStyle: seed.altStyle,
-      routeMapped: seed.routeMapped,
-    };
-    void import("@/lib/mapSeedCrawl")
-      .then(
-        async ({
-          curatedCrawlHydrationFromSeed,
-          sameCuratedCrawlHydrationSnapshot,
-        }) => {
-          if (cancelled) return;
-          const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
-          if (cancelled) return;
-          if (
-            !hydration ||
-            !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
-          ) {
-            setCrawlHydrationPending(false);
-            return;
-          }
-          setMode("build");
-          setBuiltIds(hydration.crawl.venueIds);
-          setRouteMapped(true);
-          setFilters(hydration.filters);
-          setAltStyle(hydration.altStyle);
-          setActiveCrawl(hydration.crawl);
-          setCrawlHydrationPending(false);
-        },
-      )
-      .catch(() => {
-        if (!cancelled) setCrawlHydrationPending(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    arrivalSearch,
-    cityId,
-    seed,
-    setActiveCrawl,
-    setBuiltIds,
-    setCrawlHydrationPending,
-    setFilters,
-    setMode,
-    setRouteMapped,
-  ]);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
@@ -2297,13 +2219,13 @@ export default function PubMap({
 
   const retireMapSurfaces = useCallback((retire: readonly MapSurfaceRetirement[]) => {
     if (retire.includes("venue")) setSelectedVenueId("");
-    if (retire.includes("planner")) { releasePlannerMode(); setPlanningOpen(false); }
+    if (retire.includes("planner")) { releasePlannerMode(Boolean(curatedWalk)); setPlanningOpen(false); }
     if (retire.includes("overlay")) setMapOverlay("none");
     if (retire.includes("planner-sheet")) {
       setPlannerSheetSnap("half");
       setPlannerSheetDragY(null);
     }
-  }, [releasePlannerMode, setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen, setSelectedVenueId]);
+  }, [curatedWalk, releasePlannerMode, setPlannerSheetDragY, setPlannerSheetSnap, setPlanningOpen, setSelectedVenueId]);
   const closePlanning = useCallback(() => retireMapSurfaces(["planner", "planner-sheet", "overlay"]), [retireMapSurfaces]);
   useLayoutEffect(() => {
     closePlanningRef.current = closePlanning;
@@ -2489,7 +2411,7 @@ export default function PubMap({
   // on this surface the reader's own first move answers it.
   const ambientBannerLaneOpen =
     ambientBannerLane
-    && !showMapArrivalCard
+    && !showMapArrivalCard && !(curatedWalk && planningOpen)
     && mapAmbientBannersVisible({ canvasUnavailable: mapCanvasUnavailable });
   const mapCanvasCeilingRunning = mapCanvasCeilingArmed({
     moduleFailed: mapCanvasModuleFailed,
@@ -3338,7 +3260,7 @@ export default function PubMap({
   });
 
   const shouldBuildSuggestedRoute = suggestedRouteWanted({
-    hasReactiveLogIntent,
+    hasFixedWalk: Boolean(curatedWalk), hasReactiveLogIntent,
     planningOpen,
     routeMapped,
   });
@@ -3362,18 +3284,18 @@ export default function PubMap({
   // Pals walk together: the crew's opted-in Pals walk only the plan's own
   // route, never a crawl the reader is building beside it.
   const crewPals = useCrewPals();
-  const { route, routePending, routeMappedActive, routeForMap, routeForMapLegs } = useMapPlanPresentation({
+  const { route, routePending, routeMappedActive, routeForMap, routeForMapLegs, walkForMap } = useMapPlanPresentation({
     mode,
     builtIds,
     routeMapped,
     suggestedRoute,
     activePlanRoute,
     venueById,
-    settledBuiltStopIds,
+    settledBuiltStopIds, activeCrawl,
   });
   // Tonight's plan is the route on the map, not a crawl the reader is building,
   // and the Pal waits at its next stop.
-  const { routeIsActivePlan, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
+  const { routeIsActivePlan, activePlanHref, palNextStop } = useActivePlanPalNextStop(activePlanStops, activePlanRoute, routeMappedActive, venueById);
   // A suggested route exists behind the clean map, but its TfL legs are only
   // useful once the planner is open or the viewer explicitly maps it.
   const {
@@ -4480,7 +4402,7 @@ export default function PubMap({
       setFilters((current) => filtersForCuratedCrawl(current, crawl));
       setAltStyle(crawl.altStyle ?? "pint"); // "kind of night" label for copy
       setActiveCrawl(crawl); // its blurb shows under the route title until mutated
-      showLoadedRoute(crawl.venueIds[0] ?? "");
+      if (crawl.walk) openPlanning(); else showLoadedRoute(crawl.venueIds[0] ?? "");
       dismissOnboarding(); // picking a crawl from the overlay closes + remembers it
     },
     [
@@ -4491,7 +4413,7 @@ export default function PubMap({
       setFilters,
       setMode,
       mapRoute,
-      showLoadedRoute,
+      showLoadedRoute, openPlanning,
     ],
   );
 
@@ -4565,12 +4487,12 @@ export default function PubMap({
   );
 
   const mapCurrentRoute = useCallback(() => {
-    if (route.length < 2) return;
+    if (route.length < 2 && !curatedWalk) return;
     trackEvent("route_opened", { surface: "map" });
     mapRoute();
     dismissOnboarding();
     if (isMobileViewport()) exitPlanning();
-  }, [route.length, exitPlanning, dismissOnboarding, mapRoute]);
+  }, [route.length, curatedWalk, exitPlanning, dismissOnboarding, mapRoute]);
 
   const checkLastTrainAtRouteEnd = useCallback(() => {
     const finalStop = route[route.length - 1];
@@ -4629,6 +4551,7 @@ export default function PubMap({
   );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
   const [areaFocus, setAreaFocus] = useState<MapCameraFocus | null>(null);
+  const { selectRouteStop, selectedWalkStopId, selectedWalkStopToken } = useCuratedWalkFocus(curatedWalk, selectVenue, setAreaFocus, setPlannerSheetSnap, retireMapSurfaces);
   /**
    * The ONE way the camera is deliberately moved to another place.
    *
@@ -5109,10 +5032,10 @@ export default function PubMap({
     closeComposer();
     setMapOverlay("none");
     setSelectedVenueId("");
-    releasePlannerMode(); setPlanningOpen(false);
+    releasePlannerMode(Boolean(curatedWalk)); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, routePending, routeForMap.length, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, curatedWalk, releasePlannerMode, routePending, routeForMap.length, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
@@ -5517,14 +5440,6 @@ export default function PubMap({
       mapOrientationPending,
     });
   // Show the first four curated crawls as the onboarding picks.
-  const onboardingCrawls = cityCuratedCrawls.slice(0, 4);
-
-  function renderPlannerMapButton() {
-    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={exitPlanning}>
-      <MapPinned size={16} aria-hidden="true" />
-      View {mapDisplayName} map
-    </button> : null;
-  }
 
   /* An empty planner says which filter emptied it, and hands back the way out. */
   function renderPlannerEmptyState() {
@@ -5553,106 +5468,81 @@ export default function PubMap({
     );
   }
 
-  // The crawl's own fields, read once: a RoutePanel prop chain of optional
-  // reads is four branches for three strings that always travel together.
-  const { blurb: activeCrawlBlurb, name: activeCrawlName, id: activeCrawlId } =
-    activeCrawl ?? EMPTY_CRAWL_FIELDS;
-  const selectedVenueIdOrUndefined = selectedVenue ? selectedVenue.id : undefined;
-
-  // The phone planner opens on what the reader has IN HAND. With a pub picked
-  // as a stop, the sheet used to open on the "Describe the outing" form and
-  // the picked pub sat a whole form below the fold, unnamed on the first
-  // screen (verify-preview-4, J04); a crawl being built now leads the sheet.
-  const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
-  function renderPhoneDescribeForm() {
-    return mobileViewport && isLondon ? (
-      <MobilePlanActivation
-        key="phone-describe-form"
-        cityId={cityId}
-        initialNightArea={phonePlanArea?.slug ?? null}
-        venuesById={venuesById}
-        defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
-        onGenerated={applyGeneratedMobilePlan}
-      />
-    ) : null;
-  }
-  const phoneDescribeForm = renderPhoneDescribeForm();
-  const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
-  const [plannerHead, plannerFoot] = builtCrawlLeads
-    ? [null, phoneDescribeForm]
-    : [phoneDescribeForm, null];
-  const plannerPanel = planningOpen ? (
-    <>
-      {plannerHead}
-      {renderPlannerMapButton()}
-      {/* One planner per surface. The rail is the DESKTOP planner: brand block,
-          mode toggle, search box, featured routes and the full filter stack. The
-          phone already owns every one of those in its own chrome (the one-bar
-          search overlay, the Filters sheet, the Near me control) and opens its
-          own "Describe the outing" form above, so mounting the rail here stacked
-          a second planner under the first inside one bottom sheet. */}
-      {!mobileViewport ? (
-        <ControlRail
-          mode={mode}
-          onModeChange={setMode}
-          filters={filters}
-          onFiltersChange={setFilters}
-          filteredVenues={filteredPubVenues}
-          pintCapMatches={pintCapMatched}
-          builtCount={builtIds.length}
-          onClearBuilt={clearBuilt}
-          onLoadCrawl={loadCuratedCrawl}
-          onNearbyCrawl={startNearbyCrawl}
-          nearbyLoading={nearbyLoading}
-          nearbyError={nearbyError}
-          savedOnly={savedOnly}
-          onSavedOnlyChange={changeSavedOnly}
-          curatedCrawls={cityCuratedCrawls}
-          cityDisplayName={city.displayName}
-          cityId={cityId}
-        />
-      ) : null}
-      <RoutePanel
-        mode={mode}
-        crawlStyle={filters.crawlStyle}
-        altStyle={altStyle}
-        onAltStyleChange={setAltStyle}
-        route={route}
-        drinkSelection={routeDrink}
-        heldDrinkSelection={experienceLensHeldDrink}
-        drinkPrices={routeDrinkPrices}
-        drinkPriceStatus={routeDrinkPriceStatus}
-        filteredVenues={filteredPubVenues}
-        builtIds={builtIds}
-        activeVenueId={selectedVenueIdOrUndefined}
-        venueSignals={venueSignals}
-        crawlBlurb={activeCrawlBlurb}
-        crawlName={activeCrawlName}
-        crawlId={activeCrawlId}
-        curatedCrawls={cityCuratedCrawls}
-        routeMapped={routeMappedActive}
-        stopsFirst={builtCrawlLeads}
-        originDistanceKm={distanceFromUserKm}
-        onMapRoute={mapCurrentRoute}
-        onHideRoute={hideRoute}
-        onCheckLastTrain={checkLastTrainAtRouteEnd}
-        onSelectVenue={selectVenue}
-        onToggleStop={toggleBuiltStop}
-        onReverseRoute={reverseRoute}
-        journeyByToIndex={journeyByToIndex}
-        journeyLoading={journeyLoading}
-        journeyTotalMinutes={journeyTotalMinutes}
-        cityDisplayName={city.displayName}
-        cityId={cityId}
-        poisPath={city.poisPath}
-        onRoundStarted={setActiveRoundStartedCode}
-      >
-        {renderPlannerEmptyState()}
-      </RoutePanel>
-      {plannerFoot}
-    </>
-  ) : null;
+  const plannerPanel = (
+    <MapPlannerPanel
+      open={planningOpen}
+      mobileViewport={mobileViewport}
+      isLondon={isLondon}
+      activeCrawl={activeCrawl}
+      selectedVenue={selectedVenue}
+      selectedWalkStopId={selectedWalkStopId}
+      experienceLens={experienceLens}
+      filters={filters}
+      phonePlanArea={phonePlanArea}
+      mapDisplayName={mapDisplayName}
+      onExit={exitPlanning}
+      phone={{
+        crawls: cityCuratedCrawls,
+        onLoadCrawl: loadCuratedCrawl,
+        cityId,
+        venuesById,
+        onGenerated: applyGeneratedMobilePlan,
+      }}
+      controls={{
+        mode,
+        onModeChange: setMode,
+        filters,
+        onFiltersChange: setFilters,
+        filteredVenues: filteredPubVenues,
+        pintCapMatches: pintCapMatched,
+        builtCount: builtIds.length,
+        onClearBuilt: clearBuilt,
+        onLoadCrawl: loadCuratedCrawl,
+        onNearbyCrawl: startNearbyCrawl,
+        nearbyLoading,
+        nearbyError,
+        savedOnly,
+        onSavedOnlyChange: changeSavedOnly,
+        curatedCrawls: cityCuratedCrawls,
+        cityDisplayName: city.displayName,
+        cityId,
+      }}
+      panel={{
+        mode,
+        crawlStyle: filters.crawlStyle,
+        altStyle,
+        onAltStyleChange: setAltStyle,
+        route,
+        drinkSelection: routeDrink,
+        heldDrinkSelection: experienceLensHeldDrink,
+        drinkPrices: routeDrinkPrices,
+        drinkPriceStatus: routeDrinkPriceStatus,
+        filteredVenues: filteredPubVenues,
+        builtIds,
+        venueSignals,
+        curatedCrawls: cityCuratedCrawls,
+        routeMapped: routeMappedActive,
+        originDistanceKm: distanceFromUserKm,
+        onMapRoute: mapCurrentRoute,
+        onHideRoute: hideRoute,
+        onClearWalk: clearBuilt,
+        titleInSheet: Boolean(curatedWalk),
+        onCheckLastTrain: checkLastTrainAtRouteEnd,
+        onSelectVenue: selectRouteStop,
+        onToggleStop: toggleBuiltStop,
+        onReverseRoute: reverseRoute,
+        journeyByToIndex,
+        journeyLoading,
+        journeyTotalMinutes,
+        cityDisplayName: city.displayName,
+        cityId,
+        poisPath: city.poisPath,
+        onRoundStarted: setActiveRoundStartedCode,
+      }}
+    >
+      {renderPlannerEmptyState()}
+    </MapPlannerPanel>
+  );
 
   /* The action card's first row (components/map/inspector/VenueActionCard.tsx):
      the price this lens can vouch for, with its date, the walk from the
@@ -6102,7 +5992,7 @@ export default function PubMap({
           the map — the backdrop and the link both close it. */}
       {!mobileViewport && showOnboarding ? (
         <MapOnboardingOverlay
-          crawls={onboardingCrawls}
+          crawls={cityCuratedCrawls}
           onLoadCrawl={loadCuratedCrawl}
           onDismiss={dismissOnboarding}
         />
@@ -6162,12 +6052,13 @@ export default function PubMap({
         }
         planOpen={planningOpen}
         planActive={routeMappedActive || activePlanRoute.length >= 2}
-        planStopCount={routeMappedActive ? route.length : activePlanRoute.length}
+        planStopCount={routeForMap.length}
+        fixedWalk={Boolean(walkForMap)}
         builtStopCount={builtStopCountFor({ mode, routeMappedActive, builtCount: builtIds.length })}
         planInteractive={mobileViewport && !ukPlaceArrival}
         venueListOpen={mapListOpen}
         bandNoticeOpen={showBandChip}
-        onPlan={openPlanning}
+        onPlan={activePlanHref && builtStopCountFor({ mode, routeMappedActive, builtCount: builtIds.length }) === 0 ? () => window.location.assign(activePlanHref) : openPlanning}
         peek={mapPeek}
         onPeekOpenVenue={selectVenue}
         onPeekOpenList={openVenueListFromPeek}
@@ -6343,7 +6234,8 @@ export default function PubMap({
   /* From 1024px Explore is a list beside the map: the venues in view, priced
      the way the venue sheet prices them, opened the way a pin tap opens them.
      No map, no "in view", so a canvas that cannot draw takes the list with it. */
-  const desktopSplitList = splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
+  function renderDesktopSplitList() {
+    return splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
       <MapSplitList
         cityName={mapContextName}
         visibleVenues={mapVenueListVenues}
@@ -6372,6 +6264,7 @@ export default function PubMap({
         onPrefetchVenue={prefetchVenueDetail}
       />
     ) : null;
+  }
 
   /* Desktop reader controls. Both live inside Layers rather than on the map
      surface, which keeps its budget at search plus one toast. The phone reaches
@@ -6579,9 +6472,10 @@ export default function PubMap({
         filteredVenueCount={canvasVenues.length}
         venueDataReady={venueDataReady}
         nationalBrowse={ukNationalBrowse}
-        // Clean first view stays route-free. Once the user maps a crawl, the
-        // line remains visible even if the mobile planner closes.
         route={routeForMap}
+        walk={walkForMap}
+        walkPanelOpen={Boolean(curatedWalk && planningOpen)}
+        selectedRouteStopId={selectedWalkStopId}
         routeRequestToken={routeRequestToken}
         routePending={routePending}
         crewPals={routeIsActivePlan ? crewPals : undefined}
@@ -6599,7 +6493,7 @@ export default function PubMap({
         venueListOpen={mapListOpen}
         ukBaseRestore={ukBaseRestore}
         onUkBaseRestoreFailed={handleUkBaseRestoreFailed}
-        onRouteStopClick={selectVenue}
+        onRouteStopClick={selectRouteStop}
         onVenuePrefetch={prefetchVenueDetail}
         venueSignals={venueSignals}
         favoritePint={favoritePint}
@@ -6710,6 +6604,7 @@ export default function PubMap({
         onPersonaSelect={selectPersona}
         personaTonightCategory={personaTonightCategory}
         planningOpen={planningOpen}
+        walkActive={Boolean(curatedWalk)}
         detailOpen={detailOpen}
         storyOpen={storyDrawerOpen}
         desktopLaneActive={railViewport}
@@ -6801,9 +6696,9 @@ export default function PubMap({
         />
       ) : null}
       {!mobileViewport ? <ActiveRoundChip refreshKey={activeRoundStartedCode} /> : null}
-      {!mobileViewport && routeMappedActive ? (
+      {!mobileViewport && routeMappedActive && (!curatedWalk || !planningOpen) ? (
         <MappedRouteChip
-          stopCount={route.length}
+          stopCount={routeForMap.length} walk={curatedWalk}
           totalKm={routeForMapLegs.totalKm}
           totalMinutes={routeForMapLegs.totalMinutes}
           onEdit={openPlanning}
@@ -6892,7 +6787,7 @@ export default function PubMap({
                         ? selectedLondonFoodPlace?.name ?? "Fast food"
                         : selectedVenue?.name ?? selectedVenueLabels.detailLabel
                 : planningOpen
-                  ? "Plan an outing"
+                  ? curatedPlannerTitle(activeCrawl)
                   : activeLandmark?.name ?? "Landmark"
             }
             initialSnap="half"
@@ -6914,6 +6809,7 @@ export default function PubMap({
             onBack={mapSurfaceTrail.back}
             onInterruptReveal={interruptVenueReveal}
             venueRevealSettleSequence={venueRevealSettleSequence}
+            {...curatedWalkSheetProps(curatedWalk, planningOpen, selectedWalkStopToken)}
           >
             {detailOpen ? venuePanel : planningOpen ? plannerPanel : storyPanel}
         </Sheet>
@@ -6993,26 +6889,14 @@ export default function PubMap({
           role={planningOpen && plannerSheetSnap === "full" ? "dialog" : undefined}
           aria-label={planningOpen && plannerSheetSnap === "full" ? "Crawl planner" : undefined}
         >
-          <div
-            className="mapDrawerHead sheetDragHandle plannerSheetHead"
-            onPointerDown={onPlannerSheetDragStart}
-            onPointerMove={onPlannerSheetDragMove}
-            onPointerUp={onPlannerSheetDragEnd}
-            onPointerCancel={onPlannerSheetDragEnd}
-          >
-            <span className="venueSheetGrabZone" aria-hidden="true">
-              <span className="venueSheetGrab" />
-            </span>
-            {/* The planner used to have no way out of its own head at all: the
-                reader had to find "View the map" inside the body. Same pair, same
-                places, as every other surface. */}
-            <SurfaceNav
-              backLabel={mapSurfaceTrail.backLabel}
-              onBack={mapSurfaceTrail.back}
-              homeLabel={homeActionLabel(`the ${mapDisplayName} map`)}
-              onHome={mapSurfaceTrail.home}
-            />
-          </div>
+          <PlannerDrawerHeader
+            title={curatedWalk ? activeCrawl?.name : undefined}
+            kicker={curatedWalk?.kicker}
+            navigation={{ backLabel: mapSurfaceTrail.backLabel, onBack: mapSurfaceTrail.back,
+              homeLabel: homeActionLabel(`the ${mapDisplayName} map`), onHome: mapSurfaceTrail.home }}
+            drag={{ onPointerDown: onPlannerSheetDragStart, onPointerMove: onPlannerSheetDragMove,
+              onPointerUp: onPlannerSheetDragEnd, onPointerCancel: onPlannerSheetDragEnd }}
+          />
         {plannerPanel}
     </SpringDrawer> : null;
   }
@@ -7102,10 +6986,10 @@ export default function PubMap({
 
       {/* From 1024px the list sits beside the map, before it in reading order;
           the stage starts at its right edge (components/map/mapSplitList.css). */}
-      {desktopSplitList}
+      {renderDesktopSplitList()}
 
       {/* List view provides the keyboard alternative to the canvas pins. */}
-      <section className="mapStage" aria-label={`Interactive pub map of ${mapDisplayName}`}>
+      <section className="mapStage" data-curated-walk-open={Boolean(curatedWalk && planningOpen)} aria-label={`Interactive pub map of ${mapDisplayName}`}>
         {/* One toast at a time. A soft retry owns the surface outright, so the
             arrival and national-browse banners stand down with the selection
             note rather than stacking under it. */}

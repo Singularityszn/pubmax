@@ -192,6 +192,33 @@ describe("getVenueIndex", () => {
     });
   });
 
+  it("shares one OSM identity pack load across concurrent venue lookups", async () => {
+    const realRead = fs.readFile.bind(fs);
+    let release!: () => void;
+    const held = new Promise<void>((resolve) => { release = resolve; });
+    let started!: () => void;
+    const reading = new Promise<void>((resolve) => { started = resolve; });
+    let osmReads = 0;
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (String(file).endsWith("uk_osm_pubs.json")) {
+        osmReads += 1;
+        started();
+        await held;
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    await lookupCanonicalVenue("venue-1fgvf4p");
+    const pending = Promise.all(Array.from({ length: 8 }, () =>
+      lookupCanonicalVenueWithOsm("venue-1fgvf4p"),
+    ));
+    await reading;
+    release();
+    const venues = await pending;
+    expect(venues.every((venue) => venue.status === "found" && venue.venue.osmId === "way/270582394")).toBe(true);
+    expect(osmReads).toBe(1);
+  });
+
   it("retries a city when its OSM identity pack has a transient failure", async () => {
     const realRead = fs.readFile.bind(fs);
     let failOxfordOsm = true;

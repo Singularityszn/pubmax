@@ -31,6 +31,7 @@ export function planActivationPill(input: {
   planStopCount: number;
   /** Stops picked by hand on this map, when nothing is mapped yet. */
   builtStopCount: number;
+  fixedWalk?: boolean;
 }): PlanActivationPill {
   if (input.builtStopCount > 0) {
     const picked = planStopCountPhrase(input.builtStopCount);
@@ -42,6 +43,12 @@ export function planActivationPill(input: {
     };
   }
   if (input.planActive) {
+    if (input.fixedWalk) return {
+      active: true,
+      strong: `${input.planStopCount}-stop walk`,
+      small: "View stops",
+      label: `View active ${input.planStopCount}-stop walk`,
+    };
     return {
       active: true,
       strong: `${input.planStopCount}-stop plan`,
