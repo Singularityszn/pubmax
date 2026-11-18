@@ -85,6 +85,32 @@ describe("private see-again mounted component", () => {
     expect(host.querySelector("li")).toBeNull();
   });
 
+  it("keeps an action from taking focus back after the person moves away", async () => {
+    fixture.data = { open: true, closesAt: "2099-11-20T00:00:00Z", items: [row(true)] };
+    await mount();
+    const control = button("Add @bea as a mate");
+    control.focus();
+    let resolve!: (value: Response) => void;
+    fixture.pauseNext = new Promise<Response>(yes => { resolve = yes; });
+    await act(async () => control.click());
+    const elsewhere = document.createElement("button");
+    document.body.append(elsewhere); elsewhere.focus();
+    try {
+      await act(async () => resolve(Response.json(fixture.data)));
+      expect(document.activeElement).toBe(elsewhere);
+    } finally { elsewhere.remove(); }
+  });
+
+  it("offers a focused retry after action authorisation fails without making a write", async () => {
+    await mount();
+    await act(async () => host.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click());
+    const control = button("See @bea again as a mate");
+    control.focus(); fixture.fail = true;
+    await act(async () => control.click());
+    expect(fixture.writes).toEqual([]);
+    expect(document.activeElement).toBe(button("Retry reconnection"));
+  });
+
   it.each(["choose", "withdraw", "add"] as const)("preserves keyboard position while authorising %s", async action => {
     if (action !== "choose") fixture.data = { open: true, closesAt: "2099-11-20T00:00:00Z", items: [row(true)] };
     await mount();

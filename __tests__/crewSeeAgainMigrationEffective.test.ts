@@ -13,8 +13,9 @@ import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
 
 const migration = "20261118110000_0250_crew_see_again.sql";
 const migrations = join(process.cwd(), "supabase/migrations");
-function apply(file: string) {
-  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`, "-f", join(migrations, file)], { stdio: "pipe" });
+function apply(file: string, discarded?: string) {
+  const acknowledgement = discarded === undefined ? [] : ["-c", `select set_config('pubmax.see_again_discarded','${discarded}',false)`];
+  execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`, ...acknowledgement, "-f", join(migrations, file)], { stdio: "pipe" });
 }
 beforeAll(async () => {
   await bootCrewAdmissionDatabase("crew-see-again-0250", "after");
@@ -578,8 +579,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(Number(retained)).toBeGreaterThan(0);
     expect(() => apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`)).toThrow();
     expect(db().sql("select count(*) from public.social_crew_see_again_pairs")).toBe(retained);
-    db().sql("delete from public.social_crew_see_again_pairs");
-    apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`);
+    const total = db().sql("select (select count(*) from public.social_crew_see_again_pairs)+(select count(*) from public.social_crew_see_again_choices)");
+    expect(() => apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`, String(Number(total) + 1))).toThrow();
+    apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`, total);
     expect(db().sql("select to_regclass('public.social_crew_see_again_pairs') is null")).toBe("t");
     const host = adult(), a = adult(), b = adult(), crew = crewWith(host, [a, b]);
     call(blockCall(b, a));
@@ -591,6 +593,10 @@ describe("0250 private event-bound friendship reconnection", () => {
       expect(original.ok, original.said).toBe(true);
       expect(JSON.parse(original.said)).toMatchObject({ ok: true, code: "decided" });
     } finally { await accounts.finish(); }
+    const c = adult(); admit(host, crew, c);
+    expect(call(removeCall(host, crew, c))).toMatchObject({ ok: true, code: "removed" });
+    expect(call(`update_social_crew_visibility_atomic('${host.account}','${crew}','private',(select authority_revision from public.social_crews where id='${crew}'),'${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "updated" });
+    expect(call(`leave_social_crew_atomic('${a.account}','${crew}','${key()}','${DIGEST}')`)).toMatchObject({ ok: true, code: "left" });
     apply(migration);
     expect(read(adult(), "a2509999-0000-4000-8000-000000000001")).toBeNull();
   });

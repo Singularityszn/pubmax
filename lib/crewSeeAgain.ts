@@ -58,13 +58,16 @@ export type SeeAgainView =
   | { phase: "loading"; scope: string }
   | { phase: "hidden"; scope: string }
   | { phase: "failed"; scope: string }
-  | { phase: "ready" | "saving"; scope: string; data: SeeAgainDTO; notice: "saved" | "failed" | null };
+  | { phase: "ready" | "saving" | "refreshing"; scope: string; data: SeeAgainDTO; notice: "saved" | "failed" | null };
 export type SeeAgainEvent =
   | { type: "reset"; scope: string }
   | { type: "loaded"; scope: string; data: SeeAgainDTO }
   | { type: "hidden" | "failed" | "save" | "saved"; scope: string };
 export function nextSeeAgainView(state: SeeAgainView, event: SeeAgainEvent): SeeAgainView {
-  if (event.type === "reset") return { phase: "loading", scope: event.scope };
+  if (event.type === "reset") {
+    return event.scope === state.scope && "data" in state
+      ? { ...state, phase: "refreshing" } : { phase: "loading", scope: event.scope };
+  }
   if (event.scope !== state.scope) return state;
   switch (event.type) {
     case "loaded": return { phase: "ready", scope: state.scope, data: event.data, notice: null };

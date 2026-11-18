@@ -8,6 +8,8 @@ describe("private see-again policy and view", () => {
   });
   it("drops prior account data immediately and rejects stale completion", () => {
     const ready = nextSeeAgainView({ phase: "loading", scope: "a" }, { type: "loaded", scope: "a", data: { open: true, closesAt: "2026-11-20T00:00:00Z", items: [] } });
+    const refreshing = nextSeeAgainView(ready, { type: "reset", scope: "a" });
+    expect(refreshing).toEqual({ ...ready, phase: "refreshing" });
     const switched = nextSeeAgainView(ready, { type: "reset", scope: "b" });
     expect(switched).toEqual({ phase: "loading", scope: "b" });
     expect(nextSeeAgainView(switched, { type: "loaded", scope: "a", data: { open: true, closesAt: "2026-11-20T00:00:00Z", items: [] } })).toBe(switched);

@@ -2,11 +2,12 @@
 -- No dating context is enabled. No moderator choice reader or browser grants exist.
 -- Lock order: Crew, auth rows in ID order, participant accounts in ID order,
 -- stable unordered pair, then private rows. Reads take the same locks as writes.
--- Safety triggers reuse the writer's subject account lock, then pair locks only.
--- They never acquire a second participant account from an AFTER trigger. The
--- subject lock alone excludes every pair transaction involving that subject.
--- Membership removal holds the Crew lock before invalidating that Crew's pairs.
--- Moderator removal additionally locks both accounts before its case row.
+-- Safety triggers never acquire another participant account from an AFTER trigger.
+-- Subject account writers exclude paired transactions with that subject.
+-- Leave, host removal and visibility changes lock roster auth/accounts before
+-- invalidation, seat closure and receipt writes. Moderator removal locks both
+-- participant auth/accounts before its case row. Crew-scoped raw status writes
+-- take pair locks in canonical order, as does the full visible-export batch.
 -- Block and suspension invalidation spans Crews.
 -- Rollback destroys private choices and requires an exact row-count acknowledgement.
 begin;
@@ -194,6 +195,69 @@ begin
     where m.crew_id=p_crew and m.state='active' order by u.id for key share of u;
   perform public._lock_social_participant_accounts(array(select m.social_account_id
     from public.social_crew_members m where m.crew_id=p_crew and m.state='active'));
+end;
+$$;
+
+-- Seat invalidation and receipt writes must follow auth/account locks too.
+create or replace function public.remove_social_crew_member_atomic(
+  p_actor_account_id uuid,p_crew_id uuid,p_target_member_id uuid,p_idempotency_key text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_replay jsonb; v_role text; v_target public.social_crew_members%rowtype; v_response jsonb;
+begin
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,'remove-member',p_idempotency_key,p_payload_digest);
+  if v_replay is not null then return v_replay; end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  perform public._see_again_lock_roster(p_crew_id);
+  v_role:=public._social_crew_member_role(p_crew_id,p_actor_account_id);
+  if v_role is null or v_role not in ('owner','cohost') then return public._social_crew_fail_write(p_actor_account_id,'remove-member',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  select * into v_target from public.social_crew_members where id=p_target_member_id and crew_id=p_crew_id and state='active' for update;
+  if not found or v_target.role='owner' then return public._social_crew_fail_write(p_actor_account_id,'remove-member',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  update public.social_crew_members set state='removed',ended_at=now(),updated_at=now() where id=v_target.id;
+  update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id;
+  v_response:=jsonb_build_object('ok',true,'code','removed','member_id',v_target.id);
+  return public._social_crew_finish_write(p_actor_account_id,'remove-member',p_idempotency_key,p_payload_digest,v_response);
+end;
+$$;
+
+create or replace function public.leave_social_crew_atomic(
+  p_actor_account_id uuid,p_crew_id uuid,p_idempotency_key text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_replay jsonb; v_member public.social_crew_members%rowtype; v_response jsonb;
+begin
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,'leave',p_idempotency_key,p_payload_digest);
+  if v_replay is not null then return v_replay; end if;
+  perform 1 from public.social_crews where id=p_crew_id for update;
+  perform public._see_again_lock_roster(p_crew_id);
+  select * into v_member from public.social_crew_members where crew_id=p_crew_id and social_account_id=p_actor_account_id and state='active' for update;
+  if not found then return public._social_crew_fail_write(p_actor_account_id,'leave',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if v_member.role='owner' then return public._social_crew_fail_write(p_actor_account_id,'leave',p_idempotency_key,p_payload_digest,'owner_cannot_leave'); end if;
+  update public.social_crew_members set state='left',ended_at=now(),updated_at=now() where id=v_member.id;
+  update public.social_crews set authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id;
+  v_response:=jsonb_build_object('ok',true,'code','left','member_id',v_member.id);
+  return public._social_crew_finish_write(p_actor_account_id,'leave',p_idempotency_key,p_payload_digest,v_response);
+end;
+$$;
+
+create or replace function public.update_social_crew_visibility_atomic(
+  p_actor_account_id uuid,p_crew_id uuid,p_visibility text,p_expected_authority_revision integer,
+  p_idempotency_key text,p_payload_digest text
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_replay jsonb; v_revision integer; v_response jsonb;
+begin
+  v_replay:=public._social_crew_begin_write(p_actor_account_id,'visibility',p_idempotency_key,p_payload_digest);
+  if v_replay is not null then return v_replay; end if;
+  select authority_revision into v_revision from public.social_crews where id=p_crew_id for update;
+  perform public._see_again_lock_roster(p_crew_id);
+  if public._social_crew_member_role(p_crew_id,p_actor_account_id) is distinct from 'owner' or p_visibility is null or p_visibility not in ('private','friends','open')
+    then return public._social_crew_fail_write(p_actor_account_id,'visibility',p_idempotency_key,p_payload_digest,'not_found'); end if;
+  if v_revision is distinct from p_expected_authority_revision then return public._social_crew_fail_write(p_actor_account_id,'visibility',p_idempotency_key,p_payload_digest,'conflict'); end if;
+  update public.social_crews set visibility=p_visibility,authority_revision=authority_revision+1,updated_at=now() where id=p_crew_id
+    returning authority_revision into v_revision;
+  v_response:=jsonb_build_object('ok',true,'code','updated','authority_revision',v_revision);
+  return public._social_crew_finish_write(p_actor_account_id,'visibility',p_idempotency_key,p_payload_digest,v_response);
 end;
 $$;
 
@@ -413,7 +477,7 @@ $$;
 create function public.export_visible_crew_see_again(p_user uuid,p_limit integer) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare actor uuid; profile uuid; crews uuid[]; crew uuid; view jsonb; entry jsonb; result jsonb:='[]';
-  bounded integer:=greatest(0,least(coalesce(p_limit,0),1001));
+  bounded integer:=greatest(0,least(coalesce(p_limit,0),1001)); other uuid;
 begin
   select id,profile_id into actor,profile from public.private_social_accounts
     where supabase_user_id=p_user and ownership_state='active';
@@ -427,6 +491,12 @@ begin
     where m.crew_id=any(crews) and m.state='active' order by u.id for key share of u;
   perform public._lock_social_participant_accounts(array(select m.social_account_id from public.social_crew_members m
     where m.crew_id=any(crews) and m.state='active'));
+  -- With one fixed actor, account-ID order is canonical pair order across Crews.
+  for other in select distinct m.social_account_id from public.social_crew_members m
+    where m.crew_id=any(crews) and m.state='active' and m.social_account_id<>actor
+    order by m.social_account_id loop
+    perform public._see_again_pair_lock(actor,other);
+  end loop;
   foreach crew in array crews loop
     view:=public.read_social_crew_see_again(actor,profile,crew);
     for entry in select item from jsonb_array_elements(coalesce(view->'items','[]')) item where (item->>'mutual')::boolean loop

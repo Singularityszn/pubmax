@@ -36,6 +36,8 @@ Wrong context, no choice, withdrawal, expiry and invalidation give no hint about
 
 The private component refreshes on focus, visible return and the window boundary.
 It rechecks the server before a choice, withdrawal or Add mate action.
+A same-account refresh keeps the current section and disables its actions.
+An action restores keyboard focus to its result unless the person moved focus elsewhere.
 Failed reads remove previous controls and offer retry.
 Account changes remount the panel and abort old requests.
 No follow, message, notification, email, push or realtime channel is created.
@@ -56,14 +58,18 @@ Paired reads, choices and withdrawals take these locks:
 Roster locks are taken once. A read cannot accumulate account locks in display order.
 The pair key uses both account IDs and is stable across different Crews and contexts.
 Every live eligibility check runs after the locks wait.
-Membership is checked under the Crew lock because host and moderator removals do not otherwise take participant locks.
+Leave, host removal and visibility changes take roster auth/account locks before member, seat and receipt writes.
+Moderator removal takes both participant auth/account locks before its case row.
+Membership is checked again under the Crew lock.
 
 Block writes already take both account locks through 0245.
 Suspension and auth deletion already take their subject account locks.
 Attendance correction holds Crew, subject auth and subject account, in that order.
 Their AFTER triggers take only pair locks and invalidate affected rows in stable pair order.
 They never acquire an additional lower-ordered participant account.
-The existing subject account lock excludes every paired transaction involving that subject.
+Those subject account locks exclude paired transactions involving that subject.
+Crew-scoped raw visibility and Plan status writes take only canonical pair locks.
+Visible-connection export reserves its complete pair set in canonical order across all selected Crews.
 Block and suspension invalidation spans every Crew for those people.
 Unblock and reinstatement do not revive an invalidated pair.
 

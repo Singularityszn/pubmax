@@ -32,6 +32,7 @@ async function open(page: Page) {
   });
   let data: Fixture = { open: true, closesAt: "2099-11-20T08:00:00Z", items: [candidate] };
   let failure = false;
+  let pendingRead: { requested: () => void; released: Promise<void> } | null = null;
   const writes: unknown[] = [];
   await page.route("**/api/social/access", route => route.fulfill({ json: { state: "verified", viewerHandle: "karan", draftScope: "a".repeat(43) } }));
   await page.route("**/api/profiles/*/lot", route => route.fulfill({ json: { handles: [] } }));
@@ -42,6 +43,7 @@ async function open(page: Page) {
       data = { ...data, items: [{ ...candidate, choice: body.action === "choose" ? "chosen" : "withdrawn", mutual: false }] };
       return route.fulfill({ json: { ok: true } });
     }
+    if (pendingRead) { const pending = pendingRead; pendingRead = null; pending.requested(); await pending.released; }
     return failure ? route.fulfill({ status: 503, json: { error: "Unavailable", code: "SOCIAL_CREW_UNAVAILABLE" } }) : route.fulfill({ json: data });
   });
   await page.route(api, route => route.fulfill({ json: crew }));
@@ -54,7 +56,13 @@ async function open(page: Page) {
   await page.goto(path);
   const section = page.getByRole("region", { name: "See a mate again" });
   await expect(section).toBeVisible();
-  return { section, writes, set: (next: Fixture) => { data = next; }, fail: (value: boolean) => { failure = value; } };
+  return { section, writes, holdNextRead: () => {
+    let requested!: () => void, release!: () => void;
+    const seen = new Promise<void>(resolve => { requested = resolve; });
+    const released = new Promise<void>(resolve => { release = resolve; });
+    pendingRead = { requested, released };
+    return { seen, release };
+  }, set: (next: Fixture) => { data = next; }, fail: (value: boolean) => { failure = value; } };
 }
 
 for (const width of [390, 768, 1440]) {
@@ -140,3 +148,38 @@ test("a visible connection remains dismissible after its own choices expire", as
   expect(fixture.writes).toEqual([{ memberId: BEA, context: "friendship", action: "withdraw", consent: false }]);
   await expect(fixture.section.getByRole("button", { name: /Add @/ })).toHaveCount(0);
 });
+
+
+for (const width of [390, 1440]) {
+  for (const action of ["choose", "withdraw", "add"] as const) {
+    test(`keeps keyboard focus through ${action} authorisation at ${width}px`, async ({ page }, info) => {
+      await page.setViewportSize({ width, height: 1000 });
+      await storeThemeChoice(page, width === 390 ? "light" : "dark");
+      const fixture = await open(page);
+      if (action !== "choose") {
+        fixture.set({ open: true, closesAt: "2099-11-20T08:00:00Z", items: [{ ...candidate, choice: "chosen", mutual: true }] });
+        await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+        await expect(fixture.section.getByRole("button", { name: `Add @${candidate.handle} as a mate` })).toBeVisible();
+      } else await fixture.section.getByRole("checkbox").check();
+      const control = fixture.section.getByRole("button", { name: action === "choose" ? `See @${candidate.handle} again as a mate`
+        : action === "withdraw" ? `Dismiss reconnection with @${candidate.handle}` : `Add @${candidate.handle} as a mate` });
+      await control.focus();
+      const before = await fixture.section.boundingBox();
+      const pending = fixture.holdNextRead();
+      try {
+        await control.press("Enter");
+        await pending.seen;
+        await expect(control).toBeFocused();
+        await expect(control).toHaveAttribute("aria-disabled", "true");
+        const during = await fixture.section.boundingBox();
+        expect(during?.y).toBe(before?.y);
+        expect(during?.height).toBe(before?.height);
+        await fixture.section.screenshot({ path: info.outputPath(`pending-${action}-${width}.png`) });
+      } finally { pending.release(); }
+      if (action === "add") await expect(fixture.section.getByRole("link", { name: "Continue to Add mate" })).toBeFocused();
+      else if (action === "choose") await expect(fixture.section.getByRole("button", { name: `Withdraw choice for @${candidate.handle}` })).toBeFocused();
+      else await expect(fixture.section.locator(`[data-member-id="${BEA}"]`)).toBeFocused();
+      await fixture.section.screenshot({ path: info.outputPath(`result-${action}-${width}.png`) });
+    });
+  }
+}
