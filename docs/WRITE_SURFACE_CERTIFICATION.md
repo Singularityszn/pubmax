@@ -374,7 +374,7 @@ owns the access rules for `POST`, `PUT`, and `DELETE /api/message-notifications`
 
 - **Route / methods:** `GET`, `PUT`, `POST`, and `DELETE` share one reviewed
   route. GET reads bounded interaction pages. PUT and DELETE set Cheers,
-  private saves, reposts, comment policy and blocks to explicit desired state.
+  private saves, reposts, comment policy, blocks and mutes to explicit desired state.
   POST creates held comments and quotes, queues reports, changes owned
   notification state, appends feature-request history, or performs named staff
   moderation.
@@ -407,7 +407,9 @@ owns the access rules for `POST`, `PUT`, and `DELETE /api/message-notifications`
   feature metadata. Changing it back restores the latest update from history.
 - **Failure and rollback:** the Social freeze runs before identity, limiter or
   storage work for ordinary writes. Reporting and moderation safety floors stay
-  open. Deployed production selects the durable store and fails closed when
+  open. Private block and mute controls also stay open. Setting and removing
+  these choices retain authentication, target checks and rate limits.
+  Deployed production selects the durable store and fails closed when
   migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
   leaving Social posts, profiles and follows intact.
 
