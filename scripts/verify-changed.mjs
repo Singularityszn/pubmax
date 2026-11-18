@@ -202,7 +202,10 @@ export function checkSteps(plan) {
   if (plan.rls) steps.push({ label: "test:rls", command: "npm", args: ["run", "test:rls"] });
   if (plan.validateData) steps.push({ label: "validate-data", command: "npm", args: ["run", "validate-data"] });
   if (plan.dbTypes) steps.push({ label: "db:types:check", command: "npm", args: ["run", "db:types:check"] });
-  if (plan.e2eSkips) steps.push({ label: "gate:e2e-skips", command: "npm", args: ["run", "gate:e2e-skips"] });
+  if (plan.e2eSkips) {
+    steps.push({ label: "gate:e2e-skips", command: "npm", args: ["run", "gate:e2e-skips"] });
+    steps.push({ label: "typecheck:e2e", command: "npm", args: ["run", "typecheck:e2e"] });
+  }
   if (plan.chatgptMap) steps.push({ label: "test:chatgpt-map", command: "npm", args: ["run", "test:chatgpt-map"] });
   steps.push({ label: "deadcode", command: "npm", args: ["run", "deadcode"] });
   steps.push({ label: "gate:no-python-network", command: "npm", args: ["run", "gate:no-python-network"] });

@@ -31,8 +31,8 @@ const CANONICAL_VENUE_ID = "venue-1g0tt6c";
 const venuePortal = (page: Page) =>
   page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
 
-function dismissFirstRunChrome(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function dismissFirstRunChrome(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
