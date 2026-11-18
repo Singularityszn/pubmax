@@ -147,6 +147,39 @@ afterEach(async () => {
 });
 
 describe("the private Night Receipt on the Plan page", () => {
+  it("ends a stalled read and lets the owner retry", async () => {
+    vi.useFakeTimers();
+    receiptAnswer = ({ signal }) => new Promise<Response>((_resolve, reject) => {
+      signal!.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")), { once: true });
+    });
+    await show();
+    await act(async () => { await vi.advanceTimersByTimeAsync(8_000); });
+    expect(receiptReads()[0]?.signal?.aborted).toBe(true);
+    const retry = container.querySelector<HTMLButtonElement>("button");
+    expect(retry).not.toBeNull();
+    receiptAnswer = ownerOnly;
+    await act(async () => { retry!.click(); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it.each(["ready", "refused"])("restores focus after a %s retry activated without focusing its button", async (answer) => {
+    const main = document.createElement("main");
+    const heading = document.createElement("h1");
+    heading.textContent = "The Plan";
+    main.append(heading);document.body.append(main);
+    try {
+      receiptAnswer = async () => json({ retryable: true }, 503);
+      await show();
+      expect(document.activeElement).toBe(document.body);
+      const retry = container.querySelector<HTMLButtonElement>("button")!;
+      receiptAnswer = answer === "ready" ? ownerOnly : async () => refused();
+      await act(async () => { retry.click(); });
+      await settle();
+      expect(document.activeElement).toBe(answer === "ready" ? receiptOnScreen()?.querySelector("h2") : heading);
+    } finally { main.remove(); }
+  });
+
   it("settles a cancelled read when another provider rotates, then permits recovery", async () => {
     let answer!: (response: Response) => void;
     receiptAnswer = () => new Promise<Response>(resolve => { answer = resolve; });
