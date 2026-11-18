@@ -42,6 +42,6 @@ describe("Social data-file tracing", () => {
       "./public/data/uk_base_venue_id_aliases.json",
     );
     expected.push("./data/generated/venue_detail_index.json", "./data/generated/venue_details.jsonl");
-    expect([...files].sort()).toEqual([...new Set(expected)].sort());
+    expect(files?.slice().sort()).toEqual([...new Set(expected)].sort());
   });
 });
