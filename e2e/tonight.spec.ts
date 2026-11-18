@@ -168,7 +168,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
       configurable: true,
       value: {
         getCurrentPosition(success: PositionCallback) {
-          const testWindow = window as Window & { __tonightLocationRequests: number };
+          const testWindow = window as unknown as Window & { __tonightLocationRequests: number };
           testWindow.__tonightLocationRequests += 1;
           success({
             coords: {
@@ -217,7 +217,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
   await expect(page.getByTestId("tonight-list")).toBeVisible();
   expect(
     await page.evaluate(() =>
-      (window as Window & { __tonightLocationRequests: number })
+      (window as unknown as Window & { __tonightLocationRequests: number })
         .__tonightLocationRequests,
     ),
   ).toBe(0);
@@ -232,7 +232,7 @@ test("location is opt-in, removable, and only used for local walk times", async 
     .click();
   expect(
     await page.evaluate(() =>
-      (window as Window & { __tonightLocationRequests: number })
+      (window as unknown as Window & { __tonightLocationRequests: number })
         .__tonightLocationRequests,
     ),
   ).toBe(1);

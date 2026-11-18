@@ -8,6 +8,8 @@ import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHyd
 import { useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { warmVenueDetail, type VenueDetailLookupResult } from "@/lib/warmVenueDetail";
 import type { Venue } from "@/lib/venues";
+import { curatedCrawls } from "@/lib/curatedCrawls";
+import { planActivationPill } from "@/lib/planActivationPill";
 
 vi.mock("@/lib/warmVenueDetail", () => ({ warmVenueDetail: vi.fn() }));
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -68,4 +70,28 @@ it("uses an already loaded canonical stop for a historical walking link", () => 
   })));
   expect(JSON.parse(host.textContent ?? "{}")).toEqual({ pending: false, ids: ["west", "venue-7qifhm", "east"] });
   expect(warmVenueDetail).not.toHaveBeenCalled();
+});
+
+it("names the restored pub plan after the Christmas walk is hidden", () => {
+  const crawl = curatedCrawls.find((entry) => entry.id === "london-christmas-walk")!;
+  const activePlanRoute = Array.from({ length: 5 }, (_, index) => ({ ...pubs[0]!, id: `pub-${index}` }));
+  function Presentation({ mapped }: { mapped: boolean }) {
+    const result = useMapPlanPresentation({
+      mode: "build", builtIds: [], routeMapped: mapped, activeCrawl: crawl,
+      suggestedRoute: [], activePlanRoute, venueById: new Map(),
+    });
+    const pill = planActivationPill({
+      planActive: result.routeForMap.length >= 2, planStopCount: result.routeForMap.length,
+      fixedWalk: Boolean(result.walkForMap), builtStopCount: 0,
+    });
+    return createElement("output", null, JSON.stringify({ label: pill.label, ids: result.routeForMap.map((stop) => stop.id) }));
+  }
+  act(() => root.render(createElement(Presentation, { mapped: true })));
+  expect(JSON.parse(host.textContent!).label).toBe("View active 13-stop walk");
+  act(() => root.render(createElement(Presentation, { mapped: false })));
+  expect(JSON.parse(host.textContent!)).toEqual({
+    label: "Edit active 5-stop plan", ids: ["pub-0", "pub-1", "pub-2", "pub-3", "pub-4"],
+  });
+  act(() => root.render(createElement(Presentation, { mapped: true })));
+  expect(JSON.parse(host.textContent!).label).toBe("View active 13-stop walk");
 });

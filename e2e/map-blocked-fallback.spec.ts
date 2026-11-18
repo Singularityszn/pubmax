@@ -23,8 +23,8 @@ const PROOF = "artifacts/proof/map-blocked-fallback";
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const MISSING_VENUE_ID = "venue-does-not-exist";
 
-function quietFirstRun(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function quietFirstRun(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -47,7 +47,7 @@ function quietFirstRun(page: Page): Promise<void> {
 // this spec has to see blocked. The GL projects block it for the same reason.
 base.use({ serviceWorkers: "block" });
 
-const test = base.extend<Record<string, never>, { mapLibraryChunk: string }>({
+const test = base.extend<object, { mapLibraryChunk: string }>({
   mapLibraryChunk: [
     async ({ browser }, use) => {
       const context = await browser.newContext();

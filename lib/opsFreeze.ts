@@ -4,8 +4,8 @@
 // owner needs a single switch that makes the social WRITE surfaces read-only
 // instantly, driven by one env var, no deploy beyond a redeploy that picks up
 // the flipped value. Reads keep working, the rest of the product keeps working,
-// and the safety floors (reporting, moderation, account deletion) stay OPEN so a
-// freeze can never trap someone or bury an incident.
+// and safety controls (reporting, moderation, block/mute choices, deletion)
+// stay OPEN so a freeze can never trap someone or bury an incident.
 //
 // This is a pure seam: it reads the env at CALL time (never at module scope), so
 // it is hermetically testable with vi.stubEnv and honours the repo's env-seam
@@ -61,9 +61,9 @@ export const SOCIAL_FROZEN_CODE = "SOCIAL_FROZEN";
  *   const frozen = socialFreezeResponse();
  *   if (frozen) return frozen;
  *
- * GET/read handlers never call this. Reporting, moderation, and account deletion
- * never call this — those are the safety and legal floors that stay open under a
- * freeze.
+ * GET/read handlers never call this. Reporting, moderation, block and mute
+ * changes, and account deletion bypass this guard. People keep control of
+ * their own private choices during a freeze.
  */
 export function socialFreezeResponse(
   env: Record<string, string | undefined> = process.env,

@@ -25,7 +25,9 @@ import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { socialRelationshipBetweenProfiles } from "@/lib/socialRelationships.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles, socialMemoryMutedProfiles } from "@/lib/socialBlockMemory";
+import { matchesSocialPostFeedSelection, type SocialPostFeedLane } from "@/lib/socialPostFeedMembership";
 import { isLondonLaneArea } from "@/lib/socialLondonLane";
+import { compareSocialPostPositions, type SocialPostPage } from "@/lib/socialPostWindow";
 
 export type SocialPostActor = {
   accountId: string;
@@ -44,8 +46,6 @@ export type SocialPostRelationships = {
    */
   mutedProfileIds?: Set<string>;
 };
-
-type SocialPostFeedLane = "discover" | "nearby" | "following";
 
 type SocialPostFeedInput = {
   lane: SocialPostFeedLane;
@@ -169,7 +169,7 @@ export type SocialPostStore = {
    */
   listOwned(owner: SocialPostActor, limit: number): Promise<SocialPostDTO[]>;
   readServerProjection(id: string, viewer: SocialPostActor): Promise<SocialPostServerProjection | null>;
-  feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostFeedPage>;
+  feed(viewer: SocialPostActor, input: SocialPostFeedInput): Promise<SocialPostPage>;
   /**
    * ONE AUTHOR'S POSTS, as this viewer may read them: the profile's Posts
    * section. Anyone verified reads the public ones, a mutual follow also reads
@@ -333,15 +333,8 @@ function resolvedLimit(value: number | undefined): number {
   return value;
 }
 
-function newest(left: SocialPost, right: SocialPost): number {
-  const byTime = right.createdAt.localeCompare(left.createdAt);
-  return byTime || right.id.localeCompare(left.id);
-}
-
 function isBefore(post: SocialPost, cursor: Cursor | null): boolean {
-  if (!cursor) return true;
-  return post.createdAt < cursor.createdAt ||
-    (post.createdAt === cursor.createdAt && post.id < cursor.id);
+  return !cursor || compareSocialPostPositions(post, cursor) > 0;
 }
 
 function canRead(
@@ -425,12 +418,9 @@ function feedAllows(
   tag?: string | null,
 ): boolean {
   if (!canRead(post, viewer, relationships)) return false;
-  if (lane === "discover" && !tagAllows(post, tag)) return false;
+  if (!matchesSocialPostFeedSelection(post, lane, area, tag)) return false;
   if (relationships.mutedProfileIds?.has(post.authorProfileId)) return false;
-  if (lane === "discover") return post.visibility === "public";
-  if (lane === "nearby") return post.visibility === "public" && post.area === area;
-  // "Somebody you follow" is a short list, so it would name a hidden author.
-  if (post.nameHidden) return false;
+  if (lane !== "following") return true;
   if (!relationships.followingProfileIds.has(post.authorProfileId)) return false;
   return post.visibility === "public" ||
     (post.visibility === "friends" && relationships.mutualProfileIds.has(post.authorProfileId));
@@ -596,7 +586,7 @@ function makePage(
   viewer: SocialPostActor,
   input: SocialPostFeedInput,
   relationships: SocialPostRelationships,
-): SocialPostFeedPage {
+): SocialPostPage {
   const limit = resolvedLimit(input.limit);
   const area = input.area ?? null;
   if (input.lane === "nearby" && !area) {
@@ -606,12 +596,13 @@ function makePage(
   const matches = rows
     .filter((post) => feedAllows(post, viewer, relationships, input.lane, area, input.tag))
     .filter((post) => isBefore(post, cursor))
-    .sort(newest);
+    .sort(compareSocialPostPositions);
   const pageRows = matches.slice(0, limit);
   const hasMore = matches.length > limit;
   const last = pageRows.at(-1);
   return {
     posts: pageRows.map((post) => projectedPost(post, viewer, relationships)),
+    scannedThrough: last ? { createdAt: last.createdAt, id: last.id } : null,
     nextCursor: hasMore && last
       ? encodeCursor({
           v: 1,
@@ -749,7 +740,7 @@ export function createMemorySocialPostStore(options: {
     async listOwned(owner, limit) {
       return [...rows.values()]
         .filter((post) => post.authorProfileId === owner.profileId && post.status !== "removed")
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id.localeCompare(a.id))
+        .sort(compareSocialPostPositions)
         .slice(0, limit)
         .map((post) => socialPostDTO(post, { exactVenue: true, viewerProfileId: owner.profileId }));
     },
@@ -773,7 +764,7 @@ export function createMemorySocialPostStore(options: {
       const matches = [...rows.values()]
         .filter((post) => authorAllows(post, viewer, author.profileId, relationship))
         .filter((post) => isBefore(post, cursor))
-        .sort(newest);
+        .sort(compareSocialPostPositions);
       const pageRows = matches.slice(0, limit);
       const last = pageRows.at(-1);
       return {
@@ -787,7 +778,7 @@ export function createMemorySocialPostStore(options: {
       const limit = resolvedLimit(input.limit);
       const cursor = decodeCursor(input.cursor, LONDON_LANE_CURSOR_SCOPE, "london", null);
       const matches = (await keepLondonLane([...rows.values()].filter((post) => isBefore(post, cursor))))
-        .sort(newest);
+        .sort(compareSocialPostPositions);
       const pageRows = matches.slice(0, limit);
       const last = pageRows.at(-1);
       return {
@@ -988,7 +979,7 @@ async function taggedDiscoverPage(
   tag: string,
   cursor: Cursor | null,
   limit: number,
-): Promise<SocialPostFeedPage> {
+): Promise<SocialPostPage> {
   const { matched, before, exhausted } = await scanDiscoverLane(
     viewer.profileId,
     (rows) => rows.filter((post) => tagAllows(post, tag)),
@@ -1001,6 +992,7 @@ async function taggedDiscoverPage(
       exactVenue: Boolean(post.venueId),
       viewerProfileId: viewer.profileId,
     })),
+    scannedThrough: before,
     nextCursor: !exhausted && before
       ? encodeCursor({ v: 1, lane: "discover", area: null, createdAt: before.createdAt, id: before.id }, viewer.profileId)
       : null,
@@ -1229,6 +1221,7 @@ export const supabaseSocialPostStore: SocialPostStore = {
           exactVenue: Boolean(post.venueId),
           viewerProfileId: viewer.profileId,
         })),
+        scannedThrough: last ? { createdAt: last.createdAt, id: last.id } : null,
         nextCursor: posts.length > limit && last
           ? encodeCursor({ v: 1, lane: input.lane, area, createdAt: last.createdAt, id: last.id }, viewer.profileId)
           : null,

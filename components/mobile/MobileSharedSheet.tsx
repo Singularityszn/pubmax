@@ -74,6 +74,20 @@ function useSheetExit({ kind, title, kicker, children, sheetRef, sheetHeight, ca
   return { visibleExit, exitHeight, closeExplicitly };
 }
 
+function sheetCloseLabel({ backLabel, homeTitle, closeLabel, kind, title }: {
+  backLabel: string | null;
+  homeTitle: string;
+  closeLabel: string | undefined;
+  kind: MapSheetKind | null;
+  title: string;
+}): string {
+  if (backLabel) return homeActionLabel(homeTitle);
+  if (closeLabel != null) return closeLabel;
+  if (kind === "venue") return "Close venue detail";
+  if (kind === "planner") return "Close planner";
+  return `Close ${title}`;
+}
+
 /**
  * The mobile bottom sheet, rebuilt as a bottom-anchored flex column:
  *
@@ -97,6 +111,8 @@ export default function MobileSharedSheet({
   kicker,
   initialSnap = "half",
   requestedSnap,
+  surface = "glass",
+  mapInteractive = false,
   onClose,
   onDismiss = onClose,
   closeLabel,
@@ -113,6 +129,8 @@ export default function MobileSharedSheet({
   kicker?: string;
   initialSnap?: MapSheetDetent;
   requestedSnap?: MapSheetDetent;
+  surface?: "glass" | "solid";
+  mapInteractive?: boolean;
   /** Home: leave every open sheet and return to the map. */
   onClose: () => void;
   /** Gesture dismiss: Back to parent when one exists, otherwise Home. */
@@ -323,9 +341,10 @@ export default function MobileSharedSheet({
   // <body> and owns its own strict-modal trap over this sheet. A strict-modal
   // policy here inerted that dialog, so a new drinker could see the signup form
   // and type nothing into it.
-  const sheetModal = mobileSheetIsModal(sheetSnap);
+  const mapRemainsInteractive = mapInteractive && sheetSnap !== "full";
+  const sheetModal = !mapRemainsInteractive && mobileSheetIsModal(sheetSnap);
   useFocusTrap(
-    Boolean(kind) && mobileSheetFocusContained(sheetSnap),
+    Boolean(kind) && !mapRemainsInteractive && mobileSheetFocusContained(sheetSnap),
     sheetRef,
     "map-surface",
     previousFocus,
@@ -336,14 +355,7 @@ export default function MobileSharedSheet({
   // At the first level Home IS this sheet's close, so it keeps the sheet's own
   // name. Deeper down that name would be a lie: the control leaves every open
   // sheet, not this one, so it says where the reader lands instead.
-  const closeButtonLabel = backLabel
-    ? homeActionLabel(homeTitle)
-    : closeLabel ??
-      (kind === "venue"
-        ? "Close venue detail"
-        : kind === "planner"
-          ? "Close planner"
-          : `Close ${title}`);
+  const closeButtonLabel = sheetCloseLabel({ backLabel, homeTitle, closeLabel, kind, title });
 
   const sectionStyle: React.CSSProperties = {
     maxHeight: `${Math.max(0, visibleExit ? exitHeight : sheetHeight)}px`,
@@ -356,6 +368,7 @@ export default function MobileSharedSheet({
   return createPortal(
     <div
       className="mobileSheetPortal"
+      data-map-interactive={mapRemainsInteractive ? "true" : undefined}
       data-sheet-kind={presented.kind}
       data-sheet-exiting={visibleExit ? "true" : undefined}
       inert={visibleExit ? true : undefined}
@@ -373,6 +386,7 @@ export default function MobileSharedSheet({
       />
       <section
         ref={sheetRef}
+        data-surface={surface}
         data-sheet-motion={
           dragging ? "dragging" : settling ? "settling" : entering ? "entering" : "idle"
         }

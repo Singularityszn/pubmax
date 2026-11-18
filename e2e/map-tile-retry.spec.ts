@@ -172,7 +172,7 @@ test("/map re-fetches failed vector tile identities without rebuilding the style
     return !!camera && !camera.moving && camera.zoom >= 11;
   })).toBe(true);
   const camera = await page.evaluate(() => (
-    window as Window & { __pubmaxMapCamera: { read: () => { zoom: number; center: [number, number] } } }
+    window as unknown as Window & { __pubmaxMapCamera: { read: () => { zoom: number; center: [number, number] } } }
   ).__pubmaxMapCamera.read());
   targetZoom = camera.zoom + 1;
   const z = Math.floor(targetZoom);

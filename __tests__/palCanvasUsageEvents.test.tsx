@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const boundary = vi.hoisted(() => ({
   maps: [] as Array<{
-    emit: (event: string) => void;
+    emit: (event: string, payload?: unknown) => void;
+    cancelPendingTileRequestsWhileZooming: boolean;
     removed: boolean;
   }>,
   placements: [] as Array<[number, number]>,
@@ -57,15 +58,17 @@ vi.mock("maplibre-gl", () => ({
   NavigationControl: class {},
   Map: class {
     removed = false;
-    private handlers = new Map<string, Set<() => void>>();
+    cancelPendingTileRequestsWhileZooming: boolean;
+    private handlers = new Map<string, Set<(payload?: unknown) => void>>();
     private canvas = document.createElement("canvas");
 
-    constructor(private options: { container: HTMLElement }) {
+    constructor(private options: { container: HTMLElement; cancelPendingTileRequestsWhileZooming?: boolean }) {
+      this.cancelPendingTileRequestsWhileZooming = options.cancelPendingTileRequestsWhileZooming ?? true;
       this.options.container.append(this.canvas);
       boundary.maps.push(this);
     }
     on(event: string, ...args: unknown[]) {
-      const listener = args.at(-1) as () => void;
+      const listener = args.at(-1) as (payload?: unknown) => void;
       if (!this.handlers.has(event)) this.handlers.set(event, new Set());
       this.handlers.get(event)!.add(listener);
       return this;
@@ -78,7 +81,7 @@ vi.mock("maplibre-gl", () => ({
       const wrapped = () => { this.off(event, wrapped); listener(); };
       return this.on(event, wrapped);
     }
-    emit(event: string) { for (const listener of [...this.handlers.get(event) ?? []]) listener(); }
+    emit(event: string, payload?: unknown) { for (const listener of [...this.handlers.get(event) ?? []]) listener(payload); }
     getContainer() { return this.options.container; }
     getCanvas() { return this.canvas; }
     getCanvasContainer() { return this.options.container; }
@@ -153,6 +156,7 @@ import type { Venue } from "@/lib/venues";
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { nextAreaCameraFocus } from "@/lib/mapCameraFocus";
 import { applyPalMapCommand, groundPalMapResult, resetPalMap } from "@/lib/palMapCommands";
+import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -178,6 +182,8 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
   let frames: Map<number, FrameRequestCallback>;
   let nextFrame: number;
   let clock: number;
+  let reveals: unknown[];
+  const recordReveal = (event: Event) => reveals.push((event as CustomEvent).detail);
 
   async function frame() {
     await act(async () => {
@@ -215,6 +221,8 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     frames = new Map();
     nextFrame = 0;
     clock = 0;
+    reveals = [];
+    window.addEventListener(MAP_PIN_REVEAL_EVENT, recordReveal);
     vi.useFakeTimers();
     vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
       frames.set(++nextFrame, callback);
@@ -248,6 +256,7 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
   });
   afterEach(async () => {
     await act(async () => root.unmount());
+    window.removeEventListener(MAP_PIN_REVEAL_EVENT, recordReveal);
     resetPalMap();
     host.remove();
     showLegRouteOnMap(null);
@@ -255,6 +264,77 @@ describe("canvas Pal delivery under TRACKING_PLAN 5.7 and F12 account isolation"
     vi.restoreAllMocks();
     vi.useRealTimers();
     vi.unstubAllGlobals();
+  });
+
+  describe.each([false, true])("opening tile lifecycle, reduced motion: %s", (reducedMotion) => {
+    const tile = {
+      sourceId: "openmaptiles",
+      source: { type: "vector" },
+      tile: { state: "loaded", tileID: { key: "opening-tile" } },
+    };
+
+    it("preserves flight tiles until the first idle, then restores cancellation", async () => {
+      boundary.reducedMotion = reducedMotion;
+      await render();
+      const map = boundary.maps.at(-1)!;
+      expect(map.cancelPendingTileRequestsWhileZooming).toBe(reducedMotion);
+
+      await act(async () => map.emit("idle"));
+
+      expect(map.cancelPendingTileRequestsWhileZooming).toBe(true);
+    });
+
+    it("carries a current-style tile into the flight reveal only with motion", async () => {
+      boundary.reducedMotion = reducedMotion;
+      await render();
+      const map = boundary.maps.at(-1)!;
+      await act(async () => {
+        map.emit("style.load");
+        map.emit("sourcedata", tile);
+        map.emit("render");
+      });
+      await frame();
+      expect(reveals).toEqual([]);
+
+      await act(async () => map.emit("render"));
+
+      if (reducedMotion) {
+        expect(reveals).toEqual([]);
+        await act(async () => {
+          map.emit("sourcedata", tile);
+          map.emit("render");
+        });
+      }
+      expect(reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+      await act(async () => map.emit("render"));
+      expect(reveals).toHaveLength(1);
+    });
+
+    it("requires fresh basemap paint after a style replacement", async () => {
+      boundary.reducedMotion = reducedMotion;
+      await render();
+      await ready();
+      const map = boundary.maps.at(-1)!;
+      expect(reveals).toEqual([]);
+      await act(async () => {
+        map.emit("sourcedata", tile);
+        map.emit("render");
+      });
+      expect(reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+
+      await ready();
+      await act(async () => map.emit("render"));
+      expect(reveals).toEqual([{ reason: "tiles", generation: 1 }]);
+
+      await act(async () => {
+        map.emit("sourcedata", tile);
+        map.emit("render");
+      });
+      expect(reveals).toEqual([
+        { reason: "tiles", generation: 1 },
+        { reason: "tiles", generation: 2 },
+      ]);
+    });
   });
 
   it.each(["pointer", "touch"])("holds Pal framing during stationary %s contact on a numbered pick", async (contact) => {

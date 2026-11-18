@@ -40,7 +40,6 @@ import {
 } from "@/lib/cityPreference";
 
 import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
-import "./navigation.css";
 
 // Shared app-wide top navigation. One bar, used on every APP page (map, feed,
 // discover, crawls, profile, borough, admin) so navigation never duplicates or

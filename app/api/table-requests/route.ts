@@ -19,7 +19,7 @@
 // nothing here is built for it. It never echoes a contact: the answer names an
 // outcome and nothing else, so neither the operator's address nor the
 // person's own contact comes back. And it changes no rank, pin colour, price
-// band or order (__tests__/tableRequestFence.test.ts).
+// band or order.
 
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";

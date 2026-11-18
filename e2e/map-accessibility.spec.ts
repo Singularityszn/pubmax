@@ -123,7 +123,7 @@ async function expectReadableGhostContrast(control: Locator): Promise<void> {
       const nums = raw.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
       return nums.length >= 4 && nums[3] === 0;
     };
-    let cursor: HTMLElement | null = node;
+    let cursor: Element | null = node;
     let background = getComputedStyle(node).backgroundColor;
     while (cursor && clear(background)) {
       cursor = cursor.parentElement;
@@ -172,8 +172,8 @@ async function applyTheme(
   }
 }
 
-function dismissFirstRunChrome(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function dismissFirstRunChrome(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -637,7 +637,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
     }
     await expect(search).toHaveAttribute(
       "aria-activedescendant",
-      await venue.getAttribute("id"),
+      (await venue.getAttribute("id")) ?? "",
     );
     await page.keyboard.press("Enter");
     await expect

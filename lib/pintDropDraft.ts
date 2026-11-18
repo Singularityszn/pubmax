@@ -1,3 +1,4 @@
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropSignInKeys";
 import {
   cleanDrinkMeasure,
   cleanDrinkMeasureLabel,
@@ -212,8 +213,7 @@ export function writeLastLoggedDrink(storage: Pick<Storage, "setItem"> | null, a
   } catch { /* Storage may be unavailable. */ }
 }
 
-export const PINT_DROP_SIGN_IN_HANDOFF_KEY = "pubmax:pint-drop-sign-in:v1";
-export const PINT_DROP_SIGN_IN_RETURN_PARAM = "pintDropReturn";
+export { PINT_DROP_SIGN_IN_HANDOFF_KEY, PINT_DROP_SIGN_IN_RETURN_PARAM } from "@/lib/pintDropSignInKeys";
 const SIGN_IN_HANDOFF_LIFETIME = 30 * 60_000;
 
 export function writePintDropSignInHandoff(storage: Pick<Storage, "setItem"> | null, venueId: string, draft: PintDropDraft, token: string, now = Date.now()): void {

@@ -432,7 +432,7 @@ describe("Social account boundary", () => {
           if (href.startsWith("/api/social/posts")) {
             aFeedReads += 1;
             if (aFeedReads === 1) {
-              return Promise.resolve(json({ posts: [A_FEED_POST], nextCursor: "a-next" }));
+              return Promise.resolve(json({ posts: [A_FEED_POST], nextCursor: "a-next", scannedThrough: A_FEED_POST }));
             }
             return lateAMore.promise;
           }

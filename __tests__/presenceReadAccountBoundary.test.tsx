@@ -22,6 +22,7 @@ vi.mock("@/lib/nativePlatform", () => ({ nativePlatform: () => null, isNativeApp
 vi.mock("@/lib/authClient", async (importOriginal) => ({
   ...await importOriginal<typeof import("@/lib/authClient")>(),
   isAuthConfigured: () => true,
+  hasStoredBrowserSession: () => provider.session !== null,
   getAccessToken: async () => provider.session?.access_token ?? null,
   ensureSupabaseBrowser: async () => ({ auth: {
     getSession: async () => ({ data: { session: provider.session }, error: null }),
@@ -84,6 +85,10 @@ function AuthProbe() {
 }
 
 async function switchAccount(id: string | null): Promise<void> {
+  if (!provider.subscriber) await act(async () => {
+    provider.session = id ? account(id) : null;
+    window.dispatchEvent(new Event("storage"));
+  });
   expect(provider.subscriber).not.toBeNull();
   await act(async () => {
     provider.session = id ? account(id) : null;
@@ -141,7 +146,7 @@ beforeEach(async () => {
   });
   await switchAccount("account-a");
   expect(auth.user?.id).toBe("account-a");
-  expect(auth.identityResolved).toBe(true);
+  await vi.waitFor(() => expect(auth.identityResolved).toBe(true));
 });
 
 afterEach(async () => {

@@ -214,7 +214,7 @@ for (const { width, height, delayedRoad, southEast = false } of [
         context.font = style.font;
         context.letterSpacing = style.letterSpacing;
         return {
-          textWidth: context.measureText(element.placeholder).width,
+          textWidth: context.measureText((element as HTMLInputElement).placeholder).width,
           availableWidth: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
         };
       });

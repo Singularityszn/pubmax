@@ -160,6 +160,12 @@ jobs:
         # Generates the typedRoutes link types before the native tsc pass.
         run: npm run typecheck
 
+      - name: Typecheck e2e
+        if: steps.scope.outputs.scope != 'docs'
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        run: npm run typecheck:e2e
+
 
   # The TypeScript 6 check runs in a job of its own, beside lint (captain,
   # 2 Nov 2026): it took 2:15 to 5:38 on hosted runners, and inside the lint

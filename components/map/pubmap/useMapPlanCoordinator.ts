@@ -8,10 +8,13 @@ import type { CrawlMode } from "@/components/map/ControlRail";
 import { ownsCrawlUrlEntry } from "@/components/map/useCrawlUrl";
 import { readMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { buildMapSeed } from "@/lib/pubMap";
+import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { buildRouteLegs } from "@/lib/routeLegs";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { isPubVenue } from "@/lib/venueKindFilters";
 import type { Venue } from "@/lib/venues";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedWalkKm, curatedWalkMinutes, type MapRouteStop } from "@/lib/curatedWalk";
 
 type InitialPlanState = {
   mode: CrawlMode;
@@ -19,6 +22,7 @@ type InitialPlanState = {
   routeMapped: boolean;
   planningOpen: boolean;
   nightArea: NightAreaSlug | null;
+  crawlId?: string;
 };
 
 type PlanRequest = Pick<InitialPlanState, "mode" | "builtIds" | "routeMapped">;
@@ -28,12 +32,14 @@ function canonicalMapStops(ids: string[]): string[] {
 }
 
 /** The ordered walk a map seed asks to draw, or "" when it asks for none. */
-function requestedWalk({ mode, builtIds, routeMapped }: PlanRequest): string {
-  return mode === "build" && routeMapped && builtIds.length >= 2 ? builtIds.join(",") : "";
+function requestedWalk({ mode, builtIds, routeMapped, crawlId }: PlanRequest & { crawlId?: string }): string {
+  if (mode !== "build") return "";
+  if (crawlId) return `crawl:${crawlId}`;
+  return routeMapped && builtIds.length >= 2 ? builtIds.join(",") : "";
 }
 
 /** How many walking-route links a mounted map adopted, and the pub the last one named. */
-export type WalkRequest = { count: number; selectedVenueId: string };
+export type WalkRequest = { count: number; selectedVenueId: string; search?: string };
 
 /** Owns mobile planning activation state so PubMap does not coordinate it piecemeal. */
 export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
@@ -75,7 +81,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
   // sync never wrote; its own writes never overwrite the reader's stops or map
   // a walk they hid.
   const request = useMemo(() => buildMapSeed(search), [search]);
-  const requestKey = requestedWalk(request);
+  const requestKey = mapSeedNeedsCuratedCrawlLookup(search) ? requestedWalk(request) : "";
   const observedEntry = useRef<{ state: unknown; length: number; search: string } | null>(null);
   useEffect(() => {
     const entry = { state: window.history.state as unknown, length: window.history.length, search: window.location.search };
@@ -98,6 +104,7 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
       setWalkRequest((current) => ({
         count: current.count + 1,
         selectedVenueId: request.selectedVenueId,
+        search,
       }));
     });
     return () => {
@@ -112,8 +119,8 @@ export function useMapPlanCoordinator(initial: InitialPlanState, search = "") {
     setPlannedNightArea(nightArea);
   }, [mapRoute, setBuiltIds, setMode]);
 
-  const releasePlannerMode = useCallback(() => {
-    setPlan((current) => current.builtIds.length === 0 && current.mode === "build"
+  const releasePlannerMode = useCallback((keepFixedWalk = false) => {
+    setPlan((current) => keepFixedWalk !== true && current.builtIds.length === 0 && current.mode === "build"
       ? { ...current, routeMapped: false, mode: "suggest" }
       : current);
   }, []);
@@ -162,10 +169,12 @@ export function useMapPlanPresentation({
   activePlanRoute,
   venueById,
   settledBuiltStopIds,
+  activeCrawl,
 }: {
   mode: CrawlMode;
   builtIds: string[];
   routeMapped: boolean;
+  activeCrawl?: CuratedCrawl | null;
   suggestedRoute: Venue[];
   activePlanRoute: Venue[];
   venueById: ReadonlyMap<string, Venue>;
@@ -183,12 +192,19 @@ export function useMapPlanPresentation({
   const route = mode === "suggest" ? suggestedRoute : builtRoute;
   const routePending = routeMapped && mode === "build" && builtIds.length >= 2
     && builtIds.some((id) => !venueById.has(canonicalBundledVenueId(id)) && !settledBuiltStopIds?.has(id));
-  const routeMappedActive = routeMapped && route.length >= 2;
-  const routeForMap = useMemo(
-    () => (routeMappedActive ? route : activePlanRoute),
-    [activePlanRoute, route, routeMappedActive],
+  const walk = mode === "build" ? activeCrawl?.walk : undefined;
+  const routeMappedActive = routeMapped && (walk ? walk.stops.length >= 2 : route.length >= 2);
+  const walkForMap = routeMappedActive ? walk : undefined;
+  const routeForMap = useMemo<MapRouteStop[]>(
+    () => routeMappedActive ? walk?.stops ?? route : activePlanRoute,
+    [activePlanRoute, route, routeMappedActive, walk],
   );
-  const routeForMapLegs = useMemo(() => buildRouteLegs(routeForMap, "walk"), [routeForMap]);
+  const routeForMapLegs = useMemo(() => {
+    const summary = buildRouteLegs(routeMappedActive ? route : activePlanRoute, "walk");
+    if (!walk || !routeMappedActive) return summary;
+    const totalKm = curatedWalkKm(walk);
+    return { ...summary, totalKm, totalMinutes: curatedWalkMinutes(walk) };
+  }, [activePlanRoute, route, routeMappedActive, walk]);
 
-  return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs };
+  return { route, routePending, routeMappedActive, routeForMap, routeForMapLegs, walkForMap };
 }
