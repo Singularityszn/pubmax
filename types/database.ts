@@ -5308,6 +5308,95 @@ export type Database = {
           },
         ];
       };
+      social_crew_occurrence_cancellations: {
+        Row: {
+          crew_id: string;
+          prior_authority_revision: number;
+          prior_status: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          cancelled_at: string;
+        };
+        Insert: {
+          crew_id: string;
+          prior_authority_revision: number;
+          prior_status: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          cancelled_at?: string;
+        };
+        Update: {
+          crew_id?: string;
+          prior_authority_revision?: number;
+          prior_status?: string;
+          reason?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          cancelled_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_occurrence_cancellations_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: true;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_crew_removal_corrections: {
+        Row: {
+          id: string;
+          crew_id: string;
+          subject_user_id: string;
+          member_id: string;
+          social_account_id: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          crew_id: string;
+          subject_user_id: string;
+          member_id: string;
+          social_account_id: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          crew_id?: string;
+          subject_user_id?: string;
+          member_id?: string;
+          social_account_id?: string;
+          reason?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_removal_corrections_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: false;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_crew_removal_corrections_subject_user_id_fkey";
+            columns: ["subject_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_crews: {
         Row: {
           id: string;
@@ -7656,6 +7745,12 @@ export type Database = {
         };
         Returns: string;
       };
+      _lock_social_participant_accounts: {
+        Args: {
+          p_accounts: string[] | null;
+        };
+        Returns: undefined;
+      };
       _reconcile_plan_account_join: {
         Args: {
           p_plan_id: string | null;
@@ -7669,6 +7764,26 @@ export type Database = {
           p_user_id: string | null;
         };
         Returns: string;
+      };
+      _release_departed_crew_places: {
+        Args: {
+          p_crew: string | null;
+        };
+        Returns: number;
+      };
+      _social_crew_admission_ineligible: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
+      };
+      _social_crew_admission_refused: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
       };
       _social_crew_begin_write: {
         Args: {
@@ -7871,6 +7986,16 @@ export type Database = {
           post_id: string;
           review_state: string;
         }[];
+      };
+      cancel_social_crew_occurrence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_crew_id: string | null;
+          p_expected_revision: number | null;
+          p_expected_status: string | null;
+          p_reason: string | null;
+        };
+        Returns: Json;
       };
       charge_round_price_line: {
         Args: {
@@ -8135,6 +8260,15 @@ export type Database = {
         Args: {
           p_nonce_hash: string | null;
           p_provider: string | null;
+        };
+        Returns: Json;
+      };
+      correct_social_crew_removal_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_crew_id: string | null;
+          p_member_id: string | null;
+          p_reason: string | null;
         };
         Returns: Json;
       };
@@ -9569,6 +9703,12 @@ export type Database = {
           p_key: string | null;
         };
         Returns: boolean;
+      };
+      release_departed_social_crew_places: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: Json;
       };
       release_pub_pal_voice_trial: {
         Args: {

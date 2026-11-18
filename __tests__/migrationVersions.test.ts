@@ -59,6 +59,21 @@ const GRANDFATHERED_DUPLICATE_LABEL_FILES = {
   ],
 } as const;
 
+// The four-digit label is what the captain applies by ("apply 0217"); the
+// fourteen-digit timestamp prefix is what a fresh replay applies by. When the
+// two orders disagree, the instruction stops describing the sequence the
+// database actually ran. Files holding a grandfathered duplicate label are
+// excluded here because the collision table above already governs their order.
+// GRANDFATHERED_LABEL_TIMESTAMP_INVERSIONS may only ever SHRINK: a renamed
+// file leaves the list, and a new inversion is a renamed file, not a new row.
+const GRANDFATHERED_LABEL_TIMESTAMP_INVERSIONS: Record<string, string> = {
+  "0076": "20260806160000 replays before 0075's 20260806235944; shipped and recorded",
+  "0077": "20260806162000 replays before 0075's 20260806235944; shipped and recorded",
+  "0109": "20260816190000 replays before 0108's 20260816210000; shipped and recorded",
+  "0188": "20261017120000 replays before 0187's 20261017180000; shipped and recorded",
+  "0216": "20261031120000 replays before 0215's 20261031170000; shipped and recorded",
+};
+
 // A MIGRATION LANDS WITH THE WAY BACK OUT, and from label 0092 that is a rule
 // rather than a habit. The audit found 0120 and 0121 shipped without one, so a
 // social-connection lifecycle and a Wanted promotion could be applied and not
@@ -129,6 +144,30 @@ describe("Supabase migration versions", () => {
         `migration ${label} is claimed by ${files.join(" and ")}; renumber the later one`,
       ).toBe(true);
     }
+  });
+
+  it("keeps label order and replay order telling the same story", () => {
+    const collidedLabels = new Set(
+      Object.keys(GRANDFATHERED_DUPLICATE_LABEL_FILES),
+    );
+    const rows = migrationFiles("supabase/migrations")
+      .map((name) => ({ name, timestamp: name.slice(0, 14), label: labelOf(name) }))
+      .filter(
+        (row): row is { name: string; timestamp: string; label: string } =>
+          Boolean(row.label) && !collidedLabels.has(row.label as string),
+      )
+      .sort((a, b) => Number(a.label) - Number(b.label));
+
+    const inverted: string[] = [];
+    let latestTimestamp = "";
+    for (const row of rows) {
+      if (row.timestamp < latestTimestamp) inverted.push(row.label);
+      if (row.timestamp > latestTimestamp) latestTimestamp = row.timestamp;
+    }
+
+    expect(inverted.sort()).toEqual(
+      Object.keys(GRANDFATHERED_LABEL_TIMESTAMP_INVERSIONS).sort(),
+    );
   });
 
   it("gives every rollback its own label too, and one per migration label", () => {

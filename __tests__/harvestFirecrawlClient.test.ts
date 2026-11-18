@@ -138,6 +138,42 @@ describe("per-run request budget", () => {
   });
 });
 
+describe("source policy fence", () => {
+  it("refuses a URL the harvest policy refuses, before any request or budget spend", async () => {
+    const fetchImpl = vi.fn(async () => okScrape("# page"));
+    const budget = createHarvestBudget(5);
+    const client = createFirecrawlClient({
+      apiKey: "fc-test",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      budget,
+      sleepImpl: noSleep,
+    });
+
+    const outcome = await client!.scrape("http://10.0.0.1/menu");
+
+    expect(outcome.ok).toBe(false);
+    if (outcome.ok) throw new Error("expected a policy refusal");
+    expect(outcome.failure.reason).toBe("policy-refused");
+    expect(outcome.failure.attempts).toBe(0);
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(budget.spent()).toBe(0);
+  });
+
+  it("still scrapes a permitted operator URL", async () => {
+    const fetchImpl = vi.fn(async () => okScrape("# page"));
+    const client = createFirecrawlClient({
+      apiKey: "fc-test",
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      budget: createHarvestBudget(5),
+      sleepImpl: noSleep,
+    });
+
+    const outcome = await client!.scrape("https://example.com/menu");
+    expect(outcome.ok).toBe(true);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("bounded retries", () => {
   it("retries a 5xx up to the attempt ceiling, then reports the failure", async () => {
     const fetchImpl = vi.fn(async () => new Response("boom", { status: 503 }));

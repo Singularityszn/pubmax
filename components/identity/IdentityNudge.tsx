@@ -40,8 +40,6 @@ import {
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 
 const IDENTITY_SURFACE = "identity-nudge";
-import "@/app/auth/auth.css";
-import "./identityNudge.css";
 
 // Honest, trigger-specific value copy — no dark patterns, no fake urgency.
 const COPY: Record<IdentityNudgeTrigger, { title: string; body: string }> = {

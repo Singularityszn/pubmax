@@ -938,16 +938,16 @@ export function buildRoute(ctx: SceneCtx) {
   // drawn the way a maps app draws directions: thick, solid, on its own edge,
   // and wider as the reader leans in.
   // Three layers off the one `route-line` source, whose single LineString
-  // feature carries a `source` property ("ors" | "straight", set by
-  // lib/walkRoute legsToLineString):
+  // feature carries a `source` property from lib/walkRoute or lib/curatedWalk
+  // ("ors" | "curated" | "straight"):
   //   1. casing — an opposite-luminance edge so the line stays legible over both
   //      the pale Positron paper and the OLED-dark basemap (the two-layer
   //      casing/colour idiom copied from tube-lines above).
-  //   2. the solid coloured line — full strength for a real routed line ("ors"),
+  //   2. the solid coloured line, full strength for routed or curated paths,
   //      dropped to a faint underlay for the straight fallback so the dash reads.
   //   3. the marching-ants dash — shown ONLY for the "straight" fallback, where
   //      it now MEANS "approximate, not routed"; hidden for a real routed line.
-  // Opacity is data-driven off the feature's `source`, so the ors/straight look
+  // Opacity is data-driven off the feature's `source`, so the solid/dashed look
   // flips with the data (and survives a theme setStyle rebuild) without any
   // imperative repaint. The dash animation (RAF loop in PubMapCanvas) is already
   // reduced-motion gated, so a static dash holds for reduced-motion users.
@@ -1965,17 +1965,17 @@ export function buildRouteStops(ctx: SceneCtx) {
   const { map, tokens, dark, textFont, addLayerOnce, routeStops } = ctx;
   // --- Route stops (numbered) above everything.
   if (!map.getSource("route-stops")) {
-    map.addSource("route-stops", { type: "geojson", data: routeStops });
+    map.addSource("route-stops", { type: "geojson", data: routeStops, promoteId: "id" });
   }
   addLayerOnce({
     id: "route-stops",
     type: "circle",
     source: "route-stops",
     paint: {
-      "circle-color": tokens.inkDeep,
-      "circle-radius": 16,
+      "circle-color": ["case", ["boolean", ["feature-state", "selected"], false], tokens.routeLine, tokens.inkDeep],
+      "circle-radius": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 8, 16], 15, 16],
       "circle-stroke-color": tokens.brassBright,
-      "circle-stroke-width": 2.5,
+      "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 1.5, 2.5], 15, 2.5],
     },
   });
   // Pub-name plaque (owner bug: numbered discs alone don't say WHICH pub stop 2
@@ -2011,6 +2011,7 @@ export function buildRouteStops(ctx: SceneCtx) {
       "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
       "text-halo-width": 2,
       "text-halo-blur": 0.4,
+      "text-opacity": ["step", ["zoom"], ["case", ["==", ["get", "walk"], true], 0, 1], 15.5, 1],
     },
   });
   addLayerOnce({
@@ -2020,7 +2021,7 @@ export function buildRouteStops(ctx: SceneCtx) {
     layout: {
       "text-field": ["get", "label"],
       "text-font": textFont,
-      "text-size": 14,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 12, ["case", ["==", ["get", "walk"], true], 11, 14], 15, 14],
       "text-allow-overlap": true,
       // The stop discs are a circle layer, which takes no part in symbol
       // collision. The number does, so padded out to the disc's radius it
@@ -2029,8 +2030,7 @@ export function buildRouteStops(ctx: SceneCtx) {
       // journeys F23). The number itself always shows (allow-overlap).
       "text-padding": 12,
     },
-    // Stops are always dark-filled, so the label is the light-side token.
-    paint: { "text-color": dark ? tokens.ink : tokens.paper },
+    paint: { "text-color": ["case", ["boolean", ["feature-state", "selected"], false], dark ? tokens.inkDeep : tokens.paper, dark ? tokens.ink : tokens.paper] },
   });
 }
 

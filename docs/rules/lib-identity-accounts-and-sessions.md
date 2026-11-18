@@ -4,7 +4,7 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
 <a id="the-password-ask-is-separate-from-password-creation"></a>
 
-- **The password ask is separate from password creation.** `CreatePasswordPrompt` runs in the deferred shell under the shared prompt budget. `lib/passwordPrompt.ts` owns its once-per-account marker and offers it only after a claimed handle and `hasPassword: false` answer. `SetAccountPassword` remains the only password setter. Pins: `__tests__/passwordPrompt.test.ts`, `__tests__/createPasswordPromptRender.test.ts`.
+- **The password ask is separate from password creation.** `CreatePasswordPrompt` runs in the deferred shell under the shared prompt budget. `lib/passwordPrompt.ts` owns its once-per-account marker and offers it only after a claimed handle and `hasPassword: false` answer. Password setting follows the [password route contract](app-auth-and-account-routes.md#a-password-is-created-behind-a-session-and-only-ever-spent-without-one). Pins: `__tests__/passwordPrompt.test.ts`, `__tests__/createPasswordPromptRender.test.ts`.
 
 <a id="the-signed-in-account-is-the-only-identity-authority-on-a-device"></a>
 
@@ -28,7 +28,9 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
 
   `lib/authClientLoad.ts` retries rejected `ensureSupabaseBrowser()` calls and returns `unavailable` if those attempts fail. `AuthProvider` then publishes `unavailable` and requests a deployment skew check. A failed `bootstrapAuthSession` read also preserves auth uncertainty. Neither failure confirms sign-out.
 
-  While auth is `unavailable`, `AuthProvider` retries bootstrap on `online`, visible `visibilitychange`, or window `focus` events. It retries client loading if necessary, otherwise session restoration. An event during client loading or session restoration sets one pending retry. After the attempt settles, that retry runs only if auth remains `unavailable`. Cleanup removes the recovery listeners and discards the pending retry. Regression coverage: `__tests__/nativeAuthProvider.test.tsx`. The [user guide](../../README.md) describes recovery after an offline start.
+  While auth is `unavailable`, `AuthProvider` retries bootstrap on `online`, visible `visibilitychange`, or window `focus` events. If SDK loading is deferred, recovery repeats the resume hint probe and preserves the [SDK loading conditions](../../lib/authClientTurn.ts). Without a callback, an absent hint confirms sign-out without loading the SDK. A failed probe leaves auth `unavailable`.
+
+  After SDK loading starts, recovery retries client loading or session restoration. An event during client loading or session restoration sets one pending retry. After the attempt settles, that retry runs only if auth remains `unavailable`. Cleanup removes the recovery listeners and discards the pending retry. Regression coverage: `__tests__/authProviderMapDeferral.test.tsx` and `__tests__/nativeAuthProvider.test.tsx`. The [user guide](../../README.md) describes recovery after an offline start.
 
   `AuthProvider` distinguishes pending, unavailable and resolved canonical identity reads.
   A failed read or an eight-second timeout sets `identityUnavailable` without setting `identityResolved`.

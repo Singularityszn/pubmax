@@ -1,3 +1,4 @@
+import type { MapRouteStop } from "@/lib/curatedWalk";
 import { priceForBeer } from "@/lib/beers";
 import { priceBucket } from "@/lib/communityPrice";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
@@ -468,7 +469,7 @@ export function poisToGeoJSON(pois: Poi[]): GeoJSON.FeatureCollection {
 // carries `source: "straight"` so the map draws it as the dashed "approximate"
 // route (buildScene.buildRoute) until /api/walk-route upgrades routeLineRef to a
 // road-following LineString (source "ors", drawn solid). See PubMapCanvas.
-export function routeToLine(route: Venue[]): GeoJSON.FeatureCollection {
+export function routeToLine(route: MapRouteStop[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features:
@@ -521,24 +522,26 @@ export function routeLegTimes(legs: readonly Partial<LegTime>[]): GeoJSON.Featur
 
 // The instant bubbles for the instant straight line (routeToLine), until
 // /api/walk-route answers with the routed legs.
-export function routeToLegTimes(route: Venue[]): GeoJSON.FeatureCollection {
+export function routeToLegTimes(route: MapRouteStop[]): GeoJSON.FeatureCollection {
   return routeLegTimes(legDistances(straightLegs(route.map((venue) => [venue.longitude, venue.latitude]))));
 }
 
-export function routeToStops(route: Venue[]): GeoJSON.FeatureCollection {
+export function routeToStops(route: MapRouteStop[], walk = false): GeoJSON.FeatureCollection {
   const longitudes = route.map((venue) => venue.longitude);
   const midLng = route.length ? (Math.min(...longitudes) + Math.max(...longitudes)) / 2 : 0;
   return {
     type: "FeatureCollection",
     features: route.map((venue, index) => ({
       type: "Feature" as const,
+      id: venue.id,
       properties: {
         id: venue.id,
+        walk,
         label: String(index + 1),
         // Full name kept for downstream reads; `stopName` is the truncated
         // plaque text the map draws beside the numbered disc.
         name: venue.name,
-        stopName: truncateStopName(venue.name),
+        stopName: truncateStopName(venue.mapLabel ?? venue.name),
         labelSide: venue.longitude > midLng ? "west" : "east",
       },
       geometry: {

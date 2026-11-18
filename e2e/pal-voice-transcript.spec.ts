@@ -1989,7 +1989,7 @@ test.describe("cold map tap chime ownership", () => {
         };
       });
       const probe = () => page.evaluate(() => {
-        const { audios, events } = (window as Window & { mapChimeProbe: {
+        const { audios, events } = (window as unknown as Window & { mapChimeProbe: {
           audios: HTMLMediaElement[];
           events: { kind: string; at: number; gesture?: boolean; paused?: boolean[] }[];
         } }).mapChimeProbe;
@@ -2057,7 +2057,7 @@ test.describe("cold map tap chime ownership", () => {
       } else {
         await held[0].continue();
       }
-      await page.evaluate(() => (window as Window & { mapChimeChunkSettled: Promise<void> }).mapChimeChunkSettled);
+      await page.evaluate(() => (window as unknown as Window & { mapChimeChunkSettled: Promise<void> }).mapChimeChunkSettled);
       if (outcome === "background") {
         await page.evaluate(() => {
           delete (document as unknown as { visibilityState?: string }).visibilityState;

@@ -20,7 +20,7 @@ import { navIcon } from "@/components/nav/navIcons";
 import NavPendingIndicator from "@/components/nav/NavPendingIndicator";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
-import { requestMobileSheetDismiss } from "@/lib/mobileShell";
+import { requestMobileSheetDismiss } from "@/lib/mobileSheetDismiss";
 import {
   preferredCityMapHref,
   readPreferredCity,
@@ -38,7 +38,6 @@ import {
   subscribeStrictModalFocusTrap,
 } from "@/lib/useFocusTrap";
 import { usePlanMapHref } from "@/components/nav/PlanMapNavigation";
-import "./navigation.css";
 
 // Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop

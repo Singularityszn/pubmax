@@ -268,6 +268,14 @@ export type AccountExportLane<T> = {
   items: T[];
 };
 
+export type AccountExportCrewRemovalCorrection = {
+  id: string;
+  crewId: string;
+  correctedAt: string;
+  previousState: "removed";
+  state: "left";
+};
+
 export type AccountExport = {
   version: typeof ACCOUNT_EXPORT_VERSION;
   /** ISO 8601, server clock. */
@@ -308,6 +316,7 @@ export type AccountExport = {
   kitchenReports: AccountExportLane<KitchenReportOwnerFields>;
   /** "Ask the pub for a table" requests the account sent: its own name, crew, day, time, note and the contact it gave, and whether the email to the pub went. Nothing about the operator. */
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
+  crewRemovalCorrections: AccountExportLane<AccountExportCrewRemovalCorrection>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   leagues: AccountExportLane<LeagueExportRecord>;
   nearbyVisits: AccountExportLane<NearbyVisit>;
@@ -340,6 +349,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "regularNightReports",
   "kitchenReports",
   "tableRequests",
+  "crewRemovalCorrections",
   "pubListNightDrafts",
   "leagues",
   "nearbyVisits",

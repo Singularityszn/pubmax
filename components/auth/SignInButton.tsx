@@ -33,6 +33,7 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
+import { prepareBrowserSignIn } from "@/lib/prepareBrowserSignIn";
 import { displayHandle, handleOnly } from "@/lib/handleDisplay";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -589,6 +590,7 @@ export default function SignInButton({
           onClick={() => {
             // Desktop fast path: popover. Also expose the full page as a link
             // inside the menu for anyone who wants the dedicated surface.
+            if (!menuOpen && configured) prepareBrowserSignIn();
             setMenuOpen((open) => !open);
           }}
           aria-expanded={menuOpen}

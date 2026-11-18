@@ -105,7 +105,7 @@ Regression cases live in
 
 Walking-route links also reach a map that stays mounted during client navigation.
 `useMapPlanCoordinator` identifies each incoming history entry separately from its ordered stops.
-A new external entry adopts those stops, makes the walk visible and clears any previous curated-crawl identity.
+A new external entry adopts its requested route, makes the walk visible and clears the previous curated-crawl identity.
 This also applies when consecutive external entries name the same walk.
 Without `sel`, the link closes the old venue selection and makes the landed entry the map's root.
 With `sel`, it selects that pub within the linked walk.
@@ -113,7 +113,10 @@ With `sel`, it selects that pub within the linked walk.
 Those writes cannot restore a hidden walk or replace the reader's edited stops.
 Pending writes retain their originating history entry and yield to a new external walking-route entry, including the same walk.
 `buildCrawlMapHref` in `lib/crawlUrl.ts` selects the stops' city path and rejects mixed-city lists or fewer than two stops.
-Regression cases live in `__tests__/mapWalkingRouteAdoption.test.tsx` and `e2e/map-crawl-spa-handoff.spec.ts`.
+Curated links also resolve through `useCuratedCrawlHydration`, including links with `crawl` and no `pubs`.
+`lib/mapSeedCrawl.ts` resolves the catalogue entry on arrival and after mounted-map navigation.
+Fixed walks use that entry's `walk.stops` and `walk.path`, rather than pub IDs.
+Regression cases live in `__tests__/mapWalkingRouteAdoption.test.tsx`, `e2e/map-crawl-spa-handoff.spec.ts` and `e2e/christmas-walk.spec.ts`.
 
 The [map camera and search contract](rules/components-map-canvas-and-pins.md#a-camera-move-has-an-owner-and-the-map-a-reader-is-looking-at-loads-first)
 owns query framing, surrounding price pins, and sheet behavior after reload.
@@ -224,7 +227,7 @@ While the card is on screen, the analytics consent prompt stands down. See
 | `band` | A story-band id | `lib/crawlUrl.ts` | Sets the active story-band. Not checked against the band list in this module; an unknown id simply shows no band elsewhere. | Trimmed only. No validation here. | Yes, same debounced sync. |
 | `landmark` | A landmark chapter id | `lib/crawlUrl.ts` (decoding), `components/map/pubmap/useMapSurfaceNavigation.ts` (history owner) | Deep-links to a landmark chapter. | Trimmed only. No validation here. | Surface navigation writes the visible story's id when it commits the history entry. It clears the parameter when the visible sheet is not a story, including after Home. Debounced crawl sync preserves an active story. |
 | `alt` | One of `pint`, `food`, `coffee`, `mocktail` | `lib/crawlUrl.ts` | Sets the alt crawl style. | A value outside this set is ignored. The state stays the default, `pint`. | Yes, same debounced sync. Omitted when it is the default `pint`. |
-| `crawl` | A curated crawl id | `lib/crawlUrl.ts` | Loads a named curated crawl. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
+| `crawl` | A curated crawl id | `lib/crawlUrl.ts` (encoding), `lib/mapSeedCrawl.ts` (catalogue resolution) | Loads a named curated pub crawl or fixed walk, including without `pubs`. | Passed through `normalizeCrawlId`: lower-cased, non-alphanumeric runs become a dash, leading and trailing dashes trimmed, cut to 80 characters. Never throws on a malformed id. | Written with the current stops. See [History and filter synchronisation](#history-and-filter-synchronisation) for identity clearing and pending hydration. |
 | `log` | `1` | `lib/mapUrlIntent.ts` (predicate), `lib/mapLogIntent.ts` (composer) | Arms the legacy Pint Drop composer for a resolved pub, or asks the reader to choose a pub. | Only the exact value `1` counts. Any other value, or absence, is false. | Preserved through crawl-state rewrites while active. Leaving the flow clears it and its `price` seed; dismissal does not block a new request. |
 | `pintDropReturn` | UUID v4 | `lib/pintDropDraft.ts`, `lib/accountClaimReturnTo.ts` | Restores a locally stored signed-out Pint Drop draft after sign-in. | Requires a matching stored token and venue within 30 minutes. Missing or mismatched tokens do not consume a valid handoff. A URL alone cannot restore a draft. | Preserved through crawl-state rewrites. A matching return consumes the stored handoff once. Account departure follows the [identity cleanup rule](rules/lib-identity-accounts-and-sessions.md#the-signed-in-account-is-the-only-identity-authority-on-a-device). |
 | `contribute` | `price` | `lib/priceContributionIntent.ts` | Requests the selected pub's category price form, or opens the pub picker until a pub is selected. `VenueInspector` handles sign-in and form entry. | Only the exact value `price` requests the flow. It grants no write permission. | Preserves city, drink, and pub through sign-in. Bound to the first opened pub through deselection; form entry, Home, picker dismissal, or another pub outside the restored picker retires it. Back to the held price picker allows a new pub choice. |
@@ -245,6 +248,6 @@ While the card is on screen, the analytics consent prompt stands down. See
 
 `app/map/page.tsx` and `app/map/[city]/page.tsx` also read `band`, `crawl`,
 and `pubs` a second time, server-side, purely to build page metadata and the
-Open Graph share image (stop count comes from `stopCountFromPubsParam` in
-`lib/cityShare.ts`). This is a read, not a second source of truth: the
+Open Graph share image. `lib/cityShare.ts` resolves the stop count from the
+link or the curated route, including fixed walks. This is a read, not a second source of truth: the
 client-side decode in `lib/crawlUrl.ts` still owns the live map state.

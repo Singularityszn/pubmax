@@ -31,9 +31,9 @@ test.describe("prepared briefs after hydration", () => {
 for (const width of [390, 1440]) {
   test(`crawl estimate names its straight-line basis at ${width}px`, async ({ page }) => {
     await page.setViewportSize({ width, height: 1000 });
-    await page.goto("/crawls");
+    await page.goto("/crawls?pack=old-london");
     await expect(page.locator("main")).toHaveAttribute("data-venue-index-status", "ready");
-    const featured = page.locator(".curatedFeaturedCard");
+    const featured = page.locator("#victorian-soho.curatedFeaturedCard");
     await expect(featured).toContainText("straight-line estimate");
     await expect(featured).not.toContainText(/\d+ min walk/);
     await expect(featured.getByRole("link", { name: /Plan the Victorian Soho crawl/ }))

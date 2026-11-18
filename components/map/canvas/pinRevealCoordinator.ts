@@ -1,6 +1,9 @@
 export type PinRevealReason = "tiles" | "pins" | "idle" | "timeout";
 export type BasemapNoticeOwner = "none" | "timeout" | "errors";
 
+// The visible render can lead the compositor. Two frames confirm its paint.
+export const PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES = 2;
+
 /**
  * A NOTICE MAY NOT NAME THE READER'S HANDS. UI review 17 Sep 2026, finding 7:
  * all six of these said "Tap Retry", and `/map` is served at 1440 with a mouse,
@@ -234,6 +237,8 @@ type PinRevealCoordinatorOptions = {
   hasPinsPaintable: () => boolean;
   /** Phone can reveal local pins on their own frame while basemap tiles load. */
   requiresBasemapPaint?: boolean;
+  /** Live because a curated route can arrive after map construction. */
+  preferLocalPins?: () => boolean;
   /**
    * Keep parent loading chrome up for one render after pin layers become
    * visible. The render that discovers source readiness was painted while
@@ -280,6 +285,7 @@ export function createPinRevealCoordinator({
   hasBasemapPainted,
   hasPinsPaintable,
   requiresBasemapPaint = true,
+  preferLocalPins = () => false,
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
   scheduleFrame,
@@ -293,6 +299,7 @@ export function createPinRevealCoordinator({
   onPaintAfterTimeout,
   onReveal,
 }: PinRevealCoordinatorOptions) {
+  const needsBasemap = () => requiresBasemapPaint && !preferLocalPins();
   let generation = 0;
   let state:
     | "idle"
@@ -372,8 +379,11 @@ export function createPinRevealCoordinator({
     };
     const reveal = (reason: Exclude<PinRevealReason, "timeout">) => {
       if (!isCurrent()) return;
+      const localPins = preferLocalPins();
+      const confirmVisibleFrame = confirmVisibleFrameBeforeReveal || localPins;
+      const visibleFrames = localPins ? Math.max(PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES, compositeConfirmFrames) : compositeConfirmFrames;
       showPins();
-      if (!confirmVisibleFrameBeforeReveal) {
+      if (!confirmVisibleFrame) {
         finishReveal(reason);
         return;
       }
@@ -403,14 +413,14 @@ export function createPinRevealCoordinator({
             awaitFrames(remaining - 1);
           });
         };
-        awaitFrames(compositeConfirmFrames);
+        awaitFrames(visibleFrames);
       });
     };
     const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {
       if (
         !isCurrent() ||
         !hasPinsPaintable() ||
-        (requiresBasemapPaint && !hasBasemapPainted())
+        (needsBasemap() && !hasBasemapPainted())
       ) {
         return;
       }
@@ -418,7 +428,7 @@ export function createPinRevealCoordinator({
     };
 
     unsubscribeRender = subscribeRender(() =>
-      revealPainted(requiresBasemapPaint ? "tiles" : "pins"),
+      revealPainted(needsBasemap() ? "tiles" : "pins"),
     );
     unsubscribeIdle = subscribeIdle(() => revealPainted("idle"));
     // Short fallback: un-gate the local pins so they can't hang hidden. This

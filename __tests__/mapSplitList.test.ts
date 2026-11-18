@@ -266,6 +266,25 @@ describe("the list's order", () => {
     expect(groups.venues.map((row) => row.id)).toEqual(["cheap", "dear", "unpriced"]);
   });
 
+  it("keeps a figure the map cannot rank ahead of a venue with no price at all", () => {
+    // A report waiting for a second drinker prints a figure but may not lead
+    // the cheapest order, so it follows the ranked rows. A nearer venue the
+    // map cannot price at all must not jump ahead of that figure.
+    const signal = {
+      hasPintDrops: true,
+      latestContributorPrice: null,
+      provisionalContributorPrice: 3.9,
+      provisionalContributorAt: Date.parse("2026-10-30T20:00:00.000Z"),
+      pintTrust: "logged-once",
+    } as VenueSignal;
+    const once = venue({ id: "once", name: "Logged Once", cheapestPrice: 5.5, longitude: -0.2 });
+    const none = venue({ id: "none", name: "No Price", longitude: -0.1301 });
+    const groups = buildMapSplitListGroups(
+      input({ venues: [none, once], dropSignals: new Map([["once", signal]]) }),
+    );
+    expect(groups.venues.map((row) => row.id)).toEqual(["once", "none"]);
+  });
+
   it("orders by distance alone when asked for the nearest", () => {
     const groups = buildMapSplitListGroups(input({ venues: [cheap, dear, unpriced], sort: "nearest" }));
     expect(groups.venues.map((row) => row.id)).toEqual(["dear", "unpriced", "cheap"]);

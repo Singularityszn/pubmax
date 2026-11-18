@@ -196,11 +196,15 @@ validate-data` checks those fingerprints and exact dispositions. Editing a
 source or registry without rebuilding fails validation instead of silently
 dropping or restoring a venue.
 
-Run the scraper again with:
+Re-collect with `node scripts/refresh_pint_price_observations.mjs`, the only
+lane allowed to fetch pint-prices.com. The old Python scraper is retired: it
+fetched with `requests` outside `sourcePolicy`, skipped robots.txt and
+per-hop redirect permission, and is not a permitted lane. To rebuild the
+published artifacts from the committed raw files without fetching:
 
 ```bash
-python3 -u scripts/extract_pint_prices.py
 python3 scripts/build_app_dataset.py
+python3 scripts/export_app_dataset_json.py
 ```
 
 ## Shapes

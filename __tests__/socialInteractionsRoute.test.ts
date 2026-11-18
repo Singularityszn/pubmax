@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
+import { requireVerifiedSocialActor } from "@/lib/socialAccessServer";
 
 const actor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
 const store = {
@@ -55,6 +56,7 @@ describe("Social interactions route", () => {
     vi.clearAllMocks();
     vi.mocked(socialFreezeResponse).mockReset().mockReturnValue(null);
     vi.mocked(isLimited).mockReset().mockResolvedValue(false);
+    vi.mocked(requireVerifiedSocialActor).mockReset().mockResolvedValue({ ok: true, actor, authUserId: "user-a" });
     store.summary.mockResolvedValue({ cheered: false, saved: false, reposted: false, cheerCount: 0, repostCount: 0 });
     store.listComments.mockResolvedValue({ items: [], nextCursor: null });
     store.listSaved.mockResolvedValue({ items: [], nextCursor: null });
@@ -176,6 +178,119 @@ describe("Social interactions route", () => {
     }));
     expect(limited.status).toBe(429);
     expect(vi.mocked(isLimited).mock.calls[0]?.[0]).toMatch(/^social-interaction:[a-f0-9]{64}$/);
+  });
+
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    [false, true].map((declaredLength) => ({ method, declaredLength })),
+  ))("bounds frozen $method bodies before private-control classification, declared length: $declaredLength", async ({ method, declaredLength }) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const route = await import("@/app/api/social/interactions/route");
+    const payload = JSON.stringify({ action: "block", targetHandle: "bob" }) + " ".repeat(64 * 1024);
+    const request = new Request(URL, {
+      method,
+      headers: declaredLength ? { "content-length": String(payload.length) } : {},
+      body: payload,
+    });
+    const response = await route[method](request);
+    expect(response.status).toBe(503);
+    expect(requireVerifiedSocialActor).not.toHaveBeenCalled();
+    expect(isLimited).not.toHaveBeenCalled();
+    expect(store.setBlock).not.toHaveBeenCalled();
+    if (declaredLength) expect(request.bodyUsed).toBe(false);
+  });
+
+  it("bounds ordinary POST bodies before acting on the parsed action", async () => {
+    const { POST } = await import("@/app/api/social/interactions/route");
+    const payload = JSON.stringify({ action: "comment", postId: "11111111-1111-4111-8111-111111111111", body: "Hello" }) + " ".repeat(64 * 1024);
+    const response = await POST(new Request(URL, {
+      method: "POST", headers: { "idempotency-key": "comment-body-cap-request" }, body: payload,
+    }));
+    expect(response.status).toBe(400);
+    expect((await response.json()).code).toBe("MALFORMED_REQUEST");
+    expect(store.createComment).not.toHaveBeenCalled();
+  });
+
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    (["block", "mute"] as const).flatMap((action) => [
+      { method, action, target: { targetHandle: "bob" } },
+      { method, action, target: { targetProfileId: "22222222-2222-4222-8222-222222222222" } },
+    ]),
+  ))("keeps $method $action changes to $target available during a Social freeze", async ({ method, action, target }) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const route = await import("@/app/api/social/interactions/route");
+    const response = await route[method](new Request(URL, {
+      method,
+      body: JSON.stringify({ action, ...target }),
+    }));
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true });
+    expect(action === "block" ? store.setBlock : store.setMute).toHaveBeenCalledWith(actor, "22222222-2222-4222-8222-222222222222", method === "PUT");
+  });
+
+  it.each(["PUT", "DELETE"] as const)("honours the real freeze environment for %s", async (method) => {
+    const actual = await vi.importActual<typeof import("@/lib/opsFreeze")>("@/lib/opsFreeze");
+    vi.mocked(socialFreezeResponse).mockImplementation(actual.socialFreezeResponse);
+    vi.stubEnv("PUBMAX_SOCIAL_FREEZE", "social");
+    try {
+      const route = await import("@/app/api/social/interactions/route");
+      const ordinary = await route[method](new Request(URL, {
+        method,
+        body: JSON.stringify({ action: "desired", postId: "11111111-1111-4111-8111-111111111111", kind: "save" }),
+      }));
+      expect(ordinary.status).toBe(503);
+      expect((await ordinary.json()).code).toBe("SOCIAL_FROZEN");
+      for (const action of ["block", "mute"] as const) {
+        const response = await route[method](new Request(URL, {
+          method,
+          body: JSON.stringify({ action, targetProfileId: "22222222-2222-4222-8222-222222222222" }),
+        }));
+        expect(response.status).toBe(200);
+      }
+      expect(store.setDesired).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it.each((["PUT", "DELETE"] as const).flatMap((method) =>
+    (["block", "mute"] as const).map((action) => ({ method, action })),
+  ))("still authenticates and rate limits frozen $method $action changes", async ({ method, action }) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const route = await import("@/app/api/social/interactions/route");
+    const request = () => new Request(URL, { method, body: JSON.stringify({ action, targetHandle: "bob" }) });
+    vi.mocked(requireVerifiedSocialActor).mockResolvedValueOnce({ ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in first." });
+    expect((await route[method](request())).status).toBe(401);
+    vi.mocked(isLimited).mockResolvedValueOnce(true);
+    expect((await route[method](request())).status).toBe(429);
+    expect(store.setBlock).not.toHaveBeenCalled();
+    expect(store.setMute).not.toHaveBeenCalled();
+  });
+
+  it.each((["PUT", "DELETE"] as const).flatMap((method) => [
+    { action: "desired", postId: "11111111-1111-4111-8111-111111111111", kind: "save" },
+    { action: "block", targetHandle: "bob", postId: "11111111-1111-4111-8111-111111111111" },
+  ].map((input) => ({ method, input }))))("keeps other $method writes frozen for $input", async ({ method, input }) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const route = await import("@/app/api/social/interactions/route");
+    const response = await route[method](new Request(URL, { method, body: JSON.stringify(input) }));
+    expect(response.status).toBe(503);
+    expect(store.setBlock).not.toHaveBeenCalled();
+    expect(store.setMute).not.toHaveBeenCalled();
+  });
+
+  it.each(["comment", "quote", "feature_update", "notification_read"])("keeps ordinary POST %s actions frozen", async (action) => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const { POST } = await import("@/app/api/social/interactions/route");
+    const response = await POST(new Request(URL, { method: "POST", body: JSON.stringify({ action }) }));
+    expect(response.status).toBe(503);
+  });
+
+  it("still validates the target of a frozen block change", async () => {
+    vi.mocked(socialFreezeResponse).mockReturnValue(new Response(null, { status: 503 }));
+    const { PUT } = await import("@/app/api/social/interactions/route");
+    const response = await PUT(new Request(URL, { method: "PUT", body: JSON.stringify({ action: "block", targetProfileId: "invalid" }) }));
+    expect(response.status).toBe(400);
+    expect(store.setBlock).not.toHaveBeenCalled();
   });
 
   it("returns the exact edit conflict when comment-policy CAS loses", async () => {

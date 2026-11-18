@@ -1,5 +1,10 @@
 "use client";
 
+import { curatedWalkLine, type CuratedWalk, type MapRouteStop } from "@/lib/curatedWalk";
+import { selectedPlaceIsDrawn } from "@/components/map/canvas/selectedPlaceIsDrawn";
+import { useRouteStopSelection } from "@/components/map/canvas/useRouteStopSelection";
+import { useCuratedWalkFraming } from "@/components/map/canvas/useCuratedWalkFraming";
+
 import { useMapArrivalTurn } from "@/components/map/canvas/useMapArrivalTurn";
 
 import dynamic from "next/dynamic";
@@ -149,6 +154,7 @@ import {
   PIN_PAINT_RETRY_NOTICE,
   basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
+  PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES,
   openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
@@ -192,7 +198,6 @@ import {
 } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import {
-  isUkBaseId,
   type UkBasePub,
   type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
@@ -290,7 +295,10 @@ type PubMapCanvasProps = {
    * curated index is the overview, not a failed pub list.
    */
   nationalBrowse?: boolean;
-  route: Venue[];
+  route: MapRouteStop[];
+  walk?: CuratedWalk;
+  walkPanelOpen?: boolean;
+  selectedRouteStopId?: string;
   routeRequestToken?: number;
   routePending?: boolean;
   /**
@@ -580,10 +588,6 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
 const PIN_RETRY_WAIT_MS = 6_000;
-// MapLibre's GeoJSON worker and render events can lead the phone compositor by
-// a few frames. Two animation frames after the render that includes the pub
-// layers confirm that paint before the loading chrome lifts.
-const PHONE_PIN_COMPOSITE_CONFIRM_FRAMES = 2;
 // First-painted-frame watchdog. `style.load` is a network/parse event — it can
 // fire (and retire the parent's loading chrome) in a browser whose WebGL
 // context was GRANTED but whose render loop never produces a frame (dead
@@ -613,16 +617,7 @@ const EMPTY_DATA_PACK: GeoJSON.FeatureCollection = {
 // does not rerun on every render of a pint map.
 const NO_COFFEE_PILOT_CAFES: readonly CoffeePilotCafe[] = [];
 
-/** Whether a London venue-layer place on this map holds the id: a pilot cafe or a restaurant. */
-function londonPlaceDrawn(
-  id: string,
-  cafes: readonly CoffeePilotCafe[],
-  restaurants: readonly LondonVenue[],
-): boolean {
-  return cafes.some((cafe) => cafe.id === id) || restaurants.some((place) => place.id === id);
-}
-// Every pub-source layer, gated together through the basemap gate on desktop
-// and the stricter source-aware visible-frame handoff on phone.
+// Every pub-source layer shares the paint gate in pinRevealCoordinator.
 const PUB_PIN_LAYERS = [
   "uk-base-overview",
   "uk-base-overview-count",
@@ -792,7 +787,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     venues,
     filteredVenueCount,
     venueDataReady,
-    route,
+    route, walk, walkPanelOpen = false, selectedRouteStopId,
     routeRequestToken,
     routePending,
     crewPals,
@@ -1158,6 +1153,8 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   );
   /** Resident base pubs for search/list selection fly-to (not a tap-resolved ref). */
   const ukBaseResidentPubsRef = useRef<UkBasePub[]>([]);
+  const curatedWalkRef = useRef(Boolean(walk));
+  useEffect(() => { curatedWalkRef.current = Boolean(walk); }, [walk]);
   const onRouteStopClickRef = useRef(onRouteStopClick);
   const onVenuePrefetchRef = useRef(onVenuePrefetch);
   const onLandmarkSelectRef = useRef(onLandmarkSelect);
@@ -1503,6 +1500,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     gestureCameraRef,
   })
 
+  useCuratedWalkFraming(walkPanelOpen, mapReady, fitRoute);
+  useRouteStopSelection(mapReady, mapRef, selectedRouteStopId);
+
   // The map's opening turn (captain, 7 Sep 2026: "I also want the map to rotate
   // slightly"). Once per mounted map, on the first ready, and never again: the
   // ref is what makes it once, because `mapReady` flips back and forth across a
@@ -1625,6 +1625,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     paintContainerBase(themeRef.current);
     hoverCapableRef.current = window.matchMedia("(hover: hover) and (pointer: fine)").matches;
     const phoneFirstImpression = window.matchMedia("(max-width: 640px)").matches;
+    const preferLocalPins = () => curatedWalkRef.current && !nationalBrowseRef.current;
     const reducedQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
     reducedRef.current = reducedQuery.matches;
     performance.clearMarks("pubmax:pin-entrance-settled");
@@ -2411,16 +2412,15 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       readyCeilingMs: MAP_PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () =>
-        pubsDeferredUntilZoom() || !phoneFirstImpression || hasPinsPaintable(),
-      // On a phone, local pub GeoJSON is the useful content that the reader
-      // is waiting for. Do not hold its first painted frame behind remote
-      // basemap tiles; tile failures still use their independent classifier
-      // and retry lane below. A national overview is the other way round:
-      // there are no pins to paint yet, so the frame waits on the basemap.
+        pubsDeferredUntilZoom() || (!phoneFirstImpression && !preferLocalPins()) || hasPinsPaintable(),
+      // Phone and fixed walks reveal their local source while remote tiles
+      // load. Basemap failures keep their independent retry lane. National
+      // overviews wait for tiles because they have no local pubs to paint.
       requiresBasemapPaint: nationalBrowseRef.current || !phoneFirstImpression,
+      preferLocalPins,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       compositeConfirmFrames: phoneFirstImpression
-        ? PHONE_PIN_COMPOSITE_CONFIRM_FRAMES
+        ? PIN_VISIBLE_COMPOSITE_CONFIRM_FRAMES
         : 0,
       scheduleFrame: (callback) => window.requestAnimationFrame(callback),
       cancelFrame: (handle) => window.cancelAnimationFrame(handle),
@@ -2476,11 +2476,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
         } else if (reason !== "timeout" || basemapTileReadyForPaint) {
           markBasemapRecovered();
         }
-        // Lift parent loading chrome only after basemap paint. Phone adds the
-        // stricter pub-source and composite gates above because its unfinished
-        // frame otherwise looks settled. Desktop keeps its established tile
-        // gate. The ceiling degrades honestly if either required phone signal
-        // never arrives.
+        // Lift parent chrome after the selected paint gate. Phone and curated
+        // walks confirm their local source and composite frame. Ordinary
+        // desktop maps retain the basemap gate. The ceiling degrades honestly
+        // if a required signal never arrives.
         onMapReadyRef.current?.(true);
         window.dispatchEvent(new CustomEvent(MAP_PIN_REVEAL_EVENT, {
           detail: { reason, generation },
@@ -2926,10 +2925,10 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       // actual first reveal. Deliberately NOT marked fired yet.
       if (map.getLayoutProperty("pubs-point", "visibility") === "none") return;
       pinEntranceFired = true;
-      // Phone readiness waits for a frame with visible map content. Starting
+      // Local readiness waits for a frame with visible map content. Starting
       // the opacity entrance after that frame would immediately blank those
       // pins again while the parent loading chrome retires.
-      if (reducedRef.current || phoneFirstImpression) {
+      if (reducedRef.current || phoneFirstImpression || preferLocalPins()) {
         markPinEntranceSettled();
         return;
       }
@@ -2968,11 +2967,9 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       sceneSettled = true;
       clearHangFailTimer();
       // Internal scene-built gate only: unblock the map's own data/camera
-      // effects now that the scene graph exists at style.load. The PARENT
-      // loading chrome is deliberately NOT lifted here — it stays up until the
-      // basemap actually PAINTS (pinRevealCoordinator.onReveal above), so a slow
-      // tile stream can't expose a background-only void behind a retired
-      // skeleton. Error/timeout paths still lift the chrome via reportMapError.
+      // effects now that the scene graph exists at style.load. The
+      // parent frame stays until pinRevealCoordinator confirms its
+      // selected source/paint gate. Error paths release it via reportMapError.
       setMapReady(true);
       startPinEntrance();
     };
@@ -4362,14 +4359,13 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   const routeCoordKey = route.map((v) => `${v.longitude},${v.latitude}`).join(";");
   useEffect(() => {
     const routed = routedLineRef.current?.key === routeCoordKey ? routedLineRef.current : null;
-    // Selection and venue-data refreshes must retain a routed road line.
-    // Only a different ordered coordinate sequence needs a new fallback.
+    // Selection and venue-data refreshes retain the routed road line.
     if (routeLineKeyRef.current !== routeCoordKey) {
       routeLineKeyRef.current = routeCoordKey;
-      routeLineRef.current = routed?.line ?? routeToLine(route);
+      routeLineRef.current = walk ? curatedWalkLine(walk) : routed?.line ?? routeToLine(route);
     }
-    routeStopsRef.current = routeToStops(route);
-    routeLegTimesRef.current = routed?.legTimes ?? routeToLegTimes(route);
+    routeStopsRef.current = routeToStops(route, Boolean(walk));
+    routeLegTimesRef.current = walk ? { type: "FeatureCollection", features: [] } : routed?.legTimes ?? routeToLegTimes(route);
     selectedIdRef.current = selectedVenueId;
     // A parent re-render hands over a new `route` array for the same stops;
     // only a real change of stops or selection is news worth moving for.
@@ -4494,11 +4490,12 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       applyMapFocusMute(map, selectedIdRef.current ? "selection"
         : route.length >= 2 ? "route" : "browse", selectionMuteStoreRef.current);
     });
-  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData]);
+  }, [route, routeCoordKey, selectedVenueId, mapReady, applyToMap, applyRouteData, walk]);
 
-  // Road-following upgrade (T4). The effect above paints the straight line
-  // instantly (routeToLine, drawn dashed as "approximate"); here we ask
-  // /api/walk-route to redraw the SAME ordered stops along real walking roads.
+  // Pub-crawl road upgrade. Fixed walks retain their stored path.
+  // The effect above paints the straight line
+  // instantly (routeToLine, drawn dashed as "approximate"); the endpoint
+  // upgrades the same ordered stops to real walking roads.
   // On an "ors" success we swap routeLineRef to the road LineString and repaint
   // (buildRoute draws it solid); on any failure the straight dashed line simply
   // stays. Debounced via an AbortController so rapid stop edits collapse to the
@@ -4506,7 +4503,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // ordered `lng,lat;lng,lat` wire format /api/walk-route decodes (parseStops),
   // and re-fires only when the stop coordinates actually change.
   useEffect(() => {
-    if (!mapReady) return;
+    if (!mapReady || walk) return;
     if (routeCoordKey.split(";").length < 2) return;
     const controller = new AbortController();
     const timeout = window.setTimeout(() => controller.abort(), 8000);
@@ -4542,7 +4539,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
       window.clearTimeout(timeout);
       controller.abort();
     };
-  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute]);
+  }, [routeCoordKey, mapReady, applyRouteData, walkPals, fitOwnedRoute, walk]);
 
   // The Pal walks a crawl route of two or more stops (the road line takes over
   // above once routed), and goes to a stop the reader taps; with no crawl it
@@ -4760,11 +4757,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
   // false→true exactly once when the venue first appears — re-running the
   // effect — and stays true across filter/drop churn, so `venues` itself can
   // remain out of the deps (no re-flying on churn, the original guarantee).
-  const selectedPresent =
-    Boolean(selectedVenueId) &&
-    (venues.some((item) => item.id === selectedVenueId) ||
-      isUkBaseId(selectedVenueId) ||
-      londonPlaceDrawn(selectedVenueId, coffeePilotCafes, londonRestaurants));
+  const selectedPresent = selectedPlaceIsDrawn(selectedVenueId, venues, coffeePilotCafes, londonRestaurants);
 
   // There is no ambient camera here, and that is a decision (captain, 3 Sep
   // 2026). An idle orbit used to turn the map at 0.6 degrees a second once the
@@ -5223,7 +5216,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
           appeared and vanished with the map's own attitude; a compass the
           reader opens the map's own control to reach is not that. */}
       {canRecenter ? (
-        <div className="mapCameraControls" aria-label="Map camera controls">
+        <div className="mapCameraControls" aria-label="Map camera controls" data-focus-trap-exempt="">
           <button
             type="button"
             className="mapRecenterBtn"

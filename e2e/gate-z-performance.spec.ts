@@ -52,7 +52,7 @@ test("Gate Z mobile lab budgets stay inside the release targets", async ({ page 
             window.__pubmaxGateZ!.interactions.push({ name: entry.name, duration: entry.duration, startTime: entry.startTime, interactionId });
           }
         }
-      }).observe({ type: "event", buffered: true, durationThreshold: 16 });
+      }).observe({ type: "event", buffered: true, durationThreshold: 16 } as PerformanceObserverInit);
     }
 });
   await page.goto("/map");

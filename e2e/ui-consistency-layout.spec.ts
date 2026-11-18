@@ -1131,7 +1131,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
     }
     await context.close();
   }
-  const routeOrder = new Map(
+  const routeOrder = new Map<string, number>(
     ROUTES.map((route, index) => [route.path, index] as const),
   );
   routeAudit.sort(

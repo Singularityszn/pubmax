@@ -13,7 +13,6 @@ import { palGenomeFor, palGenomeStyle } from "@/lib/palGenome";
 import { subscribePalMoments } from "@/lib/palMoments";
 import type { PubPal } from "@/lib/pubPal";
 import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
-import "./navigation.css";
 
 // The Pub Pal's own door in the navigation. It opens /pal, where a stranger
 // meets a Pal and a person with one talks to it. It is a door, not a tab

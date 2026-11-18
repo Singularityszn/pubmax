@@ -29,6 +29,8 @@
 
 import { Effect } from "effect";
 
+import { isHarvestableOperatorUrl } from "./sourcePolicy.ts";
+
 const FIRECRAWL_API_BASE = "https://api.firecrawl.dev/v2";
 
 /** One request may take this long before it is abandoned as a timeout. */
@@ -102,6 +104,7 @@ type FirecrawlPage = {
 
 type FirecrawlFailureReason =
   | "budget-exhausted"
+  | "policy-refused"
   | "http-error"
   | "empty-body"
   | "network"
@@ -339,6 +342,20 @@ export function createFirecrawlClient(
   return {
     budget,
     async scrape(url, scrapeOptions = {}) {
+      // The fence sits inside the client, not at the call sites: a scrape IS a
+      // fetch of the URL, so lib/harvest/sourcePolicy.ts answers before a
+      // credit is spent. A refusal costs nothing — no request, no budget.
+      if (!isHarvestableOperatorUrl(url)) {
+        return {
+          ok: false,
+          failure: {
+            url,
+            reason: "policy-refused",
+            detail: "lib/harvest/sourcePolicy.ts refuses this URL; nothing was fetched.",
+            attempts: 0,
+          },
+        };
+      }
       const result = await withBudgetedRetries(url, () =>
         sendOnce(
           "/scrape",
