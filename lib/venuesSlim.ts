@@ -19,6 +19,7 @@
 // that dropped malformed rows is never stored: a later fetch failure would
 // otherwise treat a truncated index as the whole city.
 
+import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
@@ -27,6 +28,7 @@ import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind } from "@/lib/venueKinds";
 import type { VenueFilterHints, VenueKind } from "@/lib/venues";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import type { FairPintEvidence } from "@/lib/fairPint";
 import {
   INITIAL_SLIM_LOAD_LIFECYCLE,
   transitionSlimLoadLifecycle,
@@ -74,6 +76,7 @@ export type SlimVenue = {
   lat: number;
   lng: number;
   cheapestPrice: number | null;
+  fairPint?: FairPintEvidence;
   hasRecordedPrice?: boolean;
   cheapestPint?: string;
   measure?: string;
@@ -259,6 +262,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
     lat: venue.lat,
     lng: venue.lng,
     cheapestPrice: venue.cheapestPrice,
+    ...(Array.isArray(venue.fairPint) && venue.fairPint.length === 3 ? { fairPint: venue.fairPint } : {}),
     ...(typeof venue.hasRecordedPrice === "boolean" ? { hasRecordedPrice: venue.hasRecordedPrice } : {}),
     ...(typeof venue.cheapestPint === "string" ? { cheapestPint: venue.cheapestPint } : {}),
     ...(typeof venue.measure === "string" ? { measure: venue.measure } : {}),
@@ -361,9 +365,11 @@ async function readSlimPayload(
     applySlimLoadEvent(path, wire, { type: "reopen" });
     wire.controller.signal.throwIfAborted();
   }
+  if (fairPintDrawPending()) await waitForFairPintDraw();
+  wire?.controller.signal.throwIfAborted();
   const response = earlyPayloadRejected || cache === "no-store"
-    ? await fetch(path, { cache: "no-store", signal: wire?.controller.signal })
-    : await fetch(path, { signal: wire?.controller.signal });
+    ? await fetch(path, { cache: "no-store", signal: wire?.controller.signal, priority: "low" })
+    : await fetch(path, { signal: wire?.controller.signal, priority: "low" });
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);

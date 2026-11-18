@@ -1,0 +1,164 @@
+.fairPintCard {
+  position: fixed;
+  z-index: var(--z-float-action);
+  inset-inline: max(12px, env(safe-area-inset-left));
+  bottom: calc(64px + env(safe-area-inset-bottom) + 12px);
+  display: grid;
+  gap: 8px;
+  padding: 24px;
+  border-radius: var(--radius-lg);
+  background: var(--panel-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow);
+  max-height: calc(100dvh - 180px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+@media (max-width: 640px) {
+  body:has(> .mobileSheetPortal:not([data-sheet-exiting])) .fairPintCard:not(.fairPintResult) {
+    visibility: hidden;
+  }
+}
+body:has(.fairPintCard:not([hidden]), #fair-pint-lock-form) .mapToolbar .planBtn {
+  display: none;
+}
+body:has(#fair-pint-lock-form, .fairPintResultFallback) :is(.mobilePlanActivation, .mobileMapUtilityCorner, .mappedRouteChip, .palSummon) {
+  visibility: hidden;
+}
+.fairPintCard h2 {
+  margin: 0;
+  padding-right: 24px;
+  font-size: var(--text-lg);
+}
+.fairPintFigure {
+  font-family: var(--font-data);
+  font-size: var(--text-2xl);
+  font-variant-numeric: tabular-nums;
+}
+.fairPintCount,
+.fairPintReason {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+.fairPintReason {
+  color: var(--muted);
+}
+.fairPintClose {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.fairPintRange {
+  width: 100%;
+  height: 44px;
+  accent-color: var(--ink);
+  cursor: pointer;
+  touch-action: pan-y;
+  appearance: none;
+  background: transparent;
+}
+.fairPintRange::-webkit-slider-runnable-track {
+  height: 6px;
+  background: var(--hairline);
+  border-radius: var(--radius-pill);
+}
+.fairPintRange::-webkit-slider-thumb {
+  appearance: none;
+  width: 44px;
+  height: 44px;
+  margin-top: -19px;
+  border-radius: var(--radius-pill);
+  background: var(--ink);
+}
+.fairPintRange::-moz-range-thumb {
+  width: 44px;
+  height: 44px;
+  background: var(--ink);
+  border-radius: var(--radius-pill);
+  border: 0;
+}
+@media (min-width: 641px) {
+  .fairPintCard {
+    left: auto;
+    width: min(390px, calc(100vw - 48px));
+    right: 24px;
+    bottom: 24px;
+  }
+}
+.fairPintResult {
+  max-height: 70dvh;
+  display: flex;
+  flex-direction: column;
+}
+.fairPintResultBody {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 12px;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.fairPintResultActions {
+  display: grid;
+  gap: 6px;
+  padding: 12px 16px;
+  flex: none;
+}
+.fairPintResultBody .pintLine {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.pintLine[data-presentation] .pintLine__head,
+.pintLine[data-presentation] .pintLine__note {
+  display: none;
+}
+.pintLine[data-presentation] .pintLine__stop,
+.pintLine[data-presentation] .pintLine__label,
+.pintLine[data-presentation] .pintLine__leg {
+  transition: none;
+}
+.fairPintStops {
+  padding-left: 22px;
+  margin: 0;
+  display: grid;
+  gap: 16px;
+}
+.fairPintStops li > * {
+  display: block;
+}
+.fairPintStops a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.fairPintStamp {
+  font-family: var(--font-data);
+  font-size: var(--text-sm);
+  text-wrap: pretty;
+}
+.fairPintResultBody input {
+  min-height: 44px;
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--muted);
+  border-radius: var(--radius);
+  color: var(--ink);
+  background: var(--panel-raised);
+}
+.fairPintWarnings {
+  padding-left: 20px;
+  font-size: var(--text-sm);
+}
+
+.fairPintRange:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: var(--radius);
+}
+
+.fairPintCard[hidden] {
+  display: none;
+}

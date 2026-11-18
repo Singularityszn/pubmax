@@ -24,6 +24,12 @@ const sample: CrawlUrlState = {
 };
 
 describe("crawlUrl", () => {
+  it.each([3, 3.3, 3.9, 4, 5.3, 8])("restores an exact £%s dial cap from a shared map URL", (maxPrice) => {
+    const encoded = encodeCrawl({ ...sample, filters: { ...sample.filters, maxPrice } });
+    expect(decodeCrawl(new URLSearchParams(encoded)).filters?.maxPrice).toBe(maxPrice);
+    expect(seedCrawlState(`?${encoded}`).filters.maxPrice).toBe(maxPrice);
+  });
+
   it("round-trips encode -> decode for a representative state", () => {
     const decoded = decodeCrawl(new URLSearchParams(encodeCrawl(sample)));
     expect(decoded.mode).toBe("build");

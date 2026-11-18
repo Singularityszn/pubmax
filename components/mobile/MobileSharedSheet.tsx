@@ -121,6 +121,7 @@ export default function MobileSharedSheet({
   homeTitle = "the map",
   onInterruptReveal,
   venueRevealSettleSequence = 0,
+  returnFocus,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -148,6 +149,7 @@ export default function MobileSharedSheet({
   /** Drop entrance classes on scroll, drag, Escape, or a second pick. */
   onInterruptReveal?: () => void;
   venueRevealSettleSequence?: number;
+  returnFocus?: () => HTMLElement | null;
   children: React.ReactNode;
 }) {
   const titleId = useId();
@@ -261,9 +263,9 @@ export default function MobileSharedSheet({
     return () => {
       cancelAnimationFrame(frame);
       window.removeEventListener("keydown", onKey);
-      previousFocus.current?.focus({ preventScroll: true });
+      if (!returnFocus) previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, openAtSnap, requestEscape]);
+  }, [initialSnap, kind, openAtSnap, requestEscape, returnFocus]);
 
   // How far the sheet's top edge sits above the viewport bottom, for chrome
   // that docks on it (the live voice bar). Layout height, not the rect: the
@@ -348,6 +350,7 @@ export default function MobileSharedSheet({
     sheetRef,
     "map-surface",
     previousFocus,
+    kind ? returnFocus : undefined,
   );
 
   const presented = kind ? { kind, title, kicker, children } : visibleExit;
@@ -371,7 +374,7 @@ export default function MobileSharedSheet({
       data-map-interactive={mapRemainsInteractive ? "true" : undefined}
       data-sheet-kind={presented.kind}
       data-sheet-exiting={visibleExit ? "true" : undefined}
-      inert={visibleExit ? true : undefined}
+      inert={!!visibleExit}
       aria-hidden={visibleExit ? true : undefined}
       /* How deep the reader is. Present so a browser test can assert the trail
          rather than infer it from which glyph happens to be drawn. */

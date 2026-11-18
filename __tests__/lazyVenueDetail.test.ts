@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import type { Venue } from "@/lib/venues";
+import { pubsToGeoJSON } from "@/components/map/canvas/geojson";
 
 function venue(id: string, name = id): Venue {
   return {
@@ -43,6 +44,16 @@ function venue(id: string, name = id): Venue {
 }
 
 describe("mergeLazyDetailPins", () => {
+  it("keeps canonical fair-pint evidence on a hydrated map feature", () => {
+    const slim: Venue = { ...venue("venue-a"), fairPint: [530, "https://example.com/menu", "2026-11-16"] };
+    const detail = { ...venue("venue-a", "Detail A"), cheapestPrice: 4 };
+    const merged = mergeLazyDetailPins([slim], new Map([[detail.id, detail]]));
+    expect(merged[0]?.fairPint).toEqual([530, "https://example.com/menu", "2026-11-16"]);
+    expect(merged[0]?.cheapestPrice).toBe(4);
+    const feature = pubsToGeoJSON(merged, new Map(), null, null, null, null, null, null, null, Date.parse("2026-11-17"));
+    expect(feature.features[0]?.properties?.fairPence).toBe(530);
+  });
+
   it("keeps the loaded detail's own price read day", () => {
     const slim = { ...venue("venue-a", "Slim A"), cheapestPint: "Guinness", measure: "pint",
       priceSource: "Guinndex", priceObservedAt: "2026-11-07" };

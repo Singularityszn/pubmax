@@ -1,3 +1,4 @@
+import type { FairPintEvidence } from "@/lib/fairPint";
 import { mapSearchNameTier } from "@/lib/mapSearchNameMatch";
 import { legacyOsmVenueKind } from "@/lib/legacyOsmVenueKind.mjs";
 import { comparableVenuePint, pintCapQualification, type PintCapSignals } from "@/lib/comparableVenuePint";
@@ -152,6 +153,7 @@ export function hasPintPriceSemantics(
 }
 
 export type Venue = {
+  fairPint?: FairPintEvidence;
   placesContent?: import("@/lib/placesEnrichment").PlacesEnrichmentRecord;
   /** Dog policy and opening hours the pub's own website states (lib/venueSiteFacts.ts). Absent is unknown. */
   siteFacts?: import("@/lib/venueSiteFacts").VenueSiteFacts;

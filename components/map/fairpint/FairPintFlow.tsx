@@ -1,0 +1,254 @@
+"use client";
+import { useEffect, useMemo, useState } from "react";
+import type { useFairPintPlan } from "./useFairPintPlan";
+import type { FairPintGenerated } from "@/lib/fairPint";
+import FairPintCard, { type FairPintCounts } from "./FairPintCard";
+import { createSlimShardLoader, type MapBounds } from "@/lib/slimShards";
+import type { SlimVenue } from "@/lib/venuesSlim";
+import type { CityId } from "@/lib/cities";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
+import type { fairPence } from "@/lib/fairPintPricing";
+import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
+import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
+import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
+import { retryablePlannerImport } from "./retryablePlannerImport";
+
+const loadPlanner = retryablePlannerImport(() => import("./FairPintPlanner"));
+
+const selectionHaptic = () => {
+  void import("@/lib/nativeHaptics").then(({ haptic }) => haptic("selection-kept")).catch(() => {});
+};
+const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
+  .find((element) => element.getClientRects().length > 0) ?? null;
+const resultReturnFocus = () => document.querySelector<HTMLElement>(".fairPintCard:not([data-fair-prelude]) input.fairPintRange") ?? mapSearchControl();
+
+
+function circleBounds(lat: number, lng: number, radiusKm: number): MapBounds {
+  const dy = radiusKm / 110.574,
+    dx = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+  return { west: lng - dx, east: lng + dx, south: lat - dy, north: lat + dy };
+}
+function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
+  const rad = Math.PI / 180,
+    a =
+      Math.sin(((row.lat - lat) * rad) / 2) ** 2 +
+      Math.cos(lat * rad) * Math.cos(row.lat * rad) * Math.sin(((row.lng - lng) * rad) / 2) ** 2;
+  return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= km;
+}
+export default function FairPintFlow({
+  priceReader,
+  cityId,
+  bounds,
+  center,
+  onCommit,
+  onRoute,
+  mobile,
+  readerPosition = null,
+}: {
+  priceReader: typeof fairPence;
+  readerPosition?: { lat: number; lng: number } | null;
+  mobile: boolean;
+  cityId: CityId;
+  bounds: MapBounds;
+  center: [number, number];
+  onCommit: (pounds: number) => void;
+  onRoute: (area: import("@/lib/nightAreas").NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
+}) {
+  const [early] = useState(takeEarlyFairPint);
+  const [start] = useState(() => early?.pence ?? readFairPint());
+  const [committed, setCommitted] = useState(start);
+  const [now] = useState(Date.now);
+  const loader = useMemo(() => createSlimShardLoader(cityId), [cityId]);
+  const [chosenPosition, setPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const [locationOff, setLocationOff] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [attempt, setAttempt] = useState(0);
+  const [returnToCard, setReturnToCard] = useState(false);
+  const [typedName, setTypedName] = useState<string | null>(null);
+  const [Planner, setPlanner] = useState<typeof import("./FairPintPlanner").default | null>(null);
+  const [plannerFailed, setPlannerFailed] = useState(false);
+  const [plannerAttempt, setPlannerAttempt] = useState(0);
+  const [firstDraw, setFirstDraw] = useState<{ pence: number; area: string } | null>(null);
+  useEffect(() => {
+    if (!firstDraw || Planner) return;
+    let cancelled = false;
+    void loadPlanner(() => { if (!cancelled) setPlannerFailed(true); })
+      .then((loaded) => { if (!cancelled) setPlanner(() => loaded.default); })
+      .catch(() => { if (!cancelled) setPlannerFailed(true); });
+    return () => { cancelled = true; };
+  }, [firstDraw, Planner, plannerAttempt]);
+  const [data, setData] = useState<{
+    rows: SlimVenue[];
+    count: "loading" | "failed" | "ready";
+    draw: "loading" | "failed" | "ready";
+    countKey?: string;
+    drawKey?: string;
+  }>({ rows: [], count: "loading", draw: "loading" });
+  const area = nearestNightAreaForViewport(cityId, center);
+  const activateRoute = (generated: FairPintGenerated) =>
+    onRoute(
+      generated.inferredContext.nightArea,
+      generated.stops.map((stop) => stop.venueId),
+      data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
+    );
+  const position = chosenPosition === null ? null : (readerPosition ?? chosenPosition);
+  const countBounds = position ? circleBounds(position.lat, position.lng, 0.8) : bounds;
+  const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
+  const countKey = JSON.stringify(countBounds),
+    drawKey = JSON.stringify(drawBounds);
+  useEffect(() => {
+    let mounted = true;
+    const pendingReleases = early ? early.releases - (early.handledReleases ?? 0) : 0;
+    if (early && pendingReleases > 0) {
+      writeFairPint(early.pence);
+      onCommit(early.pence / 100);
+      for (let index = 0; index < pendingReleases; index++) selectionHaptic();
+    }
+    void early?.location?.then((fix) => {
+      if (!mounted) return;
+      const position = fix ? mapReaderPositionFromGeolocation(fix) : null;
+      setPosition(position);
+      setLocationOff(!position);
+      if (position) latchMapReaderLocationWatch();
+    });
+    setFairPintSession(true, start);
+    setMapFirstVisitArrivalCardVisible(true);
+    const sync = () => setOffline(!navigator.onLine);
+    sync();
+    window.addEventListener("online", sync);
+    window.addEventListener("offline", sync);
+    return () => {
+      mounted = false;
+      setFairPintSession(false);
+      setMapFirstVisitArrivalCardVisible(false);
+      window.removeEventListener("online", sync);
+      window.removeEventListener("offline", sync);
+    };
+    // The bootstrap handoff is consumed once for this mounted flow.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [start, early]);
+  useEffect(() => {
+    let cancelled = false;
+    const countBox: MapBounds = JSON.parse(countKey),
+      drawBox: MapBounds = JSON.parse(drawKey);
+    const load = async (box: MapBounds, kind: "count" | "draw") => {
+      const rows = await loader.inBounds(box);
+      const ready = loader.coverageComplete(box);
+      setData((held) => ({
+        ...held,
+        rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
+        ...(!cancelled ? {
+          [kind + "Key"]: kind === "count" ? countKey : drawKey,
+          [kind]: ready ? "ready" : "failed",
+        } : {}),
+      }));
+      if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
+    };
+    void load(countBox, "count");
+    void load(drawBox, "draw");
+    return () => {
+      cancelled = true;
+    };
+  }, [loader, countKey, drawKey, attempt]);
+  const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
+  const counts = (pence: number, draw = false): FairPintCounts => {
+    const phase = draw
+      ? data.drawKey === drawKey
+        ? data.draw
+        : "loading"
+      : data.countKey === countKey
+        ? data.count
+        : "loading";
+    if (phase !== "ready") return { phase };
+    return {
+      phase,
+      count: pricedRows.filter(
+        ({ row, pence: listed }) =>
+          listed !== null &&
+          listed <= pence &&
+          (draw && area
+            ? inCircle(row, area.centre.lat, area.centre.lng, area.radiusKm)
+            : position
+              ? inCircle(row, position.lat, position.lng, 0.8)
+              : row.lng >= bounds.west && row.lng <= bounds.east && row.lat >= bounds.south && row.lat <= bounds.north),
+      ).length,
+    };
+  };
+  if (!area) return null;
+  const render = (plan?: ReturnType<typeof useFairPintPlan>) => {
+  const close = () => {
+    setFairPintSession(false);
+    dismissMapFirstVisitArrival(undefined, Date.now(), true);
+    if (!plan || plan.state.phase === "dial") mapSearchControl()?.focus({ preventScroll: true });
+  };
+  return (
+    <>
+      <FairPintCard
+        focusOnMount={returnToCard}
+        start={committed}
+        area={area.name}
+        counts={(pence) => counts(pence)}
+        drawCounts={(pence) => counts(pence, true)}
+        located={position !== null}
+        locationOff={locationOff}
+        offline={offline}
+        drawUnavailable={plannerFailed || (plan?.retrying ?? false)}
+        loadFailed={plannerFailed}
+        pending={!plannerFailed && firstDraw !== null && (!plan || plan.state.phase === "drawing")}
+        error={plannerFailed ? "Could not load your night. Try again." : plan?.state.error ?? ""}
+        onInput={(pence) => setFairPintSession(true, pence)}
+        onCommit={(pence) => {
+          setCommitted(pence);
+          writeFairPint(pence);
+          onCommit(pence / 100);
+          selectionHaptic();
+        }}
+        onLocation={() => {
+          if (!navigator.geolocation) {
+            setLocationOff(true);
+            return;
+          }
+          navigator.geolocation.getCurrentPosition(
+            (value) => {
+              const position = mapReaderPositionFromGeolocation(value);
+              setPosition(position);
+              setLocationOff(!position);
+              if (position) latchMapReaderLocationWatch();
+            },
+            () => {
+              setPosition(null);
+              setLocationOff(true);
+            },
+          );
+        }}
+        onRetry={() => {
+          if (plannerFailed) {
+            setPlannerFailed(false);
+            setPlannerAttempt((held) => held + 1);
+          } else setAttempt((held) => held + 1);
+        }}
+        onClose={close}
+        onDraw={(pence) => {
+          if (plan?.retrying) return;
+          void import("@/lib/planIntake").catch(() => {});
+          if (plan) void plan.draw(pence);
+          else {
+            setCommitted(pence);
+            setFirstDraw({ pence, area: area.slug });
+          }
+        }}
+      />
+    </>
+  );
+  };
+  return firstDraw === null || !Planner ? render() : (
+      <Planner
+        cityId={cityId} area={area.slug} initialArea={firstDraw.area} pence={firstDraw.pence} onGenerated={activateRoute}
+        resultProps={{ typedName, onName: setTypedName, mobile, venues: data.rows, returnFocus: resultReturnFocus,
+          onClose: () => { setFairPintSession(false); dismissMapFirstVisitArrival(undefined, Date.now(), true); },
+          onBack: () => setReturnToCard(true) }}
+      >
+        {render}
+      </Planner>
+  );
+}

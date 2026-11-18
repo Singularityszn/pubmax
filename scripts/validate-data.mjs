@@ -1,5 +1,5 @@
 import { legacyOsmVenueKind } from "../lib/legacyOsmVenueKind.mjs";
-import { applySlimListingPrices } from "../lib/slimListingPrices.mjs";
+import { applySlimListingPrices, expandFairPintPin } from "../lib/slimListingPrices.mjs";
 // Build-time data validation for the bundled datasets shipped in public/data.
 //
 // The app is deliberately keyless/offline and reads these JSON files directly,
@@ -1758,7 +1758,7 @@ function validateSlimShardBodies(
         errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
         rows = [];
       } else {
-        rows = payload.rows;
+        rows = payload.rows.map((row) => expandFairPintPin(row, payload));
       }
       const bytes = Buffer.byteLength(raw);
       totalBytes += bytes;

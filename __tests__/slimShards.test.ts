@@ -293,6 +293,31 @@ describe("createSlimShardLoader (London)", () => {
     vi.restoreAllMocks();
   });
 
+  it("retries an unavailable manifest and retains cells across later reads", async () => {
+    vi.spyOn(offlineCache, "get").mockResolvedValue(null);
+    installFetch({ "/data/venues_slim.manifest.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const core = { west: -0.15, east: -0.05, south: 51.48, north: 51.52 };
+    const outer = { west: 0.01, east: 0.09, south: 51.47, north: 51.51 };
+    await expect(Promise.all([loader.inBounds(core), loader.inBounds(outer)]))
+      .resolves.toEqual([[], []]);
+    expect(fetched).toEqual(["/data/venues_slim.manifest.json"]);
+    expect(loader.coverageComplete(core)).toBe(false);
+
+    installFetch();
+    await expect(loader.inBounds(core)).resolves.toEqual(BODIES["/data/venues_slim.core.json"]);
+    expect(loader.coverageComplete(core)).toBe(true);
+    await expect(loader.inBounds(outer)).resolves.toEqual(BODIES["/data/venues_slim.greenwich.json"]);
+    await expect(loader.inBounds(core)).resolves.toEqual([]);
+    expect(loader.coverageComplete(core)).toBe(true);
+    expect(loader.coverageComplete(outer)).toBe(true);
+    expect(fetched).toEqual([
+      "/data/venues_slim.manifest.json",
+      "/data/venues_slim.core.json",
+      "/data/venues_slim.greenwich.json",
+    ]);
+  });
+
   it("bounds overlapping viewport and all reads without losing or duplicating shards", async () => {
     const shards = Array.from({ length: 9 }, (_, index) => ({
       id: `bounded-${index}`, core: index === 0,
@@ -840,4 +865,24 @@ describe("adopted price snapshot at every shard entry", () => {
     expect(loader.coverageComplete(bounds)).toBe(true);
     expect((await loader.nearPoint(51.5, -0.12)).rows.map((row) => row.id)).toEqual(["current"]);
   });
+});
+
+it("shares snapshot-qualified cells between map and fair-pint readers", async () => {
+  const digest = "abcdefghijklmnopqrstuv";
+  const core = defined(MANIFEST.shards[0]);
+  const manifest = { ...MANIFEST, priceDatasetDigest: digest, shards: [core] };
+  let reads = 0;
+  const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input).includes("manifest")) return { ok: true, json: async () => manifest } as Response;
+    reads++;
+    return { ok: true, json: async () => ({ d: digest, rows: BODIES[core.url] }) } as Response;
+  });
+  vi.stubGlobal("fetch", fetcher);
+  const bounds = { west: -0.2, south: 51.45, east: -0.01, north: 51.54 };
+  const first = await createSlimShardLoader("london").inBounds(bounds);
+  const second = await createSlimShardLoader("london").inBounds(bounds);
+  expect(first.map((row) => row.id)).toEqual(["c1", "c2"]);
+  expect(second).toEqual(first);
+  expect(reads).toBe(1);
+  vi.unstubAllGlobals();
 });

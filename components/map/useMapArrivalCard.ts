@@ -1,5 +1,6 @@
 "use client";
 
+import { fairPintActive, subscribeFairPintActive, supportsFairPint } from "@/lib/fairPint";
 import { useState, useSyncExternalStore } from "react";
 
 import { useMapReaderPosition } from "@/components/map/useMapReaderPosition";
@@ -11,12 +12,14 @@ import {
 
 export function useMapArrivalCard({
   mobile,
+  cityId,
   onLocationExposure,
   pinsRevealed,
   recoveryToastActive,
   search,
 }: {
   mobile: boolean;
+  cityId: string;
   onLocationExposure: () => void;
   pinsRevealed: boolean;
   recoveryToastActive: boolean;
@@ -27,14 +30,15 @@ export function useMapArrivalCard({
     subscribeMapFirstVisitArrival,
     () =>
       shouldShowMapFirstVisitArrival({
-        pinsRevealed,
+        pinsRevealed: supportsFairPint(cityId) || pinsRevealed,
         search,
         recoveryToastActive,
       }),
     () => false,
   );
   const readerPosition = useMapReaderPosition(onLocationExposure, setPermission);
-  const visible = shouldShowMapArrivalLocationCard({
+  const active = useSyncExternalStore(subscribeFairPintActive, fairPintActive, () => false);
+  const visible = supportsFairPint(cityId) ? eligible || active : shouldShowMapArrivalLocationCard({
     eligible,
     mobile,
     permission,

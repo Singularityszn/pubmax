@@ -329,3 +329,30 @@ describe("retained slim venue loads", () => {
     await expect(pal.promise).resolves.toEqual({ rows: [ROW], status: "ready" });
   });
 });
+
+it("starts a waiting data read only after the drawn line releases it", async () => {
+  const { holdFairPintDraw } = await import("@/lib/mapFirstVisitArrivalGate");
+  const endDraw = holdFairPintDraw();
+  const hold = retainSlimVenuesFromPath("/data/after-draw.json");
+  try {
+    expect(fetchCalls).toHaveLength(0);
+    endDraw();
+    await fetchIssued(1);
+    fetchCalls[0]!.resolve(new Response(JSON.stringify([ROW])));
+    await expect(hold.promise).resolves.toEqual({ rows: [ROW], status: "ready" });
+  } finally { endDraw(); hold.release(); }
+});
+
+it("does not start a cancelled data read when a pending draw completes", async () => {
+  const { holdFairPintDraw } = await import("@/lib/mapFirstVisitArrivalGate");
+  const endDraw = holdFairPintDraw();
+  const hold = retainSlimVenuesFromPath("/data/cancelled-during-draw.json");
+  const result = hold.promise.catch((error: unknown) => error);
+  try {
+    hold.release();
+    await settleMicrotasks();
+    endDraw();
+    expect(await result).toMatchObject({ name: "AbortError" });
+    expect(fetchCalls).toHaveLength(0);
+  } finally { endDraw(); }
+});

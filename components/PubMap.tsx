@@ -1,4 +1,5 @@
 "use client";
+import { boundsForOpeningView } from "@/lib/mapOpeningBounds";
 
 import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
 
@@ -514,6 +515,8 @@ import {
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
+import { FairPintMapBridge } from "@/components/map/fairpint/FairPintBridge";
+import { supportsFairPint } from "@/lib/fairPint";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import {
@@ -979,20 +982,6 @@ type UserLocation = {
 };
 
 const LOCATION_FIRST_ZOOM = 15;
-function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
-  const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
-  const height = typeof window === "undefined" ? 844 : Math.max(window.innerHeight, 1);
-  const scale = 512 * 2 ** viewport.zoom;
-  const longitudeDelta = (width * 180) / scale;
-  const latitudeDelta = (height * 180 * 1.4) / scale;
-  const [lng, lat] = viewport.center;
-  return {
-    west: lng - longitudeDelta,
-    south: Math.max(-85, lat - latitudeDelta),
-    east: lng + longitudeDelta,
-    north: Math.min(85, lat + latitudeDelta),
-  };
-}
 
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
@@ -1797,7 +1786,7 @@ export default function PubMap({
   const [nearbyError, setNearbyError] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<UserLocation | null>(null);
   const { readerPosition, visible: showMapArrivalCard } = useMapArrivalCard({
-    mobile: mobileViewport,
+    mobile: mobileViewport, cityId,
     onLocationExposure: invalidatePrivateCamera,
     pinsRevealed,
     recoveryToastActive: mapSoftRetryActive,
@@ -5958,12 +5947,7 @@ export default function PubMap({
   function renderMapStageFooter() {
     return (
       <>
-      {showMapArrivalCard ? (
-        <MapArrivalCard
-          onUseLocation={useLocationFromArrivalCard}
-          onChooseArea={() => openChooseArea(null, true)}
-        />
-      ) : null}
+      {supportsFairPint(cityId) ? <FairPintMapBridge position={readerPosition} bounds={mapBounds ?? boundsForOpeningView(initialMapView)} center={mapViewport.center} onRoute={(area, ids, rows) => { mergeSlimVenues(rows); activateGeneratedPlan(area, ids); }} onCommit={(maxPrice) => setFilters((held) => ({ ...held, maxPrice }))} /> : showMapArrivalCard ? <MapArrivalCard onUseLocation={useLocationFromArrivalCard} onChooseArea={() => openChooseArea(null, true)} /> : null}
       <ChooseAreaDesktopDialog
         open={!mobileViewport && mapOverlay === "choose-area"}
         opening={chooseAreaOpening}

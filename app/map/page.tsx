@@ -1,6 +1,9 @@
 import MapOpeningPreview from "@/components/map/MapOpeningPreview";
 import PintIndexMapArrival from "@/components/pintindex/PintIndexMapArrival";
 import PubMaxingShell from "@/components/PubMaxingShell";
+import FairPintPrelude from "@/components/map/fairpint/FairPintPrelude";
+import { getCity } from "@/lib/cities";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import Script from "next/script";
 import { londonMapMetadata } from "@/lib/londonMapMetadata";
 import { loadMapOpeningGround, loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
@@ -46,6 +49,7 @@ export default async function MapPage() {
   // The opening basemap as a picture, laid under those discs on a phone
   // (lib/mapOpeningSnapshot.ts), or null when it was drawn for another camera.
   const openingGround = loadMapOpeningGround();
+  const fairPintArea = nearestNightAreaForViewport("london", getCity("london").mapView.center)?.name;
   return (
     <>
       {/* This page-only warm starts after hydration, so it cannot block the
@@ -58,6 +62,7 @@ export default async function MapPage() {
       <MapOpeningPreview discs={openingDiscs} ground={openingGround} />
       <PubMaxingShell
         cityId="london"
+        fairPintPrelude={fairPintArea ? <FairPintPrelude area={fairPintArea} /> : null}
         zonePintIndex={zonePintIndex}
         pricesReadLine={mapPricesReadLineFor("london")}
       />

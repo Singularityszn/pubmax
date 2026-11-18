@@ -25,7 +25,8 @@ export function mergeLazyDetailPins(slimPins: Venue[], detailById: Map<string, V
             amenities: { ...pin.filterHints.amenities, ...detail.filterHints?.amenities, beerGarden: true } } : {}),
         }
       : undefined;
-    const carried: Partial<Pick<Venue, "zone" | "cheapestPrice" | "cheapestPint" | "measure" | "priceSource" | "priceObservedAt" | "filterHints">> = {
+    const carried: Partial<Pick<Venue, "zone" | "cheapestPrice" | "cheapestPint" | "measure" | "priceSource" | "priceObservedAt" | "filterHints" | "fairPint">> = {
+      ...(pin.fairPint ? { fairPint: pin.fairPint } : {}),
       ...(featureHints ? { filterHints: featureHints } : {}),
       ...(detail.zone === undefined && pin.zone !== undefined ? { zone: pin.zone } : {}),
       ...(detail.priceObservedAt === undefined && pin.priceObservedAt !== undefined

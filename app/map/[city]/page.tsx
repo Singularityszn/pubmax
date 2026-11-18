@@ -1,8 +1,12 @@
+import FairPintPrelude from "@/components/map/fairpint/FairPintPrelude";
+import { supportsFairPint } from "@/lib/fairPint";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { getCity, parseCityId } from "@/lib/cities";
+import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import { cityMapShareUrl } from "@/lib/cityMapHref";
 import {
   cityMapOgAlt,
@@ -54,13 +58,15 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   const { city: raw } = await params;
   const cityId = parseCityId(raw);
   if (!cityId || !getCity(cityId).enabled) notFound();
+  const nonce = (await headers()).get("x-nonce") ?? undefined;
+  const fairPintArea = nearestNightAreaForViewport(cityId, getCity(cityId).mapView.center)?.name;
   return (
     <>
       {cityId === "london" ? (
         // Deferred for the reason app/map/page.tsx states beside its own copy.
         <script defer src={`/map-first-paint-init.js?v=${encodeURIComponent(mapWarmVersion)}`} />
       ) : null}
-      <PubMaxingShell cityId={cityId} pricesReadLine={mapPricesReadLineFor(cityId)} />
+      <PubMaxingShell cityId={cityId} fairPintPrelude={supportsFairPint(cityId) && fairPintArea ? <FairPintPrelude area={fairPintArea} nonce={nonce} /> : null} pricesReadLine={mapPricesReadLineFor(cityId)} />
     </>
   );
 }

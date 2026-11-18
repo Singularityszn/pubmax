@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 
 import { pinsToSlimVenues, slimVenueToPin, slimVenuesToPins } from "@/lib/slimPins";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { fairPence } from "@/lib/fairPintPricing";
 
 const slim: SlimVenue = {
   id: "venue-abc123",
@@ -148,6 +149,14 @@ describe("slimVenuesToPins", () => {
 });
 
 describe("pinsToSlimVenues", () => {
+  it("keeps canonical pint evidence through a serialised resume round trip", () => {
+    const pin = slimVenueToPin({ ...slim, fairPint: [530, "https://example.com/menu", "2026-11-16"] });
+    const snapshot: SlimVenue[] = JSON.parse(JSON.stringify(pinsToSlimVenues([pin])));
+    const restored = slimVenuesToPins(snapshot)[0]!;
+    expect(restored.fairPint).toEqual([530, "https://example.com/menu", "2026-11-16"]);
+    expect(fairPence(restored, Date.parse("2026-11-17"))).toBe(530);
+  });
+
   it("keeps the published price's read day in the resume snapshot, so a restored pin is not aged", () => {
     const pin = slimVenueToPin({ ...slim, priceObservedAt: "2026-10-01" });
     const compacted = pinsToSlimVenues([pin])[0]!;

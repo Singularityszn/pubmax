@@ -56,3 +56,7 @@ export type PlanEndingRecommendation = {
   warnings: string[];
   options: PlanEndingOption[];
 };
+
+export function planningConfidenceLabel(level: PlanningConfidence["level"]): string {
+  return level === "high" ? "Prices checked" : level === "medium" ? "Not all checked" : "Rough guess, yours to change";
+}

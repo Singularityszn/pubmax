@@ -108,7 +108,7 @@ import {
   type PlanStopCount,
   type PlanStopCountSource,
 } from "@/lib/planStopCount";
-import { planHasRoute, type PlanState } from "@/lib/plan";
+import { DEFAULT_PLAN_COMPOSER_TITLE, planHasRoute, type PlanState } from "@/lib/plan";
 import { canonicalPlanDraftForWrite, parsePlanDraft, parsePlanDraftEnvelope, PLAN_DRAFT_KEY, PLAN_DRAFT_V2_KEY, readPlanDraftEnvelope, writePlanDraftEnvelope, type PlanDraftWriteResult, type StoredPlanDraft } from "@/lib/planDraft";
 import { parsePlanRouteDraftV2, reconcilePlanRouteDrafts, PLAN_ROUTE_DRAFT_V2_KEY, type ParsedPlanRouteDraft } from "@/lib/planRouteDraft";
 import {
@@ -121,6 +121,7 @@ import {
   type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
+  composerCreatePayload,
   clearPersistedPlanDrafts,
   composerLockErrorFromResponse,
   londonServiceDateLabel,
@@ -1863,36 +1864,7 @@ async function requestPlanGeneration(
   return last;
 }
 
-export function composerCreatePayload(input: {
-  title: string;
-  creatorName: string;
-  startTime: string;
-  cityId?: CityId | null;
-  stops: ReadonlyArray<{ venueId: string; venueName: string; selectedDrinkPriceEvidence?: unknown }>;
-  groundingProof?: string | null;
-  planAnchor?: GeneratedPlanAnchor | null;
-  context?: NightContext | null;
-}): Record<string, unknown> {
-  return {
-    title: input.title,
-    creatorName: input.creatorName,
-    startTime: input.startTime,
-    ...(input.cityId ? { cityId: input.cityId } : {}),
-    stops: input.stops.map(({ venueId, venueName, selectedDrinkPriceEvidence }) => {
-      const evidence = cleanSelectedDrinkPriceEvidence(selectedDrinkPriceEvidence);
-      return {
-        venueId,
-        venueName,
-        ...(evidence && input.context && !input.context.zeroProof
-          && evidence.category === input.context.drinkCategory
-          ? { selectedDrinkPriceEvidence: evidence } : {}),
-      };
-    }),
-    ...(input.groundingProof ? { groundingProof: input.groundingProof } : {}),
-    ...(input.planAnchor ? { anchor: input.planAnchor } : {}),
-    ...(input.context ? { context: input.context } : {}),
-  };
-}
+export { composerCreatePayload } from "@/lib/planComposerHandoff";
 
 export function planComposerVenueIndexPath(cityId?: CityId | null): string {
   return CITIES[cityId ?? DEFAULT_CITY_ID].slimVenuesPath;
@@ -2201,7 +2173,7 @@ function initialComposerDraftFields(
 ): ComposerDraftFields {
   const startTime = handoff?.startsAt ?? recoveredDraft?.startTime;
   return {
-    title: handoff?.title ?? recoveredDraft?.title ?? "Tonight, sorted",
+    title: handoff?.title ?? recoveredDraft?.title ?? DEFAULT_PLAN_COMPOSER_TITLE,
     creatorName: handoff?.creatorName ?? recoveredDraft?.creatorName ?? "",
     startTime: startTime?.endsWith("Z")
       ? londonDateTimeInputFromIso(startTime) ?? startTime : startTime ?? nextEvening,

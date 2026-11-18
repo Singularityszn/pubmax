@@ -1,3 +1,4 @@
+import { expandFairPintPin } from "@/lib/slimListingPrices.mjs";
 export function recordedPintVenueIdsFromSlimPayload(value: unknown): string[] | undefined {
   if (typeof value !== "object" || value === null) return undefined;
   const payload = value as { bundlePricesChecked?: unknown; recordedPintVenueIds?: unknown };
@@ -9,14 +10,15 @@ export function recordedPintVenueIdsFromSlimPayload(value: unknown): string[] | 
 export function rowsFromSlimPayload(value: unknown): unknown[] | null {
   if (Array.isArray(value)) return value;
   if (typeof value !== "object" || value === null) return null;
-  const rows = (value as { rows?: unknown }).rows;
+  const metadata = value as { rows?: unknown; ft?: unknown; fu?: unknown };
+  const rows = metadata.rows;
   if (!Array.isArray(rows)) return null;
   const recordedIds = recordedPintVenueIdsFromSlimPayload(value);
-  if (!recordedIds) return rows;
+  if (!recordedIds) return rows.map((row) => expandFairPintPin(row, metadata));
   const recorded = new Set(recordedIds);
   return rows.map((item: unknown) => {
     if (typeof item !== "object" || item === null) return item;
-    const row = item as Record<string, unknown>;
+    const row = expandFairPintPin(item, metadata) as Record<string, unknown>;
     return row.cheapestPrice === null && row.hasRecordedPrice === undefined
       ? { ...row, hasRecordedPrice: typeof row.id === "string" && recorded.has(row.id) }
       : row;

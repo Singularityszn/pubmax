@@ -1,6 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { listEnabledCities } from "../lib/cities";
+import { rowsFromSlimPayload } from "../lib/slimPayload";
 import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
 
 // Network fixtures must not be answered from a service worker cache.
@@ -42,7 +43,7 @@ for (const width of [1280, 390]) {
     const core = JSON.parse(await readFile("public/data/venues_slim.core.json", "utf8")) as {
       revision: string; rows: Array<Record<string, unknown>>;
     };
-    const base = core.rows.find((row) => !row.kind || row.kind === "pub");
+    const base = (rowsFromSlimPayload(core) as Array<Record<string, unknown>>).find((row) => !row.kind || row.kind === "pub");
     const rows = [["venue-aaaa111", "Review Alpha"], ["venue-zzzz222", "Review Zulu"]]
       .map(([id, name], index) => ({
         ...base, id, name, sourceName: undefined, kind: "pub", lat: 51.51 + index * 0.001,

@@ -513,6 +513,7 @@ describe("venues_slim.json", () => {
                 "zone",
                 "locality",
                 "priceSource",
+                "fairPint",
                 "hasRecordedPrice",
                 "cheapestPint",
                 "measure",

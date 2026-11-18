@@ -240,6 +240,11 @@ The slim builder preserves refused serving text so readers can reject the same f
 Each selected listing retains its drink, measure, publisher and observation day. Existing prices remain unchanged.
 The builder and validator share this projection. `__tests__/comparablePintProducer.test.ts` covers eligibility, detail loading and map resume through the shared comparable-price reader.
 
+The plan generator and London's fair-pint slim evidence share `canonicalPintPriceInput` in `lib/canonicalPintPriceInput.ts`.
+The fair-pint count applies `priceEvidenceUsableForCeiling` from `lib/planRouteEvidence.ts` through `lib/fairPintPricing.ts`.
+This separate evidence does not change the pin's displayed cheapest price or add a whole-route budget.
+`__tests__/fairPint.test.ts` checks rule parity and shipped-cell parity. CI and the events refresh run it after their slim build.
+
 A refused figure cannot rank. Its venue and ordinary price display remain available. Last Orders can retain hours without a qualifying price.
 Named routes also apply this policy to the selected pint in the stop list, Pint Line and receipt.
 A refused price leaves the stop in place and outside the selected-pint subtotal. See `__tests__/namedRouteServing.test.tsx`.

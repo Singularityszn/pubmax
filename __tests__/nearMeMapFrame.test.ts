@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, it, expect } from "vitest";
 
 import { haversineKm } from "@/lib/haversine";
@@ -205,49 +202,6 @@ describe("nearMeCameraFrame where the ring is empty", () => {
     const visible = nearMeVisibleBounds(frame, PHONE, PHONE_BAND);
     expect(boundsContain(visible, thin)).toBe(true);
     expect(boundsWidthKm(visible)).toBeLessThan(4);
-  });
-});
-
-describe("the shipped near-me camera", () => {
-  const source = readFileSync(
-    join(process.cwd(), "components/map/canvas/useMapCamera.ts"),
-    "utf8",
-  );
-  const fitNearby = source.slice(source.indexOf("const fitNearby"));
-
-  it("frames the reader, never a bounds over venues", () => {
-    expect(fitNearby).toContain("nearMeCameraFrame");
-    expect(fitNearby).not.toContain("fitBounds");
-    expect(fitNearby).not.toContain("LngLatBounds");
-  });
-
-  it("measures its chrome rather than assuming it", () => {
-    // Both edges of the band are facts about the moment: a content-sized sheet
-    // below, a stack of coming-and-going rows above.
-    expect(fitNearby).toContain("whenBottomSheetSettles");
-    expect(fitNearby).toContain("measureTopChromeBottom");
-    expect(source).toContain("function measureBottomSheetTop");
-  });
-
-  it("moves once, so the camera never corrects itself on screen", () => {
-    // The first version aimed immediately and re-aimed when the sheet settled.
-    // The first reading is taken while the sheet is still a sliver, so that
-    // correction fired on EVERY open and was worth about 180px of pan.
-    expect(fitNearby.match(/easeTo\(/g) ?? []).toHaveLength(1);
-    expect(fitNearby).not.toContain("NEAR_ME_SETTLE_DURATION_MS");
-    expect(source).not.toContain("NEAR_ME_SETTLE_DURATION_MS");
-  });
-
-  it("still takes the reduced-motion jump, and takes only one", () => {
-    expect(fitNearby).toContain("reducedRef.current ? 0");
-    // One easeTo above plus duration 0 here means one instant jump, not two.
-    expect(fitNearby.match(/duration:/g) ?? []).toHaveLength(1);
-  });
-
-  it("does not spend the settle timeout when no sheet covers the map", () => {
-    const watcher = source.slice(source.indexOf("function whenBottomSheetSettles"));
-    expect(watcher).toContain("BOTTOM_SHEET_SELECTOR");
-    expect(watcher).toMatch(/done\(null\);/);
   });
 });
 

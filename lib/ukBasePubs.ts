@@ -1,3 +1,4 @@
+import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 // The UK BASE layer: every `amenity=pub` in the UK, streamed to the map one
 // grid cell at a time.
 //
@@ -395,7 +396,8 @@ export function createUkBaseLoader(options?: {
 
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
-      const response = await fetch(UK_BASE_MANIFEST_PATH);
+      if (fairPintDrawPending()) await waitForFairPintDraw();
+      const response = await fetch(UK_BASE_MANIFEST_PATH, { priority: "low" });
       if (!response.ok) {
         discardBody(response);
         throw new Error(`HTTP ${response.status}`);
@@ -451,7 +453,10 @@ export function createUkBaseLoader(options?: {
     }
     const pending = inFlight.get(entry.url);
     if (pending) return pending;
-    const request = fetch(entry.url)
+    const request = (async () => {
+      if (fairPintDrawPending()) await waitForFairPintDraw();
+      return fetch(entry.url, { priority: "low" });
+    })()
       .then(async (response) => {
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
         const pubs = parseUkBaseShardForEntry(await response.json(), entry);

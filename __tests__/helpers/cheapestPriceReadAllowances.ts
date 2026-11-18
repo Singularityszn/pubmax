@@ -163,8 +163,8 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "lib/planRoundForecast.ts": [
     {"owner": "listedPintFor", "count": 4, "reason": "Forecasts the selected stop with its own price lane and freshness contract."},
   ],
-  "lib/planRouteEvidence.server.ts": [
-    {"owner": "readPriceIndex", "count": 1, "reason": "Carries price evidence into the qualified route boundary."},
+  "lib/canonicalPintPriceInput.ts": [
+    {"owner": "canonicalPintPriceInput", "count": 1, "reason": "Carries price evidence into the qualified route boundary."},
   ],
   "lib/planningAnchor.server.ts": [
     {"owner": "priceEvidenceFor", "count": 2, "reason": "Builds receipts for an explicitly chosen anchor."},

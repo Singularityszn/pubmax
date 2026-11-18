@@ -6,6 +6,8 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import shoreditchCell from "@/public/data/venues_slim.cell.51.525_-0.100.json";
 import { haversineKm } from "@/lib/haversine";
 import { nightAreaForMapQuery } from "@/lib/nightAreas";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
+import type { SlimVenue } from "@/lib/venuesSlim";
 
 vi.mock("next/dynamic", () => ({
   default: () => () => createElement("div", { "data-testid": "route-canvas" }),
@@ -15,9 +17,10 @@ import PlanRouteMiniMap from "@/components/plan/PlanRouteMiniMap";
 
 // These committed venue records are near Old Street, within the existing
 // Shoreditch search radius. They are not the unknown original reported stops.
-const masque = shoreditchCell.rows.find((venue) => venue.id === "venue-10ilrk3")!;
-const eagle = shoreditchCell.rows.find((venue) => venue.id === "venue-w001wg")!;
-const sports = shoreditchCell.rows.find((venue) => venue.id === "venue-8ydt68")!;
+const shoreditchRows = rowsFromSlimPayload(shoreditchCell) as SlimVenue[];
+const masque = shoreditchRows.find((venue) => venue.id === "venue-10ilrk3")!;
+const eagle = shoreditchRows.find((venue) => venue.id === "venue-w001wg")!;
+const sports = shoreditchRows.find((venue) => venue.id === "venue-8ydt68")!;
 const stops = [masque, eagle].map((venue, position) => ({
   venueId: venue.id,
   venueName: venue.name,

@@ -40,11 +40,10 @@ The review proved two independent defects:
      checks and claims enforce this shared boundary
      (`locationAllowsInterruptivePrompt`, `lib/promptBudget.ts`). The arrival
      card reports its own visibility through
-     `setMapFirstVisitArrivalCardVisible` (`lib/mapFirstVisitArrival.ts`); it
-     asks for location itself, so a consent card over it would put two first
-     questions on one screen. The
-     [arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-     owns its visibility conditions and dismissal window.
+     `setMapFirstVisitArrivalCardVisible` (`lib/mapFirstVisitArrival.ts`).
+     The arrival card owns the first question, so a consent card must not cover it.
+     The [arrival policies](rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival)
+     own which card appears and how it is dismissed.
    - Native push and create password stand down on a phone-width map or plan-composer route,
      where the outing controls own the foot of the screen (`routeOwnsScreenFoot`,
      `lib/promptBudget.ts`). They do not claim there and come back on the next
@@ -76,8 +75,10 @@ The review proved two independent defects:
    value), so it only ever loses the budget race passively — no ordering code
    needed for it.
 
-3. **The tour is map-scoped and claims like the rest.** It renders only on
-   `/map` load, before any plan action, so it rarely co-renders with the
+3. **The tour is map-scoped and claims like the rest.** The
+   [fair-pint arrival policy](rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival)
+   owns its additional suppression rule. Otherwise, it renders only on `/map`
+   load, before any plan action, so it rarely co-renders with the
    plan-tap surfaces — but it is still budgeted, so a returning-day session that
    is also A2HS/identity/push-eligible sees exactly one prompt. This is
    implemented on `main` by this PR (below).

@@ -3,6 +3,7 @@
 
 import { parseUkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
+import { CRAWL_ARRIVAL_PARAMS, searchHasArrivalParam, TRUSTED_HANDOFF_ARRIVAL_PARAMS } from "@/lib/mapArrivalParams";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -11,9 +12,7 @@ import { isUkNationalBrowse } from "@/lib/ukNationalBrowse";
 export function hasCrawlArrivalParams(search: string): boolean {
   // Intentional deep links (landmark/band/food/log/etc.) must also suppress
   // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|area|drink|cocktails|landmark|band|food|garden|max|alt|log|crawl|experience|mapNotice)=/.test(
-    search,
-  );
+  return searchHasArrivalParam(search, CRAWL_ARRIVAL_PARAMS);
 }
 
 export type MapIntentQuery = string | { get(name: string): string | null };
@@ -27,14 +26,12 @@ export function hasMapLogIntent(query: MapIntentQuery): boolean {
 // Trusted-handoff arrival markers not already recognised by
 // hasCrawlArrivalParams: the planner deep link (plan=1), the accepted-handoff
 // sentinel (accept=1), and the fixed acceptance source (src=<source>).
-const TRUSTED_HANDOFF_ARRIVAL_PARAM = /[?&](plan|accept|src)=/;
-
 /** Whether the frozen arrival search string alone marks an explicit Map arrival. */
 export function searchHasExplicitMapIntent(search: string): boolean {
   return (
     hasCrawlArrivalParams(search) ||
     hasMapLogIntent(search) ||
-    TRUSTED_HANDOFF_ARRIVAL_PARAM.test(search) ||
+    searchHasArrivalParam(search, TRUSTED_HANDOFF_ARRIVAL_PARAMS) ||
     parseUkPlaceMapArrival(search) !== null ||
     isUkNationalBrowse(search)
   );
