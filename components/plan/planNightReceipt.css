@@ -6,7 +6,7 @@
   gap: var(--space-3);
   width: 100%;
   max-width: 1160px;
-  margin: 0 auto var(--space-8);
+  margin: var(--space-8) auto;
   padding-top: var(--space-6);
   border-top: 1px solid var(--hairline);
   color: var(--color-text);
