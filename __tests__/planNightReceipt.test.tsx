@@ -48,6 +48,7 @@ import { POST as createPlan } from "@/app/api/plans/route";
 import { GET as readPlan } from "@/app/api/plans/[id]/route";
 import { PUT as claimPlan } from "@/app/api/plans/[id]/session/route";
 import { planMemberCookieName } from "@/lib/planMemberCapability";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 import { __resetMemoryPlans, planStore } from "@/lib/planStore";
 
 
@@ -115,6 +116,7 @@ async function settle() {
 }
 
 beforeEach(() => {
+  setProviderIdentity("clerk", null);
   calls = [];
   bodyRead = Promise.resolve();
   receiptAnswer = ownerOnly;
@@ -138,12 +140,76 @@ beforeEach(() => {
 
 afterEach(async () => {
   await act(async () => root.unmount());
+  setProviderIdentity("clerk", null);
   container.remove();
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
 
 describe("the private Night Receipt on the Plan page", () => {
+  it("settles a cancelled read when another provider rotates, then permits recovery", async () => {
+    let answer!: (response: Response) => void;
+    receiptAnswer = () => new Promise<Response>(resolve => { answer = resolve; });
+    await show();
+    await act(async () => { setProviderIdentity("clerk", "late-clerk-account"); });
+    await settle();
+    const retry = container.querySelector<HTMLButtonElement>("button");
+    expect(retry).not.toBeNull();
+    receiptAnswer = ownerOnly;
+    await act(async () => { retry!.click(); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+    await act(async () => { answer(json({ receipt: RECEIPT })); });
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it("moves keyboard focus from a successful retry to the receipt heading", async () => {
+    vi.useFakeTimers();
+    await show();
+    receiptAnswer = async () => json({ retryable: true }, 503);
+    await act(async () => { window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    const retry = container.querySelector<HTMLButtonElement>("button")!;
+    retry.focus();
+    receiptAnswer = ownerOnly;
+    await act(async () => { retry.click(); });
+    await settle();
+    expect(document.activeElement).toBe(receiptOnScreen()?.querySelector("h2"));
+  });
+
+  it("returns keyboard focus to the Plan heading when a retry loses access", async () => {
+    vi.useFakeTimers();
+    const main = document.createElement("main");
+    const heading = document.createElement("h1");
+    heading.textContent = "The Plan";
+    main.append(heading);document.body.append(main);
+    try {
+      await show();
+      receiptAnswer = async () => json({ retryable: true }, 503);
+      await act(async () => { window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(150); });
+      await settle();
+      const retry = container.querySelector<HTMLButtonElement>("button")!;
+      retry.focus();
+      receiptAnswer = async () => refused();
+      await act(async () => { retry.click(); });
+      await settle();
+      expect(receiptOnScreen()).toBeNull();
+      expect(document.activeElement).toBe(heading);
+    } finally { main.remove(); }
+  });
+
+  it("updates the mounted live region when a shown receipt becomes unavailable", async () => {
+    vi.useFakeTimers();
+    await show();
+    const live = container.querySelector('[role="status"]');
+    expect(live).not.toBeNull();
+    receiptAnswer = async () => json({ retryable: true }, 503);
+    await act(async () => { window.dispatchEvent(new Event("focus")); await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(container.querySelector('[role="status"]')).toBe(live);
+    expect(live?.textContent).toContain("couldn't load");
+  });
+
   it("reads the real completed Plan after its real host account claim finishes", async () => {
     __resetMemoryPlans();
     const created = await createPlan(new Request("http://localhost/api/plans", {
