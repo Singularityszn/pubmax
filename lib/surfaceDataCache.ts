@@ -7,8 +7,8 @@
 //
 // Four rules make it safe to keep an answer past a navigation.
 //
-// IT LIVES IN THE BROWSER ONLY. The store is a module Map backed by a
-// sessionStorage namespace, so it dies with the browser session. A device
+// IT LIVES IN THE BROWSER ONLY. Persistence follows the browser cache policy in
+// docs/rules/app-proxy-csp-caching-and-file-tracing.md. A device
 // cache of who you are is the exact thing lib/deviceAccountIdentity.ts exists
 // to close, and this must never reopen it from the other side.
 //
@@ -67,6 +67,39 @@ type Entry = { value: unknown; storedAt: number };
 // browser-only: on the server every read misses and every write is dropped,
 // which also keeps a first paint identical on both sides.
 const store = new Map<string, Entry>();
+// Twenty private windows cover recent conversations and feed selections without retaining a whole browsing session.
+const PRIVATE_SNAPSHOT_CAPACITY = 20;
+const privateDeadlines = new Map<string, number>();
+let privateExpiryTimer: ReturnType<typeof setTimeout> | null = null;
+
+function clearPrivateExpiry(): void {
+  if (privateExpiryTimer !== null) clearTimeout(privateExpiryTimer);
+  privateExpiryTimer = null;
+  privateDeadlines.clear();
+}
+
+function prunePrivateSnapshots(now: number): void {
+  for (const [key, deadline] of privateDeadlines) {
+    if (deadline <= now) {
+      privateDeadlines.delete(key);
+      store.delete(key);
+    }
+  }
+}
+
+function schedulePrivateExpiry(now: number): void {
+  if (privateExpiryTimer !== null) clearTimeout(privateExpiryTimer);
+  privateExpiryTimer = null;
+  if (!privateDeadlines.size) return;
+  const deadline = Math.min(...privateDeadlines.values());
+  privateExpiryTimer = setTimeout(() => {
+    privateExpiryTimer = null;
+    const current = Date.now();
+    prunePrivateSnapshots(current);
+    schedulePrivateExpiry(current);
+  }, Math.max(0, deadline - now));
+}
+
 const inBrowser = (): boolean => typeof window !== "undefined";
 // The window the boundary listener is attached to, rather than a latched
 // boolean: a document only ever has one, so this binds exactly once in the app,
@@ -126,10 +159,25 @@ function removePersistentSnapshot(storage: Storage, key: string): void {
   removeStoredKey(storage, `${SURFACE_CACHE_NAMESPACE}${key}`);
 }
 
-function forgetSurfaceSnapshot(key: string): void {
+export function forgetSurfaceSnapshot(key: string): void {
   store.delete(key);
+  privateDeadlines.delete(key);
+  schedulePrivateExpiry(Date.now());
   const storage = getSessionStorage();
   if (storage) removePersistentSnapshot(storage, key);
+}
+
+export function forgetSurfaceSnapshots(prefix: string, exceptKey: string | null = null): void {
+  const keys = new Set(store.keys());
+  const storage = getSessionStorage();
+  if (storage) {
+    for (const key of listNamespacedKeys(storage)) {
+      if (key.startsWith(SURFACE_CACHE_NAMESPACE)) keys.add(key.slice(SURFACE_CACHE_NAMESPACE.length));
+    }
+  }
+  for (const key of keys) {
+    if (key.startsWith(prefix) && key !== exceptKey) forgetSurfaceSnapshot(key);
+  }
 }
 
 function persistedEntryBytes(serialized: string): number {
@@ -230,6 +278,7 @@ function bindIdentityBoundary(): void {
   if (storage) pruneOldPersistentNamespaces(storage);
   subscribeDeviceIdentity(() => {
     store.clear();
+    clearPrivateExpiry();
     dropAbandonedRequests();
     clearPersistentSurfaceCache();
   });
@@ -261,12 +310,15 @@ function readSurfaceEntry<T>(
   assertCacheable(key);
   if (!inBrowser()) return undefined;
   bindIdentityBoundary();
+  prunePrivateSnapshots(now);
   const entry = store.get(key);
   if (entry) {
     if (now - entry.storedAt <= maxAgeMs) {
       return { value: entry.value as T, storedAt: entry.storedAt };
     }
     store.delete(key);
+    privateDeadlines.delete(key);
+    schedulePrivateExpiry(now);
   }
   const persisted = readPersistentSurfaceSnapshot<T>(key, maxAgeMs, now);
   if (persisted === undefined) return undefined;
@@ -278,18 +330,39 @@ export function writeSurfaceSnapshot<T>(
   key: string,
   value: T,
   now: number = Date.now(),
+  options: { persist?: boolean; preserveAge?: boolean } = {},
 ): void {
   assertCacheable(key);
   if (!inBrowser()) return;
   bindIdentityBoundary();
-  store.set(key, { value, storedAt: now });
-  persistSurfaceSnapshot(key, value, now);
+  if (options.persist === false) {
+    prunePrivateSnapshots(now);
+    if (options.preserveAge && !store.has(key)) return;
+  }
+  const storedAt = options.preserveAge ? store.get(key)?.storedAt ?? now : now;
+  store.set(key, { value, storedAt });
+  if (options.persist === false) {
+    privateDeadlines.delete(key);
+    privateDeadlines.set(key, storedAt + DEFAULT_SURFACE_SNAPSHOT_MAX_AGE_MS);
+    while (privateDeadlines.size > PRIVATE_SNAPSHOT_CAPACITY) {
+      const oldest = privateDeadlines.keys().next().value!;
+      privateDeadlines.delete(oldest);
+      store.delete(oldest);
+    }
+    schedulePrivateExpiry(now);
+    const storage = getSessionStorage();
+    if (storage) removePersistentSnapshot(storage, key);
+  } else {
+    if (privateDeadlines.delete(key)) schedulePrivateExpiry(now);
+    persistSurfaceSnapshot(key, value, storedAt);
+  }
 }
 
 /** The account boundary, and the test seam. */
 export function clearSurfaceCache(): void {
   dropAbandonedRequests();
   store.clear();
+  clearPrivateExpiry();
   clearPersistentSurfaceCache();
 }
 

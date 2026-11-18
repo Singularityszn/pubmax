@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
 import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
+import MessageAuthWarmup from "@/components/messages/MessageAuthWarmup";
 
 import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
@@ -20,6 +21,7 @@ export const metadata: Metadata = {
 export default function MessagesInboxPage(): React.JSX.Element {
   return (
     <div className="lp messagesPage">
+      <MessageAuthWarmup />
       <SiteNav />
       <main id="main" className="container messagesMain messagesMainInbox">
         <div className="messagesSplit">
