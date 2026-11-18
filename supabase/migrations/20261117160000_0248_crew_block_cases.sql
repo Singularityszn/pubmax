@@ -10,15 +10,23 @@
 --    has at most one open case per pair, either way round: a repeat, a reverse block or
 --    a moved block onto an open pair opens nothing new. A block after a decision opens a
 --    new case. A deleted account (unbound) opens none.
--- 3. read_social_crew_block_cases_admin lists, oldest first, the open, unexpired cases
---    on a night that has not closed or been cancelled, where both people still hold
---    their places and a block still joins them. It leaves out every case of a crew the
---    moderator owns or holds any member row in, in any role or state.
--- 4. decide_social_crew_block_case_admin: an active moderator who was never in that crew,
---    with a 3 to 500 character reason, keeps both places ('kept') or removes one of the
---    two people ('removed', never the owner), as a host removal does: that crew bars
---    them, their seat ends and the roster revision moves. A decided case answers
---    'unchanged' with its decision. A person who no longer holds the place gets 'stale'.
+-- 3. A case is live while _social_crew_block_case_live holds: both people hold their
+--    places, a block still joins them either way, and the night is neither cancelled
+--    nor closed. read_social_crew_block_cases_admin lists, oldest first, the open,
+--    unexpired, live cases. Each names the two people, earlier accepted first, and says
+--    whether each blocks the other now; who opened the case is not shown. The queue and
+--    the decision leave a moderator out through one rule,
+--    _social_crew_block_case_moderator_conflicted: the moderator owns the crew, has any
+--    member row in it in any role or state, has a pending request or invitation for it,
+--    or is blocked either way with either person.
+-- 4. decide_social_crew_block_case_admin: an active moderator with no such tie, with a
+--    3 to 500 character reason, keeps both places ('kept') or removes one of the two
+--    people ('removed', never the owner), as a host removal does: that crew bars them,
+--    their seat ends and the roster revision moves. From expiry every call answers
+--    'expired'. A decided case answers 'unchanged' with its decision when the call
+--    names the same decision and the same person, and 'already_decided' otherwise.
+--    Under its locks an open case is checked by the live rule again; a case that is no
+--    longer live answers 'stale' and changes nothing.
 --    correct_social_crew_removal_admin (0245) lifts a mistaken removal.
 -- 5. Lock order. 0245's social_blocks_lock_participant_accounts already holds both
 --    people's account locks before the case opens. The case row carries no foreign key:
@@ -28,20 +36,27 @@
 --    then both people's auth rows (KEY SHARE, in ID order), then the case row, then the
 --    member row and seat, as a host removal does, and never an account lock. An account
 --    deletion holds the auth row while it deletes the cases that name the account.
+--    The live rule needs no account lock. Leave, host removal, admission and 0246 take
+--    the crew row first, so a decision sees what they committed. A block only adds a
+--    block. An unblock and a Plan cancellation outside 0246 take no lock that a
+--    decision takes: committed before the rule runs, they make the case stale;
+--    committed after it, they follow the decision.
 -- 6. Retention, the 0247 rule: a case expires 30 days after the night's close. Reads and
 --    decisions deny it from expiry. purge_expired_social_crew_block_cases deletes at most
 --    1,000 expired cases, and cases whose crew is gone, per call. Nothing schedules it.
 --    A case goes with either person's account deletion, in the same transaction, and
---    with its crew. The own-record export does not include cases, as it includes no
---    report about a person.
+--    with its crew. A block that lands while its crew is deleted can leave a case with
+--    no crew: no call reads it, and only that cleanup deletes it. The own-record export
+--    does not include cases, as it includes no report about a person.
 -- 7. No browser role and not the service role reads the table. Only the service role
 --    runs the read, the decision and the cleanup (docs/CREW_REMOVAL_CORRECTION_RUNBOOK.md).
 -- 8. Applying opens cases for blocks that already join two accepted members of a live
 --    night.
 --
 -- Rollback drops the table, with every case and decision, and its triggers and functions.
--- It stops while cases exist unless the session sets pubmax.crew_block_cases_discarded
--- to the exact row count. Roll back 0248 before 0247, 0246 and 0245.
+-- It takes its locks without waiting and stops while cases exist unless the session sets
+-- pubmax.crew_block_cases_discarded to the exact row count. Roll back 0248 before 0247,
+-- 0246 and 0245. The 0245 rollback refuses while this table exists.
 begin;
 
 do $$
@@ -154,16 +169,45 @@ create trigger social_crews_delete_block_cases
 after delete on public.social_crews
 for each row execute function public._delete_social_crew_block_cases_with_crew();
 
--- True when this moderator profile owns the crew or has any member row in it, in any
--- role or state. Roles change in place, so a former co-host looks like a guest.
-create function public._social_crew_block_case_moderator_conflicted(p_staff_profile uuid,p_crew uuid)
+-- Item 3: a case stays live while both people hold their places, a block still joins
+-- them either way, and the night is neither cancelled nor past its close.
+create function public._social_crew_block_case_live(p_crew uuid,p_first uuid,p_second uuid)
 returns boolean language sql stable security definer set search_path=''
 as $$
+  select exists(select 1 from public.social_crews crew
+    join public.plans plan on plan.id=crew.plan_id
+    join public.private_social_accounts first_account on first_account.id=p_first
+    join public.private_social_accounts second_account on second_account.id=p_second
+    where crew.id=p_crew and plan.status<>'abandoned'
+      and pg_catalog.statement_timestamp() < plan.start_time + interval '12 hours'
+      and 2=(select count(*) from public.social_crew_members member
+        where member.crew_id=p_crew and member.state='active' and member.social_account_id in (p_first,p_second))
+      and exists(select 1 from public.social_blocks social_block
+        where (social_block.blocker_profile_id=first_account.profile_id and social_block.blocked_profile_id=second_account.profile_id)
+           or (social_block.blocker_profile_id=second_account.profile_id and social_block.blocked_profile_id=first_account.profile_id)));
+$$;
+
+-- Item 3: true when this moderator profile owns the crew, has any member row in it (in
+-- any role or state: roles change in place, so a former co-host looks like a guest), has
+-- a pending request or invitation for it, or is blocked either way with either person.
+create function public._social_crew_block_case_moderator_conflicted(
+  p_staff_profile uuid,p_crew uuid,p_first uuid,p_second uuid
+) returns boolean language sql stable security definer set search_path=''
+as $$
   select exists(select 1 from public.private_social_accounts staff_account
-    where staff_account.profile_id=p_staff_profile and (
-      exists(select 1 from public.social_crews crew where crew.id=p_crew and crew.owner_account_id=staff_account.id)
-      or exists(select 1 from public.social_crew_members insider
-        where insider.crew_id=p_crew and insider.social_account_id=staff_account.id)));
+      where staff_account.profile_id=p_staff_profile and (
+        exists(select 1 from public.social_crews crew where crew.id=p_crew and crew.owner_account_id=staff_account.id)
+        or exists(select 1 from public.social_crew_members insider
+          where insider.crew_id=p_crew and insider.social_account_id=staff_account.id)
+        or exists(select 1 from public.social_crew_join_requests asked
+          where asked.crew_id=p_crew and asked.requester_account_id=staff_account.id and asked.state='pending')
+        or exists(select 1 from public.social_crew_invitations invited
+          where invited.crew_id=p_crew and invited.target_account_id=staff_account.id and invited.state='pending')))
+    or exists(select 1 from public.private_social_accounts party
+      join public.social_blocks social_block
+        on (social_block.blocker_profile_id=p_staff_profile and social_block.blocked_profile_id=party.profile_id)
+        or (social_block.blocker_profile_id=party.profile_id and social_block.blocked_profile_id=p_staff_profile)
+      where party.id in (p_first,p_second));
 $$;
 
 create function public.read_social_crew_block_cases_admin(p_staff_role_id uuid,p_limit integer)
@@ -184,30 +228,28 @@ begin
         'crewId', block_case.crew_id,
         'nightStartsAt', pg_catalog.to_char(plan.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
         'expiresAt', pg_catalog.to_char(block_case.expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-        'blocker', jsonb_build_object('memberId', blocker_member.id, 'handle', blocker_profile.handle,
-          'role', blocker_member.role,
-          'joinedAt', pg_catalog.to_char(blocker_member.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')),
-        'blocked', jsonb_build_object('memberId', blocked_member.id, 'handle', blocked_profile.handle,
-          'role', blocked_member.role,
-          'joinedAt', pg_catalog.to_char(blocked_member.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+        -- The two people, earlier accepted first, and whether each blocks the other now.
+        'people', (select jsonb_agg(jsonb_build_object('memberId', member.id, 'handle', profile.handle,
+            'role', member.role,
+            'joinedAt', pg_catalog.to_char(member.joined_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+            'blocksOther', exists(select 1 from public.social_blocks social_block
+              where social_block.blocker_profile_id=account.profile_id and social_block.blocked_profile_id=other.profile_id))
+            order by member.joined_at, member.id)
+          from public.social_crew_members member
+          join public.private_social_accounts account on account.id=member.social_account_id
+          join public.profiles profile on profile.id=account.profile_id
+          join public.private_social_accounts other
+            on other.id in (block_case.blocker_account_id,block_case.blocked_account_id) and other.id<>account.id
+          where member.crew_id=block_case.crew_id
+            and member.social_account_id in (block_case.blocker_account_id,block_case.blocked_account_id))
       ) as entry
       from public.social_crew_block_cases block_case
       join public.social_crews crew on crew.id=block_case.crew_id
       join public.plans plan on plan.id=crew.plan_id
-      join public.social_crew_members blocker_member on blocker_member.crew_id=block_case.crew_id
-        and blocker_member.social_account_id=block_case.blocker_account_id and blocker_member.state='active'
-      join public.social_crew_members blocked_member on blocked_member.crew_id=block_case.crew_id
-        and blocked_member.social_account_id=block_case.blocked_account_id and blocked_member.state='active'
-      join public.private_social_accounts blocker on blocker.id=block_case.blocker_account_id
-      join public.profiles blocker_profile on blocker_profile.id=blocker.profile_id
-      join public.private_social_accounts blocked on blocked.id=block_case.blocked_account_id
-      join public.profiles blocked_profile on blocked_profile.id=blocked.profile_id
       where block_case.decided_at is null and block_case.expires_at > pg_catalog.statement_timestamp()
-        and plan.status<>'abandoned' and pg_catalog.statement_timestamp() < plan.start_time + interval '12 hours'
-        and exists(select 1 from public.social_blocks social_block
-          where (social_block.blocker_profile_id=blocker.profile_id and social_block.blocked_profile_id=blocked.profile_id)
-             or (social_block.blocker_profile_id=blocked.profile_id and social_block.blocked_profile_id=blocker.profile_id))
-        and not public._social_crew_block_case_moderator_conflicted(v_staff.profile_id, block_case.crew_id)
+        and public._social_crew_block_case_live(block_case.crew_id,block_case.blocker_account_id,block_case.blocked_account_id)
+        and not public._social_crew_block_case_moderator_conflicted(v_staff.profile_id, block_case.crew_id,
+          block_case.blocker_account_id, block_case.blocked_account_id)
       order by block_case.opened_at, block_case.id
       limit p_limit
     ) item
@@ -241,12 +283,19 @@ begin
     for key share of auth_user;
   select * into v_case from public.social_crew_block_cases where id=p_case_id for update;
   if v_case.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
-  if public._social_crew_block_case_moderator_conflicted(v_staff.profile_id,v_case.crew_id) then
+  if public._social_crew_block_case_moderator_conflicted(v_staff.profile_id,v_case.crew_id,
+      v_case.blocker_account_id,v_case.blocked_account_id) then
     return jsonb_build_object('ok',false,'code','forbidden'); end if;
-  if v_case.decided_at is not null then
-    return jsonb_build_object('ok',true,'code','unchanged','decision',v_case.decision); end if;
   if v_case.expires_at <= pg_catalog.statement_timestamp() then
     return jsonb_build_object('ok',false,'code','expired'); end if;
+  if v_case.decided_at is not null then
+    if v_case.decision=p_decision and v_case.removed_member_id is not distinct from p_member_id then
+      return jsonb_build_object('ok',true,'code','unchanged','decision',v_case.decision); end if;
+    return jsonb_build_object('ok',false,'code','already_decided','decision',v_case.decision);
+  end if;
+  -- Item 4: the queue's rule again, under the crew row, after the waits above.
+  if not public._social_crew_block_case_live(v_case.crew_id,v_case.blocker_account_id,v_case.blocked_account_id) then
+    return jsonb_build_object('ok',false,'code','stale'); end if;
   if p_decision='removed' then
     select * into v_member from public.social_crew_members
     where id=p_member_id and crew_id=v_case.crew_id
@@ -295,7 +344,8 @@ revoke all on function public._open_social_crew_block_cases_for(uuid,uuid) from 
 revoke all on function public._open_social_crew_block_cases() from public, anon, authenticated, service_role;
 revoke all on function public._delete_social_crew_block_cases_on_unbind() from public, anon, authenticated, service_role;
 revoke all on function public._delete_social_crew_block_cases_with_crew() from public, anon, authenticated, service_role;
-revoke all on function public._social_crew_block_case_moderator_conflicted(uuid,uuid) from public, anon, authenticated, service_role;
+revoke all on function public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid) from public, anon, authenticated, service_role;
+revoke all on function public._social_crew_block_case_live(uuid,uuid,uuid) from public, anon, authenticated, service_role;
 revoke all on function public.read_social_crew_block_cases_admin(uuid,integer) from public, anon, authenticated;
 revoke all on function public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text) from public, anon, authenticated;
 revoke all on function public.purge_expired_social_crew_block_cases(integer) from public, anon, authenticated;

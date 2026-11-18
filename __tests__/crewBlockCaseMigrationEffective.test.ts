@@ -387,7 +387,8 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
       "public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text)",
       "public.purge_expired_social_crew_block_cases(integer)"];
     const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
-      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid)"];
+      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
+      "public._social_crew_block_case_live(uuid,uuid,uuid)"];
     for (const fn of [...callable, ...internal]) {
       for (const role of ["public", "anon", "authenticated"]) {
         const grantee = role === "public" ? "PUBLIC" : role;

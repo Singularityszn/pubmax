@@ -5,8 +5,10 @@
 -- invitation acceptance bodies, the 0114 host queue body, the 0092 provisioning body
 -- and the 0224 suspension body, then drops the social_blocks trigger, the helpers, the removal
 -- correction function and its ledger.
--- Roll back 0246 first. 0246 calls helpers this rollback drops, so while 0246's
--- release function exists this rollback stops before it locks or changes anything.
+-- Roll back 0248 and 0246 first. 0246 calls helpers this rollback drops, and 0248's
+-- cases rely on the social_blocks account locks it drops, so while 0246's release
+-- function or 0248's case table exists this rollback stops before it locks or changes
+-- anything.
 -- Rollback discloses nothing, but it removes protections. A removed person can request
 -- that crew again, the host queue shows requests that acceptance refuses, and a
 -- requester whom the host has since blocked cannot cancel their own request again.
@@ -27,6 +29,9 @@ do $$
 begin
   if to_regprocedure('public.release_departed_social_crew_places(integer)') is not null then
     raise exception 'Rollback 0245 refused: migration 0246 is still applied. Run the 0246 rollback first.';
+  end if;
+  if to_regclass('public.social_crew_block_cases') is not null then
+    raise exception 'Rollback 0245 refused: migration 0248 is still applied. Run the 0248 rollback first.';
   end if;
 end;
 $$;

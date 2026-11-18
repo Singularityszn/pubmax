@@ -7980,10 +7980,20 @@ export type Database = {
         };
         Returns: Json;
       };
+      _social_crew_block_case_live: {
+        Args: {
+          p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
+        };
+        Returns: boolean;
+      };
       _social_crew_block_case_moderator_conflicted: {
         Args: {
           p_staff_profile: string | null;
           p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
         };
         Returns: boolean;
       };

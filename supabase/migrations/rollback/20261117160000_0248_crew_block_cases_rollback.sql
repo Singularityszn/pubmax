@@ -4,11 +4,18 @@
 -- THIS DELETES MODERATOR CASES. Every case, open or decided, with its moderator, reason
 -- and decision, is gone and cannot be restored. A removal a moderator decided stays: the
 -- member row keeps 'removed', and correct_social_crew_removal_admin (0245) still lifts it.
--- Before anything else the rollback locks the table against writers, without waiting,
--- and counts the rows. When it is busy it stops with "could not obtain lock"; run it
--- again. When there are rows, export what must be kept, then set
+-- Before anything else the rollback takes every lock it needs, without waiting: first
+-- social_blocks, private_social_accounts and social_crews, whose triggers it drops, then
+-- the case table, and it counts the rows. A writer on a trigger table opens or deletes
+-- cases, so taking the case table first, or waiting later to drop a trigger, could close
+-- a cycle with that writer. When a table is busy the rollback stops at once with "could
+-- not obtain lock" and changes nothing; run it again. Blocks, account writes and crew
+-- writes wait while it runs. When there are rows, export what must be kept, then set
 -- pubmax.crew_block_cases_discarded to that exact count and run it again.
 begin;
+
+lock table public.social_blocks, public.private_social_accounts, public.social_crews
+  in access exclusive mode nowait;
 
 do $$
 declare v_rows bigint := 0;
@@ -31,7 +38,8 @@ drop trigger if exists social_crews_delete_block_cases on public.social_crews;
 drop function if exists public.purge_expired_social_crew_block_cases(integer);
 drop function if exists public.decide_social_crew_block_case_admin(uuid,uuid,text,uuid,text);
 drop function if exists public.read_social_crew_block_cases_admin(uuid,integer);
-drop function if exists public._social_crew_block_case_moderator_conflicted(uuid,uuid);
+drop function if exists public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid);
+drop function if exists public._social_crew_block_case_live(uuid,uuid,uuid);
 drop function if exists public._delete_social_crew_block_cases_with_crew();
 drop function if exists public._delete_social_crew_block_cases_on_unbind();
 drop function if exists public._open_social_crew_block_cases();
