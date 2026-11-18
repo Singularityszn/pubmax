@@ -14,7 +14,9 @@ import type { UkBasePub } from "@/lib/ukBasePubs";
 
 import { isVenueUnpriced } from "@/lib/firstDropNudge";
 import {
+  BASELINE_NO_PUBLISHER_CAPTION,
   PROVISIONAL_PRICE_LINE,
+  baselineTrustCaption,
   venueBundlePrices,
   venuePriceLane,
   venuePriceFallbackPending,
@@ -630,6 +632,67 @@ describe("the provisional lane", () => {
 
   it("owns the one line, and nothing else writes those words", () => {
     expect(PROVISIONAL_PRICE_LINE).toBe("Logged once, needs a second drinker");
+  });
+});
+
+// A slim pin reaches the sheet before its detail rows do. The index already
+// stamped the publisher and read day the list row prints, so the sheet must
+// word the same evidence rather than claim "publisher not recorded" and then
+// flip a moment later (live audit, The Boot, 18 Nov 2026).
+describe("the baseline lane's index stamp", () => {
+  const STAMPED = {
+    cheapestPrice: 4.8,
+    priceSource: "Pint Prices",
+    priceObservedAt: "2026-11-09",
+  };
+
+  it("carries the slim index's publisher and read day until the detail rows land", () => {
+    const lane = venuePriceLane(makeVenue(STAMPED), null, null);
+    expect(lane).toMatchObject({
+      lane: "baseline",
+      cheapestPrice: 4.8,
+      listedIndex: { label: "Pint Prices", observedOn: "2026-11-09" },
+      observedOn: "2026-11-09",
+    });
+    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe("Listed · collected 9 Nov");
+  });
+
+  it("prefers the detail row's own evidence once it has landed", () => {
+    const venue = makeVenue({
+      ...STAMPED,
+      prices: [{
+        price_gbp: 4.8,
+        pint_name: "FOSTERS",
+        pub_url: "https://www.pint-prices.com/pub/example/The%20Boot",
+        scraped_at_values: "2026-11-09T13:07:13+00:00",
+      } as Venue["prices"][number]],
+    });
+    const lane = venuePriceLane(venue, null, null);
+    expect(lane).toMatchObject({
+      lane: "baseline",
+      publisher: { label: "Pint Prices" },
+      observedOn: "2026-11-09",
+    });
+    expect(lane?.lane === "baseline" && lane.listedIndex).toBeUndefined();
+  });
+
+  it("refuses a stamp older than the listed window", () => {
+    const lane = venuePriceLane(
+      makeVenue({ ...STAMPED, priceObservedAt: "2020-01-01" }),
+      null,
+      null,
+    );
+    expect(lane?.lane === "baseline" && lane.listedIndex).toBeUndefined();
+    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe(
+      BASELINE_NO_PUBLISHER_CAPTION,
+    );
+  });
+
+  it("still says publisher not recorded when the index stamped nothing", () => {
+    const lane = venuePriceLane(makeVenue({ cheapestPrice: 6.2 }), null, null);
+    expect(lane?.lane === "baseline" && baselineTrustCaption(lane)).toBe(
+      BASELINE_NO_PUBLISHER_CAPTION,
+    );
   });
 });
 
