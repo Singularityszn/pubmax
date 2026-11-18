@@ -48,6 +48,7 @@
 /e2e/
 /e2e-shots/
 /.tmp-evidence/
+/.test-slim-budget-*
 /artifacts/
 /.gnhf/
 

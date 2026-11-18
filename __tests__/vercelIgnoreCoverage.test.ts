@@ -87,6 +87,8 @@ describe(".vercelignore covers what a deploy would otherwise upload", () => {
       "skills",
       ".firecrawl",
       ".tmp-evidence",
+      ".test-slim-budget-a1B2c3",
+      ".test-slim-budget-Z9y8X7",
       "e2e-shots",
       "artifacts",
       ".gnhf",
