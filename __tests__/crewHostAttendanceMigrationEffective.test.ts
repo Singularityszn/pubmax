@@ -113,7 +113,8 @@ function staffRoleFor(who: Person) {
   return id;
 }
 /** The runbook's operator query: the member's current unexpired revision and mark. */
-const operatorMark = (crew: string, member: string) => db().sql(`select member.state||'|'||coalesce(mark.revision,0)||'|'||coalesce(mark.state,'none')
+const operatorMark = (crew: string, member: string) => db().sql(operatorQuery(crew, member));
+const operatorQuery = (crew: string, member: string) => `select member.state||'|'||coalesce(mark.revision,0)||'|'||coalesce(mark.state,'none')
   from public.social_crew_members member
   left join lateral (
     select attendance.revision, attendance.state from public.social_crew_attendance attendance
@@ -121,7 +122,7 @@ const operatorMark = (crew: string, member: string) => db().sql(`select member.s
       and attendance.expires_at > now()
     order by attendance.revision desc limit 1
   ) mark on true
-  where member.crew_id = '${crew}' and member.id = '${member}'`);
+  where member.crew_id = '${crew}' and member.id = '${member}'`;
 
 /** The guest reports the mark they read: the night and the revision. */
 const reportCall = (who: Person, crew: string, revision: number) =>
@@ -387,7 +388,14 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     block(ana, host);
     expect(read(host, crew)?.items.map((entry) => entry.memberId)).toEqual([beaMember]);
     expect(operatorMark(crew, anaMember)).toBe("active|1|attended");
-    expect(correct(crew, ana, "absent", 1)).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+    // The runbook's session: the queue as the service role, which has no table grant, the
+    // direct read after a role reset, then the decision as the service role again.
+    const queued = `set role service_role; select public.read_social_crew_attendance_reports_admin('${STAFF_ROLE}',50);`;
+    expect(db().expectRefusal(`${queued} ${operatorQuery(crew, anaMember)}`)).toMatch(/permission denied for table social_crew_attendance/);
+    const last = (said: string) => said.split("\n").at(-1) ?? "";
+    expect(last(db().sql(`${queued} reset role; set role ${MIGRATOR}; ${operatorQuery(crew, anaMember)}`))).toBe("active|1|attended");
+    expect(json(last(db().sql(`${queued} reset role; ${operatorQuery(crew, anaMember)}; set role service_role; select public.${correctCall(crew, ana, "absent", 1)}::text`))))
+      .toMatchObject({ ok: true, code: "corrected", revision: 2 });
     expect(operatorMark(crew, anaMember)).toBe("active|2|absent");
     expect(remove(host, crew, bea)).toMatchObject({ ok: true });
     expect(operatorMark(crew, beaMember)).toBe("removed|1|attended");

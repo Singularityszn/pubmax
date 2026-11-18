@@ -111,9 +111,10 @@ A moderator with any member row in that crew, in any role or state, cannot decid
    select jsonb_pretty(public.read_social_crew_attendance_reports_admin('<staff role id>', 50));
    ```
 
-   To check a member without a report, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark.
+   To check a member without a report, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark. The service role cannot read the attendance tables, so `reset role` first returns to the SQL editor's own role. Step 2 sets the service role again.
 
    ```sql
+   reset role;
    select member.id as member_id, member.state, member.role, profile.handle,
      coalesce(mark.revision, 0) as current_revision, mark.state as mark, mark.actor_kind, mark.expires_at
    from public.social_crew_members member
