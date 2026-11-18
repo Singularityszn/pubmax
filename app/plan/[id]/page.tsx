@@ -9,6 +9,7 @@ import NightCrawlMode from "@/components/plan/NightCrawlMode";
 import PlanInviteOpened from "@/components/plan/PlanInviteOpened";
 import PlanCard from "@/components/plan/PlanCard";
 import PlanCrew from "@/components/plan/PlanCrew";
+import PlanNightReceipt from "@/components/plan/PlanNightReceipt";
 import PlanInviteNextStep from "@/components/plan/PlanInviteNextStep";
 import PlanReadUnavailable from "@/components/plan/PlanReadUnavailable";
 import CompletedPlanUsualLot from "@/components/plan/CompletedPlanUsualLot";
@@ -271,6 +272,7 @@ export default async function PlanPage({ params }: Props) {
           <PlanVibe planId={id} initialTally={vibeTally} />
         </aside>
       </div>
+      {completed ? <PlanNightReceipt planId={id} /> : null}
     </main>
   );
 }

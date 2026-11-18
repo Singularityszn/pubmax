@@ -264,10 +264,12 @@ export async function linkPlanOwnerUser(
   }
 }
 
+export type PlanHostUserIdResult = { ok: true; userId: string | null } | { ok: false };
+
 /** Read only the host account. An unclaimed host never falls back to a guest. */
-export async function planHostUserId(planId: string): Promise<string | null> {
-  if (!isPlanId(planId)) return null;
-  if (!isSupabaseConfigured()) return memoryPlanHostUserId(planId);
+export async function planHostUserIdResult(planId: string): Promise<PlanHostUserIdResult> {
+  if (!isPlanId(planId)) return { ok: true, userId: null };
+  if (!isSupabaseConfigured()) return { ok: true, userId: memoryPlanHostUserId(planId) };
   try {
     // Use the same active-member ordering that planMemberIdentity uses for
     // the host role. Select the host before checking whether it is claimed.
@@ -279,11 +281,17 @@ export async function planHostUserId(planId: string): Promise<string | null> {
       .order("joined_at").order("id")
       .limit(1)
       .maybeSingle();
-    if (error) throw new Error(error.message);
-    return cleanUserId(data?.user_id) || null;
+    if (error) return { ok: false };
+    return { ok: true, userId: cleanUserId(data?.user_id) || null };
   } catch {
-    return null;
+    return { ok: false };
   }
+}
+
+/** The host account, or null when it is unclaimed or cannot be read. */
+export async function planHostUserId(planId: string): Promise<string | null> {
+  const result = await planHostUserIdResult(planId);
+  return result.ok ? result.userId : null;
 }
 
 /**

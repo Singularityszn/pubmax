@@ -42,7 +42,8 @@ vi.mock("@/lib/authRedirect", () => ({
 vi.mock("@/lib/crewRealtime", () => ({
   subscribeToPlanCrew: vi.fn(() => () => {}),
 }));
-vi.mock("@/lib/planSessionCapability", () => ({
+vi.mock("@/lib/planSessionCapability", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/planSessionCapability")>()),
   parsePlanCapabilitySnapshot: () => ({
     token: "",
     collaborationAuthorized: true,
@@ -57,6 +58,7 @@ vi.mock("@/lib/planSessionCapability", () => ({
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 import PlanCrew from "@/components/plan/PlanCrew";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
+import { planAccountClaimEvent } from "@/lib/planSessionCapability";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -85,9 +87,11 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (!rootUnmounted) await act(async () => root.unmount());
+  setProviderIdentity("clerk", null);
   setProviderIdentity("supabase", null);
   container.remove();
   vi.clearAllMocks();
+  vi.useRealTimers();
 });
 
 describe("active Plan account claim", () => {
@@ -326,5 +330,321 @@ describe("active Plan account claim", () => {
 
     expect(vi.getTimerCount()).toBe(0);
     vi.useRealTimers();
+  });
+});
+
+describe("the claim lifecycle across retries, interruptions and resume", () => {
+  const USER_A = "11111111-1111-4111-8111-111111111111";
+  const USER_B = "22222222-2222-4222-8222-222222222222";
+  const PLAN_ID = "13131313-1313-4131-8131-131313131313";
+  type Init = { signal?: AbortSignal | null } | undefined;
+  const busy = () => Promise.resolve(new Response(null, { status: 503 }));
+  const held = (_auth: unknown, _input: unknown, init: Init) => new Promise<Response>((_resolve, reject) => {
+    init?.signal?.addEventListener(
+      "abort",
+      () => reject(new DOMException("The operation was aborted.", "AbortError")),
+      { once: true },
+    );
+  });
+  let announced: number;
+  let clerkSequence: number;
+  const announce = () => { announced += 1; };
+  const sent = () => state.accountBoundFetch.mock.calls.length;
+  const sentSignal = (index: number) => (state.accountBoundFetch.mock.calls[index]?.[2] as Init)?.signal;
+  const sentToken = (index: number) =>
+    (state.accountBoundFetch.mock.calls[index]?.[0] as { accessToken: string } | undefined)?.accessToken;
+  const advance = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+  const mount = async () => {
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }));
+    });
+    await advance(0);
+  };
+  const interrupt = async () => {
+    clerkSequence += 1;
+    await act(async () => { setProviderIdentity("clerk", `clerk-${clerkSequence}`); });
+    await advance(0);
+  };
+  const resume = async () => {
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await advance(150);
+  };
+  const exhaust = async () => {
+    await mount();
+    await advance(250);
+    await advance(1_000);
+    expect(sent()).toBe(3);
+  };
+
+  beforeEach(() => {
+    vi.useFakeTimers();
+    announced = 0;
+    clerkSequence = 0;
+    setProviderIdentity("supabase", USER_A);
+    window.addEventListener(planAccountClaimEvent(PLAN_ID), announce);
+  });
+
+  afterEach(() => {
+    window.removeEventListener(planAccountClaimEvent(PLAN_ID), announce);
+  });
+
+  it.each(["host", "guest"] as const)("sends attempts at 0, 250 and 1,000 ms, then waits for the app to return (%s)", async (role) => {
+    planSession.role = role;
+    state.accountBoundFetch.mockImplementation(busy);
+    await mount();
+    expect(sent()).toBe(1);
+    await advance(249);
+    expect(sent()).toBe(1);
+    await advance(1);
+    expect(sent()).toBe(2);
+    await advance(999);
+    expect(sent()).toBe(2);
+    await advance(1);
+    expect(sent()).toBe(3);
+    await advance(60_000);
+    expect(sent()).toBe(3);
+    await resume();
+    expect(sent()).toBe(4);
+    expect(announced).toBe(0);
+  });
+
+  it.each(["host", "guest"] as const)("ends a stalled claim after eight seconds and retries for the same %s", async (role) => {
+    planSession.role = role;
+    state.accountBoundFetch.mockImplementationOnce(held).mockResolvedValue(new Response(null, { status: 200 }));
+    await mount();
+    await advance(7_999);
+    expect(sent()).toBe(1);
+    expect(sentSignal(0)?.aborted).toBe(false);
+    await advance(1);
+    expect(sentSignal(0)?.aborted).toBe(true);
+    await advance(249);
+    expect(sent()).toBe(1);
+    await advance(1);
+    expect(sent()).toBe(2);
+    expect(announced).toBe(1);
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("exhausts three stalled claims and waits for resume before sending another", async () => {
+    state.accountBoundFetch.mockImplementation(held);
+    await mount();
+    await advance(8_000);
+    await advance(250);
+    await advance(8_000);
+    await advance(1_000);
+    await advance(8_000);
+    expect(sent()).toBe(3);
+    for (const attempt of [0, 1, 2]) expect(sentSignal(attempt)?.aborted).toBe(true);
+    await advance(60_000);
+    expect(sent()).toBe(3);
+    state.accountBoundFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    await resume();
+    expect(sent()).toBe(4);
+    expect(announced).toBe(1);
+  });
+
+  it("ignores an expired answer from the first attempt after an exhausted run resumes", async () => {
+    let late!: (response: Response) => void;
+    state.accountBoundFetch
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { late = resolve; }))
+      .mockImplementation(held);
+    await mount();
+    await advance(8_000);
+    await advance(250);
+    await advance(8_000);
+    await advance(1_000);
+    await advance(8_000);
+    expect(sent()).toBe(3);
+    await resume();
+    expect(sent()).toBe(4);
+    await act(async () => { late(new Response(null, { status: 200 })); });
+    await advance(0);
+    expect(announced).toBe(0);
+    await advance(8_000);
+    await advance(250);
+    expect(sent()).toBe(5);
+  });
+
+  it("aborts a stalled claim and removes its deadline on unmount", async () => {
+    state.accountBoundFetch.mockImplementation(held);
+    await mount();
+    await act(async () => root.unmount());
+    rootUnmounted = true;
+    expect(sentSignal(0)?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(1);
+    expect(announced).toBe(0);
+  });
+
+  it("sends nothing for a viewer without a Plan role", async () => {
+    planSession.role = null;
+    await mount();
+    expect(sent()).toBe(0);
+  });
+
+  it.each([
+    ["429", () => Promise.resolve(new Response(null, { status: 429 }))],
+    ["503", busy],
+    ["network failure", () => Promise.reject(new TypeError("Failed to fetch"))],
+  ])("retries a %s and announces the claim that follows once", async (_name, transient) => {
+    state.accountBoundFetch
+      .mockImplementationOnce(transient)
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+    await mount();
+    expect(sent()).toBe(1);
+    await advance(250);
+    expect(sent()).toBe(2);
+    expect(announced).toBe(1);
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(2);
+    expect(announced).toBe(1);
+  });
+
+  it.each([
+    [200, 1],
+    [401, 0],
+    [403, 0],
+    [404, 0],
+    [500, 0],
+  ])("stops after a definite %i answer and announces %i claims", async (status, claims) => {
+    state.accountBoundFetch.mockImplementation(() => Promise.resolve(new Response(null, { status })));
+    await mount();
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(1);
+    expect(announced).toBe(claims);
+  });
+
+  it("starts a fresh bounded attempt when the same account is interrupted while waiting", async () => {
+    state.accountBoundFetch.mockImplementation(busy);
+    await mount();
+    expect(sent()).toBe(1);
+    await interrupt();
+    expect(sent()).toBe(2);
+    expect(sentSignal(1)?.aborted).toBe(false);
+    await advance(249);
+    expect(sent()).toBe(2);
+    await advance(1);
+    expect(sent()).toBe(3);
+    await advance(1_000);
+    expect(sent()).toBe(4);
+    await advance(60_000);
+    expect(sent()).toBe(4);
+  });
+
+  it("aborts the attempt in flight and starts a fresh bounded attempt for the same account", async () => {
+    state.accountBoundFetch.mockImplementationOnce(held).mockImplementation(busy);
+    await mount();
+    await interrupt();
+    expect(sent()).toBe(2);
+    expect(sentSignal(0)?.aborted).toBe(true);
+    expect(sentSignal(1)?.aborted).toBe(false);
+    await advance(250);
+    await advance(1_000);
+    await advance(60_000);
+    expect(sent()).toBe(4);
+    expect(announced).toBe(0);
+  });
+
+  it("keeps waiting for the app to return after an interruption that follows exhaustion", async () => {
+    state.accountBoundFetch.mockImplementation(busy);
+    await exhaust();
+    await interrupt();
+    await advance(60_000);
+    expect(sent()).toBe(3);
+    state.accountBoundFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    await resume();
+    expect(sent()).toBe(4);
+    expect(sentSignal(3)?.aborted).toBe(false);
+    expect(announced).toBe(1);
+  });
+
+  it.each([
+    ["another account", USER_B, "waiting"],
+    ["another account", USER_B, "exhausted"],
+    ["sign-out", null, "waiting"],
+    ["sign-out", null, "exhausted"],
+  ] as const)("never claims again for the departed account after %s while %s", async (_name, next, phase) => {
+    state.accountBoundFetch.mockImplementation(busy);
+    if (phase === "exhausted") await exhaust();
+    else await mount();
+    const before = sent();
+    await act(async () => { setProviderIdentity("supabase", next); });
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(before);
+    expect(announced).toBe(0);
+  });
+
+  it("claims only for the new account after an account switch", async () => {
+    state.accountBoundFetch.mockImplementationOnce(busy).mockResolvedValue(new Response(null, { status: 200 }));
+    await mount();
+    await act(async () => { setProviderIdentity("supabase", USER_B); });
+    state.user = { id: USER_B };
+    state.session = { access_token: "account-b-token", user: { id: USER_B } };
+    await mount();
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(2);
+    expect(sentToken(0)).toBe("account-token");
+    expect(sentToken(1)).toBe("account-b-token");
+    expect(announced).toBe(1);
+  });
+
+  it.each([200, 403])("sends no second claim when the same account is interrupted after a %i answer", async (status) => {
+    state.accountBoundFetch.mockImplementation(() => Promise.resolve(new Response(null, { status })));
+    await mount();
+    const claims = announced;
+    await interrupt();
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(1);
+    expect(announced).toBe(claims);
+  });
+
+  it("claims again with a refreshed token and ignores the late answer of the old attempt", async () => {
+    let late!: (response: Response) => void;
+    state.accountBoundFetch
+      .mockImplementationOnce(() => new Promise<Response>((resolve) => { late = resolve; }))
+      .mockResolvedValue(new Response(null, { status: 200 }));
+    await mount();
+    state.session = { access_token: "refreshed-token", user: { id: USER_A } };
+    await mount();
+    expect(sent()).toBe(2);
+    expect(sentToken(1)).toBe("refreshed-token");
+    expect(announced).toBe(1);
+    await act(async () => { late(new Response(null, { status: 200 })); });
+    await advance(60_000);
+    expect(sent()).toBe(2);
+    expect(announced).toBe(1);
+  });
+
+  it("sends and announces nothing after unmount while waiting", async () => {
+    state.accountBoundFetch.mockImplementation(busy);
+    await mount();
+    await act(async () => root.unmount());
+    rootUnmounted = true;
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("announces nothing when a successful answer lands after unmount", async () => {
+    let late!: (response: Response) => void;
+    state.accountBoundFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => { late = resolve; }));
+    await mount();
+    await act(async () => root.unmount());
+    rootUnmounted = true;
+    await act(async () => { late(new Response(null, { status: 200 })); });
+    await advance(60_000);
+    expect(sent()).toBe(1);
+    expect(announced).toBe(0);
   });
 });
