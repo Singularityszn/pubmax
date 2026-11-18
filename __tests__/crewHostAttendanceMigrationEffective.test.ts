@@ -124,8 +124,25 @@ const operatorMark = (crew: string, member: string) => db().sql(`select member.s
   where member.crew_id = '${crew}' and member.id = '${member}'`);
 
 /** The guest reports the mark they read: the night and the revision. */
-const reportMark = (who: Person, crew: string, revision: number) =>
-  call(`report_social_crew_attendance('${who.account}','${who.profile}','${crew}',${revision})`);
+const reportCall = (who: Person, crew: string, revision: number) =>
+  `report_social_crew_attendance('${who.account}','${who.profile}','${crew}',${revision})`;
+const reportMark = (who: Person, crew: string, revision: number) => call(reportCall(who, crew, revision));
+/** A statement on its own connection, and whether it has answered yet. */
+function tracked(application: string, statement: string) {
+  let settled = false;
+  const answer = outcome(application, statement).finally(() => { settled = true; });
+  return { answer, waitsOrAnswered: async () => settled || await waitsOnAnyLock(application) === "t" };
+}
+/** A night closed an hour ago: the host marked the guest, then a moderator changed it to revision 2. */
+function correctedByModerator() {
+  const host = person(), ana = person();
+  const crew = tonight(host, [ana]);
+  expect(attest(host, crew, ana, "attended", 0)).toMatchObject({ revision: 1 });
+  startsIn(crew, "-13 hours");
+  const author = staffRoleFor(person());
+  expect(correct(crew, ana, "absent", 1, author)).toMatchObject({ ok: true, code: "corrected", revision: 2 });
+  return { crew, ana, author };
+}
 /** The moderator's queue of open attendance reports, as that moderator may read it. */
 const reportQueue = (staff = STAFF_ROLE) =>
   JSON.parse(db().sql(asServiceRole(`select public.read_social_crew_attendance_reports_admin('${staff}',50)::text`))) as Array<Record<string, unknown>>;
@@ -433,6 +450,45 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(ours(independent)).toEqual([]);
     expect(ours(staffRoleFor(person()))).toEqual([expect.objectContaining({ crewId: first,
       disputed: expect.objectContaining({ revision: 3, recordedBy: "moderator" }) })]);
+  });
+
+  it("a report filed while its moderator decides waits, then stays open for another moderator", async () => {
+    const { crew, ana, author } = correctedByModerator();
+    // The decision reads the night's Plan right after its conflict check, so a lock on the
+    // Plan table pauses it there, with the crew row held.
+    const paused = await hold("lock table public.plans in access exclusive mode", "postgres");
+    let decision: ReturnType<typeof tracked>, report: ReturnType<typeof tracked>;
+    try {
+      decision = tracked("attendance_decision_first", rpc(correctCall(crew, ana, "absent", 2, author)));
+      await expect.poll(() => waitsOnAnyLock("attendance_decision_first")).toBe("t");
+      report = tracked("attendance_report_second", rpc(reportCall(ana, crew, 2)));
+      await expect.poll(report.waitsOrAnswered).toBe(true);
+    } finally { await paused.finish(); }
+    const decided = await decision!.answer, filed = await report!.answer;
+    expect(decided.ok, decided.said).toBe(true);
+    expect(json(decided.said)).toMatchObject({ ok: true, code: "unchanged", revision: 2 });
+    expect(filed.ok, filed.said).toBe(true);
+    expect(json(filed.said)).toEqual({ ok: true, code: "reported", revision: 2 });
+    expect(reportQueue(staffRoleFor(person())).filter((entry) => entry.crewId === crew))
+      .toEqual([expect.objectContaining({ disputed: expect.objectContaining({ revision: 2, recordedBy: "moderator" }) })]);
+    expect(correct(crew, ana, "attended", 2, author)).toEqual({ ok: false, code: "forbidden" });
+  });
+
+  it("a decision that starts while its own mark's report is filed waits, then refuses", async () => {
+    const { crew, ana, author } = correctedByModerator();
+    const filing = await holdRpc(reportCall(ana, crew, 2));
+    let decision: ReturnType<typeof tracked>;
+    try {
+      expect(filing.result).toEqual({ ok: true, code: "reported", revision: 2 });
+      decision = tracked("attendance_decision_second", rpc(correctCall(crew, ana, "attended", 2, author)));
+      await expect.poll(decision.waitsOrAnswered).toBe(true);
+    } finally { await filing.finish(); }
+    const answer = await decision!.answer;
+    expect(answer.ok, answer.said).toBe(true);
+    expect(json(answer.said)).toEqual({ ok: false, code: "forbidden" });
+    expect(rows(crew, ana)).toBe("2");
+    expect(reportQueue(staffRoleFor(person())).filter((entry) => entry.crewId === crew))
+      .toEqual([expect.objectContaining({ disputed: expect.objectContaining({ revision: 2 }), current: { revision: 2, state: "absent" } })]);
   });
 
   it("a report goes with the mark: no queue entry after expiry, the cleanup or the guest's account deletion", () => {
