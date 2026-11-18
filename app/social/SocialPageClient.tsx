@@ -57,6 +57,7 @@ import {
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { matchesSocialPostFeedSelection } from "@/lib/socialPostFeedMembership";
 import type { SocialPostLane } from "@/lib/socialPostReason";
+import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 import { forgetSurfaceSnapshot, forgetSurfaceSnapshots, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
 import { chronological, mergeSocialPostHead, readSocialPostHead, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
@@ -129,6 +130,7 @@ type SocialPageClientProps = {
    */
   londonLaneOpen?: boolean;
   publicAlternatives?: SocialAlternatives;
+  featuredOpenTable?: FeaturedOpenTableResult;
 };
 
 class SocialFeedDenied extends Error {}
@@ -425,6 +427,7 @@ function SocialPageAccountState({
   friendsLaunchEnabled = true,
   londonLaneOpen = false,
   publicAlternatives,
+  featuredOpenTable,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity } = useAuth();
@@ -1042,7 +1045,7 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
+            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {londonLane ? (
               <SocialLondonLane />
             ) : (
@@ -1101,7 +1104,7 @@ function SocialPageAccountState({
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
-            {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
+            {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>

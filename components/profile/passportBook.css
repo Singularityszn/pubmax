@@ -105,6 +105,10 @@
   overflow-wrap: anywhere;
 }
 
+.passportPlace + .passportRowName {
+  flex: 1;
+}
+
 .passportRowMeta {
   font-family: var(--font-body);
   font-size: var(--text-sm);

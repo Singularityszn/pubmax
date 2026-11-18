@@ -14,13 +14,13 @@
 // Given several visits (the stops of a finished night) it offers them one by
 // one, skipping a pub already on the list.
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import { authedActionJson, authedFetch } from "@/lib/authedFetch";
+import { AuthActionJsonParseError, authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { formatGbp } from "@/lib/formatGbp";
-import { discardBody } from "@/lib/responseBody";
+import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
 import {
   answerSocialPubComparison,
   nextSocialPubOpponent,
@@ -29,173 +29,207 @@ import {
   SOCIAL_PUB_BANDS,
   settleSocialPubComparison,
   socialPubComparisonNeighbours,
+  socialPubRankingReadFailure,
   startSocialPubComparison,
   type SocialPubBand,
   type SocialPubComparison,
-  type SocialPubRankingEntry,
 } from "@/lib/socialPubRankings";
+import {
+  startVisitRanking, transitionVisitRanking, visitRankingBusy,
+  type VisitRankingEventInput, type VisitRankingRead, type VisitRankingSave,
+} from "@/lib/rankAfterVisitState";
 
 import { useTellYourLot } from "./useTellYourLot";
+import {
+  rankingSubject,
+  postVisitRankingPayload,
+  socialPubRankingSaveAnswer,
+} from "@/lib/rankAfterVisitCheckpoint";
 
 import "./rankAfterVisit.css";
 
 export type RankVisit = { venueId: string; venueName: string };
 
-type Subject = { venueId: string; venueName: string; listedPrice: number | null };
-
-type Loaded = {
-  /** The visit this read belongs to, so a stale read never paints the next pub. */
-  forVenueId: string;
-  entries: SocialPubRankingEntry[];
-  subject: Subject | null;
-};
-
-type Phase =
-  | { kind: "band" }
-  | { kind: "compare"; band: SocialPubBand; session: SocialPubComparison; asked: number }
-  | { kind: "saving" }
-  | { kind: "done"; shared: boolean | null };
-
 function priceLine(price: number | null | undefined): string {
   return typeof price === "number" ? formatGbp(price) : "No price listed";
 }
 
-async function readList(venueId: string): Promise<Omit<Loaded, "forVenueId"> | null> {
+async function readList(venueId: string, signal: AbortSignal): Promise<VisitRankingRead> {
   try {
     const response = await authedFetch(
       `/api/social/rankings?venue=${encodeURIComponent(venueId)}`,
-      { credentials: "same-origin" },
+      { credentials: "same-origin", cache: "no-store", signal },
       { requiresIdentity: true },
     );
-    if (!response.ok) {
-      discardBody(response);
-      return null;
-    }
-    const body = (await response.json()) as { entries?: SocialPubRankingEntry[]; subject?: Subject };
-    return { entries: body.entries ?? [], subject: body.subject ?? null };
+    const body: unknown = await response.json().catch(() => null);
+    if (!response.ok) return { kind: socialPubRankingReadFailure(response.status, body) };
+    const entries = postVisitRankingPayload(body);
+    const subject = rankingSubject(body);
+    return entries && subject !== "unavailable"
+      ? { kind: "entries", list: { entries, subject } } : { kind: "unavailable" };
   } catch {
-    return null;
+    return { kind: "unavailable" };
   }
 }
 
 export default function RankAfterVisitCard({ visits }: { visits: readonly RankVisit[] }) {
   const { signedIn } = useViewerSession();
+  const accountRevision = useSyncExternalStore(subscribeProviderIdentityRevision, readProviderAccountRevision, () => 0);
   if (!signedIn || visits.length === 0) return null;
-  return <RankAfterVisit visits={visits} />;
+  return <RankAfterVisit key={accountRevision} visits={visits} accountRevision={accountRevision} />;
 }
 
-function RankAfterVisit({ visits }: { visits: readonly RankVisit[] }) {
+function RankAfterVisit({ visits, accountRevision }: { visits: readonly RankVisit[]; accountRevision: number }) {
   const [index, setIndex] = useState(0);
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
-  // Social said no (not verified, unavailable): the card stays away.
-  const [refused, setRefused] = useState(false);
-  const [phase, setPhase] = useState<Phase>({ kind: "band" });
-  const [notice, setNotice] = useState<string | null>(null);
+  const skip = useCallback(() => setIndex((current) => current + 1), []);
+  const visit = visits[index];
+  return visit ? <VisitRanking key={visit.venueId} visit={visit} nextVisit={visits[index + 1]} onSkip={skip} accountRevision={accountRevision} /> : null;
+}
+
+function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
+  visit: RankVisit;
+  nextVisit?: RankVisit;
+  onSkip: () => void;
+  accountRevision: number;
+}) {
+  const visitId = visit.venueId;
+  const [phase, setPhase] = useState(() => startVisitRanking({ venueId: visitId, accountRevision }));
+  const currentPhase = useRef(phase);
   const [tellYourLot, setTellYourLot] = useTellYourLot();
-  const visit = visits[index] ?? null;
-  const visitId = visit?.venueId ?? null;
+  const scope = useRef<AbortController | null>(null);
+
+  const send = useCallback((event: VisitRankingEventInput) => {
+    const next = transitionVisitRanking(currentPhase.current, { ...event, venueId: visitId, accountRevision }, RANK_AFTER_VISIT_MAX_COMPARISONS);
+    if (next !== currentPhase.current) {
+      currentPhase.current = next;
+      setPhase(next);
+    }
+    return next;
+  }, [accountRevision, visitId]);
+
+  const readInitial = useCallback(async (controller: AbortController, requestId: number) => {
+    const result = await readList(visitId, controller.signal);
+    if (controller.signal.aborted || readProviderAccountRevision() !== accountRevision) return;
+    if (currentPhase.current.kind !== "loading" || currentPhase.current.requestId !== requestId) return;
+    if (result.kind === "entries") {
+      const { subject, entries } = result.list;
+      if (!subject || entries.some((entry) => entry.venueId === visitId || entry.venueId === subject.venueId)) {
+        controller.abort();
+        onSkip();
+        return;
+      }
+    }
+    send({ type: "read", requestId, result });
+  }, [accountRevision, onSkip, send, visitId]);
 
   useEffect(() => {
-    if (!visitId) return;
-    let active = true;
-    void readList(visitId).then((list) => {
-      if (!active) return;
-      if (!list) {
-        setRefused(true);
-        return;
-      }
-      // Not a listed pub, or a pub already on the list: offer the next one.
-      const subject = list.subject;
-      if (!subject || list.entries.some((entry) => entry.venueId === visitId || entry.venueId === subject.venueId)) {
-        setIndex((current) => current + 1);
-        return;
-      }
-      setPhase({ kind: "band" });
-      setNotice(null);
-      setLoaded({ forVenueId: visitId, ...list });
-    });
-    return () => {
-      active = false;
-    };
-  }, [visitId]);
+    const controller = new AbortController();
+    scope.current = controller;
+    void readInitial(controller, currentPhase.current.requestId);
+    return () => controller.abort();
+  }, [readInitial]);
 
-  if (refused || !visit || loaded?.forVenueId !== visit.venueId) return null;
-  const { entries, subject } = loaded;
+  if (phase.kind === "refused" || phase.kind === "loading") return null;
+  const loaded = "loaded" in phase ? phase.loaded : null;
+  const entries = loaded?.entries ?? [];
+  const subject = loaded?.subject;
   const venueName = subject?.venueName ?? visit.venueName;
-  const venueId = subject?.venueId ?? visit.venueId;
-  const nextVisit = visits[index + 1] ?? null;
-  const currentVisitId = visit.venueId;
+  const venueId = subject?.venueId ?? visitId;
 
-  function skip() {
-    setIndex((current) => current + 1);
+  function ownsRequest() {
+    return scope.current !== null && !scope.current.signal.aborted && readProviderAccountRevision() === accountRevision;
   }
 
-  async function save(band: SocialPubBand, settled: SocialPubComparison, asked: number) {
-    setPhase({ kind: "saving" });
-    setNotice(null);
+  function retire(requestId: number) {
+    send({ type: "refused", requestId });
+    scope.current?.abort();
+  }
+
+  function skip() {
+    if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
+    scope.current?.abort();
+    onSkip();
+  }
+
+  async function reconcile(pending: VisitRankingSave) {
+    if (!ownsRequest()) return;
+    const previous = currentPhase.current;
+    const checking = send({ type: "check", pending });
+    if (checking === previous || checking.kind !== "checking") return;
+    const result = await readList(visitId, scope.current!.signal);
+    if (!ownsRequest()) return;
+    send({ type: "read", requestId: checking.requestId, result });
+    if (result.kind === "refused") scope.current?.abort();
+  }
+
+  async function save(band: SocialPubBand, settled: SocialPubComparison) {
+    if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
+    const saving = send({ type: "save" });
+    if (saving.kind !== "saving") return;
+    const pending: VisitRankingSave = { band, neighbours: socialPubComparisonNeighbours(settled), shareRequested: tellYourLot, uncertain: true };
     try {
-      const { response, body } = await authedActionJson<{
-        entries?: SocialPubRankingEntry[];
-        shared?: boolean;
-        code?: string;
-        error?: string;
-      }>(
+      const { response, body } = await authedActionJson<unknown>(
         "/api/social/rankings",
         {
-          method: "POST",
-          credentials: "same-origin",
+          method: "POST", credentials: "same-origin", signal: scope.current!.signal,
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            venueId,
-            band,
-            ...socialPubComparisonNeighbours(settled),
-            ...(tellYourLot ? { shareToLot: true } : {}),
-          }),
+          body: JSON.stringify({ venueId, band, ...pending.neighbours, ...(pending.shareRequested ? { shareToLot: true } : {}) }),
         },
         { requiresIdentity: true },
       );
-      if (response.status === 409 && body.code === "STALE_RANKING") {
-        const fresh = await readList(currentVisitId);
-        if (!fresh) throw new Error("That ranking did not save. Try again.");
-        setLoaded({ forVenueId: currentVisitId, ...fresh });
-        setNotice("Your list changed in another tab. One more go.");
-        begin(band, fresh.entries, asked);
+      if (!ownsRequest()) return;
+      const saved = response.ok ? postVisitRankingPayload(body) : null;
+      if (saved?.some((entry) => entry.venueId === venueId && entry.band === band)) {
+        const shared = (body as { shared?: unknown }).shared;
+        send({ type: "saved", requestId: saving.requestId, entries: saved,
+          shared: pending.shareRequested && typeof shared === "boolean" ? shared : null });
         return;
       }
-      if (!response.ok || !body.entries) {
-        throw new Error(errorMessageFrom(body, "That ranking did not save. Try again."));
+      const outcome = socialPubRankingSaveAnswer(response.status, body);
+      if (outcome === "refused") { retire(saving.requestId); return; }
+      if (outcome === "rejected") {
+        send({ type: "rejected", requestId: saving.requestId,
+          notice: errorMessageFrom(body, "That ranking did not save. Try again.") });
+        return;
       }
-      setPhase({ kind: "done", shared: tellYourLot ? body.shared === true : null });
+      await reconcile({ ...pending, uncertain: outcome !== "stale" });
     } catch (cause) {
-      setNotice(cause instanceof Error ? cause.message : "That ranking did not save. Try again.");
-      setPhase({ kind: "band" });
+      if (!ownsRequest()) return;
+      if (cause instanceof AuthActionJsonParseError) {
+        const outcome = socialPubRankingSaveAnswer(cause.status, null);
+        if (outcome === "refused") { retire(saving.requestId); return; }
+        if (outcome === "rejected") {
+          send({ type: "rejected", requestId: saving.requestId, notice: "That ranking did not save. Try again." });
+          return;
+        }
+      }
+      if ((cause as { code?: unknown } | null)?.code === "AUTH_SESSION_WAKING") {
+        send({ type: "rejected", requestId: saving.requestId,
+          notice: cause instanceof Error ? cause.message : "Still waking your session. Try again." });
+        return;
+      }
+      await reconcile(pending);
     }
   }
 
-  function begin(band: SocialPubBand, from: readonly SocialPubRankingEntry[] = entries, asked = 0) {
-    const inBand = from.filter((entry) => entry.band === band).map((entry) => entry.venueId);
+  function begin(band: SocialPubBand) {
+    const current = currentPhase.current;
+    if (current.kind !== "band" || !ownsRequest()) return;
+    const inBand = entries.filter((entry) => entry.band === band).map((entry) => entry.venueId);
     const session = startSocialPubComparison(inBand, venueId);
-    if (nextSocialPubOpponent(session) === null) {
-      void save(band, session, asked);
-      return;
-    }
-    if (asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
-      void save(band, settleSocialPubComparison(session), asked);
-      return;
-    }
-    setPhase({ kind: "compare", band, session, asked });
+    if (nextSocialPubOpponent(session) === null || current.asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
+      void save(band, settleSocialPubComparison(session));
+    } else send({ type: "compare", band, session });
   }
 
   function answer(preferred: "new" | "existing" | "tie") {
-    if (phase.kind !== "compare") return;
-    const next = answerSocialPubComparison(phase.session, preferred);
-    const asked = phase.asked + 1;
-    if (nextSocialPubOpponent(next) === null) {
-      void save(phase.band, next, asked);
-    } else if (asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
-      void save(phase.band, settleSocialPubComparison(next), asked);
-    } else {
-      setPhase({ ...phase, session: next, asked });
+    const current = currentPhase.current;
+    if (current.kind !== "compare" || !ownsRequest()) return;
+    const next = answerSocialPubComparison(current.session, preferred);
+    const advanced = send({ type: "answer", session: next });
+    if (advanced === current) return;
+    if (nextSocialPubOpponent(next) === null || advanced.asked >= RANK_AFTER_VISIT_MAX_COMPARISONS) {
+      void save(current.band, settleSocialPubComparison(next));
     }
   }
 
@@ -238,8 +272,27 @@ function RankAfterVisit({ visits }: { visits: readonly RankVisit[] }) {
         </>
       ) : null}
 
-      {phase.kind === "saving" ? (
-        <p id={headingId} className="rankAfterVisit__lede" role="status">Saving your ranking…</p>
+      {phase.kind === "saving" || phase.kind === "checking" ? (
+        <p id={headingId} className="rankAfterVisit__lede" role="status">{phase.kind === "checking" ? "Checking your ranking…" : "Saving your ranking…"}</p>
+      ) : null}
+
+      {phase.kind === "unavailable" || phase.kind === "recover" ? (
+        <>
+          <p id={headingId} className="rankAfterVisit__lede" role="status">
+            {phase.kind === "recover" ? "We could not confirm your ranking. Check your list before ranking again." : "Your ranking is unavailable right now."}
+          </p>
+          <button type="button" className="rankAfterVisit__quiet" data-testid="rank-after-visit-retry" onClick={() => {
+            if (visitRankingBusy(currentPhase.current) || !ownsRequest()) return;
+            if (currentPhase.current.kind === "recover") void reconcile(currentPhase.current.pending);
+            else {
+              const retrying = send({ type: "retry" });
+              if (retrying.kind === "loading" && scope.current) void readInitial(scope.current, retrying.requestId);
+            }
+          }}>
+            Check your list
+          </button>
+          <button type="button" className="rankAfterVisit__quiet" data-testid="rank-after-visit-skip" onClick={skip}>Skip</button>
+        </>
       ) : null}
 
       {phase.kind === "done" ? (
@@ -276,7 +329,7 @@ function RankAfterVisit({ visits }: { visits: readonly RankVisit[] }) {
         </div>
       ) : null}
 
-      {notice ? <p className="rankAfterVisit__notice" role="status">{notice}</p> : null}
+      {phase.notice ? <p className="rankAfterVisit__notice" role="status">{phase.notice}</p> : null}
     </section>
   );
 }
