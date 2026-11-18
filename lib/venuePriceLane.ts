@@ -11,11 +11,9 @@
 
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
-import { DAY_MS } from "@/lib/dayMs";
-import { LISTED_MAX_AGE_DAYS } from "@/lib/priceTier";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
-import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
+import { priceAgeFor, type EstimatedPriceInput, type ListedPriceInput, type PriceStanding } from "@/lib/priceTier";
 import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 import { dropAuthorLabel } from "@/lib/handleDisplay";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -271,7 +269,7 @@ export function venuePriceLane(
     // price rows exist, a `cheapestPrice` no row carries is somebody else's
     // figure (a merged observation), and the stamp would misattribute it.
     const listedIndex =
-      publisher || (venue.prices?.length ?? 0) > 0 ? null : indexListedStamp(venue, now);
+      publisher || (venue.prices?.length ?? 0) > 0 ? null : indexListedStamp(venue);
     return {
       lane: "baseline",
       cheapestPrice,
@@ -307,20 +305,19 @@ export function venuePriceLane(
  * The index stamp as listing evidence, or null. `priceSource` and
  * `priceObservedAt` are written by the same `legacyCheapestPriceEvidence`
  * reading the detail rows get, so they assert a named publisher and a read day
- * - never a URL, which the slim row does not carry. The listed window is the
- * standing module's own, so an expired stamp cannot keep claiming a listing.
+ * - never a URL, which the slim row does not carry. The stamp is carried at
+ * any age: an old read is stale evidence the caption and the age line can
+ * word honestly, while dropping it would let the sheet call a recorded
+ * publisher missing.
  */
-function indexListedStamp(
-  venue: { priceSource?: string; priceObservedAt?: string },
-  now: number,
-): { label: string; observedOn: string } | null {
+function indexListedStamp(venue: {
+  priceSource?: string;
+  priceObservedAt?: string;
+}): { label: string; observedOn: string } | null {
   const label = venue.priceSource?.trim();
   const observedOn = venue.priceObservedAt?.trim();
   if (!label || !observedOn || !/^\d{4}-\d{2}-\d{2}$/.test(observedOn)) return null;
-  const ms = Date.parse(`${observedOn}T00:00:00.000Z`);
-  if (!Number.isFinite(ms)) return null;
-  const ageDays = (now - ms) / DAY_MS;
-  if (ageDays < 0 || ageDays > LISTED_MAX_AGE_DAYS) return null;
+  if (!Number.isFinite(Date.parse(`${observedOn}T00:00:00.000Z`))) return null;
   return { label, observedOn };
 }
 
@@ -390,18 +387,27 @@ export function venueSourcedPrice(venue: Venue): PricedVenue["sourcedPrice"] {
  */
 export const BASELINE_NO_PUBLISHER_CAPTION = "Price on record, publisher not recorded";
 
-export function baselineTrustCaption(lane: {
-  standing: PriceStanding;
-  publisher: AnswerPublisher | null;
-  observedOn: string | null;
-  listedIndex?: { label: string; observedOn: string } | null;
-}): string {
-  if (lane.standing === "listed" && lane.publisher && lane.observedOn) {
-    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.observedOn}T12:00:00.000Z`))}`;
+export function baselineTrustCaption(
+  lane: {
+    standing: PriceStanding;
+    publisher: AnswerPublisher | null;
+    observedOn: string | null;
+    listedIndex?: { label: string; observedOn: string } | null;
+  },
+  now: number = Date.now(),
+): string {
+  const listedDay = lane.standing === "listed" && lane.publisher && lane.observedOn
+    ? lane.observedOn
+    : lane.listedIndex && priceAgeFor("published", lane.listedIndex.observedOn, now) === "fresh"
+      ? lane.listedIndex.observedOn
+      : null;
+  if (listedDay) {
+    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${listedDay}T12:00:00.000Z`))}`;
   }
-  if (lane.listedIndex) {
-    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.listedIndex.observedOn}T12:00:00.000Z`))}`;
-  }
+  // A recorded publisher or stamp whose listing cannot claim the window is
+  // stale evidence, not absent evidence: the note beside the caption names
+  // it, and the age line dates it.
+  if (lane.publisher || lane.listedIndex) return "Price on record";
   return BASELINE_NO_PUBLISHER_CAPTION;
 }
 
