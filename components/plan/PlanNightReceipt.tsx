@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useReducer, useSyncExternalStore } from "react";
+import { useEffect, useLayoutEffect, useMemo, useReducer, useRef, useSyncExternalStore, type Ref } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
@@ -111,20 +111,29 @@ function useReceiptRead(planId: string, userId: string, accessToken: string, cap
   useEffect(() => {
     if (!host || !reading) return;
     const retired = new AbortController();
-    const signal = compositeActionSignal([retired.signal, readProviderAccountSignal()]);
+    const accountSignal = readProviderAccountSignal();
+    const signal = compositeActionSignal([retired.signal, accountSignal]);
+    const aborted = () => {
+      if (!retired.signal.aborted) dispatch({ type: "answer", capability, scope, request, answer: { status: "unavailable" } });
+    };
+    accountSignal.addEventListener("abort", aborted, { once: true });
+    if (accountSignal.aborted) aborted();
     void readOwnedReceipt({ userId, accessToken }, planId, signal).then((answer) => {
       if (!signal.aborted) dispatch({ type: "answer", capability, scope, request, answer });
     });
-    return () => retired.abort();
+    return () => {
+      accountSignal.removeEventListener("abort", aborted);
+      retired.abort();
+    };
   }, [accessToken, capability, host, planId, reading, request, scope, userId]);
   return { state, retry: () => dispatch({ type: "check" }) };
 }
 
-function Receipt({ receipt }: { receipt: NightReceipt }) {
+function Receipt({ receipt, headingRef }: { receipt: NightReceipt; headingRef: Ref<HTMLHeadingElement> }) {
   return (
     <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-testid="plan-night-receipt">
       <Kicker>Private to you</Kicker>
-      <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
+      <h2 ref={headingRef} tabIndex={-1} id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
       <p className="planNightReceipt__name">{receipt.title}</p>
       {receipt.plannedFor ? (
         <p className="planNightReceipt__when">
@@ -181,17 +190,37 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
   const capability = usePlanCapabilitySnapshot(planId);
   const { role } = parsePlanCapabilitySnapshot(capability);
   const { state, retry } = useReceiptRead(planId, userId, accessToken, capability, role === "host");
-  if (role !== "host" || state.capability !== capability) return null;
-  if ((state.phase === "ready" || state.phase === "reading") && state.receipt) return <Receipt receipt={state.receipt} />;
+  const retryFocused = useRef(false);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const receipt = state.phase === "ready" || state.phase === "reading" ? state.receipt : null;
   const busy = state.phase === "reading";
-  if (state.phase !== "unavailable" && !(busy && state.recovering)) return null;
+  useLayoutEffect(() => {
+    if (busy || state.phase === "unavailable" || !retryFocused.current) return;
+    retryFocused.current = false;
+    const target = headingRef.current ?? document.querySelector<HTMLElement>("main h1");
+    if (target) {
+      target.setAttribute("tabindex", "-1");
+      target.focus();
+    }
+  }, [busy, receipt, state.phase]);
+  if (role !== "host" || state.capability !== capability) return null;
+  const recovering = busy && state.recovering;
+  const unavailable = state.phase === "unavailable" || recovering;
+  const status = recovering ? "Checking your receipt…" : state.phase === "unavailable" ? "We couldn't load your night receipt." : "";
   return (
-    <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
-      <Kicker>Private to you</Kicker>
-      <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
-      <p role="status">{busy ? "Checking your receipt…" : "We couldn't load your night receipt."}</p>
-      <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}>{busy ? "Checking…" : "Try again"}</Button></div>
-    </section>
+    <>
+      <p className="sr-only" role="status">{status}</p>
+      {receipt ? <Receipt receipt={receipt} headingRef={headingRef} /> : unavailable ? (
+        <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
+          <Kicker>Private to you</Kicker>
+          <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
+          <p>{status}</p>
+          <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}
+            onFocus={() => { retryFocused.current = true; }} onBlur={() => { retryFocused.current = false; }}
+          >{busy ? "Checking…" : "Try again"}</Button></div>
+        </section>
+      ) : null}
+    </>
   );
 }
 
