@@ -73,6 +73,18 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       }
     }
 
+    // Numbered route discs paint above pub symbols and own the tap.
+    const stopHit = byLayer.get("route-stops");
+    if (stopHit) {
+      recordPubHitClick(event.point, features, stopHit);
+      const id = stopHit.properties?.id;
+      if (typeof id !== "string") return;
+      selectLandmark(null);
+      setActivePoi(null);
+      onRouteStopClickRef.current(id);
+      return;
+    }
+
     // The selected layer redraws one pin with a larger hit box. When that box
     // overlaps another visible pin, use the ordinary layer's hit first so a
     // tap resolves to the pin under its point rather than the prior selection.
@@ -85,16 +97,6 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       setHoveredVenue(null);
       setActivePoi(null);
       onVenueClickRef.current(id);
-      return;
-    }
-
-    const stopHit = byLayer.get("route-stops");
-    if (stopHit) {
-      const id = stopHit.properties?.id;
-      if (typeof id !== "string") return;
-      selectLandmark(null);
-      setActivePoi(null);
-      onRouteStopClickRef.current(id);
       return;
     }
 

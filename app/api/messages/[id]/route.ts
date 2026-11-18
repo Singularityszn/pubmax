@@ -20,6 +20,7 @@
 // to print are resolved on the READ path, because a price frozen into a message
 // is an undated claim nobody can correct.
 
+import { MESSAGE_PHOTO_LIMIT, MESSAGE_PHOTO_WINDOW_MS } from "@/lib/messagePhotoBudget";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { boundedFormData } from "@/lib/boundedRequest.server";
@@ -32,6 +33,7 @@ import {
   type MessageAttachmentWrite,
 } from "@/lib/messageAttachments";
 import { requireLinkedActor } from "@/lib/messageAuth";
+import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { GROUP_LEFT_LINE } from "@/lib/messageGroupThread";
 import {
   cleanPollOptions,
@@ -77,8 +79,8 @@ const SEND_WINDOW_MS = 60_000;
  *  spend. So the photo budget is its own, it is tighter than the text budget,
  *  and it fails CLOSED: a limiter we cannot reach refuses rather than handing
  *  the provider bill to whoever asks. */
-const PHOTO_LIMIT = 12;
-const PHOTO_WINDOW_MS = 60 * 60 * 1000;
+const PHOTO_LIMIT = MESSAGE_PHOTO_LIMIT;
+const PHOTO_WINDOW_MS = MESSAGE_PHOTO_WINDOW_MS;
 
 /** Answering a poll costs one small write and no paid call, so the budget is
  *  looser than a send's — but it is a budget, because every mutating route
@@ -340,7 +342,7 @@ export async function POST(request: Request, { params }: Ctx): Promise<Response>
   if (!sent) {
     return publicApiError("Conversation not found.", "NOT_FOUND", 404);
   }
-  signalSent(id, sent.membership);
+  signalSent(id, sent.membership, sent.message);
   return jsonNoStore(
     { message: (await attachMessageAttachmentCards([sent.message]))[0] },
     { status: 201 },
@@ -548,10 +550,11 @@ const QUIET_WRITES: ReadonlyMap<
 function signalSent(
   conversationId: string,
   membership: ConversationMembership,
+  message?: import("@/lib/messages").MessageDTO,
 ): void {
-  deferMessagesSignal(() =>
-    broadcastMessageSent(conversationId, [...membership.handles]),
-  );
+  deferMessagesSignal(async () => {
+    await Promise.allSettled([broadcastMessageSent(conversationId, [...membership.handles]), ...(message ? [notifyMessageRecipients(message)] : [])]);
+  });
 }
 
 async function sendPhoto(
@@ -633,7 +636,7 @@ async function sendPhoto(
         });
       }
     }
-    signalSent(conversationId, sent.membership);
+    signalSent(conversationId, sent.membership, sent.message);
     return jsonNoStore({ message: sent.message }, { status: 201 });
   } catch (error) {
     if (staged) {

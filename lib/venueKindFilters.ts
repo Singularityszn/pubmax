@@ -1,8 +1,10 @@
+import type { CityId } from "@/lib/cities";
 import type { Venue, VenueKind } from "@/lib/venues";
 
 export type CuratedVenueKind = "pub" | "bar" | "club" | "food" | "restaurant";
 export type VenueKindVisibility = Record<Exclude<CuratedVenueKind, "club">, boolean> & {
   club?: boolean;
+  osmRestaurants?: boolean;
   cafe?: boolean;
   hotel_lounge?: boolean;
   library?: boolean;
@@ -10,13 +12,14 @@ export type VenueKindVisibility = Record<Exclude<CuratedVenueKind, "club">, bool
   other?: boolean;
 };
 
-export function defaultVenueKindVisibility(): VenueKindVisibility {
+export function defaultVenueKindVisibility(cityId?: CityId): VenueKindVisibility {
   return {
     pub: true,
     bar: true,
     club: true,
     food: true,
     restaurant: true,
+    ...(cityId === "london" ? { osmRestaurants: false } : {}),
     cafe: false,
     hotel_lounge: false,
     library: false,
@@ -183,7 +186,7 @@ export function offeredVenueKinds(
   return CURATED_VENUE_KIND_ORDER;
 }
 
-/** How many of the offered kinds the reader has switched off. */
+/** How many normally visible kinds the reader has switched off. */
 export function hiddenVenueKindCount(
   visibility: VenueKindVisibility,
   experienceLens: string,

@@ -13,7 +13,7 @@ const authState = vi.hoisted(() => ({
   current: { user: { id: "user-ken" } as { id: string } | null, handle: "ken" as string | null, accountRevision: 1 },
 }));
 const selection = vi.hoisted(() => ({ value: "first", label: "First label" }));
-const photoSelection = vi.hoisted(() => ({ file: null as File | null }));
+const photoSelection = vi.hoisted(() => ({ file: null as File | null, files: null as File[] | null, prepare: vi.fn() }));
 type ThreadRow = {
   id: string;
   conversationId: string;
@@ -32,6 +32,8 @@ const fetchLog = vi.hoisted(() => ({
   calls: [] as Array<{ url: string; method: string; body: string }>,
   pendingPosts: [] as Array<(response: Response) => void>,
   holdPosts: false,
+  holdReads: false,
+  pendingReads: [] as Array<{ resolve: (response: Response) => void; reject: (error: Error) => void }>,
   useRealWrites: false,
   /** What the thread read answers. An empty list is an EMPTY thread. */
   threadRows: [] as Array<Record<string, unknown>>,
@@ -39,6 +41,7 @@ const fetchLog = vi.hoisted(() => ({
   inboxRows: [] as Array<Record<string, unknown>>,
   inboxFails: false,
   inboxThrows: false,
+  threadMissing: false,
   /** The membership the thread read carries, when it carries one. */
   threadConversation: null as Record<string, unknown> | null,
 }));
@@ -59,9 +62,8 @@ vi.mock("@/lib/messagesRealtime", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
 vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
-vi.mock("@/components/profile/ProfileImageCropper", () => ({
-  default: ({ onCropped }: { onCropped: (file: File) => void }) =>
-    createElement("button", { "data-crop": true, onClick: () => onCropped(photoSelection.file!) }, "Crop"),
+vi.mock("@/lib/preparePhotoUpload", () => ({
+  preparePhotoUpload: (file: File) => photoSelection.prepare(file),
 }));
 vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
   default: ({ onAttachmentKind, onFileChange }: {
@@ -71,7 +73,7 @@ vi.mock("@/components/messages/MessageAttachmentPicker", () => ({
     createElement("div", {},
       createElement("button", {
         "data-photo": true,
-        onClick: () => onFileChange({ target: { files: [photoSelection.file!], value: "" } }),
+        onClick: () => onFileChange({ target: { files: photoSelection.files ?? [photoSelection.file!], value: "" } }),
       }, "Photo"),
       ...["venue", "contact", "event", "poll"].map((kind) =>
       createElement("button", { key: kind, "data-attach": kind, onClick: () => onAttachmentKind(kind) }, kind))),
@@ -92,7 +94,9 @@ vi.mock("@/components/messages/MessagePollComposer", () => ({
   default: ({ onPick }: { onPick: (poll: { question: string; options: string[] }) => void }) =>
     createElement("button", { "data-pick": true, onClick: () => onPick({ question: selection.value, options: ["Yes", "No"] }) }, "Pick"),
 }));
-vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
+vi.mock("@/components/messages/MessagePhoto", () => ({
+  default: ({ previewUrl }: { previewUrl?: string }) => createElement("img", { "data-stored-photo": true, src: previewUrl, alt: "Stored photo" }),
+}));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
 vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
@@ -104,6 +108,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
   return {
     ...actual,
     authedActionFetch: (input: string, init: RequestInit, options: import("@/lib/authedFetch").AuthActionOptions) => {
+      if (String(input).startsWith("/api/message-notifications")) return Promise.resolve(Response.json({ enabled: false, preview: false, muted: false, registered: false }));
       const method = init?.method ?? "GET";
       if (method === "POST" && fetchLog.useRealWrites) return actual.authedActionFetch(input, init, options);
       fetchLog.calls.push({
@@ -119,6 +124,8 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
           }
           return Promise.resolve(Response.json({ conversations: fetchLog.inboxRows }));
         }
+        if (fetchLog.holdReads) return new Promise<Response>((resolve, reject) => fetchLog.pendingReads.push({ resolve, reject }));
+        if (fetchLog.threadMissing) return Promise.resolve(Response.json({ error: "Not found" }, { status: 404 }));
         return Promise.resolve(
           Response.json({
             messages: fetchLog.threadRows,
@@ -145,6 +152,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 import { publishAuthActionState } from "@/lib/authedFetch";
+import { discardMessagePhotoRecovery, readMessagePhotoRecovery } from "@/lib/messagePhotoRecovery";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 let container: HTMLDivElement;
@@ -194,13 +202,18 @@ function composerValue(): string {
 }
 
 beforeEach(() => {
+  discardMessagePhotoRecovery("user-ken:1:c1");
   authState.current = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
   selection.value = "first";
   selection.label = "First label";
   photoSelection.file = null;
+  photoSelection.files = null;
+  photoSelection.prepare.mockReset().mockImplementation(async (file: File) => ({ file, width: 1200, height: 800 }));
   fetchLog.calls = [];
   fetchLog.pendingPosts = [];
   fetchLog.holdPosts = false;
+  fetchLog.holdReads = false;
+  fetchLog.pendingReads = [];
   fetchLog.useRealWrites = false;
   fetchLog.threadRows = [...ONE_ROW];
   fetchLog.inboxRows = [
@@ -208,6 +221,7 @@ beforeEach(() => {
   ];
   fetchLog.inboxFails = false;
   fetchLog.inboxThrows = false;
+  fetchLog.threadMissing = false;
   fetchLog.threadConversation = null;
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.setItem("pubmax_handle", "ken");
@@ -229,6 +243,112 @@ afterEach(async () => {
 });
 
 describe("message thread request budget", () => {
+  it.each(["snapshot", "notfound", "signedout", "offline", "partial-batch"])("keeps acknowledged photo previews after an older %s read", async outcome => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    let nextUrl = 0;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return `blob:retained-${nextUrl++}`; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.files = [1, 2].map(value => {
+      const bytes = new Uint8Array([value]);
+      const file = new File([bytes], `photo-${value}.jpg`, { type: "image/jpeg" });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => bytes.buffer });
+      return file;
+    });
+    await mount();
+    fetchLog.holdReads = true;
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    expect(fetchLog.pendingReads).toHaveLength(1);
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    await typeAndSend("caption");
+    const saved = [0, 1].map(index => ({
+      ...ONE_ROW[0]!, id: `saved-${index}`, senderHandle: "ken", body: index === 0 ? "caption" : "",
+      attachment: { kind: "photo", url: `/api/messages/c1/photo/saved-${index}`, width: 1200, height: 800 },
+    }));
+    for (const index of [0, 1]) {
+      await act(async () => {
+        fetchLog.pendingPosts[index]!(outcome === "partial-batch" && index === 1
+          ? Response.json({ error: "interrupted" }, { status: 503 })
+          : Response.json({ message: saved[index] }));
+      });
+    }
+    const expected = outcome === "partial-batch" ? 1 : 2;
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(expected);
+    await act(async () => {
+      const read = fetchLog.pendingReads[0]!;
+      if (outcome === "offline") read.reject(new TypeError("offline"));
+      else read.resolve(Response.json({ messages: ONE_ROW }, { status: outcome === "notfound" ? 404 : outcome === "signedout" ? 401 : 200 }));
+    });
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(expected);
+    expect(container.querySelector("[data-stored-photo]")?.getAttribute("src")).toBe("blob:retained-0");
+    expect(revoke).not.toHaveBeenCalled();
+    if (outcome === "partial-batch") expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(1);
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await act(async () => { fetchLog.pendingReads[1]!.resolve(Response.json({ messages: ONE_ROW })); });
+    expect(container.querySelectorAll("[data-stored-photo]")).toHaveLength(0);
+    expect(revoke).toHaveBeenCalledWith("blob:retained-0");
+  });
+
+  it("retries only the unsent photos after part of a batch succeeds", async () => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    let nextUrl = 0;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return `blob:photo-${nextUrl++}`; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.files = [1, 2, 3].map(value => {
+      const file = new File([new Uint8Array([value])], `photo-${value}.jpg`, { type: "image/jpeg" });
+      Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([value]).buffer });
+      return file;
+    });
+    await mount();
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    await typeAndSend("batch caption");
+    expect(container.querySelectorAll(".messagePhotoSending")).toHaveLength(3);
+    await act(async () => { fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken", body: "batch caption" } })); });
+    expect(posts()).toHaveLength(2);
+    await act(async () => { fetchLog.pendingPosts[1]!(Response.json({ error: "interrupted" }, { status: 503 })); });
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(2);
+    expect(composerValue()).toBe("");
+    expect(revoke).toHaveBeenCalledWith("blob:photo-0");
+    expect(revoke).not.toHaveBeenCalledWith("blob:photo-1");
+    expect(revoke).not.toHaveBeenCalledWith("blob:photo-2");
+    const failedKey = JSON.parse(posts()[1]!.body).clientMessageId;
+    await act(async () => root.unmount()); container.remove();
+    await mount();
+    expect(readMessagePhotoRecovery("user-ken:1:c1")?.photos.map(photo => photo.file.name)).toEqual(["photo-2.jpg", "photo-3.jpg"]);
+    expect(container.querySelector(".threadError")?.textContent).toContain("interrupted");
+    await typeAndSend("");
+    expect(posts()).toHaveLength(3);
+    expect(JSON.parse(posts()[2]!.body)).toMatchObject({ clientMessageId: failedKey, body: "" });
+    expect(container.querySelectorAll(".messagePhotoSending")).toHaveLength(2);
+  });
+
+  it("keeps the selected photo readable while sending and after a refused upload", async () => {
+    fetchLog.holdPosts = true;
+    const revoke = vi.fn();
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL() { return "blob:photo"; }
+      static revokeObjectURL = revoke;
+    });
+    photoSelection.file = new File([new Uint8Array([1, 2, 3])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(photoSelection.file, "arrayBuffer", { value: async () => new Uint8Array([1, 2, 3]).buffer });
+    await mount();
+    await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
+    await typeAndSend("photo caption");
+    expect(container.querySelector(".messagePhotoSending")?.getAttribute("src")).toBe("blob:photo");
+    expect(revoke).not.toHaveBeenCalled();
+    await act(async () => {
+      fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted." }, { status: 503 }));
+    });
+    expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo");
+    expect(revoke).not.toHaveBeenCalled();
+  });
+
   it("opens a thread on ONE gated read", async () => {
     await mount();
     const gets = fetchLog.calls.filter((c) => c.method === "GET");
@@ -310,7 +430,6 @@ describe("the send is latched and carries an idempotency key", () => {
     Object.defineProperty(photoSelection.file, "arrayBuffer", { value: readPhoto });
     await mount();
     await act(async () => { container.querySelector<HTMLButtonElement>("[data-photo]")!.click(); });
-    await act(async () => { container.querySelector<HTMLButtonElement>("[data-crop]")!.click(); });
     await typeAndSend("caption");
     expect(readPhoto).toHaveBeenCalledOnce();
     expect(messageWrites()).toHaveLength(0);
@@ -353,9 +472,6 @@ describe("the send is latched and carries an idempotency key", () => {
       photoSelection.file = file;
       await act(async () => {
         container.querySelector<HTMLButtonElement>("[data-photo]")!.click();
-      });
-      await act(async () => {
-        container.querySelector<HTMLButtonElement>("[data-crop]")!.click();
       });
       await typeAndSend("same caption");
       await act(async () => {
@@ -662,5 +778,199 @@ describe("group conversation sender labels", () => {
     ];
     await mount();
     expect(Array.from(container.querySelectorAll(".messageSender"), (label) => label.textContent)).toEqual(["@sam", "@maisie"]);
+  });
+});
+
+
+describe("council photo send regressions", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL {
+      static createObjectURL(file: File) { return `blob:${file.name}`; }
+      static revokeObjectURL() {}
+    });
+  });
+  function photo(index = 0): File {
+    const file = new File([new Uint8Array([index])], `photo-${index}.jpg`, { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([index]).buffer });
+    return file;
+  }
+  async function choose(files: File[]) {
+    photoSelection.files = files;
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+  }
+  it("sends with the same stored handle that opened the thread", async () => {
+    authState.current.handle = null;
+    await mount(); await typeAndSend("fallback handle");
+    expect(posts()).toHaveLength(1);
+    expect(JSON.parse(posts()[0]!.body)).toMatchObject({ handle: "ken", body: "fallback handle" });
+  });
+  it("refuses an over-budget batch before decoding any photo", async () => {
+    await mount(); await choose(Array.from({ length: 13 }, (_, index) => photo(index)));
+    expect(photoSelection.prepare).not.toHaveBeenCalled();
+    expect(container.querySelector(".threadError")?.textContent).toContain("12 photos");
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(0);
+  });
+  it("shows the server's photo budget error instead of a text-message error", async () => {
+    await mount(); await choose([photo()]); await typeAndSend("");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Too many photos, slow down." }, { status: 429 })));
+    expect(container.querySelector(".threadError")?.textContent).toContain("Too many photos");
+  });
+  it("keeps replacement preparation active when a message report fails", async () => {
+    await mount(); await choose([photo(0)]);
+    let finish!: (value: { file: File; width: number; height: number }) => void;
+    photoSelection.prepare.mockReturnValue(new Promise(resolve => { finish = resolve; }));
+    const replacement = photo(1); await choose([replacement]);
+    await act(async () => container.querySelector<HTMLButtonElement>(".messageReportBtn")!.click());
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Report unavailable" }, { status: 503 })));
+    expect(container.querySelector(".composerPreparing")).not.toBeNull();
+    expect(container.querySelector<HTMLButtonElement>(".composerSend")!.disabled).toBe(true);
+    await act(async () => finish({ file: replacement, width: 1200, height: 800 }));
+    expect(container.querySelector(".composerPendingThumb")?.getAttribute("src")).toBe("blob:photo-1.jpg");
+  });
+  it("closes the venue picker before sending and retains a failed photo", async () => {
+    await mount(); await choose([photo()]);
+    await act(async () => container.querySelector<HTMLButtonElement>('[data-attach="venue"]')!.click());
+    expect(container.querySelector("[data-pick]")).not.toBeNull();
+    await typeAndSend("");
+    expect(container.querySelector("[data-pick]")).toBeNull();
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+    expect(container.querySelector(".composerPendingThumb")).not.toBeNull();
+  });
+  it("recovers queued photos and the uncertain send key after leaving the thread", async () => {
+    await mount(); await choose([photo(0), photo(1), photo(2)]); await typeAndSend("our photos");
+    const key = JSON.parse(posts()[0]!.body).clientMessageId;
+    await act(async () => root.unmount()); container.remove();
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken" } })));
+    await mount();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    expect(composerValue()).toBe("our photos");
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    await act(async () => root.unmount()); container.remove();
+    await mount();
+    expect(container.querySelectorAll(".composerPendingThumb")).toHaveLength(3);
+    expect(composerValue()).toBe("our photos");
+    await typeAndSend("our photos");
+    expect(JSON.parse(posts()[1]!.body).clientMessageId).toBe(key);
+  });
+});
+
+
+describe("council pending recovery ownership", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:photo"; } static revokeObjectURL() {} });
+    const file = new File([new Uint8Array([1])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1]).buffer });
+    photoSelection.file = file;
+  });
+  async function failPhoto() {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await typeAndSend("caption");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+  }
+  it("restores an untouched selection as a draft through repeated navigation", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await type("Unsent caption");
+    for (const visit of [1, 2]) {
+      await act(async () => root.unmount()); container.remove();
+      await mount();
+      expect(container.querySelectorAll(".composerPendingThumb"), `visit ${visit}`).toHaveLength(1);
+      expect(composerValue()).toBe("Unsent caption");
+      expect(container.querySelector(".threadError")).toBeNull();
+      expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+      expect(container.querySelector<HTMLButtonElement>(".composerSend")!.disabled).toBe(false);
+      expect(posts()).toHaveLength(0);
+    }
+    await typeAndSend("Unsent caption");
+    expect(JSON.parse(posts()[0]!.body)).toMatchObject({ body: "Unsent caption", clientMessageId: expect.any(String) });
+  });
+  it("releases recovery and the reload warning after a confirmed send", async () => {
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    await typeAndSend("caption");
+    await act(async () => fetchLog.pendingPosts[0]!(Response.json({ message: { ...ONE_ROW[0], id: "saved", senderHandle: "ken" } })));
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+  it("keeps a refused photo, its caption and its warning across navigation", async () => {
+    await failPhoto();
+    const failure = container.querySelector(".threadError")!.textContent;
+    expect(failure).toContain("Upload interrupted");
+    const key = JSON.parse(posts()[0]!.body).clientMessageId;
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    for (const visit of [1, 2]) {
+      await act(async () => root.unmount()); container.remove();
+      await mount();
+      expect(container.querySelector(".composerPendingThumb"), `visit ${visit}`).not.toBeNull();
+      expect(composerValue()).toBe("caption");
+      expect(container.querySelector(".threadError")?.textContent).toBe(failure);
+      expect(container.querySelector(".composerPhotoRetry")).not.toBeNull();
+    }
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(false);
+    await act(async () => container.querySelector<HTMLButtonElement>(".composerPhotoRetry")!.click());
+    expect(JSON.parse(posts()[1]!.body).clientMessageId).toBe(key);
+  });
+  it("does not restore one account's failed photo into another account", async () => {
+    await failPhoto();
+    authState.current = { user: { id: "user-sam" }, handle: "sam", accountRevision: 2 };
+    await act(async () => root.render(createElement(MessageThread, { conversationId: "c1" })));
+    expect(container.querySelector(".composerPendingThumb")).toBeNull();
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+  });
+  it.each(["replace", "remove"] as const)("clears the old photo error on %s", async action => {
+    await failPhoto();
+    if (action === "replace") {
+      await act(async () => container.querySelector<HTMLButtonElement>('[data-attach="venue"]')!.click());
+      await act(async () => container.querySelector<HTMLButtonElement>("[data-pick]")!.click());
+    } else await act(async () => container.querySelector<HTMLButtonElement>(".composerPendingRemove")!.click());
+    expect(container.querySelector(".threadError")).toBeNull();
+    expect(container.querySelector(".composerPhotoRetry")).toBeNull();
+    expect(container.querySelector(".composerPendingThumb")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+  });
+});
+
+
+describe("terminal conversation photo cleanup", () => {
+  beforeEach(() => {
+    fetchLog.holdPosts = true;
+    vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:photo"; } static revokeObjectURL() {} });
+    const file = new File([new Uint8Array([1])], "photo.jpg", { type: "image/jpeg" });
+    Object.defineProperty(file, "arrayBuffer", { value: async () => new Uint8Array([1]).buffer });
+    photoSelection.file = file;
+  });
+  it.each(["pending", "sending", "failed", "leave", "notfound"] as const)("discards unreachable photos after %s", async mode => {
+    if (mode === "leave") fetchLog.threadConversation = { id: "c1", kind: "group", title: "Our group", members: ["ken", "sam", "maisie"] };
+    await mount();
+    await act(async () => container.querySelector<HTMLButtonElement>("[data-photo]")!.click());
+    if (mode === "sending" || mode === "failed") {
+      await typeAndSend("caption");
+      if (mode === "failed") await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Upload interrupted" }, { status: 503 })));
+    }
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).not.toBeNull();
+    if (mode === "notfound") {
+      fetchLog.threadMissing = true;
+      await act(async () => window.dispatchEvent(new Event("focus")));
+    } else {
+      await act(async () => container.querySelector<HTMLButtonElement>(".threadMenuToggle")!.click());
+      const items = container.querySelectorAll<HTMLButtonElement>('[role="menuitem"]');
+      await act(async () => items[mode === "leave" ? 1 : 0]!.click());
+      await act(async () => document.querySelector<HTMLButtonElement>(".messageConfirmActions button:last-child")!.click());
+      await act(async () => fetchLog.pendingPosts.at(-1)!(Response.json({ ok: true })));
+    }
+    expect(container.querySelector(".composerInput")).toBeNull();
+    expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+    expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+    if (mode === "sending") {
+      await act(async () => fetchLog.pendingPosts[0]!(Response.json({ error: "Not found" }, { status: 404 })));
+      expect(readMessagePhotoRecovery("user-ken:1:c1")).toBeNull();
+      expect(window.dispatchEvent(new Event("beforeunload", { cancelable: true }))).toBe(true);
+    }
   });
 });

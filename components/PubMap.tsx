@@ -457,8 +457,6 @@ import {
 import { useLondonRestaurants, useStableRestaurantList } from "@/components/map/useLondonRestaurants";
 import { useLondonFoodSelection } from "@/components/map/useLondonFoodPlaces";
 import {
-  londonRestaurantLayerShown,
-  londonRestaurantPackWanted,
   londonRestaurantsPassingMapFilters,
   londonRestaurantsWithoutCuratedTwin,
   type LondonRestaurant,
@@ -638,7 +636,6 @@ import { venueSheetLabels } from "@/lib/venueSheetLabels";
 import {
   MAP_SHEET_TITLES,
   readMobileMapSession,
-  MOBILE_SHEET_DISMISS_EVENT,
   withCityCameraAttitude,
   writeMobileMapSession,
   type MobileShellState,
@@ -1568,6 +1565,7 @@ export default function PubMap({
   const [selectedVenueRequestToken, setSelectedVenueRequestToken] = useState(() =>
     restoredSession.selectedVenueId ? nextCameraRequestToken() : 0,
   );
+  const [closeVenueRequestToken, setCloseVenueRequestToken] = useState(0);
   const [searchPickedVenueId, setSearchPickedVenueId] = useState(() =>
     seed.filters.query ? seed.selectedVenueId : "",
   );
@@ -1746,7 +1744,7 @@ export default function PubMap({
     () => restoredMobileSession?.poiHidden ?? defaultPoiHiddenForViewport(),
   );
   const [venueKindVisibility, setVenueKindVisibility] = useState(
-    defaultVenueKindVisibility,
+    () => defaultVenueKindVisibility(cityId),
   );
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus(cityId);
@@ -3091,26 +3089,17 @@ export default function PubMap({
     drinkLensPrices,
     experienceLensPrices,
   );
-  // The London restaurants (lib/londonRestaurants.ts): drawn while restaurants
-  // are on in the kind filter and no drink lane or view other than food owns
-  // the map, read once the pins have painted and the camera reaches the zoom
-  // they draw from, and resolved for a selected `venue-osm-` id so a reloaded
-  // ?sel= link still opens the restaurant's sheet.
-  const londonRestaurantsShown = londonRestaurantLayerShown({
+  const londonRestaurantRead = useLondonRestaurants({
+    selectedVenueId,
+    selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
     isLondon,
-    restaurantKindVisible: venueKindVisibility.restaurant,
+    restaurantKindVisible: venueKindVisibility.osmRestaurants,
     experienceLens,
     lensOwnsMap: activeLensPrices !== null,
+    held: secondaryStreamsHeld,
+    zoom: mapViewport.zoom,
   });
-  const londonRestaurantRead = useLondonRestaurants(
-    londonRestaurantPackWanted({
-      shown: londonRestaurantsShown,
-      held: secondaryStreamsHeld,
-      zoom: mapViewport.zoom,
-      selectedVenueId,
-      selectedIsCafe: coffeePilot.byId.has(selectedVenueId),
-    }),
-  );
+  const londonRestaurantsShown = londonRestaurantRead.mode;
   // A `venue-osm-` selection is a pilot cafe or a London restaurant, and is let
   // go only when neither can open it.
   const londonPlacePick = londonVenueSelection({
@@ -3121,7 +3110,7 @@ export default function PubMap({
       byId: coffeePilot.byId,
     },
     restaurants: {
-      shown: londonRestaurantsShown,
+      shown: londonRestaurantsShown !== "off",
       status: londonRestaurantRead.status,
       byId: londonRestaurantRead.byId,
     },
@@ -3141,16 +3130,17 @@ export default function PubMap({
   // drawn curated venue owns its own place, so the OSM row beside it is not drawn.
   const filteredLondonRestaurants = useMemo(
     () =>
-      londonRestaurantsShown
+      londonRestaurantsShown !== "off"
         ? londonRestaurantsWithoutCuratedTwin(
             londonRestaurantsPassingMapFilters(londonRestaurantRead.restaurants, {
               filters: effectiveMapFilters,
               savedOnly,
               nearMe: nearbyMapResultForView,
               selectedVenueId,
+              restaurantKindVisible: londonRestaurantsShown === "layer",
               curated: venues,
             }),
-            canvasVenues,
+            canvasVenues, selectedVenueId,
           )
         : NO_LONDON_RESTAURANTS,
     [
@@ -5108,7 +5098,7 @@ export default function PubMap({
     viewport: mapViewport,
   });
   const closeMapSurfaces = useCallback(() => {
-    const searchPick = selectedVenueId === searchPickedVenueId && filters.query.trim()
+    const searchPick = !routePending && routeForMap.length < 2 && selectedVenueId === searchPickedVenueId && filters.query.trim()
       ? venueById.get(searchPickedVenueId)
       : null;
     if (searchPick) {
@@ -5122,17 +5112,12 @@ export default function PubMap({
     releasePlannerMode(); setPlanningOpen(false);
     setMapListOpen(false);
     setActiveLandmarkId("");
-  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
+  }, [clearAreaSheetTimer, closeComposer, filters.query, moveMapCameraTo, releasePlannerMode, routePending, routeForMap.length, searchPickedVenueId, selectedVenueId, setPlanningOpen, setSelectedVenueId, venueById]);
   const closeEverySurface = useCallback(() => {
     clearLogIntent();
     closeMapSurfaces();
   }, [clearLogIntent, closeMapSurfaces]);
 
-  useEffect(() => {
-    const onDismiss = () => closeEverySurface();
-    window.addEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
-    return () => window.removeEventListener(MOBILE_SHEET_DISMISS_EVENT, onDismiss);
-  }, [closeEverySurface]);
   const restoreMapSurface = useCallback(
     (entry: SurfaceEntry<MapSurfaceState> | null) => {
       const held = entry?.state ?? EMPTY_MAP_SURFACE_STATE;
@@ -5189,6 +5174,10 @@ export default function PubMap({
     selectionHint,
     onRestore: restoreMapSurface,
     onReturnToMap: moveMapCameraTo,
+    mappedRouteActive: routeForMap.length >= 2,
+    mappedRoutePending: routePending,
+    selectedVenueRequestToken,
+    onVenueClose: setCloseVenueRequestToken,
     onHome: closeEverySurface,
     onSurfaceClose: syncLandedCrawlContext,
     landedEntry: landedWalkEntry,
@@ -5855,7 +5844,6 @@ export default function PubMap({
     );
   }
 
-  // A London venue-layer place has its own sheet; everything else is a venue.
   function renderSelectedPlacePanel() {
     if (selectedCoffeeCafe) return <CoffeePilotSheet cafe={selectedCoffeeCafe} />;
     if (selectedLondonRestaurant) {
@@ -6047,7 +6035,7 @@ export default function PubMap({
     setExperienceLensHeldDrink(null);
     changeFavoritePint(null);
     setPersonaLensId(null);
-    setVenueKindVisibility(defaultVenueKindVisibility);
+    setVenueKindVisibility(defaultVenueKindVisibility(cityId));
     setSavedOnly(false);
     setFilters((current) => resetMapRefinements(current, seedCrawlState("").filters));
   }
@@ -6058,12 +6046,12 @@ export default function PubMap({
         {...mobilePriceChoicesProps}
         onClearFilters={clearMobileFilters}
         refinementsActive={Object.values(filters).some((value) => value === true) || savedOnly || Boolean(filters.zone) || drinkFiltersActive || experienceLens !== "all" || hiddenVenueKindCount(venueKindVisibility, experienceLens) > 0}
-        drinkControl={<div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
+        drinkControl={experienceLens === "food" ? null : <div className="mobileFilterDrink"><span>Drink</span><Button type="button" variant="secondary" onClick={() => changeMapOverlay("drink")}>{drinkLaneLabel(activeMapDrinkLane)}</Button></div>}
         lead={isLondon ? <MobileMapTonightLens rowCount={tonightPubListingCount(whatsOnTonight.rows)} nearReader={userLocation != null} onOpen={() => changeMapOverlay("tonight")} /> : null}
       >
         <VenueFeatureFilters filters={filters} onChange={setFilters} resultCount={queryResultCount} lastOrdersFailed={lastOrdersFailed} venueDataFailed={venueIndexFailed} />
         <MapExperienceLensControl lens={experienceLens} allSelected={!drinkFiltersActive} summary={experienceSummary} onChange={changeExperienceLens} />
-        <TonightArcChips visibility={venueKindVisibility} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
+        <TonightArcChips visibility={venueKindVisibility} restaurantLayerAvailable={londonRestaurantRead.layerAvailable} experienceLens={experienceLens} variant="sheet" onChange={setVenueKindVisibility} />
         <section className="toggles mobileMapSavedOnly">
           <label aria-label={SAVED_ONLY_ARIA_LABEL} style={{ minHeight: "var(--control-height, 44px)" }}>
             <input type="checkbox" checked={savedOnly} onChange={(event) => changeSavedOnly(event.target.checked)} />
@@ -6600,6 +6588,7 @@ export default function PubMap({
         palNextStop={palNextStop}
         selectedVenueId={selectedVenueId}
         selectedVenueRequestToken={selectedVenueRequestToken}
+        closeVenueRequestToken={closeVenueRequestToken}
         onVenueClick={handleVenueClick}
         onUkBasePubClick={handleUkBasePubClick}
         onUkBasePubsChange={setRenderedBasePubs}
@@ -6694,6 +6683,7 @@ export default function PubMap({
   function renderDesktopToolbar() {
     return (
       !mobileViewport ? <MapToolbar
+        restaurantLayerAvailable={londonRestaurantRead.layerAvailable}
         cityLabel={mapChipLabel}
         outsideCurated={outsideCuratedBounds || ukNationalBrowse}
         query={filters.query}

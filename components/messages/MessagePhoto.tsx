@@ -17,11 +17,13 @@
 // in a dialog, so the thread is still behind it and Escape is the way out on
 // every platform.
 //
-// The figure is rendered in EVERY state that has a box, carrying the photo's
-// own aspect, so the space reserved before the bytes land is the space the
-// photograph takes when they do.
+// The figure stays mounted while authenticated bytes load or retry. The
+// stylesheet owns its bounded frame, so the local preview and stored photo
+// occupy the same space.
 
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import MessagePhotoViewer from "@/components/messages/MessagePhotoViewer";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import {
@@ -38,6 +40,8 @@ type MessagePhotoProps = {
   height: number;
   senderHandle: string;
   handle: string;
+  previewUrl?: string;
+  onStoredLoad?: () => void;
 };
 
 export default function MessagePhoto({
@@ -46,15 +50,43 @@ export default function MessagePhoto({
   height,
   senderHandle,
   handle,
+  previewUrl,
+  onStoredLoad,
 }: MessagePhotoProps): React.JSX.Element {
   const [objectUrl, setObjectUrl] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const [open, setOpen] = useState(false);
   const [dialogError, setDialogError] = useState("");
-  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const [requested, setRequested] = useState(false);
+  const frame = useRef<HTMLElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
+    if (requested) return;
     let active = true;
+    if (previewUrl || typeof IntersectionObserver === "undefined") {
+      queueMicrotask(() => { if (active) setRequested(true); });
+      return () => { active = false; };
+    }
+    const observer = new IntersectionObserver(entries => {
+      if (active && entries.some(entry => entry.isIntersecting)) setRequested(true);
+    }, { rootMargin: "320px 0px" });
+    if (frame.current) observer.observe(frame.current);
+    return () => { active = false; observer.disconnect(); };
+  }, [previewUrl, requested]);
+
+  useEffect(() => {
+    if (!open) return;
+    const button = opener.current;
+    return () => { button?.focus({ preventScroll: true }); };
+  }, [open]);
+
+  useEffect(() => {
+    if (!requested) return;
+    let active = true;
+    queueMicrotask(() => { if (active) { setFailed(false); setObjectUrl(null); setLoaded(false); } });
     let created: string | null = null;
     const controller = new AbortController();
     const address = handle ? `${url}?handle=${encodeURIComponent(handle)}` : url;
@@ -82,59 +114,48 @@ export default function MessagePhoto({
       controller.abort();
       if (created) URL.revokeObjectURL(created);
     };
-  }, [url, handle]);
+  }, [url, handle, attempt, requested]);
 
-  // `showModal` rather than the `open` attribute: only a modal dialog gets the
-  // backdrop, the focus trap and Escape for free.
   useEffect(() => {
-    const dialog = dialogRef.current;
-    if (!dialog) return;
-    try {
-      if (open && !dialog.open) dialog.showModal();
-      if (!open && dialog.open) dialog.close();
-    } catch {
-      queueMicrotask(() => {
-        setOpen(false);
-        setDialogError("Could not open photo. Try again.");
-      });
-    }
-  }, [open]);
+    if (loaded) onStoredLoad?.();
+  }, [loaded, onStoredLoad]);
 
   const close = useCallback(() => setOpen(false), []);
+  const viewerError = useCallback(() => { setOpen(false); setDialogError("Could not open photo. Try again."); }, []);
 
-  const onDialogClick = useCallback(
-    (event: React.MouseEvent<HTMLDialogElement>) => {
-      if (event.target === event.currentTarget) close();
-    },
-    [close],
-  );
-
-  if (failed) {
-    return <p className="messagePhotoFailed">{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
-  }
-
-  // The tile's own aspect, handed to the stylesheet once. The figure's width,
-  // the reserved box and the loaded photograph all read this one number, so
-  // there is no second copy to disagree with the first.
+  // The stylesheet can enlarge the tap target without cropping the photo.
   const tile = {
     [MESSAGE_PHOTO_ASPECT_PROPERTY]: messagePhotoAspect(width, height),
   } as React.CSSProperties;
 
-  if (!objectUrl) {
-    // The box is reserved at the photo's own aspect, so the thread does not
-    // jump under a reader's thumb when the bytes land.
-    return (
-      <figure className="messagePhotoFigure" style={tile}>
-        <p className="messagePhotoPending">Loading photo</p>
-      </figure>
-    );
+  const shownUrl = failed && !previewUrl ? null : loaded ? objectUrl : previewUrl;
+  const failureLine = previewUrl ? "Could not finish loading photo." : MESSAGE_PHOTO_UNREADABLE_LINE;
+  const retry = <div className={shownUrl ? "messagePhotoRetry" : "messagePhotoPending messagePhotoFailed"}>
+    <span className="sr-only" role="status">{failureLine}</span>
+    <button type="button" aria-label="Retry photo" title={`${failureLine} Retry photo`} onClick={() => { setAttempt(value => value + 1); }}>
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
+        <path d="M20 4v6h-6M4 20v-6h6M6.5 6.5a8 8 0 0 1 13 2M4.5 15.5a8 8 0 0 0 13 2" />
+      </svg>
+    </button>
+  </div>;
+  const preload = objectUrl && !loaded && !failed ? (
+    // eslint-disable-next-line @next/next/no-img-element -- authenticated bytes are decoded before replacing a borrowed preview
+    <img hidden src={objectUrl} alt="" onLoad={() => setLoaded(true)} onError={() => setFailed(true)} />
+  ) : null;
+
+  if (!shownUrl) {
+    return <figure ref={frame} className="messagePhotoFigure" style={tile} tabIndex={0} aria-label={messagePhotoAltText(senderHandle)} onFocus={() => setRequested(true)}>
+      {failed ? retry : <p className="messagePhotoPending">Loading photo</p>}
+      {preload}
+    </figure>;
   }
 
   const alt = messagePhotoAltText(senderHandle);
 
   return (
-    <figure className="messagePhotoFigure" style={tile}>
+    <figure ref={frame} className="messagePhotoFigure" style={tile}>
       <button
+        ref={opener}
         type="button"
         className="messagePhotoButton"
         onClick={() => {
@@ -145,26 +166,18 @@ export default function MessagePhoto({
         {/* eslint-disable-next-line @next/next/no-img-element -- gated bytes read as an object URL; no loader can fetch them */}
         <img
           className="messagePhoto"
-          src={objectUrl}
+          src={shownUrl}
           width={width}
           height={height}
           alt={alt}
           decoding="async"
+          onError={() => setFailed(true)}
         />
       </button>
+      {preload}
+      {failed ? retry : null}
       {dialogError ? <p role="status">{dialogError}</p> : null}
-      <dialog
-        ref={dialogRef}
-        className="messagePhotoViewer"
-        onClose={close}
-        onClick={onDialogClick}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- same object URL, full frame */}
-        <img className="messagePhotoViewerImage" src={objectUrl} alt={alt} />
-        <button type="button" className="messagePhotoViewerClose" onClick={close}>
-          Close
-        </button>
-      </dialog>
+      {open ? <MessagePhotoViewer url={shownUrl} alt={alt} width={width} height={height} onClose={close} onError={viewerError} /> : null}
     </figure>
   );
 }
