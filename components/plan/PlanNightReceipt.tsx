@@ -39,6 +39,7 @@ const ENDING_WORDS: Record<CrawlEnding, string> = {
   get_home: "Heading home",
   keep_going: "Carrying on",
 };
+const READ_DEADLINE_MS = 8_000;
 
 const PLANNED_FOR = new Intl.DateTimeFormat("en-GB", {
   timeZone: "Europe/London",
@@ -118,10 +119,16 @@ function useReceiptRead(planId: string, userId: string, accessToken: string, cap
     };
     accountSignal.addEventListener("abort", aborted, { once: true });
     if (accountSignal.aborted) aborted();
+    const deadline = setTimeout(() => {
+      retired.abort();
+      dispatch({ type: "answer", capability, scope, request, answer: { status: "unavailable" } });
+    }, READ_DEADLINE_MS);
     void readOwnedReceipt({ userId, accessToken }, planId, signal).then((answer) => {
+      clearTimeout(deadline);
       if (!signal.aborted) dispatch({ type: "answer", capability, scope, request, answer });
     });
     return () => {
+      clearTimeout(deadline);
       accountSignal.removeEventListener("abort", aborted);
       retired.abort();
     };
@@ -190,13 +197,15 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
   const capability = usePlanCapabilitySnapshot(planId);
   const { role } = parsePlanCapabilitySnapshot(capability);
   const { state, retry } = useReceiptRead(planId, userId, accessToken, capability, role === "host");
-  const retryFocused = useRef(false);
+  const retryRequested = useRef(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
   const receipt = state.phase === "ready" || state.phase === "reading" ? state.receipt : null;
   const busy = state.phase === "reading";
   useLayoutEffect(() => {
-    if (busy || state.phase === "unavailable" || !retryFocused.current) return;
-    retryFocused.current = false;
+    if (busy || state.phase === "unavailable" || !retryRequested.current) return;
+    retryRequested.current = false;
+    const active = document.activeElement;
+    if (active && active !== document.body && active.isConnected) return;
     const target = headingRef.current ?? document.querySelector<HTMLElement>("main h1");
     if (target) {
       target.setAttribute("tabindex", "-1");
@@ -209,14 +218,17 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
   const status = recovering ? "Checking your receipt…" : state.phase === "unavailable" ? "We couldn't load your night receipt." : "";
   return (
     <>
-      <p className="sr-only" role="status" aria-label="Night receipt status">{status}</p>
+      <p className="sr-only" role="status" data-testid="plan-night-receipt-status">{status}</p>
       {receipt ? <Receipt receipt={receipt} headingRef={headingRef} /> : unavailable ? (
         <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
           <Kicker>Private to you</Kicker>
           <h2 id="plan-night-receipt-title" className="planNightReceipt__title">Your night receipt</h2>
           <p>{status}</p>
-          <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={retry}
-            onFocus={() => { retryFocused.current = true; }} onBlur={() => { retryFocused.current = false; }}
+          <div><Button variant="secondary" aria-disabled={busy} aria-busy={busy} onClick={() => {
+            if (busy) return;
+            retryRequested.current = true;
+            retry();
+          }}
           >{busy ? "Checking…" : "Try again"}</Button></div>
         </section>
       ) : null}
