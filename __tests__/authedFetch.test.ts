@@ -497,6 +497,34 @@ describe("authedFetch (Wave I2)", () => {
     await expect(body).rejects.toMatchObject({ name: "AbortError" });
   });
 
+  it.each([401, 403])("preserves HTTP %s when an account-bound response has unreadable JSON", async (status) => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("", { status }));
+    await expect(authedActionJson("/api/social/rankings", {}, { requiresIdentity: true }))
+      .rejects.toMatchObject({ name: "AuthActionJsonParseError", status });
+  });
+
+  it("retires an unreadable response before exposing its status after an account switch", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    let bodyController!: ReadableStreamDefaultController<Uint8Array>;
+    let headersArrived!: () => void;
+    const headers = new Promise<void>((resolve) => { headersArrived = resolve; });
+    vi.spyOn(globalThis, "fetch").mockImplementation(async () => {
+      const response = new Response(new ReadableStream<Uint8Array>({ start(controller) { bodyController = controller; } }), { status: 403 });
+      headersArrived();
+      return response;
+    });
+    const read = authedActionJson("/api/social/rankings", {}, { requiresIdentity: true });
+    const rejection = expect(read).rejects.toMatchObject({ name: "AbortError" });
+    await headers;
+    setProviderIdentity("supabase", "account-b");
+    bodyController.enqueue(new TextEncoder().encode("not json"));
+    bodyController.close();
+    await rejection;
+  });
+
   it("rejects parsed account A JSON after an identity switch without relying on source abort", async () => {
     setProviderIdentity("supabase", "account-a");
     publishAuthActionState({ status: "signed-in", identityResolved: true });

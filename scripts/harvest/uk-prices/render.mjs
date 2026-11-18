@@ -131,7 +131,9 @@ const RENDER_ENV = {
   WIGOLO_TLS_TIER: "off",
   WIGOLO_STEALTH: "off",
   WIGOLO_CHALLENGE_COMPLETION_MS: "0",
-  WIGOLO_USER_AGENT: USER_AGENT,
+  // wigolo reads USER_AGENT, not WIGOLO_USER_AGENT: the prefixed name was never
+  // read, so until this line the renderer identified as itself, not as PUBMAXX.
+  USER_AGENT,
   // The renderer strips *_PROXY from its browser's environment and takes a
   // proxy only through its own settings, so an environment that reaches the
   // web through one has to say so here or the browser cannot connect at all.
@@ -167,7 +169,12 @@ const RENDERER = option("--renderer", "npx");
  * reading permitted chain estates alone.
  */
 const MENU_URL_INPUT = option("--menu-urls", OVERLAY_MENU_URL_INPUT_PATH);
-const RENDERER_ARGS = RENDERER === "npx" ? ["--yes", "wigolo@latest"] : [];
+// Pinned, not @latest: the renderer decides what a menu page states, so what
+// it is must be a decision and not whatever npm published since the last run.
+// 0.2.1 is the release this lane's conduct contract and harvest data were
+// verified against; @latest moved to the rewritten 0.3.x line on 2026-10-22,
+// and bumping to it is a deliberate change that re-verifies the flags below.
+const RENDERER_ARGS = RENDERER === "npx" ? ["--yes", "wigolo@0.2.1"] : [];
 
 function ukBaseVenueId(osmId) {
   if (typeof osmId !== "string") return null;

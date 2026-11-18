@@ -61,6 +61,7 @@ import {
   waitingRpcResult,
   waitsOnAccountLock,
   waitsOnAnyLock,
+  waitsOnLockHeldBy,
 } from "./helpers/crewAdmissionHarness";
 
 const skipReason = postgresSkipReason();
@@ -651,12 +652,16 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
     const exported = Number(ledgerRows());
     const acknowledgement = correctionLedgerExport().acknowledgement;
     const second = removedAndCorrected();
-    const correction = await holdRpc(correctCall(second.crew, second.removedMember));
+    const correction = await hold(`set application_name='in_flight_correction'; ${rpc(correctCall(second.crew, second.removedMember))}`);
+    let authUsers: Awaited<ReturnType<typeof hold>> | null = null;
     let rolling: Promise<{ ok: boolean; said: string }> | null = null;
     try {
+      authUsers = await hold("set application_name='rollback_barrier_correction'; lock table auth.users in row share mode", "postgres");
       rolling = rollbackOutcome("rollback_after_correction", acknowledgement);
-      await expect.poll(() => waitsOnAnyLock("rollback_after_correction")).toBe("t");
-    } finally { await correction.finish(); }
+      await expect.poll(() => waitsOnLockHeldBy("rollback_after_correction", "in_flight_correction")).toBe("t");
+    } finally {
+      try { await correction.finish(); } finally { await authUsers?.finish(); }
+    }
     const stale = await rolling;
     expect(stale?.ok).toBe(false);
     expect(stale?.said).toContain(`would drop ${exported + 1} crew removal corrections`);
@@ -680,15 +685,20 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
         values ((select plan_id from public.social_crews where id='${crewWith(person())}'),'Guest','${"d".repeat(64)}','in','${who.user}')`],
     ] as const) {
       const xav = person();
-      const inFlight = await hold(statement(xav), "postgres");
+      const inFlight = await hold(`set application_name='in_flight_${label}'; ${statement(xav)}`, "postgres");
+      // A commit can wake the rollback on auth.users before it frees its other tables. This holder ends last.
+      let authUsers: Awaited<ReturnType<typeof hold>> | null = null;
       let rolling: Promise<{ ok: boolean; said: string }> | null = null;
       try {
+        authUsers = await hold(`set application_name='rollback_barrier_${label}'; lock table auth.users in row share mode`, "postgres");
         rolling = rollbackOutcome(`rollback_after_${label}`, correctionLedgerExport().acknowledgement);
-        await expect.poll(() => waitsOnAnyLock(`rollback_after_${label}`)).toBe("t");
-      } finally { await inFlight.finish(); }
+        await expect.poll(() => waitsOnLockHeldBy(`rollback_after_${label}`, `in_flight_${label}`)).toBe("t");
+      } finally {
+        try { await inFlight.finish(); } finally { await authUsers?.finish(); }
+      }
       const rolled = await rolling;
       expect(rolled?.said ?? "", label).not.toMatch(REFUSED_BY_LOCKS);
-      expect(rolled?.ok, label).toBe(true);
+      expect(rolled?.ok, `${label}: ${rolled?.said ?? "No rollback answer"}`).toBe(true);
       stageTo("after");
     }
   });

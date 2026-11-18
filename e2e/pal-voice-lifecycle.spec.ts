@@ -302,7 +302,7 @@ test("the start chime plays during permission wait and never repeats over the gr
     };
   });
   const app = await setup(page, false, true);
-  const cues = () => page.evaluate(() => (window as Window & { chimeEvents: { kind: string; at: number; gesture: boolean }[] }).chimeEvents);
+  const cues = () => page.evaluate(() => (window as unknown as Window & { chimeEvents: { kind: string; at: number; gesture: boolean }[] }).chimeEvents);
   expect(await cues()).toEqual([]);
   await app.start();
   await expect.poll(() => page.evaluate(() => window.lifecycleProbe.microphoneCalls)).toBe(1);
@@ -332,7 +332,7 @@ for (const headphones of [true, false]) {
       const requests: MediaStreamConstraints[] = [];
       Object.assign(window, { microphoneRequests: requests });
       const gum = navigator.mediaDevices.getUserMedia.bind(navigator.mediaDevices);
-      navigator.mediaDevices.getUserMedia = constraints => { requests.push(constraints); return gum(constraints); };
+      navigator.mediaDevices.getUserMedia = constraints => { requests.push(constraints ?? {}); return gum(constraints ?? {}); };
       const enumerate = navigator.mediaDevices.enumerateDevices.bind(navigator.mediaDevices);
       navigator.mediaDevices.enumerateDevices = async () => {
         const devices = await enumerate();
@@ -341,7 +341,7 @@ for (const headphones of [true, false]) {
     }, { headphones });
     const app = await setup(page);
     await app.start(); await app.connected();
-    const requests = await page.evaluate(() => (window as Window & { microphoneRequests: MediaStreamConstraints[] }).microphoneRequests);
+    const requests = await page.evaluate(() => (window as unknown as Window & { microphoneRequests: MediaStreamConstraints[] }).microphoneRequests);
     const sdkAudio = requests.map(request => request.audio).filter((audio): audio is MediaTrackConstraints => typeof audio === "object" && audio !== null);
     expect(sdkAudio.length).toBeGreaterThan(0);
     if (headphones) expect(sdkAudio).toContainEqual(expect.objectContaining({ deviceId: { ideal: "disposable-airpods" } }));
@@ -374,11 +374,11 @@ test("a fast voice connection does not overlap the start chime with greeting aud
   app.speak();
   await expect(page.getByRole("status").filter({ hasText: "Pal is talking" })).toBeVisible();
   const playback = await page.evaluate(() => {
-    const probe = (window as Window & { fastChimeProbe: { cues: { kind: string; at: number }[]; audio: HTMLMediaElement | null } }).fastChimeProbe;
+    const probe = (window as unknown as Window & { fastChimeProbe: { cues: { kind: string; at: number }[]; audio: HTMLMediaElement | null } }).fastChimeProbe;
     return { cues: probe.cues, greetingAt: performance.now(), chimeRequested: probe.audio !== null, chimeStillPlaying: probe.audio !== null && !probe.audio.paused && !probe.audio.ended, chimeTime: probe.audio?.currentTime, chimeDuration: probe.audio?.duration };
   });
   await page.screenshot({ path: `${evidence}/fast-greeting.png`, fullPage: true });
-  const completedCues = await page.evaluate(() => (window as Window & { fastChimeProbe: { cues: { kind: string; at: number }[] } }).fastChimeProbe.cues);
+  const completedCues = await page.evaluate(() => (window as unknown as Window & { fastChimeProbe: { cues: { kind: string; at: number }[] } }).fastChimeProbe.cues);
   await writeFile(`${evidence}/fast-greeting-playback.json`, JSON.stringify({ ...playback, completedCues }, null, 2));
   await page.getByRole("button", { name: "End", exact: true }).click();
   await stopped(page);

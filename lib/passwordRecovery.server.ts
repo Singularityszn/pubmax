@@ -1,0 +1,29 @@
+import "server-only";
+
+import { createClient } from "@supabase/supabase-js";
+import { log } from "@/lib/log";
+import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { PASSWORD_RECOVERY_PATH } from "@/lib/passwordRecovery";
+import { siteOrigin } from "@/lib/siteUrl";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
+
+export async function sendPasswordRecoveryEmail(email: string, currentUrl: string): Promise<void> {
+  const config = resolveSupabaseConfig(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" });
+  const origin = siteOrigin(currentUrl);
+  if (!config || !origin) {
+    log("error", "auth.password_recovery.configuration_unavailable");
+    return;
+  }
+  const client = createClient(config.url, config.key, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: withAuthFetchTimeout(fetch) },
+  });
+  const { error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: new URL(PASSWORD_RECOVERY_PATH, origin).toString(),
+  });
+  if (error) {
+    const expectedRefusal = error.status === 429 || ["over_email_send_rate_limit", "over_request_rate_limit", "validation_failed", "email_address_invalid"].includes(error.code ?? "");
+    log(expectedRefusal ? "warn" : "error", "auth.password_recovery.delivery_refused", { code: error.code, status: error.status });
+  }
+}

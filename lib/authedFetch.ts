@@ -47,6 +47,13 @@ export class AuthActionSessionError extends Error {
   }
 }
 
+export class AuthActionJsonParseError extends Error {
+  constructor(readonly status: number) {
+    super("The server response could not be read.");
+    this.name = "AuthActionJsonParseError";
+  }
+}
+
 function abortError(): DOMException {
   return new DOMException("The operation was aborted.", "AbortError");
 }
@@ -398,8 +405,12 @@ export async function authedActionJson<T = unknown>(
     undefined,
     options,
   );
-  const body = (await response.json()) as T;
+  const parsed = await response.json().then(
+    (body: unknown) => ({ ok: true as const, body: body as T }),
+    () => ({ ok: false as const }),
+  );
   if (signal.aborted) throw abortReason(signal);
   if (requiresIdentity && readProviderAccountRevision() !== accountRevision) throw abortError();
-  return { response, body };
+  if (!parsed.ok) throw new AuthActionJsonParseError(response.status);
+  return { response, body: parsed.body };
 }

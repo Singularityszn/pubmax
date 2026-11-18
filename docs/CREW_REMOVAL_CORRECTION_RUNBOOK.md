@@ -149,6 +149,8 @@ The sweep locks the selected crew rows before it changes any Plan. It skips busy
 
 ## Host attendance (0247)
 
+Run staff-role revocation as a standalone statement while moderator corrections can run.
+
 A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for moderators. A guest reports a wrong mark with "Report this mark" in the attendance panel. The report names the exact mark and revision. It does not go to the Social safety queue in `/admin`, so read it here.
 
 A moderator with any member row in that crew, in any role or state, cannot decide its disputes. Roles change in place, so a former co-host looks like a guest. The calls also refuse the crew's owner, anyone who marked in it, the guest, and the moderator whose own mark an open report disputes. Ask a moderator who was never in that crew.
@@ -221,7 +223,9 @@ There is no app screen for these cases. The `/admin` safety queue is bound to on
 
 Before a hosted pilot launches, the captain must name an independent operator and a backup and confirm the coverage in the approved pilot plan. From publication, the operator must check the pre-event queue at least daily and resolve cases before the event or cancel that occurrence for an independent safety reason. The pilot plan also requires live coverage and checks at least every four hours during the post-night choice window. Without confirmed coverage and a backup, the occurrence must not launch. This migration does not establish that staffing or activate a schedule.
 
-Migration 0249 provides the guarded moderator cancellation described above. The legacy Plan status call still refuses Crew-bound Plans. Before launch, verify the guarded path together with the attendance and see-again migrations. The older cancellation race proof uses a direct operator status update and does not establish that combined acceptance.
+Migration 0249 provides the guarded moderator cancellation described above. The legacy Plan status call still refuses Crew-bound Plans. Before launch, verify the guarded path with attendance and see-again. The older cancellation race proof uses a direct operator status update and does not establish that combined acceptance.
+
+Revoke staff roles as standalone statements while case decisions can run.
 
 Use your own active moderator staff role ID in every call. The calls check that the role is an active moderator role. They cannot check which person runs the service-role session, because the service credentials are shared. A decision records the role you give and its display name, so a borrowed role ID records the wrong moderator.
 

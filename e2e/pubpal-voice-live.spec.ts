@@ -364,7 +364,7 @@ test.describe("Pub Pal live voice", () => {
     for (const species of PROOF_SPECIES) {
       await setPalSpecies(request, bearer, species);
       const evidence = await runVoiceSession(page, context, request, species);
-      sessions.push({ species, ...evidence });
+      sessions.push({ ...evidence, species });
     }
 
     await writeFile(

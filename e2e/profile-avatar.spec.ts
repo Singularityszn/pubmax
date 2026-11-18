@@ -245,7 +245,7 @@ test("repaints a cached profile fallback when the network answer adds an avatar"
     expect.stringContaining(avatarUrl),
   );
   await expect
-    .poll(() => page.locator("img.profileAvatar").evaluate((image) => image.naturalWidth))
+    .poll(() => page.locator("img.profileAvatar").evaluate((image) => (image as HTMLImageElement).naturalWidth))
     .toBeGreaterThan(0);
 });
 
@@ -304,7 +304,7 @@ test("retries a failed avatar after the browser reconnects", async ({ page }) =>
     await expect(avatar).toHaveAttribute("src", new RegExp(avatarUrl), { timeout: 1_000 });
   }).toPass({ timeout: 20_000 });
   await expect
-    .poll(() => avatar.evaluate((image) => image.naturalWidth))
+    .poll(() => avatar.evaluate((image) => (image as HTMLImageElement).naturalWidth))
     .toBeGreaterThan(0);
   expect(avatarRequests).toBeGreaterThanOrEqual(2);
 });

@@ -2,7 +2,6 @@
 
 import { useCallback, useLayoutEffect, useRef } from "react";
 
-import type { MessageDTO } from "@/lib/messages";
 import {
   isTextEntryElement,
   SOFT_KEYBOARD_MIN_SHRINK_RATIO,
@@ -11,21 +10,7 @@ import {
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
 
-export function useThreadViewportFit({
-  conversationId,
-  accountRevision,
-  messages,
-  outbox,
-  revealedId,
-}: {
-  conversationId: string;
-  accountRevision: number;
-  messages: readonly MessageDTO[];
-  outbox: readonly MessageDTO[];
-  revealedId: string | null;
-}) {
-  const listRef = useRef<HTMLUListElement | null>(null);
-  const followingNewestRef = useRef(true);
+export function useThreadViewportFit() {
   const fitViewportRef = useRef<(() => void) | null>(null);
 
   const attachViewport = useCallback((shell: HTMLDivElement | null) => {
@@ -86,7 +71,7 @@ export function useThreadViewportFit({
       shell.removeAttribute("data-compact-composer");
       const composer = shell.querySelector<HTMLElement>(".composer");
       const dock = shell.querySelector<HTMLElement>(".composerDock");
-      const header = shell.querySelector<HTMLElement>(".threadHeader");
+      const header = shell.querySelector<HTMLElement>(".threadHeaderGroup");
       const picker = shell.querySelector<HTMLElement>(".composerPickerRegion");
       const bounds = getComputedStyle(shell).display === "contents"
         ? shell.closest<HTMLElement>(".messagesThreadPane") : shell;
@@ -123,41 +108,5 @@ export function useThreadViewportFit({
     fitViewportRef.current?.();
   });
 
-  const scrollToNewest = useCallback(() => {
-    const list = listRef.current;
-    if (list) list.scrollTop = list.scrollHeight;
-  }, []);
-
-  useLayoutEffect(() => {
-    followingNewestRef.current = true;
-  }, [conversationId, accountRevision]);
-
-  useLayoutEffect(() => {
-    if (followingNewestRef.current) scrollToNewest();
-  }, [messages, outbox, revealedId, scrollToNewest]);
-
-  const attachList = useCallback((list: HTMLUListElement | null) => {
-    listRef.current = list;
-    if (!list) return;
-    if (followingNewestRef.current) scrollToNewest();
-    let height = list.clientHeight;
-    const onScroll = () => {
-      // Resizing can emit a scroll before ResizeObserver restores the pinned edge.
-      if (list.clientHeight !== height) return;
-      followingNewestRef.current = list.scrollHeight - list.scrollTop - height <= 2;
-    };
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => {
-      height = list.clientHeight;
-      if (followingNewestRef.current) scrollToNewest();
-    });
-    list.addEventListener("scroll", onScroll, { passive: true });
-    observer?.observe(list);
-    return () => {
-      list.removeEventListener("scroll", onScroll);
-      observer?.disconnect();
-      if (listRef.current === list) listRef.current = null;
-    };
-  }, [scrollToNewest]);
-
-  return { attachViewport, attachList, followingNewestRef };
+  return { attachViewport };
 }

@@ -4,7 +4,7 @@ import {
   ACCOUNTS,
   accessJwt,
   installAuthDoubles,
-  readDeviceAccounts,
+  expectBothAccountsRemembered,
   readDeviceIdentity,
   seedSignedIn,
 } from "./helpers/authDoubles";
@@ -238,7 +238,7 @@ for (const width of [390, 1440]) {
     await auth.signedInAs("B");
     await page.goto("/places");
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-    await expect.poll(async () => (await readDeviceAccounts(page)).length).toBe(2);
+    await expectBothAccountsRemembered(page);
     await expect(page.getByRole("link", { name: "Messages, 5 unread", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "Activity: 7 unread", exact: true })).toBeVisible();
     const marker = await page.evaluate(() => {

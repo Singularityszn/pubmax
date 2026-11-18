@@ -9,8 +9,8 @@ import { test, expect, type Page } from "@playwright/test";
 // ConditionsChip shows only when the weather has a verdict, AreaNewsRail only
 // when the area has dated facts.
 
-function seedDismissedChrome(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function seedDismissedChrome(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");

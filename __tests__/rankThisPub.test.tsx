@@ -1,0 +1,549 @@
+// @vitest-environment jsdom
+
+// "Rank it" on a pub page. Only a settled signed-out session may paint the
+// sign-in door. A read that fails, answers late or answers nonsense stays a
+// retry, and a read or a list from an account that has left never opens.
+
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const session = vi.hoisted(() => ({
+  phase: "signed-in" as "unresolved" | "signed-in" | "signed-out",
+  userId: "account-a" as string | null,
+}));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({
+    phase: session.phase,
+    signedIn: session.phase === "signed-in",
+    signedOut: session.phase === "signed-out",
+    unresolved: session.phase === "unresolved",
+  }),
+}));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: session.userId ? { id: session.userId } : null }),
+}));
+
+// One network double for both transports: the read answers the same whichever
+// helper the component uses, so a red run shows the behaviour, not the wiring.
+const net = vi.hoisted(() => ({ read: vi.fn<() => Promise<Response>>(), pending: undefined as Promise<void> | undefined, realComparison: false }));
+vi.mock("@/lib/authedFetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/authedFetch")>();
+  return {
+    AuthActionSessionError: actual.AuthActionSessionError,
+    AuthActionJsonParseError: actual.AuthActionJsonParseError,
+    authedFetch: () => net.read(),
+    authedActionJson: async () => {
+      const response = await net.read();
+      try { return { response, body: await response.json() }; }
+      catch { throw new actual.AuthActionJsonParseError(response.status); }
+    },
+  };
+});
+
+vi.mock("@/components/social/ComparePubFlow", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/components/social/ComparePubFlow")>();
+  return ({
+  default: ({ entries, startVenue, onSaved, onClose }: {
+    entries: Array<{ venueId: string }>;
+    startVenue?: { id: string; name: string };
+    onSaved: (entries: Array<{ venueId: string; place: number }>) => void;
+    onClose: (value?: unknown, reason?: "refused") => void;
+  }) => net.realComparison ? (
+    <actual.default entries={entries as SocialPubRankingEntry[]} startVenue={startVenue} onSaved={onSaved} onClose={onClose} />
+  ) : (
+    <div data-testid="compare">
+      <output>{`${startVenue?.id}:${entries.map((entry) => entry.venueId).join(",")}`}</output>
+      <button type="button" onClick={() => onSaved([{ venueId: "lamb", place: 1 }, { venueId: "seven-stars", place: 2 }])}>Save compare</button>
+      <button type="button" onClick={(event) => onClose(event)}>Close compare</button>
+      <button type="button" onClick={() => onClose(net.pending)}>Close pending save</button>
+      <button type="button" onClick={() => onClose(undefined, "refused")}>Close refused flow</button>
+    </div>
+  ),
+});
+});
+
+import { AuthActionSessionError } from "@/lib/authedFetch";
+import RankThisPub from "@/components/pubs/RankThisPub";
+import { initialPubPageRanking, transitionPubPageRanking } from "@/lib/pubPageRankingSession";
+import type { SocialPubRankingEntry } from "@/lib/socialPubRankings";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const ENTRY = { venueId: "lamb", venueName: "The Lamb", band: "loved", place: 1, score: 10, listedPrice: 5.5 };
+
+let host: HTMLDivElement;
+let root: Root | null = null;
+
+function json(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+async function flush() {
+  await act(async () => {});
+}
+
+async function render() {
+  await act(async () => {
+    root!.render(<RankThisPub venueId="seven-stars" venueName="The Seven Stars" returnTo="/pubs/seven-stars" />);
+  });
+  await flush();
+}
+
+function rankButton(): HTMLButtonElement | null {
+  return [...host.querySelectorAll("button")].find((button) => /^Rank it$|^Try ranking again$|^Ranked #/.test(button.textContent ?? "")) ?? null;
+}
+
+async function clickRank() {
+  const button = rankButton();
+  if (!button) throw new Error("missing Rank it");
+  await act(async () => {
+    button.click();
+  });
+  await flush();
+}
+
+function signInDoor(): HTMLAnchorElement | null {
+  return [...host.querySelectorAll("a")].find((link) => link.textContent === "Sign in to rank it") ?? null;
+}
+
+function compare(): string | null {
+  return host.querySelector("[data-testid=compare] output")?.textContent ?? null;
+}
+
+function notice(): string | null {
+  return host.querySelector("[role=status]")?.textContent || null;
+}
+
+beforeEach(() => {
+  host = document.createElement("div");
+  document.body.append(host);
+  root = createRoot(host);
+  session.phase = "signed-in";
+  session.userId = "account-a";
+  net.read.mockReset();
+  net.pending = undefined;
+  net.realComparison = false;
+});
+
+describe("pub-page ranking transitions", () => {
+  const scope = "account-a:seven-stars";
+  const entries: SocialPubRankingEntry[] = [{ ...ENTRY, venueId: "seven-stars", band: "loved", place: 3 }];
+
+  function comparing() {
+    const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
+    return transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries },
+    });
+  }
+
+  it("retains a confirmed checkpoint through a later outage", () => {
+    const comparison = comparing();
+    const saved = transitionPubPageRanking(comparison, {
+      type: "saved", scope, requestId: comparison.requestId, entries: [{ ...entries[0]!, place: 1 }],
+    });
+    const closed = transitionPubPageRanking(saved, { type: "close", scope, requestId: saved.requestId });
+    const reading = transitionPubPageRanking(closed, { type: "open" });
+    const unavailable = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "failed", message: "Unavailable" },
+    });
+    expect(closed.kind).toBe("closed");
+    expect(unavailable.kind).toBe("failed");
+    expect(unavailable.checkpoint?.place).toBe(1);
+  });
+
+  it.each(["reader", "comparison"] as const)("clears private checkpoint after %s refusal", (source) => {
+    const comparison = comparing();
+    let refused;
+    if (source === "reader") {
+      const closed = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId });
+      const reading = transitionPubPageRanking(closed, { type: "open" });
+      refused = transitionPubPageRanking(reading, {
+        type: "read", scope, requestId: reading.requestId, result: { kind: "refused", message: "Access refused" },
+      });
+    } else {
+      refused = transitionPubPageRanking(comparison, { type: "refused", scope, requestId: comparison.requestId, message: "Access refused" });
+    }
+    expect(refused.kind).toBe("refused");
+    expect(refused.checkpoint).toBeNull();
+    expect(transitionPubPageRanking(refused, { type: "saved", scope, requestId: comparison.requestId, entries })).toBe(refused);
+  });
+
+  it.each(["scope", "request", "phase"] as const)("ignores a read outside its current %s", (changed) => {
+    const comparison = comparing();
+    const reading = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId, pendingWrite: Promise.resolve() });
+    const state = changed === "phase" ? comparison : reading;
+    expect(transitionPubPageRanking(state, {
+      type: "read",
+      scope: changed === "scope" ? "account-b:seven-stars" : scope,
+      requestId: changed === "request" ? state.requestId - 1 : state.requestId,
+      result: { kind: "entries", entries: [] },
+    })).toBe(state);
+  });
+
+  it.each(["loading", "comparing"] as const)("ignores another open while %s", (kind) => {
+    const state = kind === "loading"
+      ? transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" })
+      : comparing();
+    expect(transitionPubPageRanking(state, { type: "open" })).toBe(state);
+  });
+
+  it("keeps an uncertain write with its read and closes after reconciliation", () => {
+    const comparison = comparing();
+    const pendingWrite = Promise.resolve();
+    const reading = transitionPubPageRanking(comparison, { type: "close", scope, requestId: comparison.requestId, pendingWrite });
+    expect(reading.kind === "loading" && reading.origin === "closed" && reading.pendingWrite).toBe(pendingWrite);
+    expect(reading.checkpoint?.place).toBe(3);
+    const reconciled = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries: [{ ...entries[0]!, place: 2 }] },
+    });
+    expect(reconciled.kind).toBe("idle");
+    expect(reconciled.checkpoint?.place).toBe(2);
+  });
+
+  it.each(["open", "refused"] as const)("ignores a closed comparison acknowledgement after a newer %s", (next) => {
+    const previous = comparing();
+    const closed = transitionPubPageRanking(previous, { type: "close", scope, requestId: previous.requestId });
+    const reading = transitionPubPageRanking(closed, { type: "open" });
+    const current = next === "open" ? reading : transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "refused", message: "Access refused" },
+    });
+    expect(transitionPubPageRanking(current, {
+      type: "saved", scope, requestId: previous.requestId, entries: [{ ...entries[0]!, place: 1 }],
+    })).toBe(current);
+  });
+
+  it("does not publish a different pub's position", () => {
+    const reading = transitionPubPageRanking(initialPubPageRanking(scope, "seven-stars"), { type: "open" });
+    const opened = transitionPubPageRanking(reading, {
+      type: "read", scope, requestId: reading.requestId, result: { kind: "entries", entries: [{ ...entries[0]!, venueId: "lamb" }] },
+    });
+    expect(opened.kind).toBe("comparing");
+    expect(opened.checkpoint).toBeNull();
+  });
+});
+
+
+it("keeps the real comparison's successful save after closing during its POST", async () => {
+  net.realComparison = true;
+  let finish!: (response: Response) => void;
+  const write = new Promise<Response>((resolve) => { finish = resolve; });
+  const savedEntries = [ENTRY, { ...ENTRY, venueId: "seven-stars", venueName: "The Seven Stars", place: 2 }];
+  net.read.mockResolvedValueOnce(json({ entries: [] })).mockReturnValueOnce(write)
+    .mockResolvedValueOnce(json({ entries: savedEntries }));
+  await render();
+  await clickRank();
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>('[data-band="loved"]')!.click();
+  });
+  expect(net.read).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    document.querySelector<HTMLButtonElement>('.comparePub__close')!.click();
+  });
+  expect(document.querySelector('[role="dialog"]')).toBeNull();
+  await act(async () => {
+    finish(json({ entries: savedEntries }));
+  });
+  expect(rankButton()?.textContent).toBe("Ranked #2");
+});
+
+afterEach(() => {
+  act(() => root?.unmount());
+  root = null;
+  host.remove();
+  vi.useRealTimers();
+});
+
+describe("RankThisPub", () => {
+  it("offers the sign-in door only once the session has settled signed out", async () => {
+    session.phase = "signed-out";
+    session.userId = null;
+    await render();
+    expect(signInDoor()?.getAttribute("href")).toBe("/login?mode=signin&from=%2Fpubs%2Fseven-stars");
+    expect(rankButton()).toBeNull();
+  });
+
+  it("opens from one early tap after the first account resolves", async () => {
+    session.phase = "unresolved";
+    session.userId = null;
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    expect(net.read).not.toHaveBeenCalled();
+    expect(notice()).toBe("Checking your ranking…");
+
+    session.phase = "signed-in";
+    session.userId = "account-a";
+    await render();
+    expect(compare()).toBe("seven-stars:lamb");
+    expect(net.read).toHaveBeenCalledOnce();
+  });
+
+  it("bounds an early tap when the browser cannot resolve the account", async () => {
+    vi.useFakeTimers();
+    session.phase = "unresolved";
+    session.userId = null;
+    await render();
+    await clickRank();
+    await act(async () => { await vi.advanceTimersByTimeAsync(2_000); });
+    expect(notice()).toBe("Still waking your session. Try again.");
+    expect(net.read).not.toHaveBeenCalled();
+    expect(rankButton()?.getAttribute("aria-busy")).toBe("false");
+  });
+
+  it("keeps an unresolved session neutral and turns a session still waking into a retry", async () => {
+    session.phase = "unresolved";
+    session.userId = null;
+    await render();
+    expect(signInDoor()).toBeNull();
+
+    session.phase = "signed-in";
+    session.userId = "account-a";
+    await render();
+    net.read.mockRejectedValueOnce(new AuthActionSessionError());
+    await clickRank();
+    expect(signInDoor()).toBeNull();
+    expect(compare()).toBeNull();
+    expect(notice()).toBe("Still waking your session. Try again.");
+    expect(rankButton()?.disabled).toBe(false);
+
+    session.phase = "signed-in";
+    session.userId = "account-a";
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    expect(compare()).toBe("seven-stars:lamb");
+    expect(notice()).toBeNull();
+  });
+
+  it("keeps a signed-in reader on a retry when the ranking read is temporarily unavailable", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ error: { message: "Your ranking is unavailable right now." }, code: "RANKING_UNAVAILABLE", retryable: true }, 503));
+    await clickRank();
+    expect(signInDoor()).toBeNull();
+    expect(compare()).toBeNull();
+    expect(notice()).toBe("Your ranking is unavailable right now.");
+
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    expect(compare()).toBe("seven-stars:lamb");
+  });
+
+  it("never asks a signed-in reader to sign in when the server did not see their session", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ error: { message: "Sign in to use Social." }, code: "SOCIAL_SIGN_IN_REQUIRED" }, 401));
+    await clickRank();
+    expect(signInDoor()).toBeNull();
+    expect(notice()).toBe("We could not confirm access to your ranking.");
+  });
+
+  it("says why Social refused instead of opening the compare flow", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ error: { message: "Adult verification is needed for Social." }, code: "SOCIAL_ADULT_VERIFICATION_REQUIRED" }, 403));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(signInDoor()).toBeNull();
+    expect(notice()).toBe("Adult verification is needed for Social.");
+  });
+
+  it.each([401, 403, 503])("retires the last confirmed position after an access refusal (%s)", async (status) => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    net.read.mockResolvedValueOnce(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", error: "Access is not available." }, status));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    net.read.mockReturnValueOnce(new Promise<Response>(() => {}));
+    await clickRank();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    expect(rankButton()?.getAttribute("aria-busy")).toBe("true");
+  });
+
+  it.each([401, 403])("retires a confirmed position after an unreadable HTTP %s refusal", async (status) => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    net.read.mockResolvedValueOnce(new Response("", { status }));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+  });
+
+  it("retires the checkpoint when the comparison reports an access refusal", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close refused flow")!.click());
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+    expect(notice()).toBe("We could not confirm access to your ranking.");
+  });
+
+  it("keeps a confirmed save when its follow-up read is temporarily unavailable", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    net.pending = Promise.resolve();
+    net.read.mockResolvedValueOnce(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, 503));
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!.click());
+    await flush();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(notice()).toBe("Your ranking is unavailable right now.");
+  });
+
+  it("does not open a false empty ranking from a malformed answer", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({}));
+    await clickRank();
+    expect(compare()).toBeNull();
+    expect(notice()).toBe("Your ranking is unavailable right now.");
+
+    net.read.mockResolvedValueOnce(json({ entries: [{ venueId: 7 }] }));
+    await clickRank();
+    expect(compare()).toBeNull();
+
+    net.read.mockResolvedValueOnce(json({ entries: [] }));
+    await clickRank();
+    expect(compare()).toBe("seven-stars:");
+  });
+
+  it("drops a read that lands after the account changed", async () => {
+    await render();
+    let answer!: (response: Response) => void;
+    net.read.mockReturnValueOnce(new Promise<Response>((resolve) => { answer = resolve; }));
+    await clickRank();
+    await clickRank();
+    expect(net.read).toHaveBeenCalledTimes(1);
+
+    session.userId = "account-b";
+    await render();
+    await act(async () => {
+      answer(json({ entries: [ENTRY] }));
+    });
+    await flush();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.disabled).toBe(false);
+  });
+
+  it("closes the previous account's list and its placing when the account changes", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    expect(compare()).toBe("seven-stars:lamb");
+    const save = [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare");
+    await act(async () => {
+      save?.click();
+    });
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+
+    session.userId = "account-b";
+    await render();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Rank it");
+  });
+
+  it("accepts a click event from the older comparison without treating it as a write", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!;
+    await act(async () => close.click());
+    expect(compare()).toBeNull();
+    expect(net.read).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes an acknowledged comparison without another read and keeps the saved position", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledOnce();
+  });
+
+  it("retires a pub's checkpoint when the mounted action moves to another pub", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Save compare")!.click());
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    await act(async () => root!.render(<RankThisPub venueId="lamb" venueName="The Lamb" returnTo="/pubs/lamb" />));
+    expect(rankButton()?.textContent).toBe("Rank it");
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    expect(compare()).toBe("lamb:lamb");
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!.click());
+    expect(rankButton()?.textContent).toBe("Ranked #1");
+  });
+
+  it("reconciles a closed write after its promise rejects", async () => {
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await render();
+    await clickRank();
+    let rejectWrite!: (error: Error) => void;
+    net.pending = new Promise<void>((_resolve, reject) => { rejectWrite = reject; });
+    await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!.click());
+    expect(net.read).toHaveBeenCalledOnce();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await act(async () => rejectWrite(new Error("The answer was lost")));
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+    expect(net.read).toHaveBeenCalledTimes(2);
+  });
+
+  it("reads the saved position after the newer comparison's outstanding write settles", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    let finish!: () => void;
+    net.pending = new Promise<void>((resolve) => { finish = resolve; });
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!;
+    await act(async () => close.click());
+    expect(notice()).toBe("Checking your ranking…");
+    await clickRank();
+    expect(net.read).toHaveBeenCalledTimes(1);
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await act(async () => finish());
+    await flush();
+    expect(compare()).toBeNull();
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+  });
+
+  it("does not start a closed session's refresh after its account departs", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY] }));
+    await clickRank();
+    let finish!: () => void;
+    net.pending = new Promise<void>((resolve) => { finish = resolve; });
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close pending save")!;
+    await act(async () => close.click());
+    session.userId = "account-b";
+    await render();
+    await act(async () => finish());
+    await flush();
+    expect(net.read).toHaveBeenCalledTimes(1);
+    expect(rankButton()?.textContent).toBe("Rank it");
+  });
+  it("updates the saved position from a retry read without another save", async () => {
+    await render();
+    net.read.mockResolvedValueOnce(json({ error: { message: "Your ranking is unavailable right now." } }, 503));
+    await clickRank();
+    expect(compare()).toBeNull();
+    net.read.mockResolvedValueOnce(json({ entries: [ENTRY, { ...ENTRY, venueId: "seven-stars", place: 2 }] }));
+    await clickRank();
+    const close = [...host.querySelectorAll("button")].find((button) => button.textContent === "Close compare")!;
+    await act(async () => close.click());
+    expect(rankButton()?.textContent).toBe("Ranked #2");
+  });
+
+});

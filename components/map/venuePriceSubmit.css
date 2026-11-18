@@ -251,11 +251,25 @@
 }
 
 /* ── Quick-tap prices ─────────────────────────────────────────────────────── */
+/* The row is framed as tap-fills for the drinker's own figure, so a bare
+   figure can never read as the pub's price. The one chip carrying the venue's
+   recorded price says so in words ("on record"), matching the Pint Drop
+   composer's "last" tag on its own composer. */
+.vpsubQuickBlock {
+  margin-top: 10px;
+}
+
+.vpsubQuickLabel {
+  margin: 0 0 6px;
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  color: var(--ink-soft);
+}
+
 .vpsubQuick {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-top: 10px;
 }
 
 .vpsubQuickChip {
@@ -280,6 +294,17 @@
 .vpsubQuickChip:active {
   transform: scale(0.94);
   --shared-press-scale: 1;
+}
+
+/* The provenance word beside the recorded figure. Same quiet stamp treatment
+   as .vpsubStampMeta: a caveat about the figure, not a second claim. */
+.vpsubQuickTag {
+  margin-left: 6px;
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
 }
 
 @media (hover: hover) and (pointer: fine) {
