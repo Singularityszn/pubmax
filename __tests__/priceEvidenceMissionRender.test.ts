@@ -155,7 +155,11 @@ describe("price evidence mission render", () => {
     expect(html).toContain("Quick-add price");
     expect(html.match(/vpsubQuickTag/g)).toHaveLength(1);
     expect(html).toContain('title="The price on record here"');
-    expect(html.indexOf("£4.80")).toBeLessThan(html.indexOf("vpsubQuickTag"));
+    // The tag must sit on the chip carrying the recorded figure itself, not
+    // merely appear once somewhere in the row.
+    const taggedChip = html.match(/<button[^>]*vpsubQuickChip[^>]*>[\s\S]*?<\/button>/g)
+      ?.find((chip) => chip.includes("vpsubQuickTag"));
+    expect(taggedChip).toContain("£4.80");
   });
 
   it("marks no chip when the venue has no price on record", () => {
