@@ -78,7 +78,9 @@ The delete removes the Plan's seats, its crew, member rows, join requests, invit
 
 When an account is deleted, migration 0246 frees each crew place it held as a guest and cancels each crew night it owned. History stays: the guest's member row becomes `left`, the night's Plan becomes `abandoned`, and that crew's pending requests and invitations become `expired`. Suspended accounts and unbound legacy accounts are not touched.
 
-The deletion service runs the release after the auth row is deleted, and again when the same delete is repeated. Each call processes at most 20 pending crews across deleted accounts. Later calls continue pending cleanup. A failed call can leave counts or cancellation stale until another call completes. Admission and invitation paths that pass the host pre-checks release their crew's departed members before participant locks. A departure during those waits can remain pending until the next sweep or admission. When the service logs `account.delete_crew_release_failed`, check and finish the release:
+The deletion service runs the release after the auth row is deleted, and again when the same delete is repeated. Each call processes at most 20 pending crews across deleted accounts. Later calls continue pending cleanup. A failed call can leave counts or cancellation stale until another call completes. Admission and invitation paths that pass the host pre-checks release their crew's departed members before participant locks. A departure during those waits can remain pending until the next sweep or admission.
+
+When the service logs `account.delete_crew_release_failed` or `account.delete_crew_release_batch_full`, check pending cleanup with the query below. A full batch means more crews may be pending. It does not prove that any remain.
 
 ```sql
 select member.crew_id, member.role
@@ -159,7 +161,7 @@ A report goes with the mark it disputes: at expiry the list leaves it out, and t
 
 ## Rollback
 
-Roll back 0247 before 0246, and 0246 before 0245.
+Roll back 0247 before 0246, and 0246 before 0245. The 0245 rollback refuses to start while the 0246 release function exists.
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 

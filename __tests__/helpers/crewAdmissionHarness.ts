@@ -13,6 +13,8 @@ const name = "20261117130000_0245_crew_admission_safety_locks.sql";
 /** The migrations under test, in apply order. Rollback runs them in reverse. */
 const FORWARD = [name, "20261117140000_0246_crew_departure_release.sql"];
 const ROLLBACK = FORWARD.map((file) => `rollback/${file.replace(/\.sql$/, "_rollback.sql")}`).reverse();
+/** The 0245 rollback alone, which the runbook forbids while 0246 is applied. */
+export const ROLLBACK_0245_ONLY = ROLLBACK.slice(-1);
 
 export const DIGEST = "a".repeat(64);
 export const NOT_FOUND = { ok: false, code: "not_found" };
@@ -296,13 +298,13 @@ export function correctionLedgerExport() {
  * The rollback file on its own named connection, with the ledger export acknowledgement set
  * first when one is given. It answers whether the database took it and what it said.
  */
-export function rollbackOutcome(application: string, acknowledgement?: string) {
+export function rollbackOutcome(application: string, acknowledgement?: string, files: readonly string[] = ROLLBACK) {
   const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`, "-c", `set role ${MIGRATOR}`];
   if (acknowledgement !== undefined) args.push("-c", `set pubmax.crew_removal_corrections_exported = '${acknowledgement}'`);
-  args.push(...ROLLBACK.flatMap((file) => ["-f", join(directory, file)]));
+  args.push(...files.flatMap((file) => ["-f", join(directory, file)]));
   return new Promise<{ ok: boolean; said: string }>((resolve) => {
     execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => {
-      if (!error) stage = "before";
+      if (!error && files === ROLLBACK) stage = "before";
       resolve({ ok: !error, said: String(stderr ?? "") });
     });
   });
