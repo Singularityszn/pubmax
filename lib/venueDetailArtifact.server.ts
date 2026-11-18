@@ -71,7 +71,8 @@ type FamousVenueSeed = {
 };
 
 const GENERATED_DIR =
-  process.env.PUBMAX_VENUE_DETAIL_DIR ?? path.join(process.cwd(), "data", "generated");
+  process.env.PUBMAX_VENUE_DETAIL_DIR ??
+  path.join(/* turbopackIgnore: true */ process.cwd(), "data", "generated");
 const DEFAULT_DETAIL_INDEX_FILE = path.join(GENERATED_DIR, "venue_detail_index.json");
 const DEFAULT_DETAIL_ROWS_FILE = path.join(GENERATED_DIR, "venue_details.jsonl");
 const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices_app_dataset.json");
@@ -229,7 +230,8 @@ async function getFallbackIndex(): Promise<Map<string, Venue>> {
     try {
       const seeds = JSON.parse(
         await fs.readFile(
-          path.join(process.cwd(), "data", "famous_venues", file),
+          /* turbopackIgnore: true */
+          path.join(/* turbopackIgnore: true */ process.cwd(), "data", "famous_venues", file),
           "utf8",
         ),
       ) as Array<Omit<FamousVenueSeed, "anchor"> & { anchor?: FamousVenueSeed["anchor"] }>;
