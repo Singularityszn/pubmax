@@ -58,8 +58,9 @@ export function wireFairPintPaint(map: MapLibreMap) {
       const properties = feature.properties;
       const listed = properties?.cluster ? properties.minFairPence : properties?.fairPence;
       const opacity = fairPintOpacity(listed, fairPintSession().pence);
-      if (painted.get(feature.id) === opacity) continue;
-      map.setFeatureState({ source: "pubs", id: feature.id }, { [STATE]: opacity });
+      const target = { source: "pubs", id: feature.id };
+      const previous = painted.get(feature.id) ?? map.getFeatureState(target)[STATE] ?? 0.25;
+      if (previous !== opacity) map.setFeatureState(target, { [STATE]: opacity });
       painted.set(feature.id, opacity);
     }
   };

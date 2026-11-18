@@ -1,5 +1,3 @@
-"use client";
-
 import { MAP_FIRST_VISIT_ARRIVAL_KEY, MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
 import FairPintFrame from "./FairPintFrame";
 import { bootFairPintCard, FAIR_PINT_KEY, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN, validFairPint } from "@/lib/fairPint";

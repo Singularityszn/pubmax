@@ -1,10 +1,8 @@
 "use client";
 
-import FairPintPrelude from "@/components/map/fairpint/FairPintPrelude";
-import { supportsFairPint } from "@/lib/fairPint";
 import { FairPintHost } from "@/components/map/fairpint/FairPintHost";
 import dynamic from "next/dynamic";
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 
 import CityPubsOnlyNoteMount from "@/components/map/CityPubsOnlyNote";
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
@@ -84,8 +82,7 @@ function persistOnboardingDismissal(): void {
 
 type PubMaxingShellProps = {
   cityId?: CityId;
-  fairPintAreaName?: string | null;
-  nonce?: string;
+  fairPintPrelude?: ReactNode;
   // Server-resolved uncovered-place arrival, checked against our own place
   // index (lib/ukPlaceIndex.server). The client never reads the place name off
   // the query string, so no stranger's copy can be rendered as ours, and a soft
@@ -104,8 +101,7 @@ type PubMaxingShellProps = {
 
 export default function PubMaxingShell({
   cityId = DEFAULT_CITY_ID,
-  fairPintAreaName = null,
-  nonce,
+  fairPintPrelude,
   placeArrival = null,
   ukNationalBrowse = false,
   zonePintIndex = null,
@@ -147,7 +143,7 @@ export default function PubMaxingShell({
     <MapSkeletonCityContext.Provider value={mapDisplayName}>
       <MapPricesReadContext.Provider value={pricesReadLine}>
         <h1 className="sr-only">{mapDisplayName} pub map</h1>
-        {supportsFairPint(cityId) && fairPintAreaName ? <FairPintPrelude area={fairPintAreaName} nonce={nonce} /> : null}
+        {fairPintPrelude}
         <FairPintHost cityId={cityId}><PubMap
           key={cityId}
           cityId={cityId}

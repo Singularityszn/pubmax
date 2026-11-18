@@ -1,5 +1,4 @@
 "use client";
-import dynamic from "next/dynamic";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import type { useFairPintPlan } from "./useFairPintPlan";
 import type { FairPintGenerated } from "@/lib/fairPint";
@@ -13,10 +12,7 @@ import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } fr
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { haptic } from "@/lib/nativeHaptics";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
-import CrawlPresentationBoundary from "@/components/wild/CrawlPresentationBoundary";
-import FairPintResultFallback from "./FairPintResultFallback";
 
-const FairPintResult = dynamic(() => import("./FairPintResult"));
 const FairPintPlanner = lazy(() => import("./FairPintPlanner"));
 const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
   .find((element) => element.getClientRects().length > 0) ?? null;
@@ -168,35 +164,6 @@ export default function FairPintFlow({
     dismissMapFirstVisitArrival(undefined, Date.now(), true);
     if (!plan || plan.state.phase === "dial") mapSearchControl()?.focus({ preventScroll: true });
   };
-  const back = () => {
-    setReturnToCard(true);
-    plan?.back();
-  };
-  if (plan?.state.last && plan.state.phase !== "dial")
-    return (
-      <CrawlPresentationBoundary
-        key={plan.state.last.generated.operationKey}
-        fallback={<FairPintResultFallback last={plan.state.last} onBack={back} onLineReady={plan.lineReady} />}
-      >
-        <FairPintResult
-          typedName={typedName}
-          onName={setTypedName}
-          onLineReady={plan.lineReady}
-          onEditStart={plan.editStart}
-          cityId={cityId}
-          onClose={close}
-          returnFocus={resultReturnFocus}
-          mobile={mobile}
-          last={plan.state.last}
-          venues={data.rows}
-          start={plan.start}
-          busy={plan.state.phase === "drawing"}
-          error={plan.state.error}
-          onStart={plan.changeStart}
-          onBack={back}
-        />
-      </CrawlPresentationBoundary>
-    );
   return (
     <>
       <FairPintCard
@@ -240,7 +207,6 @@ export default function FairPintFlow({
         onClose={close}
         onDraw={(pence) => {
           if (plan?.retrying) return;
-          void import("./FairPintResult").catch(() => {});
           void import("@/lib/planIntake").catch(() => {});
           if (plan) void plan.draw(pence);
           else {
@@ -254,7 +220,12 @@ export default function FairPintFlow({
   };
   return firstDraw === null ? render() : (
     <Suspense fallback={render()}>
-      <FairPintPlanner cityId={cityId} area={area.slug} initialArea={firstDraw.area} pence={firstDraw.pence} onGenerated={activateRoute}>
+      <FairPintPlanner
+        cityId={cityId} area={area.slug} initialArea={firstDraw.area} pence={firstDraw.pence} onGenerated={activateRoute}
+        resultProps={{ typedName, onName: setTypedName, mobile, venues: data.rows, returnFocus: resultReturnFocus,
+          onClose: () => { setFairPintSession(false); dismissMapFirstVisitArrival(undefined, Date.now(), true); },
+          onBack: () => setReturnToCard(true) }}
+      >
         {render}
       </FairPintPlanner>
     </Suspense>

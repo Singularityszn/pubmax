@@ -1,3 +1,5 @@
+"use client";
+
 import { useId, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/buttonVariants";

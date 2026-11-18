@@ -1,6 +1,7 @@
 "use client";
 
 import FairPintGate from "./FairPintGate";
+import { dismissMapFirstVisitArrival } from "@/lib/mapFirstVisitArrival";
 import {
   createContext,
   useCallback,
@@ -79,6 +80,8 @@ export function FairPintHost({ children, cityId }: { children: ReactNode; cityId
       setFairPintSession(!early.closed, early.pence);
       if (early.closed) {
         early.location = undefined;
+        clearEarlyFairPint();
+        dismissMapFirstVisitArrival(undefined, Date.now(), true);
         suppressMapFirstVisitPrompts();
       }
     };
