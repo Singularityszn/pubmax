@@ -1,13 +1,14 @@
 import type { Route } from "next";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeSocialHashtag } from "@/lib/socialHashtag";
+import { SOCIAL_POST_PAGE_SIZE } from "@/lib/socialPostWindow";
 
-type SocialFeedLane = "following" | "nearby" | "discover";
+import type { SocialPostFeedLane } from "@/lib/socialPostFeedMembership";
 
 export type SocialPostsShellState = {
   valid: boolean;
   tab: "posts";
-  feed: SocialFeedLane;
+  feed: SocialPostFeedLane;
   area: NightAreaSlug | null;
   /** Across town only: one stored-form hashtag the lane is narrowed to. */
   tag?: string | null;
@@ -117,7 +118,7 @@ export function socialFeedRequestHref(
   const params = new URLSearchParams({ lane: state.feed });
   if (state.feed === "nearby" && state.area) params.set("area", state.area);
   if (state.feed === "discover" && state.tag) params.set("tag", state.tag);
-  params.set("limit", "20");
+  params.set("limit", String(SOCIAL_POST_PAGE_SIZE));
   if (cursor) params.set("cursor", cursor);
   return `/api/social/posts?${params.toString()}`;
 }

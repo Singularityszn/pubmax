@@ -315,6 +315,13 @@ describe("trackEvent", () => {
     expect(consentAwareBeforeSend(event)).toBeNull();
   });
 
+  it.each(["/auth/reset-password#token_hash=secret", "https://pubmaxxing.com/auth/reset-password#token_hash=secret"])("excludes recovery URLs from both Vercel analytics sinks after consent: %s", url => {
+    setWindow();
+    setAnalyticsConsent(true);
+    expect(consentAwareBeforeSend({ type: "pageview", url })).toBeNull();
+    expect(consentAwareSpeedInsightsBeforeSend({ type: "vital", url, route: "/auth/reset-password" })).toBeNull();
+  });
+
   it("does not load Vercel's remote debug script during local development", () => {
     expect(shouldMountVercelAnalytics("development")).toBe(false);
     expect(shouldMountVercelAnalytics("test")).toBe(false);

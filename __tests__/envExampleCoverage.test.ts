@@ -46,7 +46,7 @@ const PLATFORM_OWNED: Record<string, string> = {
   PUBMAX_E2E_RATE_LIMIT_MAX:
     "playwright.config.ts webServer.env (test-only limiter allowance)",
   // Test seam: redirects the generated venue-detail read at a fixture tree.
-  PUBMAX_VENUE_DETAIL_DIR: "test seam (lib/venueDetailIndex.ts)",
+  PUBMAX_VENUE_DETAIL_DIR: "test seam (lib/venueDetailArtifact.server.ts)",
 };
 
 const ENV_READ = /process\.env\.([A-Z0-9_]+)|process\.env\[\s*"([A-Z0-9_]+)"\s*\]/g;

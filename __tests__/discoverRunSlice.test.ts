@@ -104,3 +104,33 @@ describe("firecrawlRead", () => {
     expect(await firecrawlRead(asked, oxford, request)).toEqual({ results: [{ url: asked, landed_url: landed, raw_content: "The Crown, OX4 2EZ" }] });
   });
 });
+
+describe("probePage", () => {
+  const redirectTo = (location: string) => new Response(null, { status: 302, headers: { location } });
+
+  it("keeps a transient robots answer retryable instead of settling it as refused", async () => {
+    const { probePage } = await freshScript();
+    const gate = vi.fn(async () => ({ outcome: "skipped", reason: "robots unreachable", attempts: 3, evidence: [] }));
+    const fetchImpl = vi.fn(async () => redirectTo("https://pub.example.com/menu"));
+    const probe = await probePage("https://list.example.com/pub", { gate, fetchImpl });
+    expect(probe?.landed).toBe("unknown");
+  });
+
+  it("still reports a real robots refusal as refused", async () => {
+    const { probePage } = await freshScript();
+    const gate = vi.fn(async () => ({ outcome: "refused", reason: "robots-disallowed" }));
+    const fetchImpl = vi.fn(async () => redirectTo("https://pub.example.com/menu"));
+    const probe = await probePage("https://list.example.com/pub", { gate, fetchImpl });
+    expect(probe?.landed).toBe("refused");
+  });
+
+  it("reports a permitted landing", async () => {
+    const { probePage } = await freshScript();
+    const gate = vi.fn(async () => ({ outcome: "allowed", reason: "allowed" }));
+    const fetchImpl = vi.fn()
+      .mockImplementationOnce(async () => redirectTo("https://pub.example.com/menu"))
+      .mockImplementationOnce(async () => new Response(null, { status: 200 }));
+    const probe = await probePage("https://list.example.com/pub", { gate, fetchImpl });
+    expect(probe).toMatchObject({ status: 200, landed: "permitted" });
+  });
+});

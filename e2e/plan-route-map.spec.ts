@@ -36,7 +36,7 @@ function futureLondonFirstPint(): string {
 test.describe("locked plan route map", () => {
   test.beforeEach(async ({ page }) => {
     await installAuthDoubles(page);
-    await seedSignedIn(page);
+    await seedSignedIn(page, "A");
     // The identity nudge (lib/identityNudge.ts) fires after the plan locks and
     // lays a backdrop over the route card this test taps. It has its own
     // coverage; pre-dismissing it is what a returning visitor already carries.

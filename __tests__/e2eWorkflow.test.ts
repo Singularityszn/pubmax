@@ -53,7 +53,7 @@ function recordBrowserJob(job: WorkflowJob): CommandCall[] {
   const outputs: Record<string, { outputs: Record<string, string> }> = {};
   const evaluate = (expression: string) => runInNewContext(
     `(${expression.replace(/^\s*\$\{\{([\s\S]*)\}\}\s*$/, "$1")})`,
-    { env: job.env ?? {}, matrix: { shard: 1 }, github: MERGE_GROUP_CONTEXT, steps: outputs },
+    { env: job.env ?? {}, matrix: { shard: 1 }, github: MERGE_GROUP_CONTEXT, steps: outputs, failure: () => false },
     { timeout: 1000 },
   );
   const interpolate = (value: string) => value.replace(/\$\{\{([\s\S]*?)\}\}/g, (_, expression: string) => String(evaluate(expression)));

@@ -90,7 +90,8 @@ export function readMessagesInbox(userId: string, handle: string, signal?: Abort
       result = { status: response.status, conversations: [], degraded: false };
     } else {
       const body = await response.json() as { conversations?: ConversationDTO[]; status?: string };
-      result = { status: response.status, conversations: Array.isArray(body.conversations) ? body.conversations : [], degraded: body.status === "degraded" };
+      if (!Array.isArray(body.conversations)) throw new Error("Malformed inbox");
+      result = { status: response.status, conversations: body.conversations, degraded: body.status === "degraded" };
     }
     if (provider.aborted || controller.signal.aborted || revision !== readProviderAccountRevision()) {
       throw new DOMException("The inbox account changed.", "AbortError");

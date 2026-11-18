@@ -1,10 +1,10 @@
-// Browser-only Supabase clients for OAuth and passwordless email sign-in.
+// Browser-only Supabase Auth clients.
 //
 // This is DISTINCT from lib/supabase.ts: that module is the server-only ADMIN
-// client (service-role key, no session persistence, all writes route through it).
+// client (service-role key, no session persistence).
 // This one runs in the browser, is built from the public anon/publishable key,
-// and its only job is to establish an authenticated session (identity) via
-// Supabase Auth. It never touches privileged tables.
+// and handles sign-in and password recovery through Supabase Auth.
+// It never touches privileged tables.
 //
 // The canonical singleton uses implicit auth so an email link can complete
 // in another browser. A verifier confined to the requesting browser would
@@ -21,12 +21,13 @@ import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProvid
 import { discardBody } from "@/lib/responseBody";
 import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
-// @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
-// the browser critical path instead of loading on every route via this module.
-// Both the module import and the client construction are memoized so concurrent
-// callers never double-import or build two clients. `cached` mirrors the resolved
+// The default dynamic import keeps @supabase/supabase-js off unrelated routes.
+// Messages preload the factory through MessageAuthWarmup without constructing
+// a client, so session restoration does not wait for another module download.
+// The module import and canonical client construction are memoized so concurrent
+// callers share the canonical client. `cached` mirrors the resolved
 // client synchronously for the best-effort sync accessor below.
-let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
+let modulePromise: Promise<Pick<typeof import("@supabase/supabase-js"), "createClient">> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;
 let cached: SupabaseClient | null | undefined;
 // Resolves with the first client any caller builds. Work that only a signed-in
@@ -36,9 +37,14 @@ const clientBuilt = new Promise<SupabaseClient>((resolve) => {
   announceClient = resolve;
 });
 
+export function preloadSupabaseBrowserFactory(createClient: typeof import("@supabase/supabase-js")["createClient"]): void {
+  if (typeof window !== "undefined") modulePromise ??= Promise.resolve({ createClient });
+}
+
 type NativeInstallation = { auth: SupabaseClient["auth"]; session: Session; current: () => boolean; settled: boolean };
 let nativeInstallation: NativeInstallation | null = null;
 let canonicalStorage: { storage: Storage; key: string } | null = null;
+let recoveryInstallation: { session: Session; current: () => boolean; previous: string | null; published: boolean } | null = null;
 
 function sameNativeTokens(value: unknown, session: Session): boolean {
   const candidate = value as Partial<Session> | null;
@@ -75,7 +81,7 @@ export async function installNativeSession(
   auth: SupabaseClient["auth"], session: Session, current: () => boolean,
 ): Promise<Awaited<ReturnType<SupabaseClient["auth"]["setSession"]>> | null> {
   const active = await auth.getSession();
-  if (active.error || active.data.session || nativeInstallation || !current() || (auth === cached?.auth && !canonicalStorage)) return null;
+  if (active.error || active.data.session || nativeInstallation || recoveryInstallation || !current() || (auth === cached?.auth && !canonicalStorage)) return null;
   const pending = { auth, session, current, settled: false };
   nativeInstallation = pending;
   let established = false;
@@ -89,6 +95,61 @@ export async function installNativeSession(
     try { discardCancelledNativeSessionInstallation(); }
     finally { if (!established && nativeInstallation === pending) nativeInstallation = null; }
   }
+}
+
+export function captureRecoverySessionBaseline(): { value: string | null; matches: () => boolean } | null {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (typeof window === "undefined" || !url || !isAuthConfigured()) return null;
+  const storage = windowLocalStorage();
+  if (!storage) return null;
+  const key = browserSessionStorageKey(url);
+  try {
+    const value = storage.getItem(key);
+    return { value, matches: () => {
+      try { return storage.getItem(key) === value; } catch { return false; }
+    } };
+  } catch { return null; }
+}
+
+export async function installRecoveredSession(
+  session: Session, current: () => boolean, baseline: ReturnType<typeof captureRecoverySessionBaseline>,
+): Promise<"installed" | "retry" | "unavailable"> {
+  const client = await ensureSupabaseBrowser();
+  if (!client || !canonicalStorage || !baseline) return "unavailable";
+  if (!current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return "retry";
+  const initialized = await client.auth.initialize();
+  if (initialized.error || !current() || !baseline.matches() || nativeInstallation || recoveryInstallation) return "retry";
+  if (typeof session.expires_at !== "number" || session.expires_at * 1000 <= Date.now() + 60_000) return "retry";
+  const { storage, key } = canonicalStorage;
+  const pending = { session, current, previous: baseline.value, published: false };
+  recoveryInstallation = pending;
+  try {
+    const result = await client.auth.setSession({ access_token: session.access_token, refresh_token: session.refresh_token });
+    const stored = JSON.parse(storage.getItem(key) ?? "null");
+    return !result.error && !!result.data.session && sameNativeSession(stored, result.data.session) &&
+      (pending.published || current()) ? "installed" : "retry";
+  } catch (error) {
+    return error !== null && typeof error === "object" && "name" in error &&
+      ["QuotaExceededError", "SecurityError"].includes(String(error.name)) ? "unavailable" : "retry";
+  }
+  finally { if (recoveryInstallation === pending) recoveryInstallation = null; }
+}
+
+export function ignoreStaleRecoverySessionEvent(session: Session | null): boolean {
+  const pending = recoveryInstallation;
+  if (!pending || !session || !sameNativeTokens(session, pending.session) || !canonicalStorage) return false;
+  const { storage, key } = canonicalStorage;
+  try {
+    const stored = JSON.parse(storage.getItem(key) ?? "null");
+    if (!sameNativeSession(stored, session)) return true;
+    if (!pending.current() && !pending.published) {
+      if (pending.previous === null) storage.removeItem(key);
+      else storage.setItem(key, pending.previous);
+      return true;
+    }
+    pending.published = true;
+    return false;
+  } catch { return true; }
 }
 
 function browserSessionStorageKey(url: string): string {
@@ -127,6 +188,19 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     cached = createClient(config.url, config.key, {
       global: {
         fetch: withAuthFetchTimeout(async (input, init) => {
+          // recoverySessionInstall.test.ts pins the SDK request shape and suspended-tab refresh refusal.
+          const recovering = recoveryInstallation;
+          if (recovering && typeof init?.body === "string") {
+            let refreshToken: unknown;
+            try {
+              const body: unknown = JSON.parse(init.body);
+              if (body && typeof body === "object" && "refresh_token" in body) refreshToken = body.refresh_token;
+            } catch {}
+            const url = input instanceof Request ? input.url : String(input);
+            if (refreshToken === recovering.session.refresh_token && new URL(url).pathname === "/auth/v1/token") {
+              throw new Error("Recovery installation needs a fresh session.");
+            }
+          }
           const pending = nativeInstallation;
           const response = await request(input, init);
           if (pending?.auth === cached?.auth && pending && !response.ok &&
@@ -145,6 +219,10 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
         ...(browserStorage ? { storage: {
           getItem: (key: string) => browserStorage.getItem(key),
           setItem: (key: string, value: string) => {
+            const recovering = recoveryInstallation;
+            if (key === storageKey && recovering && sameNativeTokens(JSON.parse(value), recovering.session)) {
+              if (!sameNativeSession(JSON.parse(value), recovering.session) || !recovering.current() || browserStorage.getItem(key) !== recovering.previous) throw new Error("Recovery session installation lost ownership.");
+            }
             const pending = nativeInstallation;
             if (key === storageKey && pending && pending.auth === cached?.auth && sameNativeTokens(JSON.parse(value), pending.session)) {
               if (!sameNativeSession(JSON.parse(value), pending.session) || !pending.current() || browserStorage.getItem(key) !== null) throw new Error("Native session installation lost ownership.");
@@ -313,4 +391,25 @@ export async function createNativeAuthClient(attemptId: string): Promise<Supabas
       detectSessionInUrl: false,
     },
   });
+}
+
+export async function createPasswordRecoveryAuth(): Promise<SupabaseClient["auth"] | null> {
+  if (typeof window === "undefined") return null;
+  const config = resolveSupabaseConfig(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    { expectedKeyRole: "publishable", allowUnknownKeyRole: process.env.NODE_ENV !== "production" });
+  if (!config) return null;
+  const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
+  const client = createClient(config.url, config.key, {
+    auth: { storageKey: `pubmax-password-recovery-${crypto.randomUUID()}`, persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+    global: { fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)) },
+  });
+  await client.auth.initialize();
+  await client.auth.stopAutoRefresh();
+  return client.auth;
+}
+
+export function preloadPasswordRecoveryAuth(): void {
+  if (typeof window === "undefined") return;
+  const pending = modulePromise ??= import("@supabase/supabase-js");
+  void pending.catch(() => { if (modulePromise === pending) modulePromise = undefined; });
 }

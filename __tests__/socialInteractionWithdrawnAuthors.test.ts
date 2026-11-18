@@ -36,7 +36,8 @@ import {
   supabaseSocialInteractionStore,
   type SocialInteractionActor,
 } from "@/lib/socialInteractionStore";
-import { createMemorySocialPostStore } from "@/lib/socialPostStore";
+import { createMemorySocialPostStore, supabaseSocialPostStore } from "@/lib/socialPostStore";
+import { mergeSocialPostHead } from "@/lib/socialPostWindow";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
 
 const alice: SocialInteractionActor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
@@ -183,6 +184,38 @@ function derivativeRow(id: string, authorHandle: string, source: ReturnType<type
 }
 
 describe("durable store: withdrawn authors leave saves and derivatives", () => {
+  it.each(["following", "nearby", "discover", "tagged"] as const)("reconciles the %s scanned range before author filtering", async lane => {
+    const head = postRow("33333333-3333-4333-8333-333333333333", "alice", true, "2026-10-18T13:00:00.000Z");
+    const tail = postRow(sourceId, "alice", true, "2026-10-18T12:00:00.123900Z");
+    const older = postRow(keptId, "carol", false, "2026-10-18T12:00:00.123100Z");
+    const rows = [head, tail, older].map(row => ({ ...row, hashtags: ["garden"] }));
+    const input: Parameters<typeof supabaseSocialPostStore.feed>[1] = {
+      lane: lane === "tagged" ? "discover" : lane, limit: 2,
+      ...(lane === "nearby" ? { area: "camden" } : {}), ...(lane === "tagged" ? { tag: "garden" } : {}),
+    };
+    state.rpcRows.read_social_post_feed = rows;
+    const first = await supabaseSocialPostStore.feed(bob, input);
+    state.rpcRows.read_social_post_feed = [rows[2]!];
+    const second = await supabaseSocialPostStore.feed(bob, { ...input, cursor: first.nextCursor });
+    const current = { posts: [...first.posts, ...second.posts], pages: 2, nextCursor: second.nextCursor };
+
+    state.withdrawn.add("alice");
+    state.rpcRows.read_social_post_feed = rows;
+    const refreshed = await supabaseSocialPostStore.feed(bob, input);
+    expect(refreshed.posts).toEqual([]);
+    expect(refreshed.scannedThrough).toEqual({ id: tail.id, createdAt: tail.created_at });
+    expect(refreshed.nextCursor).toEqual(expect.any(String));
+    const merged = mergeSocialPostHead(current, refreshed);
+    expect(merged.posts).toEqual(second.posts);
+    expect(merged.nextCursor).toBe(second.nextCursor);
+    expect(merged.pages).toBe(2);
+
+    state.rpcRows.read_social_post_feed = [];
+    const exhausted = await supabaseSocialPostStore.feed(bob, input);
+    expect(exhausted.nextCursor).toBeNull();
+    expect(mergeSocialPostHead(current, exhausted).posts).toEqual([]);
+  });
+
   it.each([
     ["a named post", false],
     ["a hidden-name post", true],

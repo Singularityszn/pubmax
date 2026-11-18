@@ -26,8 +26,8 @@ import { isNativeApp } from "@/lib/nativePlatform";
 export type NativeShareInput = {
   title: string;
   text: string;
-  /** Absolute URL - callers resolve relative paths against their origin first. */
-  url: string;
+  /** Absolute URL, unless the text already carries it. */
+  url?: string;
 };
 
 export type NativeShareOutcome =

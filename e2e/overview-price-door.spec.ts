@@ -65,7 +65,7 @@ const confirmation = {
   confirmingDropId: "drop-2",
 };
 
-const STATES = {
+const STATES: Record<string, { venueId: string; drops: DropRow[]; door: string }> = {
   none: { venueId: UNPRICED, drops: [] as DropRow[], door: "log" },
   listed: { venueId: LISTED_ONLY, drops: [] as DropRow[], door: "log" },
   "logged-once": { venueId: HATTON, drops: [row()], door: "confirm" },

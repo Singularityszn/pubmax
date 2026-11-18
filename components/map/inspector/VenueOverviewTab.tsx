@@ -695,6 +695,11 @@ function VenuePriceSummary({
               </a>
               . Not a live tonight feed.
             </>
+          ) : lane.listedIndex ? (
+            <>
+              Dataset price from {lane.listedIndex.label}. Not a live tonight
+              feed.
+            </>
           ) : (
             <>
               Price on record. Publisher not recorded for this price. Not a live
