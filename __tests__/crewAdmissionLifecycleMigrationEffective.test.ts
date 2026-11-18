@@ -699,7 +699,7 @@ describe.skipIf(skipReason !== null)("rollback with a correction ledger", () => 
       } finally { await inFlight.finish(); }
       const rolled = await rolling;
       expect(rolled?.said ?? "", label).not.toMatch(REFUSED_BY_LOCKS);
-      expect(rolled?.ok, label).toBe(true);
+      expect(rolled?.ok, `${label}: ${rolled?.said ?? "No rollback answer"}`).toBe(true);
       stageTo("after");
     }
   });
