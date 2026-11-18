@@ -597,11 +597,6 @@
       "count": 1
     },
     {
-      "file": "e2e/mobile-discover-cta.spec.ts",
-      "kind": "testTimeout",
-      "count": 1
-    },
-    {
       "file": "e2e/mobile-first-run-onboarding.spec.ts",
       "kind": "testTimeout",
       "count": 2
