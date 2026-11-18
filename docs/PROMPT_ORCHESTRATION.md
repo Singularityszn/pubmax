@@ -40,11 +40,10 @@ The review proved two independent defects:
      checks and claims enforce this shared boundary
      (`locationAllowsInterruptivePrompt`, `lib/promptBudget.ts`). The arrival
      card reports its own visibility through
-     `setMapFirstVisitArrivalCardVisible` (`lib/mapFirstVisitArrival.ts`); it
-     asks for location itself, so a consent card over it would put two first
-     questions on one screen. The
-     [arrival card policy](rules/components-sheets-chrome-and-navigation.md#the-phone-map-rests-on-three-layers-and-the-bottom-card-is-the-answer)
-     owns its visibility conditions and dismissal window.
+     `setMapFirstVisitArrivalCardVisible` (`lib/mapFirstVisitArrival.ts`).
+     The arrival card owns the first question, so a consent card must not cover it.
+     The [arrival policies](rules/components-sheets-chrome-and-navigation.md#fair-pint-arrival)
+     own which card appears and how it is dismissed.
    - Native push and create password stand down on a phone-width map or plan-composer route,
      where the outing controls own the foot of the screen (`routeOwnsScreenFoot`,
      `lib/promptBudget.ts`). They do not claim there and come back on the next
