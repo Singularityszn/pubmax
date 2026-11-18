@@ -74,10 +74,9 @@ export function lazyPanel<P extends object>(
           reload();
           if (attempt === 0 || error.name !== "ChunkLoadError") return;
           try {
-            if (sessionStorage.getItem(SEARCH_CHUNK_RELOAD_KEY) === location.href) return;
             sessionStorage.setItem(SEARCH_CHUNK_RELOAD_KEY, location.href);
-            location.reload();
-          } catch { /* Without storage, do not risk a reload loop. */ }
+          } catch {}
+          location.reload();
         }}
         fallback={
           <div className="lazyPanelFailed" role="alert">

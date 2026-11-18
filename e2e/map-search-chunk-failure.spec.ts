@@ -67,35 +67,41 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-test("phone: a failed reload leaves the retry visible without another reload", async ({ page, context }) => {
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.addInitScript(() => {
-    localStorage.setItem("pubmax-tour-v1-done", "1");
-    localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.name}: an explicit retry recovers after a failed reload`, async ({ page, context }) => {
+    await page.setViewportSize({ width: viewport.width, height: viewport.height });
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmax-tour-v1-done", "1");
+      localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    let refuse = viewport.name === "desktop";
+    await context.route("**/_next/static/chunks/**", async (route) => {
+      if (!refuse || !route.request().url().includes(".js")) return route.continue();
+      const response = await route.fetch();
+      if ((await response.text()).includes(PANEL_MARKER)) return route.abort("failed");
+      return route.fulfill({ response });
+    });
+    await page.goto("/map?city=london#search");
+    const url = page.url();
+    await expect(page.locator("canvas.maplibregl-canvas").first()).toBeVisible();
+    if (viewport.name === "phone") {
+      refuse = true;
+      await page.getByRole("button", { name: /search/i }).first().click();
+    }
+    const failed = page.locator(".lazyPanelFailed");
+    await expect(failed).toBeVisible();
+    const reloaded = page.waitForEvent("load");
+    await failed.getByRole("button", { name: "Try again" }).click();
+    await reloaded;
+    await expect(failed).toBeVisible();
+    await expect(page).toHaveURL(url);
+    refuse = false;
+    const recovered = page.waitForEvent("load");
+    await failed.getByRole("button", { name: "Try again" }).click();
+    await recovered;
+    await expect(page.getByRole("combobox")).toBeVisible();
+    await expect(failed).toHaveCount(0);
+    await expect(page).toHaveURL(url);
   });
-  let refuse = false;
-  await context.route("**/_next/static/chunks/**", async (route) => {
-    if (!refuse || !route.request().url().includes(".js")) return route.continue();
-    const response = await route.fetch();
-    if ((await response.text()).includes(PANEL_MARKER)) return route.abort("failed");
-    return route.fulfill({ response });
-  });
-  await page.goto("/map");
-  await expect(page.locator("canvas.maplibregl-canvas").first()).toBeVisible();
-  refuse = true;
-  await page.getByRole("button", { name: /search/i }).first().click();
-  const failed = page.locator(".lazyPanelFailed");
-  await expect(failed).toBeVisible();
-  const reloaded = page.waitForEvent("load");
-  await failed.getByRole("button", { name: "Try again" }).click();
-  await reloaded;
-  await expect(failed).toBeVisible();
-  let navigations = 0;
-  page.on("framenavigated", (frame) => { if (frame === page.mainFrame()) navigations += 1; });
-  const oldButton = await failed.getByRole("button", { name: "Try again" }).elementHandle();
-  await failed.getByRole("button", { name: "Try again" }).click();
-  await expect.poll(() => oldButton!.evaluate((button) => button.isConnected)).toBe(false);
-  await expect(failed).toBeVisible();
-  expect(navigations).toBe(0);
-});
+}
