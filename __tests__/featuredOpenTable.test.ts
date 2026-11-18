@@ -231,6 +231,43 @@ describe("the selected upcoming night", () => {
 });
 
 describe("reads that cannot answer", () => {
+  it.each(["crew", "London index"])("bounds a stalled %s read before Social's server ceiling", async (read) => {
+    vi.useFakeTimers();
+    try {
+      if (read === "crew") store.readShareCard.mockImplementation(() => new Promise(() => {}));
+      else index.lookupCanonicalVenue.mockImplementation(() => new Promise(() => {}));
+      const answer = vi.fn();
+      void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
+      await vi.advanceTimersByTimeAsync(99);
+      expect(answer).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(1);
+      expect(answer).toHaveBeenCalledWith({ status: "unavailable" });
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("does not lend a late optional price to the already-returned night", async () => {
+    vi.useFakeTimers();
+    try {
+      let finish = () => {};
+      venues.lookupPricedVenue.mockImplementation(() => new Promise(resolve => { finish = () => resolve(lambDetail()); }));
+      const answer = vi.fn();
+      void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
+      await vi.advanceTimersByTimeAsync(100);
+      expect(answer).toHaveBeenCalledWith(expect.objectContaining({
+        status: "upcoming", table: expect.objectContaining({ price: null }),
+      }));
+      finish();
+      await vi.advanceTimersByTimeAsync(0);
+      expect(answer).toHaveBeenCalledTimes(1);
+      expect(answer.mock.calls[0]?.[0].table.price).toBeNull();
+    } finally { vi.useRealTimers(); }
+  });
+
+  it("turns an unexpected meeting-point failure into unavailable without rejecting the page", async () => {
+    resolveMeeting.resolveOpenMeetingPoint.mockRejectedValue(new Error("meeting read failed"));
+    await expect(loadFeaturedOpenTable(SELECTION, NOW)).resolves.toEqual({ status: "unavailable" });
+  });
+
   it("shows the night when unused public attendance facts cannot answer", async () => {
     vi.useFakeTimers();
     try {
@@ -254,7 +291,7 @@ describe("reads that cannot answer", () => {
       const answer = vi.fn();
       void loadFeaturedOpenTable(SELECTION, NOW).then(answer);
 
-      await vi.advanceTimersByTimeAsync(1499);
+      await vi.advanceTimersByTimeAsync(99);
       expect(answer).not.toHaveBeenCalled();
       await vi.advanceTimersByTimeAsync(1);
       expect(answer).toHaveBeenCalledWith(expect.objectContaining({
