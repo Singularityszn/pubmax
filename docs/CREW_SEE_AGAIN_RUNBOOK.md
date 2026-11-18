@@ -101,8 +101,12 @@ Safety invalidation follows the same short marker rule and immediately denies ac
 The account export has an owner-only `crewSeeAgain` lane.
 It contains the owner's selected member ID, context, own choice and choice/withdrawal time.
 It omits formation time and pair-derived expiry because they disclose outcome information.
-It never contains the other person's choice or private mutual outcome.
-This data-subject export remains available to suspended owners under the existing account-export policy.
+That directional lane never contains the other person's choice or a hidden mutual outcome.
+The separate `crewSeeAgainConnections` lane contains only currently visible connections.
+It reuses the authorised participant read under ordered Crew, auth, account and pair locks.
+Its fields are only Crew ID, member ID and friendship context.
+Own choices remain available to suspended owners under the existing account-export policy.
+Suspended owners receive no visible connections.
 It is separate from the paired product read. Export failure refuses a complete export.
 Account deletion and Crew deletion remove these records synchronously.
 There is no moderator choice reader, case access bypass or direct service-role table grant.

@@ -636,8 +636,9 @@ export default function PrivacyPage() {
           who can message you. Only a mutual choice appears to those two people,
           on their next authorised read. Hosts cannot read choices or outcomes.
           There is no moderator choice reader. We do not infer dating interests.
-          Your export includes your own choices, without the other person&rsquo;s
-          choice, outcome state, outcome-derived expiry or a hidden mutual record.
+          Your export includes your own unexpired choices and currently visible
+          connections. It excludes the other person&rsquo;s private choice,
+          outcome-derived expiry and hidden mutual records.
         </p>
         <p className="legalBody">
           Choices open when host marking closes, 12 hours after the night starts,
