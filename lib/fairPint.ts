@@ -33,8 +33,6 @@ export function writeFairPint(pence: number, storage = safeLocalStorage()): void
   } catch {}
 }
 
-export { compactFairPintPayload } from "@/lib/slimListingPrices.mjs";
-
 let session = { active: false, pence: 550 };
 const activeListeners = new Set<() => void>();
 const paintListeners = new Set<() => void>();
@@ -153,6 +151,8 @@ export function bootFairPintCard(
   valid: (value: unknown) => value is number,
   suppresses: (search: string, keys: readonly string[]) => boolean,
 ) {
+  // The server serialises this body. Client bundles retain only the empty export.
+  if (!process.env.NEXT_RUNTIME) return;
   const card = document.querySelector<HTMLElement>("[data-fair-prelude]");
   if (!card || !new RegExp(config.pathPattern).test(location.pathname) || suppresses(location.search, config.intentKeys)) return;
   try {
@@ -248,6 +248,3 @@ export function bootFairPintCard(
     card.hidden = false;
   } catch {}
 }
-
-export { isFairPint } from "@/lib/fairPintPricing";
-export { fairPintRequest, transitionFairPintPlan } from "@/lib/fairPintTransitions";

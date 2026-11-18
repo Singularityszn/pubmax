@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { compactFairPintPayload, fairPintRequest, transitionFairPintPlan, isFairPint, fairPintSearchSuppresses } from "@/lib/fairPint";
+import { fairPintSearchSuppresses } from "@/lib/fairPint";
+import { compactFairPintPayload } from "@/lib/slimListingPrices.mjs";
+import { fairPintRequest, transitionFairPintPlan } from "@/lib/fairPintTransitions";
+import { isFairPint } from "@/lib/fairPintPricing";
 import { buildPriceEvidence, priceEvidenceUsableForCeiling } from "@/lib/planRouteEvidence";
 import { planPriceEvidenceForVenues } from "@/lib/planRouteEvidence.server";
 import { rowsFromSlimPayload } from "@/lib/slimPayload";

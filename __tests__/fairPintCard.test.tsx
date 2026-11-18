@@ -176,6 +176,7 @@ it("dismisses for this session when persistent storage rejects the close", async
   write.mockRestore();
 });
 it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-chat", "/map?max=5.3"])("keeps an early HTML gesture until the live flow takes ownership (%s)", async (path) => {
+  vi.stubEnv("NEXT_RUNTIME", "nodejs");
   const { bootFairPintCard, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN } = await import("@/lib/fairPint");
   const { searchHasArrivalParam } = await import("@/lib/mapArrivalParams");
   const { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling, writeBudgetChoice } = await import("@/lib/onboardingFlow");
@@ -195,7 +196,7 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   slider.dispatchEvent(new Event("change"));
   expect(readFairPint()).toBe(530);
   const handoff = takeEarlyFairPint(); expect(handoff).toMatchObject({ pence: 530, releases: 1 });
-  expect(takeEarlyFairPint()).toBeNull(); host.remove(); localStorage.clear();
+  expect(takeEarlyFairPint()).toBeNull(); host.remove(); localStorage.clear(); vi.unstubAllEnvs();
 });
 
 it("keeps an early release when Close arrives before the controller loads", async () => {

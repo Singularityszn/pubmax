@@ -10,9 +10,11 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
-import { haptic } from "@/lib/nativeHaptics";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 
+const selectionHaptic = () => {
+  void import("@/lib/nativeHaptics").then(({ haptic }) => haptic("selection-kept")).catch(() => {});
+};
 const FairPintPlanner = lazy(() => import("./FairPintPlanner"));
 const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
   .find((element) => element.getClientRects().length > 0) ?? null;
@@ -85,7 +87,7 @@ export default function FairPintFlow({
     if (early && pendingReleases > 0) {
       writeFairPint(early.pence);
       onCommit(early.pence / 100);
-      for (let index = 0; index < pendingReleases; index++) void haptic("selection-kept");
+      for (let index = 0; index < pendingReleases; index++) selectionHaptic();
     }
     void early?.location?.then((fix) => {
       if (!mounted) return;
@@ -183,7 +185,7 @@ export default function FairPintFlow({
           setCommitted(pence);
           writeFairPint(pence);
           onCommit(pence / 100);
-          void haptic("selection-kept");
+          selectionHaptic();
         }}
         onLocation={() => {
           if (!navigator.geolocation) {
