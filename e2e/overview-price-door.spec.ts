@@ -413,12 +413,16 @@ for (const fixture of RESELECTED_PRICE_CASES) {
     let releaseRead: () => void = () => {};
     const heldRead = new Promise<void>((resolve) => { releaseRead = resolve; });
     const submittedAt = Date.now() - DAY_MS;
-    const prices = fixture.shown === "unknown" ? [] : [{
+    const prices = fixture.shown === "unknown" || fixture.shown === "pint" ? [] : [{
       venueId: HATTON, drinkCategory: fixture.category, priceGbp: 6,
       submittedAt, source: "community", corroborations: 2,
     }];
     await page.route("**/api/price-submit**", async (route) => {
-      const venueId = new URL(route.request().url()).searchParams.get("venueId");
+      const params = new URL(route.request().url()).searchParams;
+      if (params.get("scope") === "public-price-presence") {
+        return route.fulfill({ json: { presence: Object.fromEntries(params.getAll("venueId").map((id) => [id, id === HATTON && prices.length ? "present" : "absent"])) } });
+      }
+      const venueId = params.get("venueId");
       await route.fulfill({ json: {
         prices: venueId && venueId !== HATTON ? [] : prices, signals: [], truncated: false,
       } });
@@ -482,8 +486,14 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       await page.goto(`/map?sel=${HATTON}&${fixture.query}`);
       await initialRead;
       await expect(peek).toBeVisible({ timeout: 30_000 });
-      if (fixture.shown === "pint") await expect(peek).toContainText("£6.50");
-      else await expectLensEvidence();
+      let initialEstimate = "";
+      if (fixture.shown === "pint") {
+        await expect(async () => {
+          const estimate = (await peek.innerText()).match(/est\. £\d+\.\d{2}/);
+          expect(estimate).not.toBeNull();
+          initialEstimate = estimate![0];
+        }).toPass();
+      } else await expectLensEvidence();
       const otherRead = page.waitForResponse((response) => {
         const url = new URL(response.url());
         return url.pathname === "/api/pint-drops" && url.searchParams.get("venueId") === "venue-1vle947";
@@ -494,7 +504,8 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       await expect.poll(() => targetReads).toBe(2);
       if (fixture.shown === "pint") {
         await expect(peek).toContainText("Checking prices");
-        await expect(peek).not.toContainText(/£6\.50|£6\.00|£4\.70/);
+        await expect(peek).not.toContainText(initialEstimate);
+        await expect(peek).not.toContainText(/£6\.00|£4\.70/);
       } else await expectLensEvidence();
       const renewedRead = page.waitForResponse((response) => {
         const url = new URL(response.url());
@@ -504,7 +515,8 @@ for (const fixture of RESELECTED_PRICE_CASES) {
       await renewedRead;
       if (fixture.shown === "pint") {
         await expect(peek).toContainText("£4.70");
-        await expect(peek).not.toContainText(/Checking prices|£6\.50/);
+        await expect(peek).not.toContainText("Checking prices");
+        await expect(peek).not.toContainText(initialEstimate);
       } else await expectLensEvidence();
     } finally {
       releaseRead();

@@ -36,6 +36,7 @@ import {
   normalizeGroupMembers,
 } from "@/lib/messageGroupThread";
 import { broadcastMessageSent, deferMessagesSignal } from "@/lib/messagesBroadcast.server";
+import { notifyMessageRecipients } from "@/lib/messageNotifications.server";
 import { attachParticipantCards } from "@/lib/messageParticipantCards.server";
 import {
   messageAdultRefusal,
@@ -208,7 +209,9 @@ export async function POST(request: Request): Promise<Response> {
     }
     // The nudge is a courtesy and the row is already stored, so the 201 does not
     // wait on it: a degraded Realtime used to add its whole timeout to a send.
-    deferMessagesSignal(() => broadcastMessageSent(conversationId, [handle, other]));
+    deferMessagesSignal(async () => {
+      await Promise.allSettled([broadcastMessageSent(conversationId, [handle, other]), notifyMessageRecipients(sent.message)]);
+    });
     return jsonNoStore({ message: sent.message, conversationId }, { status: 201 });
   }
 

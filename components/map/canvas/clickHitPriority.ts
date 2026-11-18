@@ -42,7 +42,6 @@ export const PUB_FIRST_LAYERS = [
 ] as const;
 
 const CLICK_BRANCHES = [
-  ["route-stops", "route"],
   ["clusters", "cluster"],
   ...CLUSTER_RIM_LAYERS.map((layer) => [layer, "cluster"] as const),
   ...UK_BASE_OVERVIEW_TAP_LAYERS.map((layer) => [layer, "cluster"] as const),
@@ -63,6 +62,8 @@ export function resolveClickHit(features: readonly maplibregl.MapGeoJSONFeature[
     const layerId = feature.layer?.id;
     if (typeof layerId === "string" && !byLayer.has(layerId)) byLayer.set(layerId, feature);
   }
+  const stop = byLayer.get("route-stops");
+  if (stop) return { kind: "route" as const, feature: stop };
   const pub = pubHitOf(byLayer);
   if (pub) return { kind: "pub" as const, feature: pub };
   for (const [layer, kind] of CLICK_BRANCHES) {

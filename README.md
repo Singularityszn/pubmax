@@ -150,7 +150,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Your drink choice in **Tune details** on `/plan` can appear in **Near me** on the same city's map. Choose **Show Wine on the map**, for example, to apply it. The map stays unchanged until you choose the action. Default pints and choices the map already shows need no action. A saved account alcohol-free preference takes priority over the device choice. See the [preference storage limits](docs/API_CONTRACTS_THE_LOCAL.md#9-getput-apimenight-profile) for device and account differences.
 
-- **No alcohol and food views** - open **Filters**, then use **Show me** to narrow the map. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues. The food view includes pubs and bars with recorded food service, plus late-food and restaurant venues. A recorded absence of food service excludes a venue. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
+- **No alcohol and food views** - open **Filters**, then use **Show me** to narrow the map. On a phone, open **More filters** to reach **Show me**. The food view hides the phone Filters sheet's Drink control. The no-alcohol view keeps venues known to serve without alcohol, any pub with a corroborated soft-drink or alcohol-free price, and sourced food venues. The food view includes pubs and bars with recorded food service, plus late-food and restaurant venues. A recorded absence of food service excludes a venue. Soft drinks and alcohol-free drinks are their own logged categories, held to the same corroboration and freshness rules as a pint, and they colour and label pins like any other chosen drink. A food or dish anchor never prints on a pin: it stays on the venue sheet, labelled and sourced. A view's figure always names its drink or dish, and never reaches cheapest-pint buckets or the Pint Index. A pub with nothing logged says so plainly rather than implying it was checked.
+- **London restaurants** - open **Filters**, then enable **More restaurants (unpriced)** to add unpriced OpenStreetMap restaurant pins from zoom 12. On a phone, open **More filters** to reach this choice. This optional layer starts off. **Restaurants** controls curated restaurant pins separately. A shared restaurant link opens its sheet even when the optional layer is off. See the [restaurant data contract](public/data/london_restaurants/README.md) for sources and loading rules.
 - **Pub Pal** - typed chat starts with a greeting. Ask for four pubs in Soho to get grounded choices beside a map of those pubs. Follow with "Same area, under £6 a pint" to refine the budget. Open a result and return to continue the [current conversation](docs/rules/lib-saves-nudges-rounds-reports-and-pub-pal.md). **New conversation** clears the chat without deleting approved memories.
 
   <a id="pub-pal-new-picks"></a>
@@ -290,7 +291,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If Night mode refuses an arrival or skip after a route change, follow the [route-change notice](docs/API_CONTRACTS_THE_LOCAL.md#5-post-apiplansidactions--record-a-stop-action).
 
-  A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.
+  A saved Plan needs at least two stops in one city to offer a walking route. **See the walking route** and the main **Map** link then open the saved stops. Unsaved edits do not change that destination. Each stop's **Open on the map** link keeps the walk and selects that pub. Closing a stop follows the [walk camera recovery rule](docs/rules/components-map-canvas-and-pins.md#walk-camera-recovery). **Show whole walk** restores the route view on phones and desktop after you move the map or search elsewhere. If street routing is unavailable, dashed lines show stop order only.
 
   On a saved Plan with candidate pubs, open **Plan it together**. Choose **Compare journeys from broad areas**. The comparison starts off. Add broad London areas to see each pub's longest and average straight-line walking estimates from the area centres. Pubs without usable coordinates show **journey time unknown**. These estimates do not establish routed or step-free journeys.
 
@@ -321,7 +322,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   With a location, **Nearest listed pub** separately names the closest public pub in the available list, including pubs without a pint price. It shows distance and an estimated walk based on straight-line distance, without a price. On `/near`, it uses the current city's listed pubs. On the map, it uses the pubs allowed by the current filters, including **Saved only**. It does not claim the nearest pub outside that list. **View pub** opens that pub on the map.
 
   Area answers hide the nearest result. A location update also hides it until a new location answer arrives. When map filters change, the answers refresh for the same location or area without another location request.
-- **Lucia 🐐** - open **Drink** on the map. Under **Soft drinks**, choose **Lucia 🐐** for the Coke Zero and Diet Coke price list. The link opens `/soft-drinks-and-water?sub=soft-drink-lucia-special` on mobile and desktop. The mobile Drink panel opens at full height.
+- **Lucia 🐐** - `/soft-drinks-and-water?sub=soft-drink-lucia-special` lists recorded Coke Zero and Diet Coke prices.
 
 - **Spoons** - choose **Spoons** under **More** in the home footer at any screen width to open `/spoons-value`. The desktop Spoons tab opens the same page. On a phone, you can also open **Drink** on the map and choose **Spoons value**. Search the published ranking by pub, town or postcode. Open **Round costs** to read each drink's recorded cost and units, the round total and the source date. These figures come from SpoonMe's dated report, so prices may have changed. They describe recorded rounds, not complete current menus. The page links each matched pub to the Spoons map.
 
@@ -352,7 +353,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If the drop saved without stars, the form keeps your selection and says the stars were not saved. Retrying returns the saved drop without creating another one. It cannot add missing stars to an already saved drop.
 
-  On the [configured Product Hunt log in public day](lib/logInPublicDay.ts), **Logged in public** replaces home's Recent prices strip and appears above Social's Posts. Other Social tabs keep their existing behaviour. The section lists public London prices logged that calendar day, newest first, with each pub, serving, price and London time. Demo drops, unpriced drops and other days' drops are excluded. The section shows its date and refreshes its day selection at London midnight and when the browser page resumes.
+  On the [configured Product Hunt log in public day](lib/logInPublicDay.ts), **Logged in public** replaces home's Recent prices strip. On Social, it follows the main layout on both tabs. The section lists public London prices logged that calendar day, newest first, with each pub, serving, price and London time. Demo drops, unpriced drops and other days' drops are excluded. The section shows its date and refreshes its day selection at London midnight and when the browser page resumes.
 
   Results come from a capped public read and can omit eligible drops. **Show more prices from today** expands the returned rows. An empty result does not establish that nobody logged a price. A failed read offers **Try again**. **Log a pint** opens the map's pub picker.
 
@@ -456,7 +457,13 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Anyone can choose **Share a link**, including signed-out readers. The link opens the selected pub with its meeting time. It carries no date or attendance confirmation. The [map URL contract](docs/MAP_URL_PARAMS.md#parameter-table) owns the `meet` parameter.
 
-- **Messages** - sign in with a claimed handle, open `/messages`, and choose **New message**. Search by at least two characters of a public handle, then select people from the results or your recent direct conversations. Select one person and choose **Chat**, or select two to eleven people and choose **Create group**. Groups include you and can have an optional name. Members can leave, but nobody can be added after creation. **All**, **Unread**, and **Groups** filter your existing inbox. **Search conversations** matches displayed names, handles, or group titles within the selected filter. The search and filter reset when you change accounts. In an empty conversation, **Share a pub** and **Share a plan** open the existing pickers. These buttons do not send a message or replace your text draft. The [navigation rules](docs/rules/components-sheets-chrome-and-navigation.md#the-primary-row-is-five-doors-and-the-header-carries-only-what-has-something-beh) explain when unread badges refresh.
+- **Messages** - sign in with a claimed handle, open `/messages`, and choose **New message**. Search by at least two characters of a public handle, then select people from the results or your recent direct conversations. Select one person and choose **Chat**, or select two to eleven people and choose **Create group**. Groups include you and can have an optional name. Members can leave, but nobody can be added after creation. **All**, **Unread**, and **Groups** filter your existing inbox. **Search conversations** matches displayed names, handles, or group titles within the selected filter. The search and filter reset when you change accounts. In an empty conversation, **Share a pub** and **Share a plan** open the existing pickers. These buttons do not send a message or replace your text draft. The [message delivery reference](docs/WEB_PUSH.md#message-alerts) explains when unread badges refresh.
+
+  Open **Message notifications** in the inbox header to enable message alerts on this browser. Alerts start off. On iPhone or iPad, install PubMaxxing from Safari with **Share**, then **Add to Home Screen**. Open the installed app before enabling alerts. The native apps offer unread badges and chat mutes, but do not receive message push alerts yet. **Turn off alerts on all devices** stops message alerts for your account.
+
+  The preview checkbox optionally shows the sender and a short preview while PubMaxxing remains open in the background. Closed-app alerts show no message text. An already displayed preview can remain after you unsend its message. Open **Chat notifications** in a thread header to mute or unmute that chat. Muted chats stay quiet. The [message push runbook](docs/WEB_PUSH.md#message-alerts) explains delivery limits and account switching.
+
+  With message alerts enabled, a new incoming message can show an in-app notice linking to its chat. The notice shows the conversation name, with no message text. It excludes the chat you are viewing and respects chat mutes, sender mutes and blocks. Choose **Dismiss message notification** to close it.
 
   In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
 
@@ -468,7 +475,19 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
-  If a send fails, check the restored draft before choosing **Send** again. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+  Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. During preparation, a counter shows completed photos and the batch total. **Cancel** stops preparation. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
+
+  On a short screen or with large text, scroll within the composer to reach its controls.
+
+  If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread.
+
+  If you leave the thread with unsent photos, choose **Return to your photos** to reopen the draft. Returning to a draft does not count as a failed send. Review it and choose **Send**. A failed send keeps its error when you return and offers **Retry send**.
+
+  This recovery works within the same tab and account session. Reloading or closing the tab loses unsent photos. Signing out or changing accounts clears them. The [message retry rules](docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries) explain duplicate protection and its limits.
+
+  Open a sent photo to view its full frame in a full-screen viewer. Pinch or use the zoom controls to zoom. Drag a zoomed photo to move it. **Reset zoom** restores the full frame. **Close** or Escape returns to the thread and restores focus to the photo button. If a photo cannot load, choose **Retry photo**.
+
+  If a text send fails, check the restored draft before choosing **Send** again.
 
   A suspended account cannot start a conversation or send a message. If PUBMAXX cannot check suspension, it refuses the send and asks you to retry.
 

@@ -57,7 +57,7 @@ describe("QA high findings — mobile sheet and consent layering", () => {
     const dismiss = vi.fn();
     window.addEventListener("pubmax:mobile-sheet-dismiss", dismiss);
     try {
-      requestMobileSheetDismiss();
+      requestMobileSheetDismiss(() => {});
       expect(dismiss).toHaveBeenCalledOnce();
       expect(dismiss.mock.calls[0]?.[0]).toBeInstanceOf(CustomEvent);
     } finally {

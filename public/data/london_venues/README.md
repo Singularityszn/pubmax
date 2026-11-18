@@ -1,7 +1,7 @@
 # London venue shards
 
 Everywhere in Greater London a drinker or a laptop could sit - pubs, bars, beer
-gardens, restaurants that serve alcohol, late fast food, cafes, coffee shops,
+gardens, restaurants tagged amenity=restaurant, late fast food, cafes, coffee shops,
 coworking desks, libraries, community centres with wifi, hotel bars and
 off-licences - cut into one file per grid cell so a map can stream the layer a
 viewport at a time.
@@ -9,8 +9,8 @@ viewport at a time.
 Shard JSON is generated. This README is hand-written and survives rebuilds.
 `npm run build:london-venues` rebuilds it from the UK OSM venue packs
 (`data/osm/uk/uk_osm_venues_*.json`, see `data/osm/uk/VENUES.md`) and the
-restaurants whose own website states that they serve alcohol
-(`data/london_restaurant_drinks/evidence.json`, see its README).
+London OSM restaurant snapshot
+(`data/osm/uk/london_osm_restaurants.json`, see the restaurant pack README).
 
 ## What is here
 
@@ -41,15 +41,9 @@ mistake a cafe for either a curated venue or an unpriced pub.
 Name, address, position and kind: the four things OpenStreetMap stated. No
 price, no band, no opening claim, no curated ownership.
 
-One kind has a second witness. OpenStreetMap rarely tags alcohol on a
-restaurant, so a `restaurant` row is also published when OSM names the
-restaurant and its own website states that it serves alcohol. The identity is
-still OSM's; the site only answers whether it pours. The quote, its URL, the
-read time and the robots answer live in the evidence file, and
-`manifest.restaurantDrinkEvidence.count` says how many restaurants came in
-that way. `isPubVenueKind` answers
-false for every non-pub kind here, so nothing on this layer reaches a price
-band, a pin figure, a cheapest bucket or the Pint Index.
+`manifest.restaurantSnapshot` records the restaurant source path, extract timestamp and row count.
+See the [restaurant pack contract](../london_restaurants/README.md) for membership and provenance.
+`isPubVenueKind` answers false for every non-pub kind here, so no row reaches a price band, cheapest bucket or Pint Index.
 
 An absent address is `""`, never invented.
 
@@ -64,8 +58,8 @@ re-measured, not raised.
 
 The map draws this layer's restaurants, and reads them from
 [`public/data/london_restaurants/`](../london_restaurants/README.md), not from
-these shards: the shards a phone at zoom 12 covers are mostly cafes, and the
-restaurants alone are one small file. `npm run build:london-venues` writes that
+these shards. The restaurant pack contract owns its loading rules.
+`npm run build:london-venues` writes that
 pack after every publish, so it is never a generation behind.
 
 ## Desk pack

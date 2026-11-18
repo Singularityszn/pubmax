@@ -10,6 +10,7 @@ import {
   expectMapToolbarReady,
   selectFirstToolbarVenue,
 } from "./helpers/mapToolbar";
+import { holdLondonAfternoon } from "./helpers/themeClock";
 import { expectMobileMapShellReady } from "./helpers/mobileMapShell";
 
 const DESKTOP = { width: 1440, height: 900 };
@@ -317,6 +318,90 @@ test.describe("one Map surface history owner", () => {
       )
       .toEqual({ query: null, selectedVenueId: null });
   });
+
+  for (const parent of ["map", "planner"] as const) {
+    test(`a primary tab leaves a ${parent} venue with one Map entry in history`, async ({ page, request }) => {
+      await prepareMap(page, PHONE);
+      await installDeterministicMapBasemap(page);
+      expect((await request.get("/plan")).ok()).toBe(true);
+      await page.goto("/about");
+      await page.goto(parent === "planner"
+        ? "/map?mode=build&plan=1&pubs=venue-1ufn31x,venue-1t8siin"
+        : "/map?sel=venue-1kpe609");
+      await expectMobileMapShellReady(page, 60_000);
+      if (parent === "planner") {
+        const plannerSheet = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
+        await expect(plannerSheet).toBeVisible();
+        await plannerSheet.locator(".routeList > li").first().getByRole("button").first().click();
+      }
+      const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+      await expect(sheet).toBeVisible();
+      const plan = page.locator(".mobileTabBar").getByRole("link", { name: "Plan", exact: true });
+      await plan.click();
+      await expect(page).toHaveURL(/\/plan(?:\?|$)/);
+      await expect(page.locator(".mobileTabBar").getByRole("link", { name: "Plan", exact: true })).toHaveAttribute("aria-current", "page");
+      await page.goBack();
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+      expect(new URL(page.url()).searchParams.has("sel")).toBe(false);
+      expect(new URL(page.url()).searchParams.has("plan")).toBe(false);
+      await page.goBack();
+      await expect(page).toHaveURL(/\/about(?:\?|$)/);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/map(?:\?|$)/);
+      await expectMobileMapShellReady(page, 60_000);
+      await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+      await page.goForward();
+      await expect(page).toHaveURL(/\/plan(?:\?|$)/);
+    });
+  }
+
+  test("rapid primary-tab choices keep the latest destination and its history", async ({ page }) => {
+    await prepareMap(page, PHONE);
+    await installDeterministicMapBasemap(page);
+    await page.goto("/about");
+    await openMap(page, "/map?sel=venue-1kpe609");
+    await expect(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]')).toBeVisible();
+    // Both clicks precede popstate, so the second tab replaces the pending destination.
+    await page.locator(".mobileTabBar").evaluate(bar => {
+      (bar.querySelector('a[href="/plan"]') as HTMLElement).click();
+      (bar.querySelector('a[href="/social"]') as HTMLElement).click();
+    });
+    await expect(page).toHaveURL(/\/social(?:\?|$)/);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/map(?:\?|$)/);
+    await expectMobileMapShellReady(page);
+    await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+    await page.goBack();
+    await expect(page).toHaveURL(/\/about(?:\?|$)/);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/map(?:\?|$)/);
+    await page.goForward();
+    await expect(page).toHaveURL(/\/social(?:\?|$)/);
+  });
+
+  for (const query of ["log=1&max=0", "contribute=price&max=0", "landmark=big-ben"]) {
+    test(`a root-map tab exit keeps a dismissed ${query} closed on return`, async ({ page }, info) => {
+      await prepareMap(page, PHONE);
+      await holdLondonAfternoon(page);
+      await installDeterministicMapBasemap(page);
+      await openMap(page, `/map?${query}`);
+      await expect(page.locator(".mobileSheetPortal")).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+      await expect.poll(() => page.evaluate(() => window.history.state?.pubmaxMapSurface?.aboveRoot)).toBe(0);
+      await page.screenshot({ path: info.outputPath("root-before-tab.png") });
+      await page.locator(".mobileTabBar").getByRole("link", { name: "Plan", exact: true }).click();
+      await expect(page).toHaveURL(/\/plan(?:\?|$)/);
+      await page.goBack();
+      await expectMobileMapShellReady(page);
+      await expect(page.locator(".mobileSheetPortal")).toHaveCount(0);
+      await expect(page.getByRole("form", { name: "Pint Drop composer" })).toHaveCount(0);
+      const params = new URL(page.url()).searchParams;
+      for (const key of ["log", "contribute", "landmark", "sel"]) expect(params.has(key)).toBe(false);
+      await page.screenshot({ path: info.outputPath("root-after-return.png") });
+    });
+  }
 
   test("a bare phone map does not reopen the last inspected pub", async ({ page }) => {
     await prepareMap(page, PHONE);

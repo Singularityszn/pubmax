@@ -2,6 +2,7 @@ import { expect, test, type Locator, type Page, type TestInfo } from "@playwrigh
 
 import { stubSocialAuthProviders } from "./helpers/authDoubles";
 import { expectMobileMapShellReady, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { openVenueSecondaryActions } from "./helpers/venueActions";
 
 const MOBILE_VIEWPORT = { width: 390, height: 844 };
 
@@ -178,14 +179,12 @@ for (const viewport of [MOBILE_VIEWPORT, { width: 320, height: 568 }]) {
     const sheet = portal.locator(".mobileSharedSheet");
     const footer = portal.locator(".mobileSharedSheetFooter");
     const body = portal.locator(".mobileSharedSheetBody");
-    // The footer carries no price action (the Overview's one price door owns
-    // that, #1517); Share is the command every pub sheet keeps, so it is the one
-    // held in view at every detent, and its tap answers in the footer itself.
+    const more = footer.getByRole("button", { name: "More actions for Arnos Arms" });
     const share = portal.getByRole("button", { name: "Share Arnos Arms" });
 
     await expect(sheet).toHaveClass(/sheet-half/);
     await expectSheetInsideViewport(page, sheet, footer);
-    await expect(share).toBeInViewport();
+    await expect(more).toBeInViewport();
     await attachViewportShot(page, testInfo, `venue-half-${size}`);
 
     const footerBeforeScroll = await footer.boundingBox();
@@ -199,7 +198,7 @@ for (const viewport of [MOBILE_VIEWPORT, { width: 320, height: 568 }]) {
     await sheet.getByRole("button", { name: "Expand sheet" }).click();
     await expect(sheet).toHaveClass(/sheet-full/);
     await expectSheetInsideViewport(page, sheet, footer);
-    await expect(share).toBeInViewport();
+    await expect(more).toBeInViewport();
     await attachViewportShot(page, testInfo, `venue-full-${size}`);
 
     await sheet.getByRole("button", { name: "Collapse sheet" }).click();
@@ -217,10 +216,12 @@ for (const viewport of [MOBILE_VIEWPORT, { width: 320, height: 568 }]) {
 
     await expect(sheet).toHaveClass(/sheet-peek/);
     await expectSheetInsideViewport(page, sheet, footer);
-    await expect(share).toBeInViewport();
+    await expect(more).toBeInViewport();
     await expect(body).toBeHidden();
     await expect.poll(() => body.evaluate((element) => element.getBoundingClientRect().height)).toBeLessThanOrEqual(1);
     await attachViewportShot(page, testInfo, `venue-peek-${size}`);
+    await openVenueSecondaryActions(portal);
+    await expect(share).toBeInViewport();
     await share.click();
     await expect(footer.locator(".venueSheetShareFeedback")).toBeVisible();
 

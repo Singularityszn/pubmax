@@ -11,11 +11,14 @@
 // other, and an Event carries no payload that could be mistaken for the count.
 // Client only.
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 export const MESSAGES_READ_EVENT = "pubmax:messages-read";
 
 /** Tell every listener that messages the viewer had waiting were just read. */
 export function announceMessagesRead(): void {
   if (typeof window === "undefined") return;
+  invalidateMessagesInbox();
   window.dispatchEvent(new Event(MESSAGES_READ_EVENT));
 }
 

@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
+import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
 
 import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
 import "./messages.css";
+import "@/components/messages/messagePhotos.css";
 
 // Server shell for /messages so the route carries real metadata (the client
 // component can't export it). Direct messages are private to the signed-in
@@ -22,6 +24,7 @@ export default function MessagesInboxPage(): React.JSX.Element {
       <main id="main" className="container messagesMain messagesMainInbox">
         <div className="messagesSplit">
           <aside className="messagesInboxPane" aria-label="Inbox">
+            <MessagePhotoRecoveryNotice />
             <MessagesInboxClient />
           </aside>
           {/* The pane is neutral here on purpose: what it says depends on the

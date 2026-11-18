@@ -1077,6 +1077,92 @@ export type Database = {
           },
         ];
       };
+      message_notification_claims: {
+        Row: {
+          user_id: string;
+          message_id: string;
+        };
+        Insert: {
+          user_id: string;
+          message_id: string;
+        };
+        Update: {
+          user_id?: string;
+          message_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_notification_claims_message_id_fkey";
+            columns: ["message_id"];
+            isOneToOne: false;
+            referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_notification_claims_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      message_notification_mutes: {
+        Row: {
+          user_id: string;
+          conversation_id: string;
+        };
+        Insert: {
+          user_id: string;
+          conversation_id: string;
+        };
+        Update: {
+          user_id?: string;
+          conversation_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_notification_mutes_conversation_id_fkey";
+            columns: ["conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_notification_mutes_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      message_notification_preferences: {
+        Row: {
+          user_id: string;
+          enabled: boolean;
+          preview: boolean;
+        };
+        Insert: {
+          user_id: string;
+          enabled?: boolean;
+          preview?: boolean;
+        };
+        Update: {
+          user_id?: string;
+          enabled?: boolean;
+          preview?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_notification_preferences_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: true;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       message_poll_votes: {
         Row: {
           message_id: string;
@@ -1105,6 +1191,60 @@ export type Database = {
             columns: ["message_id"];
             isOneToOne: false;
             referencedRelation: "messages";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      message_push_subscriptions: {
+        Row: {
+          endpoint_hash: string;
+          user_id: string;
+          session_id: string;
+          token: string;
+          active_conversation_id: string | null;
+          last_seen: string | null;
+          updated_at: string;
+          presence_activity_id: number;
+          presence_generation: number;
+          presence_revision: number;
+        };
+        Insert: {
+          endpoint_hash: string;
+          user_id: string;
+          session_id: string;
+          token: string;
+          active_conversation_id?: string | null;
+          last_seen?: string | null;
+          updated_at?: string;
+          presence_activity_id?: number;
+          presence_generation?: number;
+          presence_revision?: number;
+        };
+        Update: {
+          endpoint_hash?: string;
+          user_id?: string;
+          session_id?: string;
+          token?: string;
+          active_conversation_id?: string | null;
+          last_seen?: string | null;
+          updated_at?: string;
+          presence_activity_id?: number;
+          presence_generation?: number;
+          presence_revision?: number;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "message_push_subscriptions_active_conversation_id_fkey";
+            columns: ["active_conversation_id"];
+            isOneToOne: false;
+            referencedRelation: "conversations";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "message_push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
             referencedColumns: ["id"];
           },
         ];
@@ -8525,6 +8665,52 @@ export type Database = {
           p_read: boolean | null;
         };
         Returns: boolean;
+      };
+      message_notification_bind: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+        };
+        Returns: boolean;
+      };
+      message_notification_presence: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+          p_conversation_id: string | null;
+          p_activity_id: number | null;
+          p_revision: number | null;
+        };
+        Returns: boolean;
+      };
+      message_notification_presence_start: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+          p_endpoint_hash: string | null;
+          p_token: string | null;
+        };
+        Returns: number;
+      };
+      message_notification_session_active: {
+        Args: {
+          p_user_id: string | null;
+          p_session_id: string | null;
+        };
+        Returns: boolean;
+      };
+      message_notification_targets: {
+        Args: {
+          p_user_id: string | null;
+          p_conversation_id: string | null;
+        };
+        Returns: {
+          token: string;
+        }[];
       };
       migrate_social_product_account: {
         Args: {

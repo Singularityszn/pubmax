@@ -10,13 +10,11 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type ChangeEvent,
 } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
-import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import MessageAttachmentPicker, {
   type MessageAttachKind,
   type MessageAttachmentPickerHandle,
@@ -29,16 +27,18 @@ import MessageContactPicker from "@/components/messages/MessageContactPicker";
 import MessageEventCard from "@/components/messages/MessageEventCard";
 import MessageEventPicker from "@/components/messages/MessageEventPicker";
 import MessagePhoto from "@/components/messages/MessagePhoto";
+import MessagePhotoRecoveryNotice from "@/components/messages/MessagePhotoRecoveryNotice";
+import { useMessageInputSize } from "@/components/messages/useMessageInputSize";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
+import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
+import { useMessageThreadPresence } from "@/components/messages/useMessageThreadPresence";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
 import MessageVenuePicker, {
-  type PickedVenue,
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
@@ -47,8 +47,6 @@ import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
   MESSAGE_ATTACH_VENUE_LABEL,
-  MESSAGE_PHOTO_CROP_TARGET,
-  MESSAGE_PHOTO_FAILED_LINE,
 } from "@/lib/messageAttachments";
 import {
   GROUP_EMPTY_THREAD_LINE,
@@ -72,12 +70,7 @@ import {
   MESSAGE_UNSENT_LINE,
 } from "@/lib/messageRemovals";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
-import {
-  messageSendPayload,
-  retainedMessageSendKey,
-  type MessageSendAttempt,
-} from "@/lib/messageSendAttempt";
-import type { MessagePollView, MessagePollWrite } from "@/lib/messagePoll";
+import type { MessagePollView } from "@/lib/messagePoll";
 import {
   linkifyMessageBody,
   MAX_MESSAGE_BODY,
@@ -105,10 +98,12 @@ import {
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
 } from "@/lib/softKeyboard";
-import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
-import { useFocusTrap } from "@/lib/useFocusTrap";
+
+import { useMessageComposer } from "@/components/messages/useMessageComposer";
+import { messagePhotos, pendingMessageLabel } from "@/lib/messageComposer";
 
 import "@/app/messages/messages.css";
+import "@/components/messages/messagePhotos.css";
 
 // The message thread (PRD E4): bubbles (mine right / coral, theirs left /
 // panel), a composer with the 1000-char cap, and a light abuse "Report"
@@ -126,21 +121,15 @@ import "@/app/messages/messages.css";
 // Timeline, reveal and read-state rules:
 // docs/rules/components-venue-plan-and-message-surfaces.md.
 //
-// A SENT MESSAGE APPEARS THE MOMENT IT IS SENT. The composer clears and an own
-// bubble lands in the thread before the server answers; the refetch replaces
-// it with the stored row, and a refused send takes it back off and puts the
-// words back in the field, with the reason beside it.
+// Delivery and retry rules:
+// docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries.
 //
 // THE COMPOSER IS PINNED, above the phone tab bar and above the keyboard.
 // lib/keyboardInset.ts measures the covered strip; lib/softKeyboard.ts says
 // whether the bar has stepped aside. Both ride the root as data, so the
 // stylesheet decides the geometry.
 //
-// A MESSAGE MAY CARRY ONE ATTACHMENT: a photo, or a pub. The photo takes the
-// whole owned-image journey server-side and its bytes come back through the same
-// courtesy gate the thread does (components/messages/MessagePhoto.tsx). The pub
-// stores an id alone (no coordinate of any kind rides in a message) and its
-// card is resolved live on the read path.
+// Attachment rules: lib/messageAttachments.ts.
 
 const HANDLE_KEY = "pubmax_handle";
 /** The counter shows only once a message is close to the cap. */
@@ -226,14 +215,6 @@ function sameThreadReadKey(
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
 }
 
-/** What is riding on the NEXT message. At most one, by design. */
-type PendingAttachment =
-  | { kind: "photo"; file: File; previewUrl: string }
-  | { kind: "venue"; venue: PickedVenue }
-  | { kind: "contact"; handle: string }
-  | { kind: "event"; planId: string }
-  | { kind: "poll"; poll: MessagePollWrite };
-
 /** Which picker is open. One at a time, because one attachment rides at a time. */
 type OpenPicker = "venue" | "contact" | "event" | "poll" | null;
 
@@ -242,22 +223,6 @@ type PendingRemoval =
   | { kind: "unsend"; messageId: string }
   | { kind: "delete" }
   | { kind: "leave" };
-
-/** What the composer's pending row says about what is ready to send. */
-function pendingLabel(pending: PendingAttachment): string {
-  switch (pending.kind) {
-    case "photo":
-      return "Photo ready to send";
-    case "venue":
-      return pending.venue.name;
-    case "contact":
-      return `@${pending.handle}`;
-    case "event":
-      return "Plan ready to send";
-    case "poll":
-      return pending.poll.question;
-  }
-}
 
 /**
  * The inbox row for one conversation, for naming an EMPTY thread's head.
@@ -295,48 +260,6 @@ async function nameFromInboxRow(
   }
 }
 
-function fileKey(file: File): string {
-  return `${file.name}:${file.size}:${file.lastModified}`;
-}
-
-/** An own message the server has not answered for yet. */
-type OutboxMessage = MessageDTO & { pendingPhotoUrl?: string };
-
-let outboxSeq = 0;
-
-/**
- * The id ONE send attempt is known by, end to end. A uuid because the column
- * migration 0149 adds is a uuid; `crypto.randomUUID` is absent on an insecure
- * origin and in some older browsers, so the fallback keeps the shape rather
- * than sending something the write path would refuse.
- */
-function newClientMessageId(): string {
-  const uuid = globalThis.crypto?.randomUUID?.();
-  if (uuid) return uuid;
-  const hex = (length: number): string =>
-    Array.from({ length }, () => Math.floor(Math.random() * 16).toString(16)).join("");
-  return `${hex(8)}-${hex(4)}-4${hex(3)}-a${hex(3)}-${hex(12)}`;
-}
-
-function outboxMessage(
-  conversationId: string,
-  handle: string,
-  body: string,
-  pending: PendingAttachment | null,
-): OutboxMessage {
-  outboxSeq += 1;
-  return {
-    id: `outbox-${outboxSeq}`,
-    conversationId,
-    senderHandle: handle,
-    body,
-    createdAt: new Date().toISOString(),
-    read: false,
-    flagged: false,
-    ...(pending?.kind === "photo" ? { pendingPhotoUrl: pending.previewUrl } : {}),
-  };
-}
-
 /** The thread route marks what was waiting as read in the same read it answers. */
 function announceIfWaitingRead(messages: readonly MessageDTO[], viewer: string): void {
   if (unreadForViewer(messages, viewer) > 0) announceMessagesRead();
@@ -347,21 +270,17 @@ export default function MessageThread({
 }: {
   conversationId: string;
 }): React.JSX.Element {
+  useMessageThreadPresence(conversationId);
   const { accountRevision, user, handle: authHandle } = useAuth();
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
   const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
-  const [outbox, setOutbox] = useState<OutboxMessage[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
-  const [draft, setDraft] = useState("");
-  const [sending, setSending] = useState(false);
-  const [error, setError] = useState("");
+  const [reportFailure, setReportFailure] = useState<{ owner: string; message: string } | null>(null);
   const { fromRefusal, adultGateDialog } = useMessageAdultGate();
-  const [pending, setPending] = useState<PendingAttachment | null>(null);
-  const [cropping, setCropping] = useState<File | null>(null);
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
   // The other person's own face and name. A group is not a person, so it asks
@@ -406,7 +325,6 @@ export default function MessageThread({
     readFloorRef.current = requestGenerationRef.current + 1;
     loadedForRef.current = null;
     setViewRevision(null);
-    setOutbox([]);
     setRevealedId(null);
     setConfirming(null);
     setRemoving(false);
@@ -421,11 +339,6 @@ export default function MessageThread({
     accountRevisionRef.current = accountRevision;
   }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
-  const inputRef = useRef<HTMLTextAreaElement | null>(null);
-  /** Claimed before the first await in `send`; see the note there. */
-  const sendInFlightRef = useRef(false);
-  const unsentKeyRef = useRef<MessageSendAttempt | null>(null);
-  const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -433,6 +346,27 @@ export default function MessageThread({
     () => false,
   );
   const keyboardInset = useKeyboardInset();
+  const measureThreadHeader = useCallback((header: HTMLDivElement | null) => {
+    if (!header) return;
+    const shell = header.parentElement!;
+    const measure = () => {
+      shell.style.setProperty("--thread-header-bottom", `${Math.max(window.visualViewport?.offsetTop ?? 0, header.getBoundingClientRect().bottom)}px`);
+    };
+    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+    observer?.observe(header);
+    window.addEventListener("resize", measure);
+    window.addEventListener("scroll", measure, { passive: true });
+    window.visualViewport?.addEventListener("resize", measure);
+    window.visualViewport?.addEventListener("scroll", measure);
+    measure();
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure);
+      window.visualViewport?.removeEventListener("resize", measure);
+      window.visualViewport?.removeEventListener("scroll", measure);
+    };
+  }, []);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
@@ -450,18 +384,6 @@ export default function MessageThread({
       active = false;
     };
   }, [authHandle]);
-
-  // The crop step declares itself modal, so it has to BE one: the rest of the
-  // page goes inert, Tab cycles inside the card, Escape leaves, and focus lands
-  // in the card rather than staying on the file input behind it. Without this a
-  // keyboard reader tabbed straight out into the thread and composer beneath.
-  const cropOpen = cropping !== null;
-  useFocusTrap(cropOpen, cropCardRef);
-  useDismissOnEscape(cropOpen, () => setCropping(null));
-  useEffect(() => {
-    if (!cropOpen) return;
-    cropCardRef.current?.focus({ preventScroll: true });
-  }, [cropOpen]);
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
@@ -604,6 +526,30 @@ export default function MessageThread({
     [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
   );
 
+  const onStored = useCallback((stored: MessageDTO) => {
+    readFloorRef.current = requestGenerationRef.current + 1;
+    setMessages(rows => rows.some(row => row.id === stored.id) ? rows : [...rows, stored]);
+  }, []);
+  const onSignedOut = useCallback(() => setState("signedout"), []);
+  const {
+    sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, preparationProgress, error,
+    selectPhotos, clearPending, cancelPreparation, abandon, send, retrySend,
+  } = useMessageComposer({ conversationId, accountRevision, user, authHandle, refresh, onStored, onSignedOut, fromRefusal });
+  const inputRef = useMessageInputSize(draft);
+
+  useEffect(() => {
+    for (const [id, sent] of Object.entries(sentPhotos)) {
+      const row = messages.find(message => message.id === id);
+      if (sent.handle !== handle || !row || row.unsent || row.attachment?.kind !== "photo" || row.attachment.url !== sent.url) {
+        releaseSentPhoto(id, sent.photo.previewUrl);
+      }
+    }
+  }, [messages, handle, sentPhotos, releaseSentPhoto]);
+
+  useLayoutEffect(() => {
+    if (state === "deleted" || state === "left" || state === "notfound") abandon();
+  }, [state, abandon]);
+
   // ONE OWNER OF THE POLL. subscribeToMessages owns every timer: the fallback
   // cadence when the socket is not live, a slow safety poll when it is, and no
   // poll at all while the tab is hidden. A second interval here used to poll
@@ -673,172 +619,19 @@ export default function MessageThread({
     };
   }, [scrollToNewest]);
 
-  // The field grows with what is typed and stops at the CSS max-height, where
-  // it starts scrolling. Measured off scrollHeight each change, because a row
-  // count cannot know how a line wrapped.
-  useEffect(() => {
-    const field = inputRef.current;
-    if (!field) return;
-    field.style.height = "auto";
-    field.style.height = `${field.scrollHeight}px`;
-  }, [draft]);
-
-  // A preview object URL belongs to the pending photo, so it is released when
-  // that photo is replaced, sent or taken off.
-  useEffect(() => {
-    if (pending?.kind !== "photo") return;
-    const url = pending.previewUrl;
-    return () => URL.revokeObjectURL(url);
-  }, [pending]);
-
   const over = draft.length > MAX_MESSAGE_BODY;
-  // A photo is a message. Something to send is text, an attachment, or both.
   const hasSomething = draft.trim().length > 0 || pending !== null;
-  const canSend = hasSomething && !over && !sending;
-
-  const clearPending = useCallback(() => {
-    setPending(null);
-    setCropping(null);
-    setPicking(null);
-  }, []);
-
-  /** One picker at a time, because one attachment rides at a time. */
+  const canSend = hasSomething && !over && !sending && !preparing;
   const openPicker = useCallback((next: Exclude<OpenPicker, null>) => {
-    setCropping(null);
-    setPicking((current) => (current === next ? null : next));
+    setPicking(current => current === next ? null : next);
   }, []);
-
-  const handlePhotoFileChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0] ?? null;
-    event.target.value = "";
-    setError("");
-    setCropping(file);
-  }, []);
-
   const handleAttachKindSelected = useCallback((kind: MessageAttachKind) => {
     trackEvent("message_attach_selected", { kind });
   }, []);
 
-  const send = useCallback(async () => {
-    // LATCHED ON A REF, CLAIMED BEFORE THE FIRST AWAIT - the plan-route rule.
-    // `sending` is React state, committed a microtask after the event, so two
-    // taps in one task both read it false and both posted.
-    if (sendInFlightRef.current) return;
-    const h = normalizeHandle(authHandle ?? "") || readHandle();
-    const bodyText = draft.trim();
-    if (!user || !h || over) return;
-    if (!bodyText && !pending) return;
-    const signal = readProviderAccountSignal();
-    sendInFlightRef.current = true;
-    const sentPending = pending;
-    const optimistic = outboxMessage(conversationId, h, bodyText, sentPending);
-    const { post, payload } = messageSendPayload({
-      conversationId,
-      senderId: user.id,
-      handle: h,
-      body: bodyText,
-      attachment: sentPending,
-    });
-    setSending(true);
-    setError("");
-    // The bubble lands and the field clears NOW; the server's answer replaces
-    // the bubble or takes it back.
-    setOutbox((rows) => [...rows, optimistic]);
-    setDraft("");
-    setPending(null);
-    setCropping(null);
-    setPicking(null);
-    // A REFUSED SEND KEEPS WHAT THE DRINKER WROTE. The field was cleared at the
-    // tap, so somebody who started the next line while the first was in flight
-    // used to lose the first one outright: the bubble went, the text was
-    // dropped for being "not empty", and all that was left was an error with
-    // nothing to try again with. The failed line goes back at the TOP of
-    // whatever is in the field, and a newly picked attachment is never
-    // overwritten by the one that failed.
-    const takeBack = () => {
-      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
-      if (bodyText) {
-        setDraft((current) => (current.trim() ? `${bodyText}\n${current}` : bodyText));
-      }
-      if (sentPending) setPending((current) => current ?? sentPending);
-    };
-    try {
-      const photo = sentPending?.kind === "photo" ? new Uint8Array(await sentPending.file.arrayBuffer()) : null;
-      const clientMessageId =
-        retainedMessageSendKey(unsentKeyRef.current, payload, photo) ?? newClientMessageId();
-      unsentKeyRef.current = { key: clientMessageId, payload, photo };
-      const address = `/api/messages/${encodeURIComponent(conversationId)}`;
-      const keyedPost = { ...post, clientMessageId };
-
-      let res: Response;
-      if (sentPending?.kind === "photo") {
-        // The photo lane is multipart: one JSON part and one file, exactly the
-        // shape the pub wall already sends.
-        const form = new FormData();
-        form.append("post", JSON.stringify(keyedPost));
-        form.append("photo", sentPending.file);
-        res = await authedActionFetch(address, { method: "POST", body: form, signal }, { requiresIdentity: true });
-      } else {
-        res = await authedActionFetch(address, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify(keyedPost),
-          signal,
-        }, { requiresIdentity: true });
-      }
-
-      if (res.status === 401) {
-        discardBody(res);
-        takeBack();
-        setState("signedout");
-        return;
-      }
-      if (res.status === 429) {
-        discardBody(res);
-        takeBack();
-        setError("Too many messages, slow down.");
-        return;
-      }
-      if (!res.ok) {
-        // The server's own sentence when it has one: a refused photo and a
-        // conversation that is gone are different things to be told.
-        const body: unknown = await res.json().catch(() => null);
-        takeBack();
-        // The age gate is answered on the spot; the words are back in the
-        // field, so one more tap on Send sends them.
-        if (fromRefusal(body)) return;
-        setError(
-          offlineOrMessage(errorMessageFrom(
-                body,
-                sentPending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.")
-              ),
-        );
-        return;
-      }
-      // A SEND IS ONE REQUEST. The POST's own answer is the stored row, so the
-      // outbox bubble is replaced by it in place; nothing is refetched to show
-      // your own message. A body with no row falls back to the gated refetch.
-      const body = (await res.json().catch(() => null)) as { message?: MessageDTO } | null;
-      const stored = body?.message;
-      if (stored && typeof stored.id === "string") {
-        setMessages((rows) => (rows.some((row) => row.id === stored.id) ? rows : [...rows, stored]));
-      } else {
-        await refresh();
-      }
-      setOutbox((rows) => rows.filter((row) => row.id !== optimistic.id));
-      if (unsentKeyRef.current?.key === clientMessageId) unsentKeyRef.current = null;
-    } catch {
-      takeBack();
-      setError(
-        offlineOrMessage(sentPending
-            ? MESSAGE_PHOTO_FAILED_LINE
-            : "Could not send that message. Try again.")
-      );
-    } finally {
-      sendInFlightRef.current = false;
-      setSending(false);
-    }
-  }, [conversationId, draft, over, pending, refresh, user, authHandle, fromRefusal]);
+  function sendMessage(): void {
+    setPicking(null); setMobileAttachOpen(false); void send();
+  }
 
   /**
    * Answering a poll. The card shows the server's OWN tally rather than one
@@ -950,11 +743,15 @@ export default function MessageThread({
     setConfirming(removal);
   }, []);
 
+  const setReportError = useCallback((message: string) => {
+    if (conversationIdRef.current !== conversationId || accountRevisionRef.current !== accountRevision) return;
+    setReportFailure(message ? { owner: `${conversationId}:${accountRevision}`, message } : null);
+  }, [conversationId, accountRevision]);
   const report = useCallback(
     async (messageId: string) => {
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!user || !h) return;
-      setError("");
+      setReportError("");
       try {
         const res = await authedActionFetch(`/api/messages/${encodeURIComponent(conversationId)}`, {
           method: "POST",
@@ -963,7 +760,7 @@ export default function MessageThread({
         }, { requiresIdentity: true });
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => null);
-          setError(
+          setReportError(
             offlineOrMessage(errorMessageFrom(body, "Could not report that message. Try again."))
           );
           return;
@@ -971,12 +768,12 @@ export default function MessageThread({
         discardBody(res);
         await refresh();
       } catch {
-        setError(
+        setReportError(
           offlineOrMessage("Could not report that message. Try again.")
         );
       }
     },
-    [conversationId, refresh, user, authHandle],
+    [conversationId, refresh, user, authHandle, setReportError],
   );
 
   const timeline = useMemo<TimelineItem[]>(() => {
@@ -985,7 +782,7 @@ export default function MessageThread({
   }, [messages, outbox, handle]);
   const outboxIds = useMemo(() => new Set(outbox.map((row) => row.id)), [outbox]);
   const outboxPhotoUrls = useMemo(
-    () => new Map(outbox.map((row) => [row.id, row.pendingPhotoUrl])),
+    () => new Map(outbox.map((row) => [row.id, row.pendingPhoto])),
     [outbox],
   );
 
@@ -1056,6 +853,9 @@ export default function MessageThread({
     if (attachment.kind === "photo") {
       return (
         <MessagePhoto
+          key={`${user?.id ?? ""}:${accountRevision}:${conversationId}:${m.id}:${attachment.url}:${handle}`}
+          previewUrl={sentPhotos[m.id]?.url === attachment.url && sentPhotos[m.id]?.handle === handle ? sentPhotos[m.id]?.photo.previewUrl : undefined}
+          onStoredLoad={() => releaseSentPhoto(m.id, sentPhotos[m.id]?.photo.previewUrl)}
           url={attachment.url}
           width={attachment.width}
           height={attachment.height}
@@ -1233,6 +1033,144 @@ export default function MessageThread({
     );
   }
 
+  function renderComposer(): React.JSX.Element {
+    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
+    return (
+      <div className="composerDock">
+        <MessagePhotoRecoveryNotice activeConversationId={conversationId} />
+        {visibleError ? <div className="threadError" role="alert">{visibleError}
+          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
+        </div> : null}
+        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
+
+        {renderPicker()}
+
+        {pending ? (
+          <div className="composerPending">
+            {pending.kind === "photo" ? (
+              <span className="composerPhotoPreviews">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
+                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
+              </span>
+            ) : (
+              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
+            )}
+            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
+            <button type="button" className="composerPendingRemove" onClick={clearPending}>
+              Remove
+            </button>
+          </div>
+        ) : null}
+
+        <div className="composer">
+          <div className="composerControls">
+            {/* THE SHEET IS THE ONE HOME FOR EVERY KIND, at every width: five
+                kinds is five icons, and a composer row cannot hold five and a
+                field and Send on a 320px screen. The two shortcuts beside it
+                are the two a drinker reaches for most. */}
+            {isMobileViewport ? (
+              <button
+                type="button"
+                className="composerMobileAttach"
+                aria-label="Add an attachment"
+                aria-expanded={mobileAttachOpen}
+                disabled={sending || preparing}
+                onClick={() => {
+                  setPicking(null);
+                  setMobileAttachOpen(true);
+                }}
+              >
+                <Plus size={20} aria-hidden="true" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                className="composerAttach composerMoreDesktop"
+                aria-label="More to attach"
+                aria-expanded={mobileAttachOpen}
+                disabled={sending || preparing}
+                onClick={() => {
+                  setPicking(null);
+                  setMobileAttachOpen(true);
+                }}
+              >
+                <Plus size={20} aria-hidden="true" />
+              </button>
+            )}
+            <button
+              type="button"
+              className="composerAttach composerPhotoDesktop"
+              aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
+              aria-pressed={pending?.kind === "photo"}
+              disabled={sending || preparing}
+              onClick={() => {
+                setPicking(null);
+                attachmentPickerRef.current?.select("photos");
+              }}
+            >
+              <ImageIcon size={20} aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              className="composerAttach composerVenueDesktop"
+              aria-label={MESSAGE_ATTACH_VENUE_LABEL}
+              aria-pressed={pending?.kind === "venue"}
+              disabled={sending || preparing}
+              onClick={() => openPicker("venue")}
+            >
+              <MapPin size={20} aria-hidden="true" />
+            </button>
+          </div>
+          <div className="composerField">
+            <textarea
+              ref={inputRef}
+              className="composerInput"
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="Message…"
+              maxLength={MAX_MESSAGE_BODY + 100}
+              rows={1}
+              aria-label="Message"
+              /* A message is somebody talking. The keyboard helps them the way it
+                 helps them everywhere else: sentence case, autocorrect on, spelling
+                 checked. Turning these off is what makes a web composer feel unlike
+                 the messaging app beside it. */
+              autoCapitalize="sentences"
+              autoCorrect="on"
+              spellCheck
+              enterKeyHint={enterSends ? "send" : "enter"}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter" || e.shiftKey) return;
+                // On a phone the return key writes a new line; only a keyboard with
+                // a modifier to spare sends on it.
+                if (!enterSends) return;
+                e.preventDefault();
+                if (canSend) sendMessage();
+              }}
+            />
+            {showCounter ? (
+              <span
+                className={over ? "composerCount composerCountOver" : "composerCount"}
+                aria-live="polite"
+              >
+                {draft.length}/{MAX_MESSAGE_BODY}
+              </span>
+            ) : null}
+          </div>
+          <button
+            type="button"
+            className="composerSend"
+            aria-label="Send"
+            disabled={!canSend}
+            onClick={() => sendMessage()}
+          >
+            <Send size={20} aria-hidden="true" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="messageThread">
       {/* The shell is `display: contents`: it carries the keyboard facts as
@@ -1242,11 +1180,12 @@ export default function MessageThread({
         data-keyboard-open={keyboardOpen ? "" : undefined}
         style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-      <div className="threadHeader">
+      <div className="threadHeader" ref={measureThreadHeader}>
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
+        <MessageNotificationSettings key={conversationId} conversationId={conversationId} />
         <MessageThreadMenu
           isGroup={isGroup}
           onDeleteChat={() => ask({ kind: "delete" })}
@@ -1277,10 +1216,10 @@ export default function MessageThread({
                   : "Say hello. This one stays between the two of you."}
               </p>
               <div className="threadStarters" role="group" aria-label="Start the conversation">
-                <button type="button" disabled={sending} onClick={() => openPicker("venue")}>
+                <button type="button" disabled={sending || preparing} onClick={() => openPicker("venue")}>
                   <MapPin size={16} aria-hidden="true" /> Share a pub
                 </button>
-                <button type="button" disabled={sending} onClick={() => openPicker("event")}>
+                <button type="button" disabled={sending || preparing} onClick={() => openPicker("event")}>
                   <CalendarDays size={16} aria-hidden="true" /> Share a plan
                 </button>
               </div>
@@ -1311,38 +1250,42 @@ export default function MessageThread({
                 <div className="messageLine">
                   {isGroup && !mine && item.first ? <span className="messageSender">@{m.senderHandle}</span> : null}
                   <div className="messageBubbleGroup">
-                    {m.unsent ? (
-                      <div
-                        className="messageUnsent"
-                        onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
-                      >
-                        {MESSAGE_UNSENT_LINE}
-                      </div>
-                    ) : (
+                  {m.unsent ? (
                     <div
-                      className={[
-                        mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
-                        (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
-                      ].filter(Boolean).join(" ")}
+                      className="messageUnsent"
                       onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
                     >
-                      {renderAttachment(m, sendingRow)}
-                      {pendingPhoto ? (
-                        // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo on its way
-                        <img className="messagePhotoSending" src={pendingPhoto} alt="" />
-                      ) : null}
-                      {m.body ? <MessageBody body={m.body} /> : null}
+                      {MESSAGE_UNSENT_LINE}
                     </div>
-                    )}
-                    <div className="messageMeta">
-                      <time className="messageClock" dateTime={m.createdAt}>
-                        {item.clock}
-                      </time>
-                      {renderMessageAction(m, mine, sendingRow)}
-                    </div>
+                  ) : (
+                  <div
+                    className={[
+                      mine ? "messageBubble messageBubbleMine" : "messageBubble messageBubbleTheirs",
+                      (m.attachment?.kind === "photo" || pendingPhoto) && !m.body ? "messageBubblePhoto" : "",
+                    ].filter(Boolean).join(" ")}
+                    onClick={() => setRevealedId((current) => (current === m.id ? null : m.id))}
+                  >
+                    {renderAttachment(m, sendingRow)}
+                    {pendingPhoto ? (
+                      <figure className="messagePhotoFigure" style={{ "--message-photo-aspect": pendingPhoto.width / pendingPhoto.height } as React.CSSProperties}>
+                        {/* eslint-disable-next-line @next/next/no-img-element -- local preview while the upload is pending */}
+                        <img className="messagePhoto messagePhotoSending" src={pendingPhoto.previewUrl} width={pendingPhoto.width} height={pendingPhoto.height} alt="Photo being sent" />
+                      </figure>
+                    ) : null}
+                    {m.body ? <MessageBody body={m.body} /> : null}
+                  </div>
+                  )}
+                  <div className="messageMeta">
+                    <time className="messageClock" dateTime={m.createdAt}>
+                      {item.clock}
+                    </time>
+                    {renderMessageAction(m, mine, sendingRow)}
+                  </div>
                   </div>
                   {sendingRow ? (
-                    <span className="messageReadState">Sending</span>
+                    <span className="messageReadState" role="status">
+                      {outbox.find(row => row.id === m.id)?.queued ? "Waiting to send" : pendingPhoto ? <><progress aria-label="Sending photo" /> Sending photo</> : "Sending"}
+                    </span>
                   ) : item.readState ? (
                     <span className="messageReadState">
                       {MESSAGE_READ_STATE_LABEL[item.readState]}
@@ -1361,9 +1304,9 @@ export default function MessageThread({
       <MessageAttachmentPicker
         ref={attachmentPickerRef}
         open={mobileAttachOpen}
-        disabled={sending}
+        disabled={sending || preparing}
         onOpenChange={setMobileAttachOpen}
-        onFileChange={handlePhotoFileChange}
+        onFileChange={event => { setPicking(null); void selectPhotos(event); }}
         onKindSelected={handleAttachKindSelected}
         onAttachmentKind={(kind) => {
           trackEvent("message_attach_selected", { kind });
@@ -1371,157 +1314,7 @@ export default function MessageThread({
         }}
       />
 
-      {cropping ? (
-        <div className="messageCropOverlay">
-          <div
-            ref={cropCardRef}
-            className="messageCropCard"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Crop photo"
-            tabIndex={-1}
-          >
-            <ProfileImageCropper
-              key={fileKey(cropping)}
-              target={MESSAGE_PHOTO_CROP_TARGET}
-              file={cropping}
-              busy={sending}
-              onCancel={() => setCropping(null)}
-              onCropped={(file) => {
-                setCropping(null);
-                setPending({ kind: "photo", file, previewUrl: URL.createObjectURL(file) });
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
-
-      <div className="composerDock">
-        {error ? <p className="threadError" role="alert">{error}</p> : null}
-
-        {renderPicker()}
-
-        {pending ? (
-          <div className="composerPending">
-            {pending.kind === "photo" ? (
-              // eslint-disable-next-line @next/next/no-img-element -- local object URL for the photo about to send
-              <img className="composerPendingThumb" src={pending.previewUrl} alt="" />
-            ) : (
-              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
-            )}
-            <span className="composerPendingLabel">{pendingLabel(pending)}</span>
-            <button type="button" className="composerPendingRemove" onClick={clearPending}>
-              Remove
-            </button>
-          </div>
-        ) : null}
-
-        <div className="composer">
-          <div className="composerControls">
-            {/* THE SHEET IS THE ONE HOME FOR EVERY KIND, at every width: five
-                kinds is five icons, and a composer row cannot hold five and a
-                field and Send on a 320px screen. The two shortcuts beside it
-                are the two a drinker reaches for most. */}
-            {isMobileViewport ? (
-              <button
-                type="button"
-                className="composerMobileAttach"
-                aria-label="Add an attachment"
-                aria-expanded={mobileAttachOpen}
-                disabled={sending}
-                onClick={() => {
-                  setPicking(null);
-                  setMobileAttachOpen(true);
-                }}
-              >
-                <Plus size={20} aria-hidden="true" />
-              </button>
-            ) : (
-              <button
-                type="button"
-                className="composerAttach composerMoreDesktop"
-                aria-label="More to attach"
-                aria-expanded={mobileAttachOpen}
-                disabled={sending}
-                onClick={() => {
-                  setPicking(null);
-                  setMobileAttachOpen(true);
-                }}
-              >
-                <Plus size={20} aria-hidden="true" />
-              </button>
-            )}
-            <button
-              type="button"
-              className="composerAttach composerPhotoDesktop"
-              aria-label={MESSAGE_ATTACH_PHOTO_LABEL}
-              aria-pressed={pending?.kind === "photo"}
-              disabled={sending}
-              onClick={() => {
-                setPicking(null);
-                attachmentPickerRef.current?.select("photos");
-              }}
-            >
-              <ImageIcon size={20} aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              className="composerAttach composerVenueDesktop"
-              aria-label={MESSAGE_ATTACH_VENUE_LABEL}
-              aria-pressed={pending?.kind === "venue"}
-              disabled={sending}
-              onClick={() => openPicker("venue")}
-            >
-              <MapPin size={20} aria-hidden="true" />
-            </button>
-          </div>
-          <div className="composerField">
-            <textarea
-              ref={inputRef}
-              className="composerInput"
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Message…"
-              maxLength={MAX_MESSAGE_BODY + 100}
-              rows={1}
-              aria-label="Message"
-              /* A message is somebody talking. The keyboard helps them the way it
-                 helps them everywhere else: sentence case, autocorrect on, spelling
-                 checked. Turning these off is what makes a web composer feel unlike
-                 the messaging app beside it. */
-              autoCapitalize="sentences"
-              autoCorrect="on"
-              spellCheck
-              enterKeyHint={enterSends ? "send" : "enter"}
-              onKeyDown={(e) => {
-                if (e.key !== "Enter" || e.shiftKey) return;
-                // On a phone the return key writes a new line; only a keyboard with
-                // a modifier to spare sends on it.
-                if (!enterSends) return;
-                e.preventDefault();
-                if (canSend) void send();
-              }}
-            />
-            {showCounter ? (
-              <span
-                className={over ? "composerCount composerCountOver" : "composerCount"}
-                aria-live="polite"
-              >
-                {draft.length}/{MAX_MESSAGE_BODY}
-              </span>
-            ) : null}
-          </div>
-          <button
-            type="button"
-            className="composerSend"
-            aria-label="Send"
-            disabled={!canSend}
-            onClick={() => void send()}
-          >
-            <Send size={20} aria-hidden="true" />
-          </button>
-        </div>
-      </div>
+      {renderComposer()}
       </div>
       {adultGateDialog}
       {renderConfirm()}

@@ -47,6 +47,7 @@
 // so a cold open still upgrades to realtime.
 
 import { ensureSupabaseBrowserForSession, getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 import { messagesInboxTopic, messagesThreadTopic } from "@/lib/messagesTopics";
 
 /** A zero-argument nudge — deliberately carries NO payload (see header). */
@@ -314,21 +315,49 @@ export function subscribeToMessages(
   );
 }
 
-/**
- * Subscribe to ONE handle's inbox: a signal whenever a message lands in any of
- * their conversations. A falsy handle yields a pure no-op.
- */
+type InboxListener = { signal: LiveSignal; options?: MessagesSubscribeOptions };
+type SharedInbox = { listeners: Set<InboxListener>; stop: Unsubscribe; status: MessagesLiveStatus | null };
+const inboxSubscriptions = new Map<string, SharedInbox>();
+
+export function announceInboxArrival(handle: string): void {
+  invalidateMessagesInbox(handle);
+  const entry = inboxSubscriptions.get(messagesInboxTopic(handle));
+  if (entry) for (const reader of [...entry.listeners]) reader.signal();
+}
+
+/** One SDK channel per topic, retained until its last reader leaves. */
 export function subscribeToInbox(
   handle: string,
   onSignal: LiveSignal,
   options?: MessagesSubscribeOptions,
 ): Unsubscribe {
   if (!handle) return () => {};
-  return subscribeBroadcast(
-    messagesInboxTopic(handle),
-    ["message"],
-    onSignal,
-    INBOX_CADENCE,
-    options,
-  );
+  const topic = messagesInboxTopic(handle);
+  const listener: InboxListener = { signal: onSignal, options };
+  let shared = inboxSubscriptions.get(topic);
+  if (shared) {
+    shared.listeners.add(listener);
+    if (shared.status) options?.onStatus?.(shared.status);
+  } else {
+    const entry: SharedInbox = { listeners: new Set([listener]), stop: () => {}, status: null };
+    shared = entry;
+    inboxSubscriptions.set(topic, entry);
+    entry.stop = subscribeBroadcast(topic, ["message"], () => {
+      announceInboxArrival(handle);
+    }, INBOX_CADENCE, {
+      poll: () => { invalidateMessagesInbox(handle, false); for (const reader of [...entry.listeners]) reader.options?.poll?.(); },
+      onStatus: (status) => {
+        entry.status = status;
+        for (const reader of [...entry.listeners]) reader.options?.onStatus?.(status);
+      },
+    });
+  }
+  const entry = shared;
+  return () => {
+    if (!entry.listeners.delete(listener)) return;
+    if (entry.listeners.size === 0) {
+      inboxSubscriptions.delete(topic);
+      entry.stop();
+    }
+  };
 }

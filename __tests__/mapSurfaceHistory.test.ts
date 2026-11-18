@@ -12,6 +12,7 @@ import {
 } from "@/lib/mapSurfaceHistory";
 import { backSurface, openSurface, type SurfaceEntry, type SurfaceStack } from "@/lib/surfaceStack";
 import { buildMapSeed } from "@/lib/pubMap";
+import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import { createMapCameraOwnership } from "@/lib/mapCameraProvenance";
 import { shouldOpenPlanningInitially } from "@/lib/mapArrival";
 import { mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
@@ -167,14 +168,16 @@ describe("characterisation: map surface open, back, home and reorder", () => {
   let navigation: ReturnType<typeof useMapSurfaceNavigation>;
   const onRestore = vi.fn();
   const onReturnToMap = vi.fn();
+  const onVenueClose = vi.fn();
   const onHome = vi.fn();
 
   let assembledState: MapSurfaceState;
   const viewport = { center: [-0.134, 51.511] as [number, number], zoom: 14, pitch: 38, bearing: -8 };
 
-  function Harness({ selectionHint = "", cameraOwnership }: {
+  function Harness({ selectionHint = "", cameraOwnership, mappedRouteActive = false }: {
     selectionHint?: string;
     cameraOwnership?: ReturnType<typeof createMapCameraOwnership>;
+    mappedRouteActive?: boolean;
   }) {
     const [defaultCameraOwnership] = useState(() => createMapCameraOwnership());
     assembledState = useMapSurfaceState({
@@ -189,6 +192,8 @@ describe("characterisation: map surface open, back, home and reorder", () => {
       selectionHint,
       onRestore,
       onReturnToMap,
+      mappedRouteActive,
+      onVenueClose,
       onHome,
       onSurfaceClose: () => {},
     });
@@ -228,6 +233,7 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
     onRestore.mockClear();
     onReturnToMap.mockClear();
+    onVenueClose.mockClear();
     onHome.mockClear();
     window.history.replaceState(null, "", "/map");
     container = document.createElement("div");
@@ -241,6 +247,108 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     container.remove();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it.each([
+    { label: "a venue", entries: [venue] },
+    { label: "a planner's venue", entries: [planner, venue] },
+    { label: "a venue's planner", entries: [venue, planner] },
+    { label: "a planner", entries: [planner] },
+    { label: "a reordered trail", entries: [planner, venue, planner] },
+    { label: "a completed area choice", entries: [{ id: "choose-area", title: "Choose area" }] },
+  ])("leaves one map entry behind a primary tab after $label", async ({ entries }) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    window.history.replaceState(null, "", "/about");
+    window.history.pushState(stampMapSurfaceHistory(null, [], ""), "", "/map");
+    openSurfaces(...entries);
+    if (entries[0]?.id === "choose-area") act(() => navigation.complete("choose-area"));
+    const navigate = vi.fn(() => window.history.pushState(null, "", "/plan"));
+    await traverse(() => {
+      expect(requestMobileSheetDismiss(navigate)).toBe(true);
+      expect(navigate).not.toHaveBeenCalled();
+    });
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(window.location.pathname).toBe("/plan");
+    expect(onHome).toHaveBeenCalledOnce();
+    expect(navigation.holdsSurface("venue")).toBe(false);
+    expect(navigation.holdsSurface("planner")).toBe(false);
+    expect(onVenueClose).toHaveBeenCalledTimes(entries.some(entry => entry.id === "venue") ? 1 : 0);
+    await traverse(() => window.history.back());
+    expect(window.location.pathname).toBe("/map");
+    expect(trail()).toEqual([]);
+    expect(window.location.search).toBe("");
+    await traverse(() => window.history.back());
+    expect(window.location.pathname).toBe("/about");
+    await traverse(() => window.history.forward());
+    expect(window.location.pathname).toBe("/map");
+    expect(trail()).toEqual([]);
+    await traverse(() => window.history.forward());
+    expect(window.location.pathname).toBe("/plan");
+  });
+
+  it("lets a primary tab navigate normally from the map root", () => {
+    const navigate = vi.fn();
+    const go = vi.spyOn(window.history, "go");
+    expect(requestMobileSheetDismiss(navigate)).toBe(false);
+    expect(go).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("lets a primary tab navigate normally without a map owner", async () => {
+    await act(async () => root.unmount());
+    root = createRoot(container);
+    const navigate = vi.fn();
+    expect(requestMobileSheetDismiss(navigate)).toBe(false);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  it("uses the latest primary tab while the return to Map is pending", async () => {
+    openSurfaces(venue);
+    const go = vi.spyOn(window.history, "go");
+    const first = vi.fn();
+    const latest = vi.fn(() => window.history.pushState(null, "", "/social"));
+    await traverse(() => {
+      expect(requestMobileSheetDismiss(first)).toBe(true);
+      expect(requestMobileSheetDismiss(latest)).toBe(true);
+    });
+    expect(go).toHaveBeenCalledOnce();
+    expect(first).not.toHaveBeenCalled();
+    expect(latest).toHaveBeenCalledOnce();
+    expect(window.location.pathname).toBe("/social");
+  });
+
+  it("discards a pending primary tab when traversal lands outside the map", () => {
+    openSurfaces(venue);
+    vi.spyOn(window.history, "go").mockImplementation(() => {});
+    const navigate = vi.fn();
+    act(() => { expect(requestMobileSheetDismiss(navigate)).toBe(true); });
+    act(() => {
+      window.history.replaceState(null, "", "/about");
+      window.dispatchEvent(new PopStateEvent("popstate", { state: null }));
+    });
+    act(() => {
+      const state = stampMapSurfaceHistory(null, [], "");
+      window.history.replaceState(state, "", "/map");
+      window.dispatchEvent(new PopStateEvent("popstate", { state }));
+    });
+    expect(navigate).not.toHaveBeenCalled();
+    expect(window.location.pathname).toBe("/map");
+  });
+
+  it("discards a pending primary tab after an interrupted traversal lands on a parent", () => {
+    openSurfaces(planner, venue);
+    vi.spyOn(window.history, "go").mockImplementation(() => {});
+    const navigate = vi.fn();
+    act(() => { expect(requestMobileSheetDismiss(navigate)).toBe(true); });
+    for (const stack of [[planner], []]) {
+      act(() => {
+        const state = stampMapSurfaceHistory(null, stack, "");
+        window.history.replaceState(state, "", "/map");
+        window.dispatchEvent(new PopStateEvent("popstate", { state }));
+      });
+    }
+    expect(navigate).not.toHaveBeenCalled();
+    expect(trail()).toEqual([]);
   });
 
   it("completes an area choice before opening a pub, so Back returns to the map", async () => {
@@ -270,6 +378,75 @@ describe("characterisation: map surface open, back, home and reorder", () => {
     window.history.replaceState({}, "", window.location.href);
     openSurfaces(venue);
     expect(readEntriesAboveRoot(window.history.state)).toBe(1);
+  });
+
+  it.each(["back", "browser back", "home"])("requests walk recovery once when %s closes a venue to the map", async (exit) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(venue);
+    expect(onVenueClose).not.toHaveBeenCalled();
+
+    await traverse(() => {
+      if (exit === "browser back") window.history.back();
+      else if (exit === "home") navigation.home();
+      else navigation.back();
+    });
+
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
+    await traverse(() => window.history.forward());
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: "venue" }));
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["planner", "venue-list", "landmark", "layers", "choose-area"])("requests walk recovery when a venue returns to %s", async (parent) => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces({ id: parent, title: "Parent" }, venue);
+    await traverse(() => navigation.back());
+    expect(onRestore).toHaveBeenLastCalledWith(expect.objectContaining({ id: parent }));
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
+    await traverse(() => navigation.back());
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["back", "home"])("does not request walk recovery without a walk after %s", async (exit) => {
+    openSurfaces(venue);
+    await traverse(() => exit === "home" ? navigation.home() : navigation.back());
+    expect(onVenueClose).not.toHaveBeenCalled();
+  });
+
+  it("does not close a venue while another surface covers it", async () => {
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(venue, { id: "layers", title: "Layers" });
+    expect(onVenueClose).not.toHaveBeenCalled();
+    await traverse(() => navigation.back());
+    expect(onVenueClose).not.toHaveBeenCalled();
+    await traverse(() => navigation.back());
+    expect(onVenueClose).toHaveBeenCalledOnce();
+  });
+
+  it.each(["back", "home"])("does not restore an older area over a mapped walk after %s", async (exit) => {
+    act(() => navigation.open({
+      ...planner,
+      state: { ...EMPTY_MAP_SURFACE_STATE, returnCamera: { center: viewport.center, zoom: viewport.zoom } },
+    }));
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: true })));
+    openSurfaces(venue);
+
+    await traverse(() => {
+      if (exit === "home") navigation.home();
+      else navigation.back();
+    });
+    if (exit === "back") await traverse(() => navigation.back());
+
+    expect(onRestore).toHaveBeenLastCalledWith(null);
+    expect(onReturnToMap).not.toHaveBeenCalled();
+    expect(onVenueClose).toHaveBeenCalledTimes(1);
+
+    await act(async () => root.render(createElement(Harness, { mappedRouteActive: false })));
+    await traverse(() => window.history.go(2));
+    await traverse(() => navigation.home());
+    expect(onReturnToMap).toHaveBeenLastCalledWith({ center: viewport.center, zoom: viewport.zoom });
   });
 
   it("restores the outgoing journey camera after traversing an earlier area", async () => {

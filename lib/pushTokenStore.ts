@@ -54,9 +54,8 @@ export function validatePushToken(raw: {
 export type PushTokenStore = {
   /** Register (or refresh) a device token. Idempotent per token. */
   save(input: PushTokenInput): Promise<PushTokenDTO>;
-  /** All registered device tokens. The send fan-out (lib/pushSender.ts) reads
-   *  this to resolve broadcast targets. Rows carry no identity, so this is the
-   *  ONLY targeting available until tokens gain identity — see pushSender. */
+  /** Public broadcast targets for lib/pushSender.ts.
+   *  Registration scopes are documented in docs/WEB_PUSH.md. */
   list(): Promise<PushTokenDTO[]>;
   /** Remove a token the push provider reported invalid (APNs 410 /
    *  BadDeviceToken). Idempotent — deleting an absent token is a no-op. */

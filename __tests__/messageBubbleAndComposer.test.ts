@@ -364,6 +364,7 @@ describe("private photo rendering", () => {
     await expect(photoBlob.text()).resolves.toBe("private");
     expect(host.querySelector("figure")).toBe(figure);
     expect(figure.style.getPropertyValue(MESSAGE_PHOTO_ASPECT_PROPERTY)).toBe("0.8");
+    await act(async () => host.querySelector<HTMLImageElement>("img[hidden]")!.dispatchEvent(new Event("load")));
     expect(host.querySelector(".messagePhotoPending")).toBeNull();
     expect(host.querySelector(".messagePhoto")?.getAttribute("src")).toBe("blob:private-photo");
     await act(async () => host.querySelector<HTMLButtonElement>(".messagePhotoButton")!.click());

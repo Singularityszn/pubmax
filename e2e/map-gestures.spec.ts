@@ -1,8 +1,14 @@
-import { expect, test, type CDPSession, type Page } from "@playwright/test";
+import { expect, test, type CDPSession, type Locator, type Page } from "@playwright/test";
+
+import recordedSohoWalk from "./fixtures/soho-walk-route.json";
 
 import { getCity } from "@/lib/cities";
 import { MAP_ARRIVAL_BEARING_DEG } from "@/lib/mapArrivalBearing";
-import { mobileMapShellControl } from "./helpers/mobileMapShell";
+import { MOBILE_SHEET_DISMISS_EVENT } from "@/lib/mobileShell";
+import { expectMapLoadingFrameReleased, mobileMapShellControl } from "./helpers/mobileMapShell";
+import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
+import { holdLondonAfternoon } from "./helpers/themeClock";
+import { installNativeShell } from "./helpers/nativeShell";
 
 // The map a reader turns with two fingers, in a real browser with a real
 // MapLibre canvas (this spec runs in the `chromium-gl` project).
@@ -87,6 +93,329 @@ test.beforeEach(async ({ page }) => {
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
 });
+
+for (const { width, height, delayedRoad, southEast = false } of [
+  { width: 768, height: 390, delayedRoad: false }, { width: 844, height: 390, delayedRoad: false },
+  { width: 844, height: 390, delayedRoad: true }, { width: 768, height: 1024, delayedRoad: true },
+  { width: 844, height: 390, delayedRoad: true, southEast: true },
+  { width: 390, height: 844, delayedRoad: true },
+]) for (const theme of ["light", "dark"]) {
+  test(`a ${height > width ? "portrait" : "short landscape"} walk keeps Ask and every stop tappable at ${width}px in ${theme}${delayedRoad ? " after a held road and resize" : ""}${southEast ? " with a southeast stop" : ""}`, async ({ page }, testInfo) => {
+    const stopIds = southEast ? ["venue-nyowgc", "venue-xiesdn", "venue-15i2wst"]
+      : ["venue-7tarkc", "venue-122cuu1", "venue-s2ppfm"];
+    const coordinates: [number, number][] = southEast
+      ? [[-0.137432, 51.5149], [-0.132014, 51.514], [-0.131572, 51.5125]]
+      : [[-0.134383, 51.5113], [-0.135402, 51.5108], [-0.135301, 51.5106]];
+    const openingViewport = height > width ? { width: 844, height: 390 } : { width, height };
+    await page.setViewportSize(openingViewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await holdLondonAfternoon(page);
+    await page.addInitScript(theme => {
+      localStorage.setItem("pubmax-theme", theme);
+      localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
+      localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
+      sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
+    }, theme);
+    if (width === 844 || width === 390) await installNativeShell(page, "ios");
+    await installDeterministicMapBasemap(page);
+    await page.route("**/api/citymcp/status**", route => route.fulfill({ json: {
+      asOf: null, weather: null, tubeLines: [], signals: [],
+    } }));
+    await page.route("**/api/whats-on**", route => route.fulfill({ json: {
+      servedAt: "2026-10-30T14:00:00Z", rows: [], asOf: null,
+      sourceObservedAt: null, sourceFreshnessKind: "unknown",
+    } }));
+    await page.route("**/api/citymcp/things-to-do**", route => route.fulfill({ json: { opportunities: [] } }));
+    let releaseRoad = () => {};
+    const roadGate = new Promise<void>(resolve => { releaseRoad = resolve; });
+    page.on("close", releaseRoad);
+    await page.route("**/api/walk-route?**", async route => {
+      if (delayedRoad) {
+        await roadGate;
+        await route.fulfill({ json: southEast ? { line: { type: "FeatureCollection", features: [{
+          type: "Feature", properties: { source: "straight" },
+          geometry: { type: "LineString", coordinates },
+        }] }, source: "straight" } : recordedSohoWalk });
+      } else await route.fulfill({
+        status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+      });
+    });
+    await page.goto(`/map?mode=build&pubs=${stopIds.join(",")}`);
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expectMapLoadingFrameReleased(page);
+    await expect(page.locator(".palSummonSignIn")).toBeVisible();
+    const readStops = () => page.evaluate(coordinates => {
+      const camera = (window as typeof window & {
+        __pubmaxMapCamera: { read(): CameraReading; project(point: [number, number]): { x: number; y: number } };
+      }).__pubmaxMapCamera;
+      const canvas = document.querySelector(".maplibregl-canvas");
+      // The route disc has a 16px radius and a 2.5px stroke. Sample its rim,
+      // since a clear centre alone allows chrome to cover the numbered stop.
+      const offsets = [[0, 0], [-22, 0], [22, 0], [0, -22], [0, 22], [-16, -16], [16, -16], [-16, 16], [16, 16]];
+      const points = coordinates.map(coordinate => camera.project(coordinate));
+      const state = camera.read();
+      return { settled: !state.moving && !state.settling, zoom: state.zoom, center: state.center, points,
+        obstructions: points.map(point => offsets.map(([x, y]) => {
+          const hit = document.elementFromPoint(point.x + x!, point.y + y!);
+          return hit === canvas ? null : hit?.className ?? "outside viewport";
+        }).filter(Boolean)) };
+    }, coordinates);
+    const expectClearStops = async (stage: string) => {
+      await expect.poll(async () => (await readStops()).settled).toBe(true);
+      await testInfo.attach(`${stage}-geometry`, { body: JSON.stringify(await readStops()), contentType: "application/json" });
+      await page.screenshot({ path: testInfo.outputPath(`${stage}-view.png`) });
+      await expect.poll(async () => (await readStops()).obstructions,
+        { message: "Every numbered stop rim must clear the toolbar and map controls" }).toEqual([[], [], []]);
+    };
+    await expectClearStops("initial");
+    const ask = page.getByRole("button", { name: "Ask the map", exact: true });
+    await expect(ask).toBeVisible();
+    const box = await ask.boundingBox();
+    expect(box?.width).toBe(44);
+    expect(box?.height).toBe(44);
+    await page.route("**/api/ask", route => route.fulfill({ json: {
+      answer: "No verified answer for this browser fixture.", cards: [], proposals: [], status: "ready",
+    } }));
+    const dialog = page.getByRole("dialog", { name: "Ask the map about a pub" });
+    const expectUncovered = async (control: Locator) => {
+      await control.scrollIntoViewIfNeeded();
+      const hits = await control.evaluate(element => {
+        const box = element.getBoundingClientRect();
+        return [[4, box.height / 2], [box.width - 4, box.height / 2],
+          [box.width / 2, 4], [box.width / 2, box.height - 4], [box.width / 2, box.height / 2]]
+          .map(([x, y]) => {
+            const hit = document.elementFromPoint(box.left + x!, box.top + y!);
+            return element.contains(hit) ? null : { hit: hit?.className, x: box.left + x!, y: box.top + y!, box: box.toJSON() };
+          }).filter(Boolean);
+      });
+      if (hits.length) await page.screenshot({ path: testInfo.outputPath("obstructed-control.png") });
+      expect(hits, "The entire actionable control must receive taps").toEqual([]);
+    };
+    const exerciseAsk = async (stage: "initial" | "recovered") => {
+      await ask.tap();
+      await expect(dialog).toBeVisible();
+      if (delayedRoad && stage === "initial") {
+        const initialZoom = (await readStops()).zoom;
+        const response = page.waitForResponse(response => response.url().includes("/api/walk-route?") && response.ok());
+        releaseRoad();
+        await response;
+        if (!southEast) await expect.poll(async () => Math.abs((await readStops()).zoom - initialZoom)).toBeGreaterThan(0.001);
+        const roadZoom = (await readStops()).zoom;
+        const refitViewport = width <= 640 ? openingViewport : { width, height };
+        await page.setViewportSize({ width: refitViewport.width - 10, height: refitViewport.height - 10 });
+        await expect.poll(async () => Math.abs((await readStops()).zoom - roadZoom)).toBeGreaterThan(0.001);
+        await expect.poll(async () => (await readStops()).settled).toBe(true);
+      }
+      await page.screenshot({ path: testInfo.outputPath(`${stage}-ask-open.png`) });
+      const input = dialog.locator("input");
+      const placeholder = await input.evaluate(element => {
+        const style = getComputedStyle(element);
+        const context = document.createElement("canvas").getContext("2d")!;
+        context.font = style.font;
+        context.letterSpacing = style.letterSpacing;
+        return {
+          textWidth: context.measureText(element.placeholder).width,
+          availableWidth: element.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight),
+        };
+      });
+      expect(placeholder.textWidth, "The full Ask placeholder must fit without clipping a glyph")
+        .toBeLessThanOrEqual(placeholder.availableWidth);
+      const close = dialog.getByRole("button", { name: "Close ask", exact: true });
+      await expectUncovered(close);
+      const examples = dialog.locator(".mapConciergeAskChip");
+      await expect(examples).toHaveCount(stage === "initial" || width <= 640 ? 4 : 0);
+      for (const example of await examples.all()) await expectUncovered(example);
+      if (await examples.count()) {
+        const request = page.waitForRequest(request => request.url().endsWith("/api/ask") && request.method() === "POST");
+        await examples.first().tap();
+        expect((await request).postDataJSON().query).toBe("Quiet-ish near Bank, 4 of us");
+        await expect(dialog.getByText("No verified answer for this browser fixture.", { exact: true })).toBeVisible();
+      }
+      await expectUncovered(input);
+      await input.tap();
+      await input.fill("Tube delays right now");
+      const submit = dialog.getByRole("button", { name: "Ask", exact: true });
+      await expectUncovered(submit);
+      const request = page.waitForRequest(request => request.url().endsWith("/api/ask") && request.method() === "POST");
+      await submit.tap();
+      expect((await request).postDataJSON().query).toBe("Tube delays right now");
+      await expect(submit).toBeEnabled();
+      await expectUncovered(close);
+      await close.tap();
+      await expect(ask).toBeVisible();
+    };
+    await exerciseAsk("initial");
+    // Ask belongs to the wider shell. Phone portrait restores its own chrome.
+    if (width <= 640) await page.setViewportSize({ width, height });
+    await expectClearStops("after-ask");
+    // Each disc must select its own venue, including the close Soho pair.
+    for (const [index, id] of stopIds.entries()) {
+      const walk = await readStops();
+      const stop = walk.points[index]!;
+      await page.touchscreen.tap(stop.x, stop.y);
+      await expect(page).toHaveURL(new RegExp(`sel=${id}`));
+      const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+      await expect(close).toBeVisible();
+      await expect.poll(async () => Math.hypot(...(await readStops()).center.map((value, axis) => value - walk.center[axis]!))).toBeGreaterThan(0.0000001);
+      await expect.poll(async () => (await readStops()).settled).toBe(true);
+      const selected = await readStops();
+      await close.tap();
+      await expect(page).not.toHaveURL(/sel=/);
+      await expect(page.locator("#main")).not.toHaveClass(/detail-open/);
+      await expect.poll(async () => Math.hypot(...(await readStops()).center.map((value, axis) => value - selected.center[axis]!))).toBeGreaterThan(0.0000001);
+      await expectClearStops(`recovered-${index + 1}`);
+    }
+    if (height > width) {
+      await page.setViewportSize(openingViewport);
+      await page.getByRole("button", { name: "Show whole walk", exact: true }).tap();
+      await expectClearStops("landscape-return");
+    }
+    await exerciseAsk("recovered");
+  });
+}
+
+for (const key of ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]) {
+  test(`closing a stop preserves the camera after ${key} panning`, async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await installDeterministicMapBasemap(page);
+    await page.goto("/map?mode=build&pubs=venue-7tarkc,venue-122cuu1,venue-s2ppfm&sel=venue-7tarkc");
+    const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+    await expect(close).toBeVisible();
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "3");
+    await expect(page.locator(".mapLoading")).toHaveCount(0);
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling;
+    }).toBe(true);
+    const before = await readCamera(page);
+    const canvas = page.locator(".maplibregl-canvas");
+    await canvas.focus();
+    await canvas.press(key);
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling
+        && Math.hypot(state.center[0] - before.center[0], state.center[1] - before.center[1]) > 0.00001;
+    }).toBe(true);
+    const panned = await readCamera(page);
+    await close.click();
+    await expect(close).not.toBeVisible();
+    await expect.poll(async () => {
+      const state = await readCamera(page);
+      return !state.moving && !state.settling;
+    }).toBe(true);
+    // The reader's chosen view is the oracle. A route fit after closure
+    // changes the centre or zoom and must fail this check.
+    const after = await readCamera(page);
+    expect(after.center[0]).toBeCloseTo(panned.center[0], 7);
+    expect(after.center[1]).toBeCloseTo(panned.center[1], 7);
+    expect(after.zoom).toBeCloseTo(panned.zoom, 7);
+    expect(after.bearing).toBeCloseTo(panned.bearing, 7);
+    expect(after.pitch).toBeCloseTo(panned.pitch, 7);
+  });
+}
+
+for (const exit of ["close button", "direct dismiss"] as const) {
+  for (const moved of [false, true]) {
+    test(`a cold mapped walk resolves after ${exit}, reader panned: ${moved}`, async ({ page, request }, testInfo) => {
+      await page.setViewportSize({ width: 1440, height: 900 });
+      await page.emulateMedia({ reducedMotion: "reduce" });
+      await installDeterministicMapBasemap(page);
+      await page.addInitScript(() => localStorage.setItem("pubmax-theme", "light"));
+      const delayedId = "venue-122cuu1";
+      const details = await Promise.all(["venue-7tarkc", delayedId].map(async id => {
+        const response = await request.get(`/api/venue/${id}`);
+        expect(response.ok()).toBe(true);
+        return response.json();
+      }));
+      await page.route("**/api/venue/venue-7tarkc*", route => route.fulfill({ json: details[0] }));
+      const core = await (await request.get("/data/venues_slim.core.json")).json();
+      const manifest = await (await request.get("/data/venues_slim.manifest.json")).json();
+      const rows = core.rows.filter((row: { id: string }) => row.id !== delayedId);
+      let releaseVenue!: () => void;
+      let requested = false;
+      const venueReady = new Promise<void>(resolve => { releaseVenue = resolve; });
+      page.on("close", releaseVenue);
+      await page.route(/\/data\/venues_slim(?:\.[^/?]+)?\.json(?:\?.*)?$/, route => route.fulfill({ json: { ...core, rows } }));
+      await page.route("**/data/venues_slim.manifest.json*", route => route.fulfill({ json: {
+        ...manifest, shards: [{ id: "cold-walk", core: true, partition: "grid", url: "/data/venues_slim.core.json",
+          count: rows.length, bbox: [-0.4, 51.3, 0.2, 51.8] }],
+      } }));
+      await page.route(`**/api/venue/${delayedId}*`, async route => {
+        requested = true;
+        await venueReady;
+        if (!page.isClosed()) await route.fulfill({ json: details[1] });
+      });
+      await page.route("**/api/walk-route?**", route => route.fulfill({
+        status: 503, json: { error: "Walking route unavailable.", code: "UNAVAILABLE", retryable: true },
+      }));
+      try {
+        await page.goto(`/map?mode=build&pubs=venue-7tarkc,${delayedId}&sel=venue-7tarkc`);
+        const close = page.getByRole("button", { name: "Close pub detail", exact: true });
+        await expect(close).toBeVisible();
+        await expect.poll(() => requested).toBe(true);
+        await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "0");
+        await expectMapLoadingFrameReleased(page);
+        await expect.poll(async () => {
+          const state = await readCamera(page);
+          return !state.moving && !state.settling;
+        }).toBe(true);
+        const selected = await readCamera(page);
+        if (moved) {
+          const canvas = page.locator(".maplibregl-canvas");
+          await canvas.focus();
+          await canvas.press("ArrowRight");
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            return !state.moving && Math.abs(state.center[0] - selected.center[0]) > 0.00001;
+          }).toBe(true);
+        }
+        const held = await readCamera(page);
+        await testInfo.attach("before-close", { body: await page.screenshot(), contentType: "image/png" });
+        if (exit === "close button") await close.click();
+        else await page.evaluate(event => window.dispatchEvent(new CustomEvent(event)), MOBILE_SHEET_DISMISS_EVENT);
+        await expect(close).not.toBeVisible();
+        const resolved = page.waitForResponse(response => response.url().includes(`/api/venue/${delayedId}`) && response.ok());
+        releaseVenue();
+        await (await resolved).finished();
+        await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("data-route-stops", "2");
+        await expect.poll(() => page.evaluate(() => (window as typeof window & {
+          __pubmaxPaintedMapTapPoints?: { state?: () => { sourceLoaded: Record<string, boolean | null> } };
+        }).__pubmaxPaintedMapTapPoints?.state?.().sourceLoaded["route-stops"])).toBe(true);
+        if (moved) {
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            return !state.moving && !state.settling;
+          }).toBe(true);
+          const after = await readCamera(page);
+          expect(after.center[0]).toBeCloseTo(held.center[0], 7);
+          expect(after.center[1]).toBeCloseTo(held.center[1], 7);
+          expect(after.zoom).toBeCloseTo(held.zoom, 7);
+        } else {
+          // Compare with the settled venue camera as well as the route band.
+          // Two visible projected stops alone do not prove recovery occurred.
+          await expect.poll(async () => {
+            const state = await readCamera(page);
+            const points = await Promise.all([
+              projectOnMap(page, [-0.134383, 51.5113]), projectOnMap(page, [-0.135402, 51.5108]),
+            ]);
+            return !state.moving && !state.settling
+              && (Math.abs(state.zoom - held.zoom) > 0.1
+                || Math.hypot(state.center[0] - held.center[0], state.center[1] - held.center[1]) > 0.0001)
+              && points.every(point =>
+              point.x >= 72 && point.x <= 1368 && point.y >= 300 && point.y <= 720)
+              && Math.hypot(points[0]!.x - points[1]!.x, points[0]!.y - points[1]!.y) >= 160;
+          }).toBe(true);
+        }
+        await testInfo.attach("camera-transition", { body: JSON.stringify({ selected, held, after: await readCamera(page) }),
+          contentType: "application/json" });
+        await testInfo.attach("after-resolution", { body: await page.screenshot(), contentType: "image/png" });
+      } finally {
+        releaseVenue();
+      }
+    });
+  }
+}
 
 async function readCamera(page: Page): Promise<CameraReading> {
   return page.evaluate(() => {
@@ -275,16 +604,21 @@ async function openAPin(page: Page, centre: TouchPoint): Promise<PaintedPoint> {
       - Math.hypot(right.x - centre.x, right.y - centre.y))[0];
 
   for (let attempt = 0; attempt < 6; attempt += 1) {
-    const painted = await paintedPoints(page);
+    let painted: PaintedPoint[] = [];
+    await expect.poll(async () => {
+      painted = await paintedPoints(page);
+      return painted.length;
+    }).toBeGreaterThan(0);
     const pins = painted.filter((point) => point.kind === "pin");
     if (pins.length > 0) return nearestTo(pins);
     const cluster = nearestTo(painted.filter((point) => point.kind === "cluster"));
     expect(cluster, "the map painted no marks at all").toBeTruthy();
+    const zoomBefore = (await readCamera(page)).zoom;
     await page.mouse.click(cluster.x, cluster.y);
-    await page.waitForTimeout(2_500);
+    await expect.poll(async () => (await readCamera(page)).zoom).toBeGreaterThan(zoomBefore);
     await expect.poll(async () => (await readCamera(page)).moving, { timeout: 20_000 })
       .toBe(false);
-    await page.waitForTimeout(1_500);
+    await expect.poll(async () => (await paintedPoints(page)).length).toBeGreaterThan(0);
   }
   throw new Error("no pub pin painted after opening the clusters");
 }
@@ -379,7 +713,11 @@ test("two fingers tilt the map, and the pins stay on the ground", async ({ page 
   // A tilt changes which marks survive symbol collision, so the anchoring
   // claim is made about a pin the map is STILL drawing rather than about one
   // chosen in advance. There has to be one, or the map emptied itself.
-  const pinsAfter = await paintedPoints(page);
+  let pinsAfter: PaintedPoint[] = [];
+  await expect.poll(async () => {
+    pinsAfter = await paintedPoints(page);
+    return pinsBefore.some((pin) => pinsAfter.some((point) => point.id === pin.id));
+  }).toBe(true);
   const before2 = pinsBefore.find((pin) => pinsAfter.some((point) => point.id === pin.id));
   expect(before2, "not one pin survived the tilt").toBeTruthy();
   if (!before2) return;

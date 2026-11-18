@@ -1,5 +1,7 @@
 import "server-only";
 
+import { MESSAGE_PHOTO_MAX_EDGE } from "@/lib/messagePhotoBudget";
+
 import { log } from "@/lib/log";
 
 // The bytes half of a message photo: the same journey an owned profile image
@@ -20,8 +22,6 @@ import {
   isMessagePhotoServingKey,
   MESSAGE_PHOTO_NOUN,
   MESSAGE_PHOTO_JPEG_QUALITY,
-  MESSAGE_PHOTO_OUTPUT_HEIGHT,
-  MESSAGE_PHOTO_OUTPUT_WIDTH,
   MESSAGE_PHOTO_STORAGE_PREFIX,
   messagePhotoServingKey,
   messagePhotoStagingKey,
@@ -77,11 +77,11 @@ export class MessagePhotoError extends Error {
   }
 }
 
-/** The shared journey, in the thread's own portrait box. */
+/** Fit the full frame inside the same box used by message preparation. */
 export async function prepareMessagePhoto(file: File): Promise<PreparedMessagePhoto> {
   return prepareUploadedImage(file, {
-    outputWidth: MESSAGE_PHOTO_OUTPUT_WIDTH,
-    outputHeight: MESSAGE_PHOTO_OUTPUT_HEIGHT,
+    outputWidth: MESSAGE_PHOTO_MAX_EDGE,
+    outputHeight: MESSAGE_PHOTO_MAX_EDGE,
     jpegQuality: MESSAGE_PHOTO_JPEG_QUALITY,
     noun: MESSAGE_PHOTO_NOUN,
     maxBytes: MESSAGE_PHOTO_MAX_BYTES,

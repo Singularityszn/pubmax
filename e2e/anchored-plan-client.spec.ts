@@ -70,7 +70,12 @@ for (const width of [390, 768, 1440]) {
         ],
       } }));
       await page.route("**/api/pint-drops?*", (route) => route.fulfill({ json: { drops: [] } }));
-      await page.route("**/api/price-submit?*", (route) => route.fulfill({ json: { prices: [] } }));
+      await page.route("**/api/price-submit?*", (route) => {
+        const params = new URL(route.request().url()).searchParams;
+        return route.fulfill({ json: params.get("scope") === "public-price-presence"
+          ? { presence: Object.fromEntries(params.getAll("venueId").map((id) => [id, "absent"])) }
+          : { prices: [] } });
+      });
       await page.goto("/plan");
       const accepted = page.locator(".planStop").first();
       await expect(accepted).toContainText("est. £5.75");

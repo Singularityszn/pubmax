@@ -12,6 +12,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({ useAuth: () => fixture.auth }
 vi.mock("@/components/auth/useViewerSession", () => ({
   useViewerSession: () => ({ signedIn: true, signedOut: false, unresolved: false }),
 }));
+vi.mock("@/lib/authProviderRevision", async (importOriginal) => ({
+  ...await importOriginal<typeof import("@/lib/authProviderRevision")>(),
+  readProviderAccountRevision: () => fixture.auth.accountRevision,
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/link", () => ({
   default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
@@ -28,6 +32,8 @@ const rows = [
   { id: "tom", otherHandle: "tom", lastBody: "At seven", unread: 0 },
   { id: "friday", kind: "group", title: "Friday regulars", otherHandle: "tom", memberHandles: ["alice", "tom", "maisie"], lastBody: "See you there", unread: 0 },
 ];
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 async function mount(): Promise<void> {
@@ -50,6 +56,7 @@ async function choose(label: string): Promise<void> {
   await act(async () => control!.click());
 }
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   fixture.auth = { user: { id: "alice-account" }, handle: "alice", accountRevision: 1 };
   fixture.request.mockReset().mockImplementation(() => Promise.resolve(Response.json({ conversations: rows })));
@@ -64,6 +71,42 @@ afterEach(async () => {
 });
 
 describe("message inbox filters", () => {
+  it.each(["alice", "ALICE"])("preserves a pending inbox read across equivalent auth updates (%s)", async (handle) => {
+    let answer!: (response: Response) => void;
+    fixture.request.mockImplementationOnce(() => new Promise<Response>((resolve) => { answer = resolve; }));
+    await mount();
+    expect(fixture.request).toHaveBeenCalledOnce();
+    const signal = fixture.request.mock.calls[0]![1].signal as AbortSignal;
+
+    fixture.auth = { ...fixture.auth, user: { id: "alice-account" }, handle };
+    await mount();
+    expect(fixture.request).toHaveBeenCalledOnce();
+    expect(signal.aborted).toBe(false);
+
+    await act(async () => answer(Response.json({ conversations: rows })));
+    expect(names()).toEqual(["/messages/maisie", "/messages/tom", "/messages/friday"]);
+  });
+
+  it.each([
+    ["account revision", "alice-account", "alice", 2],
+    ["user ID", "bob-account", "alice", 1],
+    ["canonical handle", "alice-account", "bob", 1],
+  ])("replaces a pending inbox read when the %s changes", async (_change, userId, handle, accountRevision) => {
+    const pending: Array<(response: Response) => void> = [];
+    fixture.request.mockImplementation(() => new Promise<Response>((resolve) => pending.push(resolve)));
+    await mount();
+    const signal = fixture.request.mock.calls[0]![1].signal as AbortSignal;
+
+    fixture.auth = { user: { id: userId }, handle, accountRevision };
+    await mount();
+    expect(signal.aborted).toBe(true);
+    expect(fixture.request).toHaveBeenCalledTimes(2);
+
+    await act(async () => pending[1]!(Response.json({ conversations: rows.slice(0, 1) })));
+    await act(async () => pending[0]!(Response.json({ conversations: rows })));
+    expect(names()).toEqual(["/messages/maisie"]);
+  });
+
   it("shows all conversations, only unread conversations, and only groups", async () => {
     await mount();
     expect(names()).toEqual(["/messages/maisie", "/messages/tom", "/messages/friday"]);

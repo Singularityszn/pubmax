@@ -183,10 +183,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     [router],
   );
 
-  const onPrimaryTabNavigate = useCallback(() => {
-    requestMobileSheetDismiss();
-  }, []);
-
   return (
     <nav
       className={"mobileTabBar" + (keyboardOpen ? " isKeyboardHidden" : "")}
@@ -239,7 +235,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 aria-label={tab.ariaLabel}
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
-                onClick={onPrimaryTabNavigate}
+                onNavigate={(event) => {
+                  if (requestMobileSheetDismiss(() => router.push(tab.href))) event.preventDefault();
+                }}
                 onMouseEnter={() => warmTab(tab.href)}
                 onFocus={() => warmTab(tab.href)}
                 onTouchStart={() => warmTab(tab.href)}

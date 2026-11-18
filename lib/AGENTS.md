@@ -10,7 +10,7 @@ Modules under `lib/`: the closed vocabularies, the policy leaves and the stores.
 - **A bill attachment does not verify a price.** See the [bill check rule](../docs/rules/lib-prices-trust-and-drinks.md#a-bill-earns-receipt-only-when-it-shows-the-price).
 - **A referral confers recognition only.** Nothing in the product may branch on it. `lib/referrals.ts` owns the rule, and `__tests__/referralMarkLaw.test.ts` fences it.
 - **A flow with three or more states is one machine.** A tagged union and one pure transition in one `lib/` leaf. Effects stay in the hook or the route. See [state machines](../docs/rules/state-machines.md).
-- **Push registration is identity-free by design.** `lib/pushTokenStore.ts` stores no account or plan identity.
+- **Push registration scopes:** see the [push runbook](../docs/WEB_PUSH.md).
 
 ## Detail
 
