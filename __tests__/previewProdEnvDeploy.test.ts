@@ -118,13 +118,16 @@ describe("what a production-environment preview may carry", () => {
     expect(isPlatformOwnedName("SUPABASE_URL")).toBe(false);
   });
 
-  it("carries each forwarded value to BOTH environments", () => {
+  it("carries each forwarded NAME to BOTH environments, never the value", () => {
+    // A `NAME=value` argument sits in `ps` output and shell history; the CLI
+    // resolves a bare `--env NAME` from the child's environment instead.
     expect(deployEnvFlags([["NEXT_PUBLIC_POSTHOG_HOST", "https://eu.i.posthog.com"]])).toEqual([
       "--build-env",
-      "NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com",
+      "NEXT_PUBLIC_POSTHOG_HOST",
       "--env",
-      "NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com",
+      "NEXT_PUBLIC_POSTHOG_HOST",
     ]);
+    expect(deployEnvFlags([["A", "secret-value"]]).join(" ")).not.toContain("secret-value");
   });
 });
 
@@ -183,10 +186,13 @@ describe("the command that makes the preview", () => {
     expect(source).not.toContain("--prebuilt\"");
   });
 
-  it("prints names, never values", () => {
+  it("prints names, never values, and never puts a value on a command line", () => {
     const source = read("scripts/deploy-preview-prod-env.mjs");
     expect(source).toContain("forwarded.map(([name]) => name).join");
     expect(source).not.toMatch(/console\.log\([^)]*forwarded\[0\]\[1\]/);
+    // The deploy child's argv carries names only; values ride in `env`.
+    expect(source).toContain("Object.fromEntries(forwarded)");
+    expect(source).not.toContain("${name}=${value}");
   });
 
   it("is documented with the exact command", () => {

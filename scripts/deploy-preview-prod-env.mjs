@@ -101,7 +101,15 @@ const deployScript = path.join(projectRoot, "scripts", "deploy-vercel.mjs");
 const deploy = spawnSync(
   process.execPath,
   [deployScript, ...deployEnvFlags(forwarded), ...forwardedArgs],
-  { cwd: projectRoot, stdio: "inherit" },
+  {
+    cwd: projectRoot,
+    stdio: "inherit",
+    // A `NAME=value` argument is world-readable in `ps` output, so the flags
+    // carry names only and each value rides in the child's environment.
+    // deploy-vercel.mjs hands process.env to the Vercel CLI, whose
+    // `--env NAME` / `--build-env NAME` flags read the value from it.
+    env: { ...process.env, ...Object.fromEntries(forwarded) },
+  },
 );
 
 if (deploy.error) {
