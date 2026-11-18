@@ -147,8 +147,12 @@ describe("Social Posts account resolution", () => {
     const slot = door.querySelector('section[aria-label="Social posts"]');
     expect(slot, "the pending account must reserve the door's slot").not.toBeNull();
     const content = slot!.querySelector(".emptyState")!.parentElement!;
+    // A cold notice chunk must commit before we record the reserved slot.
+    await vi.waitFor(async () => {
+      await act(async () => { await vi.dynamicImportSettled(); });
+      expect(door.querySelector(".socialLogInPublic") !== null).toBe(publicPrices);
+    });
     const pendingChildren = Array.from(door.children);
-    expect(door.querySelector(".socialLogInPublic") !== null).toBe(publicPrices);
     expect(pendingChildren[publicPrices ? 2 : 1]).toBe(slot);
     const sizingContent = content.textContent;
     // The sizing copy is the same shape as the answer (a one-line title and
