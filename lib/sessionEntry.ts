@@ -39,4 +39,3 @@ export function consumeDeepLinkBootEntry(path: string, storage?: Storage | null)
   markSessionEntryConsumed(storage);
   return true;
 }
-

@@ -22,4 +22,3 @@ export function identityHandleForOwner(
     ? candidate.handle
     : null;
 }
-

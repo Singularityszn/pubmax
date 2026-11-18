@@ -12,4 +12,3 @@ export function requestMobileSheetDismiss(navigate: () => void): boolean {
     detail: navigate,
   }));
 }
-

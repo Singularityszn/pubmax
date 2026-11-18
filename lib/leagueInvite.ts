@@ -31,4 +31,3 @@ export function safeLeagueInviteReturnTo(raw: string | null | undefined): Route 
   const code = raw.slice(LEAGUE_INVITE_PREFIX.length);
   return INVITE_CODE.test(code) ? leagueInvitePath(code) as Route : null;
 }
-
