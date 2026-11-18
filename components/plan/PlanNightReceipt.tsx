@@ -209,7 +209,7 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
   const status = recovering ? "Checking your receipt…" : state.phase === "unavailable" ? "We couldn't load your night receipt." : "";
   return (
     <>
-      <p className="sr-only" role="status">{status}</p>
+      <p className="sr-only" role="status" aria-label="Night receipt status">{status}</p>
       {receipt ? <Receipt receipt={receipt} headingRef={headingRef} /> : unavailable ? (
         <section className="planNightReceipt" aria-labelledby="plan-night-receipt-title" data-pending={busy}>
           <Kicker>Private to you</Kicker>
