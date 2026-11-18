@@ -89,6 +89,7 @@ drop trigger see_again_crew_hidden on public.social_crews;
 drop trigger see_again_plan_cancelled on public.plans;
 drop trigger see_again_member_invalidated on public.social_crew_members;
 drop function public.write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean);
+drop function public.export_visible_crew_see_again(uuid,integer);
 drop function public.read_social_crew_see_again(uuid,uuid,uuid);
 drop function public.export_social_crew_see_again(uuid,integer);
 drop function public.purge_expired_social_crew_see_again(integer);

@@ -1,5 +1,5 @@
-import { createCrewSeeAgainStore, type SeeAgainExportRead } from "@/lib/crewSeeAgainStore.server";
-import type { SeeAgainOwnRecord } from "@/lib/crewSeeAgain";
+import { createCrewSeeAgainStore, type SeeAgainExportRead, type SeeAgainConnectionExportRead } from "@/lib/crewSeeAgainStore.server";
+import type { SeeAgainOwnRecord, SeeAgainVisibleConnection } from "@/lib/crewSeeAgain";
 import { crewAttendanceExportStore, type CrewAttendanceExportRead } from "@/lib/crewAttendanceStore.server";
 import { crewRemovalCorrectionStore, type CrewRemovalCorrectionRead } from "@/lib/crewRemovalCorrectionStore.server";
 import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
@@ -212,6 +212,7 @@ export type AccountExportDeps = {
   crewRemovalCorrections(userId: string, limit: number): Promise<CrewRemovalCorrectionRead>;
   crewAttendance(userId: string, limit: number): Promise<CrewAttendanceExportRead>;
   crewSeeAgain(userId: string, limit: number): Promise<SeeAgainExportRead>;
+  crewSeeAgainConnections(userId: string, limit: number): Promise<SeeAgainConnectionExportRead>;
   pubListNightDrafts(userId: string, limit: number): Promise<PubListNightDraft[]>;
   leagues(userId: string): Promise<LeagueExportRecord[]>;
   nearbyVisits(userId: string): Promise<NearbyVisit[]>;
@@ -346,6 +347,7 @@ function storeDeps(): AccountExportDeps {
     crewRemovalCorrections: (userId, limit) => crewRemovalCorrectionStore().listForUser(userId, limit),
     crewAttendance: (userId, limit) => crewAttendanceExportStore().listForUser(userId, limit),
     crewSeeAgain: (userId, limit) => createCrewSeeAgainStore().listForUser(userId, limit),
+    crewSeeAgainConnections: (userId, limit) => createCrewSeeAgainStore().visibleForUser(userId, limit),
     pubListNightDrafts: listPubListNightDrafts,
     leagues: (userId) => leagueStore().exportFor(userId),
     nearbyVisits: (userId) => nearbyVisitStore().list(userId),
@@ -891,6 +893,13 @@ export async function buildAccountExport(
     })) };
   });
 
+  const crewSeeAgainConnections = await lane<SeeAgainVisibleConnection>(async () => {
+    const read = await deps.crewSeeAgainConnections(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
+    return { degraded: read.status === "degraded", items: read.records.map(row => ({
+      crewId: row.crewId, memberId: row.memberId, context: row.context,
+    })) };
+  });
+
   const pubListNightDrafts = await lane<PubListNightDraft>(async () => ({
     degraded: false,
     items: await deps.pubListNightDrafts(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
@@ -947,6 +956,7 @@ export async function buildAccountExport(
     crewRemovalCorrections,
     crewAttendance,
     crewSeeAgain,
+    crewSeeAgainConnections,
     pubListNightDrafts,
     leagues,
     nearbyVisits,

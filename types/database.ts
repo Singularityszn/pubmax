@@ -9086,6 +9086,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      export_visible_crew_see_again: {
+        Args: {
+          p_user: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       finalize_social_post_media_cleanup: {
         Args: {
           p_media_id: string | null;

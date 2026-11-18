@@ -1,12 +1,13 @@
 import "server-only";
-import { parseSeeAgain, parseSeeAgainOwnRecords, type SeeAgainDTO, type SeeAgainOwnRecord } from "@/lib/crewSeeAgain";
+import { parseSeeAgain, parseSeeAgainOwnRecords, parseSeeAgainVisibleConnections, type SeeAgainVisibleConnection, type SeeAgainDTO, type SeeAgainOwnRecord } from "@/lib/crewSeeAgain";
 import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { createDualBackendStore } from "@/lib/storeBackend";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 
-type Rpc = "read_social_crew_see_again" | "write_social_crew_see_again" | "export_social_crew_see_again" | "purge_expired_social_crew_see_again";
+type Rpc = "read_social_crew_see_again" | "write_social_crew_see_again" | "export_social_crew_see_again" | "export_visible_crew_see_again" | "purge_expired_social_crew_see_again";
 type Dependencies = { rpc(name: Rpc, input: Record<string, unknown>): Promise<unknown> };
+export type SeeAgainConnectionExportRead = { status: "ready" | "degraded"; records: SeeAgainVisibleConnection[] };
 export type SeeAgainExportRead = { status: "ready" | "degraded"; records: SeeAgainOwnRecord[] };
 const unavailable = (): never => { throw new SocialCrewStoreError("UNAVAILABLE", 503, "Reconnection is unavailable right now."); };
 const durable: Dependencies = {
@@ -19,7 +20,7 @@ const durable: Dependencies = {
 // Keyless mode has no trusted attendance source. It cannot invent eligible people.
 const memory: Dependencies = { async rpc(name) {
   if (name === "read_social_crew_see_again") return null;
-  if (name === "export_social_crew_see_again") return [];
+  if (name === "export_social_crew_see_again" || name === "export_visible_crew_see_again") return [];
   if (name === "purge_expired_social_crew_see_again") return { ok: true, deleted: 0 };
   return { ok: true };
 } };
@@ -43,6 +44,12 @@ export function createCrewSeeAgainStore(deps?: Dependencies) {
     async listForUser(userId: string, limit: number): Promise<SeeAgainExportRead> {
       try {
         const records = parseSeeAgainOwnRecords(await call("export_social_crew_see_again", { p_user: userId, p_limit: limit }));
+        return records ? { status: "ready", records } : { status: "degraded", records: [] };
+      } catch { return { status: "degraded", records: [] }; }
+    },
+    async visibleForUser(userId: string, limit: number): Promise<SeeAgainConnectionExportRead> {
+      try {
+        const records = parseSeeAgainVisibleConnections(await call("export_visible_crew_see_again", { p_user: userId, p_limit: limit }));
         return records ? { status: "ready", records } : { status: "degraded", records: [] };
       } catch { return { status: "degraded", records: [] }; }
     },

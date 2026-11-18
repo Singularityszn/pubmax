@@ -408,6 +408,35 @@ language sql stable security definer set search_path='' as $$
   ) owned;
 $$;
 
+-- Exporting a visible connection is an authorised product read. Take the full
+-- lock order for the selected Crew batch before reusing that guarded projection.
+create function public.export_visible_crew_see_again(p_user uuid,p_limit integer) returns jsonb
+language plpgsql security definer set search_path='' as $$
+declare actor uuid; profile uuid; crews uuid[]; crew uuid; view jsonb; entry jsonb; result jsonb:='[]';
+  bounded integer:=greatest(0,least(coalesce(p_limit,0),1001));
+begin
+  select id,profile_id into actor,profile from public.private_social_accounts
+    where supabase_user_id=p_user and ownership_state='active';
+  if actor is null or bounded=0 then return result; end if;
+  crews:=array(select c.id from public.social_crews c where c.id in (
+    select p.crew_id from public.social_crew_see_again_pairs p
+    where (p.low_account_id=actor or p.high_account_id=actor) and p.state='mutual' and p.expires_at>clock_timestamp()
+    order by p.crew_id,p.id limit bounded) order by c.id for update);
+  perform 1 from auth.users u join public.private_social_accounts a on a.supabase_user_id=u.id
+    join public.social_crew_members m on m.social_account_id=a.id
+    where m.crew_id=any(crews) and m.state='active' order by u.id for key share of u;
+  perform public._lock_social_participant_accounts(array(select m.social_account_id from public.social_crew_members m
+    where m.crew_id=any(crews) and m.state='active'));
+  foreach crew in array crews loop
+    view:=public.read_social_crew_see_again(actor,profile,crew);
+    for entry in select item from jsonb_array_elements(coalesce(view->'items','[]')) item where (item->>'mutual')::boolean loop
+      result:=result||jsonb_build_array(jsonb_build_object('crewId',crew,'memberId',entry->>'memberId','context','friendship'));
+    end loop;
+  end loop;
+  return coalesce((select jsonb_agg(item) from (select item from jsonb_array_elements(result) item limit bounded) limited),'[]');
+end;
+$$;
+
 create function public.purge_expired_social_crew_see_again(p_limit integer default 1000) returns jsonb
 language plpgsql security definer set search_path='' as $$
 declare pair record; deleted integer:=0; count_choices integer;
@@ -468,11 +497,11 @@ declare fn regprocedure;
 begin
   for fn in select p.oid::regprocedure from pg_proc p join pg_namespace n on n.oid=p.pronamespace
     where n.nspname='public' and (p.proname like '\_see\_again\_%' escape '\'
-      or p.proname in ('write_social_crew_see_again','read_social_crew_see_again','export_social_crew_see_again','purge_expired_social_crew_see_again'))
+      or p.proname in ('write_social_crew_see_again','read_social_crew_see_again','export_social_crew_see_again','export_visible_crew_see_again','purge_expired_social_crew_see_again'))
   loop execute format('revoke all on function %s from public,anon,authenticated,service_role',fn); end loop;
 end;
 $$;
 grant execute on function public.write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean),
   public.read_social_crew_see_again(uuid,uuid,uuid),public.export_social_crew_see_again(uuid,integer),
-  public.purge_expired_social_crew_see_again(integer) to service_role;
+  public.export_visible_crew_see_again(uuid,integer), public.purge_expired_social_crew_see_again(integer) to service_role;
 commit;

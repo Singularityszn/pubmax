@@ -3517,7 +3517,7 @@ describe("private Crew see-again (0250)", () => {
         where n.nspname='public' and left(p.proname,11)='_see_again_'`)).toBe("true");
     }
     for (const fn of ["write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean)", "read_social_crew_see_again(uuid,uuid,uuid)",
-      "export_social_crew_see_again(uuid,integer)", "purge_expired_social_crew_see_again(integer)"]) {
+      "export_social_crew_see_again(uuid,integer)", "export_visible_crew_see_again(uuid,integer)", "purge_expired_social_crew_see_again(integer)"]) {
       for (const role of ["anon", "authenticated"]) expect(truth(`select has_function_privilege('${role}','public.${fn}','execute')::text`)).toBe("false");
       expect(truth(`select has_function_privilege('service_role','public.${fn}','execute')::text`)).toBe("true");
     }

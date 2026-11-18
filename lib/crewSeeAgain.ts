@@ -74,3 +74,16 @@ export function nextSeeAgainView(state: SeeAgainView, event: SeeAgainEvent): See
     case "saved": return state.phase === "ready" ? { ...state, notice: "saved" } : state;
   }
 }
+
+export type SeeAgainVisibleConnection = { crewId: string; memberId: string; context: "friendship" };
+export function parseSeeAgainVisibleConnections(value: unknown): SeeAgainVisibleConnection[] | null {
+  if (!Array.isArray(value)) return null;
+  const result: SeeAgainVisibleConnection[] = [];
+  for (const raw of value) {
+    if (!raw || typeof raw !== "object") return null;
+    const row = raw as Record<string, unknown>;
+    if (!uuid(row.crewId) || !uuid(row.memberId) || row.context !== "friendship") return null;
+    result.push({ crewId: row.crewId, memberId: row.memberId, context: row.context });
+  }
+  return result;
+}
