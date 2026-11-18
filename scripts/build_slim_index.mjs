@@ -934,7 +934,7 @@ async function main() {
   ).flat();
   // One clock for the filter and the stamp. The famous-venue tests read
   // generatedAt back, so a later day cannot disagree with the rows this build kept.
-  // build:slim reuses the committed stamp; only --refresh reads the wall clock.
+  // Famous-seed admission reuses the committed stamp unless --refresh advances it.
   // A clock that would drop a shipped famous venue fails before any write.
   let lastSlim = null;
   try {
