@@ -630,6 +630,15 @@ export default function PrivacyPage() {
           without who recorded them or why.
         </p>
         <p className="legalBody">
+          If one person blocks another while both hold a place on the same
+          Crew night, a private safety case opens for a moderator. The night
+          goes on, and nobody on it is told about the case. The case names the
+          Crew, who blocked whom, and any moderator decision with its reason.
+          Only a moderator who has never been in that Crew, and the operators
+          who run PubMaxxing, can see it. You can still leave the Crew
+          yourself. Your data export does not include the case.
+        </p>
+        <p className="legalBody">
           After account deletion, we free your guest places and cancel the
           Crew nights you own during cleanup. Cleanup can be delayed. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
@@ -1077,7 +1086,10 @@ export default function PrivacyPage() {
             showing them and leaves them out of your export, and an operator
             cleanup deletes them with your reports in batches. Deleting your
             account deletes them, your reports and the write receipts that name
-            you, at once.
+            you, at once. Crew safety cases opened by a block expire 30 days
+            after the night closes. Deleting either account deletes them at
+            once. Deleting the Crew removes them, and an operator cleanup
+            deletes expired and left-over cases in batches.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

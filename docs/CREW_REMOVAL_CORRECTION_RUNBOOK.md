@@ -160,9 +160,63 @@ select public.purge_expired_social_crew_attendance(1000);
 
 A report goes with the mark it disputes: at expiry the list leaves it out, and the cleanup deletes it with the mark. Deleting a guest's account deletes their marks, their reports and the receipts about them in the same transaction. Rolling back 0247 deletes every mark, every report and every attendance receipt. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
 
+## Blocks between accepted members (0248)
+
+When one person blocks another while both hold a place on the same crew night, a private case opens for a moderator. The night continues. Nobody loses a place or a seat, and nobody is notified. No attendee, host or co-host can read the case. The blocker keeps the private **Leave this crew** action, which frees their place at once. A block never pauses or cancels the night.
+
+A later person who is blocked either way with an accepted member cannot join. Request, approval, invitation and invitation acceptance all answer "not found", as for an unknown crew (0245). The earlier accepted member keeps the place.
+
+There is no app screen for these cases. The `/admin` safety queue is bound to one configured moderator, so it cannot leave out a moderator who is in the crew. Use these service-only calls. Check the queue at least once a day until the night, and decide each case before the night starts.
+
+1. Read the open cases that you may decide. The list leaves out every case of a crew that you own or have any member row in, in any role or state. It also leaves out a case after either person leaves or is removed, after the block is lifted, after the night closes or is cancelled, and after expiry. Each entry names `caseId`, `crewId`, `nightStartsAt`, and for `blocker` and `blocked` the `memberId`, `handle`, `role` and `joinedAt`. The person with the earlier `joinedAt` was accepted first.
+
+   ```sql
+   set role service_role;
+   select jsonb_pretty(public.read_social_crew_block_cases_admin('<staff role id>', 50));
+   ```
+
+2. Decide. Keep both places with `'kept'` and no member. Or remove one of the two people with `'removed'` and that person's `memberId`. A removal works as a host removal does: that crew bars the person, their seat ends and the roster revision moves. The owner cannot be removed. The reason must have 3 to 500 characters.
+
+   ```sql
+   set role service_role;
+   select public.decide_social_crew_block_case_admin(
+     '<staff role id>', '<case id>', 'kept', null, '<reason>'
+   );
+   select public.decide_social_crew_block_case_admin(
+     '<staff role id>', '<case id>', 'removed', '<member id>', '<reason>'
+   );
+   ```
+
+| Answer | Meaning |
+| --- | --- |
+| `decided` | The case is closed with your decision, your name and your reason. No one is notified. |
+| `unchanged` | The case was already decided. The answer names that decision. Nothing changed. |
+| `forbidden` | You own the crew or have a member row in it. Ask a moderator who was never in that crew. |
+| `stale` | The person you named no longer holds the place. Read the queue again. |
+| `invalid` | The decision, member or reason is not valid. The member must be one of the two people, and not the owner. |
+| `expired`, `not_found` | The case expired, or the case, its crew or one of the two accounts was deleted. |
+| error `staff required` | The staff role is not an active moderator. |
+
+To lift a mistaken removal, use the correction in "Correct the removal" above. A new block after a decision opens a new case.
+
+### When the host is one of the two people
+
+A case can name the crew's owner, for example when a guest blocks the host. You cannot remove the owner, and a host never sees the case. The guest keeps **Leave this crew**, and keeps **Report** on the crew page for the host. That report goes to the `/admin` safety queue. When the configured `/admin` moderator owns the crew or has a member row in it, do not let that moderator decide the report. A moderator who was never in that crew reads it with `read_social_report_queue_admin` and decides it, and a suspension (`set_social_account_suspension_admin`) is global. Cancel the night only for a reason beyond the block itself.
+
+### Retention
+
+A case expires 30 days after the night closes (start plus 12 hours). From expiry the queue and the decision refuse it, but the row stays until the cleanup deletes it. Nothing schedules the cleanup. Run this until it answers `"deleted": 0`. Each call deletes at most 1,000 expired cases and cases whose crew is gone.
+
+```sql
+set role service_role;
+select public.purge_expired_social_crew_block_cases(1000);
+```
+
+Deleting either person's account deletes their cases in the same transaction. Deleting the crew's Plan deletes its cases. A block that lands while the Plan is being deleted can leave a case without a crew. No call reads it, and the cleanup deletes it. The own-record export does not include cases. Rolling back 0248 deletes every case and decision. It stops while cases exist, unless the session sets `pubmax.crew_block_cases_discarded` to the exact row count. A removal a moderator decided stays after the rollback.
+
 ## Rollback
 
-Roll back 0247 before 0246, and 0246 before 0245. The 0245 rollback refuses to start while the 0246 release function exists.
+Roll back 0248 before 0247, 0247 before 0246, and 0246 before 0245. The 0245 rollback refuses to start while the 0246 release function exists.
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 
