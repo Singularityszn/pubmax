@@ -10,6 +10,7 @@ import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
 import { nextSeeAgainView, parseSeeAgain, type SeeAgainDTO, type SeeAgainItem } from "@/lib/crewSeeAgain";
 import type { SocialCrewRole, SocialCrewVisibility } from "@/lib/socialCrew";
 import { displayHandle } from "@/lib/handleDisplay";
+import { discardBody } from "@/lib/responseBody";
 import { useRefreshAt } from "@/lib/useRefreshAt";
 import "@/components/social/crewSeeAgain.css";
 
@@ -56,6 +57,7 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
     try {
       const response = await authedFetch(path, { cache: "no-store", signal: controller.signal }, { requiresIdentity: true });
       const data = response.ok ? parseSeeAgain(await response.json()) : null;
+      if (!response.ok) discardBody(response);
       if (!active.current || accountSignal.aborted || attempt !== generation.current) return null;
       dispatch(data ? { type: "loaded", scope, data }
         : { type: response.status === 404 || response.status === 403 || response.status === 401 || response.ok ? "hidden" : "failed", scope });
@@ -102,6 +104,7 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ memberId: item.memberId, context: "friendship", action, consent: action === "choose" && consent }),
         }, { requiresIdentity: true });
+        discardBody(response);
         if (!active.current || accountSignal.aborted) return;
         if (!response.ok) { dispatch({ type: "failed", scope }); return; }
         await refresh();
