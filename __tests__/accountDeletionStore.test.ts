@@ -365,23 +365,27 @@ describe("deleteOwnAccount", () => {
     expect(fake.removed.length).toBeGreaterThan(0);
   });
 
-  it("warns that crew cleanup may remain when the sweep fills its batch, and the deleted account still answers deleted", async () => {
+  it("does not claim that crew cleanup may remain below the batch limit", async () => {
     const fake = fakeDeps();
-    seedPhotos(fake);
     fake.releaseAnswer = { ok: true, crews: 19, released: 25 };
     expect(await deleteOwnAccount(USER, fake)).toBe("deleted");
     expect(logged.events.map((line) => line.event)).not.toContain("account.delete_crew_release_batch_full");
+  });
 
+  it.each(["deleted", "already-gone"] as const)("keeps %s and removes this call's photos after a full crew batch", async (outcome) => {
+    const fake = fakeDeps();
+    const owned = seedPhotos(fake);
     fake.releaseAnswer = { ok: true, crews: 20, released: 31 };
-    fake.authError = { status: 404, code: "user_not_found", message: "User not found" };
-    expect(await deleteOwnAccount(USER, fake)).toBe("already-gone");
+    if (outcome === "already-gone") fake.authError = { status: 404, code: "user_not_found", message: "User not found" };
+    expect(await deleteOwnAccount(USER, fake)).toBe(outcome);
     expect(logged.lines).toContainEqual({
       level: "warn",
       event: "account.delete_crew_release_batch_full",
       context: { stage: "crew_release", crews: 20, released: 31, limit: 20 },
     });
     expect(logged.events.map((line) => line.event)).not.toContain("account.delete_crew_release_failed");
-    expect(fake.removed.length).toBeGreaterThan(0);
+    for (const object of owned) expect(fake.bucket.has(object)).toBe(false);
+    expect(fake.bucket.has(`night-moments/other-user/${MEMORY}/photo.jpg`)).toBe(true);
   });
 
   it.each([
