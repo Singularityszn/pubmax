@@ -214,6 +214,61 @@ describe("the private Night Receipt on the Plan page", () => {
     expect(receiptReads()).toHaveLength(1);
   });
 
+  it("reads once for an already-bound host, including after its token refreshes", async () => {
+    claimAnswer = async () => json({ claimed: false, role: "host" });
+    receiptAnswer = async () => json({ receipt: RECEIPT });
+    const mountedPlan = () => createElement(Fragment, null,
+      createElement(ActivePlanMarker, { id: PLAN_ID, startTime: "2026-11-14T19:00:00.000Z" }),
+      createElement(PlanNightReceipt, { planId: PLAN_ID }),
+    );
+    await act(async () => { root.render(mountedPlan()); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+    expect(receiptReads()).toHaveLength(1);
+
+    auth.account = { ...ACCOUNT_A, token: "refreshed-token-a" };
+    await act(async () => { root.render(mountedPlan()); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+    expect(receiptReads()).toHaveLength(2);
+  });
+
+  it.each([
+    ["a server outage", async () => json({ retryable: true }, 503)],
+    ["a network failure", async () => { throw new TypeError("Failed to fetch"); }],
+  ] as Array<[string, Answer]>)("offers a retry after %s without keeping private receipt data", async (_label, failure) => {
+    vi.useFakeTimers();
+    await show();
+    receiptAnswer = failure;
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptOnScreen()).toBeNull();
+    const retry = container.querySelector<HTMLButtonElement>("button");
+    expect(retry).not.toBeNull();
+    receiptAnswer = ownerOnly;
+    await act(async () => { retry!.click(); });
+    await settle();
+    expect(receiptReads()).toHaveLength(3);
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
+  it("restores an unavailable receipt when the network returns without a focus change", async () => {
+    vi.useFakeTimers();
+    await show();
+    receiptAnswer = async () => json({ retryable: true }, 503);
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptOnScreen()).toBeNull();
+    receiptAnswer = ownerOnly;
+    await act(async () => { window.dispatchEvent(new Event("online")); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptReads()).toHaveLength(3);
+    expect(receiptOnScreen()).not.toBeNull();
+  });
+
   it("recovers an exhausted transient host claim when the app returns", async () => {
     vi.useFakeTimers();
     let bound = false;
