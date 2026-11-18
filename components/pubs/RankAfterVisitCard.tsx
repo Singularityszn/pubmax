@@ -60,7 +60,7 @@ type Phase =
   | { kind: "compare"; band: SocialPubBand; session: SocialPubComparison }
   | { kind: "checking" | "recover"; pending: PendingSave }
   | { kind: "done"; shared: boolean | null };
-type ListRead = { kind: "entries"; list: Loaded } | { kind: "refused" | "unavailable" };
+type ListRead = { kind: "entries"; list: Loaded } | { kind: "refused" } | { kind: "unavailable" };
 
 function priceLine(price: number | null | undefined): string {
   return typeof price === "number" ? formatGbp(price) : "No price listed";
