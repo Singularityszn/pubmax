@@ -281,6 +281,11 @@ begin
   perform 1 from auth.users where id=v_user for key share;
   if not found then return jsonb_build_object('ok',false,'code','gone'); end if;
   perform public._lock_social_participant_accounts(array[v_member.social_account_id]);
+  -- Revocation can commit during the waits. SHARE keeps authority through the write.
+  select staff.* into v_staff from public.private_social_staff_roles staff
+  where staff.id=p_staff_role_id and staff.profile_id=v_staff.profile_id
+    and staff.active and staff.revoked_at is null and staff.role='moderator' for share;
+  if v_staff.id is null then raise exception 'staff required'; end if;
   -- A participant never decides their own crew's dispute, nor a moderator their own
   -- disputed mark.
   if public._social_crew_attendance_moderator_conflicted(v_staff.profile_id,p_crew_id,v_member.social_account_id) then
