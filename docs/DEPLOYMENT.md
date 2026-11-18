@@ -201,8 +201,8 @@ confirms both the canonical callback address and signed-in session.
 Set `NEXT_PUBLIC_SITE_URL=https://pubmaxxing.com` in every deployed Vercel
 environment, including previews. This is a captain-owned setting and its
 presence in repository documentation is not evidence that every Vercel
-environment is configured completely. Deployed auth always requests the apex
-callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejected
+environment is configured completely. Deployed email and OAuth sign-in always
+request the apex callback, so do not allowlist `*.vercel.app`, preview hosts, or `www`. A rejected
 `redirectTo` makes Supabase fall back to Site URL. If Site URL points at a
 deployment host, an email link lands on the wrong origin without the initiating
 origin's attempt record or stored return fragment.
@@ -295,6 +295,8 @@ Committing this file does not install it in Supabase.
 3. Keep **Magic Link** unchanged and retain the Site URL and redirect URLs specified in [URL configuration](#captain-owned-supabase-url-config).
 
 The default recovery confirmation link does not match this app's reset flow.
+The repository template uses Supabase's Site URL, so reset links open that origin regardless of the request's `redirectTo`.
+Allowlisting localhost does not change that destination.
 The [password recovery contract](rules/app-auth-and-account-routes.md#password-recovery) owns proof handling and session installation.
 Dashboard changes require the captain's authorisation.
 Repository checks do not prove that the remote template or email delivery is configured.

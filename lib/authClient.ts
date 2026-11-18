@@ -1,10 +1,10 @@
-// Browser-only Supabase clients for OAuth and passwordless email sign-in.
+// Browser-only Supabase Auth clients.
 //
 // This is DISTINCT from lib/supabase.ts: that module is the server-only ADMIN
-// client (service-role key, no session persistence, all writes route through it).
+// client (service-role key, no session persistence).
 // This one runs in the browser, is built from the public anon/publishable key,
-// and its only job is to establish an authenticated session (identity) via
-// Supabase Auth. It never touches privileged tables.
+// and handles sign-in and password recovery through Supabase Auth.
+// It never touches privileged tables.
 //
 // The canonical singleton uses implicit auth so an email link can complete
 // in another browser. A verifier confined to the requesting browser would
@@ -23,8 +23,8 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
 // the browser critical path instead of loading on every route via this module.
-// Both the module import and the client construction are memoized so concurrent
-// callers never double-import or build two clients. `cached` mirrors the resolved
+// The module import and canonical client construction are memoized so concurrent
+// callers share the canonical client. `cached` mirrors the resolved
 // client synchronously for the best-effort sync accessor below.
 let modulePromise: Promise<typeof import("@supabase/supabase-js")> | undefined;
 let clientPromise: Promise<SupabaseClient | null> | undefined;

@@ -33,6 +33,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   2. Enter your account email. Select **Send reset link**.
   3. Open the email link. Enter and confirm a new password. Select **Save new password**.
 
+  If the page asks you to finish signing in, select **Finish signing in**. If it offers manual sign-in, use your new password.
+
   If the link expires or was already used, request another one. An account without an email cannot receive a reset link.
 
   After an offline start, reconnect or return to the app to retry the sign-in check. Once the check confirms you are signed out, you can retry **Continue with Apple** without restarting the iPhone app.
