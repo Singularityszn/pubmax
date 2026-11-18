@@ -45,7 +45,7 @@ function record(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+function allowedKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
   const allowed = new Set(keys);
   return Object.keys(value).every((key) => allowed.has(key));
 }
@@ -92,7 +92,7 @@ async function reportInput(
 ): Promise<{ kind: SocialReportKind; id: string; reason: SocialReportReason }> {
   const kind = SOCIAL_REPORT_KINDS.find((candidate) => candidate === input.kind);
   const reason = SOCIAL_REPORT_REASONS.find((candidate) => candidate === input.reason);
-  if (reason && kind === "profile" && exactKeys(input, ["action", "kind", "targetHandle", "reason"])) {
+  if (reason && kind === "profile" && allowedKeys(input, ["action", "kind", "targetHandle", "reason"])) {
     return { kind: "profile", id: await targetProfileId(input), reason };
   }
   const targetId = id(input.id);
@@ -100,7 +100,7 @@ async function reportInput(
     reason &&
     targetId &&
     kind && kind !== "profile" &&
-    exactKeys(input, ["action", "kind", "id", "reason"])
+    allowedKeys(input, ["action", "kind", "id", "reason"])
   ) {
     return { kind, id: targetId, reason };
   }
@@ -240,13 +240,13 @@ export async function PUT(request: Request): Promise<Response> {
     return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   }
   try {
-    if (input.action === "desired" && exactKeys(input, ["action", "postId", "kind"])) {
+    if (input.action === "desired" && allowedKeys(input, ["action", "postId", "kind"])) {
       const postId = id(input.postId);
       if (!postId || !["cheer", "save", "repost"].includes(String(input.kind))) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Interaction details are not valid.");
       await socialInteractionStore().setDesired(access.actor, postId, input.kind as "cheer" | "save" | "repost", true);
       return privateJson({ ok: true });
     }
-    if (input.action === "comment_policy" && exactKeys(input, ["action", "postId", "policy"])) {
+    if (input.action === "comment_policy" && allowedKeys(input, ["action", "postId", "policy"])) {
       const postId = id(input.postId);
       if (!postId || !["open", "friends", "locked"].includes(String(input.policy))) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Comment policy is not valid.");
       await socialInteractionStore().setCommentPolicy(access.actor, postId, input.policy as "open" | "friends" | "locked");
@@ -272,7 +272,7 @@ export async function DELETE(request: Request): Promise<Response> {
   if ("response" in access) return access.response;
   if (!input || typeof input.action !== "string") return publicApiError("Request body is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
-    if (input.action === "desired" && exactKeys(input, ["action", "postId", "kind"])) {
+    if (input.action === "desired" && allowedKeys(input, ["action", "postId", "kind"])) {
       const postId = id(input.postId);
       if (!postId || !["cheer", "save", "repost"].includes(String(input.kind))) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Interaction details are not valid.");
       await socialInteractionStore().setDesired(access.actor, postId, input.kind as "cheer" | "save" | "repost", false);
@@ -302,13 +302,13 @@ export async function POST(request: Request): Promise<Response> {
   if ("response" in access) return access.response;
   const idempotencyKey = request.headers.get("idempotency-key");
   try {
-    if (input.action === "comment" && exactKeys(input, ["action", "postId", "body"])) {
+    if (input.action === "comment" && allowedKeys(input, ["action", "postId", "body"])) {
       const postId = id(input.postId);
       if (!postId || !validIdempotencyKey(idempotencyKey)) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Comment request is not valid.");
       const comment = await socialInteractionStore().createComment(access.actor, postId, { body: input.body as string, idempotencyKey });
       return privateJson({ comment }, { status: 202 });
     }
-    if (input.action === "quote" && exactKeys(input, ["action", "postId", "body", "visibility"])) {
+    if (input.action === "quote" && allowedKeys(input, ["action", "postId", "body", "visibility"])) {
       const postId = id(input.postId);
       if (!postId || !validIdempotencyKey(idempotencyKey)) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Quote request is not valid.");
       const quote = await socialInteractionStore().createQuote(access.actor, postId, {
@@ -318,7 +318,7 @@ export async function POST(request: Request): Promise<Response> {
       });
       return privateJson({ quote }, { status: 202 });
     }
-    if (input.action === "feature_update" && exactKeys(input, ["action", "postId", "status", "response"])) {
+    if (input.action === "feature_update" && allowedKeys(input, ["action", "postId", "status", "response"])) {
       const postId = id(input.postId);
       if (!postId || !validIdempotencyKey(idempotencyKey)) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Feature update request is not valid.");
       const update = await socialInteractionStore().updateFeatureRequest(access.actor, postId, {
@@ -332,19 +332,19 @@ export async function POST(request: Request): Promise<Response> {
       const report = await socialInteractionStore().report(access.actor, await reportInput(input));
       return privateJson({ report }, { status: 202 });
     }
-    if (input.action === "notification_read" && exactKeys(input, ["action", "id", "read"])) {
+    if (input.action === "notification_read" && allowedKeys(input, ["action", "id", "read"])) {
       const notificationId = id(input.id);
       if (!notificationId || typeof input.read !== "boolean") throw new SocialInteractionStoreError("INVALID_INTERACTION", "Notification change is not valid.");
       await socialInteractionStore().markNotificationRead(access.actor, notificationId, input.read);
       return privateJson({ ok: true });
     }
-    if (input.action === "report_resolution" && exactKeys(input, ["action", "id"])) {
+    if (input.action === "report_resolution" && allowedKeys(input, ["action", "id"])) {
       const reportId = id(input.id);
       if (!reportId) throw new SocialInteractionStoreError("INVALID_INTERACTION", "Report resolution is not valid.");
       await socialInteractionStore().resolveReport(access.actor, reportId);
       return privateJson({ ok: true });
     }
-    if (input.action === "moderate" && exactKeys(input, ["action", "kind", "id", "decision"])) {
+    if (input.action === "moderate" && allowedKeys(input, ["action", "kind", "id", "decision"])) {
       const targetId = id(input.id);
       if (!targetId || !["comment", "quote"].includes(String(input.kind)) || !["hide", "restore"].includes(String(input.decision))) {
         throw new SocialInteractionStoreError("INVALID_INTERACTION", "Moderation details are not valid.");
