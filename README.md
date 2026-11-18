@@ -425,7 +425,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Available Social notifications appear in **Activity** in the desktop sidebar.
 
-  If a refresh fails, the feed keeps its loaded posts and offers **Retry**. If **Load more** fails, choose **Try again** below the posts. Choose **Refresh posts** to replace the loaded posts with the latest feed, including when new posts are waiting. Automatic refresh pauses after you load more than three pages so your place stays stable.
+  If a refresh fails, the feed keeps its loaded posts and offers **Retry**. If **Load more** fails, choose **Try again** below the posts. Choose **Refresh posts** to replace the loaded posts with up to three pages of the latest feed. This also shows new posts that are waiting. Automatic refresh pauses when the feed holds more than three pages so your place stays stable.
 
   In **Following**, **Your mates' pints and challenges** shows recent Pint Drops and finished challenges from people you follow who also follow you. You need verified Social access. The section shows five rows first. **Show more from your mates** reveals the remaining rows, up to 20 per read, newest first. A pint row names the mate, pub, drink and date, with the price and bill-check status when recorded. Select a pint row to open the pub on the map. A challenge row names the mate, challenge and finish date. Select it to open the mate's profile.
 
@@ -481,7 +481,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   With message alerts enabled, a new incoming message can show an in-app notice linking to its chat. The notice shows the conversation name, with no message text. It excludes the chat you are viewing and respects chat mutes, sender mutes and blocks. Choose **Dismiss message notification** to close it.
 
-  Scroll within the message list to read earlier messages. While you read earlier messages, new messages preserve your reading position. Sending a message returns to the newest message.
+  A chat opens at its newest message. Scroll within the message list to read earlier messages. Reading earlier messages keeps your place during refreshes, new messages and viewport changes. Sending a message returns to the newest message.
 
   In a direct or group chat, tap, hover over, or focus one of your sent messages. Choose **Unsend** from the revealed actions. Confirm the removal. Everyone sees **Message unsent** instead of its text or attachment. The [permission matrix](docs/security/PERMISSION_MATRIX.md) explains access to reported content after an unsend.
 
@@ -492,8 +492,6 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   If PUBMAXX cannot check your profile, the inbox shows a retry action. A failed refresh keeps previously loaded conversations. Within the inbox limit, a failed check for new messages in one deleted chat keeps that chat and the others visible. Messages from before deletion stay hidden, and the inbox shows an availability notice. When the check succeeds, the restored chat sorts and displays its newest message time.
 
   While a chat loads its first history or retries a failed read, **Back to inbox** remains available. The message field stays unavailable until history loads. If a later refresh fails, the chat keeps its loaded messages and offers **Try again**.
-
-  A chat opens at its newest message. Reading older messages keeps your place during refreshes and viewport changes. Sending a message returns you to the newest message.
 
   Use **Add an attachment** on a phone or **More to attach** on desktop to open the attachment chooser. It appears as a bottom sheet on phones and a centred dialog on larger screens.
 
