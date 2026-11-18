@@ -153,14 +153,15 @@ function HydratedWalk({ arrival, search }: { arrival: string; search: string }) 
   const [activeCrawl, setActiveCrawl] = useActiveCuratedCrawl<CuratedCrawl>(null, plan.walkRequest);
   const [filters, setFilters] = useState(seed.filters);
   const [altStyle, setAltStyle] = useState(seed.altStyle);
+  const { setMode, setBuiltIds, setRouteMapped } = plan;
   const applyHydration = useCallback((hydration: CuratedCrawlHydration) => {
-    plan.setMode("build");
-    plan.setBuiltIds(hydration.crawl.venueIds);
-    plan.setRouteMapped(true);
+    setMode("build");
+    setBuiltIds(hydration.crawl.venueIds);
+    setRouteMapped(true);
     setFilters(hydration.filters);
     setAltStyle(hydration.altStyle);
     setActiveCrawl(hydration.crawl);
-  }, [plan.setMode, plan.setBuiltIds, plan.setRouteMapped, setActiveCrawl]);
+  }, [setMode, setBuiltIds, setRouteMapped, setActiveCrawl]);
   const pending = useCuratedCrawlHydration({
     arrivalSearch: arrival, cityId: "london", seed, walkRequest: plan.walkRequest,
     snapshot: { mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped, activeCrawl, filters, altStyle },

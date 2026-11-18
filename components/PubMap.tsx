@@ -1,5 +1,7 @@
 "use client";
 
+import MapPlannerPanel from "@/components/map/pubmap/MapPlannerPanel";
+
 import { nextCameraRequestToken } from "@/lib/cameraIntent";
 import { useBuiltRouteHydration } from "@/components/map/pubmap/useBuiltRouteHydration";
 import { useNearMeRequests, type PendingNearMeRequest } from "@/components/map/pubmap/useNearMeRequests";
@@ -187,13 +189,6 @@ import { Sheet } from "@/components/ui/sheet";
 import { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
-const MobilePlanActivation = dynamic(
-  () =>
-    import("@/components/plan/MobilePlanEntry").then(
-      (m) => m.MobilePlanEntry,
-    ),
-  { ssr: false },
-);
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const SpoonsValueLensControl = dynamic(
   () => import("@/components/map/SpoonsValueLensControl"),
@@ -276,13 +271,7 @@ const MobileTflPanel = dynamic(() => import("@/components/mobile/MobileTflPanel"
 // them via next/dynamic (ssr:false — the whole PubMap tree is already client
 // only) splits each into its own lazy chunk fetched on demand, so a cold mobile
 // /map load ships materially less JS to parse before first tile paint.
-const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
-  ssr: false,
-});
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
-const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
-  ssr: false,
-});
 const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip"), {
   ssr: false,
 });
@@ -710,8 +699,6 @@ import {
   type MapSelectionNotice,
   type VenueDetailStatus,
   builtStopCountFor,
-  phonePlannerOrder,
-  plannerDefaultDrinkSelection,
   routeDrinkLensCategory,
   routeDrinkSelection,
 } from "@/lib/pubMap";
@@ -972,13 +959,6 @@ const BUILT_STORAGE_KEY = "pubmax_built_ids";
 
 const TONIGHT_OVERLAY_DISMISSED_KEY = "pubmaxx.tonightOverlay.dismissed";
 const EMPTY_ROUTE: Venue[] = [];
-/** No crawl held: the three fields RoutePanel reads travel together or not at all. */
-const EMPTY_CRAWL_FIELDS = {
-  blurb: undefined,
-  name: undefined,
-  id: undefined,
-} satisfies { blurb?: string; name?: string; id?: string };
-
 /** Camera-settle debounce before one viewport's base pubs are read for marks. */
 const PROVISIONAL_BASE_SETTLE_MS = 1_000;
 /**
@@ -5461,13 +5441,6 @@ export default function PubMap({
     });
   // Show the first four curated crawls as the onboarding picks.
 
-  function renderPlannerMapButton() {
-    return !mobileViewport ? <button type="button" className="plannerMapButton" onClick={exitPlanning}>
-      <MapPinned size={16} aria-hidden="true" />
-      View {mapDisplayName} map
-    </button> : null;
-  }
-
   /* An empty planner says which filter emptied it, and hands back the way out. */
   function renderPlannerEmptyState() {
     if (!loaded || filteredPubVenueCount !== 0) return null;
@@ -5495,99 +5468,81 @@ export default function PubMap({
     );
   }
 
-  // The crawl's own fields, read once: a RoutePanel prop chain of optional
-  // reads is four branches for three strings that always travel together.
-  const { blurb: activeCrawlBlurb, name: activeCrawlName, id: activeCrawlId } =
-    activeCrawl ?? EMPTY_CRAWL_FIELDS;
-  const selectedVenueIdOrUndefined = selectedVenue ? selectedVenue.id : undefined;
-
-  const plannerDrinkSelection = experienceLens === "all" ? filters : undefined;
-  const phoneDescribeForm = mobileViewport && isLondon ? (
-      <MobilePlanActivation
-        key="phone-describe-form"
-        crawls={cityCuratedCrawls}
-        onLoadCrawl={loadCuratedCrawl}
-        cityId={cityId}
-        initialNightArea={phonePlanArea?.slug ?? null}
-        venuesById={venuesById}
-        defaultDrinkSelection={plannerDefaultDrinkSelection(experienceLens, plannerDrinkSelection)}
-        onGenerated={applyGeneratedMobilePlan}
-      />
-  ) : null;
-  const plannerOrder = phonePlannerOrder({ mobileViewport, mode, builtCount: builtIds.length });
-  const builtCrawlLeads = plannerOrder === "build-first";
-  const [plannerHead, plannerFoot] = builtCrawlLeads
-    ? [null, phoneDescribeForm]
-    : [phoneDescribeForm, null];
-  const plannerPanel = planningOpen ? (
-    <RoutePanel
-      controls={
-        <>
-          {plannerHead}
-          {renderPlannerMapButton()}
-          {!mobileViewport ? (
-            <ControlRail
-              mode={mode}
-              onModeChange={setMode}
-              filters={filters}
-              onFiltersChange={setFilters}
-              filteredVenues={filteredPubVenues}
-              pintCapMatches={pintCapMatched}
-              builtCount={builtIds.length}
-              onClearBuilt={clearBuilt}
-              onLoadCrawl={loadCuratedCrawl}
-              onNearbyCrawl={startNearbyCrawl}
-              nearbyLoading={nearbyLoading}
-              nearbyError={nearbyError}
-              savedOnly={savedOnly}
-              onSavedOnlyChange={changeSavedOnly}
-              curatedCrawls={cityCuratedCrawls}
-              cityDisplayName={city.displayName}
-              cityId={cityId}
-            />
-          ) : null}
-        </>
-      }
-      foot={plannerFoot}
-        mode={mode}
-        crawlStyle={filters.crawlStyle}
-        altStyle={altStyle}
-        onAltStyleChange={setAltStyle}
-        route={route}
-        drinkSelection={routeDrink}
-        heldDrinkSelection={experienceLensHeldDrink}
-        drinkPrices={routeDrinkPrices}
-        drinkPriceStatus={routeDrinkPriceStatus}
-        filteredVenues={filteredPubVenues}
-        builtIds={builtIds}
-        activeVenueId={selectedWalkStopId || selectedVenueIdOrUndefined}
-        venueSignals={venueSignals}
-        crawlBlurb={activeCrawlBlurb}
-        crawlName={activeCrawlName}
-        crawlId={activeCrawlId}
-        curatedCrawls={cityCuratedCrawls}
-        routeMapped={routeMappedActive}
-        stopsFirst={builtCrawlLeads}
-        originDistanceKm={distanceFromUserKm}
-        onMapRoute={mapCurrentRoute}
-        onHideRoute={hideRoute}
-        onClearWalk={clearBuilt}
-        titleInSheet={Boolean(curatedWalk)}
-        onCheckLastTrain={checkLastTrainAtRouteEnd}
-        onSelectVenue={selectRouteStop}
-        onToggleStop={toggleBuiltStop}
-        onReverseRoute={reverseRoute}
-        journeyByToIndex={journeyByToIndex}
-        journeyLoading={journeyLoading}
-        journeyTotalMinutes={journeyTotalMinutes}
-        cityDisplayName={city.displayName}
-        cityId={cityId}
-        poisPath={city.poisPath}
-        onRoundStarted={setActiveRoundStartedCode}
-      >
-        {renderPlannerEmptyState()}
-      </RoutePanel>
-  ) : null;
+  const plannerPanel = (
+    <MapPlannerPanel
+      open={planningOpen}
+      mobileViewport={mobileViewport}
+      isLondon={isLondon}
+      activeCrawl={activeCrawl}
+      selectedVenue={selectedVenue}
+      selectedWalkStopId={selectedWalkStopId}
+      experienceLens={experienceLens}
+      filters={filters}
+      phonePlanArea={phonePlanArea}
+      mapDisplayName={mapDisplayName}
+      onExit={exitPlanning}
+      phone={{
+        crawls: cityCuratedCrawls,
+        onLoadCrawl: loadCuratedCrawl,
+        cityId,
+        venuesById,
+        onGenerated: applyGeneratedMobilePlan,
+      }}
+      controls={{
+        mode,
+        onModeChange: setMode,
+        filters,
+        onFiltersChange: setFilters,
+        filteredVenues: filteredPubVenues,
+        pintCapMatches: pintCapMatched,
+        builtCount: builtIds.length,
+        onClearBuilt: clearBuilt,
+        onLoadCrawl: loadCuratedCrawl,
+        onNearbyCrawl: startNearbyCrawl,
+        nearbyLoading,
+        nearbyError,
+        savedOnly,
+        onSavedOnlyChange: changeSavedOnly,
+        curatedCrawls: cityCuratedCrawls,
+        cityDisplayName: city.displayName,
+        cityId,
+      }}
+      panel={{
+        mode,
+        crawlStyle: filters.crawlStyle,
+        altStyle,
+        onAltStyleChange: setAltStyle,
+        route,
+        drinkSelection: routeDrink,
+        heldDrinkSelection: experienceLensHeldDrink,
+        drinkPrices: routeDrinkPrices,
+        drinkPriceStatus: routeDrinkPriceStatus,
+        filteredVenues: filteredPubVenues,
+        builtIds,
+        venueSignals,
+        curatedCrawls: cityCuratedCrawls,
+        routeMapped: routeMappedActive,
+        originDistanceKm: distanceFromUserKm,
+        onMapRoute: mapCurrentRoute,
+        onHideRoute: hideRoute,
+        onClearWalk: clearBuilt,
+        titleInSheet: Boolean(curatedWalk),
+        onCheckLastTrain: checkLastTrainAtRouteEnd,
+        onSelectVenue: selectRouteStop,
+        onToggleStop: toggleBuiltStop,
+        onReverseRoute: reverseRoute,
+        journeyByToIndex,
+        journeyLoading,
+        journeyTotalMinutes,
+        cityDisplayName: city.displayName,
+        cityId,
+        poisPath: city.poisPath,
+        onRoundStarted: setActiveRoundStartedCode,
+      }}
+    >
+      {renderPlannerEmptyState()}
+    </MapPlannerPanel>
+  );
 
   /* The action card's first row (components/map/inspector/VenueActionCard.tsx):
      the price this lens can vouch for, with its date, the walk from the
@@ -6279,7 +6234,8 @@ export default function PubMap({
   /* From 1024px Explore is a list beside the map: the venues in view, priced
      the way the venue sheet prices them, opened the way a pin tap opens them.
      No map, no "in view", so a canvas that cannot draw takes the list with it. */
-  const desktopSplitList = splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
+  function renderDesktopSplitList() {
+    return splitListShown(railViewport, mapCanvasErrored, mapCanvasUnavailable) ? (
       <MapSplitList
         cityName={mapContextName}
         visibleVenues={mapVenueListVenues}
@@ -6308,6 +6264,7 @@ export default function PubMap({
         onPrefetchVenue={prefetchVenueDetail}
       />
     ) : null;
+  }
 
   /* Desktop reader controls. Both live inside Layers rather than on the map
      surface, which keeps its budget at search plus one toast. The phone reaches
@@ -7029,7 +6986,7 @@ export default function PubMap({
 
       {/* From 1024px the list sits beside the map, before it in reading order;
           the stage starts at its right edge (components/map/mapSplitList.css). */}
-      {desktopSplitList}
+      {renderDesktopSplitList()}
 
       {/* List view provides the keyboard alternative to the canvas pins. */}
       <section className="mapStage" data-curated-walk-open={Boolean(curatedWalk && planningOpen)} aria-label={`Interactive pub map of ${mapDisplayName}`}>

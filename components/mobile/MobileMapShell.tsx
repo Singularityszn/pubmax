@@ -258,6 +258,15 @@ function planDoorIsVisible(
   return overlay === "none" && !planOpen && !venueListOpen && !bandNoticeOpen;
 }
 
+function contextualSheetPresentation(kind: MapSheetKind | null, chooseAreaOpening: boolean) {
+  const openingHeading = kind === "choose-area" && chooseAreaOpening ? CHOOSE_AREA_OPENING_HEADING : null;
+  return {
+    title: openingHeading?.title ?? (kind ? MAP_SHEET_TITLES[kind] ?? "Map controls" : "Map controls"),
+    kicker: openingHeading?.kicker,
+    initialSnap: kind && FULL_HEIGHT_SHEETS.includes(kind) ? "full" as const : "half" as const,
+  };
+}
+
 export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tflCount, tflUrgentCount = 0, tflStatus, peek = null, onPeekOpenVenue, onPeekOpenList, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, lastOrdersActive, beerGardenActive, outdoorSeatingActive, planOpen, planActive, planStopCount, fixedWalk, builtStopCount = 0, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, chooseAreaOpening = false, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
@@ -471,7 +480,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     "choose-area": chooseAreaContent,
     "pub-pal": palContent,
   });
-  const openingHeading = sheetKind === "choose-area" && chooseAreaOpening ? CHOOSE_AREA_OPENING_HEADING : null;
+  const sheetPresentation = contextualSheetPresentation(sheetKind, chooseAreaOpening);
 
   return (
     <>
@@ -608,7 +617,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         doorVisible={planDoorVisible}
         door={planDoor}
       />
-      <Sheet kind={sheetKind} title={openingHeading?.title ?? (sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls")} kicker={openingHeading?.kicker} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} {...sheetPresentation} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
 }
