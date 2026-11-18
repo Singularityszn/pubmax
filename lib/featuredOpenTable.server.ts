@@ -7,6 +7,7 @@ import { loadOpenCrawlPublicPreview } from "@/lib/openCrawlShareCard.server";
 import { selectSummonPrice, summonPriceSentence } from "@/lib/summonPrice";
 import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 /** The public facts one selected night may print. No stored id beyond the crew's own link. */
 export type FeaturedOpenTable = {
@@ -51,6 +52,7 @@ async function londonPub(venueId: string): Promise<"listed" | "missing" | "unava
   const lookup = await lookupCanonicalVenue(venueId);
   if (lookup.status === "unavailable") return "unavailable";
   if (lookup.status !== "found" || lookup.canonicalId !== venueId) return "missing";
+  if (!isPubVenueKind(lookup.slimVenue.kind ?? lookup.venue.kind)) return "missing";
   return venueIdMatchesCity(venueId, "london") ? "listed" : "missing";
 }
 
