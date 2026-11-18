@@ -82,9 +82,10 @@ const queueCall = (staff = STAFF_ROLE) => `read_social_crew_block_cases_admin('$
 const queue = (staff = STAFF_ROLE) => JSON.parse(db().sql(asServiceRole(rpc(queueCall(staff))))) as BlockCase[];
 const casesIn = (crew: string, staff?: string) => queue(staff).filter((entry) => entry.crewId === crew);
 const onlyCase = (crew: string) => {
-  const open = casesIn(crew);
-  expect(open).toHaveLength(1);
-  return open[0].caseId;
+  const [only, ...more] = casesIn(crew);
+  expect(more).toEqual([]);
+  if (!only) throw new Error("The crew has no open case.");
+  return only.caseId;
 };
 type Decision = "kept" | "removed" | "paused";
 const decideCaseCall = (caseId: string, decision: Decision, member: string | null = null, staff = STAFF_ROLE,
