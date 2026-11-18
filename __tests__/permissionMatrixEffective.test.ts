@@ -2152,6 +2152,7 @@ describe("Social Crew: at the table", () => {
       "social_crew_join_requests",
       "private_social_crew_write_receipts",
       "private_social_accounts",
+      "social_crew_block_cases",
     ]) {
       expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
       for (const sub of [ALICE, BOB, CAROL, DAVE]) {
@@ -2166,6 +2167,9 @@ describe("Social Crew: at the table", () => {
       `select public.read_social_crew_snapshot('${BOB_ACCOUNT}'::uuid, '${BOB_PROFILE}'::uuid, '${crew.id}'::uuid)`,
       `select public.remove_social_crew_member_atomic('${BOB_ACCOUNT}'::uuid, '${crew.id}'::uuid, '${crew.bobMemberId}'::uuid, 'pm-matrix-key-000000', repeat('a', 64))`,
       `select public.social_relationship_between_profiles('${ALICE_PROFILE}'::uuid, '${BOB_PROFILE}'::uuid)`,
+      `select public.read_social_crew_block_cases_admin('${UNKNOWN_ID}'::uuid, 1)`,
+      `select public.decide_social_crew_block_case_admin('${UNKNOWN_ID}'::uuid, '${UNKNOWN_ID}'::uuid, 'kept', null, 'pm-matrix reason')`,
+      `select public.purge_expired_social_crew_block_cases(1)`,
     ]) {
       const attempted = attemptAsRole("authenticated", BOB, call);
       expect(attempted.ok, call).toBe(false);

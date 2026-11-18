@@ -1,7 +1,8 @@
 // Migration 0248 on a real PostgreSQL replay, applied after 0245, 0246 and 0247 by the
 // migration role of the permission replica. A block between two accepted members of
 // one crew opens one private moderator case. The night continues and both keep their
-// places. Only a moderator who was never in that crew reads or decides the case.
+// places. Only a moderator with no tie to that crew or its two people reads or decides
+// the case, and only while it is still live.
 
 import { execFile, execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
@@ -31,6 +32,7 @@ import {
   invite,
   key,
   leave,
+  leaveCall,
   makeCohost,
   memberId,
   mutual,
@@ -38,6 +40,8 @@ import {
   person,
   request,
   revision,
+  ROLLBACK_0245_ONLY,
+  rollbackOutcome,
   rpc,
   seats,
   state,
@@ -67,17 +71,31 @@ function applyAsMigrator(files: readonly string[]) {
   execFileSync(db().psql, [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`,
     ...files.flatMap((file) => ["-f", join(directory, file)])], { encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
-function rollback(acknowledgement?: string) {
-  const args = [...db().databaseArgs, "-X", "-q", "-c", `set role ${MIGRATOR}`];
+function rollback(acknowledgement?: string, application = "rollback_0248") {
+  const args = [...db().databaseArgs, "-X", "-q", "-c", `set application_name = '${application}'`, "-c", `set role ${MIGRATOR}`];
   if (acknowledgement !== undefined) args.push("-c", `set pubmax.crew_block_cases_discarded = '${acknowledgement}'`);
   args.push("-f", join(directory, ROLLBACK));
   return new Promise<{ ok: boolean; said: string }>((resolve) => {
     execFile(db().psql, args, { encoding: "utf8" }, (error, _stdout, stderr) => resolve({ ok: !error, said: String(stderr ?? "") }));
   });
 }
+/** A connection that waits on a lock, or a promise that has already settled. */
+function settles<T>(pending: Promise<T>) {
+  let settled = false;
+  void pending.then(() => { settled = true; }, () => { settled = true; });
+  return (application: string) => async () => settled || (await waitsOnAnyLock(application)) === "t";
+}
 
-type Side = { memberId: string; handle: string; role: string; joinedAt: string };
-type BlockCase = { caseId: string; crewId: string; openedAt: string; nightStartsAt: string; expiresAt: string; blocker: Side; blocked: Side };
+type Party = { memberId: string; handle: string; role: string; joinedAt: string; blocksOther: boolean };
+type BlockCase = { caseId: string; crewId: string; openedAt: string; nightStartsAt: string; expiresAt: string; people: [Party, Party] };
+/** Who blocks whom now, as "blocker>blocked" handles. */
+const directions = ({ people: [first, second] }: BlockCase) => [
+  ...(first.blocksOther ? [`${first.handle}>${second.handle}`] : []),
+  ...(second.blocksOther ? [`${second.handle}>${first.handle}`] : []),
+].sort();
+const arrow = (from: Person, to: Person) => `${from.handle}>${to.handle}`;
+const unblock = (blocker: Person, blocked: Person) =>
+  call(`set_social_block('${blocker.profile}','${blocked.profile}',false)`);
 const queueCall = (staff = STAFF_ROLE) => `read_social_crew_block_cases_admin('${staff}',50)`;
 const queue = (staff = STAFF_ROLE) => JSON.parse(db().sql(asServiceRole(rpc(queueCall(staff))))) as BlockCase[];
 const casesIn = (crew: string, staff?: string) => queue(staff).filter((entry) => entry.crewId === crew);
@@ -139,9 +157,22 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(planStatus(crew)).toBe("ready");
     expect(casesIn(crew)).toEqual([expect.objectContaining({
       crewId: crew,
-      blocker: expect.objectContaining({ memberId: memberId(crew, ana), handle: ana.handle, role: "member" }),
-      blocked: expect.objectContaining({ memberId: memberId(crew, bea), handle: bea.handle, role: "member" }),
+      people: [
+        expect.objectContaining({ memberId: memberId(crew, ana), handle: ana.handle, role: "member", blocksOther: true }),
+        expect.objectContaining({ memberId: memberId(crew, bea), handle: bea.handle, role: "member", blocksOther: false }),
+      ],
     })]);
+  });
+
+  it("the queue says who blocks whom now: after Ana blocks Bea, Bea blocks Ana and Ana unblocks, only Bea blocks", () => {
+    const { ana, bea, crew } = blockedPair();
+    expect(block(bea, ana)).toBe(true);
+    expect(casesIn(crew).map(directions)).toEqual([[arrow(ana, bea), arrow(bea, ana)].sort()]);
+    expect(unblock(ana, bea)).toBe(true);
+    const [entry, ...more] = casesIn(crew);
+    expect(more).toEqual([]);
+    expect(entry?.people.map((party) => party.handle)).toEqual([ana.handle, bea.handle]);
+    expect(entry && directions(entry)).toEqual([arrow(bea, ana)]);
   });
 
   it("the same block again, the reverse block and a moved block keep one open case per crew, and each shared crew gets its own", () => {
@@ -156,8 +187,8 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
       where blocker_profile_id='${cal.profile}' and blocked_profile_id='${dee.profile}'`);
     expect(openRows(crew)).toBe("1");
     expect(openRows(second)).toBe("2");
-    expect(casesIn(second).map((entry) => [entry.blocker.handle, entry.blocked.handle]).sort())
-      .toEqual([[ana.handle, bea.handle], [cal.handle, ana.handle]].sort());
+    expect(casesIn(second).map(directions).sort())
+      .toEqual([[arrow(ana, bea), arrow(bea, ana)].sort(), [arrow(cal, ana)]].sort());
   });
 
   it("opens no case for a block with someone outside the crew or still pending, or on a cancelled or closed night", () => {
@@ -209,15 +240,21 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(request(ana, crew)).toEqual(NOT_FOUND);
   });
 
-  it("only a moderator who was never in that crew reads or decides its case", () => {
+  it("only a moderator with no place, request, invitation or block tied to that crew or its two people reads or decides its case", () => {
     const host = person(), cohost = person(), ana = person(), bea = person(), former = person();
+    const candidate = person(), invitee = person(), blocksAna = person(), blockedByBea = person();
     mutual(host, cohost);
+    mutual(host, invitee);
     const crew = crewWith(host, [cohost, ana, bea, former]);
     makeCohost(crew, cohost);
     leave(crew, former);
+    expect(request(candidate, crew)).toMatchObject({ ok: true, code: "requested" });
+    expect(invite(host, crew, invitee)).toMatchObject({ ok: true });
     block(ana, bea);
+    block(blocksAna, ana);
+    block(bea, blockedByBea);
     const caseId = onlyCase(crew);
-    for (const insider of [host, cohost, ana, bea, former]) {
+    for (const insider of [host, cohost, ana, bea, former, candidate, invitee, blocksAna, blockedByBea]) {
       const staff = staffRoleFor(insider);
       expect(casesIn(crew, staff)).toEqual([]);
       expect(decideCase(caseId, "kept", null, staff)).toEqual({ ok: false, code: "forbidden" });
@@ -239,10 +276,12 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(openRows(crew)).toBe("1");
     expect(decideCase(caseId, "kept")).toEqual({ ok: true, code: "decided", decision: "kept" });
     expect(decideCase(caseId, "kept")).toEqual({ ok: true, code: "unchanged", decision: "kept" });
-    expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: true, code: "unchanged", decision: "kept" });
+    expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: false, code: "already_decided", decision: "kept" });
     expect(state(crew, ana)).toBe("active");
     expect(state(crew, bea)).toBe("active");
     expect(casesIn(crew)).toEqual([]);
+    expect(leave(crew, ana)).toMatchObject({ ok: true, code: "left" });
+    expect(decideCase(caseId, "kept", null, STAFF_ROLE, "Asked again")).toEqual({ ok: true, code: "unchanged", decision: "kept" });
   });
 
   it("a moderator removal takes that guest's place and seat and bars that crew, and never removes the owner or an outsider", () => {
@@ -257,6 +296,11 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(Number(revision(crew))).toBe(before + 1);
     expect(state(crew, ana)).toBe("active");
     expect(request(bea, crew)).toEqual(NOT_FOUND);
+    expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: true, code: "unchanged", decision: "removed" });
+    expect(decideCase(caseId, "removed", memberId(crew, ana))).toEqual({ ok: false, code: "already_decided", decision: "removed" });
+    expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "already_decided", decision: "removed" });
+    expect(state(crew, ana)).toBe("active");
+    expect(Number(revision(crew))).toBe(before + 1);
     const guest = person();
     mutual(host, guest);
     const ownerCrew = crewWith(host, [guest]);
@@ -265,18 +309,38 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(state(ownerCrew, host)).toBe("active");
   });
 
-  it("a decision on a guest who already left answers stale, and a new block after a decision opens a new case", () => {
+  it("after either Leave, an unblock, a cancellation or the close, a cached case decides nothing and removes nobody", () => {
+    const changes: ((pair: ReturnType<typeof blockedPair>) => void)[] = [
+      ({ ana, crew }) => expect(leave(crew, ana)).toMatchObject({ ok: true, code: "left" }),
+      ({ bea, crew }) => expect(leave(crew, bea)).toMatchObject({ ok: true, code: "left" }),
+      ({ ana, bea }) => expect(unblock(ana, bea)).toBe(true),
+      ({ crew }) => db().sql(`update public.plans set status='abandoned' where id='${planOf(crew)}'`),
+      ({ crew }) => startsIn(crew, "-13 hours"),
+    ];
+    for (const change of changes) {
+      const pair = blockedPair();
+      const caseId = onlyCase(pair.crew);
+      const targets = [memberId(pair.crew, pair.ana), memberId(pair.crew, pair.bea)];
+      const before = revision(pair.crew);
+      const states = () => [state(pair.crew, pair.ana), state(pair.crew, pair.bea)];
+      const kept = states();
+      change(pair);
+      const changed = states();
+      for (const target of targets) expect(decideCase(caseId, "removed", target)).toEqual({ ok: false, code: "stale" });
+      expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "stale" });
+      expect(states()).toEqual(changed);
+      expect(kept).toEqual(["active", "active"]);
+      expect(openRows(pair.crew)).toBe("1");
+      if (changed.every((value) => value === "active")) expect(revision(pair.crew)).toBe(before);
+    }
+  });
+
+  it("a new block after a decision opens a new case", () => {
     const { ana, bea, crew } = blockedPair();
-    const caseId = onlyCase(crew);
-    expect(leave(crew, bea)).toMatchObject({ ok: true, code: "left" });
-    expect(decideCase(caseId, "removed", memberId(crew, bea))).toEqual({ ok: false, code: "stale" });
-    expect(decideCase(caseId, "kept")).toEqual({ ok: true, code: "decided", decision: "kept" });
-    const second = blockedPair();
-    expect(decideCase(onlyCase(second.crew), "kept")).toMatchObject({ ok: true, code: "decided" });
-    expect(block(second.bea, second.ana)).toBe(true);
-    expect(openRows(second.crew)).toBe("1");
-    expect(caseRows(second.crew)).toBe("2");
-    expect(state(crew, ana)).toBe("active");
+    expect(decideCase(onlyCase(crew), "kept")).toMatchObject({ ok: true, code: "decided" });
+    expect(block(bea, ana)).toBe(true);
+    expect(openRows(crew)).toBe("1");
+    expect(caseRows(crew)).toBe("2");
   });
 
   it("a suspended participant's case stays with the moderator, and deleting either account or the crew's Plan deletes its cases at once", async () => {
@@ -294,18 +358,23 @@ describe.skipIf(skipReason !== null)("0248: a block between accepted members ope
     expect(caseRows(third.crew)).toBe("0");
   });
 
-  it("an expired case leaves the queue and refuses a decision, and the bounded cleanup deletes it and orphaned rows", () => {
+  it("an expired case leaves the queue and refuses a decision or a replay, and the bounded cleanup deletes it and orphaned rows", () => {
     const { crew } = blockedPair();
     const caseId = onlyCase(crew);
-    db().sql(`update public.social_crew_block_cases set expires_at=now()-interval '1 second' where crew_id='${crew}'`);
+    const decided = blockedPair();
+    const decidedId = onlyCase(decided.crew);
+    expect(decideCase(decidedId, "kept")).toEqual({ ok: true, code: "decided", decision: "kept" });
+    db().sql(`update public.social_crew_block_cases set expires_at=now()-interval '1 second' where crew_id in ('${crew}','${decided.crew}')`);
     expect(casesIn(crew)).toEqual([]);
     expect(decideCase(caseId, "kept")).toEqual({ ok: false, code: "expired" });
+    expect(decideCase(decidedId, "kept")).toEqual({ ok: false, code: "expired" });
     db().sql(`insert into public.social_crew_block_cases(crew_id,blocker_account_id,blocked_account_id,expires_at)
       values ('${NO_CREW}','${person().account}','${person().account}',now()+interval '30 days')`);
-    expect(purge(1)).toEqual({ ok: true, deleted: 1 });
+    expect(purge(2)).toEqual({ ok: true, deleted: 2 });
     expect(purge(1)).toEqual({ ok: true, deleted: 1 });
     expect(purge(1000)).toEqual({ ok: true, deleted: 0 });
     expect(caseRows(crew)).toBe("0");
+    expect(caseRows(decided.crew)).toBe("0");
     expect(caseRows(NO_CREW)).toBe("0");
   });
 
@@ -361,8 +430,7 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     } finally { await acceptance.finish(); }
     expect(state(crew, xav)).toBe("active");
     expect(state(crew, ana)).toBe("active");
-    expect(casesIn(crew)).toEqual([expect.objectContaining({
-      blocker: expect.objectContaining({ handle: xav.handle }), blocked: expect.objectContaining({ handle: ana.handle }) })]);
+    expect(casesIn(crew).map(directions)).toEqual([[arrow(xav, ana)]]);
   });
 
   it("an invitation acceptance waits for a block in flight and is refused, and no case opens", async () => {
@@ -483,6 +551,38 @@ describe.skipIf(skipReason !== null)("0248: races and lock order", () => {
     expect(caseRows(crew)).toBe("2");
   });
 
+  it("a removal waits for the blocker's Leave in flight, then answers stale and removes nobody", async () => {
+    const { ana, bea, crew } = blockedPair();
+    const caseId = onlyCase(crew);
+    const target = memberId(crew, bea);
+    const leaving = await holdRpc(leaveCall(crew, ana));
+    expect(leaving.result).toMatchObject({ ok: true, code: "left" });
+    try {
+      const removing = waitingRpcResult("remove_after_leave_0248", decideCaseCall(caseId, "removed", target));
+      await expect.poll(() => waitsOnAnyLock("remove_after_leave_0248")).toBe("t");
+      await leaving.finish();
+      expect(await removing).toEqual({ ok: false, code: "stale" });
+    } finally { await leaving.finish(); }
+    expect(state(crew, ana)).toBe("left");
+    expect(state(crew, bea)).toBe("active");
+    expect(openRows(crew)).toBe("1");
+  });
+
+  it("an unblock in flight does not hold up a removal, which lands first, and once it commits the next decision answers stale", async () => {
+    const first = blockedPair(), second = blockedPair();
+    const unblocking = await holdRpc(`set_social_block('${first.ana.profile}','${first.bea.profile}',false)`);
+    try {
+      const removed = await outcome("remove_beside_unblock_0248",
+        rpc(decideCaseCall(onlyCase(first.crew), "removed", memberId(first.crew, first.bea))));
+      expect(JSON.parse(removed.said)).toEqual({ ok: true, code: "decided", decision: "removed" });
+    } finally { await unblocking.finish(); }
+    expect(state(first.crew, first.bea)).toBe("removed");
+    const caseId = onlyCase(second.crew);
+    expect(unblock(second.ana, second.bea)).toBe(true);
+    expect(decideCase(caseId, "removed", memberId(second.crew, second.bea))).toEqual({ ok: false, code: "stale" });
+    expect(state(second.crew, second.bea)).toBe("active");
+  });
+
   it("a block that lands beside an operator Plan delete leaves no readable case, and the cleanup deletes it", async () => {
     const host = person(), ana = person(), bea = person();
     const crew = crewWith(host, [ana, bea]);
@@ -519,7 +619,45 @@ describe.skipIf(skipReason !== null)("0248: rollback", () => {
     applyAsMigrator([FORWARD]);
     expect(openRows(crew)).toBe("1");
     expect(openRows(later.crew)).toBe("1");
-    expect(casesIn(crew)).toEqual([expect.objectContaining({
-      blocker: expect.objectContaining({ handle: ana.handle }), blocked: expect.objectContaining({ handle: bea.handle }) })]);
+    expect(casesIn(crew).map(directions)).toEqual([[arrow(ana, bea)]]);
+  });
+
+  it("refuses at once while a writer holds a trigger table, so a Plan delete beside it never deadlocks, and every object and case stays", async () => {
+    const { crew } = blockedPair();
+    const other = blockedPair();
+    const reader = await hold("lock table public.social_blocks in access share mode", "postgres");
+    let rolling: Promise<{ ok: boolean; said: string }> | null = null;
+    let deleting: Promise<{ ok: boolean; said: string }> | null = null;
+    try {
+      rolling = rollback(allRows(), "rollback_beside_writer_0248");
+      await expect.poll(settles(rolling)("rollback_beside_writer_0248")).toBe(true);
+      deleting = outcome("plan_delete_beside_rollback_0248", operatorDelete(planOf(crew)), "postgres");
+      await expect.poll(settles(deleting)("plan_delete_beside_rollback_0248")).toBe(true);
+    } finally { await reader.finish(); }
+    const [rolled, deleted] = await Promise.all([rolling, deleting]);
+    for (const answer of [rolled, deleted]) expect(answer?.said ?? "").not.toMatch(REFUSED_BY_LOCKS);
+    expect(rolled?.ok).toBe(false);
+    expect(rolled?.said).toMatch(/could not obtain lock/);
+    expect(deleted?.ok).toBe(true);
+    expect(db().sql("select coalesce(to_regclass('public.social_crew_block_cases')::text,'gone')")).toBe("social_crew_block_cases");
+    expect(db().sql(`select count(*) from pg_trigger where tgname in ('social_blocks_open_crew_cases',
+      'social_account_unbind_deletes_crew_block_cases','social_crews_delete_block_cases')`)).toBe("3");
+    expect(caseRows(crew)).toBe("0");
+    expect(openRows(other.crew)).toBe("1");
+  });
+
+  it("the 0245 rollback refuses while 0248 is applied, even after 0246 is rolled back, and changes nothing", async () => {
+    const departure = "20261117140000_0246_crew_departure_release.sql";
+    expect((await rollbackOutcome("rollback_0246_under_0248", undefined, [`rollback/${departure.replace(/\.sql$/, "_rollback.sql")}`])).ok).toBe(true);
+    try {
+      const refused = await rollbackOutcome("rollback_0245_under_0248", undefined, ROLLBACK_0245_ONLY);
+      expect(refused.ok).toBe(false);
+      expect(refused.said).toMatch(/0248/);
+      expect(db().sql(`select count(*) from pg_trigger where tgname='social_blocks_lock_participant_accounts'`)).toBe("1");
+      expect(db().sql("select coalesce(to_regprocedure('public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)')::text,'gone')"))
+        .not.toBe("gone");
+    } finally { applyAsMigrator([departure]); }
+    const { crew } = blockedPair();
+    expect(openRows(crew)).toBe("1");
   });
 });
