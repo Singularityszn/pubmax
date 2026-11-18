@@ -37,105 +37,126 @@ import { vercelCommand } from "./lib/vercelCli.mjs";
 const projectRoot = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const PULLED_ENV_FILE = path.join(projectRoot, ".vercel", ".env.production.local");
 
-const forwardedArgs = process.argv.slice(2);
-const refused = refusedFlagReason(forwardedArgs);
-if (refused) {
-  console.error(`Refusing ${refused.flag}: ${refused.reason}`);
-  process.exit(1);
-}
+/**
+ * The whole command, with every effect injectable so a test can capture the
+ * deploy child's argv and environment without a Vercel login. Returns the exit
+ * code; the direct-run guard below turns it into process.exit.
+ */
+export function runDeployPreviewProdEnv({
+  argv = process.argv.slice(2),
+  env = process.env,
+  spawn = spawnSync,
+  readFile = readFileSync,
+  execFile = execFileSync,
+  log = console.log,
+  error = console.error,
+  pulledEnvPath = PULLED_ENV_FILE,
+  root = projectRoot,
+} = {}) {
+  const forwardedArgs = argv;
+  const refused = refusedFlagReason(forwardedArgs);
+  if (refused) {
+    error(`Refusing ${refused.flag}: ${refused.reason}`);
+    return 1;
+  }
 
-const pullArgs = ["pull", "--yes", "--environment=production"];
-const pull = vercelCommand(pullArgs);
-console.log("Reading the production environment (a read; nothing is written to Vercel).");
-const pulled = spawnSync(pull.command, pull.args, { cwd: projectRoot, stdio: "inherit" });
-if (pulled.error) {
-  console.error(`Could not run ${pull.command}: ${pulled.error.message}`);
-  process.exit(1);
-}
-if (pulled.status !== 0) {
-  console.error(
-    "`vercel pull --environment=production` failed, so this deploy has no production\n" +
-      "  values to carry. Check the link (`vercel link --project <name>`) and the login\n" +
-      "  (`vercel login`), then run this again.",
-  );
-  process.exit(pulled.status ?? 1);
-}
+  const pullArgs = ["pull", "--yes", "--environment=production"];
+  const pull = vercelCommand(pullArgs, env);
+  log("Reading the production environment (a read; nothing is written to Vercel).");
+  const pulled = spawn(pull.command, pull.args, { cwd: root, stdio: "inherit" });
+  if (pulled.error) {
+    error(`Could not run ${pull.command}: ${pulled.error.message}`);
+    return 1;
+  }
+  if (pulled.status !== 0) {
+    error(
+      "`vercel pull --environment=production` failed, so this deploy has no production\n" +
+        "  values to carry. Check the link (`vercel link --project <name>`) and the login\n" +
+        "  (`vercel login`), then run this again.",
+    );
+    return pulled.status ?? 1;
+  }
 
-let pulledContents;
-try {
-  pulledContents = readFileSync(PULLED_ENV_FILE, "utf8");
-} catch (error) {
-  console.error(
-    `Could not read ${path.relative(projectRoot, PULLED_ENV_FILE)}: ${
-      error instanceof Error ? error.message : String(error)
+  let pulledContents;
+  try {
+    pulledContents = readFile(pulledEnvPath, "utf8");
+  } catch (readError) {
+    error(
+      `Could not read ${path.relative(root, pulledEnvPath)}: ${
+        readError instanceof Error ? readError.message : String(readError)
+      }`,
+    );
+    return 1;
+  }
+
+  const { forwarded, sensitive, platform } = classifyPulledEnv(pulledContents);
+
+  // A name, never a value: this line goes to a terminal and often into a report.
+  log(
+    `Carrying ${forwarded.length} production value(s): ${
+      forwarded.map(([name]) => name).join(", ") || "none"
     }`,
   );
-  process.exit(1);
-}
+  if (sensitive.length) {
+    log(
+      `Vercel would not hand back ${sensitive.length} secret value(s), so this preview\n` +
+        `  falls back to the project's own Preview environment for them:\n` +
+        `  ${sensitive.join(", ")}`,
+    );
+  }
+  if (platform.length) {
+    log(
+      `Leaving ${platform.length} platform-owned name(s) to Vercel, VERCEL_ENV among them:\n` +
+        "  a preview that called itself production would be indexable.",
+    );
+  }
 
-const { forwarded, sensitive, platform } = classifyPulledEnv(pulledContents);
-
-// A name, never a value: this line goes to a terminal and often into a report.
-console.log(
-  `Carrying ${forwarded.length} production value(s): ${
-    forwarded.map(([name]) => name).join(", ") || "none"
-  }`,
-);
-if (sensitive.length) {
-  console.log(
-    `Vercel would not hand back ${sensitive.length} secret value(s), so this preview\n` +
-      `  falls back to the project's own Preview environment for them:\n` +
-      `  ${sensitive.join(", ")}`,
+  // The deploy itself stays with the ONE command that owns a CLI deploy here, so
+  // the project print, the commit stamp and the dirty-tree rule are not restated.
+  const deployScript = path.join(root, "scripts", "deploy-vercel.mjs");
+  const deploy = spawn(
+    process.execPath,
+    [deployScript, ...deployEnvFlags(forwarded), ...forwardedArgs],
+    {
+      cwd: root,
+      stdio: "inherit",
+      // A `NAME=value` argument is world-readable in `ps` output, so the flags
+      // carry names only and each value rides in the child's environment.
+      // deploy-vercel.mjs hands process.env to the Vercel CLI, whose
+      // `--env NAME` / `--build-env NAME` flags read the value from it.
+      env: { ...env, ...Object.fromEntries(forwarded) },
+    },
   );
-}
-if (platform.length) {
-  console.log(
-    `Leaving ${platform.length} platform-owned name(s) to Vercel, VERCEL_ENV among them:\n` +
-      "  a preview that called itself production would be indexable.",
-  );
-}
 
-// The deploy itself stays with the ONE command that owns a CLI deploy here, so
-// the project print, the commit stamp and the dirty-tree rule are not restated.
-const deployScript = path.join(projectRoot, "scripts", "deploy-vercel.mjs");
-const deploy = spawnSync(
-  process.execPath,
-  [deployScript, ...deployEnvFlags(forwarded), ...forwardedArgs],
-  {
-    cwd: projectRoot,
-    stdio: "inherit",
-    // A `NAME=value` argument is world-readable in `ps` output, so the flags
-    // carry names only and each value rides in the child's environment.
-    // deploy-vercel.mjs hands process.env to the Vercel CLI, whose
-    // `--env NAME` / `--build-env NAME` flags read the value from it.
-    env: { ...process.env, ...Object.fromEntries(forwarded) },
-  },
-);
+  if (deploy.error) {
+    error(`Could not run the deploy: ${deploy.error.message}`);
+    return 1;
+  }
 
-if (deploy.error) {
-  console.error(`Could not run the deploy: ${deploy.error.message}`);
-  process.exit(1);
-}
+  if (deploy.status === 0) {
+    const head = (() => {
+      try {
+        return execFile("git", ["rev-parse", "HEAD"], {
+          cwd: root,
+          encoding: "utf8",
+          stdio: ["ignore", "pipe", "ignore"],
+        }).trim();
+      } catch {
+        return null;
+      }
+    })();
+    log(
+      "\nVerify the running commit with authenticated /api/version metadata.\n" +
+        "  A public response names deploymentId only. Use an existing target-configured CRON_SECRET\n" +
+        "  from the process environment, never a command argument or log.\n" +
+        "  See docs/DEPLOYMENT.md: Which commit is this deploy serving." +
+        (head ? `\n  gitCommitSha should read ${head}` : ""),
+    );
+  }
 
-if (deploy.status === 0) {
-  const head = (() => {
-    try {
-      return execFileSync("git", ["rev-parse", "HEAD"], {
-        cwd: projectRoot,
-        encoding: "utf8",
-        stdio: ["ignore", "pipe", "ignore"],
-      }).trim();
-    } catch {
-      return null;
-    }
-  })();
-  console.log(
-    "\nVerify the running commit with authenticated /api/version metadata.\n" +
-      "  A public response names deploymentId only. Use an existing target-configured CRON_SECRET\n" +
-      "  from the process environment, never a command argument or log.\n" +
-      "  See docs/DEPLOYMENT.md: Which commit is this deploy serving." +
-      (head ? `\n  gitCommitSha should read ${head}` : ""),
-  );
+  return deploy.status ?? 1;
 }
 
-process.exit(deploy.status ?? 1);
+const isDirectRun =
+  process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isDirectRun) process.exit(runDeployPreviewProdEnv());
