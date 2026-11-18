@@ -10,8 +10,7 @@ The release is held. No cron schedule, deployment or shared migration apply is a
 3. The captain must confirm the independent moderator, backup, venue agreement and real pilot occurrence.
 4. The cancellation owner must complete issue 3001 before hosted launch.
 5. An operator must verify the expiry executor and failure alert before launch.
-6. Root must resolve the export retention-inference conflict described below.
-7. Dating must remain closed until stage D has explicit occurrence labelling, informed participation consent and pilot acceptance.
+6. Dating must remain closed until stage D has explicit occurrence labelling, informed participation consent and pilot acceptance.
 
 This change stores only `friendship` context. Dating requests receive the same neutral database acknowledgement without writing.
 There is no approved occurrence metadata or stage D release authority to enable dating here.
@@ -27,6 +26,8 @@ Stored DOB decides adult status when present. A recorded adult assertion is the 
 DOB and assertion details never enter the private roster or outcome payload.
 
 Both people must remain accepted participants with current host-attested attendance for the same occurrence.
+The existing Crew owner, active host account and Plan seat authority must also remain valid.
+A host block or loss of host authority revokes affected connections without restoring them after reversal.
 Hosts and co-hosts cannot be attested by the existing attendance writer, so they cannot choose or read outcomes.
 The roster is alphabetical and has no choice counts or popularity ordering.
 A person explicitly consents to friendship before choosing.
@@ -86,14 +87,16 @@ No cleanup lag can restore access because reads check the current account, membe
 
 The database attendance window owns the 12-hour close.
 Choices open there and close 72 hours later.
-Unmatched choices and terminal withdrawal tombstones expire at that close.
 A withdrawal cannot be offered again for that occurrence, pair and context.
 The other person can save their own choice on a terminal pair, without forming an outcome.
 Their saved-choice acknowledgement cannot reveal that somebody else withdrew.
 If formation won the transaction race, withdrawal dismisses the outcome for both people.
-A mutual or dismissed pair and its directions retain the original 30-day formation expiry.
-Invalidation is terminal. Safety and deletion can remove access earlier.
-Attendance expiry can also end eligibility before a later mutual record's expiry.
+Every directional choice and terminal marker expires at choice-window close, whether a mutual formed or not.
+Only a currently visible mutual connection may remain for up to 30 days after formation.
+Its expiry is also capped by the attendance authority expiry.
+Dismissal clears formation metadata and keeps only a short terminal marker until choice-window close.
+After that deadline, dismissal deletes the connection synchronously.
+Safety invalidation follows the same short marker rule and immediately denies access.
 
 The account export has an owner-only `crewSeeAgain` lane.
 It contains the owner's selected member ID, context, own choice and choice/withdrawal time.
@@ -104,15 +107,15 @@ It is separate from the paired product read. Export failure refuses a complete e
 Account deletion and Crew deletion remove these records synchronously.
 There is no moderator choice reader, case access bypass or direct service-role table grant.
 
-## Unresolved export retention decision
+## Export privacy
 
-The approved contract expires unmatched choices at window-close and keeps matched directions for 30 days.
-An owner can infer a past mutual if their own directional record remains in an export after the shorter deadline.
-This remains possible after dismissal, even without an outcome flag or pair-derived timestamp.
-Omitting retained own records would conflict with the approved export requirement.
-Keeping every unmatched record for 30 days would conflict with the approved retention requirement.
-Root must revise this contract or explicitly accept the inference before release.
-This implementation preserves the approved retention and own-record export rules while that decision is held.
+The captain approved one common choice-window deadline for matched and unmatched directions and terminal markers.
+Exports contain only the person's own choice, subject member, context and own action times.
+They omit outcome state, formation time, expiry and hidden-mutual fields.
+The other person's choice or dismissal cannot change the person's export before the common deadline.
+After that deadline, expired choices are absent even while physical cleanup lags.
+Visible connections have no directional export archive and are deleted when dismissed after the choice window.
+Safety invalidation and account or Crew deletion retain their stronger immediate access and deletion guards.
 
 ## Proposed executor, held for approval
 
@@ -126,7 +129,9 @@ No entry is added to `vercel.json` by this change.
 The route uses `assertCronRequest` and the existing `CRON_SECRET` credential.
 One call runs one bounded database batch.
 The 1,000-row bound counts the pair and its cascade-deleted directions together.
-At most 333 pairs and 999 total rows are deleted in one batch.
+At most 333 pair candidates and 999 physical rows are processed in one batch.
+Expired directions are deleted independently while a visible connection remains.
+Cleanup locks all selected Crews, then auth rows, accounts and pairs in stable order.
 Busy Crew rows are skipped. The next verified execution must handle the remaining backlog.
 Expired records are unreadable before the sweep runs.
 A non-success response or exception produces HTTP 503 and the log marker `[expire-see-again]`.

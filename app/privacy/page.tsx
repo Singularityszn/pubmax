@@ -637,15 +637,17 @@ export default function PrivacyPage() {
           on their next authorised read. Hosts cannot read choices or outcomes.
           There is no moderator choice reader. We do not infer dating interests.
           Your export includes your own choices, without the other person&rsquo;s
-          choice or a private mutual outcome.
+          choice, outcome state, outcome-derived expiry or a hidden mutual record.
         </p>
         <p className="legalBody">
           Choices open when host marking closes, 12 hours after the night starts,
-          and close 72 hours later. An unmatched choice or withdrawn choice expires
-          at that close. Withdrawing before a mutual choice prevents another offer
+          and close 72 hours later. Every choice expires at that close, whether
+          the other person also chose you or not. Withdrawing before a mutual choice prevents another offer
           for that pair on that night. Withdrawing after a mutual choice hides it
-          from both people. A mutual choice and its directional records expire
-          30 days after it forms. Blocks, mutes, suspension, removal and attendance
+          from both people. Only a visible mutual connection may remain for up to
+          30 days after it forms, within the attendance window. Dismissal removes
+          that connection and keeps only a short no-reoffer marker until choices
+          close. After that close, dismissal deletes the connection at once. Blocks, mutes, suspension, removal and attendance
           corrections prevent access and invalidate affected outcomes. Account or
           Crew deletion removes these private records in the same transaction.
           Expired records stop appearing immediately. Physical cleanup can be

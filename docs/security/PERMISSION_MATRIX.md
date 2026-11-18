@@ -426,5 +426,8 @@ attendance revision, adult evidence, blocks, mutes, account access and expiry.
 Writes never return mutual results. Only the two eligible people can read a mutual
 outcome. Hosts and moderators have no choice reader. Social freeze denies new
 choices while authorised reads, withdrawal, reporting and deletion remain open.
-The own-data export includes only the caller's directional records. Deletion
+The own-data export includes only the caller's unexpired directional records,
+with one common choice deadline and no outcome-derived fields. Only visible
+mutual connections can outlive that deadline. Dismissal removes the connection
+and keeps a short terminal marker only until choices close. Deletion
 removes pair access and records synchronously, without waiting for the expiry job.
