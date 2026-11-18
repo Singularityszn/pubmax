@@ -10,7 +10,6 @@ const SCALAR_METRE_DISTANCE_CONSUMERS = [
   "scripts/lib/venueCanonicalization.mjs",
   "scripts/lib/heritageMatch.mjs",
   "scripts/lib/ukOsmSeed.mjs",
-  "scripts/integrate_wikipedia_london_pubs.mjs",
 ] as const;
 
 const SCALAR_KILOMETRE_DISTANCE_CONSUMERS = [
