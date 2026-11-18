@@ -45,7 +45,7 @@ describe("buildMapVenueListModel — the list-toggle gate", () => {
       ranked: [], dearest: null, cheapest: null, taxGbp: null, computedAt: "2026-11-10T00:00:00Z",
     }, 5);
     expect(model.rows.map((row) => [row.id, row.capQualification])).toEqual([
-      ["under", "match"], ["over", "over"], ["unknown", "unknown"], ["unproven", "unknown"],
+      ["under", "match"], ["over", "over"], ["unproven", "unknown"], ["unknown", "unknown"],
     ]);
     expect(model.rows.find((row) => row.id === "unknown")?.priceLabel).not.toContain("est.");
   });

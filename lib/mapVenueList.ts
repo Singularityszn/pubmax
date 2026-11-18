@@ -210,8 +210,9 @@ function mapVenueListSortPrice(
  * Default order is nearest-first to the viewport centre so the list mirrors
  * what the eye sees on the canvas; without a viewport fix it preserves the
  * filtered map order. "cheapest" ranks priced pubs ascending (active drink lens
- * when set) and leaves unpriced pubs last, nearest among themselves. Pure and
- * deterministic — safe on empty input.
+ * when set) and leaves the rest last, a row that still prints a figure (a zone
+ * estimate, an unrankable lens price) before a row with none, nearest among
+ * themselves. Pure and deterministic — safe on empty input.
  */
 export function buildMapVenueListModel(
   venues: Venue[],
@@ -321,12 +322,24 @@ function sortMapVenueListRowsCheapest(
     if (leftPrice !== null) return -1;
     if (rightPrice !== null) return 1;
     return (
+      figureRank(left) - figureRank(right) ||
       (left.distanceKm ?? Number.POSITIVE_INFINITY) -
         (right.distanceKm ?? Number.POSITIVE_INFINITY) ||
       left.name.localeCompare(right.name) ||
       left.id.localeCompare(right.id)
     );
   });
+}
+
+/**
+ * Whether an unranked row still prints a figure. Every figure this list can
+ * render - a recorded price, a lens price, an "est. £X" zone estimate - carries
+ * the £ sign; every no-price label ("Price TBD", "No X price logged") is words.
+ * The label is the same string the reader sees, so the order can never disagree
+ * with it.
+ */
+function figureRank(row: LogNearbyCandidate): number {
+  return row.priceLabel.includes("£") ? 0 : 1;
 }
 
 /** The cheapest order between two priced entries: price, then name, then id. */
