@@ -2151,7 +2151,7 @@ describe("Social Crew: at the table", () => {
     const before = truth(`select count(*) from ${table}`);
     for (const role of ["anon", "authenticated"] as const) {
       for (const sub of role === "anon" ? [null] : [ALICE, BOB, CAROL, DAVE]) {
-        for (const statement of [`select * from ${table}`, call]) {
+        for (const statement of [`select count(*) from ${table}`, call]) {
           const result = requireSession().sql(statement, { asRole: role, sub });
           expect(result.ok).toBe(false);
           expect(result.err).toMatch(/permission denied/i);
