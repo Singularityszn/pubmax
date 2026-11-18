@@ -40,11 +40,11 @@
 --    member row and seat, as a host removal does, and never an account lock. An account
 --    deletion holds the auth row while it deletes the cases that name the account.
 --    The live rule needs no account lock. Leave, host removal, admission and 0246 take
---    the crew row first, so a decision sees what they committed. A block or an unblock
---    takes the account locks but no crew row. An unblock never waits for a decision. A
---    block between the same two people can wait for a decision that closes their
---    case, then follows it. The live rule and the blockers are read in one statement, with its
---    committed snapshot.
+--    the crew row first, so a decision sees what they committed. A block takes the
+--    account locks but no crew row. An unblock takes neither account nor crew locks
+--    and never waits for a decision. A block between the same two people can wait for
+--    a decision that closes their case, then follows it. The live rule and the blockers
+--    are read in one statement, with its committed snapshot.
 --    An overlapping block, unblock or standalone Plan cancellation unseen by that
 --    snapshot follows the decision in serial order, even if it commits first. This is
 --    a check of the named blockers against that snapshot, not a revision. Cancellation
