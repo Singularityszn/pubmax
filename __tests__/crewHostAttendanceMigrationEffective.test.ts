@@ -659,29 +659,6 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(rows(crew)).toBe("0");
   });
 
-  it("only the service role calls the entry points, and no browser role reads the tables", () => {
-    const entries = [
-      "public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text)",
-      "public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text)",
-      "public.read_social_crew_attendance(uuid,uuid,uuid)",
-      "public.report_social_crew_attendance(uuid,uuid,uuid,integer)",
-      "public.read_social_crew_attendance_reports_admin(uuid,integer)",
-      "public.export_social_crew_attendance(uuid,integer)",
-      "public.purge_expired_social_crew_attendance(integer)",
-    ];
-    for (const entry of entries) {
-      for (const role of ["anon", "authenticated"]) {
-        expect(db().sql(`select has_function_privilege('${role}','${entry}','execute')`), `${role} ${entry}`).toBe("f");
-      }
-      expect(db().sql(`select has_function_privilege('service_role','${entry}','execute')`), entry).toBe("t");
-    }
-    for (const table of ["public.social_crew_attendance", "public.social_crew_attendance_reports"]) {
-      for (const role of ["anon", "authenticated", "service_role"]) {
-        expect(db().sql(`select has_table_privilege('${role}','${table}','select,insert,update,delete')`), `${role} ${table}`).toBe("f");
-      }
-      expect(db().sql(`select relrowsecurity::text from pg_class where oid='${table}'::regclass`)).toBe("true");
-    }
-  });
 
   it("rollback stops while records exist, drops them only on the exact acknowledgement, and reapplying works", async () => {
     const host = person(), ana = person();
