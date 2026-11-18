@@ -51,10 +51,11 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null
 vi.mock("@/components/messages/MessageAvatar", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessagePhoto", () => ({ default: () => null }));
 vi.mock("@/components/messages/MessageVenueCard", () => ({ default: () => null }));
-vi.mock("@/lib/keyboardInset", () => ({ useKeyboardInset: () => 0 }));
 vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: (input: string, init?: RequestInit) =>
-    new Promise<Response>((resolve, reject) => {
+    String(input).startsWith("/api/message-notifications")
+      ? Promise.resolve(Response.json({ enabled: false, preview: false, muted: false, registered: false }))
+      : new Promise<Response>((resolve, reject) => {
       if (init?.method === "POST") transport.writes.push({ resolve, reject });
       else transport.reads.push({ url: String(input), resolve, reject });
     }),
@@ -255,7 +256,38 @@ it("never draws a delayed read from the previous conversation, even on the way b
   expect(host.textContent).not.toContain("B content");
 });
 
-it("leaves a cold failure at the top of the page, and still scrolls a loaded thread to its newest", async () => {
+it.each(["account", "conversation"] as const)("opens at newest after a %s change while reading history", async (change) => {
+  const listHeight = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
+  const listViewport = vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  try {
+    await render();
+    await answer(thread("First reader"));
+    const list = host.querySelector<HTMLUListElement>(".threadMessages")!;
+    expect(list.scrollTop).toBe(976);
+    await act(async () => {
+      list.scrollTop = 100;
+      list.dispatchEvent(new Event("scroll"));
+    });
+    await poll();
+    await answer(thread("New message while reading history"));
+    expect(list.scrollTop).toBe(100);
+
+    const conversationId = change === "conversation" ? "conversation-b" : "conversation-a";
+    if (change === "account") {
+      viewer.current = { user: { id: "account-b" }, handle: "bob", accountRevision: 2 };
+      window.localStorage.setItem("pubmax_handle", "bob");
+    }
+    await render(conversationId);
+    await answer(thread("New identity newest message", conversationId));
+    expect(host.textContent).toContain("New identity newest message");
+    expect(host.querySelector<HTMLUListElement>(".threadMessages")?.scrollTop).toBe(976);
+  } finally {
+    listHeight.mockRestore();
+    listViewport.mockRestore();
+  }
+});
+
+it("keeps the page still through a cold failure and its recovery", async () => {
   await render();
   await answer(outage());
   expect(retryPanel()).not.toBeNull();
@@ -266,9 +298,15 @@ it("leaves a cold failure at the top of the page, and still scrolls a loaded thr
   await act(async () => retry?.click());
   await settle();
   expect(scrollTo).not.toHaveBeenCalled();
-  await answer(thread("Meet at seven"));
-  expect(host.textContent).toContain("Meet at seven");
-  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+  const listHeight = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
+  try {
+    await answer(thread("Meet at seven"));
+    expect(host.textContent).toContain("Meet at seven");
+    expect(scrollTo).not.toHaveBeenCalled();
+    expect(host.querySelector<HTMLUListElement>(".threadMessages")?.scrollTop).toBe(976);
+  } finally {
+    listHeight.mockRestore();
+  }
 });
 
 

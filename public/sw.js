@@ -417,10 +417,22 @@ async function matchPlanNavigationAcrossCaches(url) {
 // Web Push payloads are always user-visible. Treat provider data as untrusted:
 // copy only short strings and reduce click-through to a same-origin path. A
 // malformed or empty push still shows a useful, honest fallback notification.
+const pushSegmenter = typeof Intl.Segmenter === "function"
+  ? new Intl.Segmenter(undefined, { granularity: "grapheme" })
+  : null;
+
 function pushText(value, fallback, maxLength) {
-  return typeof value === "string" && value.trim()
-    ? value.trim().slice(0, maxLength)
-    : fallback;
+  if (typeof value !== "string" || !value.trim()) return fallback;
+  const text = value.trim();
+  let result = "";
+  let count = 0;
+  for (const item of pushSegmenter ? pushSegmenter.segment(text) : text) {
+    const part = typeof item === "string" ? item : item.segment;
+    if (count === maxLength || result.length + part.length > maxLength * 16) break;
+    result += part;
+    count += 1;
+  }
+  return result || fallback;
 }
 
 function safeNotificationPath(value) {
@@ -437,7 +449,14 @@ function safeNotificationPath(value) {
   }
 }
 
+let messagePreviewEpoch = 0;
+const pendingMessagePushes = new Set();
 self.addEventListener("message", (event) => {
+  if (event.data?.type === "pubmax:message-push-departure") {
+    messagePreviewEpoch += 1;
+    event.waitUntil(Promise.allSettled([...pendingMessagePushes]).then(() => event.ports[0]?.postMessage({ ok: true })));
+    return;
+  }
   const paths = crawlPackPaths(event.data);
   if (paths.length > 0) event.waitUntil(storeCrawlPack(paths).catch(() => undefined));
 });
@@ -456,18 +475,74 @@ self.addEventListener("push", (event) => {
     ? payload.data
     : {};
   const url = safeNotificationPath(data.url);
-  event.waitUntil(
-    self.registration.showNotification(
-      pushText(payload.title, "PUBMAXX", 80),
+  const previewEpoch = messagePreviewEpoch;
+  const delivery = (async () => {
+    let preview = null;
+    if (data.kind === "message" && data.preview === "1" && new URL(self.location.href).searchParams.get("message-previews") === "1") {
+      let previewTimer;
+      const lookup = (async () => {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        const authorization = await Promise.any(windows.map((client) => new Promise((resolve, reject) => {
+          const channel = new MessageChannel();
+          const timeout = setTimeout(() => { channel.port1.close(); reject(new Error("No current session")); }, 1_000);
+          channel.port1.onmessage = (event) => {
+            clearTimeout(timeout);
+            channel.port1.close();
+            if (typeof event.data?.token === "string" && event.data.token.length < 8192) resolve(event.data.token);
+            else reject(new Error("No current session"));
+          };
+          client.postMessage({ type: "pubmax:message-preview-auth", recipientId: data.recipientId }, [channel.port2]);
+        })));
+        const subscription = await self.registration.pushManager.getSubscription();
+        if (subscription) {
+          const raw = subscription.toJSON();
+          const bytes = new TextEncoder().encode(JSON.stringify({
+            endpoint: new URL(raw.endpoint).toString(), expirationTime: raw.expirationTime ?? null,
+            keys: { p256dh: raw.keys.p256dh, auth: raw.keys.auth },
+          }));
+          let binary = "";
+          for (const byte of bytes) binary += String.fromCharCode(byte);
+          const token = `webpush:${btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/, "")}`;
+          const response = await fetch("/api/message-notifications", {
+            method: "PUT", headers: { "content-type": "application/json", authorization: `Bearer ${authorization}` },
+            body: JSON.stringify({ token, recipientId: data.recipientId, messageId: data.messageId, conversationId: new URL(url, self.location.origin).pathname.split("/").at(-1) }),
+            signal: AbortSignal.timeout(1_500),
+          });
+          if (response.ok) return (await response.json()).preview;
+        }
+        return null;
+      })().catch(() => null);
+      preview = await Promise.race([
+        lookup,
+        new Promise((resolve) => { previewTimer = setTimeout(() => resolve(null), 1_500); }),
+      ]);
+      clearTimeout(previewTimer);
+    }
+    if (previewEpoch !== messagePreviewEpoch) preview = null;
+    const shown = self.registration.showNotification(
+      pushText(preview?.title ?? payload.title, "PUBMAXX", 80),
       {
-        body: pushText(payload.body, "Your London brief is ready.", 240),
+        body: pushText(preview?.body ?? payload.body, "Your London brief is ready.", 240),
         icon: "/icon-192.png",
         badge: "/icon-192.png",
-        tag: pushText(payload.tag, "pubmax-update", 80),
-        data: { url },
+        tag: data.kind === "message" ? `message:${new URL(url, self.location.origin).pathname.split("/").at(-1)}` : pushText(payload.tag, "pubmax-update", 80),
+        renotify: false,
+        data: { url, ...(data.kind === "message" ? { recipientId: data.recipientId } : {}) },
       },
-    ),
-  );
+    );
+    if (data.kind !== "message") return shown;
+    await Promise.allSettled([
+      shown,
+      self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windows) => {
+        for (const client of windows) client.postMessage({ type: "pubmax:message-arrival", recipientId: data.recipientId });
+      }),
+    ]);
+    })();
+  if (data.kind === "message") {
+    pendingMessagePushes.add(delivery);
+    void delivery.finally(() => pendingMessagePushes.delete(delivery));
+  }
+  event.waitUntil(delivery);
 });
 
 self.addEventListener("notificationclick", (event) => {

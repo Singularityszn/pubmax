@@ -43,6 +43,7 @@ vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null
 
 import MessageThread from "@/components/messages/MessageThread";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 
 const LOADING_LINE = "With you in a sec.";
@@ -51,6 +52,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  invalidateMessagesInbox();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.matchMedia = (() => ({
     matches: false,

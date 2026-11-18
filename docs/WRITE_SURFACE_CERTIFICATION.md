@@ -33,6 +33,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/message-notifications`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
 - `DELETE app/api/plans/[id]/beacon`
@@ -110,6 +111,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/invite/[token]/reactions`
 - `POST app/api/invite/[token]/rsvp`
 - `POST app/api/me/pending-plan-recaps`
+- `POST app/api/message-notifications`
 - `POST app/api/messages`
 - `POST app/api/messages/[id]`
 - `POST app/api/night-memories`
@@ -202,6 +204,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/wanted`
 - `POST app/api/wanted/resolve`
 - `POST app/api/weather-recommendations`
+- `PUT app/api/message-notifications`
 - `PUT app/api/me/night-profile`
 - `PUT app/api/me/pending-plan-recaps`
 - `PUT app/api/plans/[id]/session`
@@ -284,6 +287,9 @@ bodies.
   receives a write capability merely because the HTTP verb is POST.
 
 ## Route additions since the Wave 0 inventory
+
+The [message notification permission matrix](security/PERMISSION_MATRIX.md)
+owns the access rules for `POST`, `PUT`, and `DELETE /api/message-notifications`.
 
 ### `app/api/social/posts` - verified Social post creation (route 76)
 

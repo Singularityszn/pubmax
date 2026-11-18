@@ -135,9 +135,9 @@ describe("inbox read", () => {
       }
       return {
         data: [
-          { conversation_id: C1, sender_handle: "sam", body: "latest in c1", attachment_kind: null },
-          { conversation_id: C1, sender_handle: "ken", body: "older in c1", attachment_kind: null },
-          { conversation_id: C2, sender_handle: "ken", body: "latest in c2", attachment_kind: "photo" },
+          { id: "m2", conversation_id: C1, sender_handle: "sam", body: "latest in c1", attachment_kind: null },
+          { id: "m1", conversation_id: C1, sender_handle: "ken", body: "older in c1", attachment_kind: null },
+          { id: "m3", conversation_id: C2, sender_handle: "ken", body: "latest in c2", attachment_kind: "photo" },
         ],
         error: null,
       };
@@ -157,8 +157,8 @@ describe("inbox read", () => {
     expect(recent?.limit).toBe(2 * INBOX_LAST_MESSAGE_WINDOW);
 
     expect(inbox).toEqual([
-      { id: C1, otherHandle: "sam", lastBody: "latest in c1", lastAt: "2026-09-05T10:00:00Z", lastFromMe: false, unread: 2 },
-      { id: C2, otherHandle: "jen", lastBody: "latest in c2", lastAt: "2026-09-05T09:00:00Z", lastFromMe: true, unread: 0 },
+      { id: C1, otherHandle: "sam", lastMessageId: "m2", lastBody: "latest in c1", lastAt: "2026-09-05T10:00:00Z", lastFromMe: false, unread: 2 },
+      { id: C2, otherHandle: "jen", lastMessageId: "m3", lastBody: "latest in c2", lastAt: "2026-09-05T09:00:00Z", lastFromMe: true, unread: 0 },
     ]);
   });
 
@@ -181,7 +181,7 @@ describe("inbox read", () => {
       }
       if (q.filters.some((f) => f[0] === "is")) return { data: [], error: null };
       if (q.single) {
-        return { data: { conversation_id: C2, sender_handle: "jen", body: "quiet one", attachment_kind: null }, error: null };
+        return { data: { id: "quiet-message", conversation_id: C2, sender_handle: "jen", body: "quiet one", attachment_kind: null }, error: null };
       }
       return { data: busyRows, error: null };
     };
@@ -190,7 +190,7 @@ describe("inbox read", () => {
     const singles = state.queries.filter((q) => q.single);
     expect(singles).toHaveLength(1);
     expect(filterValue(defined(singles[0]), "eq")).toEqual(["conversation_id", C2]);
-    expect(inbox[1]).toMatchObject({ id: C2, lastBody: "quiet one", lastFromMe: false });
+    expect(inbox[1]).toMatchObject({ id: C2, lastMessageId: "quiet-message", lastBody: "quiet one", lastFromMe: false });
   });
 
   it("asks nothing more for an empty inbox", async () => {
