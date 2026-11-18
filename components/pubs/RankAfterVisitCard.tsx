@@ -17,7 +17,7 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useViewerSession } from "@/components/auth/useViewerSession";
-import { authedActionJson, authedFetch } from "@/lib/authedFetch";
+import { AuthActionJsonParseError, authedActionJson, authedFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { formatGbp } from "@/lib/formatGbp";
 import { readProviderAccountRevision, subscribeProviderIdentityRevision } from "@/lib/authProviderRevision";
@@ -195,6 +195,14 @@ function VisitRanking({ visit, nextVisit, onSkip, accountRevision }: {
       await reconcile({ ...pending, uncertain: outcome !== "stale" });
     } catch (cause) {
       if (!ownsRequest()) return;
+      if (cause instanceof AuthActionJsonParseError) {
+        const outcome = socialPubRankingSaveAnswer(cause.status, null);
+        if (outcome === "refused") { retire(saving.requestId); return; }
+        if (outcome === "rejected") {
+          send({ type: "rejected", requestId: saving.requestId, notice: "That ranking did not save. Try again." });
+          return;
+        }
+      }
       if ((cause as { code?: unknown } | null)?.code === "AUTH_SESSION_WAKING") {
         send({ type: "rejected", requestId: saving.requestId,
           notice: cause instanceof Error ? cause.message : "Still waking your session. Try again." });
