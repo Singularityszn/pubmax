@@ -7,6 +7,7 @@ import FairPintResultFallback from "@/components/map/fairpint/FairPintResultFall
 import type { FairPintGenerated } from "@/lib/fairPint";
 import { fairPintDrawPending, waitForFairPintDraw } from "@/lib/mapFirstVisitArrivalGate";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { retryablePlannerImport } from "@/components/map/fairpint/retryablePlannerImport";
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 afterEach(() => { vi.unstubAllGlobals(); vi.useRealTimers(); });
 function generated(operationKey: string) { return { operationKey, groundingProof: "fixture-proof", inferredContext: inferNightContext("three stops in Camden").context, planningConfidence: { level: "low", warnings: [], missingEvidence: [], provenance: [], score: 0, routeReady: false }, stops: [1, 2, 3].map((id) => ({ venueId: `venue-${id}`, venueName: `Pub ${id}` })) }; }
@@ -254,5 +255,48 @@ it("recovers a failed planner download through local Retry", async () => {
     factory.mockRestore();
     vi.doUnmock("@/components/map/fairpint/FairPintPlanner");
     localStorage.clear();
+  }
+});
+
+it("retries failed planner scripts without rejecting the cached import", async () => {
+  const src = "https://pubmaxxing.test/_next/static/chunks/planner.js";
+  let resolve!: (value: string) => void;
+  let cached: Promise<string> | null = null;
+  const moduleReady = (event: Event) => {
+    if (event.target instanceof HTMLScriptElement && event.target.src === src) resolve("planner ready");
+  };
+  document.addEventListener("load", moduleReady, true);
+  const load = retryablePlannerImport(() => {
+    if (cached) return cached;
+    cached = new Promise<string>((accept, reject) => {
+      resolve = accept;
+      const script = document.createElement("script");
+      script.src = src;
+      script.nonce = "planner-nonce";
+      script.onerror = () => reject(new Error("Cached chunk failure"));
+      document.head.append(script);
+    });
+    return cached;
+  });
+  const failure = vi.fn();
+  const ready = load(failure);
+  const script = () => document.querySelector<HTMLScriptElement>(`script[src="${src}"]`)!;
+  try {
+    const first = script();
+    first.dispatchEvent(new Event("error"));
+    expect(failure).toHaveBeenCalledTimes(1);
+    load(failure);
+    const second = script();
+    expect(second).not.toBe(first);
+    second.dispatchEvent(new Event("error"));
+    expect(failure).toHaveBeenCalledTimes(2);
+    load(failure);
+    expect(script()).not.toBe(second);
+    expect(script().nonce).toBe("planner-nonce");
+    script().dispatchEvent(new Event("load"));
+    await expect(ready).resolves.toBe("planner ready");
+  } finally {
+    document.removeEventListener("load", moduleReady, true);
+    script()?.remove();
   }
 });

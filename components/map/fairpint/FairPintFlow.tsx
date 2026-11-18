@@ -11,6 +11,9 @@ import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
+import { retryablePlannerImport } from "./retryablePlannerImport";
+
+const loadPlanner = retryablePlannerImport(() => import("./FairPintPlanner"));
 
 const selectionHaptic = () => {
   void import("@/lib/nativeHaptics").then(({ haptic }) => haptic("selection-kept")).catch(() => {});
@@ -69,7 +72,7 @@ export default function FairPintFlow({
   useEffect(() => {
     if (!firstDraw || Planner) return;
     let cancelled = false;
-    void import("./FairPintPlanner")
+    void loadPlanner(() => { if (!cancelled) setPlannerFailed(true); })
       .then((loaded) => { if (!cancelled) setPlanner(() => loaded.default); })
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
