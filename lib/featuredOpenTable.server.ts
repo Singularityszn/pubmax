@@ -57,29 +57,21 @@ async function londonPub(venueId: string): Promise<"listed" | "missing" | "unava
 }
 
 async function datedPrice(venueId: string, nowMs: number): Promise<FeaturedOpenTable["price"]> {
-  let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    // The detail reader cannot be cancelled. Its late answer must not delay Social.
-    const detail = await Promise.race([
-      lookupPricedVenue(venueId),
-      new Promise<null>((resolve) => { timer = setTimeout(() => resolve(null), 1500); }),
-    ]);
+    const detail = await lookupPricedVenue(venueId);
     if (!detail || detail.status !== "found" || detail.venue.id !== venueId) return null;
     const evidence = selectSummonPrice(detail.venue, nowMs);
     return evidence ? { sentence: summonPriceSentence(evidence), sourceUrl: evidence.sourceUrl } : null;
   } catch {
     return null;
-  } finally {
-    clearTimeout(timer);
   }
 }
 
-export async function loadFeaturedOpenTable(
-  selection: FeaturedOpenTableSelection | null,
-  nowMs: number = Date.now(),
+async function readFeaturedOpenTable(
+  selection: FeaturedOpenTableSelection,
+  nowMs: number,
+  prepared: (table: FeaturedOpenTable) => void,
 ): Promise<FeaturedOpenTableResult> {
-  if (!selection) return { status: "not-configured" };
-  if (!validSelection(selection)) return MISSING;
   const preview = await loadOpenCrawlPublicPreview(selection.crewId, { includeOptionalFacts: false });
   if (!preview.ok) return preview.reason === "unavailable" ? UNAVAILABLE : MISSING;
 
@@ -98,15 +90,39 @@ export async function loadFeaturedOpenTable(
   const london = await londonPub(selection.meetingVenueId);
   if (london !== "listed") return london === "unavailable" ? UNAVAILABLE : MISSING;
 
-  return {
-    status: "upcoming",
-    table: {
-      crewId: card.crewId,
-      hostHandle: card.hostHandle,
-      meetingPubName: card.meetingPubName,
-      startsAt: new Date(startMs).toISOString(),
-      placesLine: card.placesLeft === null ? null : openCrawlPlacesLine(card.placesLeft),
-      price: await datedPrice(selection.meetingVenueId, nowMs),
-    },
+  const table: FeaturedOpenTable = {
+    crewId: card.crewId,
+    hostHandle: card.hostHandle,
+    meetingPubName: card.meetingPubName,
+    startsAt: new Date(startMs).toISOString(),
+    placesLine: card.placesLeft === null ? null : openCrawlPlacesLine(card.placesLeft),
+    price: null,
   };
+  prepared(table);
+  const price = await datedPrice(selection.meetingVenueId, nowMs);
+  return { status: "upcoming", table: { ...table, price } };
+}
+
+// Leave time for the rest of the document within Social's 150 ms server budget.
+const FEATURED_OPEN_TABLE_WAIT_MS = 100;
+
+export async function loadFeaturedOpenTable(
+  selection: FeaturedOpenTableSelection | null,
+  nowMs: number = Date.now(),
+): Promise<FeaturedOpenTableResult> {
+  if (!selection) return { status: "not-configured" };
+  if (!validSelection(selection)) return MISSING;
+  let fallback: FeaturedOpenTableResult = UNAVAILABLE;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const expired = new Promise<FeaturedOpenTableResult>((resolve) => {
+    timer = setTimeout(() => resolve(fallback), FEATURED_OPEN_TABLE_WAIT_MS);
+  });
+  const read = readFeaturedOpenTable(selection, nowMs, (table) => {
+    fallback = { status: "upcoming", table };
+  }).catch(() => UNAVAILABLE);
+  try {
+    return await Promise.race([read, expired]);
+  } finally {
+    clearTimeout(timer);
+  }
 }
