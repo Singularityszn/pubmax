@@ -408,6 +408,57 @@ describe("the claim lifecycle across retries, interruptions and resume", () => {
     expect(announced).toBe(0);
   });
 
+  it.each(["host", "guest"] as const)("ends a stalled claim after eight seconds and retries for the same %s", async (role) => {
+    planSession.role = role;
+    state.accountBoundFetch.mockImplementationOnce(held).mockResolvedValue(new Response(null, { status: 200 }));
+    await mount();
+    await advance(7_999);
+    expect(sent()).toBe(1);
+    expect(sentSignal(0)?.aborted).toBe(false);
+    await advance(1);
+    expect(sentSignal(0)?.aborted).toBe(true);
+    await advance(249);
+    expect(sent()).toBe(1);
+    await advance(1);
+    expect(sent()).toBe(2);
+    expect(announced).toBe(1);
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(2);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it("exhausts three stalled claims and waits for resume before sending another", async () => {
+    state.accountBoundFetch.mockImplementation(held);
+    await mount();
+    await advance(8_000);
+    await advance(250);
+    await advance(8_000);
+    await advance(1_000);
+    await advance(8_000);
+    expect(sent()).toBe(3);
+    for (const attempt of [0, 1, 2]) expect(sentSignal(attempt)?.aborted).toBe(true);
+    await advance(60_000);
+    expect(sent()).toBe(3);
+    state.accountBoundFetch.mockResolvedValue(new Response(null, { status: 200 }));
+    await resume();
+    expect(sent()).toBe(4);
+    expect(announced).toBe(1);
+  });
+
+  it("aborts a stalled claim and removes its deadline on unmount", async () => {
+    state.accountBoundFetch.mockImplementation(held);
+    await mount();
+    await act(async () => root.unmount());
+    rootUnmounted = true;
+    expect(sentSignal(0)?.aborted).toBe(true);
+    expect(vi.getTimerCount()).toBe(0);
+    await advance(60_000);
+    await resume();
+    expect(sent()).toBe(1);
+    expect(announced).toBe(0);
+  });
+
   it("sends nothing for a viewer without a Plan role", async () => {
     planSession.role = null;
     await mount();
