@@ -56,6 +56,9 @@ vi.mock("@/lib/authedFetch", () => ({
 
 import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import { announceMessagesRead } from "@/lib/messagesUnreadSignal";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
+
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
 
 let host: HTMLDivElement;
 let root: Root;
@@ -72,13 +75,16 @@ async function settle(): Promise<void> {
   });
 }
 
-function mount(): Promise<void> {
+function mount(activeConversationId: string | null = "c-erin"): Promise<void> {
   return act(async () => {
-    root.render(createElement(MessagesInboxClient, { activeConversationId: "c-erin" }));
+    root.render(createElement(MessagesInboxClient, { activeConversationId: activeConversationId ?? undefined }));
   });
 }
 
 beforeEach(() => {
+  invalidateMessagesInbox();
+  clearSurfaceCache();
+  auth.current = { user: { id: "user-alice" }, handle: "alice", accountRevision: 1 };
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   fetches.calls = 0;
   fetches.held = false;
@@ -99,6 +105,49 @@ afterEach(async () => {
 });
 
 describe("inbox row unread after a thread read", () => {
+  it("updates the saved unread count when the phone hides its inbox during a thread read", async () => {
+    await mount();
+    expect(pill("c-erin")).toBe("1 unread");
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    window.matchMedia = (() => ({ matches: true, addEventListener: () => {}, removeEventListener: () => {} })) as unknown as typeof window.matchMedia;
+    await mount();
+    await act(async () => announceMessagesRead());
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    fetches.held = true;
+
+    await mount(null);
+
+    expect(host.querySelector('a[href="/messages/c-erin"]')).not.toBeNull();
+    expect(pill("c-erin")).toBeNull();
+    expect(pill("c-bob")).toBe("2 unread");
+  });
+
+  it("keeps the last inbox visible while a returning visit revalidates", async () => {
+    await mount();
+    expect(pill("c-erin")).toBe("1 unread");
+    await act(async () => root.unmount());
+    root = createRoot(host);
+    fetches.held = true;
+
+    await mount();
+
+    expect(host.querySelector('a[href="/messages/c-erin"]')).not.toBeNull();
+    expect(pill("c-bob")).toBe("2 unread");
+  });
+
+  it("does not show another account's cached inbox while its read is pending", async () => {
+    await mount();
+    expect(pill("c-erin")).toBe("1 unread");
+    auth.current = { user: { id: "user-bob" }, handle: "bob", accountRevision: 2 };
+    fetches.held = true;
+
+    await mount();
+
+    expect(host.querySelector('a[href="/messages/c-erin"]')).toBeNull();
+  });
+
   it("drops the open thread's pill when the thread announces a read, and leaves other rows alone", async () => {
     await mount();
     await settle();

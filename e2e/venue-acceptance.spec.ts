@@ -110,7 +110,7 @@ for (const width of [320, 390] as const) {
       await page.evaluate(() => document.fonts.ready);
 
       const geometry = await page.evaluate(() => {
-        const box = (element: Element) => {
+        const box = (element: Element | Range) => {
           const rect = element.getBoundingClientRect();
           return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom, width: rect.width, height: rect.height };
         };

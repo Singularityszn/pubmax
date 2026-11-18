@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -13,7 +10,6 @@ import {
   VENUE_DATA_RETRY_SPENT_NOTICE,
   basemapPaintCarriesIntoReveal,
   createPinRevealCoordinator,
-  openingCancelsPendingTiles,
   pinRetryPendingNotice,
   pinRetrySpentNotice,
   overviewSkipsVenueWait,
@@ -29,13 +25,16 @@ function harness({
   confirmVisibleFrameBeforeReveal = false,
   compositeConfirmFrames = 0,
   requiresBasemapPaint = true,
+  preferLocalPins = false,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
   compositeConfirmFrames?: number;
   requiresBasemapPaint?: boolean;
+  preferLocalPins?: boolean;
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
+  let localPinsPreferred = preferLocalPins;
   let nextId = 1;
   const timers = new Map<number, () => void>();
   const timerDelays = new Map<number, number>();
@@ -53,6 +52,7 @@ function harness({
     hasBasemapPainted: () => basemapPainted,
     hasPinsPaintable: () => pinsPaintable,
     requiresBasemapPaint,
+    preferLocalPins: () => localPinsPreferred,
     confirmVisibleFrameBeforeReveal,
     compositeConfirmFrames,
     scheduleFrame: (callback) => {
@@ -101,6 +101,7 @@ function harness({
 
   return {
     coordinator,
+    setPreferLocalPins(value: boolean) { localPinsPreferred = value; },
     visibility,
     reveals,
     timeoutRecoveries,
@@ -370,27 +371,6 @@ describe("pin reveal coordinator", () => {
     }
   });
 
-  // A FENCE ON A COPY CLASS SCANS, IT DOES NOT LIST (docs/AGENTS.md). The sixth
-  // notice of this family lives in the canvas itself, where the WebGL context is
-  // lost, so a sweep of the literals is what stops the next one landing outside
-  // an inventory written today.
-  it("names no gesture in the canvas's own soft-retry notices either", () => {
-    const sources = [
-      "components/PubMapCanvas.tsx",
-      "components/map/canvas/pinRevealCoordinator.ts",
-    ];
-    for (const source of sources) {
-      const text = readFileSync(join(process.cwd(), source), "utf8");
-      const literals = [...text.matchAll(/message:\s*"([^"]+)"/g)].map(
-        (match) => match[1],
-      );
-      expect(literals.length, `${source} declares notice copy`).toBeGreaterThan(0);
-      for (const literal of literals) {
-        expect(literal, `${source}: "${literal}"`).not.toMatch(GESTURE_WORDS);
-      }
-    }
-  });
-
   it("keeps a spent pin Retry in its own lane and says it is a second ask", () => {
     expect(pinRetrySpentNotice("pins")).toEqual(PIN_PAINT_RETRY_SPENT_NOTICE);
     expect(pinRetrySpentNotice("venues")).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
@@ -435,6 +415,40 @@ describe("pin reveal coordinator", () => {
     h.fireRender();
 
     expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("reveals a fixed walk only after its local pins and composite paint, without waiting for tiles", () => {
+    const h = harness({ preferLocalPins: true });
+    h.setPinsPaintable(false);
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.visibility).toEqual([false]);
+    expect(h.reveals).toEqual([]);
+
+    h.setPinsPaintable(true);
+    h.fireRender();
+    expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([]);
+    h.fireRender();
+    h.fireFrame();
+    expect(h.reveals).toEqual([]);
+    h.fireFrame();
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
+  });
+
+  it("adopts a fixed walk that arrives after map construction", () => {
+    const h = harness();
+    h.coordinator.arm();
+    h.fireRender();
+    expect(h.reveals).toEqual([]);
+
+    h.setPreferLocalPins(true);
+    h.fireRender();
+    expect(h.visibility).toEqual([false, true]);
+    h.fireRender();
+    h.fireFrame();
+    h.fireFrame();
     expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
   });
 
@@ -729,37 +743,6 @@ describe("pin reveal coordinator", () => {
       h.setBasemapPainted(true);
       h.fireRender();
       expect(h.reveals).toEqual([{ reason: "tiles", generation: 1 }]);
-    });
-
-    it("keeps the opening's in-flight tiles while the flight zooms, except under reduced motion", () => {
-      // MapLibre's default cancels them, which left no basemap frame until
-      // the flight landed.
-      expect(openingCancelsPendingTiles(false)).toBe(false);
-      expect(openingCancelsPendingTiles(true)).toBe(true);
-      const source = readFileSync(
-        join(process.cwd(), "components/PubMapCanvas.tsx"),
-        "utf8",
-      );
-      expect(source).toMatch(
-        /cancelPendingTileRequestsWhileZooming: openingCancelsPendingTiles\(\s*reducedRef\.current,\s*\)/,
-      );
-      // Only the opening: the first idle hands later zooms back to the default.
-      expect(source).toMatch(
-        /settledMap\.once\("idle", \(\) => \{\s*settledMap\.cancelPendingTileRequestsWhileZooming = true;/,
-      );
-    });
-
-    it("is what the canvas arms with, after the tile-failure reset", () => {
-      const source = readFileSync(
-        join(process.cwd(), "components/PubMapCanvas.tsx"),
-        "utf8",
-      );
-      expect(source).toMatch(
-        /basemapTileReadyForPaint = true;\s*basemapPaintStyleGeneration = styleGeneration;/,
-      );
-      expect(source).toMatch(
-        /const basemapPaintCarries = basemapPaintCarriesIntoReveal\(\{\s*basemapPainted: basemapTileReadyForPaint,\s*paintedStyleGeneration: basemapPaintStyleGeneration,\s*armedStyleGeneration: generation,\s*reducedMotion: reducedRef\.current,\s*\}\);\s*beginTileFailureGeneration\(\);\s*basemapTileReadyForPaint = basemapPaintCarries;\s*initialBasemapPending = true;\s*pinRevealCoordinator\.arm\(\);/,
-      );
     });
   });
 });

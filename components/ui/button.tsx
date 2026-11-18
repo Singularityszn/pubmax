@@ -4,7 +4,6 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 import { ReadyButton } from "@/components/ui/ready-button";
 
-import "./primitives.css";
 
 // The look lives in button.css, outside every cascade layer, because a layered
 // utility loses to app/globals.css's unlayered `button { font: inherit }`. The

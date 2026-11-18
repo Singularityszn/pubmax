@@ -76,6 +76,7 @@
 /* ── Open panel ───────────────────────────────────────────────────────────*/
 .mapConciergeAsk--open {
   justify-content: center;
+  z-index: var(--z-map-toolbar);
 }
 
 .mapConciergeAskPanel {

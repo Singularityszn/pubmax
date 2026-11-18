@@ -210,6 +210,36 @@ describe("what the keyboard store listens to", () => {
     off();
   });
 
+  it.each([1180, 820])("clears visual-only dismissal after rotation from width %i without blur", (width) => {
+    Object.assign(window, {
+      innerWidth: width,
+      innerHeight: width === 1180 ? 820 : 1180,
+      matchMedia: () => ({ matches: true }),
+    });
+    setViewportHeight(window.innerHeight);
+    const [, off] = subscribe();
+    try {
+      activeElement = textInput();
+      fire(documentHandlers, "focusin");
+      vi.runAllTimers();
+      setViewportHeight(width === 1180 ? 400 : 700);
+      fire(viewportHandlers, "resize");
+      expect(readSoftKeyboardOpen()).toBe(true);
+      Object.assign(window, { innerWidth: width === 1180 ? 820 : 1180, innerHeight: width });
+      setViewportHeight(width === 1180 ? 700 : 400);
+      fire(viewportHandlers, "resize");
+      expect(readSoftKeyboardOpen()).toBe(true);
+      setViewportHeight(width);
+      fire(viewportHandlers, "resize");
+      expect(readSoftKeyboardOpen()).toBe(false);
+      setViewportHeight(width === 1180 ? 700 : 400);
+      fire(viewportHandlers, "resize");
+      expect(readSoftKeyboardOpen()).toBe(true);
+    } finally {
+      off();
+    }
+  });
+
   it("takes the Android baseline from the unfocused window, not the tallest one seen", () => {
     platform.android = true;
     const [, off] = subscribe();

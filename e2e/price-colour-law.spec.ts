@@ -19,8 +19,8 @@ import { priceBand, type PriceBand } from "@/lib/priceBand";
 const VENUE_ID = COMMUNITY_SHEET_FIXTURE_VENUE_ID;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-function dismissFirstRunChrome(page: Page): Promise<void> {
-  return page.addInitScript(() => {
+async function dismissFirstRunChrome(page: Page): Promise<void> {
+  await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -29,7 +29,7 @@ function dismissFirstRunChrome(page: Page): Promise<void> {
 }
 
 /** The ink a band paints text with on this page, read off a probe element. */
-async function bandInk(page: Page, band: PriceBand): Promise<string> {
+async function bandInk(page: Page, band: PriceBand | null): Promise<string> {
   return page.evaluate((className) => {
     const probe = document.createElement("span");
     probe.className = className;
@@ -41,7 +41,7 @@ async function bandInk(page: Page, band: PriceBand): Promise<string> {
   }, `priceBand-${band}`);
 }
 
-async function expectBand(page: Page, figure: Locator, band: PriceBand): Promise<void> {
+async function expectBand(page: Page, figure: Locator, band: PriceBand | null): Promise<void> {
   await expect(figure).toBeVisible();
   await expect(figure).toHaveClass(new RegExp(`\\bpriceBand-${band}\\b`));
   for (const other of ["cheap", "average", "expensive"] as const) {

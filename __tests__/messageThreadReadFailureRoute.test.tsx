@@ -139,7 +139,8 @@ beforeAll(async () => {
   MessageThread = (await import("@/components/messages/MessageThread")).default;
 });
 
-beforeEach(() => {
+beforeEach(async () => {
+  (await import("@/lib/surfaceDataCache")).clearSurfaceCache();
   state.failRead = false;
   state.failMembership = false;
   state.schema = false;

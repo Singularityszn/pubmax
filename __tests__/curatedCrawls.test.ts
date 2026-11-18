@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { crawlShareMapHref, curatedCrawlMapHref, curatedCrawls } from "@/lib/curatedCrawls";
+import { crawlShareMapHref, curatedCrawlMapHref, curatedCrawls, discoveredCuratedCrawls } from "@/lib/curatedCrawls";
+import { curatedWalkKm } from "@/lib/curatedWalk";
 import { landmarks } from "@/lib/landmarks";
 import { ALT_CRAWL_STYLES, seedCrawlState } from "@/lib/crawlUrl";
 import { groupVenuePrices, type CrawlStyle, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
+import { haversineKm } from "@/lib/haversine";
 
 // Recompute venue ids from the dataset exactly as the app does, so a re-export
 // that moves a venue is caught here instead of 404-ing a curated crawl.
@@ -22,6 +24,38 @@ const validStyles: CrawlStyle[] = [
 ];
 
 describe("curated crawls", () => {
+  it("maps the complete Christmas walk in the supplied order over about 4.5 km", () => {
+    const crawl = curatedCrawls.find((entry) => entry.id === "london-christmas-walk");
+    expect(crawl?.walk).toBeDefined();
+    const walk = crawl!.walk!;
+    expect(walk.stops.map((stop) => stop.name)).toEqual([
+      "Covent Garden", "Seven Dials", "Soho", "Broadwick Soho (Paddington)",
+      "Carnaby Street", "Liberty London", "Regent Street", "Oxford Street",
+      "New Bond Street", "Burlington Arcade", "Fortnum & Mason", "Leicester Square", "Trafalgar Square",
+    ]);
+    const km = walk.path.slice(1).reduce((sum, point, index) => sum + haversineKm(walk.path[index]!, point), 0);
+    expect(km).toBeGreaterThanOrEqual(4.05);
+    expect(km).toBeLessThanOrEqual(4.95);
+    expect(curatedWalkKm(walk)).toBeCloseTo(km, 2);
+    expect(crawl!.venueIds).toEqual([]);
+    const restored = seedCrawlState(new URL(curatedCrawlMapHref(crawl!), "https://pubmaxxing.com").search);
+    expect(restored.crawlId).toBe(crawl!.id);
+    expect(restored.builtIds).toEqual([]);
+    for (const stop of walk.stops) {
+      expect(stop.source).toMatch(/^https:\/\/www.openstreetmap.org\/(node|way|relation)\/\d+$/);
+      expect(walk.path.some((point) => haversineKm(point, [stop.longitude, stop.latitude]) < 0.03)).toBe(true);
+    }
+  });
+  it.each([
+    ["2026-11-14T12:00:00Z", false], ["2026-11-15T00:00:00Z", true],
+    ["2027-01-06T23:59:00Z", true], ["2027-01-07T00:00:00Z", false],
+    ["2027-06-01T12:00:00Z", false],
+  ])("only promotes the Christmas walk during its London season at %s", (instant, promoted) => {
+    const visible = discoveredCuratedCrawls(curatedCrawls, new Date(instant as string));
+    expect(visible.some((crawl) => crawl.id === "london-christmas-walk")).toBe(promoted);
+    if (promoted) expect(visible[0]?.id).toBe("london-christmas-walk");
+    expect(curatedCrawls.some((crawl) => crawl.id === "london-christmas-walk")).toBe(true);
+  });
   it("has 3-16 crawls with unique ids", () => {
     // Started at 3-4; extended with themed POI crawls, alt-style crawls, then
     // London-chain editorial crawls (Eating Europe + Young's + Nicholson's).
@@ -34,7 +68,7 @@ describe("curated crawls", () => {
     for (const crawl of curatedCrawls) {
       expect(crawl.name.trim().length, `${crawl.id} name`).toBeGreaterThan(0);
       expect(crawl.blurb.trim().length, `${crawl.id} blurb`).toBeGreaterThan(0);
-      expect(crawl.venueIds.length, `${crawl.id} stop count`).toBeGreaterThanOrEqual(4);
+      expect((crawl.walk?.stops.length ?? crawl.venueIds.length), `${crawl.id} stop count`).toBeGreaterThanOrEqual(4);
       expect(validStyles, `${crawl.id} crawlStyle`).toContain(crawl.crawlStyle);
     }
   });

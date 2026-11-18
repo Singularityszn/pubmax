@@ -67,7 +67,7 @@ Ordered for parallel work; later slices must not block earlier merges.
 |---|---|---|---|---|
 | 0 | `cursor/crew-night-loop-plan-dd0b` | This plan + README index | `docs/plans/` | No product code |
 | 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard + funnel docs for `crew_committed` `participants >= 2`; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
-| 2 | `cursor/invite-spend-band-dd0b` | Invite price guidance follows the [listed-price contract](../../lib/shareArtifacts.ts). | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page + OG | Do not redesign `PlanInviteNextStep` |
+| 2 | `cursor/invite-spend-band-dd0b` | Invite price guidance follows the [listed-price contract](../../lib/shareArtifacts.ts). | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page | Follow the [link preview privacy rules](../../README.md#features). Do not redesign `PlanInviteNextStep`. |
 | 3 | `cursor/soft-occasion-defaults-dd0b` | Soft defaults: describe-first / Tonight → plan handoff / landing Why → `/plan` for AF, coffee, chill | `PlanDescribeFirst`, Tonight vibe chips, landing links | No ShareBar; no launch-flag change; no taste CSS churn |
 | 4 | `cursor/crew-tonight-board-dd0b` | Friends-only “who’s out” board over `visibleCheckInsForViewer`; keep `/we-are-out` honest under live or rollback state | check-in feed, You/lot surface, `WeAreOutClient` | No area-public densify |
 | 5 | `cursor/usual-lot-reinvite-loop-dd0b` | Completed-plan → usual-lot nudge; emit `next_night_committed` with closed `source` (`crew-reinvite` / `completed_plan`) | `LastCrewInvite`, `lastCrew.ts`, analytics emission | No Social crew snapshot RPC; no new server roster table |

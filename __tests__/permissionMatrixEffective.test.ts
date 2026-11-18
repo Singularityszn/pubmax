@@ -2144,6 +2144,34 @@ describe("Social Crew: the removed member", () => {
 });
 
 describe("Social Crew: at the table", () => {
+  it("keeps occurrence cancellation service-only and its audit read-only for operators", () => {
+    const table = "public.social_crew_occurrence_cancellations";
+    const signature = "public.cancel_social_crew_occurrence_admin(uuid,uuid,bigint,text,text)";
+    const call = `select public.cancel_social_crew_occurrence_admin('${ALICE_PROFILE}','${CREW_PLAN_ID}',1,'ready','Safety review')`;
+    const before = truth(`select count(*) from ${table}`);
+    for (const role of ["anon", "authenticated"] as const) {
+      for (const sub of role === "anon" ? [null] : [ALICE, BOB, CAROL, DAVE]) {
+        for (const statement of [`select count(*) from ${table}`, call]) {
+          const result = requireSession().sql(statement, { asRole: role, sub });
+          expect(result.ok).toBe(false);
+          expect(result.err).toMatch(/permission denied/i);
+        }
+      }
+    }
+    expect(truth(`select has_function_privilege('service_role','${signature}','EXECUTE')`)).toBe("true");
+    expect(requireSession().sql(`select count(*) from ${table}`, { asRole: "service_role" }).out).toBe(before);
+    for (const statement of [
+      `insert into ${table} default values`,
+      `update ${table} set reason='Overwritten'`,
+      `delete from ${table}`,
+    ]) {
+      const result = requireSession().sql(statement, { asRole: "service_role" });
+      expect(result.ok).toBe(false);
+      expect(result.err).toMatch(/permission denied/i);
+    }
+    expect(truth(`select count(*) from ${table}`)).toBe(before);
+  });
+
   it("no browser role may read a Crew row or call the Crew entry points, whoever they are", () => {
     for (const table of [
       "social_crews",
@@ -3448,6 +3476,33 @@ describe("Open crawl: Open it up (0208)", () => {
     }
     expect(truth(`select capacity from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("6");
   });
+});
+
+describe("private Crew attendance (0247)", () => {
+  it("only the service role calls the entry points, and no browser role reads the tables", () => {
+    const entries = [
+      "public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text)",
+      "public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text)",
+      "public.read_social_crew_attendance(uuid,uuid,uuid)",
+      "public.report_social_crew_attendance(uuid,uuid,uuid,integer)",
+      "public.read_social_crew_attendance_reports_admin(uuid,integer)",
+      "public.export_social_crew_attendance(uuid,integer)",
+      "public.purge_expired_social_crew_attendance(integer)",
+    ];
+    for (const entry of entries) {
+      for (const role of ["anon", "authenticated"]) {
+        expect(truth(`select has_function_privilege('${role}','${entry}','execute')::text`), `${role} ${entry}`).toBe("false");
+      }
+      expect(truth(`select has_function_privilege('service_role','${entry}','execute')::text`), entry).toBe("true");
+    }
+    for (const table of ["public.social_crew_attendance", "public.social_crew_attendance_reports"]) {
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        expect(truth(`select has_table_privilege('${role}','${table}','select,insert,update,delete')::text`), `${role} ${table}`).toBe("false");
+      }
+      expect(truth(`select relrowsecurity::text from pg_class where oid='${table}'::regclass`)).toBe("true");
+    }
+  });
+
 });
 
 describe("account deletion", () => {

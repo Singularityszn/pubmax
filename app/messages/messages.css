@@ -1,14 +1,6 @@
 /* Direct and group messaging use the scoped visual rule in
    docs/rules/components-venue-plan-and-message-surfaces.md.
 
-   THE SHAPE, on a phone: a sticky head naming who you are talking to, the
-   thread as the page's own scroll, and a composer pinned over the foot of the
-   page, above the tab bar, and above the keyboard when one is up (the thread
-   root carries `--keyboard-inset` from lib/keyboardInset.ts and
-   `data-keyboard-open` from lib/softKeyboard.ts). On a desktop the split is a
-   fixed-height panel: the inbox and the thread each scroll on their own and
-   the composer never leaves the bottom edge.
-
    THE EDGES follow the de-box rule (docs/DESIGN_SYSTEM.md): borders are for
    inputs, fills are for selection, hairlines are for structure. An inbox row
    is a flat row with a face; a text bubble is a fill; the composer has one border. */
@@ -270,7 +262,7 @@ html[data-theme="dark"] .messagesPage {
 /* ── inbox: conversation list ─────────────────────────────────────────────── */
 .conversationList {
   list-style: none;
-  margin: 0 calc(var(--messages-gutter, 20px) * -0.5);
+  margin: 0 calc(var(--messages-gutter) * -0.5);
   padding: 0;
   display: flex;
   flex-direction: column;
@@ -290,7 +282,7 @@ html[data-theme="dark"] .messagesPage {
   align-items: center;
   gap: 0.8rem;
   min-height: 80px;
-  padding: 0.75rem calc(var(--messages-gutter, 20px) * 0.5);
+  padding: 0.75rem calc(var(--messages-gutter) * 0.5);
   border-radius: 0;
   text-decoration: none;
   color: inherit;
@@ -401,17 +393,21 @@ a.threadWith:active {
   min-height: calc(100dvh - 7.5rem);
 }
 
-/* The shell draws no box: it is where the keyboard facts arrive as data and
-   custom properties, which the composer dock below reads by inheritance. */
+/* A non-zero reduced-motion duration must not animate keyboard geometry. */
+.messageThreadShell,
+.messageThreadShell :is(.threadMessages, .composerDock, .composerInput) {
+  transition-property: none;
+}
+
+/* The desktop split owns its bounds. The phone shell owns the visible viewport. */
 .messageThreadShell {
-  --composer-clearance: 0px;
+  --thread-tabbar-clearance: 0px;
+  --composer-clearance: var(--thread-tabbar-clearance);
 
   display: contents;
 }
 
-/* Who you are talking to, and the way back. Sticky on the phone, where the
-   page is the scroller. Full bleed, so the hairline under it runs edge to
-   edge like the composer's. */
+/* The header keeps the conversation name and return link in view. */
 .threadHeader {
   position: sticky;
   top: 0;
@@ -421,10 +417,29 @@ a.threadWith:active {
   align-items: center;
   gap: 0.25rem;
   min-height: 56px;
-  margin: 0 calc(var(--messages-gutter, 20px) * -1);
+  margin: 0 calc(var(--messages-gutter) * -1);
   padding: 0.25rem 0.5rem;
   background: var(--messages-surface, var(--paper));
   border-bottom: 1px solid var(--line-soft);
+}
+
+.threadHeaderGroup {
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  margin-inline: 0;
+  background: var(--messages-surface, var(--paper));
+}
+
+.threadHeaderGroup .threadHeader {
+  position: static;
+  margin-inline: 0;
+}
+
+.threadHeaderGroup .threadReadRecovery {
+  margin: 0 var(--messages-gutter, 20px);
+  padding-block: var(--space-2);
 }
 
 .threadBackLink {
@@ -480,15 +495,8 @@ a.threadWith:active {
   gap: 2px;
 }
 
-/* A SHORT THREAD HUGS THE COMPOSER. The list is the thread's tall flex child,
-   and its rows used to sit at the TOP of it, so a one-message thread on a
-   phone laid its bubble under the head and 600px of nothing over the
-   composer; with the analytics consent card mounted (every new account) the
-   body reserves the card's lane, the page gains that much scroll, opening
-   scrolls to the foot, and the bubble left the screen entirely (bubble y -26
-   to 34 at 390, verify-preview-4 RED 1). An auto top margin on the first row
-   pushes the rows to the foot while the list still scrolls when it overflows,
-   which `justify-content: flex-end` on a scroller does not. */
+/* The auto margin keeps short threads above the composer without making
+   overflowing rows unreachable, as justify-content: flex-end can. */
 .threadMessages > :first-child {
   margin-top: auto;
 }
@@ -897,41 +905,81 @@ html[data-theme="dark"] .messageBubblePhoto {
 }
 
 /* ── composer ─────────────────────────────────────────────────────────────── */
-/* The dock is everything that rides with the field: the error line, the pub
-   picker, the pending attachment, then the composer row. Pinned over the foot
-   of the page on the phone, above the tab bar's lane and above the keyboard;
-   the desktop split makes it the bottom of the thread pane instead. */
+/* The dock holds the field, attachments and errors outside the scrolling list. */
 .composerDock {
-  position: sticky;
-  bottom: max(var(--composer-clearance), var(--keyboard-inset, 0px));
+  --composer-line-height: 1.35;
+  --composer-field-padding: 0.65rem;
+  --composer-row-padding: 0.2rem;
+  --composer-dock-gap: 0.5rem;
+  --composer-dock-padding: 0.5rem;
+
+  position: relative;
   z-index: 3;
   display: flex;
   flex: 0 1 auto;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100dvh - var(--thread-header-bottom, 56px) - max(var(--composer-clearance), var(--keyboard-inset, 0px)));
+  gap: var(--composer-dock-gap);
+  margin: 0 calc(var(--messages-gutter) * -1);
+  padding: var(--composer-dock-padding) 0.75rem calc(var(--composer-dock-padding) + env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
-  gap: 0.5rem;
-  margin: 0 calc(var(--messages-gutter, 20px) * -1);
-  padding: 0.5rem 0.75rem calc(0.5rem + env(safe-area-inset-bottom, 0px));
+  overscroll-behavior-y: contain;
   background: var(--messages-surface, var(--paper));
   border-top: 0;
 }
 
-.composerDock > * {
-  flex-shrink: 0;
+.messageThreadShell[data-compact-composer] .composerDock {
+  --composer-field-padding: clamp(0px, (44px - 1em * var(--composer-line-height)) / 2, 0.65rem);
+  --composer-row-padding: 0px;
+  --composer-dock-gap: 2px;
+  --composer-dock-padding: 2px;
+}
+
+.composerPickerRegion {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding-bottom: 1px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+}
+
+.composerPickerRegion :focus-visible {
+  outline-offset: -2px;
+}
+
+.composerPickerRegion .composerPhotoRetry {
+  padding-block: 0;
 }
 
 /* One row: the attachments, the field, Send. The field is the only thing that
    grows, and everything else sits on the field's bottom line so a three-line
    message keeps the buttons where a thumb left them. */
 .composer {
+  --composer-field-gap: 0.2rem;
+  --composer-count-height: calc(var(--text-xs) * var(--leading-normal));
+  --composer-count-space: 0px;
+  --composer-min-height: calc(
+    max(44px, 1em * var(--composer-line-height) + 2 * var(--composer-field-padding))
+      + var(--composer-count-space) + 2 * var(--composer-row-padding) + 2px
+  );
+
+  min-height: var(--composer-min-height);
   display: flex;
   align-items: flex-end;
   gap: 0.25rem;
-  padding: 0.2rem 0.3rem;
+  padding: var(--composer-row-padding) 0.3rem;
   border: 1px solid var(--line);
   border-radius: 26px;
+}
+
+.composer:has(.composerCount) {
+  --composer-count-space: calc(var(--composer-count-height) + var(--composer-field-gap));
+}
+
+.messageThreadShell[data-compact-composer] .composer {
+  max-height: var(--composer-min-height);
 }
 
 .composerControls {
@@ -943,38 +991,55 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 .composerField {
   flex: 1 1 auto;
+  align-self: stretch;
+  min-height: 0;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 0.2rem;
+  gap: var(--composer-field-gap);
+}
+
+.messageThreadShell .composerDock.composerDockLoading {
+  margin-top: auto;
+}
+
+.composerPlaceholderField {
+  min-height: 44px;
+  height: calc(1.35em + 1.3rem);
+  border-radius: var(--radius-pill);
 }
 
 .composerInput {
+  flex: 1 1 auto;
   width: 100%;
-  /* The height is set by the field's own content (see MessageThread), so a
+  /* useMessageInputSize sets the height from the field's content, so a
      drag handle would fight it. */
   resize: none;
   overflow-y: auto;
   min-height: 44px;
   max-height: 9rem;
-  padding: 0.65rem 0.4rem;
+  padding: var(--composer-field-padding) 0.4rem;
   border: none;
   border-radius: 22px;
   background: transparent;
   color: var(--ink);
   font: inherit;
-  line-height: 1.35;
+  line-height: var(--composer-line-height);
 }
 
 .composerInput::placeholder {
   color: var(--muted);
 }
 
-.composerInput:focus-visible {
+.composer:has(.composerInput:focus) {
   outline: 2px solid var(--brass);
-  outline-offset: 0;
-  border-radius: 22px;
+  outline-offset: -1px;
+  border-color: var(--brass);
+}
+
+.composerInput:focus-visible {
+  outline: none;
 }
 
 .composerMobileAttach {
@@ -1138,9 +1203,11 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* The counter appears only inside the last hundred characters. */
 .composerCount {
+  flex-shrink: 0;
   align-self: flex-end;
   padding-right: 0.5rem;
   font-size: var(--text-xs);
+  line-height: var(--composer-count-height);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1177,6 +1244,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   background: var(--panel);
   color: var(--muted);
   cursor: not-allowed;
+}
+
+.composerSend > svg {
+  pointer-events: none;
 }
 
 .composerSend:focus-visible {
@@ -1368,7 +1439,8 @@ html[data-theme="dark"] .messageBubblePhoto {
   .messagesSplit {
     display: grid;
     grid-template-columns: minmax(20rem, 24rem) minmax(0, 1fr);
-    height: calc(100dvh - 9rem);
+    --messages-consent-clearance: 0px;
+    height: calc(100dvh - 9rem - var(--messages-consent-clearance));
     min-height: 0;
     overflow: hidden;
     border: 1px solid var(--line);
@@ -1384,10 +1456,8 @@ html[data-theme="dark"] .messageBubblePhoto {
      viewport-sized box and the card lands on the composer row at its foot
      (verify-preview-4, 7.2 at 1440). */
   body:has(.analyticsConsentPrompt) .messagesSplit {
-    height: calc(
-      100dvh - 9rem
-        - var(--analytics-consent-clearance)
-        - max(12px, env(safe-area-inset-bottom, 0px))
+    --messages-consent-clearance: calc(
+      var(--analytics-consent-clearance) + max(12px, env(safe-area-inset-bottom, 0px))
     );
   }
 
@@ -1446,6 +1516,11 @@ html[data-theme="dark"] .messageBubblePhoto {
     padding: 0.5rem 1.25rem;
   }
 
+  .messagesThreadPane .threadHeaderGroup {
+    position: static;
+    margin-inline: 0;
+  }
+
   .messagesThreadPane .threadBackLink {
     display: none;
   }
@@ -1457,12 +1532,17 @@ html[data-theme="dark"] .messageBubblePhoto {
     padding: 0.75rem 1.25rem 0.5rem;
   }
 
+  .messagesThreadPane .threadReadRecovery {
+    margin-inline: var(--space-5);
+  }
+
   .messagesThreadPane .composerDock {
+    --composer-dock-padding: 8px;
     position: static;
     min-height: calc(44px + 16px);
     max-height: none;
     margin: 0;
-    padding: 8px 0.75rem;
+    padding: var(--composer-dock-padding) 0.75rem;
   }
 
   .messagesThreadPane > .conversationPreview,
@@ -1498,30 +1578,8 @@ html[data-theme="dark"] .messageBubblePhoto {
 
 /* ── the phone ────────────────────────────────────────────────────────────── */
 @media (max-width: 640px) {
-  /* The dock clears the page's reserved chrome lane. A keyboard inset
-     replaces that lane instead of adding to it. */
   .messageThreadShell {
-    --composer-clearance: var(--chrome-bottom-clearance);
-  }
-
-  /* The analytics consent card parks in the lane above the tab bar
-     (app/globals.css, --analytics-consent-reserve), so while it is
-     mounted the composer clears the card as well as the bar: the newest
-     message and the field are on screen whatever overlays are up, and the
-     card never covers the field. With the keyboard up the card steps aside
-     instead, because a person typing has answered nothing yet and the field
-     comes first. */
-  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]) {
-    --composer-clearance: calc(
-      var(--tabbar-h, 64px)
-        + env(safe-area-inset-bottom, 0px)
-        + var(--analytics-consent-reserve, var(--analytics-consent-mobile-clearance, 56px))
-    );
-  }
-
-  body:has(.messageThreadShell[data-keyboard-open]) .analyticsConsentPrompt {
-    visibility: hidden;
-    pointer-events: none;
+    --thread-tabbar-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
   }
 
   .composerPhotoDesktop {
@@ -2014,6 +2072,10 @@ html[data-theme="dark"] .messageBubblePhoto {
   align-items: center;
 }
 
+.composerPickerActions > .composerVenueResult {
+  justify-content: center;
+}
+
 .composerPollOptions {
   list-style: none;
   margin: 0;
@@ -2123,5 +2185,126 @@ html[data-theme="dark"] .messageBubblePhoto {
   .threadStarters button:hover {
     background: color-mix(in srgb, var(--ink) 10%, var(--messages-surface));
     color: var(--ink);
+  }
+}
+
+
+.messageThreadShell .composerDock {
+  min-height: 0;
+  flex-shrink: 1;
+}
+
+.messageThreadShell .threadMessages {
+  flex-basis: 0;
+  padding-block: 0;
+}
+
+.messageThreadShell .threadMessages::before,
+.messageThreadShell .threadMessages::after {
+  content: "";
+  flex: 0 0 0.75rem;
+}
+
+.messageThreadShell .threadMessages::after {
+  flex-basis: 0.5rem;
+}
+
+@media (max-width: 1023px) {
+  .messageThreadShell[data-keyboard-open],
+  .messageThreadShell[data-viewport-reduced] {
+    --composer-clearance: 0px;
+  }
+
+  body:has(.analyticsConsentPrompt) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) {
+    --composer-clearance: calc(
+      var(--thread-tabbar-clearance)
+        + var(--analytics-consent-reserve, var(--analytics-consent-clearance))
+    );
+  }
+
+  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .mobileTabBar {
+    visibility: hidden;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(110%);
+    transition-property: none;
+  }
+
+  html:has(.messagesMainThread .messageThreadShell) {
+    overscroll-behavior-y: none;
+  }
+
+  body:has(.messagesMainThread .messageThreadShell) {
+    overflow: hidden;
+  }
+
+  .messagesPage:has(.messagesMainThread .messageThreadShell) > .siteNavBar {
+    display: none;
+  }
+
+  .messageThreadShell {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: calc(100dvh - var(--composer-clearance));
+    display: flex;
+    flex-direction: column;
+    background: var(--messages-surface, var(--paper));
+  }
+
+  .messageThreadShell .threadHeader {
+    position: relative;
+    flex-shrink: 0;
+    margin: 0;
+    padding-top: max(0.25rem, env(safe-area-inset-top, 0px));
+    padding-left: calc(0.5rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.5rem + env(safe-area-inset-right, 0px));
+  }
+
+  .messageThreadShell .threadBackLink {
+    display: inline-grid;
+  }
+
+  .messageThreadShell .threadMessages {
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior-y: contain;
+    padding-left: calc(var(--messages-gutter) + env(safe-area-inset-left, 0px));
+    padding-right: calc(var(--messages-gutter) + env(safe-area-inset-right, 0px));
+  }
+
+  .messageThreadShell .composerDock {
+    position: static;
+    margin: 0;
+    padding-bottom: var(--composer-dock-padding);
+    padding-left: calc(0.75rem + env(safe-area-inset-left, 0px));
+    padding-right: calc(0.75rem + env(safe-area-inset-right, 0px));
+  }
+
+}
+
+@media (min-width: 641px) and (max-width: 1023px) {
+  body:not(:has(.analyticsConsentPrompt)) .messageThreadShell:not([data-keyboard-open]):not([data-viewport-reduced]) .composerDock {
+    padding-bottom: max(var(--composer-dock-padding), env(safe-area-inset-bottom, 0px));
+  }
+}
+
+@media (min-width: 1024px) and (pointer: coarse) {
+  .messagesSplit:has(.messageThreadShell) {
+    position: relative;
+    min-height: 0;
+    transition-property: none;
+  }
+
+  .messagesSplit:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) {
+    --messages-consent-clearance: 0px;
+  }
+}
+
+@media (max-width: 1023px), (pointer: coarse) {
+  body:has(.messageThreadShell:is([data-keyboard-open], [data-viewport-reduced])) .analyticsConsentPrompt {
+    visibility: hidden;
+    pointer-events: none;
   }
 }

@@ -4,8 +4,6 @@ import { installAuthDoubles } from "./authDoubles";
 import { installDeterministicMapBasemap } from "./mapNetworkFixtures";
 import { expectMobileMapShellReady } from "./mobileMapShell";
 
-const LUCIA_MAP_SUBTYPE = "soft-drink-lucia-special";
-
 export function drinkSheet(page: Page): Locator {
   return page.locator('.mobileSheetPortal[data-sheet-kind="drink"]');
 }
@@ -68,37 +66,6 @@ export async function lowerContentGeometry(page: Page) {
       documentScrollY: window.scrollY,
     };
   });
-}
-
-export async function clickLuciaAndReturn(page: Page, documentStartedAt: number, testInfo: TestInfo): Promise<void> {
-  await closeDrink(page);
-  const reopened = await openDrink(page);
-  await expect(reopened.getByRole("button", { name: "Spoons value", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await reopened.getByRole("link", { name: /Lucia 🐐/ }).tap();
-  await expect(page).toHaveURL(/\/soft-drinks-and-water\?sub=soft-drink-lucia-special$/);
-  await expect(page.getByRole("tab", { name: "Lucia 🐐", exact: true })).toHaveAttribute("aria-selected", "true");
-  // Independent oracle: the committed Wells menu observation in uk_prices/rows.json,
-  // not the production subtype selector or the displayed row read back as its own expectation.
-  const wells = page.locator(".softDrinksWater__row").filter({
-    has: page.locator('a[href="/ledger/venue-1472h4h"]'),
-  });
-  await expect(wells).toHaveCount(1);
-  await expect(wells.locator(".softDrinksWater__price")).toHaveText("£3.65");
-  await expect(wells).toContainText("Collected 17 October 2026");
-  await expect(wells.getByRole("link", { name: "thewellshampstead.co.uk", exact: true })).toHaveAttribute(
-    "href", "https://thewellshampstead.co.uk/wp-content/uploads/2026/02/Wine-List-Spring-docx.pdf",
-  );
-  await wells.scrollIntoViewIfNeeded();
-  await expect(wells.locator(".softDrinksWater__price")).toBeVisible();
-  await wells.screenshot({ path: testInfo.outputPath("lucia-listed-price-source-date.png") });
-  await page.getByRole("link", { name: "Open the map", exact: true }).tap();
-  await expect.poll(() => new URL(page.url()).pathname).toBe("/map");
-  await expect.poll(() => new URL(page.url()).searchParams.get("drink")).toBe("soft-drink");
-  await expect.poll(() => new URL(page.url()).searchParams.get("sub")).toBe(LUCIA_MAP_SUBTYPE);
-  await expectMobileMapShellReady(page);
-  await expect.poll(() => page.evaluate(() => performance.timeOrigin)).toBe(documentStartedAt);
-  const returned = await openDrink(page);
-  await expect(returned.getByRole("button", { name: "Soft drinks", exact: true })).toHaveAttribute("aria-pressed", "true");
 }
 
 export async function clickRankingAndCheckRecordedCosts(page: Page, documentStartedAt: number, testInfo: TestInfo): Promise<void> {

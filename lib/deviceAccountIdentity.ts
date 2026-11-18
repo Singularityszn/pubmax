@@ -23,7 +23,7 @@ import {
   NIGHT_PROFILE_DEVICE_KEY,
   readDeviceNightProfileProvenance,
 } from "@/lib/nightProfileDeviceProvenance";
-import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropDraft";
+import { PINT_DROP_SIGN_IN_HANDOFF_KEY } from "@/lib/pintDropSignInKeys";
 import { showLegRouteOnMap } from "@/lib/legRouteOnMap";
 import { forgetOutingSteps } from "@/lib/outingStepsSession";
 import { PLAN_ONBOARDING_ALTERNATIVE_KEY } from "@/lib/planDraftStorage";

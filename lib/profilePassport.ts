@@ -357,7 +357,6 @@ export const PASSPORT_COPY = {
   showOnMap: "Show on the map",
   rankedTitle: "Your pubs, ranked",
   rankedLine: "Only you see this list.",
-  rankedEmpty: "Rank a pub from its page and your list starts here.",
   share: "Share your top ten",
   shareReady: "Link copied.",
   shareFailed: "That link did not work. Try again.",

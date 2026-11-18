@@ -175,6 +175,7 @@ export type ConversationDTO = {
   /** Every live member, viewer included. Absent on a direct row. */
   memberHandles?: readonly string[];
   lastBody?: string;
+  lastMessageId?: string;
   lastAt: string;
   lastFromMe: boolean;
   /** How many messages the viewer has waiting. ABSENT means the count could not

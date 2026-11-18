@@ -13,6 +13,7 @@ const viewer = vi.hoisted(() => ({
   session: {} as ViewerSession,
 }));
 const transport = vi.hoisted(() => ({ request: vi.fn() }));
+const calendar = vi.hoisted(() => ({ day: null as string | null }));
 
 vi.mock("next/link", () => ({
   useLinkStatus: () => ({ pending: false }),
@@ -30,7 +31,7 @@ vi.mock("@/components/auth/useViewerSession", () => ({ useViewerSession: () => v
 vi.mock("@/components/auth/useViewerHandle", () => ({ useViewerHandle: () => null }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: transport.request }));
 vi.mock("@/lib/useSocialFriendsLaunch", () => ({ useSocialFriendsLaunch: () => true }));
-vi.mock("@/lib/useLogInPublicDay", () => ({ useLogInPublicDay: () => null }));
+vi.mock("@/lib/useLogInPublicDay", () => ({ useLogInPublicDay: () => calendar.day }));
 vi.mock("@/lib/deviceAccountIdentity", () => ({ subscribeDeviceIdentity: () => () => undefined }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/profile/HandleAvatar", () => ({ default: () => null }));
@@ -44,11 +45,13 @@ vi.mock("@/app/social/SocialTagInbox", () => ({ default: () => null }));
 
 import SocialPageClient from "@/app/social/SocialPageClient";
 import { SOCIAL_SIGNED_OUT_VALUE_LINE } from "@/lib/socialLaunch";
+import { LOG_IN_PUBLIC_FEED_HREF } from "@/lib/logInPublicDrops";
 
 const posts = { valid: true as const, tab: "posts" as const, feed: "following" as const, area: null };
 let host: HTMLDivElement;
 let root: Root;
 let style: HTMLStyleElement;
+let promotionBodyRead: Promise<void>;
 
 function setSession(phase: ViewerSession["phase"]): void {
   viewer.session = {
@@ -65,6 +68,22 @@ beforeEach(() => {
   viewer.auth.accountRevision = 0;
   viewer.auth.user = null;
   setSession("unresolved");
+  calendar.day = null;
+  let finishPromotionBody!: () => void;
+  promotionBodyRead = new Promise<void>((resolve) => { finishPromotionBody = resolve; });
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    if (String(input) !== LOG_IN_PUBLIC_FEED_HREF) throw new Error(`Unexpected public request: ${String(input)}`);
+    const response = Response.json({ drops: [] });
+    const readJson = response.json.bind(response);
+    // next/dynamic mounts on SyncLane while act waits. After body consumption,
+    // async act drains the remaining microtasks before the ready-state assertions.
+    response.json = async () => {
+      const body = await readJson();
+      finishPromotionBody();
+      return body;
+    };
+    return response;
+  }));
   transport.request.mockReset();
   transport.request.mockImplementation(async (input: RequestInfo | URL) => {
     if (String(input) !== "/api/starter-packs") throw new Error(`Unexpected request: ${String(input)}`);
@@ -89,6 +108,7 @@ afterEach(async () => {
   await act(async () => root.unmount());
   host.remove();
   style.remove();
+  vi.unstubAllGlobals();
 });
 
 async function renderSocial(initialState: SocialShellState = posts, friendsLaunchEnabled = true): Promise<void> {
@@ -161,7 +181,18 @@ describe("Social Posts account resolution", () => {
     expect(transport.request).not.toHaveBeenCalled();
 
     setSession("signed-out");
+    calendar.day = "2026-11-17";
     await renderSocial();
+    await act(async () => {
+      await vi.dynamicImportSettled();
+      await promotionBodyRead;
+    });
+    const promotions = host.querySelectorAll(".socialLogInPublic");
+    expect(promotions).toHaveLength(1);
+    const promotion = promotions[0]!;
+    expect(promotion!.getAttribute("aria-busy")).toBe("false");
+    expect(promotion!.querySelector(".logInPublicEmpty")).not.toBeNull();
+    expect(promotion!.querySelector("button")).toBeNull();
 
     expect(door.querySelector('section[aria-label="Social posts"]')).toBe(slot);
     expect(slot!.querySelector(".emptyState")!.parentElement).toBe(content);
@@ -181,7 +212,7 @@ describe("Social Posts account resolution", () => {
     expect(host.querySelectorAll(".starterPacks__follow")).toHaveLength(0);
     expect(host.querySelectorAll("#find-lot-title")).toHaveLength(1);
     expect(host.querySelectorAll(".socialFoundersLink")).toHaveLength(1);
-    // Everything above the packs kept its place while the account answered.
+    // Main places the promotion after the door. Its hydration shift remains in issue 2970.
     expect(Array.from(door.children).slice(0, 2)).toEqual(pendingChildren.slice(0, 2));
   });
 

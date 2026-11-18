@@ -49,6 +49,7 @@ export type GestureCameraState = {
   active: boolean;
   /** When the last gesture or contact ended, or null before an interaction. */
   endedAt: number | null;
+  movementSerial?: number;
 };
 
 export function idleGestureCameraState(): GestureCameraState {
@@ -89,7 +90,7 @@ export function installMapGestureGuard(
   const publish = () => {
     const active = gestures.size + pointers.size + touches.size > 0;
     if (active === state.current.active) return;
-    state.current = { active, endedAt: active ? null : performance.now() };
+    state.current = { ...state.current, active, endedAt: active ? null : performance.now() };
   };
   const pointerDown = (event: PointerEvent) => {
     pointers.add(event.pointerId);
@@ -147,6 +148,7 @@ export function installMapGestureGuard(
     begin: (name: string) => (event: { originalEvent?: unknown }) => {
       if (!event.originalEvent) return;
       gestures.add(name);
+      state.current = { ...state.current, movementSerial: (state.current.movementSerial ?? 0) + 1 };
       onInteraction();
       publish();
     },

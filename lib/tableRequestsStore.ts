@@ -10,7 +10,7 @@
 // read returns `OperatorTableRequest`, which never carries the account id.
 //
 // It is never a booking and never a payment, and nothing that ranks, colours,
-// bands or orders a venue may import it (__tests__/tableRequestFence.test.ts).
+// bands or orders a venue may import it.
 //
 // A HARD durable write failure THROWS. A missing table in production is
 // refused on the write path (onMissingDurableWrite).

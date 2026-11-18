@@ -28,6 +28,7 @@ import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import { moveTablistFocus } from "@/components/ui/tabs";
+import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
@@ -51,7 +52,6 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import { displayHandle } from "@/lib/handleDisplay";
 
-import "@/app/auth/auth.css";
 import "./loginPage.css";
 
 /**
@@ -688,6 +688,14 @@ export default function LoginPage({
       hasAuthSurface,
       returning,
     });
+  const markedFormReady = useRef(false);
+  useEffect(() => {
+    if (showForm && configured && supabaseAuthState !== "unavailable" && !markedFormReady.current) {
+      markedFormReady.current = true;
+      markPubmaxTiming("pubmax:auth-form-ready");
+    }
+  }, [configured, showForm, supabaseAuthState]);
+
   const head = loginPageHeadCopy({
     sessionKnown: headSessionKnown,
     adding,

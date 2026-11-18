@@ -11,7 +11,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { Button } from "@/components/ui/button";
@@ -28,10 +28,22 @@ import {
   type PassportVenue,
   type TasteFact,
 } from "@/lib/profilePassport";
+import {
+  heldRanking,
+  retiredFocusRequest,
+  retryFocusRequest,
+  retryingRanking,
+  startRankingCheckpoint,
+  transitionRankingCheckpoint,
+  type RankingCheckpointEvent,
+  type RankingReadOutcome,
+} from "@/lib/rankingCheckpoint";
+import { socialPubRankingPayload, socialPubRankingReadFailure, type SocialPubRankingEntry } from "@/lib/socialPubRankings";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import BeenCardShare from "./BeenCardShare";
 import BeenCompareMap from "./BeenCompareMap";
+import FirstTenRanking from "./FirstTenRanking";
 import {
   usePassportRead,
   type PassportBeenRead,
@@ -112,33 +124,116 @@ function PassportBeen({ handle, isOwner }: { handle: string; isOwner: boolean })
   ) : null;
 }
 
-type RankingEntry = { venueId: string; venueName: string | null; place: number };
+type Ranked = SocialPubRankingEntry[];
 
+/** The owner's ranking read, as what it proves. */
+async function readRanked(signal: AbortSignal, readerInside: () => boolean): Promise<RankingReadOutcome<Ranked>> {
+  try {
+    const response = await authedFetch("/api/social/rankings", { signal }, { requiresIdentity: true });
+    const payload: unknown = await response.json().catch(() => null);
+    if (response.ok) {
+      const entries = socialPubRankingPayload(payload);
+      return entries ? { kind: "data", data: entries } : { kind: "unavailable" };
+    }
+    return socialPubRankingReadFailure(response.status, payload) === "refused"
+      ? { kind: "refused", readerInside: readerInside() }
+      : { kind: "unavailable" };
+  } catch {
+    return { kind: "unavailable" };
+  }
+}
+
+/** Keyed on the account, so a list never outlives the account it was read for. */
 function PassportRanked({ handle }: { handle: string }) {
   const { user } = useAuth();
   const account = user?.id ?? "";
-  const [read, setRead] = useState<{ account: string; entries: RankingEntry[] } | null>(null);
+  return account ? <RankedSection key={account} account={account} handle={handle} /> : null;
+}
+
+function RankedSection({ account, handle }: { account: string; handle: string }) {
+  const { user } = useAuth();
+  const [state, setState] = useState(startRankingCheckpoint<Ranked>);
+  const current = useRef(state);
+  const send = useCallback((event: RankingCheckpointEvent<Ranked>) => {
+    const next = transitionRankingCheckpoint(current.current, event);
+    if (next === current.current) return;
+    current.current = next;
+    setState(next);
+  }, []);
   const [shareLine, setShareLine] = useState<string | null>(null);
   const [sharing, setSharing] = useState(false);
+  const pendingWrite = useRef<Promise<void> | undefined>(undefined);
+  const headingRef = useRef<HTMLHeadingElement>(null);
+  const sectionRef = useRef<HTMLElement>(null);
 
+  const request = state.request;
   useEffect(() => {
-    if (!account) return;
+    if (current.current.phase !== "reading") return;
     const controller = new AbortController();
-    void authedFetch("/api/social/rankings", { signal: controller.signal }, { requiresIdentity: true })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        const body = (await response.json()) as { entries?: RankingEntry[] };
-        return Array.isArray(body.entries) ? body.entries : [];
-      })
-      .catch(() => null)
-      .then((entries) => {
-        if (!controller.signal.aborted && entries) setRead({ account, entries });
-      });
+    void (async () => {
+      // A save the session never confirmed settles before the list is read.
+      await pendingWrite.current;
+      if (controller.signal.aborted) return;
+      const outcome = await readRanked(controller.signal, () => Boolean(sectionRef.current?.contains(document.activeElement)));
+      if (!controller.signal.aborted) send({ type: "answered", request, outcome });
+    })();
     return () => controller.abort();
-  }, [account]);
+  }, [request, send]);
 
-  if (!read || read.account !== account) return null;
-  const entries = [...read.entries].sort((a, b) => a.place - b.place);
+  const afterRetry = retryFocusRequest(state);
+  useLayoutEffect(() => {
+    if (afterRetry !== null) headingRef.current?.focus();
+  }, [afterRetry]);
+
+  const retired = retiredFocusRequest(state);
+  useEffect(() => {
+    if (retired === null) return;
+    // A closing comparison hands the page back in a microtask.
+    queueMicrotask(() => headingRef.current?.focus());
+  }, [retired]);
+
+  // Nothing read for one account is shown under another, even for one render.
+  if ((user?.id ?? "") !== account) return null;
+  const held = heldRanking(state);
+  const retrying = retryingRanking(state);
+  // The first read of a page says nothing until it has something to say.
+  const quiet = state.phase === "ready" || state.phase === "refused" || (state.phase === "reading" && held === null && !retrying);
+  const statusText = quiet ? "" : state.phase === "unavailable" ? "Your ranking is unavailable right now." : "Checking your ranking…";
+  const announcement = <p className="sr-only" role="status">{statusText}</p>;
+  if (state.phase === "refused") {
+    return state.retired ? (
+      <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
+          {PASSPORT_COPY.rankedTitle}
+        </h2>
+        <p className="passportQuiet" role="status">Your ranking is not available to this account right now.</p>
+      </section>
+    ) : announcement;
+  }
+  if (held === null && quiet) return announcement;
+  const retryStatus = state.phase !== "ready" ? (
+    <>
+      <p className="passportQuiet" aria-hidden="true">{statusText}</p>
+      {state.phase === "unavailable" || retrying ? (
+        <p className="passportQuiet">
+          <Button type="button" variant="ghost" aria-disabled={retrying} onClick={() => { if (current.current.phase === "unavailable") send({ type: "read", retrying: true }); }}>
+            Try again
+          </Button>
+        </p>
+      ) : null}
+    </>
+  ) : null;
+  if (held === null) {
+    return (
+      <>{announcement}<section ref={sectionRef} id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
+          {PASSPORT_COPY.rankedTitle}
+        </h2>
+        {retryStatus}
+      </section></>
+    );
+  }
+  const entries = [...held].sort((a, b) => a.place - b.place);
 
   async function share() {
     setSharing(true);
@@ -169,9 +264,9 @@ function PassportRanked({ handle }: { handle: string }) {
   }
 
   return (
-    <section id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
+    <>{announcement}<section ref={sectionRef} id="passport-ranked" className="passportSection" aria-labelledby="passport-ranked-title">
       <div className="passportSectionHead">
-        <h2 id="passport-ranked-title" className="passportSectionTitle">
+        <h2 id="passport-ranked-title" className="passportSectionTitle" ref={headingRef} tabIndex={-1}>
           {PASSPORT_COPY.rankedTitle}
         </h2>
         {entries.length ? (
@@ -181,14 +276,13 @@ function PassportRanked({ handle }: { handle: string }) {
         ) : null}
       </div>
       <p className="passportQuiet">{PASSPORT_COPY.rankedLine}</p>
+      {retryStatus}
       {shareLine ? (
         <p className="passportQuiet" role="status">
           {shareLine}
         </p>
       ) : null}
-      {entries.length === 0 ? (
-        <EmptyState title="Nothing ranked yet.">{PASSPORT_COPY.rankedEmpty}</EmptyState>
-      ) : (
+      {entries.length === 0 ? null : (
         <ol className="passportList">
           {entries.map((entry) => (
             <li key={entry.venueId} className="passportRow">
@@ -200,7 +294,17 @@ function PassportRanked({ handle }: { handle: string }) {
           ))}
         </ol>
       )}
-    </section>
+      <FirstTenRanking
+        entries={held}
+        disabled={state.phase !== "ready"}
+        completionFocusRef={headingRef}
+        onSaved={(saved) => send({ type: "session_saved", data: saved })}
+        onClosed={(refresh, reason) => {
+          if (reason !== "refused") pendingWrite.current = refresh;
+          send({ type: "session_closed", refresh: refresh !== undefined, refused: reason === "refused" });
+        }}
+      />
+    </section></>
   );
 }
 

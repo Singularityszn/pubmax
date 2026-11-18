@@ -2,6 +2,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 import { proofShotPath } from "@/e2e/helpers/proofShot";
 import { expectStreamedPageSettled } from "@/e2e/helpers/streamedPage";
+import { openVenueSecondaryActions } from "@/e2e/helpers/venueActions";
 
 test.setTimeout(60_000);
 
@@ -126,6 +127,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   await page.locator(".nmnAccept").first().click();
   await expect(page).toHaveURL(/\/map(\/[a-z-]+)?\?[^#]*\bsel=[^&]+&accept=1&src=near/);
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   const acceptStop1 = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
     .getByRole("button", { name: /^Make it Stop 1: .+$/ });
@@ -153,6 +155,7 @@ test("Near separates browsing from permanent Venue acceptance", async ({ page },
   // The reload is a cold arrival on the CDN-cached /map document, so the sheet
   // is rebuilt from ?sel= and its Venue read. Wait for the sheet the same way
   // the first arrival above does; the receipt lives inside it.
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   await expect(acceptStop1).toBeVisible({ timeout: 30_000 });
   await expect(page.getByText("Kept for tonight. Make it Stop 1 when you are ready.")).toBeVisible();
   await expect(acceptStop1).toHaveText("Make it Stop 1");
@@ -232,6 +235,7 @@ test("Map rejects forged Near acceptance markers", async ({ page }) => {
   ).toBeNull();
   await page.goto(forgedUrl.toString());
 
+  await openVenueSecondaryActions(page.locator('.mobileSheetPortal[data-sheet-kind="venue"]'));
   const acceptStop1 = page
     .locator('.mobileSheetPortal[data-sheet-kind="venue"] .venueActionCard')
     .getByRole("button", { name: /^Make it Stop 1: .+$/ });

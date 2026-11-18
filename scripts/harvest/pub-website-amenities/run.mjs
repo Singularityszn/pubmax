@@ -57,6 +57,7 @@ import { randomUUID } from "node:crypto";
 import { fileURLToPath } from "node:url";
 
 import { createFirecrawlClient, createHarvestBudget, HARVEST_CLI_REQUEST_BUDGET } from "../../../lib/harvest/firecrawl.ts";
+import { fetchFollowingPermittedRedirects } from "../../../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../../../lib/harvest/robots.ts";
 import {
   harvestRedirectLanding,
@@ -190,16 +191,34 @@ function sameHostLinks(html, pageUrl) {
   return found;
 }
 
-async function readHtml(url) {
+async function readHtml(url, robots) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
   try {
-    const response = await fetch(url, {
-      redirect: "follow",
-      signal: controller.signal,
-      headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
-    });
-    const landed = response.url || url;
+    // Redirects are followed by hand so each hop is put to the same two
+    // questions before it is requested; `redirect: "follow"` would send the
+    // request first and only then let the landing check refuse the body.
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      {
+        signal: controller.signal,
+        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+      },
+      {
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused") {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          const decision = await robots(next);
+          return decision.allowed ? decision : { ...decision, reason: "redirect-robots-refused" };
+        },
+      },
+    );
+    if (followed.refusal) {
+      return { ok: false, reason: followed.refusal.reason };
+    }
+    const response = followed.response;
+    const landed = followed.url;
     const landing = harvestRedirectLanding(url, landed);
     if (landing.outcome === "refused") {
       await response.body?.cancel();
@@ -816,13 +835,25 @@ async function main() {
   async function cachedFirecrawlLanding(url) {
     let landed;
     try {
-      const response = await fetch(url, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-        headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
-      });
-      await response.body?.cancel();
-      landed = response.url || url;
+      const followed = await fetchFollowingPermittedRedirects(
+        url,
+        {
+          signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+          headers: { accept: "text/html,application/xhtml+xml", "user-agent": USER_AGENT },
+        },
+        {
+          permitHop: async (next, from) => {
+            if (harvestRedirectLanding(from, next).outcome === "refused") {
+              return { allowed: false, reason: "redirect-refused" };
+            }
+            const decision = await robots(next);
+            return decision.allowed ? decision : { ...decision, reason: "redirect-robots-refused" };
+          },
+        },
+      );
+      if (followed.refusal) return { status: "redirect-refused" };
+      await followed.response.body?.cancel();
+      landed = followed.url;
     } catch {
       return { status: "landing-unverified" };
     }
@@ -838,7 +869,7 @@ async function main() {
       const scraped = await scrapePage(url);
       if (scraped.ok) return scraped;
     }
-    const plain = await readHtml(url);
+    const plain = await readHtml(url, robots);
     if (!firecrawl || !firecrawlMayReread(plain)) return { ...plain, reader: "fetch" };
     const scraped = await scrapePage(url);
     if (scraped.ok || scraped.reason.startsWith("http-")) return scraped;

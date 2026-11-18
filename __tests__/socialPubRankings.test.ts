@@ -6,6 +6,9 @@ import {
   socialPubBandScore,
   socialPubComparisonNeighbours,
   socialPubRankingEntries,
+  socialPubRankingPayload,
+  socialPubRankingReadFailure,
+  socialPubRankingSaveAnswer,
   startSocialPubComparison,
   type SocialPubComparison,
 } from "@/lib/socialPubRankings";
@@ -129,5 +132,53 @@ describe("/api/social/rankings", () => {
     expect((await DELETE(json("DELETE", { venueId: "r-lamb" }))).status).toBe(200);
     const listed = await GET(new Request("http://localhost/api/social/rankings"));
     expect((await listed.json()).entries).toHaveLength(1);
+  });
+});
+
+describe("ranking response payload", () => {
+  const row = { venueId: "lamb", venueName: "The Lamb", band: "loved", place: 1, score: 10 };
+  it("keeps an authoritative empty list and complete ranked entries", () => {
+    expect(socialPubRankingPayload({ entries: [] })).toEqual([]);
+    expect(socialPubRankingPayload({ entries: [row] })).toEqual([row]);
+  });
+  it.each([null, {}, [], { entries: null }, { entries: [null] }, { entries: [{}] },
+    { entries: [{ ...row, band: "unknown" }] }, { entries: [{ ...row, score: "10" }] },
+    { entries: [{ ...row, place: 0 }] }, { entries: [{ ...row, venueName: {} }] },
+  ])("rejects an incomplete response without inventing an empty list: %j", (body) => {
+    expect(socialPubRankingPayload(body)).toBeNull();
+  });
+});
+
+describe("ranking access failures", () => {
+  it.each([
+    { status: 401, body: null, result: "refused" },
+    { status: 403, body: {}, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE" }, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, result: "unavailable" },
+    { status: 503, body: { code: "RANKING_UNAVAILABLE" }, result: "unavailable" },
+    { status: 200, body: null, result: "unavailable" },
+    { status: 0, body: null, result: "unavailable" },
+  ])("classifies an access boundary separately from an outage: $status $body", ({ status, body, result }) => {
+    expect(socialPubRankingReadFailure(status, body)).toBe(result);
+  });
+});
+
+describe("ranking save answers without a list", () => {
+  it.each([
+    { status: 401, body: null, result: "refused" },
+    { status: 403, body: { code: "SOCIAL_ACCOUNT_SUSPENDED" }, result: "refused" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE" }, result: "refused" },
+    { status: 409, body: { code: "STALE_RANKING" }, result: "stale" },
+    { status: 409, body: null, result: "unknown" },
+    { status: 400, body: { code: "INVALID_VENUE" }, result: "rejected" },
+    { status: 429, body: { code: "RATE_LIMITED" }, result: "rejected" },
+    { status: 503, body: { code: "SOCIAL_FROZEN" }, result: "rejected" },
+    { status: 503, body: { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true }, result: "rejected" },
+    { status: 503, body: { code: "VENUE_LOOKUP_UNAVAILABLE" }, result: "rejected" },
+    { status: 503, body: { code: "RANKING_UNAVAILABLE" }, result: "unknown" },
+    { status: 502, body: null, result: "unknown" },
+    { status: 200, body: { entries: [null] }, result: "unknown" },
+  ])("says what a $status answer proves about the write: $body", ({ status, body, result }) => {
+    expect(socialPubRankingSaveAnswer(status, body)).toBe(result);
   });
 });

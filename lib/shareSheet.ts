@@ -1,4 +1,4 @@
-import { shareViaNativeSheet, type NativeShareOutcome } from "@/lib/nativeShare";
+import { shareViaNativeSheet, type NativeShareInput, type NativeShareOutcome } from "@/lib/nativeShare";
 import { openExternalTab } from "@/lib/openExternalTab";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { isUserCancelledShare } from "@/lib/venueShare";
@@ -43,10 +43,10 @@ export type ShareNightObjectInput = {
 // defaults to the real navigator, `openWindow` to openExternalTab (false only
 // when a popup blocker really ate the tab, surfaced as "failed").
 export type ShareSheetDeps = {
-  nav?: { share?: (data: { title: string; text: string; url: string }) => Promise<void> };
+  nav?: { share?: (data: NativeShareInput) => Promise<void> };
   openWindow?: (href: string) => unknown;
   /** The native-shell sheet. Defaults to the real seam, which no-ops on web. */
-  shareNatively?: (input: ShareNightObjectInput) => Promise<NativeShareOutcome>;
+  shareNatively?: (input: NativeShareInput) => Promise<NativeShareOutcome>;
 };
 
 export async function shareNightObject(
@@ -58,8 +58,11 @@ export async function shareNightObject(
     deps.openWindow ??
     ((href: string) => openExternalTab(href));
 
-  const shareNatively = deps.shareNatively ?? ((value: ShareNightObjectInput) => shareViaNativeSheet(value));
-  const native = await shareNatively(input);
+  const payload: NativeShareInput = input.text.split(/\s+/).includes(input.url)
+    ? { title: input.title, text: input.text }
+    : input;
+  const shareNatively = deps.shareNatively ?? shareViaNativeSheet;
+  const native = await shareNatively(payload);
   if (native === "shared") return "shared";
   // A dismissed OS sheet is the person saying no. Opening a WhatsApp tab
   // behind it would be the opposite of what they just asked for.
@@ -67,7 +70,7 @@ export async function shareNightObject(
 
   if (typeof nav?.share === "function") {
     try {
-      await nav.share({ title: input.title, text: input.text, url: input.url });
+      await nav.share(payload);
       return "shared";
     } catch (error) {
       if (isUserCancelledShare(error)) return "cancelled";
@@ -76,7 +79,7 @@ export async function shareNightObject(
   }
 
   try {
-    const opened = openWindow(whatsappShareHref(input.text, input.url));
+    const opened = openWindow(whatsappShareHref(payload.text, payload.url));
     return opened ? "whatsapp" : "failed";
   } catch {
     return "failed";

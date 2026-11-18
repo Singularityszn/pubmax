@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import "./primitives.css";
 
 /**
  * An empty list that points forward.

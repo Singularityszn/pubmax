@@ -1,5 +1,7 @@
 // @vitest-environment jsdom
 
+import { messageSnapshotKey, rememberMessageSnapshot } from "@/lib/messageReadSnapshots";
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
@@ -100,6 +102,8 @@ import MessagesInboxClient from "@/app/messages/MessagesInboxClient";
 import MessageThread from "@/components/messages/MessageThread";
 import { defined } from "@/__tests__/helpers/defined";
 
+import { invalidateMessagesInbox } from "@/lib/messagesInboxClient";
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -168,6 +172,8 @@ async function releaseFetch(
 }
 
 beforeEach(() => {
+  invalidateMessagesInbox();
+  clearSurfaceCache();
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   signedOut();
   routerState.push.mockClear();
@@ -204,6 +210,21 @@ afterEach(async () => {
 });
 
 describe("message sign-in doors", () => {
+  it("keeps the inbox pending when bootstrap resolves without changing the account revision", async () => {
+    viewerState.current = { phase: "unresolved", signedIn: false, signedOut: false, unresolved: true };
+    await render(createElement(MessagesInboxClient));
+    signedIn("user-1", "alice", 0);
+    fetchState.pending = true;
+
+    await render(createElement(MessagesInboxClient));
+
+    expect(fetchState.requests).toHaveLength(1);
+    expect(host.textContent).not.toContain("Your messages start here.");
+    expect(host.querySelector("[data-sample-skeleton]")).not.toBeNull();
+    await releaseFetch(Response.json({ conversations: [{ id: "first-thread", otherHandle: "erin", lastBody: "Meet at seven", unread: 1 }] }));
+    expect(host.querySelector('a[href="/messages/first-thread"]')).not.toBeNull();
+  });
+
   const createdGroup = {
     id: "group-hari-maisie",
     kind: "group",
@@ -215,7 +236,7 @@ describe("message sign-in doors", () => {
     unread: 0,
   };
 
-  it.each(["success", "http-failure", "network-failure"])("publishes slow %s reads despite recurring polls, focus and realtime", async (outcome) => {
+  it.each(["success", "http-failure", "network-failure"])("publishes %s reads within the deadline despite recurring polls, focus and realtime", async (outcome) => {
     vi.useFakeTimers();
     signedIn();
     fetchState.pending = true;
@@ -223,7 +244,7 @@ describe("message sign-in doors", () => {
     expect(fetchState.calls).toBe(1);
     expect(inboxEvents.poll).not.toBeNull();
     expect(inboxEvents.signal).not.toBeNull();
-    window.setInterval(() => inboxEvents.poll?.(), 15_000);
+    window.setInterval(() => inboxEvents.poll?.(), 1_500);
     const finishRead = (first: boolean) => {
       const request = fetchState.requests.shift()!;
       if (first && outcome === "network-failure") request.reject(new Error("network"));
@@ -231,8 +252,8 @@ describe("message sign-in doors", () => {
         ? new Response("unavailable", { status: 503 })
         : Response.json({ conversations: [{ ...createdGroup, title: first ? createdGroup.title : "Updated pub crew" }] }));
     };
-    window.setTimeout(() => finishRead(true), 16_000);
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    window.setTimeout(() => finishRead(true), 1_600);
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
     await act(async () => {
       window.dispatchEvent(new Event("focus"));
       inboxEvents.signal!();
@@ -240,16 +261,16 @@ describe("message sign-in doors", () => {
     expect(fetchState.calls).toBe(1);
     expect(fetchState.requests).toHaveLength(1);
     expect(host.textContent).toContain("With you in a sec.");
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(fetchState.requests).toHaveLength(0);
     expect(host.textContent).not.toContain("With you in a sec.");
     if (outcome === "success") expect(host.textContent).toContain(createdGroup.title);
     else expect(host.querySelector('[role="alert"]')?.textContent).toContain("Couldn’t load your conversations.");
 
-    await act(async () => { await vi.advanceTimersByTimeAsync(14_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_400); });
     expect(fetchState.calls).toBe(2);
     expect(fetchState.requests).toHaveLength(1);
-    window.setTimeout(() => finishRead(false), 16_000);
+    window.setTimeout(() => finishRead(false), 1_600);
     if (outcome !== "success") {
       const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Try again")!;
       retry.focus();
@@ -259,10 +280,10 @@ describe("message sign-in doors", () => {
       expect(document.activeElement).toBe(retry);
       expect(host.querySelector('[role="alert"]')).not.toBeNull();
     }
-    await act(async () => { await vi.advanceTimersByTimeAsync(15_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(1_500); });
     expect(fetchState.calls).toBe(2);
     expect(fetchState.requests).toHaveLength(1);
-    await act(async () => { await vi.advanceTimersByTimeAsync(1_000); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(100); });
     expect(host.textContent).toContain("Updated pub crew");
     expect(host.querySelector('[role="alert"]')).toBeNull();
     expect(host.textContent).not.toContain("With you in a sec.");
@@ -417,6 +438,60 @@ describe("message sign-in doors", () => {
     await releaseFetch(Response.json({ conversations: [] }));
   });
 
+  it.each(["503", "rejected", "malformed", "degraded"])("never exposes A rows after B's %s completes", async outcome => {
+    signedIn("account-a", "alice", 1);
+    fetchState.response = () => Response.json({ conversations: [{ id: "a-private", otherHandle: "bridget", lastBody: "A private note", unread: 2 }] });
+    await render(createElement(MessagesInboxClient));
+    expect(host.textContent).toContain("A private note");
+    fetchState.pending = true;
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessagesInboxClient));
+    const response = outcome === "rejected" ? new Error("offline")
+      : outcome === "503" ? Response.json({}, { status: 503 })
+        : outcome === "malformed" ? Response.json({}) : Response.json({ conversations: [], status: "degraded" });
+    await releaseFetch(response);
+    expect(host.textContent).not.toContain("A private note");
+    expect(host.textContent).not.toContain("@bridget");
+    expect(host.textContent).not.toContain("Your messages start here");
+    expect(host.querySelector(".threadRetryBtn")).not.toBeNull();
+  });
+
+  it("retains only B's warm rows through failure and ignores a late A reply", async () => {
+    signedIn("account-a", "alice", 1);
+    fetchState.pending = true;
+    await render(createElement(MessagesInboxClient));
+    rememberMessageSnapshot(messageSnapshotKey("account-b", 2, "bob"), { conversations: [{ id: "b", otherHandle: "erin", lastBody: "B warm note" }], partial: false });
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessagesInboxClient));
+    expect(host.textContent).toContain("B warm note");
+    await releaseFetch(Response.json({}, { status: 503 }), "handle=bob");
+    expect(host.textContent).toContain("B warm note");
+    await releaseFetch(Response.json({ conversations: [{ id: "a", otherHandle: "bridget", lastBody: "A late private note" }] }), "handle=alice");
+    expect(host.textContent).toContain("B warm note");
+    expect(host.textContent).not.toContain("A late private note");
+  });
+
+  it("ignores an already queued read signal from the departed reader", async () => {
+    const listen = vi.spyOn(window, "addEventListener");
+    try {
+      signedIn("account-a", "alice", 1);
+      fetchState.response = () => Response.json({ conversations: [{ id: "a", otherHandle: "bridget", lastBody: "A private note", unread: 2 }] });
+      await render(createElement(MessagesInboxClient, { activeConversationId: "a" }));
+      const oldSignal = listen.mock.calls.find(([name]) => name === "pubmax:messages-read")?.[1] as EventListener;
+      expect(oldSignal).toBeDefined();
+      fetchState.pending = true;
+      signedIn("account-b", "bob", 2);
+      await render(createElement(MessagesInboxClient, { activeConversationId: "b" }));
+      await releaseFetch(Response.json({ conversations: [{ id: "b", otherHandle: "erin", lastBody: "B private note", unread: 3 }] }), "handle=bob");
+      const calls = fetchState.calls;
+      await act(async () => oldSignal(new Event("pubmax:messages-read")));
+      expect(fetchState.calls).toBe(calls);
+      expect(host.textContent).toContain("B private note");
+      expect(host.textContent).not.toContain("A private note");
+      expect(host.querySelector(".conversationUnread")?.textContent).toBe("3");
+    } finally { listen.mockRestore(); }
+  });
+
   it("gives a signed-in empty inbox one clear door to start a message", async () => {
     signedIn("user-empty", "alice", 1);
     fetchState.response = () => Response.json({ conversations: [] });
@@ -524,7 +599,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-a",
+      "/api/messages/conversation-a?",
       true,
     );
     expect(host.textContent).toContain("Newest A");
@@ -543,7 +618,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-b",
+      "/api/messages/conversation-b?",
     );
     await releaseFetch(
       Response.json({
@@ -559,7 +634,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-a",
+      "/api/messages/conversation-a?",
     );
 
     expect(host.textContent).toContain("Newest A");

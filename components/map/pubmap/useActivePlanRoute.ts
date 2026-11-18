@@ -110,7 +110,7 @@ export function useActivePlanPalNextStop(
   activePlanRoute: readonly Venue[],
   routeMappedActive: boolean,
   venueById: ReadonlyMap<string, Venue>,
-): { routeIsActivePlan: boolean; palNextStop: { venueId: string; name: string } | null } {
+): { routeIsActivePlan: boolean; activePlanHref: string | null; palNextStop: { venueId: string; name: string } | null } {
   const ref = useOwnedActivePlan();
   const stopIndex = ref?.stopIndex ?? 0;
   const routeIsActivePlan = Boolean(ref) && !routeMappedActive && activePlanRoute.length > 1;
@@ -119,5 +119,5 @@ export function useActivePlanPalNextStop(
     const next = planNextStopVenue(stops, stopIndex, venueById);
     return next ? { venueId: next.id, name: next.name } : null;
   }, [routeIsActivePlan, stops, stopIndex, venueById]);
-  return { routeIsActivePlan, palNextStop };
+  return { routeIsActivePlan, activePlanHref: routeIsActivePlan ? `/plan/${ref!.id}` : null, palNextStop };
 }

@@ -26,6 +26,8 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 // The broadcast is held open for the whole test: if the route awaited it, the
 // handler promise would never settle and every case here would time out.
+const notify = vi.hoisted(() => vi.fn(async () => undefined));
+vi.mock("@/lib/messageNotifications.server", () => ({ notifyMessageRecipients: notify }));
 const signals = vi.hoisted(() => ({
   sent: [] as Array<{ conversationId: string; participants: readonly string[] }>,
   deferred: 0,
@@ -103,6 +105,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.userId = "user-ken";
+  notify.mockClear();
   signals.sent = [];
   signals.deferred = 0;
   signals.settled = 0;
@@ -126,6 +129,7 @@ describe("POST /api/messages - the inbox send", () => {
     // The signal went out, and NOTHING waited for it to come back.
     expect(signals.sent).toHaveLength(1);
     expect(signals.settled).toBe(0);
+    expect(notify).toHaveBeenCalledOnce();
   });
 
   it("names both participants from what the request already held", async () => {

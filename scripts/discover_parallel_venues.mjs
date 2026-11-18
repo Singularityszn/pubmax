@@ -4,6 +4,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARVEST_SOURCES, harvestRedirectLanding, isRefusedOnPermission } from "../lib/harvest/sourcePolicy.ts";
+import { fetchFollowingPermittedRedirects } from "../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
@@ -283,11 +284,36 @@ async function evidencePermission(url) {
 const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update(url).digest("hex").slice(0, 24)}.json`);
 
 // The page's own status, asked once a Tavily read fails without a cause.
-async function probePage(url) {
+// `gate` and `fetchImpl` are injectable so the hop rules can be tested
+// without a network; production callers get the shared robots gate.
+export async function probePage(url, { gate = robotsGate, fetchImpl = fetch } = {}) {
   try {
-    const response = await fetch(url, { headers: { "user-agent": "PUBMAXX-harvest/1", accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(20_000) });
-    response.body?.cancel().catch(() => {});
-    return { status: response.status, landed: harvestRedirectLanding(url, response.url).outcome === "refused" || !allowedEvidenceUrl(response.url) ? "refused" : "permitted", checkedAt: new Date().toISOString() };
+    // Redirects are followed by hand so each hop passes the evidence fence
+    // BEFORE it is requested; `redirect: "follow"` would send it first.
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      { headers: { "user-agent": "PUBMAXX-harvest/1", accept: "text/html" }, signal: AbortSignal.timeout(20_000) },
+      {
+        fetchImpl,
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused" || !allowedEvidenceUrl(next)) {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          const answer = await gate(next);
+          if (answer.outcome === "allowed") return { allowed: true };
+          // A skipped robots answer is the network keeping the rules from us,
+          // not a refusal: the hop still fails closed, but the probe reports a
+          // retryable landing rather than evidence the page sits outside the
+          // fence, so a temporary outage cannot settle the read for good.
+          return { allowed: false, reason: answer.outcome === "skipped" ? "robots-transient" : answer.reason ?? "robots-refused" };
+        },
+      },
+    );
+    if (followed.refusal) {
+      return { status: null, landed: followed.refusal.reason === "robots-transient" ? "unknown" : "refused", checkedAt: new Date().toISOString() };
+    }
+    await followed.response.body?.cancel().catch(() => {});
+    return { status: followed.response.status, landed: harvestRedirectLanding(url, followed.url).outcome === "refused" || !allowedEvidenceUrl(followed.url) ? "refused" : "permitted", checkedAt: new Date().toISOString() };
   } catch {
     return null;
   }

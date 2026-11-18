@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import MessageThread from "@/components/messages/MessageThread";
 import SiteNav from "@/components/nav/SiteNav";
+import MessageAuthWarmup from "@/components/messages/MessageAuthWarmup";
 
 import MessagesInboxClient from "../MessagesInboxClient";
 
@@ -32,6 +33,7 @@ export default async function MessageThreadPage({
   const { id } = await params;
   return (
     <div className="lp messagesPage">
+      <MessageAuthWarmup />
       <SiteNav />
       <main id="main" className="container messagesMain messagesMainThread">
         <div className="messagesSplit">

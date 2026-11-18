@@ -44,13 +44,27 @@
    that escaped the sweep by living in a class list rather than a stylesheet.
    __tests__/designCraftCss.test.ts is the sweep. */
 .uiButton:focus-visible {
-  outline: 2px solid var(--color-accent);
+  outline: 2px solid var(--color-text);
   outline-offset: 2px;
 }
 
 .uiButton:disabled {
   pointer-events: none;
   opacity: 0.45;
+}
+
+/* A busy control: it looks disabled but keeps focus and its pointer events,
+   so a keyboard reader stays in place while the control guards its own tap.
+   It neither lights up on hover nor presses. */
+.uiButton[aria-disabled="true"] {
+  --shared-press-scale: 1;
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Opacity also fades the outline. Keyboard focus must stay visible while busy. */
+.uiButton[aria-disabled="true"]:focus-visible {
+  opacity: 1;
 }
 
 /* The one painted control on a screen. */
@@ -60,7 +74,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .uiButton--primary:hover {
+  .uiButton--primary:not([aria-disabled="true"]):hover {
     background: var(--color-accent-strong);
     color: var(--color-on-accent-strong);
   }
@@ -74,7 +88,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .uiButton--secondary:hover {
+  .uiButton--secondary:not([aria-disabled="true"]):hover {
     border-color: var(--hairline-strong);
   }
 }
@@ -89,7 +103,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .uiButton--danger:hover {
+  .uiButton--danger:not([aria-disabled="true"]):hover {
     background: color-mix(in srgb, var(--brick) 88%, var(--ink));
   }
 }
@@ -100,7 +114,7 @@
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .uiButton--ghost:hover {
+  .uiButton--ghost:not([aria-disabled="true"]):hover {
     background: var(--color-surface-panel);
     color: var(--color-text);
   }

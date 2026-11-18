@@ -1,6 +1,7 @@
 "use client";
 
 import type { SocialAuthProviderAvailability } from "@/lib/authProviderAvailability";
+import { prepareBrowserSignIn, prepareBrowserSignInFromKey } from "@/lib/prepareBrowserSignIn";
 
 function GoogleMark(): React.JSX.Element {
   return (
@@ -93,6 +94,8 @@ export default function SocialSignInButtons({
         <button
           type="button"
           className="authSignIn"
+          onPointerDown={prepareBrowserSignIn}
+          onKeyDown={prepareBrowserSignInFromKey}
           onClick={() => void onGoogle()}
           disabled={disabled}
           aria-label="Continue with Google"
@@ -105,6 +108,8 @@ export default function SocialSignInButtons({
         <button
           type="button"
           className="authSignIn"
+          onPointerDown={prepareBrowserSignIn}
+          onKeyDown={prepareBrowserSignInFromKey}
           onClick={() => void onApple()}
           disabled={disabled}
           aria-label="Continue with Apple"
@@ -117,6 +122,8 @@ export default function SocialSignInButtons({
         <button
           type="button"
           className="authSignIn"
+          onPointerDown={prepareBrowserSignIn}
+          onKeyDown={prepareBrowserSignInFromKey}
           onClick={() => void onMicrosoft()}
           disabled={disabled}
           aria-label="Continue with Microsoft"

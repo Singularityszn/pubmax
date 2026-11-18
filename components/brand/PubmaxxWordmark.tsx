@@ -1,4 +1,3 @@
-import "./pubmaxxWordmark.css";
 import { BRAND_NAME } from "@/lib/brandNaming";
 import PubmaxxMark, { type PubmaxxMarkVariant } from "./PubmaxxMark";
 

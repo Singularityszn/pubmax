@@ -21,6 +21,7 @@ import MessageAttachmentPicker, {
 } from "@/components/messages/MessageAttachmentPicker";
 import { usePublicProfileCard } from "@/components/auth/usePublicProfileCard";
 import MessageAvatar from "@/components/messages/MessageAvatar";
+import { ThreadLoading, ThreadLoadingShell } from "@/components/messages/MessageLoading";
 import MessageContactCard from "@/components/messages/MessageContactCard";
 import MessageConfirmDialog from "@/components/messages/MessageConfirmDialog";
 import MessageContactPicker from "@/components/messages/MessageContactPicker";
@@ -32,15 +33,18 @@ import { useMessageInputSize } from "@/components/messages/useMessageInputSize";
 import MessagePollCard from "@/components/messages/MessagePollCard";
 import MessagePollComposer from "@/components/messages/MessagePollComposer";
 import MessageThreadMenu from "@/components/messages/MessageThreadMenu";
+import MessageNotificationSettings from "@/components/messages/MessageNotificationSettings";
+import { useMessageThreadPresence } from "@/components/messages/useMessageThreadPresence";
 import MessageVenueCard from "@/components/messages/MessageVenueCard";
 import { useMessageAdultGate } from "@/components/messages/useMessageAdultGate";
-import MessageVenuePicker, {
-} from "@/components/messages/MessageVenuePicker";
+import { useThreadViewportFit } from "@/components/messages/useThreadViewportFit";
+import { useThreadReadingPosition } from "@/components/messages/useThreadReadingPosition";
+import { useThreadReadRetry } from "@/components/messages/useThreadReadRetry";
+import MessageVenuePicker from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import { useKeyboardInset } from "@/lib/keyboardInset";
 import { discardBody } from "@/lib/responseBody";
 import {
   MESSAGE_ATTACH_PHOTO_LABEL,
@@ -91,6 +95,8 @@ import {
 } from "@/lib/messageTimeline";
 import { normalizeHandle } from "@/lib/profiles";
 import { safeLocalStorage } from "@/lib/safeStorage";
+import { forgetSurfaceSnapshot, readSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { messageSnapshotKey, rememberMessageSnapshot, rememberSentMessage, type ThreadSnapshot } from "@/lib/messageReadSnapshots";
 import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
@@ -116,16 +122,11 @@ import "@/components/messages/messagePhotos.css";
 //
 // Bubble width constraints: app/messages/messages.css.
 //
-// Timeline, reveal and read-state rules:
+// Timeline, layout, reveal and read-state rules:
 // docs/rules/components-venue-plan-and-message-surfaces.md.
 //
 // Delivery and retry rules:
 // docs/rules/lib-shared-seams-stores-http-freshness-brand.md#message-retries.
-//
-// THE COMPOSER IS PINNED, above the phone tab bar and above the keyboard.
-// lib/keyboardInset.ts measures the covered strip; lib/softKeyboard.ts says
-// whether the bar has stepped aside. Both ride the root as data, so the
-// stylesheet decides the geometry.
 //
 // Attachment rules: lib/messageAttachments.ts.
 
@@ -133,7 +134,9 @@ const HANDLE_KEY = "pubmax_handle";
 /** The counter shows only once a message is close to the cap. */
 const COUNTER_FROM = MAX_MESSAGE_BODY - 100;
 
-function readHandle(): string {
+function readHandle(authHandle?: string | null): string {
+  const canonical = normalizeHandle(authHandle ?? "");
+  if (canonical) return canonical;
   return normalizeHandle(safeLocalStorage()?.getItem(HANDLE_KEY) ?? "");
 }
 
@@ -189,6 +192,16 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
   );
 }
 
+function ThreadReadRecovery({ visible, pending, onRetry }: { visible: boolean; pending: boolean; onRetry: () => void }) {
+  if (!visible) return null;
+  return <p className="inboxStaleNotice threadReadRecovery" role="status">
+    Couldn&rsquo;t refresh these messages. They show what loaded last.
+    <button type="button" className="threadRetryBtn" aria-disabled={pending} aria-busy={pending} onClick={onRetry}>
+      {pending ? "Trying again…" : "Try again"}
+    </button>
+  </p>;
+}
+
 type ThreadState =
   | "loading"
   | "ready"
@@ -211,6 +224,17 @@ function sameThreadReadKey(
   accountRevision: number,
 ): boolean {
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
+}
+
+type ThreadHead = { key: ThreadReadKey; identity: ThreadIdentity | null; otherHandle: string };
+
+function retainedThreadHead(key: ThreadReadKey, identity: ThreadIdentity | null, messages: MessageDTO[], viewer: string, previous: ThreadHead | null): ThreadHead {
+  const held = sameThreadReadKey(previous?.key ?? null, key.conversationId, key.accountRevision) ? previous : null;
+  return {
+    key,
+    identity: identity ?? held?.identity ?? null,
+    otherHandle: otherHandleFromThreadRead(identity, messages, viewer) || held?.otherHandle || "",
+  };
 }
 
 /** Which picker is open. One at a time, because one attachment rides at a time. */
@@ -268,15 +292,18 @@ export default function MessageThread({
 }: {
   conversationId: string;
 }): React.JSX.Element {
+  useMessageThreadPresence(conversationId);
   const { accountRevision, user, handle: authHandle } = useAuth();
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
   const viewerSession = useViewerSession();
+  const snapshotKey = messageSnapshotKey(user?.id, accountRevision, readHandle(authHandle), conversationId);
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
   const [state, setState] = useState<ThreadState>("loading");
   const [reportFailure, setReportFailure] = useState<{ owner: string; message: string } | null>(null);
+  const [failedRead, setFailedRead] = useState<ThreadReadKey | null>(null);
   const { fromRefusal, adultGateDialog } = useMessageAdultGate();
   const [picking, setPicking] = useState<OpenPicker>(null);
   const [identity, setIdentity] = useState<ThreadIdentity | null>(null);
@@ -299,12 +326,14 @@ export default function MessageThread({
   const listRef = useRef<HTMLUListElement | null>(null);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
+  const headRef = useRef<ThreadHead | null>(null);
   const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
   const requestGenerationRef = useRef(0);
   /**
    * The oldest read whose answer may still land. A read that lands raises it
    * to its own generation, so an older read answering later is dropped; a new
    * conversation or reader raises it past every read already sent.
+   * A confirmed write also outranks reads that started before it.
    */
   const readFloorRef = useRef(0);
   const removedForRef = useRef<ThreadReadKey | null>(null);
@@ -342,28 +371,6 @@ export default function MessageThread({
     getMobileViewportSnapshot,
     () => false,
   );
-  const keyboardInset = useKeyboardInset();
-  const measureThreadHeader = useCallback((header: HTMLDivElement | null) => {
-    if (!header) return;
-    const shell = header.parentElement!;
-    const measure = () => {
-      shell.style.setProperty("--thread-header-bottom", `${Math.max(window.visualViewport?.offsetTop ?? 0, header.getBoundingClientRect().bottom)}px`);
-    };
-    const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
-    observer?.observe(header);
-    window.addEventListener("resize", measure);
-    window.addEventListener("scroll", measure, { passive: true });
-    window.visualViewport?.addEventListener("resize", measure);
-    window.visualViewport?.addEventListener("scroll", measure);
-    measure();
-    return () => {
-      observer?.disconnect();
-      window.removeEventListener("resize", measure);
-      window.removeEventListener("scroll", measure);
-      window.visualViewport?.removeEventListener("resize", measure);
-      window.visualViewport?.removeEventListener("scroll", measure);
-    };
-  }, []);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
@@ -381,6 +388,19 @@ export default function MessageThread({
       active = false;
     };
   }, [authHandle]);
+
+  const restoreSnapshot = useCallback((key: string | null, requestKey: ThreadReadKey) => {
+    if (!key || sameThreadReadKey(loadedForRef.current, requestKey.conversationId, requestKey.accountRevision)) return;
+    const held = readSurfaceSnapshot<ThreadSnapshot>(key);
+    if (!held) return;
+    loadedForRef.current = requestKey;
+    headRef.current = { key: requestKey, identity: held.identity, otherHandle: held.otherHandle };
+    setViewRevision(requestKey);
+    setMessages(held.messages);
+    setIdentity(held.identity);
+    setOtherHandle(held.otherHandle);
+    setState("ready");
+  }, []);
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
@@ -410,8 +430,8 @@ export default function MessageThread({
       const land = () => {
         readFloorRef.current = generation;
       };
+      if (!stillCurrent()) return;
       if (!user) {
-        if (!stillCurrent()) return;
         land();
         loadedForRef.current = null;
         setViewRevision(viewerSession.unresolved ? null : requestKey);
@@ -421,15 +441,15 @@ export default function MessageThread({
         setState(viewerSession.unresolved ? "loading" : "signedout");
         return;
       }
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!h) {
-        if (!stillCurrent()) return;
         land();
         loadedForRef.current = null;
         setViewRevision(requestKey);
         setState("signedout");
         return;
       }
+      restoreSnapshot(snapshotKey, requestKey);
       try {
         const res = await authedActionFetch(
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
@@ -439,15 +459,18 @@ export default function MessageThread({
           discardBody(res);
           return;
         }
-        land();
         if (res.status === 401) {
+          land();
+          if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
           setViewRevision(requestKey);
           setState("signedout");
           return;
         }
-        if (res.status === 404) {
+        if ([403, 404].includes(res.status)) {
+          land();
+          if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
           discardBody(res);
           loadedForRef.current = null;
           setViewRevision(requestKey);
@@ -455,6 +478,8 @@ export default function MessageThread({
           return;
         }
         if (!res.ok) {
+          land();
+          setFailedRead(requestKey);
           discardBody(res);
           setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
@@ -471,22 +496,27 @@ export default function MessageThread({
           };
         };
         if (!stillCurrent()) return;
+        if (!body || !Array.isArray(body.messages)) throw new Error("Malformed thread history");
         land();
-        const next = Array.isArray(body.messages) ? body.messages : [];
+        setFailedRead(null);
+        const next = body.messages;
         // The thread route marks what was waiting as read in this same read, so
         // the nav's unread badge is told now instead of at its next poll.
         announceIfWaitingRead(next, h);
         loadedForRef.current = requestKey;
         setViewRevision(requestKey);
         setMessages(next);
+        setState("ready");
         // WHO THE THREAD IS WITH comes from the read's membership when it has
         // one; only then may a group title win. An empty direct thread has no
         // message to read a name off, so the inbox row for this id names it.
         // A GROUP is named by its title or its people, never by one of them,
         // so its head keeps drawing from the group's own name.
         const identityFromRead = threadIdentityFromWire(body.conversation);
-        let nextIdentity: ThreadIdentity | null = identityFromRead;
-        let nextOther = otherHandleFromThreadRead(identityFromRead, next, h);
+        const head = retainedThreadHead(requestKey, identityFromRead, next, h, headRef.current);
+        let nextIdentity = head.identity;
+        let nextOther = head.otherHandle;
+        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther });
         if (!identityFromRead && next.length === 0 && !askedInboxForNameRef.current) {
           // ONE read of the inbox per thread, and only for an empty one with
           // no membership: it names the head and nothing else leans on it, so
@@ -496,23 +526,25 @@ export default function MessageThread({
           if (!stillCurrent()) return;
           if (named) {
             askedInboxForNameRef.current = true;
-            nextIdentity = named.identity;
-            if (named.identity?.kind !== "group") nextOther = named.otherHandle;
+            nextIdentity = named.identity ?? nextIdentity;
+            if (named.identity?.kind !== "group") nextOther = named.otherHandle || nextOther;
           }
         }
         if (!stillCurrent()) return;
         // A NAME ALREADY LEARNED FOR THIS THREAD IS NEVER TAKEN BACK. A later
         // read that carries no membership leaves the head as it was rather than
         // flipping a named person back to the neutral word.
-        setIdentity((previous) => nextIdentity ?? previous);
-        setOtherHandle((previous) => nextOther || previous);
+        headRef.current = { key: requestKey, identity: nextIdentity, otherHandle: nextOther };
+        setIdentity(nextIdentity);
+        setOtherHandle(nextOther);
+        rememberMessageSnapshot(snapshotKey, { messages: next, identity: nextIdentity, otherHandle: nextOther }, true);
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
         if (!aborted && stillCurrent()) {
-          land();
+          setFailedRead(requestKey);
           setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
             setState("unreachable");
@@ -520,13 +552,14 @@ export default function MessageThread({
         }
       }
     },
-    [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
+    [accountRevision, conversationId, user, authHandle, viewerSession.unresolved, snapshotKey, restoreSnapshot],
   );
 
   const onStored = useCallback((stored: MessageDTO) => {
     readFloorRef.current = requestGenerationRef.current + 1;
+    rememberSentMessage(snapshotKey, stored);
     setMessages(rows => rows.some(row => row.id === stored.id) ? rows : [...rows, stored]);
-  }, []);
+  }, [snapshotKey]);
   const onSignedOut = useCallback(() => setState("signedout"), []);
   const {
     sentPhotos, releaseSentPhoto, draft, setDraft, pending, setPending, outbox, sending, preparing, preparationProgress, error,
@@ -573,48 +606,15 @@ export default function MessageThread({
     };
   }, [conversationId, refresh]);
 
-  // The newest message is what a thread opens on and what a send lands on.
-  // The list scrolls on its own inside the desktop split; on a phone the page
-  // is the scroller and the composer is pinned over its foot, so the end
-  // marker is scrolled clear of the composer rather than merely into view.
-  // With no thread drawn (loading, not found, the retry panel) there is no
-  // newest to show: pinning the page foot then pushed the retry panel above a
-  // phone's fold, so a cold failure is left where the page starts.
-  const scrollToNewest = useCallback(() => {
-    const list = listRef.current;
-    if (!list) return;
-    if (getComputedStyle(list).overflowY === "auto") {
-      list.scrollTop = list.scrollHeight;
-      return;
-    }
-    const page = document.documentElement;
-    // A page no taller than its viewport has nowhere to scroll to (and a DOM
-    // with no layout, as in a unit test, measures zero here).
-    if (page.scrollHeight <= window.innerHeight) return;
-    window.scrollTo({ top: page.scrollHeight });
-  }, []);
+  const { attachViewport } = useThreadViewportFit();
+  const manualRead = useThreadReadRetry(snapshotKey, refresh);
 
-  useEffect(() => {
-    scrollToNewest();
-  }, [messages, outbox, keyboardInset, scrollToNewest]);
-
-  // A viewport that changes height under an open thread (a keyboard on a
-  // browser that shrinks the layout viewport, a rotation) keeps the newest
-  // message in view rather than leaving the reader looking at the middle.
-  useEffect(() => {
-    let frame = 0;
-    const onResize = () => {
-      window.cancelAnimationFrame(frame);
-      frame = window.requestAnimationFrame(scrollToNewest);
-    };
-    window.addEventListener("resize", onResize);
-    window.visualViewport?.addEventListener("resize", onResize);
-    return () => {
-      window.cancelAnimationFrame(frame);
-      window.removeEventListener("resize", onResize);
-      window.visualViewport?.removeEventListener("resize", onResize);
-    };
-  }, [scrollToNewest]);
+  useThreadReadingPosition({
+    listRef, scope: snapshotKey,
+    ready: state === "ready", current: sameThreadReadKey(viewRevision, conversationId, accountRevision),
+    history: messages, outbox, keyboardOpen, revealedId,
+    recovery: sameThreadReadKey(failedRead, conversationId, accountRevision),
+  });
 
   const over = draft.length > MAX_MESSAGE_BODY;
   const hasSomething = draft.trim().length > 0 || pending !== null;
@@ -636,7 +636,7 @@ export default function MessageThread({
    */
   const vote = useCallback(
     async (messageId: string, optionIndex: number): Promise<MessagePollView | null> => {
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!user || !h) return null;
       const res = await authedActionFetch(
         `/api/messages/${encodeURIComponent(conversationId)}`,
@@ -665,7 +665,7 @@ export default function MessageThread({
    */
   const remove = useCallback(async () => {
     const pendingRemoval = confirming;
-    const h = normalizeHandle(authHandle ?? "") || readHandle();
+    const h = readHandle(authHandle);
     if (!pendingRemoval || !user || !h) return;
     const requestRevision = accountRevision;
     const removalEpoch = removalEpochRef.current;
@@ -708,6 +708,9 @@ export default function MessageThread({
       }
       discardBody(res);
       readFloorRef.current = requestGenerationRef.current + 1;
+      if (snapshotKey) forgetSurfaceSnapshot(snapshotKey);
+      const inboxKey = messageSnapshotKey(user.id, accountRevision, readHandle(authHandle));
+      if (inboxKey) forgetSurfaceSnapshot(inboxKey);
       setConfirming(null);
       if (pendingRemoval.kind === "unsend") {
         const unsentId = pendingRemoval.messageId;
@@ -733,7 +736,7 @@ export default function MessageThread({
     } finally {
       if (stillCurrent()) setRemoving(false);
     }
-  }, [confirming, conversationId, user, authHandle, accountRevision]);
+  }, [confirming, conversationId, user, authHandle, accountRevision, snapshotKey]);
 
   const ask = useCallback((removal: PendingRemoval) => {
     setRemovalError("");
@@ -746,7 +749,7 @@ export default function MessageThread({
   }, [conversationId, accountRevision]);
   const report = useCallback(
     async (messageId: string) => {
-      const h = normalizeHandle(authHandle ?? "") || readHandle();
+      const h = readHandle(authHandle);
       if (!user || !h) return;
       setReportError("");
       try {
@@ -784,7 +787,7 @@ export default function MessageThread({
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <ThreadLoadingShell attachViewport={attachViewport} />;
   }
 
   if (state === "signedout" && viewerSession.signedOut) {
@@ -796,7 +799,7 @@ export default function MessageThread({
     );
   }
   if (state === "signedout") {
-    return <p className="conversationPreview">With you in a sec.</p>;
+    return <ThreadLoadingShell attachViewport={attachViewport} />;
   }
   if (state === "left") {
     return (
@@ -827,6 +830,7 @@ export default function MessageThread({
           type="button"
           className="threadRetryBtn"
           onClick={() => {
+            setViewRevision(null);
             setState("loading");
             void refresh();
           }}
@@ -990,6 +994,37 @@ export default function MessageThread({
     return null;
   }
 
+  function renderPickerRegion(): React.JSX.Element | null {
+    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
+    return visibleError || preparationProgress || picking || pending ? (
+      <div className="composerPickerRegion">
+        {visibleError ? <div className="threadError" role="alert">{visibleError}
+          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
+        </div> : null}
+        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
+
+        {renderPicker()}
+
+        {pending ? (
+          <div className="composerPending">
+            {pending.kind === "photo" ? (
+              <span className="composerPhotoPreviews">
+                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
+                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
+              </span>
+            ) : (
+              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
+            )}
+            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
+            <button type="button" className="composerPendingRemove" onClick={clearPending}>
+              Remove
+            </button>
+          </div>
+        ) : null}
+      </div>
+    ) : null;
+  }
+
   /** Who the thread is with. A group is named by its people, never linked to. */
   function renderThreadWith(): React.JSX.Element {
     if (isGroup) {
@@ -1031,33 +1066,10 @@ export default function MessageThread({
   }
 
   function renderComposer(): React.JSX.Element {
-    const visibleError = error || (reportFailure?.owner === `${conversationId}:${accountRevision}` ? reportFailure.message : "");
     return (
       <div className="composerDock">
         <MessagePhotoRecoveryNotice activeConversationId={conversationId} />
-        {visibleError ? <div className="threadError" role="alert">{visibleError}
-          {retrySend && pending ? <button type="button" className="composerPhotoRetry" disabled={!canSend} onClick={() => sendMessage()}>Retry send</button> : null}
-        </div> : null}
-        {preparationProgress ? <p className="composerPreparing" role="status">Preparing photos… <span role="progressbar" aria-label="Photo preparation" aria-valuenow={preparationProgress.completed} aria-valuemin={0} aria-valuemax={preparationProgress.total}>{preparationProgress.completed} of {preparationProgress.total}</span> <button type="button" className="composerPhotoRetry" onClick={cancelPreparation}>Cancel</button></p> : null}
-
-        {renderPicker()}
-
-        {pending ? (
-          <div className="composerPending">
-            {pending.kind === "photo" ? (
-              <span className="composerPhotoPreviews">
-                {/* eslint-disable-next-line @next/next/no-img-element -- local previews */}
-                {messagePhotos(pending).map((photo, index) => <img key={photo.previewUrl} className="composerPendingThumb" src={photo.previewUrl} width={photo.width} height={photo.height} alt={`Selected photo ${index + 1}`} />)}
-              </span>
-            ) : (
-              <MapPin size={16} aria-hidden="true" className="composerPendingIcon" />
-            )}
-            <span className="composerPendingLabel" role="status">{pendingMessageLabel(pending)}</span>
-            <button type="button" className="composerPendingRemove" onClick={clearPending}>
-              Remove
-            </button>
-          </div>
-        ) : null}
+        {renderPickerRegion()}
 
         <div className="composer">
           <div className="composerControls">
@@ -1159,6 +1171,9 @@ export default function MessageThread({
             className="composerSend"
             aria-label="Send"
             disabled={!canSend}
+            onMouseDown={(event) => {
+              if (document.activeElement === event.currentTarget.parentElement?.querySelector(".composerInput")) event.preventDefault();
+            }}
             onClick={() => sendMessage()}
           >
             <Send size={20} aria-hidden="true" />
@@ -1170,18 +1185,19 @@ export default function MessageThread({
 
   return (
     <div className="messageThread">
-      {/* The shell is `display: contents`: it carries the keyboard facts as
-          data for the stylesheet, and draws no box of its own. */}
+      {/* The shell owns the visible viewport on phones and tablets. */}
       <div
+        ref={attachViewport}
         className="messageThreadShell"
         data-keyboard-open={keyboardOpen ? "" : undefined}
-        style={{ "--keyboard-inset": `${keyboardInset}px` } as React.CSSProperties}
       >
-      <div className="threadHeader" ref={measureThreadHeader}>
+      <div className="threadHeaderGroup">
+      <div className="threadHeader">
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
         </Link>
         {renderThreadWith()}
+        <MessageNotificationSettings key={conversationId} conversationId={conversationId} />
         <MessageThreadMenu
           isGroup={isGroup}
           onDeleteChat={() => ask({ kind: "delete" })}
@@ -1189,8 +1205,14 @@ export default function MessageThread({
         />
       </div>
 
+      <ThreadReadRecovery
+        visible={sameThreadReadKey(failedRead, conversationId, accountRevision)}
+        pending={manualRead.pending}
+        onRetry={() => void manualRead.retry()}
+      />
+      </div>
       {state === "loading" ? (
-        <p className="conversationPreview">With you in a sec.</p>
+        <ThreadLoading />
       ) : (
         <ul className="threadMessages" ref={listRef}>
           {timeline.length === 0 ? (

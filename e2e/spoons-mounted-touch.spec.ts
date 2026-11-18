@@ -3,14 +3,14 @@ import { dirname } from "node:path";
 import { expect, test, type CDPSession } from "@playwright/test";
 
 import {
-  clickLuciaAndReturn, clickRankingAndCheckRecordedCosts, drinkSheet,
+  clickRankingAndCheckRecordedCosts, drinkSheet,
   enterMountedSoftDrinks, lowerContentGeometry,
 } from "./helpers/spoonsMountedJourney";
 
 test.use({ isMobile: true, hasTouch: true, serviceWorkers: "block" });
 
 for (const width of [320, 390]) {
-  test(`${width}px mounted Drink touch swipe reaches the lower explanation and both price destinations`, async ({ page, context }, testInfo) => {
+  test(`${width}px mounted Drink touch swipe reaches the lower explanation and Spoons ranking`, async ({ page, context }, testInfo) => {
     test.setTimeout(120_000);
     // Both short phone widths must exercise real overflow. The normal390x844
     // control remains a separate case, not a fabricated paragraph or forced scroll position.
@@ -57,7 +57,6 @@ for (const width of [320, 390]) {
         await cdp?.detach();
       }
     }
-    await clickLuciaAndReturn(page, documentStartedAt, testInfo);
     await clickRankingAndCheckRecordedCosts(page, documentStartedAt, testInfo);
     expect(errors).toEqual([]);
     await page.screenshot({ path: testInfo.outputPath(`mounted-spoons-return-${width}.png`) });

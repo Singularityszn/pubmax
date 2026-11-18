@@ -9,7 +9,7 @@ Rendered surfaces: the MapLibre canvas, the sheets and chrome, and the launch pr
 - **Do not grow the hotspot files.** `components/PubMap.tsx`, `components/PubMapCanvas.tsx` and `app/globals.css` are the most-fixed files in the repo. Extract from them. Map tests read some of their source, so move a fence with the code it guards.
 - **A camera move has an owner.** There is one compass.
 - **A pin's figure is the price.** Colour may only hint. An aging price looks aging, never fresh. A cluster reads "from" its cheapest price.
-- **The map's first paint is a contract.** Pins arrive during the arrival flight, never before the basemap. Nothing on `/map` waits for ever for a map that never mounts.
+- **The map's first paint is a contract.** The [paint gates](../docs/rules/components-map-canvas-and-pins.md#the-pins-arrive-during-the-arrival-flight-never-before-the-basemap) own pin readiness. Nothing on `/map` waits for ever for a map that never mounts.
 - **No surface is a dead end.** A way in needs a way out, and the way out is one pattern.
 - **Phone chrome is measured, not eyeballed.** The resting phone map is three layers. The primary row is five doors. A trust caption never ellipses. The count of controls only comes down.
 - **A venue sheet says a fact once.** It has one action card, and that card spends the sheet's one coral.

@@ -1,21 +1,34 @@
 import Link from "next/link";
 
 import PriceBadge from "@/components/PriceBadge";
+import OpenTableCard from "@/components/social/OpenTableCard";
 import { formatObservedDate } from "@/lib/dataFreshness";
+import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import { formatGbp } from "@/lib/formatGbp";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
 
 const UNAVAILABLE: SocialAlternatives = { crawls: [], prices: [], priceRead: "unavailable" };
 
-export default function SocialLondonEmpty({ alternatives = UNAVAILABLE }: { alternatives?: SocialAlternatives }) {
+export default function SocialLondonEmpty({
+  alternatives = UNAVAILABLE,
+  openTable,
+}: {
+  alternatives?: SocialAlternatives;
+  openTable?: FeaturedOpenTableResult;
+}) {
   return (
     <div className="socialLondonEmpty">
-      <section className="socialOpenTable" aria-labelledby="social-open-table">
-        <p className="socialOpenTableKicker">Open Table</p>
-        <h2 id="social-open-table">Find a crawl to join</h2>
-        <p>Meet other pub-goers on an open crawl.</p>
-        <Link className="socialOpenTableAction" prefetch={false} href="/crawls">Explore open crawls</Link>
-      </section>
+      {openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : (
+        <section className="socialOpenTable" aria-labelledby="social-open-table">
+          <p className="socialOpenTableKicker">Open Table</p>
+          <h2 id="social-open-table">Find a crawl to join</h2>
+          <p>Meet other pub-goers on an open crawl.</p>
+          {openTable?.status === "unavailable" ? (
+            <p className="socialAlternativeMeta">We couldn&apos;t check this week&apos;s featured night or its places just now.</p>
+          ) : null}
+          <Link className="socialOpenTableAction" prefetch={false} href="/crawls">Explore open crawls</Link>
+        </section>
+      )}
       <section aria-labelledby="social-empty-prices">
         <h2 id="social-empty-prices">Latest pint prices we hold</h2>
         {alternatives.prices.length ? <ul className="socialAlternativeList">

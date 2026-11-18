@@ -76,6 +76,7 @@ function resolveStopCount(
   if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
     return Math.floor(raw);
   }
+  if (crawl?.walk) return crawl.walk.stops.length;
   if (crawl?.venueIds.length) return crawl.venueIds.length;
   return undefined;
 }

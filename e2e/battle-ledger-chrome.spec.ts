@@ -15,6 +15,7 @@ for (const width of [390, 1280]) {
     await page.goto("/ledger/venue-1vle947", { waitUntil: "domcontentloaded" });
     const warning = page.getByText(/Over 30 days old, needs a fresh drinker/).first();
     await expect(warning).toBeVisible();
+    await page.locator(".ledgerSecondaryActions summary").click();
     await expect(page.getByRole("link", { name: "Open on the map", exact: true })).toBeVisible();
     await expect(page.getByRole("link", { name: "See the bar tab", exact: true })).toBeVisible();
     const drop = page.getByRole("link", { name: "View Pint Drop", exact: true });

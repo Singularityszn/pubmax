@@ -7,7 +7,6 @@ import {
   MARK_VIEWBOX,
 } from "@/lib/brandMark.mjs";
 
-import "./pubmaxxMark.css";
 
 // ── PUBMAXX mark: "The Crossing X" ────────────────────────────────────────────
 // A blackboard-bold / double-struck X, built on the X Corp construction: one

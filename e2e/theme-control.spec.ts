@@ -75,7 +75,7 @@ for (const width of [320, 390, 641, 768, 1440]) {
   });
 }
 
-for (const platform of ["ios", "android"]) {
+for (const platform of ["ios", "android"] as const) {
   test(`${platform}: the native header respects system appearance until a person chooses`, async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await installNativeShell(page, platform);
