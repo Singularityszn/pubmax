@@ -637,8 +637,8 @@ export default function PrivacyPage() {
           Moderators who own that Crew or have ever held a place on it cannot
           read the case. A pending request or invitation to the Crew also
           prevents access. So does a block with either person. The operators
-          who run PubMaxxing can also read it. You can still leave the Crew
-          yourself. Your data export does not include the case.
+          who run PubMaxxing can also read it. Guests and co-hosts can still
+          leave the Crew themselves. Your data export does not include the case.
         </p>
         <p className="legalBody">
           After account deletion, we free your guest places and cancel the

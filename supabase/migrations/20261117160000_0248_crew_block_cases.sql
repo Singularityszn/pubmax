@@ -1,7 +1,7 @@
 -- 0248: a block between two accepted members of one crew opens a private moderator case.
 --
 -- 1. The night continues. The block changes no place, seat, roster revision or Plan, and
---    sends no notification. The blocker keeps the existing private Leave this crew. No
+--    sends no notification. Guests and co-hosts keep the private Leave this crew. No
 --    attendee and no host reads the case or learns of it.
 -- 2. social_blocks_open_crew_cases fires after a block insert, or an update that moves a
 --    block, and opens one case for each crew where both people hold an active place and

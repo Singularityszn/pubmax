@@ -164,7 +164,7 @@ A report goes with the mark it disputes: at expiry the list leaves it out, and t
 
 Applying 0248 takes `auth.users` and the three Social tables in SHARE ROW EXCLUSIVE mode through the backfill. It waits for busy writers. Sign-ins and other writes to `auth.users` can wait until the migration commits.
 
-When one person blocks another while both hold a place on the same crew night, a private case opens for a moderator. The night continues. Nobody loses a place or a seat, and nobody is notified. No attendee, host or co-host can read the case. The blocker keeps the private **Leave this crew** action, which frees their place at once. A block never pauses or cancels the night.
+When one person blocks another while both hold a place on the same crew night, a private case opens for a moderator. The night continues. Nobody loses a place or a seat, and nobody is notified. No attendee, host or co-host can read the case. Guests and co-hosts keep the private **Leave this crew** action, which frees their place at once. Owners cannot leave. A block never pauses or cancels the night.
 
 A later person who is blocked either way with an accepted member cannot join. Request, approval, invitation and invitation acceptance all answer "not found", as for an unknown crew (0245). The earlier accepted member keeps the place.
 
