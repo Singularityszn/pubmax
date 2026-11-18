@@ -180,6 +180,21 @@ describe("the private Night Receipt on the Plan page", () => {
     } finally { main.remove(); }
   });
 
+  it("does not carry a failed retry focus request into automatic recovery", async () => {
+    vi.useFakeTimers();
+    receiptAnswer = async () => json({ retryable: true }, 503);
+    await show();
+    const retry = container.querySelector<HTMLButtonElement>("button")!;
+    await act(async () => { retry.click(); });
+    await settle();
+    expect(document.activeElement).toBe(document.body);
+    receiptAnswer = ownerOnly;
+    await act(async () => { window.dispatchEvent(new Event("online")); await vi.advanceTimersByTimeAsync(150); });
+    await settle();
+    expect(receiptOnScreen()).not.toBeNull();
+    expect(document.activeElement).toBe(document.body);
+  });
+
   it("settles a cancelled read when another provider rotates, then permits recovery", async () => {
     let answer!: (response: Response) => void;
     receiptAnswer = () => new Promise<Response>(resolve => { answer = resolve; });
