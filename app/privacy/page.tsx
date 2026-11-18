@@ -1051,10 +1051,13 @@ export default function PrivacyPage() {
             records are deleted with the affected account. Your data export includes
             the correction outcome and date, without private review notes or
             staff identities. Crew attendance marks and their corrections
-            expire 30 days after the night closes. From then the app stops
+            expire 30 days after the night closes. If you report your mark,
+            only a moderator who was not in that crew reads the report, and your
+            export says when you reported it. From expiry the app stops
             showing them and leaves them out of your export, and an operator
-            cleanup deletes them in batches. Deleting your account deletes them,
-            and the write receipts that name you, at once.
+            cleanup deletes them with your reports in batches. Deleting your
+            account deletes them, your reports and the write receipts that name
+            you, at once.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

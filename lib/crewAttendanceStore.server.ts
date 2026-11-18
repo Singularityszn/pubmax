@@ -3,9 +3,11 @@ import "server-only";
 import { createHash } from "node:crypto";
 import {
   isCrewAttendanceRefusal,
+  isCrewAttendanceReportOutcome,
   isCrewAttendanceState,
   parseCrewAttendance,
   type CrewAttendanceDTO,
+  type CrewAttendanceReportOutcome,
   type CrewAttendanceState,
 } from "@/lib/crewAttendance";
 import { SocialCrewStoreError } from "@/lib/socialCrewStoreError";
@@ -13,7 +15,7 @@ import type { SocialPostActor } from "@/lib/socialPostStore";
 import { createDualBackendStore } from "@/lib/storeBackend";
 import { requireDynamicSupabaseAdmin, requireSupabaseAdmin } from "@/lib/supabase";
 
-type CrewAttendanceRpc = "read_social_crew_attendance" | "attest_social_crew_attendance_atomic";
+type CrewAttendanceRpc = "read_social_crew_attendance" | "attest_social_crew_attendance_atomic" | "report_social_crew_attendance";
 export type CrewAttendanceDependencies = { rpc(name: CrewAttendanceRpc, input: Record<string, unknown>): Promise<unknown> };
 
 export type CrewAttendanceAttestInput = {
@@ -57,6 +59,16 @@ async function call(dependencies: CrewAttendanceDependencies, name: CrewAttendan
   }
 }
 
+/** The database's answer as a record, after throwing its refusal, if it named one. */
+function accepted(data: unknown): Record<string, unknown> {
+  const answer = data && typeof data === "object" ? data as Record<string, unknown> : unavailable();
+  const refusal = answer.ok === false && typeof answer.code === "string" ? REFUSALS[answer.code] : undefined;
+  if (refusal) {
+    throw new SocialCrewStoreError(...refusal, isCrewAttendanceRefusal(answer.code) ? answer.code : undefined);
+  }
+  return answer.ok === true ? answer : unavailable();
+}
+
 export function createCrewAttendanceStore(dependencies: CrewAttendanceDependencies = supabaseDependencies) {
   return {
     async read(crewId: string, actor: SocialPostActor): Promise<CrewAttendanceDTO> {
@@ -81,16 +93,24 @@ export function createCrewAttendanceStore(dependencies: CrewAttendanceDependenci
         p_idempotency_key: input.idempotencyKey,
         p_payload_digest: createHash("sha256").update(JSON.stringify({ operation: "attendance", ...payload })).digest("hex"),
       });
-      const answer = data && typeof data === "object" ? data as Record<string, unknown> : unavailable();
-      const refusal = answer.ok === false && typeof answer.code === "string" ? REFUSALS[answer.code] : undefined;
-      if (refusal) {
-        throw new SocialCrewStoreError(...refusal, isCrewAttendanceRefusal(answer.code) ? answer.code : undefined);
-      }
-      if (answer.ok !== true || !["attested", "unchanged", "replayed"].includes(String(answer.code))
+      const answer = accepted(data);
+      if (!["attested", "unchanged", "replayed"].includes(String(answer.code))
         || !isCrewAttendanceState(answer.state) || !Number.isInteger(answer.revision) || (answer.revision as number) < 1) {
         return unavailable();
       }
       return { memberId: input.memberId, state: answer.state, revision: answer.revision as number };
+    },
+
+    /** The viewer's report that their own mark, at the revision they read, is wrong. */
+    async report(actor: SocialPostActor, input: { crewId: string; revision: number }):
+      Promise<{ code: CrewAttendanceReportOutcome; revision: number }> {
+      if (!UUID_RE.test(input.crewId) || !Number.isInteger(input.revision) || input.revision < 1) return invalid();
+      const answer = accepted(await call(dependencies, "report_social_crew_attendance", {
+        p_viewer_account_id: actor.accountId, p_viewer_profile_id: actor.profileId,
+        p_crew_id: input.crewId, p_revision: input.revision,
+      }));
+      if (!isCrewAttendanceReportOutcome(answer.code) || answer.revision !== input.revision) return unavailable();
+      return { code: answer.code, revision: input.revision };
     },
   };
 }
@@ -104,6 +124,7 @@ type CrewAttendanceExportRecord = {
   recordedAt: string;
   recordedBy: "host" | "moderator";
   expiresAt: string;
+  reportedAt: string | null;
 };
 export type CrewAttendanceExportRead = { status: "ready" | "degraded"; records: CrewAttendanceExportRecord[] };
 
@@ -117,7 +138,8 @@ const exportDurable = {
       const record = row as Record<string, unknown>;
       if (typeof record.id !== "string" || typeof record.crewId !== "string" || typeof record.subjectUserId !== "string"
         || !Number.isInteger(record.revision) || !isCrewAttendanceState(record.state) || typeof record.recordedAt !== "string"
-        || (record.recordedBy !== "host" && record.recordedBy !== "moderator") || typeof record.expiresAt !== "string") {
+        || (record.recordedBy !== "host" && record.recordedBy !== "moderator") || typeof record.expiresAt !== "string"
+        || (record.reportedAt !== null && typeof record.reportedAt !== "string")) {
         return { status: "degraded", records: [] };
       }
       records.push(record as CrewAttendanceExportRecord);

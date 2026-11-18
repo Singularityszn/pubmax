@@ -98,11 +98,18 @@ The sweep locks the selected crew rows before it changes any Plan. It skips busy
 
 ## Host attendance (0247)
 
-A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for this. A guest reports a wrong mark from the crew page, and the report reaches the moderators' queue.
+A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for moderators. A guest reports a wrong mark with "Report this mark" in the attendance panel. The report names the exact mark and revision. It does not go to the Social safety queue in `/admin`, so read it here.
 
-A moderator with any member row in that crew, in any role or state, cannot decide its disputes. Roles change in place, so a former co-host looks like a guest. The call also refuses the crew's owner, anyone who marked in it, and the guest. Ask a moderator who was never in that crew.
+A moderator with any member row in that crew, in any role or state, cannot decide its disputes. Roles change in place, so a former co-host looks like a guest. The calls also refuse the crew's owner, anyone who marked in it, the guest, and the moderator whose own mark an open report disputes. Ask a moderator who was never in that crew.
 
-1. In the Supabase SQL editor, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark.
+1. Read the open reports that you may decide. The list leaves out every report you may not decide. Each entry names `crewId`, `nightStartsAt`, `memberId`, `memberState`, `subjectHandle`, the `disputed` revision, state and time, who recorded it (`hostHandle`, or `staffDisplayName` for a moderator), and the `current` revision.
+
+   ```sql
+   set role service_role;
+   select jsonb_pretty(public.read_social_crew_attendance_reports_admin('<staff role id>', 50));
+   ```
+
+   To check a member without a report, read each member's current unexpired mark. This query only reads. It works after a block, a suspension or a removal, when the host's read no longer lists the guest. A revision of 0 means no unexpired mark.
 
    ```sql
    select member.id as member_id, member.state, member.role, profile.handle,
@@ -121,7 +128,7 @@ A moderator with any member row in that crew, in any role or state, cannot decid
    where member.crew_id = '<crew id>';
    ```
 
-2. Run the correction as the service role. Use `current_revision` from step 1.
+2. Decide as the service role. Use `memberId` and the `current` revision from step 1. Give the state that is right: the other state changes the mark, and the same state keeps it (`unchanged`). Either answer closes the open reports about that member's marks in that crew.
 
    ```sql
    set role service_role;
@@ -137,7 +144,7 @@ The correction works for a member who is `active`, `left` or `removed`. It never
 | `corrected` | A new revision records the mark, the moderator and the reason. No one is notified. |
 | `unchanged` | The mark already has that state. |
 | `stale` | The revision is not the current one. Read it again. |
-| `forbidden` | The moderator has been in that crew, owns it, marked in it, or is the guest. Ask another moderator. |
+| `forbidden` | The moderator has been in that crew, owns it, marked in it, is the guest, or made the mark that an open report disputes. Ask another moderator. |
 | `expired` | The record is past its 30 days. |
 | `not_found`, `gone`, `invalid` | No such member, the account was deleted, or the reason or state is not valid. |
 
@@ -148,7 +155,7 @@ set role service_role;
 select public.purge_expired_social_crew_attendance(1000);
 ```
 
-Deleting a guest's account deletes their marks and the receipts about them in the same transaction. Rolling back 0247 deletes every mark and every attendance receipt. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
+A report goes with the mark it disputes: at expiry the list leaves it out, and the cleanup deletes it with the mark. Deleting a guest's account deletes their marks, their reports and the receipts about them in the same transaction. Rolling back 0247 deletes every mark, every report and every attendance receipt. It stops while rows exist, unless the session sets `pubmax.crew_attendance_discarded` to the exact row count.
 
 ## Rollback
 

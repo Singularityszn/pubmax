@@ -874,6 +874,7 @@ export async function buildAccountExport(
         recordedAt: row.recordedAt,
         recordedBy: row.recordedBy,
         expiresAt: row.expiresAt,
+        reportedAt: row.reportedAt,
       })),
     };
   });

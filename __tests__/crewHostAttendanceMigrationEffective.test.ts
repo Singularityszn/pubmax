@@ -398,7 +398,7 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
       disputed: expect.objectContaining({ revision: 1, state: "absent", recordedBy: "host", hostHandle: handleOf(host), staffDisplayName: null }),
       current: { revision: 1, state: "absent" },
     })]);
-    expect(Date.parse(String(ours()[0].nightStartsAt))).toBe(Date.parse(db().sql(`select to_char(plan.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+    expect(Date.parse(String(ours()[0]?.nightStartsAt))).toBe(Date.parse(db().sql(`select to_char(plan.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
       from public.social_crews crew join public.plans plan on plan.id=crew.plan_id where crew.id='${second}'`)));
 
     // The first night closes, and a moderator who was never in it changes the mark.
@@ -428,8 +428,11 @@ describe.skipIf(skipReason !== null)("0247: host attendance attestation", () => 
     expect(ours(independent)).toEqual([]);
     expect(reportMark(ana, second, 1)).toEqual({ ok: true, code: "decided", revision: 1 });
     expect(ours(independent)).toEqual([]);
+    // A report of that moderator's own change goes to yet another moderator.
     expect(reportMark(ana, first, 3)).toEqual({ ok: true, code: "reported", revision: 3 });
-    expect(ours(independent)).toEqual([expect.objectContaining({ crewId: first, disputed: expect.objectContaining({ revision: 3 }) })]);
+    expect(ours(independent)).toEqual([]);
+    expect(ours(staffRoleFor(person()))).toEqual([expect.objectContaining({ crewId: first,
+      disputed: expect.objectContaining({ revision: 3, recordedBy: "moderator" }) })]);
   });
 
   it("a report goes with the mark: no queue entry after expiry, the cleanup or the guest's account deletion", () => {

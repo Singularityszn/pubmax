@@ -1,9 +1,10 @@
 -- Rollback 0247: hosts stop marking who came, and moderators stop correcting it.
--- It drops social_crew_attendance and its functions, deletes every attendance write
--- receipt and drops the receipt columns that named a guest.
+-- It drops social_crew_attendance, its reports and its functions, deletes every
+-- attendance write receipt and drops the receipt columns that named a guest.
 --
 -- THIS DELETES ATTENDANCE RECORDS. Every host mark and every moderator correction, with
--- its reason, is gone and cannot be restored. Before anything else the rollback locks
+-- its reason, and every guest's report about a mark, open or decided, is gone and
+-- cannot be restored. Before anything else the rollback locks
 -- the receipts and the table against writers, without waiting, and counts the rows.
 -- When either is busy it stops with "could not obtain lock"; run it again. When there
 -- are rows, export what must be kept, then set pubmax.crew_attendance_discarded to that
@@ -28,6 +29,8 @@ end;
 $$;
 
 drop function if exists public.purge_expired_social_crew_attendance(integer);
+drop function if exists public.read_social_crew_attendance_reports_admin(uuid,integer);
+drop function if exists public.report_social_crew_attendance(uuid,uuid,uuid,integer);
 drop function if exists public.export_social_crew_attendance(uuid,integer);
 drop function if exists public.read_social_crew_attendance(uuid,uuid,uuid);
 drop function if exists public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text);
@@ -35,8 +38,10 @@ drop function if exists public.attest_social_crew_attendance_atomic(uuid,uuid,uu
 drop function if exists public._social_crew_attendance_refuse(boolean,uuid,text,text,text,text,uuid,timestamptz);
 drop function if exists public._social_crew_attendance_finish(uuid,text,text,text,jsonb,uuid,timestamptz);
 drop function if exists public._social_crew_attendance_markable(uuid,uuid,uuid);
+drop function if exists public._social_crew_attendance_moderator_conflicted(uuid,uuid,uuid);
 drop function if exists public._social_crew_attendance_current(uuid,uuid);
 drop function if exists public._social_crew_attendance_window(uuid);
+drop table if exists public.social_crew_attendance_reports;
 drop table if exists public.social_crew_attendance;
 
 delete from public.private_social_crew_write_receipts where operation like 'attendance:%';

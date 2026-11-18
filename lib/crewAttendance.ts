@@ -26,6 +26,14 @@ export function crewAttendanceRefusal(body: unknown): CrewAttendanceRefusal | nu
   return isCrewAttendanceRefusal(reason) ? reason : null;
 }
 
+/** What a guest's report about their own mark answered: filed, or already decided. */
+const CREW_ATTENDANCE_REPORT_OUTCOMES = ["reported", "decided"] as const;
+export type CrewAttendanceReportOutcome = (typeof CREW_ATTENDANCE_REPORT_OUTCOMES)[number];
+
+export function isCrewAttendanceReportOutcome(value: unknown): value is CrewAttendanceReportOutcome {
+  return CREW_ATTENDANCE_REPORT_OUTCOMES.includes(value as CrewAttendanceReportOutcome);
+}
+
 export type CrewAttendanceItem = {
   memberId: string;
   /** Null with revision 0 when nobody has marked this person. */

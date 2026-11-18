@@ -2,13 +2,16 @@
 
 // Host attendance on an open crew's night (migration 0247). A host or co-host marks
 // each guest Here or Not here. A guest sees only their own mark, and nothing while it
-// loads or fails. A host's failed read says so and offers a retry, never an empty list.
+// loads or fails, and can report that mark to a moderator who was not in the crew.
+// A host's failed read says so and offers a retry, never an empty list.
 // lib/crewAttendanceView owns the lifecycle; this file only renders it.
 
 import { useCallback, useEffect, useReducer, useState } from "react";
 
 import { authedActionFetch, authedFetch } from "@/lib/authedFetch";
-import { crewAttendanceRefusal, parseCrewAttendance, type CrewAttendanceState } from "@/lib/crewAttendance";
+import {
+  crewAttendanceRefusal, isCrewAttendanceReportOutcome, parseCrewAttendance, type CrewAttendanceState,
+} from "@/lib/crewAttendance";
 import { CREW_ATTENDANCE_LOADING, nextCrewAttendanceView, type CrewAttendanceNotice } from "@/lib/crewAttendanceView";
 import { afterCrewAttendanceWrite, holdCrewAttendanceWrite } from "@/lib/crewAttendanceWrites";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -22,6 +25,14 @@ const REFUSED: Record<string, string> = {
   closed: "Marking closed before that saved. A moderator can still correct a mark.",
   not_open: "Marking has not opened yet. It opens on the day.",
 };
+const REPORT_LINE = {
+  sending: "",
+  reported: "Reported. A moderator who wasn’t in this crew checks it.",
+  decided: "A moderator has already checked this mark.",
+  stale: "Your mark changed. Check it, then report it if it’s wrong.",
+  failed: "That report did not send. Try again.",
+} as const;
+type GuestReport = { revision: number; status: keyof typeof REPORT_LINE };
 const londonTime = (iso: string) => new Date(iso).toLocaleString("en-GB", {
   timeZone: "Europe/London", weekday: "short", hour: "2-digit", minute: "2-digit",
 });
@@ -38,6 +49,7 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
   const path = `/api/social/crews/${encodeURIComponent(crewId)}/attendance`;
   const [view, dispatch] = useReducer(nextCrewAttendanceView, CREW_ATTENDANCE_LOADING);
   const [attempt, setAttempt] = useState(0);
+  const [report, setReport] = useState<GuestReport | null>(null);
   const reload = useCallback(() => {
     dispatch({ type: "refresh" });
     setAttempt((value) => value + 1);
@@ -91,6 +103,30 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
     }
   }, [path, scope, view]);
 
+  const reportMark = useCallback(async (revision: number) => {
+    setReport({ revision, status: "sending" });
+    try {
+      const response = await authedActionFetch(`${path}/report`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ revision }),
+      }, { requiresIdentity: true });
+      const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+      if (response.ok && body && isCrewAttendanceReportOutcome(body.code) && body.revision === revision) {
+        setReport({ revision, status: body.code });
+      } else if (response.status === 409 || response.status === 404) {
+        // The mark changed or went. Reading again shows the one to report.
+        setReport({ revision, status: "stale" });
+        reload();
+      } else {
+        setReport({ revision, status: "failed" });
+      }
+    } catch {
+      setReport({ revision, status: "failed" });
+    }
+  }, [path, reload]);
+
   const noticeText = (notice: CrewAttendanceNotice | null) => {
     if (!notice) return "";
     if (notice.kind === "failed") return "That didn't save. Try again.";
@@ -124,14 +160,28 @@ function AttendancePanel({ crewId, members, hosts, scope }: Props & { scope: str
     const own = data.items[0];
     if (!own?.state) return null;
     const who = own.recordedBy === "moderator" ? "A moderator" : "Your host";
+    // A report answers for the revision it named. A changed mark offers a new report.
+    const shown = report && (report.revision === own.revision || report.status === "stale") ? report : null;
+    const sending = shown?.status === "sending";
+    const filed = shown?.status === "reported" || shown?.status === "decided";
     return (
       <section className="crews__notice" aria-labelledby="crew-attendance-title">
         <h2 id="crew-attendance-title" className="crews__title">Who came</h2>
         <p>{who} marked you {MARK_LABEL[own.state].toLowerCase()}.</p>
-        <p className="crews__muted">
-          It&rsquo;s their word, not a check. It never earns points. If it&rsquo;s wrong,{" "}
-          <a className="crews__attendanceLink" href="#crew-members-title">report it to a moderator</a> from Who is in.
-        </p>
+        <p className="crews__muted">It&rsquo;s their word, not a check, and it never earns points. If it&rsquo;s wrong, report it.</p>
+        <div className="crews__formActions">
+          <button
+            type="button"
+            className="crews__button"
+            aria-disabled={sending || filed || refreshing || undefined}
+            onClick={() => {
+              if (!sending && !filed && !refreshing) void reportMark(own.revision);
+            }}
+          >
+            {sending ? "Sending…" : filed ? "Reported" : "Report this mark"}
+          </button>
+        </div>
+        <p className="crews__muted" role="status" aria-live="polite">{shown ? REPORT_LINE[shown.status] : ""}</p>
       </section>
     );
   }

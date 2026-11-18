@@ -5076,6 +5076,38 @@ export type Database = {
           },
         ];
       };
+      social_crew_attendance_reports: {
+        Row: {
+          id: string;
+          attendance_id: string;
+          created_at: string;
+          resolved_at: string | null;
+          resolved_by_staff_role_id: string | null;
+        };
+        Insert: {
+          id?: string;
+          attendance_id: string;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by_staff_role_id?: string | null;
+        };
+        Update: {
+          id?: string;
+          attendance_id?: string;
+          created_at?: string;
+          resolved_at?: string | null;
+          resolved_by_staff_role_id?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_attendance_reports_attendance_id_fkey";
+            columns: ["attendance_id"];
+            isOneToOne: true;
+            referencedRelation: "social_crew_attendance";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_crew_invitations: {
         Row: {
           id: string;
@@ -7715,6 +7747,14 @@ export type Database = {
         };
         Returns: boolean;
       };
+      _social_crew_attendance_moderator_conflicted: {
+        Args: {
+          p_staff_profile: string | null;
+          p_crew: string | null;
+          p_subject: string | null;
+        };
+        Returns: boolean;
+      };
       _social_crew_attendance_refuse: {
         Args: {
           p_replay: boolean | null;
@@ -9121,6 +9161,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      read_social_crew_attendance_reports_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       read_social_crew_join_requests: {
         Args: {
           p_viewer_account_id: string | null;
@@ -9773,6 +9820,15 @@ export type Database = {
           isOneToOne: false;
           isSetofReturn: true;
         };
+      };
+      report_social_crew_attendance: {
+        Args: {
+          p_viewer_account_id: string | null;
+          p_viewer_profile_id: string | null;
+          p_crew_id: string | null;
+          p_revision: number | null;
+        };
+        Returns: Json;
       };
       request_social_crew_join_atomic: {
         Args: {

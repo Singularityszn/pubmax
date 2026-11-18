@@ -285,6 +285,8 @@ export type AccountExportCrewAttendance = {
   recordedAt: string;
   recordedBy: "host" | "moderator";
   expiresAt: string;
+  /** When this account reported this mark to a moderator, or null. */
+  reportedAt: string | null;
 };
 
 export type AccountExport = {

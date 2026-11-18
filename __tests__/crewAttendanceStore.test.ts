@@ -187,7 +187,7 @@ describe("attendance report route", () => {
 
   it("takes only the revision, and a mark that changed is a named conflict", async () => {
     for (const body of [{}, { revision: "2" }, { revision: 2, memberId: ANA }, { revision: 2, crewId: CREW }]) {
-      expect((await reportRoute(post(`${url}/report`, body), params)).status, JSON.stringify(body)).toBe(400);
+      expect((await reportRoute(post(`${url}/report`, body), params)).status, JSON.stringify(body)).toBe(422);
     }
     expect(edge.rpc).not.toHaveBeenCalled();
     edge.rpc.mockResolvedValue({ ok: false, code: "stale" });

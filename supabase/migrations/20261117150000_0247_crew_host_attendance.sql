@@ -22,8 +22,19 @@
 --    character reason, sets the mark of any member row of the crew (active, left or
 --    removed) until it expires, also after the close, and never changes the member
 --    row. A moderator with any member row in that crew, in any role or state, its
---    owner, anyone who marked in it, or the participant gets 'forbidden'. So a
---    participant moderator never decides that crew's disputes.
+--    owner, anyone who marked in it, the participant, or the moderator whose mark an
+--    open report disputes gets 'forbidden'. So a participant moderator never decides
+--    that crew's disputes. A decision, a change or 'unchanged', closes the open
+--    reports about that participant's marks in that crew.
+-- 4a. report_social_crew_attendance: the participant reports their own current mark
+--    by the revision they read, while they can read it. One report per revision; a
+--    repeat answers 'reported', or 'decided' once a moderator has closed it. It does
+--    not stop for a block or a Social freeze, like every report.
+-- 4b. read_social_crew_attendance_reports_admin: an active moderator reads the open
+--    reports they may decide, each with its crew, night, member, the disputed
+--    revision, state, time and who recorded it (the host's handle, or the moderator's
+--    display name), and the current revision to correct from. Reports a moderator may
+--    not decide are left out.
 -- 5. Lock order, the order admission uses (0245): crew row, the participant's auth row
 --    (KEY SHARE), then participant-account locks in account-ID order. Blocks,
 --    suspension and account deletion take the same account locks.
@@ -31,10 +42,10 @@
 --    expired rows before any cleanup. purge_expired_social_crew_attendance deletes at
 --    most 1,000 expired rows and 1,000 expired receipts per call. Nothing schedules it.
 -- 7. A row goes with its crew, and with its participant's auth user in the same
---    transaction as that account deletion.
+--    transaction as that account deletion. A report goes with the mark it disputes.
 --
--- Rollback drops the table and functions, erases the attendance receipts and drops
--- the receipt columns. It stops while rows exist unless the session sets
+-- Rollback drops the tables and functions, with every report, erases the attendance
+-- receipts and drops the receipt columns. It stops while rows exist unless the session sets
 -- pubmax.crew_attendance_discarded to the exact row count.
 begin;
 
@@ -61,6 +72,19 @@ create index social_crew_attendance_subject_user_idx on public.social_crew_atten
 create index social_crew_attendance_expires_idx on public.social_crew_attendance (expires_at);
 alter table public.social_crew_attendance enable row level security;
 revoke all on table public.social_crew_attendance from public, anon, authenticated, service_role;
+
+-- A participant's report that one revision of their mark is wrong. Open until a
+-- moderator decides; it goes with the mark.
+create table public.social_crew_attendance_reports (
+  id uuid primary key default gen_random_uuid(),
+  attendance_id uuid not null unique references public.social_crew_attendance(id) on delete cascade,
+  created_at timestamptz not null default now(),
+  resolved_at timestamptz,
+  resolved_by_staff_role_id uuid,
+  check ((resolved_at is null) = (resolved_by_staff_role_id is null))
+);
+alter table public.social_crew_attendance_reports enable row level security;
+revoke all on table public.social_crew_attendance_reports from public, anon, authenticated, service_role;
 
 alter table public.private_social_crew_write_receipts
   add column subject_user_id uuid references auth.users(id) on delete cascade,
@@ -113,6 +137,28 @@ as $$
       where member.crew_id=p_crew and member.social_account_id=p_subject and member.state='active'
         and member.role='member' and account.ownership_state='active' and account.supabase_user_id is not null)
     and public._social_crew_relationship_between_accounts(p_actor,p_subject) is distinct from 'blocked';
+$$;
+
+-- True when this moderator profile may not decide this participant's marks in this
+-- crew: any member row in it, in any role or state (roles change in place), its
+-- owner, a host who marked in it, the participant, or the moderator whose mark an
+-- open report disputes.
+create function public._social_crew_attendance_moderator_conflicted(p_staff_profile uuid,p_crew uuid,p_subject uuid)
+returns boolean language sql stable security definer set search_path=''
+as $$
+  select exists(select 1 from public.private_social_accounts staff_account
+      where staff_account.profile_id=p_staff_profile and (
+        staff_account.id=p_subject
+        or exists(select 1 from public.social_crews crew where crew.id=p_crew and crew.owner_account_id=staff_account.id)
+        or exists(select 1 from public.social_crew_members insider where insider.crew_id=p_crew
+          and insider.social_account_id=staff_account.id)
+        or exists(select 1 from public.social_crew_attendance mark where mark.crew_id=p_crew
+          and mark.attester_account_id=staff_account.id)))
+    or exists(select 1 from public.social_crew_attendance_reports report
+      join public.social_crew_attendance mark on mark.id=report.attendance_id
+      join public.private_social_staff_roles staff on staff.id=mark.staff_role_id
+      where report.resolved_at is null and mark.crew_id=p_crew and mark.subject_account_id=p_subject
+        and staff.profile_id=p_staff_profile);
 $$;
 
 -- Stores one attendance answer under its key. A receipt about a guest names them and
@@ -234,22 +280,21 @@ begin
   perform 1 from auth.users where id=v_user for key share;
   if not found then return jsonb_build_object('ok',false,'code','gone'); end if;
   perform public._lock_social_participant_accounts(array[v_member.social_account_id]);
-  -- A participant never decides their own crew's dispute. Roles change in place, so
-  -- any member row in that crew, in any role or state, excludes the moderator.
-  if exists(select 1 from public.private_social_accounts staff_account
-      where staff_account.profile_id=v_staff.profile_id and (
-        staff_account.id=v_member.social_account_id
-        or exists(select 1 from public.social_crews crew where crew.id=p_crew_id and crew.owner_account_id=staff_account.id)
-        or exists(select 1 from public.social_crew_members insider where insider.crew_id=p_crew_id
-          and insider.social_account_id=staff_account.id)
-        or exists(select 1 from public.social_crew_attendance mark where mark.crew_id=p_crew_id
-          and mark.attester_account_id=staff_account.id))) then
+  -- A participant never decides their own crew's dispute, nor a moderator their own
+  -- disputed mark.
+  if public._social_crew_attendance_moderator_conflicted(v_staff.profile_id,p_crew_id,v_member.social_account_id) then
     return jsonb_build_object('ok',false,'code','forbidden'); end if;
   select * into v_window from public._social_crew_attendance_window(p_crew_id);
   if pg_catalog.statement_timestamp() >= v_window.expires_at then
     return jsonb_build_object('ok',false,'code','expired'); end if;
   select * into v_current from public._social_crew_attendance_current(p_crew_id,v_member.social_account_id);
   if v_current.revision<>p_expected_revision then return jsonb_build_object('ok',false,'code','stale'); end if;
+  -- The decision closes every open report about this participant's marks in this crew.
+  update public.social_crew_attendance_reports report
+  set resolved_at=pg_catalog.statement_timestamp(), resolved_by_staff_role_id=v_staff.id
+  from public.social_crew_attendance mark
+  where mark.id=report.attendance_id and mark.crew_id=p_crew_id
+    and mark.subject_account_id=v_member.social_account_id and report.resolved_at is null;
   if v_current.state is not distinct from p_state then
     return jsonb_build_object('ok',true,'code','unchanged','revision',v_current.revision,'state',p_state); end if;
   insert into public.social_crew_attendance(crew_id,subject_account_id,subject_user_id,revision,state,actor_kind,
@@ -299,7 +344,85 @@ as $$
   from viewer, night;
 $$;
 
--- The account's own unexpired marks, without who recorded them or why.
+-- The participant reports their own current mark, by the revision they read. Only
+-- while they can read it: an active account and member of an open crew.
+create function public.report_social_crew_attendance(
+  p_viewer_account_id uuid,p_viewer_profile_id uuid,p_crew_id uuid,p_revision integer
+) returns jsonb language plpgsql security definer set search_path=''
+as $$
+declare v_mark public.social_crew_attendance; v_report public.social_crew_attendance_reports;
+begin
+  if p_revision is null or p_revision<1 then return jsonb_build_object('ok',false,'code','invalid'); end if;
+  select mark.* into v_mark
+  from public.private_social_accounts account
+  join public.social_crew_members member on member.social_account_id=account.id
+    and member.crew_id=p_crew_id and member.state='active'
+  join public.social_crews crew on crew.id=p_crew_id and crew.visibility='open'
+  join public.social_crew_attendance mark on mark.crew_id=p_crew_id and mark.subject_account_id=account.id
+    and mark.expires_at > pg_catalog.statement_timestamp()
+  where account.id=p_viewer_account_id and account.profile_id=p_viewer_profile_id
+    and account.ownership_state='active' and account.supabase_user_id is not null
+  order by mark.revision desc
+  limit 1;
+  if v_mark.id is null then return jsonb_build_object('ok',false,'code','not_found'); end if;
+  if v_mark.revision<>p_revision then return jsonb_build_object('ok',false,'code','stale'); end if;
+  insert into public.social_crew_attendance_reports(attendance_id) values(v_mark.id)
+  on conflict (attendance_id) do nothing;
+  select * into v_report from public.social_crew_attendance_reports where attendance_id=v_mark.id;
+  return jsonb_build_object('ok',true,'code',case when v_report.resolved_at is null then 'reported' else 'decided' end,
+    'revision',v_mark.revision);
+end;
+$$;
+
+-- The open reports this moderator may decide, oldest first, with the disputed record.
+create function public.read_social_crew_attendance_reports_admin(p_staff_role_id uuid,p_limit integer)
+returns jsonb language plpgsql stable security definer set search_path=''
+as $$
+declare v_staff public.private_social_staff_roles;
+begin
+  if p_limit is null or p_limit<1 or p_limit>50 then raise exception 'invalid queue size'; end if;
+  select * into v_staff from public.private_social_staff_roles
+  where id=p_staff_role_id and active and revoked_at is null and role='moderator';
+  if v_staff.id is null then raise exception 'staff required'; end if;
+  return coalesce((
+    select jsonb_agg(item.entry order by item.created_at, item.id)
+    from (
+      select report.id, report.created_at, jsonb_build_object(
+        'reportId', report.id,
+        'reportedAt', pg_catalog.to_char(report.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+        'crewId', mark.crew_id,
+        'nightStartsAt', pg_catalog.to_char(plan.start_time at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+        'memberId', member.id,
+        'memberState', member.state,
+        'subjectHandle', subject_profile.handle,
+        'disputed', jsonb_build_object(
+          'revision', mark.revision, 'state', mark.state, 'recordedBy', mark.actor_kind,
+          'recordedAt', pg_catalog.to_char(mark.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+          'hostHandle', host_profile.handle, 'staffDisplayName', mark.staff_display_name),
+        'current', jsonb_build_object('revision', current_mark.revision, 'state', current_mark.state),
+        'expiresAt', pg_catalog.to_char(mark.expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')
+      ) as entry
+      from public.social_crew_attendance_reports report
+      join public.social_crew_attendance mark on mark.id=report.attendance_id
+      join public.social_crew_members member on member.crew_id=mark.crew_id and member.social_account_id=mark.subject_account_id
+      join public.social_crews crew on crew.id=mark.crew_id
+      join public.plans plan on plan.id=crew.plan_id
+      join public.private_social_accounts subject on subject.id=mark.subject_account_id
+      join public.profiles subject_profile on subject_profile.id=subject.profile_id
+      left join public.private_social_accounts host on host.id=mark.attester_account_id
+      left join public.profiles host_profile on host_profile.id=host.profile_id
+      cross join lateral public._social_crew_attendance_current(mark.crew_id,mark.subject_account_id) current_mark
+      where report.resolved_at is null and mark.expires_at > pg_catalog.statement_timestamp()
+        and not public._social_crew_attendance_moderator_conflicted(v_staff.profile_id,mark.crew_id,mark.subject_account_id)
+      order by report.created_at, report.id
+      limit p_limit
+    ) item
+  ), '[]'::jsonb);
+end;
+$$;
+
+-- The account's own unexpired marks, without who recorded them or why, and when the
+-- account reported one.
 create function public.export_social_crew_attendance(p_user_id uuid,p_limit integer)
 returns jsonb language sql stable security definer set search_path=''
 as $$
@@ -307,14 +430,16 @@ as $$
       'id', mark.id, 'crewId', mark.crew_id, 'subjectUserId', mark.subject_user_id, 'revision', mark.revision,
       'state', mark.state, 'recordedBy', mark.actor_kind,
       'recordedAt', pg_catalog.to_char(mark.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
-      'expiresAt', pg_catalog.to_char(mark.expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
+      'expiresAt', pg_catalog.to_char(mark.expires_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'),
+      'reportedAt', pg_catalog.to_char(report.created_at at time zone 'UTC','YYYY-MM-DD"T"HH24:MI:SS.MS"Z"'))
     order by mark.created_at desc, mark.id),'[]'::jsonb)
   from (
     select * from public.social_crew_attendance
     where subject_user_id=p_user_id and expires_at > pg_catalog.statement_timestamp()
     order by created_at desc, id
     limit greatest(0,coalesce(p_limit,0))
-  ) mark;
+  ) mark
+  left join public.social_crew_attendance_reports report on report.attendance_id=mark.id;
 $$;
 
 create function public.purge_expired_social_crew_attendance(p_limit integer default 1000)
@@ -349,16 +474,21 @@ $$;
 revoke all on function public._social_crew_attendance_window(uuid) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_current(uuid,uuid) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_markable(uuid,uuid,uuid) from public, anon, authenticated, service_role;
+revoke all on function public._social_crew_attendance_moderator_conflicted(uuid,uuid,uuid) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_finish(uuid,text,text,text,jsonb,uuid,timestamptz) from public, anon, authenticated, service_role;
 revoke all on function public._social_crew_attendance_refuse(boolean,uuid,text,text,text,text,uuid,timestamptz) from public, anon, authenticated, service_role;
 revoke all on function public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text) from public, anon, authenticated;
 revoke all on function public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text) from public, anon, authenticated;
 revoke all on function public.read_social_crew_attendance(uuid,uuid,uuid) from public, anon, authenticated;
+revoke all on function public.report_social_crew_attendance(uuid,uuid,uuid,integer) from public, anon, authenticated;
+revoke all on function public.read_social_crew_attendance_reports_admin(uuid,integer) from public, anon, authenticated;
 revoke all on function public.export_social_crew_attendance(uuid,integer) from public, anon, authenticated;
 revoke all on function public.purge_expired_social_crew_attendance(integer) from public, anon, authenticated;
 grant execute on function public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text) to service_role;
 grant execute on function public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text) to service_role;
 grant execute on function public.read_social_crew_attendance(uuid,uuid,uuid) to service_role;
+grant execute on function public.report_social_crew_attendance(uuid,uuid,uuid,integer) to service_role;
+grant execute on function public.read_social_crew_attendance_reports_admin(uuid,integer) to service_role;
 grant execute on function public.export_social_crew_attendance(uuid,integer) to service_role;
 grant execute on function public.purge_expired_social_crew_attendance(integer) to service_role;
 
