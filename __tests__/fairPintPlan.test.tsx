@@ -172,7 +172,7 @@ it.each(["back", "edit", "unmount"])("ignores delayed readiness after %s", async
 it("activates the fallback route only after its result surface mounts", async () => {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(Response.json(generated("fallback-result"))));
   let hook: ReturnType<typeof useFairPintPlan>;
-  const applied = vi.fn((_value: FairPintGenerated) => { expect(document.querySelector(".fairPintResultFallback")).not.toBeNull(); });
+  const applied = vi.fn<(value: FairPintGenerated) => void>(() => { expect(document.querySelector(".fairPintResultFallback")).not.toBeNull(); });
   function Host() {
     hook = useFairPintPlan("london", "camden", applied);
     return hook.state.last
