@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -633,5 +633,137 @@ describe("assert-privacy-response", () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain("forbidden key venueId");
     expect(result.stderr).toContain("forbidden literal");
+  });
+});
+
+describe("assert-e2e-waits", () => {
+  /** A fixture repo: <tmp>/repo/e2e holds specs, <tmp>/repo may hold a config. */
+  function e2eFixture(specs: Record<string, string>, config?: string) {
+    const repo = path.join(tempDirectory(), "repo");
+    const e2eDir = path.join(repo, "e2e");
+    mkdirSync(e2eDir, { recursive: true });
+    for (const [name, text] of Object.entries(specs)) {
+      writeFileSync(path.join(e2eDir, name), text);
+    }
+    if (config !== undefined) writeFileSync(path.join(repo, "playwright.config.ts"), config);
+    return { repo, e2eDir };
+  }
+
+  function allowlist(e2eDir: string, allowed: unknown[]) {
+    writeFileSync(path.join(e2eDir, "waits.allowlist.json"), JSON.stringify({ allowed }));
+  }
+
+  it("passes a spec tree that waits for events", () => {
+    const { e2eDir } = e2eFixture({
+      "clean.spec.ts": 'import { test, expect } from "@playwright/test";\ntest("x", async ({ page }) => {\n  await expect(page.getByRole("button")).toBeVisible();\n});\n',
+    });
+
+    const result = run("assert-e2e-waits.mjs", [e2eDir]);
+
+    expect(result.status, result.stderr).toBe(0);
+  });
+
+  it("rejects fixed sleeps and per-test timeouts", () => {
+    const { e2eDir } = e2eFixture({
+      "sleeps.spec.ts": [
+        'import { test } from "@playwright/test";',
+        'test("x", async ({ page }) => {',
+        "  await page.waitForTimeout(500);",
+        "  test.setTimeout(60_000);",
+        "});",
+        'test("y", async ({ page }, testInfo) => {',
+        "  testInfo.setTimeout(30_000);",
+        "});",
+        "",
+      ].join("\n"),
+    });
+
+    const result = run("assert-e2e-waits.mjs", [e2eDir]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("e2e/sleeps.spec.ts:3: waitForTimeout is forbidden");
+    expect(result.stderr).toContain("e2e/sleeps.spec.ts:4: testTimeout is forbidden");
+    expect(result.stderr).toContain("e2e/sleeps.spec.ts:7: testTimeout is forbidden");
+    expect(result.stderr).toContain("3 finding(s)");
+  });
+
+  it("rejects suite timeouts and nonzero retries, but not retries: 0", () => {
+    const { e2eDir } = e2eFixture({
+      "suite.spec.ts": [
+        'import { test } from "@playwright/test";',
+        'test.describe.configure({ timeout: 120_000 });',
+        'test.describe("x", () => {',
+        '  test.describe.configure({ retries: 1 });',
+        '  test.describe.configure({ retries: 0 });',
+        '  test.use({ timeout: 60_000 });',
+        "});",
+        "",
+      ].join("\n"),
+    });
+
+    const result = run("assert-e2e-waits.mjs", [e2eDir]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("suite.spec.ts:2: suiteTimeout is forbidden");
+    expect(result.stderr).toContain("suite.spec.ts:4: suiteRetries is forbidden");
+    expect(result.stderr).toContain("suite.spec.ts:6: suiteTimeout is forbidden");
+    expect(result.stderr).not.toContain("suite.spec.ts:5");
+  });
+
+  it("admits exactly the counted violations the allowlist argues, and nothing more", () => {
+    const spec = 'import { test } from "@playwright/test";\ntest("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n  await page.waitForTimeout(600);\n});\n';
+    const { e2eDir } = e2eFixture({ "counted.spec.ts": spec });
+    allowlist(e2eDir, [{ file: "e2e/counted.spec.ts", kind: "waitForTimeout", count: 2 }]);
+
+    expect(run("assert-e2e-waits.mjs", [e2eDir]).status).toBe(0);
+
+    writeFileSync(
+      path.join(e2eDir, "counted.spec.ts"),
+      spec.replace("600);", "700);\n  await page.waitForTimeout(800);"),
+    );
+    const grown = run("assert-e2e-waits.mjs", [e2eDir]);
+    expect(grown.status).toBe(1);
+    expect(grown.stderr).toContain("1 finding(s)");
+  });
+
+  it("refuses a stale allowlist row so the list can only shrink", () => {
+    const { e2eDir } = e2eFixture({
+      "clean.spec.ts": 'import { test } from "@playwright/test";\ntest("x", () => {});\n',
+    });
+    allowlist(e2eDir, [{ file: "e2e/clean.spec.ts", kind: "waitForTimeout", count: 1 }]);
+
+    const result = run("assert-e2e-waits.mjs", [e2eDir]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("stale allowlist row");
+  });
+
+  it("reads runner retries in the Playwright config beside the spec tree", () => {
+    const { repo, e2eDir } = e2eFixture(
+      { "clean.spec.ts": 'import { test } from "@playwright/test";\ntest("x", () => {});\n' },
+      'export default { retries: process.env.CI ? 1 : 0 };\n',
+    );
+    expect(repo).toContain("repo");
+
+    const refused = run("assert-e2e-waits.mjs", [e2eDir]);
+    expect(refused.status).toBe(1);
+    expect(refused.stderr).toContain("playwright.config.ts:1: configRetries is forbidden");
+
+    allowlist(e2eDir, [
+      {
+        file: "playwright.config.ts",
+        kind: "configRetries",
+        count: 1,
+        reason: "argued in the fixture",
+        ends: "when the quarantine clears",
+      },
+    ]);
+    expect(run("assert-e2e-waits.mjs", [e2eDir]).status).toBe(0);
+
+    // A configRetries row without its argument is refused like a bad skip row.
+    allowlist(e2eDir, [{ file: "playwright.config.ts", kind: "configRetries", count: 1 }]);
+    const unargued = run("assert-e2e-waits.mjs", [e2eDir]);
+    expect(unargued.status).toBe(1);
+    expect(unargued.stderr).toContain("must state reason and ends");
   });
 });

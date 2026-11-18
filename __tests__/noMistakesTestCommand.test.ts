@@ -95,6 +95,7 @@ describe("the no-mistakes repository test command", () => {
       validateData: false,
       dbTypes: false,
       e2eSkips: false,
+      e2eWaits: false,
       chatgptMap: false,
     });
     expect(fallback.map((step) => [step.command, ...step.args].join(" "))).toEqual(["npm run verify"]);

@@ -1,0 +1,1382 @@
+{
+  "about": "Shrink-only grandfather list for scripts/assert-e2e-waits.mjs. Each row argues an exact count of one banned kind in one file: waitForTimeout sleeps, test/testInfo.setTimeout budgets, timeout or nonzero retries keys in test.use and test.describe.configure, and nonzero retries in a Playwright config. Removing a violation makes its row stale and fails the gate; adding one has no count left and fails the gate. The list can only shrink. configRetries rows must state reason and ends.",
+  "allowed": [
+    {
+      "file": "e2e/a11y-core-journeys.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/a11y-core-journeys.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/a11y-keyboard-loop.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/a11y-keyboard-loop.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/accessible-filters.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/account-identity-recovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/alt-crawls.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/analytics-badge-lifecycle.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/analytics-consent.spec.ts",
+      "kind": "testTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/aperture-splash.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/area-news-context.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/area-news-toast.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/arrival-journey.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/auth-callback-confirmation.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/auth-callback-confirmation.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/battle-browser-hygiene.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/city-price-auth-return.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/claim-no-birth-date.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/command-palette-focus.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/compliance-pint-drop-age.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/consent-after-first-answer.spec.ts",
+      "kind": "testTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/consent-after-first-answer.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/contribution-age-door.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/crawl-promotions.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/crawl-routes.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/crawl-stop-cards.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/cwv-baseline.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/cwv-baseline.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/dark-primary-surfaces.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/day-tonight-intent.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/deferred-drawer-focus.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/desktop-map-chrome-fit.spec.ts",
+      "kind": "testTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/diary-log-a-visit.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/discover-route-intent.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/drawer-route-chip-reachable.spec.ts",
+      "kind": "testTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/drink-brand-area-landing.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/drink-brand-landing.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/drink-chip-controls.spec.ts",
+      "kind": "testTimeout",
+      "count": 13
+    },
+    {
+      "file": "e2e/drink-context-history.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/eagle-drink-servings.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/exception-capture.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/exception-capture.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/fair-meeting-coarse-origins.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/first-run-chrome-share.spec.ts",
+      "kind": "testTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/first-run-chrome-share.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/focus-trap-ownership.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/food-menu-discovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/founding-members.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/gate-z-performance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/gate-z-performance.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/gateEvidence.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/helpers/webVitals.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/identity-nudge-mobile.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/invite-price-grounding.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/landing-find-my-pint.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/landing-uk-directory.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/landmark-and-sheet.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/last-pint.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/launch-phone-controls.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/launch-phone-controls.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/listing-count-clarity.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-accessibility.spec.ts",
+      "kind": "testTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/map-accessibility.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/map-active-plan-large-text.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-arrival-card-pins.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-arrival-turn.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/map-blocked-fallback.spec.ts",
+      "kind": "testTimeout",
+      "count": 9
+    },
+    {
+      "file": "e2e/map-body-clearance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-consent-bottom-controls.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-consent-canvas-band.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-consent-canvas-band.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-console-health.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-console-health.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/map-crawl-spa-handoff.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-deep-link-pin.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-desktop-arrival-chrome.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-desktop-filters.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-drink-plan.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/map-experience-lens.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/map-gestures.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/map-gestures.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-gl.spec.ts",
+      "kind": "testTimeout",
+      "count": 24
+    },
+    {
+      "file": "e2e/map-gl.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 19
+    },
+    {
+      "file": "e2e/map-last-orders.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/map-live-qa-0924.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-near-me.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-opening-preview.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/map-perf-budget.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-performance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-performance.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-restored-price-pins.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-restored-price-pins.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-search-area-filter.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-search-chunk-failure.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-search-chunk-failure.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-search-no-results.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-search-no-results.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-search-typing.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-selection-history.spec.ts",
+      "kind": "testTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/map-service-worker.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-short-walk-framing.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/map-short-walk-framing.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-sun-chaser.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-surface-history.spec.ts",
+      "kind": "testTimeout",
+      "count": 6
+    },
+    {
+      "file": "e2e/map-tile-retry.spec.ts",
+      "kind": "testTimeout",
+      "count": 6
+    },
+    {
+      "file": "e2e/map-tile-retry.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-toolbar-beside-drawer.spec.ts",
+      "kind": "testTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/map-uk-base-layer.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-uk-base-layer.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-unknown-selection.spec.ts",
+      "kind": "testTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/map-webgl-recovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-webgl-recovery.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/map-you-are-here.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/map-you-are-here.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/menu-basket.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-button-system.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/mobile-city-chooser.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-city-transport.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-crawls.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-discover-cta.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-first-run-onboarding.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/mobile-heritage-ask.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-keyboard-overlays.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-landing-entry.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-large-text.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-chrome-fit.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-controls.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/mobile-map-first-visit.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-large-text.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-list-obstruction.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/mobile-map-peek.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-peek.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-planner.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-search.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-map-shell-matrix.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/mobile-map-tile-paint.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/mobile-moment-flow.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-price-plan-guest.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-pub-pal.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-rounds-index.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-shared-sheet-layout.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-the-local.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-tonight-sheet.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-v1-obstructions.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-venue-sheet-tabs.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-weather-recommendations.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/mobile-you-email-reload.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/native-push-ask-lifecycle.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/native-shell-tonight-parity.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/navigation-first-click.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/navigation-first-click.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/near-desk-mode.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/near-offline-navigation.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/near-price-trust.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/near-value-actions.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/near-venue-acceptance.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/nearest-pub-journey.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/nearest-pub-journey.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/night-memory-removal.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/night-ways-there.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/night-ways-there.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 6
+    },
+    {
+      "file": "e2e/one-tap-measure.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/overview-price-door.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-crew-walk.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-crew-walk.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-first-use-voice.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-glance-evidence.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-map-marker.spec.ts",
+      "kind": "testTimeout",
+      "count": 8
+    },
+    {
+      "file": "e2e/pal-map-marker.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 9
+    },
+    {
+      "file": "e2e/pal-nav-button.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/pal-nav-button.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-night-question.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-night-question.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/pal-openvenue.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-original-mesh-acceptance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-original-mesh-interaction.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-pint-needle.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-pint-needle.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-plan-held-reconcile.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-postcard.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-postcard.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-price-quest.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/pal-price-quest.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-qa-isolation.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-recommendation-map.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-voice-recovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-voice-transcript.spec.ts",
+      "kind": "testTimeout",
+      "count": 7
+    },
+    {
+      "file": "e2e/pal-voice-transcript.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pal-year.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pal-year.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/performance-budget-ab.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/performance-budget.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/phone-tap-targets.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pint-compass-map-door.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/pint-compass.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/pint-share.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/places-tab.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/places-town-fallback.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/plan-account-boundary.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-capability-recovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/plan-capability-recovery.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-crawl-stops.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-held-acceptance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-join-reveal.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/plan-loop.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-public-preview-cache.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/plan-route-result.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/plan-selected-drink-disposable.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-selected-drink-journey.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-single-stop.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/plan-sort-lock-hints.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-bill-required.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-colour-law.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/price-contribution-auth.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-contribution-entry.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-evidence-missions.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-intent-lifecycle.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-submission.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-submission.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-trust-impact.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/price-two-drinkers-receipt-proof.spec.ts",
+      "kind": "testTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/profile-avatar.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/pubpal-voice-live.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/qa-button-sizing.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/quality-floor.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/sample-skeleton-layout-shift.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/screenshots.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/search-growth-live.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/second-drinker-confirm.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/shared-modal-history.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/signed-in-review.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/site-nav-laptop-acceptance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/site-nav-large-text.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/smoke.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/social-composer.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 3
+    },
+    {
+      "file": "e2e/social-identity-card.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/social-open.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/social-shell.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/social-shell.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/spoons-mounted-touch.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/spoons-value.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/surface-back-and-home.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tablet-header-clearance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tablet-header-first-render.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tablet-header-matrix.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tablet-header-scale.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tablet-map-control-clearance.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/tablet-toolbar-scale.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/theme-control-boundaries.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tonight-trusted-ui.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/tonight-vibe-chips.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/tonight.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/trust-read.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/trusted-handoff-analytics.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/ui-consistency-layout.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/ui-consistency-layout.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/ui-ux-battle-test.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/ux-click-recovery.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/ux-consent-chrome.spec.ts",
+      "kind": "testTimeout",
+      "count": 13
+    },
+    {
+      "file": "e2e/ux-lane-perf-verification.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/venue-acceptance.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/venue-photo-wall.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/venue-reveal.spec.ts",
+      "kind": "suiteTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/venue-reveal.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/venue-sheet-tablet-command-bar.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/venue-sheet-tablet-command-bar.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 5
+    },
+    {
+      "file": "e2e/vercel-consent-loading.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/w1-tonight.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/w1-tonight.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/wanted-wave-a.spec.ts",
+      "kind": "waitForTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/web-first-run-journey.spec.ts",
+      "kind": "testTimeout",
+      "count": 4
+    },
+    {
+      "file": "e2e/web-push-prompt.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "e2e/wild-night-preview.spec.ts",
+      "kind": "testTimeout",
+      "count": 1
+    },
+    {
+      "file": "e2e/you-profile-identity.spec.ts",
+      "kind": "testTimeout",
+      "count": 2
+    },
+    {
+      "file": "playwright.config.ts",
+      "kind": "configRetries",
+      "count": 1,
+      "reason": "CI retries a failed spec once while the full suite is quarantined under e2e/full-suite-quarantine.txt; a retry hides the flake the quarantine exists to name",
+      "ends": "when the quarantined specs in e2e/full-suite-quarantine.txt are fixed and the nightly runs clean"
+    }
+  ]
+}
