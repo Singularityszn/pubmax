@@ -362,7 +362,7 @@ create function public.export_social_crew_see_again(p_user uuid,p_limit integer)
 language sql stable security definer set search_path='' as $$
   select coalesce(jsonb_agg(entry),'[]'::jsonb) from (
     select jsonb_build_object('crewId',choice.crew_id,'pickedMemberId',choice.picked_member_id,'context',choice.context,'choice',choice.choice,
-      'chosenAt',choice.chosen_at,'withdrawnAt',choice.withdrawn_at,'expiresAt',pair.expires_at) entry
+      'chosenAt',choice.chosen_at,'withdrawnAt',choice.withdrawn_at) entry
     from public.social_crew_see_again_choices choice join public.social_crew_see_again_pairs pair on pair.id=choice.pair_id
     where choice.picker_user_id=p_user and pair.expires_at>clock_timestamp()
     order by choice.chosen_at,choice.pair_id limit greatest(0,least(coalesce(p_limit,0),1001))

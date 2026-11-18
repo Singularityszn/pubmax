@@ -887,7 +887,7 @@ export async function buildAccountExport(
     const read = await deps.crewSeeAgain(userId, ACCOUNT_EXPORT_LANE_CAP + 1);
     return { degraded: read.status === "degraded", items: read.records.map(row => ({
       crewId: row.crewId, pickedMemberId: row.pickedMemberId, context: row.context, choice: row.choice,
-      chosenAt: row.chosenAt, withdrawnAt: row.withdrawnAt, expiresAt: row.expiresAt,
+      chosenAt: row.chosenAt, withdrawnAt: row.withdrawnAt,
     })) };
   });
 

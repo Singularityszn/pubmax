@@ -19,7 +19,7 @@ export type SeeAgainItem = { memberId: string; handle: string; choice: "none" | 
 export type SeeAgainDTO = { open: boolean; closesAt: string; items: SeeAgainItem[] };
 export type SeeAgainOwnRecord = {
   crewId: string; pickedMemberId: string; context: "friendship"; choice: "chosen" | "withdrawn";
-  chosenAt: string; withdrawnAt: string | null; expiresAt: string;
+  chosenAt: string; withdrawnAt: string | null;
 };
 const instant = (value: unknown): value is string => typeof value === "string" && Number.isFinite(Date.parse(value));
 const uuid = (value: unknown): value is string => typeof value === "string" && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
@@ -46,10 +46,10 @@ export function parseSeeAgainOwnRecords(value: unknown): SeeAgainOwnRecord[] | n
     if (!raw || typeof raw !== "object") return null;
     const row = raw as Record<string, unknown>;
     if (!uuid(row.crewId) || !uuid(row.pickedMemberId) || row.context !== "friendship" || (row.choice !== "chosen" && row.choice !== "withdrawn")
-      || !instant(row.chosenAt) || !instant(row.expiresAt) || (row.withdrawnAt !== null && !instant(row.withdrawnAt))
+      || !instant(row.chosenAt) || (row.withdrawnAt !== null && !instant(row.withdrawnAt))
       || (row.choice === "withdrawn") !== (row.withdrawnAt !== null)) return null;
     records.push({ crewId: row.crewId, pickedMemberId: row.pickedMemberId, context: row.context, choice: row.choice,
-      chosenAt: row.chosenAt, withdrawnAt: row.withdrawnAt as string | null, expiresAt: row.expiresAt });
+      chosenAt: row.chosenAt, withdrawnAt: row.withdrawnAt as string | null });
   }
   return records;
 }

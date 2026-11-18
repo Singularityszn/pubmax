@@ -255,6 +255,7 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(records).toEqual([expect.objectContaining({ crewId: crew, context: "friendship", choice: "chosen" })]);
     expect(JSON.stringify(records)).not.toContain(b.user);
     expect(JSON.stringify(records)).not.toContain('"mutual"');
+    expect(JSON.stringify(records)).not.toContain('"expiresAt"');
     expect(JSON.stringify(records)).not.toContain('"date_of_birth"');
   });
 

@@ -10,7 +10,8 @@ The release is held. No cron schedule, deployment or shared migration apply is a
 3. The captain must confirm the independent moderator, backup, venue agreement and real pilot occurrence.
 4. The cancellation owner must complete issue 3001 before hosted launch.
 5. An operator must verify the expiry executor and failure alert before launch.
-6. Dating must remain closed until stage D has explicit occurrence labelling, informed participation consent and pilot acceptance.
+6. Root must resolve the export retention-inference conflict described below.
+7. Dating must remain closed until stage D has explicit occurrence labelling, informed participation consent and pilot acceptance.
 
 This change stores only `friendship` context. Dating requests receive the same neutral database acknowledgement without writing.
 There is no approved occurrence metadata or stage D release authority to enable dating here.
@@ -95,12 +96,23 @@ Invalidation is terminal. Safety and deletion can remove access earlier.
 Attendance expiry can also end eligibility before a later mutual record's expiry.
 
 The account export has an owner-only `crewSeeAgain` lane.
-It contains the owner's selected member ID, context, own choice, choice/withdrawal time and expiry.
+It contains the owner's selected member ID, context, own choice and choice/withdrawal time.
+It omits formation time and pair-derived expiry because they disclose outcome information.
 It never contains the other person's choice or private mutual outcome.
 This data-subject export remains available to suspended owners under the existing account-export policy.
 It is separate from the paired product read. Export failure refuses a complete export.
 Account deletion and Crew deletion remove these records synchronously.
 There is no moderator choice reader, case access bypass or direct service-role table grant.
+
+## Unresolved export retention decision
+
+The approved contract expires unmatched choices at window-close and keeps matched directions for 30 days.
+An owner can infer a past mutual if their own directional record remains in an export after the shorter deadline.
+This remains possible after dismissal, even without an outcome flag or pair-derived timestamp.
+Omitting retained own records would conflict with the approved export requirement.
+Keeping every unmatched record for 30 days would conflict with the approved retention requirement.
+Root must revise this contract or explicitly accept the inference before release.
+This implementation preserves the approved retention and own-record export rules while that decision is held.
 
 ## Proposed executor, held for approval
 

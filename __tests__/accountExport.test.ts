@@ -421,7 +421,7 @@ describe("buildAccountExport", () => {
       expiresAt: "2026-12-05T18:30:00Z", otherPrivateChoice: "chosen" };
     const document = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "ready", records: [own] }) }), NOW);
     expect(document.crewSeeAgain.items).toEqual([{ crewId: own.crewId, pickedMemberId: own.pickedMemberId, context: "friendship", choice: "chosen",
-      chosenAt: own.chosenAt, withdrawnAt: null, expiresAt: own.expiresAt }]);
+      chosenAt: own.chosenAt, withdrawnAt: null }]);
     const degraded = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "degraded", records: [] }) }), NOW);
     expect(degraded.crewSeeAgain.status).toBe("unavailable");
   });
