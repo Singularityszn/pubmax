@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { LONDON_BOROUGHS } from "../lib/boroughs";
-import { ACCOUNTS, accessJwt, installAuthDoubles, readDeviceAccounts, readDeviceIdentity, seedSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
+import { ACCOUNTS, accessJwt, installAuthDoubles, expectBothAccountsRemembered, readDeviceIdentity, seedSignedIn, switchRememberedAccount } from "./helpers/authDoubles";
 import { expectMapLoadingFrameReleased } from "./helpers/mobileMapShell";
 
 test.use({ serviceWorkers: "block" });
@@ -83,7 +83,7 @@ test("fixture-backed cross-tab account switch clears mounted private turn names"
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);
   await auth.signedInAs("B");
   await page.goto("/today");
-  await expect.poll(async () => (await readDeviceAccounts(page)).length).toBe(2);
+  await expectBothAccountsRemembered(page);
   await auth.signedInAs("A");
   await page.goto("/rounds/BCDFGH?wild=1&wildpreview=round-rota");
   const tracker = page.getByRole("region", { name: "Your turn order", exact: true });

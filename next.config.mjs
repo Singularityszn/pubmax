@@ -265,6 +265,12 @@ const nextConfig = {
     root: projectRoot,
   },
   experimental: {
+    turbopackChunking: {
+      minChunkSize: 200_000,
+      maxChunkCountPerGroup: 4,
+      maxMergeChunkSize: 1_000_000,
+      generateComponentChunks: true,
+    },
     // Next's route-aware compiler API uses the TypeScript 6 `typescript` package.
     // npm run typecheck separately calls TypeScript 7's native CLI explicitly.
     useTypeScriptCli: false,

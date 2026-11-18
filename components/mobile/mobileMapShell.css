@@ -1581,3 +1581,14 @@ html:has(.appShell) {
 .mobileSheetPortal[data-sheet-kind="filters"] .mapDrawer {
   --sheet-material: var(--sheet-material-solid);
 }
+
+.mobileSharedSheet[data-surface="solid"] {
+  background: var(--sheet-material-solid);
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+}
+
+.mobileSheetPortal[data-map-interactive="true"] .mobileSheetScrim {
+  pointer-events: none;
+  background: transparent;
+}

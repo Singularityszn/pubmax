@@ -2,6 +2,7 @@
 // A signed-out reader opening the map, driven through the real AuthProvider.
 // Only the Supabase client and the network are fakes.
 import { act, createElement } from "react";
+import { performance as timing } from "node:perf_hooks";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -13,6 +14,7 @@ const h = vi.hoisted(() => ({
   sessionRead: Promise.resolve({ data: { session: null }, error: null }),
   initialEvent: null as null | ((event: string, session: null) => void),
   emitInitial: true,
+  storedSession: false,
   signInWithOtp: vi.fn(async () => ({ error: null })),
 }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }), usePathname: () => window.location.pathname }));
@@ -40,6 +42,7 @@ vi.mock("@/lib/authClient", async (original) => {
     isAuthConfigured: () => true,
     ensureSupabaseBrowser: browser,
     ensureSupabaseBrowserForSession: () => h.built,
+    hasStoredBrowserSession: () => h.storedSession,
   };
 });
 vi.mock("@/lib/authProviderAvailability", () => ({
@@ -75,6 +78,7 @@ beforeEach(async () => {
   h.sessionRead = Promise.resolve({ data: { session: null }, error: null });
   h.initialEvent = null;
   h.emitInitial = true;
+  h.storedSession = false;
   h.signInWithOtp.mockClear();
   vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
     if (String(input) === "/api/auth/session") return new Response(JSON.stringify({ hint: h.hint }), { status: 200 });
@@ -95,6 +99,108 @@ async function mount() {
 }
 
 describe("a signed-out reader opening the map", () => {
+  it("prepares the client when a reader opens the desktop sign-in menu", async () => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton, { compact: true })));
+    });
+    expect(h.loads).toBe(0);
+
+    await act(async () => container.querySelector<HTMLButtonElement>(".authCompactTrigger")!.click());
+
+    expect(h.loads).toBeGreaterThan(0);
+    expect(container.querySelector<HTMLInputElement>("input[type=email]")?.disabled).toBe(false);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it.each(["pointerdown", "keydown"])("prepares a visible email form on %s, but not on automatic focus", async (type) => {
+    let finish!: () => void;
+    h.sessionRead = new Promise((resolve) => { finish = () => resolve({ data: { session: null }, error: null }); });
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    const input = container.querySelector<HTMLInputElement>("input[type=email]")!;
+    await act(async () => input.focus());
+    expect(h.loads).toBe(0);
+
+    await act(async () => input.dispatchEvent(type === "keydown"
+      ? new KeyboardEvent(type, { key: "a", bubbles: true })
+      : new Event(type, { bubbles: true })));
+
+    expect(h.loads).toBeGreaterThan(0);
+    expect(input.disabled).toBe(false);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+    await act(async () => { finish(); });
+  });
+
+  it.each(["Tab", "Escape", "Shift", "ArrowDown"])("does not prepare sign-in while navigating with %s", async (key) => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    for (const control of container.querySelectorAll("input[type=email], .authProviders button")) {
+      await act(async () => control.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
+    }
+    expect(h.loads).toBe(0);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it.each(["Enter", " "])("prepares a provider button on %s activation", async (key) => {
+    await act(async () => {
+      root.render(createElement(AuthProvider, { clerkIntegrationConfigured: false }, createElement(SignInButton)));
+    });
+    await act(async () => container.querySelector(".authProviders button")!.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true })));
+    expect(h.loads).toBeGreaterThan(0);
+    expect(h.signInWithOtp).not.toHaveBeenCalled();
+  });
+
+  it("does not repeat a confirmed negative resume probe on focus", async () => {
+    await mount();
+    expect(container.textContent).toBe("settled:signed-out");
+    const reads = vi.mocked(fetch).mock.calls.length;
+
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(reads);
+    expect(h.loads).toBe(0);
+  });
+
+  it("keeps a newly discovered session unavailable until a failed restore can retry", async () => {
+    await mount();
+    expect(container.textContent).toBe("settled:signed-out");
+
+    await act(async () => {
+      h.storedSession = true;
+      h.sessionRead = Promise.reject(new Error("session storage read failed"));
+      window.dispatchEvent(new Event("storage"));
+    });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
+
+    await act(async () => {
+      h.sessionRead = Promise.resolve({ data: { session: null }, error: null });
+      window.dispatchEvent(new Event("focus"));
+    });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
+  });
+
+  it("marks bootstrap only after the client session read finishes", async () => {
+    vi.stubGlobal("performance", timing);
+    timing.clearMarks("pubmax:auth-bootstrap-settled");
+    await mount();
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(0);
+    let finish!: () => void;
+    h.sessionRead = new Promise((resolve) => {
+      finish = () => resolve({ data: { session: null }, error: null });
+    });
+
+    window.history.pushState(null, "", "/login");
+    await mount();
+    expect(h.loads).toBe(1);
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(0);
+
+    await act(async () => { finish(); });
+    expect(timing.getEntriesByName("pubmax:auth-bootstrap-settled")).toHaveLength(1);
+    timing.clearMarks("pubmax:auth-bootstrap-settled");
+  });
+
   it("retains the desktop email confirmation through deferred client initialisation", async () => {
     let finishSessionRead!: () => void;
     h.sessionRead = new Promise((resolve) => {
@@ -133,7 +239,7 @@ describe("a signed-out reader opening the map", () => {
     expect(h.loads).toBe(0);
 
     await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-    await vi.waitFor(() => expect(h.loads).toBe(1));
+    expect(h.loads).toBe(0);
     expect(container.textContent).toBe("settled:signed-out");
   });
 
@@ -157,14 +263,14 @@ describe("a signed-out reader opening the map", () => {
         await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
         expect(h.loads).toBe(0);
         await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-        await vi.waitFor(() => expect(h.loads).toBe(1));
+        expect(h.loads).toBe(0);
       }
     } finally {
       Object.defineProperty(window, "localStorage", storage);
     }
   });
 
-  it.each([429, 503, "timeout"] as const)("keeps auth unresolved until pins when the resume probe fails with %s", async (failure) => {
+  it.each([429, 503, "timeout"] as const)("reports an unavailable resume probe without fetching the SDK for %s", async (failure) => {
     vi.mocked(fetch).mockImplementation(async (input) => {
       if (String(input) === "/api/auth/session") {
         if (failure === "timeout") throw new DOMException("Request timed out", "TimeoutError");
@@ -175,12 +281,13 @@ describe("a signed-out reader opening the map", () => {
     await mount();
 
     expect(h.loads).toBe(0);
-    expect(container.textContent).toBe("loading:unresolved");
-
+    expect(container.textContent).toBe("settled:unavailable");
     await act(async () => { window.dispatchEvent(new Event(PINS_VISIBLE_EVENT)); });
-
-    await vi.waitFor(() => expect(container.textContent).toBe("settled:unavailable"));
-    expect(h.loads).toBe(1);
+    expect(h.loads).toBe(0);
+    vi.mocked(fetch).mockImplementation(async () => Response.json({ hint: null }));
+    await act(async () => { window.dispatchEvent(new Event("focus")); });
+    await vi.waitFor(() => expect(container.textContent).toBe("settled:signed-out"));
+    expect(h.loads).toBe(0);
   });
 
   it.each([
@@ -199,7 +306,7 @@ describe("a signed-out reader opening the map", () => {
     };
     try {
       await mount();
-      expect(container.textContent).toBe("loading:unresolved");
+      expect(container.textContent).toBe("settled:unavailable");
       expect(h.loads).toBe(0);
       if (pending) {
         expect(beginAuthAttempt(window.location.href, undefined, {
@@ -216,7 +323,7 @@ describe("a signed-out reader opening the map", () => {
         expect(container.textContent).toBe("settled:signed-out");
       } else {
         expect(h.loads).toBe(0);
-        expect(container.textContent).toBe("loading:unresolved");
+        expect(container.textContent).toBe("settled:unavailable");
       }
     } finally {
       visibility.mockRestore();
@@ -224,11 +331,11 @@ describe("a signed-out reader opening the map", () => {
     }
   });
 
-  it.each(["/", "/tonight", "/mapping"])("settles unresolved auth after leaving the map for %s", async (pathname) => {
+  it.each(["/login", "/auth/reset-password", "/auth/callback"])("permits client loading after navigating to %s", async (pathname) => {
     vi.mocked(fetch).mockImplementation(async () => new Response("{}", { status: 503 }));
     await mount();
     expect(h.loads).toBe(0);
-    expect(container.textContent).toBe("loading:unresolved");
+    expect(container.textContent).toBe("settled:unavailable");
 
     window.history.pushState(null, "", "/map/manchester");
     await mount();

@@ -7,7 +7,7 @@
 
 import type { Route } from "next";
 import { parseCityId } from "@/lib/cities";
-import { parseTableRequestPartySize } from "@/lib/tableRequests";
+import { parseTableRequestPartySize } from "@/lib/tableRequestPartySize";
 
 const NUMBER_WORDS = [
   "zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine",

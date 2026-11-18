@@ -1,7 +1,7 @@
 // EVERY REQUEST-TIME DATA-PACK READER MUST SHIP THE FILES IT OPENS.
 //
 // lib/venueIndex.ts builds each city pack path from config at request time, and
-// lib/venueDetailIndex.ts builds the detail manifest, rows and raw dataset paths
+// lib/venueDetailArtifact.server.ts builds the detail manifest, rows and raw dataset paths
 // the same way, so Next cannot discover those files from the reader bundle. A
 // build may still contain them through incidental route grouping, but that is
 // not a contract.
@@ -178,6 +178,35 @@ describe("runtime data-pack tracing", () => {
     for (const file of osmPack?.files ?? []) {
       expect(includes["/api/wanted"]).not.toContain(file);
       expect(includes["/api/harvest-overlay"]).toContain(file);
+    }
+  });
+
+  it("ships a summon the price rows and none of the venue sheet's enrichment packs", () => {
+    const includes = tracingIncludes();
+    const packFiles = (id: string) => {
+      const pack = RUNTIME_DATA_PACKS.find((candidate) => candidate.id === id);
+      expect(pack, `${id} must stay a declared pack`).toBeDefined();
+      return pack?.files ?? [];
+    };
+
+    for (const file of packFiles("venue-detail-index")) {
+      expect(includes["/api/summon"]).toContain(file);
+    }
+    expect(includes["/api/summon"]).not.toContain("./public/data/pint_prices_app_dataset.json");
+    for (const file of packFiles("venue-detail-index")) {
+      expect(includes["/api/leagues/\\[id\\]/invite"] ?? []).not.toContain(file);
+    }
+    for (const id of [
+      "venue-osm-index",
+      "osm-pub-facts",
+      "venue-site-facts",
+      "places-enrichment",
+      "venue-record-copy",
+      "venue-menu-enrichment",
+    ]) {
+      for (const file of packFiles(id)) {
+        expect(includes["/api/summon"], `/api/summon must not ship ${id}`).not.toContain(file);
+      }
     }
   });
 

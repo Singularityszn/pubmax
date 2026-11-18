@@ -4,13 +4,17 @@ import { act, createElement, useCallback, useLayoutEffect, useMemo, useState, ty
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
-import { useActiveCuratedCrawl, useMapPlanCoordinator } from "@/components/map/pubmap/useMapPlanCoordinator";
+import { useActiveCuratedCrawl, useMapPlanCoordinator, useMapPlanPresentation } from "@/components/map/pubmap/useMapPlanCoordinator";
 import { EMPTY_MAP_SURFACE_STATE, useMapSurfaceNavigation } from "@/components/map/pubmap/useMapSurfaceNavigation";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { CRAWL_URL_DEBOUNCE_MS, useCrawlUrlSync } from "@/components/map/useCrawlUrl";
 import { stampMapSurfaceHistory } from "@/lib/mapSurfaceHistory";
 import { buildMapSeed } from "@/lib/pubMap";
-import { initialFilters } from "@/lib/venues";
+import { initialFilters, type Venue } from "@/lib/venues";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import * as cityCatalog from "@/lib/cityStoryCatalog.async";
+import type { CuratedCrawlHydration } from "@/lib/mapSeedCrawl";
+import { useCuratedCrawlHydration } from "@/components/map/pubmap/useCuratedCrawlHydration";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -27,6 +31,7 @@ function usePlan(arrival: string, search: string): Plan {
       routeMapped: seed.routeMapped,
       nightArea: null,
       planningOpen: false,
+      crawlId: seed.crawlId,
     },
     search,
   );
@@ -142,6 +147,37 @@ function CuratedWalk({ arrival, search }: { arrival: string; search: string }) {
   );
 }
 
+function HydratedWalk({ arrival, search }: { arrival: string; search: string }) {
+  const [seed] = useState(() => buildMapSeed(arrival));
+  const plan = usePlan(arrival, search);
+  const [activeCrawl, setActiveCrawl] = useActiveCuratedCrawl<CuratedCrawl>(null, plan.walkRequest);
+  const [filters, setFilters] = useState(seed.filters);
+  const [altStyle, setAltStyle] = useState(seed.altStyle);
+  const { setMode, setBuiltIds, setRouteMapped } = plan;
+  const applyHydration = useCallback((hydration: CuratedCrawlHydration) => {
+    setMode("build");
+    setBuiltIds(hydration.crawl.venueIds);
+    setRouteMapped(true);
+    setFilters(hydration.filters);
+    setAltStyle(hydration.altStyle);
+    setActiveCrawl(hydration.crawl);
+  }, [setMode, setBuiltIds, setRouteMapped, setActiveCrawl]);
+  const pending = useCuratedCrawlHydration({
+    arrivalSearch: arrival, cityId: "london", seed, walkRequest: plan.walkRequest,
+    snapshot: { mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped, activeCrawl, filters, altStyle },
+    onHydrate: applyHydration,
+  });
+  useCrawlUrlSync(useMemo(() => ({
+    mode: plan.mode, builtIds: plan.builtIds, filters, selectedVenueId: "", crawlId: activeCrawl?.id,
+  }), [plan.mode, plan.builtIds, filters, activeCrawl]), false, pending);
+  const presentation = useMapPlanPresentation({
+    mode: plan.mode, builtIds: plan.builtIds, routeMapped: plan.routeMapped, activeCrawl,
+    suggestedRoute: [], activePlanRoute: [],
+    venueById: new Map(plan.builtIds.map((id) => [id, { id } as Venue])),
+  });
+  return planView(plan, createElement("aside", null, JSON.stringify(presentation.routeForMap.map((stop) => stop.id))));
+}
+
 let host: HTMLDivElement;
 let root: Root;
 
@@ -153,7 +189,78 @@ beforeEach(() => {
 afterEach(() => {
   act(() => root.unmount());
   vi.useRealTimers();
+  vi.restoreAllMocks();
   window.history.replaceState(null, "", "/");
+});
+
+const christmasSearch = "mode=build&crawl=london-christmas-walk&style=balanced";
+const christmasStopIds = Array.from({ length: 13 }, (_, index) => `christmas-${index + 1}`);
+
+async function arriveHydrated(search: string, arrival = "") {
+  window.history.pushState(null, "", search ? `/map?${search}` : "/map");
+  await render(createElement(HydratedWalk, { arrival, search }));
+  await act(async () => { await vi.dynamicImportSettled(); });
+}
+
+it("replaces a mounted pub route with all thirteen Christmas stops after a directory visit", async () => {
+  await arriveHydrated("mode=build&pubs=pub-a,pub-b");
+  expect(JSON.parse(drawer()!)).toEqual(["pub-a", "pub-b"]);
+  window.history.pushState(null, "", "/crawls");
+  await render(createElement(HydratedWalk, { arrival: "", search: "" }));
+  await arriveHydrated(christmasSearch);
+  expect(JSON.parse(drawer()!)).toEqual(christmasStopIds);
+  press("Hide route");
+  expect(JSON.parse(drawer()!)).toEqual([]);
+  await arriveHydrated(christmasSearch);
+  expect(JSON.parse(drawer()!)).toEqual(christmasStopIds);
+  await arriveHydrated("mode=build&pubs=pub-b,pub-a");
+  expect(JSON.parse(drawer()!)).toEqual(["pub-b", "pub-a"]);
+});
+
+it("hydrates the thirteen-stop Christmas walk on its initial arrival", async () => {
+  await arriveHydrated(christmasSearch, christmasSearch);
+  expect(JSON.parse(drawer()!)).toEqual(christmasStopIds);
+});
+
+it.each(["new link", "new curated link", "hide route"])("rejects a delayed Christmas catalogue after %s", async (action) => {
+  await arriveHydrated("");
+  const requested = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<CuratedCrawl[]>();
+  vi.spyOn(cityCatalog, "curatedCrawlsForCityAsync").mockImplementationOnce(() => {
+    requested.resolve();
+    return response.promise;
+  });
+  await arriveHydrated(christmasSearch);
+  await requested.promise;
+  if (action === "new link") await arriveHydrated("mode=build&pubs=pub-b,pub-a");
+  else if (action === "new curated link") await arriveHydrated("mode=build&crawl=victorian-soho");
+  else press("Hide route");
+  await act(async () => { response.resolve(curatedCrawls); });
+  const expected = action === "new curated link"
+    ? ["venue-1ufn31x", "venue-1t8siin", "venue-xiesdn", "venue-phqazo", "venue-15i2wst"]
+    : action === "new link" ? ["pub-b", "pub-a"] : [];
+  expect(JSON.parse(drawer()!)).toEqual(expected);
+});
+
+it("keeps an adopted Christmas link shareable while its catalogue is pending", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+  await arriveHydrated("");
+  const requested = Promise.withResolvers<void>();
+  const response = Promise.withResolvers<CuratedCrawl[]>();
+  vi.spyOn(cityCatalog, "curatedCrawlsForCityAsync").mockImplementationOnce(() => {
+    requested.resolve();
+    return response.promise;
+  });
+  await arriveHydrated(christmasSearch);
+  await requested.promise;
+  letUrlSyncWrite();
+  expect(addressParam("crawl")).toBe("london-christmas-walk");
+  await act(async () => { response.resolve(curatedCrawls); });
+  expect(JSON.parse(drawer()!)).toEqual(christmasStopIds);
+  press("Hide route");
+  letUrlSyncWrite();
+  await render(createElement(HydratedWalk, { arrival: "", search: window.location.search }));
+  expect(JSON.parse(drawer()!)).toEqual([]);
 });
 
 // Each router search settles through act, microtasks included: the map decides

@@ -332,7 +332,7 @@ for (const width of [320, 390] as const) {
       const phrase = row.querySelector<HTMLElement>(".mobileVenuePeekNearMe")!;
       const phraseCell = phrase.parentElement as HTMLElement;
       const action = row.querySelector<HTMLElement>(":scope > button");
-      const box = (element: Element) => {
+      const box = (element: Element | Range) => {
         const rect = element.getBoundingClientRect();
         return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
       };

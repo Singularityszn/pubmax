@@ -60,6 +60,55 @@ What the ledger does today:
 
 Production use still requires the captain's migration approval and the apply-time privilege and trigger-order checks. The unused 0071 identity writer remains a separate operational hold.
 
+## Cancelling one Crew occurrence
+
+Migration 0249 adds `cancel_social_crew_occurrence_admin`. The legacy Plan status RPC refuses Crew-bound Plans, including a valid host token. Do not use a raw status update as the cancellation path.
+
+This operation requires a service-role connection and an active moderator role. The operator must establish the moderator's identity through the existing moderator access process. Use that person's verified staff role ID. Never accept a staff role ID supplied by a participant.
+
+The moderator must be independent of the occurrence. The operation refuses its owner, any current or former member, and any pending applicant or invitee. It also refuses a moderator blocked in either direction with a member. Deleted or suspended moderator accounts cannot act. A host needs an independent moderator even when the host has a moderator role.
+
+A participant block alone does not cancel or pause the night. Record an independent safety reason when the incident cannot be resolved. Use 3 to 500 characters. Keep the reason factual and avoid unnecessary personal details.
+
+1. Identify the exact Crew occurrence in the existing moderation work. Read the current review snapshot through the authorised operator connection.
+
+   ```sql
+   select crew.id, crew.plan_id, crew.authority_revision, plan.status, plan.start_time
+   from public.social_crews crew
+   join public.plans plan on plan.id = crew.plan_id
+   where crew.id = '<crew id>';
+   ```
+
+2. Review the occurrence and the independent reason. Call the operation with the revision and status from that snapshot.
+
+   ```sql
+   set role service_role;
+   select public.cancel_social_crew_occurrence_admin(
+     '<verified moderator staff role id>', '<crew id>',
+     <reviewed authority revision>, '<reviewed Plan status>', '<independent safety reason>'
+   );
+   ```
+
+3. Read the answer before communicating an outcome.
+
+   | Answer | Meaning |
+   | --- | --- |
+   | `cancelled` | This occurrence is now cancelled. One audit row records the reason and moderator. |
+   | `unchanged` | This exact reviewed call already cancelled the occurrence. No second write occurred. |
+   | `not_found` | The occurrence is missing, unbound, or unavailable to this moderator. Ask an independent moderator when appropriate. |
+   | `stale` | The review snapshot changed or the saved cancellation differs. Read and review again. Do not replace the original reason. |
+   | `closed` | The Plan ended, was already cancelled elsewhere, or reached start plus 12 hours. Nothing changed. |
+   | `invalid` | The reason, revision or from-state is invalid. Nothing changed. |
+   | error `staff required` | The staff authority is unavailable. Stop and establish an active moderator identity. |
+
+Only `draft`, `ready`, `active` and `ending` can become `abandoned`. The operation checks both the reviewed Crew revision and Plan status. A committed call expires pending requests and invitations. It advances the Crew revision once. Existing Plan-end triggers clear positions, stop markers and beacons. It keeps membership, attendance, report and case history. Participant reporting stays available. It sends no notification and creates no alternative roster or moderator console.
+
+The service role can read `public.social_crew_occurrence_cancellations` to check the saved reason, moderator snapshot and time. Browser roles cannot read it. The service role cannot directly insert, change or delete audit rows. The audit remains with Crew history and is deleted when the Crew-bound Plan is deleted through the transaction below.
+
+The operation locks one Crew row first. Relevant auth rows follow in user-ID order, then participant accounts in account-ID order. The moderator role and the Plan follow. It includes the original Plan creator after ownership transfer. It uses the existing lifecycle triggers for cleanup. Do not wrap several cancellations in one transaction. Do not acquire account, Plan or live-position locks before calling it.
+
+Hosted occurrences remain unlaunched until the captain separately verifies this operation on the intended release, the named migrations, and independent primary and backup staffing. This runbook grants no shared apply, production write, setting change, staffing activation or launch authority. W6 remains outside this change.
+
 ## Deleting a crew-bound Plan
 
 No app screen or route deletes a Plan. When an operator must delete one, use this one transaction and no other order. It locks the crew row, then the Plan row, then deletes the Plan. An admission also locks the crew row first, so the two wait for each other instead of deadlocking. A plain `delete from public.plans` can deadlock with an admission in flight.
@@ -99,6 +148,8 @@ select public.release_departed_social_crew_places(100);
 The sweep locks the selected crew rows before it changes any Plan. It skips busy crews. It changes their Plans in Plan ID order, the order an account deletion locks the Plans it owns. A `"crews": 0` answer can therefore mean pending crews are busy. Check the pending query after each call. Cleanup is complete when that query returns no rows. Rolling back 0246 stops new releases. It does not restore freed places or cancelled nights.
 
 ## Host attendance (0247)
+
+Run staff-role revocation as a standalone statement while moderator corrections can run.
 
 A host or co-host of an open crew marks each guest (role `member`) Here or Not here, from London midnight on the night's day until 12 hours after the start. A change must name the current revision. After the close, only a moderator can change a mark. There is no app screen for moderators. A guest reports a wrong mark with "Report this mark" in the attendance panel. The report names the exact mark and revision. It does not go to the Social safety queue in `/admin`, so read it here.
 
@@ -162,7 +213,8 @@ A report goes with the mark it disputes: at expiry the list leaves it out, and t
 
 ## Rollback
 
-Roll back 0247 before 0246, and 0246 before 0245. The 0245 rollback refuses to start while the 0246 release function exists.
+Roll back 0249 before removing its Crew prerequisites. Its rollback removes only the cancellation operation. It retains the audit, cancelled Plans and completed cleanup. Reapplying 0249 restores the operation and safe replay. When present, roll back 0249, 0248, 0247, 0246 and 0245 in that order. The 0245 rollback refuses while the 0246 release function exists.
+
 
 Rollback of 0245 waits for `auth.users` while it holds nothing. Corrections, admissions, deletions and plan joins that hold an auth row finish first. It then takes the crew tables, `plan_crew_members`, `social_blocks`, `private_social_accounts` and the ledger without waiting. If one is busy, it stops with `could not obtain lock`. Run it again, ideally while Social is frozen. Sign-ins and Social writes wait while it runs. A nonempty ledger requires an acknowledgement of its exact exported contents.
 

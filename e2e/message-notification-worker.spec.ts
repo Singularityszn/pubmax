@@ -54,7 +54,7 @@ test("the real Chromium worker displays and collapses dispatched message pushes"
       let finish!: () => void;
       let requested!: () => void;
       const requestStarted = new Promise<void>((resolve) => { requested = resolve; });
-      manager.getSubscription = async () => ({ toJSON: () => ({ endpoint: "https://web.push.apple.com/proof", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }) }) as PushSubscription;
+      manager.getSubscription = async () => ({ toJSON: () => ({ endpoint: "https://web.push.apple.com/proof", keys: { p256dh: "public_key_material", auth: "secret_auth_material" } }) }) as unknown as PushSubscription;
       scope.fetch = async () => {
         requested();
         await new Promise<void>((resolve) => { finish = resolve; });

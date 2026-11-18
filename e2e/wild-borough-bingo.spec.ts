@@ -3,7 +3,7 @@ import {
   ACCOUNTS,
   accessJwt,
   installAuthDoubles,
-  readDeviceAccounts,
+  expectBothAccountsRemembered,
   readDeviceIdentity,
   seedSignedIn,
   switchRememberedAccount,
@@ -65,7 +65,7 @@ async function seedBoth(page: Page, stub: Stub) {
   await stub.signedInAs("B");
   await page.goto("/today");
   await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-  await expect.poll(async () => (await readDeviceAccounts(page)).length).toBe(2);
+  await expectBothAccountsRemembered(page);
   await stub.signedInAs("A");
 }
 

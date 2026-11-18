@@ -32,6 +32,7 @@ import VenuePicker from "@/components/map/route/VenuePicker";
 import { useRoutePois } from "@/components/map/route/useRoutePois";
 import { useCrawlProgress } from "@/components/map/route/useCrawlProgress";
 import "@/components/map/routePanel.css";
+import CuratedWalkPanel from "@/components/map/route/CuratedWalkPanel";
 
 type VenueSignals = Map<
   string,
@@ -75,6 +76,10 @@ type RoutePanelProps = {
   onToggleStop: (id: string) => void;
   onReverseRoute?: () => void;
   children?: React.ReactNode;
+  controls?: React.ReactNode;
+  foot?: React.ReactNode;
+  titleInSheet?: boolean;
+  onClearWalk?: () => void;
   /** City display name for map-route chrome (defaults to London). */
   cityDisplayName?: string;
   /** Active map city — drives share / log deep-links off London. */
@@ -89,7 +94,13 @@ type RoutePanelProps = {
   journeyTotalMinutes?: number | null;
 };
 
-export default function RoutePanel({
+export default function RoutePanelWithWalk(props: RoutePanelProps) {
+  const crawl = props.curatedCrawls.find((entry) => entry.id === props.crawlId);
+  if (crawl?.walk) return <CuratedWalkPanel crawl={crawl} walk={crawl.walk} mapped={props.routeMapped} onMap={props.onMapRoute} onHide={props.onHideRoute} onSelectStop={props.onSelectVenue} selectedStopId={props.activeVenueId} titleInSheet={props.titleInSheet} onClear={props.onClearWalk} />;
+  return <>{props.controls}<RoutePanel {...props} />{props.foot}</>;
+}
+
+function RoutePanel({
   mode,
   crawlStyle,
   altStyle,

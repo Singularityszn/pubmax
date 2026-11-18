@@ -61,3 +61,15 @@
   color: var(--ink-soft);
   cursor: default;
 }
+
+.summonPreview a {
+  position: relative;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  min-height: 44px;
+  margin-block: var(--space-2) 0;
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}

@@ -9,6 +9,7 @@ import type { AuthContextValue } from "@/components/auth/authContext";
 const h = vi.hoisted(() => ({
   platform: "ios" as "ios" | "android" | null,
   realIdentity: false,
+  identityUnavailable: false,
   realAuth: null as SupabaseClient | null, persist: vi.fn(), stopAutoRefresh: vi.fn(),
   navigate: vi.fn(), available: true, providerRefused: false, switchAccount: vi.fn(), canonicalEmail: vi.fn(),
   listeners: new Set<(event: { url: string }) => void>(), launchUrl: null as string | null,
@@ -82,6 +83,10 @@ vi.mock("@/lib/identityClient", async (original) => {
       h.realIdentity ? actual.identityHandleForOwner(...args) : null,
     resolveCanonicalIdentity: async (...args: Parameters<typeof actual.resolveCanonicalIdentity>) =>
       h.realIdentity ? actual.resolveCanonicalIdentity(...args) : ({ ok: true, identity: null }),
+    handleClaimRouteAfterSignIn: async (...args: Parameters<typeof actual.handleClaimRouteAfterSignIn>) => {
+      if (h.identityUnavailable) throw new Error("identity helper unavailable");
+      return actual.handleClaimRouteAfterSignIn(...args);
+    },
   };
 });
 vi.mock("@/lib/authSessionResumeClient", async (original) => ({
@@ -107,6 +112,7 @@ beforeEach(async () => {
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   localStorage.clear(); sessionStorage.clear(); vi.clearAllMocks();
   h.platform = "ios"; h.realIdentity = false; h.session = null; h.realAuth = null; h.available = true; h.providerRefused = false; h.persist.mockResolvedValue("stored"); h.stopAutoRefresh.mockResolvedValue(undefined);
+  h.identityUnavailable = false;
   Object.defineProperty(navigator, "locks", { configurable: true, value: { request: async (_name: string, callback: () => Promise<unknown>) => callback() } });
   window.history.replaceState(null, "", "/map");
   h.listeners.clear(); h.launchUrl = null; h.callbackUrl = ""; h.otpBody = null; h.tokenBody = null; h.tokenRequests = 0; h.referralBodies = []; h.tokenDelay = null; h.resumeBody = null;
@@ -214,6 +220,16 @@ function queueAuthLocks() {
 }
 
 describe("installed iPhone email link, relay and App consumer", () => {
+  it("retains the intended return when the identity helper cannot load", async () => {
+    await act(async () => { expect((await actions.signInWithEmail("native@example.test", "/u/you")).status).toBe("sent"); });
+    h.identityUnavailable = true;
+
+    await openApp(await emailCallback());
+
+    await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
+  });
+
   it("returns the email session into the initiating app instead of leaving it signed out", async () => {
     await act(async () => { expect((await actions.signInWithEmail(" Native@Example.Test ", "/u/you")).status).toBe("sent"); });
     const callback = new URL(h.callbackUrl);
@@ -230,7 +246,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(h.otpBody?.email).toBe("native@example.test");
     expect(h.tokenBody?.auth_code).toBe("one-use-email-code");
     expect(createHash("sha256").update(String(h.tokenBody?.code_verifier)).digest("base64url")).toBe(h.otpBody?.code_challenge);
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
   });
   it("completes a cold App launch after the initiating document and tab storage disappear", async () => {
     window.history.replaceState(null, "", "/map?area=soho#invite-secret");
@@ -244,7 +260,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(h.tokenRequests).toBe(1);
     expect(localStorage.getItem(NATIVE_EMAIL_RECEIPT_KEY)).toBeNull();
-    expect(h.navigate).toHaveBeenCalledWith("/map?area=soho#invite-secret");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/map?area=soho#invite-secret"));
   });
   it("can explicitly replace a legacy implicit attempt after a cold native upgrade", async () => {
     const old = await beginCoordinatedAuthAttempt(window.location.href, "/map#old-fragment", {
@@ -259,7 +275,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     expect(new URL(h.callbackUrl).searchParams.get("native")).toBe("ios-email-pkce");
     await openApp(await emailCallback());
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
   });
   it.each(["cancel", "restored-account"] as const)("cannot restart a queued native claim after %s", async (change) => {
     const queued = queueAuthLocks();
@@ -383,7 +399,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await openApp(callback);
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(h.tokenRequests).toBe(1);
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
   });
 
   it("keeps a sent link usable when the provider check refuses a social start", async () => {
@@ -395,7 +411,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await openApp(callback);
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(h.tokenRequests).toBe(1);
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
   });
 
   it("finishes an email sign-in in progress when the provider check refuses a social start", async () => {
@@ -410,7 +426,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await act(async () => { releaseToken(); });
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(h.authenticate).not.toHaveBeenCalled();
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
   });
 
   it("ends a sent link once the provider check lets a social start begin", async () => {
@@ -619,7 +635,7 @@ describe("installed iPhone email link, relay and App consumer", () => {
     await openApp(incoming.toString());
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect(genericNavigate).not.toHaveBeenCalled();
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
     expect(h.tokenRequests).toBe(1);
     stop();
   });
@@ -1094,7 +1110,7 @@ describe("mounted native cancellation with the installed canonical SDK", () => {
     await openApp(await emailCallback());
     await vi.waitFor(() => expect(container.querySelector("output")?.textContent).toBe("replacement"));
     expect((await h.realAuth!.auth.getSession()).data.session?.user.id).toBe("replacement");
-    expect(h.navigate).toHaveBeenCalledWith("/u/you");
+    await vi.waitFor(() => expect(h.navigate).toHaveBeenCalledWith("/u/you"));
     expect(readDeviceAccounts(localStorage).map((account) => account.userId)).toContain("original");
     expect(requests.mock.calls.some(([input]) => String(input).includes("/logout"))).toBe(false);
     registration.data.subscription.unsubscribe();

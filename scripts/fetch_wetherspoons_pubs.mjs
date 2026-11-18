@@ -29,6 +29,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
+import { fetchFollowingPermittedRedirects } from "../lib/harvest/redirectChain.ts";
 import {
   harvestRedirectLanding,
   harvestSource,
@@ -135,12 +136,28 @@ function createReader(source) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), PAGE_TIMEOUT_MS);
     try {
-      const response = await fetch(url, {
-        headers: { accept: "application/json", "user-agent": USER_AGENT },
-        signal: controller.signal,
-        redirect: "follow",
-      });
-      const landing = harvestRedirectLanding(url, response.url);
+      // Redirects are followed by hand so each hop is put to the fence and
+      // robots before it is requested; `redirect: "follow"` would send the
+      // request first and only then let the landing check refuse the body.
+      const followed = await fetchFollowingPermittedRedirects(
+        url,
+        {
+          headers: { accept: "application/json", "user-agent": USER_AGENT },
+          signal: controller.signal,
+        },
+        {
+          permitHop: async (next, from) => {
+            if (harvestRedirectLanding(from, next).outcome === "refused") {
+              return { allowed: false, reason: "redirect-refused" };
+            }
+            const decision = await robots(next);
+            return decision.allowed ? decision : { ...decision, reason: "redirect-robots-refused" };
+          },
+        },
+      );
+      if (followed.refusal) throw new Error(`${url} redirected to ${followed.refusal.url}: ${followed.refusal.evidence}`);
+      const response = followed.response;
+      const landing = harvestRedirectLanding(url, followed.url);
       if (landing.outcome === "refused") throw new Error(`${url} redirected outside the allow-list to ${landing.url}`);
       if (!response.ok) throw new Error(`${url} answered HTTP ${response.status}`);
       return {

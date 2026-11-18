@@ -95,7 +95,7 @@ The social write gates: `resolveContributionIdentity` (sign-in, handle, the one 
 
 No contact is echoed: the answer names an outcome and nothing else; the person's contact rides only as the email's Reply-To or body and in the verified operator's own list (`GET ?venueId=`, 403 to anybody else, never the account id), and it is never logged. The requester's own account export carries every stored attempt (the `tableRequests` lane in `lib/accountExport.ts`, read by `listForRequester`): their name, crew, day, time, note, the contact they gave and whether the email went, and nothing about the operator.
 
-It never charges and changes nothing else: no fee, deposit, card or hold (a fee per seated group is a later decision under ADR 0011, and the table has no column for one), and nothing that ranks, colours, bands or orders a venue may import the lane. Pins: `__tests__/tableRequests.test.ts`, `__tests__/tableRequestsStore.test.ts`, `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestFence.test.ts`, `__tests__/tableRequestsMigrationEffective.test.ts`.
+It never charges and changes nothing else: no fee, deposit, card or hold (a fee per seated group is a later decision under ADR 0011, and the table has no column for one), and nothing that ranks, colours, bands or orders a venue may import the lane. Pins: `__tests__/tableRequests.test.ts`, `__tests__/tableRequestsStore.test.ts`, `__tests__/tableRequestsRoute.test.ts`, `__tests__/tableRequestsMigrationEffective.test.ts`.
 
 The POST body contains `venueId`, `name`, `partySize`, `date`, `time`, optional `note` and `contact` with `kind` and `value`. It also accepts an optional `requestKey`, validated by `tableRequestKey` in `lib/tableRequests.ts`.
 

@@ -13,7 +13,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 
-import { consumeDeepLinkBootEntry } from "@/lib/entryDecision";
+import { consumeDeepLinkBootEntry } from "@/lib/sessionEntry";
 
 export default function EntryBootStamp(): null {
   const pathname = usePathname();

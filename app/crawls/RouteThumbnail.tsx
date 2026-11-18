@@ -1,10 +1,3 @@
-// Tiny honest route-shape thumbnail for the /crawls cards (E4) and the invite page: the crawl's
-// resolved stop coordinates as a normalised polyline in a square viewBox.
-// Straight lines between stops — deliberately NOT a map, matching the
-// "straight-line" honesty rule in lib/routeLegs. Renders nothing when fewer
-// than 2 points exist (never fakes a shape). Strokes/fills use currentColor
-// so the card's CSS color drives it in both themes with zero new tokens.
-
 type RouteThumbnailProps = {
   /** Ordered stop coordinates in [lng, lat] (GeoJSON) order. */
   points: readonly [number, number][];
@@ -17,6 +10,8 @@ type RouteThumbnailProps = {
    * the /crawls cards use.
    */
   stopNumbers?: readonly number[];
+  linePoints?: readonly [number, number][];
+  numberSize?: "default" | "compact";
 };
 
 const VIEW = 100;
@@ -27,6 +22,8 @@ export default function RouteThumbnail({
   className,
   label,
   stopNumbers,
+  linePoints,
+  numberSize = "default",
 }: RouteThumbnailProps) {
   if (points.length < 2) return null;
 
@@ -34,10 +31,11 @@ export default function RouteThumbnail({
   // route's proportions survive the degrees→pixels squash at London latitudes,
   // then fit the larger span into the padded square (uniform scale, centred on
   // the shorter axis) with Y flipped (north up).
-  const midLat = points.reduce((sum, p) => sum + p[1], 0) / points.length;
+  const extentPoints = linePoints?.length ? [...points, ...linePoints] : points;
+  const midLat = extentPoints.reduce((sum, p) => sum + p[1], 0) / extentPoints.length;
   const lngScale = Math.cos((midLat * Math.PI) / 180);
-  const xsRaw = points.map((p) => p[0] * lngScale);
-  const ysRaw = points.map((p) => p[1]);
+  const xsRaw = extentPoints.map((p) => p[0] * lngScale);
+  const ysRaw = extentPoints.map((p) => p[1]);
   const minX = Math.min(...xsRaw);
   const maxX = Math.max(...xsRaw);
   const minY = Math.min(...ysRaw);
@@ -56,8 +54,8 @@ export default function RouteThumbnail({
   // joins the true points.
   const pinCoords: [number, number][] = coords.map(([x, y]) => [x, y]);
   if (stopNumbers) {
-    const MIN_GAP = 15;
-    const PIN_R = 7;
+    const PIN_R = numberSize === "compact" ? 4.5 : 7;
+    const MIN_GAP = PIN_R * 2 + 1;
     const inFrame = (v: number) => Math.min(VIEW - PIN_R, Math.max(PIN_R, v));
     for (let pass = 0; pass < 12; pass += 1) {
       let moved = false;
@@ -78,11 +76,19 @@ export default function RouteThumbnail({
       if (!moved) break;
     }
   }
-  const polylinePoints = coords.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(" ");
+  const lineCoords = linePoints?.map(([lng, lat]) => [
+    PAD + ((lng * lngScale - minX + xOffset) / span) * inner,
+    PAD + ((maxY - lat + yOffset) / span) * inner,
+  ]) ?? coords;
+  const polylinePoints = lineCoords.map(([x, y]) => `${x!.toFixed(1)},${y!.toFixed(1)}`).join(" ");
+
+  const previewYs = [...lineCoords, ...pinCoords].map((point) => point[1]!);
+  const previewTop = linePoints?.length ? Math.max(0, Math.min(...previewYs) - 10) : 0;
+  const previewBottom = linePoints?.length ? Math.min(VIEW, Math.max(...previewYs) + 10) : VIEW;
 
   return (
     <svg
-      viewBox={`0 0 ${VIEW} ${VIEW}`}
+      viewBox={`0 ${previewTop} ${VIEW} ${previewBottom - previewTop}`}
       className={className}
       role="img"
       aria-label={label ?? `Route shape: straight lines between ${points.length} stops`}
@@ -92,7 +98,7 @@ export default function RouteThumbnail({
         points={polylinePoints}
         fill="none"
         stroke="currentColor"
-        strokeWidth={2.5}
+        strokeWidth={numberSize === "compact" ? 1.5 : 2.5}
         strokeLinecap="round"
         strokeLinejoin="round"
         opacity={0.55}
@@ -114,13 +120,13 @@ export default function RouteThumbnail({
         }
         return (
           <g key={`${x}-${y}-${i}`} aria-hidden="true">
-            <circle cx={x} cy={y} r={7} fill="currentColor" />
+            <circle cx={x} cy={y} r={numberSize === "compact" ? 4.5 : 7} fill="currentColor" />
             <text
               x={x}
               y={y}
               textAnchor="middle"
               dominantBaseline="central"
-              fontSize={8}
+              fontSize={numberSize === "compact" ? 5.5 : 8}
               fontWeight={700}
               className="routeThumbnailNumber"
             >

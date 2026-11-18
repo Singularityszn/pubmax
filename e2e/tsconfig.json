@@ -1,0 +1,12 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "noUncheckedIndexedAccess": false,
+    "types": ["node", "geojson"],
+    "paths": {
+      "@/*": ["./../*"]
+    }
+  },
+  "include": ["./**/*.ts", "../next-env.d.ts", "../types/**/*.d.ts"],
+  "exclude": ["node_modules"]
+}

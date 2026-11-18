@@ -53,32 +53,52 @@ export default function SocialPostActions({
   const inputId = useId();
   const commentKey = useRef(requestKey());
   const reactionInFlight = useRef(false);
+  const actionsRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    void authedFetch(`/api/social/interactions?view=summary&postId=${encodeURIComponent(postId)}`, {
-      credentials: "same-origin",
-      signal: controller.signal,
-    }, { requiresIdentity: true })
-      .then((response) => {
-        if (!response.ok) {
-          discardBody(response);
-          throw new Error("Reactions unavailable");
-        }
-        return response.json();
-      })
-      .then((body: { summary?: Summary } | null) => {
-        const value = body?.summary;
-        if (!value || typeof value.cheered !== "boolean" || typeof value.saved !== "boolean" ||
-          !Number.isSafeInteger(value.cheerCount) || value.cheerCount < 0) {
-          throw new Error("Reactions unavailable");
-        }
-        if (!controller.signal.aborted) setSummary(value);
-      })
-      .catch(() => {
-        if (!controller.signal.aborted) setSummaryError(true);
-      });
-    return () => controller.abort();
+    let started = false;
+    const read = () => {
+      if (started || controller.signal.aborted) return;
+      started = true;
+      void authedFetch(`/api/social/interactions?view=summary&postId=${encodeURIComponent(postId)}`, {
+        credentials: "same-origin",
+        signal: controller.signal,
+      }, { requiresIdentity: true })
+        .then((response) => {
+          if (!response.ok) {
+            discardBody(response);
+            throw new Error("Reactions unavailable");
+          }
+          return response.json();
+        })
+        .then((body: { summary?: Summary } | null) => {
+          const value = body?.summary;
+          if (!value || typeof value.cheered !== "boolean" || typeof value.saved !== "boolean" ||
+            !Number.isSafeInteger(value.cheerCount) || value.cheerCount < 0) {
+            throw new Error("Reactions unavailable");
+          }
+          if (!controller.signal.aborted) setSummary(value);
+        })
+        .catch(() => {
+          if (!controller.signal.aborted) setSummaryError(true);
+        });
+    };
+    let observer: IntersectionObserver | null = null;
+    if (actionsRef.current && typeof IntersectionObserver === "function") {
+      observer = new IntersectionObserver(entries => {
+        if (!entries.some(entry => entry.isIntersecting)) return;
+        observer?.disconnect();
+        read();
+      }, { rootMargin: "600px 0px" });
+      observer.observe(actionsRef.current);
+    } else {
+      read();
+    }
+    return () => {
+      observer?.disconnect();
+      controller.abort();
+    };
   }, [postId, summaryAttempt]);
 
   const loadComments = useCallback(async () => {
@@ -178,7 +198,7 @@ export default function SocialPostActions({
 
   const cheerCount = summary?.cheerCount ?? 0;
   return (
-    <div className="socialPostActions">
+    <div className="socialPostActions" ref={actionsRef}>
       <div className="socialPostActions__row">
         <button
           type="button"

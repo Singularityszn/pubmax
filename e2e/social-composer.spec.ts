@@ -91,7 +91,7 @@ test.beforeEach(async ({ page }) => {
 test("verified composer preserves failed photo draft, records consent choices, and recovers stale edit", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await mockVerified(page);
-  let currentPost = { ...basePost };
+  let currentPost: Record<string, unknown> = { ...basePost };
   let createAttempts = 0;
   const createKeys: string[] = [];
   let editAttempts = 0;
@@ -492,7 +492,7 @@ test("photo tag review fences audience changes and pages approved withdrawals", 
             }], nextCursor: null }
           : { proposals: [approved("55555555-5555-4555-8555-555555555555", "cee")], nextCursor: "approved-next" }) });
       }
-      const proposals = [proposal()];
+      const proposals: Array<Record<string, unknown>> = [proposal()];
       if (actions.some((action) => action.action === "withdraw")) {
         proposals.push({
           ...approved("55555555-5555-4555-8555-555555555555", "cee"),

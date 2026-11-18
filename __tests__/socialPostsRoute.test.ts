@@ -10,6 +10,7 @@ const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
   limitCalls: [] as unknown[][],
   read: null as unknown,
+  feedPage: null as unknown,
   ownedRead: null as unknown,
   limited: false,
   frozen: false,
@@ -127,7 +128,7 @@ vi.mock("@/lib/socialPostStore", async (importOriginal) => {
       },
       feed: async (...args: unknown[]) => {
         state.calls.push({ name: "feed", args });
-        return { posts: [], nextCursor: null };
+        return state.feedPage ?? { posts: [], nextCursor: null, scannedThrough: null };
       },
       read: async (...args: unknown[]) => {
         state.calls.push({ name: "read", args });
@@ -155,6 +156,8 @@ import { GET as list, POST } from "@/app/api/social/posts/route";
 import { GET as read, PATCH } from "@/app/api/social/posts/[postId]/route";
 import { SocialPostStoreError } from "@/lib/socialPostStore";
 import { socialPhotoMediaId, socialPostRequestDigest } from "@/lib/socialPostIdempotency.server";
+import { __seedMemoryOwnedProfile } from "@/lib/profileStore";
+import { __resetMemoryProfileWithdrawals, __setMemoryProfileWithdrawn } from "@/lib/accountPublicAccess.server";
 
 const actor = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
 
@@ -173,6 +176,8 @@ beforeEach(() => {
   state.calls = [];
   state.limitCalls = [];
   state.read = null;
+  state.feedPage = null;
+  __resetMemoryProfileWithdrawals();
   state.ownedRead = null;
   state.limited = false;
   state.frozen = false;
@@ -232,6 +237,19 @@ describe("/api/social/posts", () => {
       60,
       60_000,
     ]);
+  });
+
+  it.each(["following", "nearby&area=camden", "discover", "discover&tag=garden"])("preserves the %s scanned boundary when projection drops its final row", async lane => {
+    const profile = __seedMemoryOwnedProfile("filteredtail", "owner-filtered-tail");
+    __setMemoryProfileWithdrawn(profile.id, true);
+    const scannedThrough = { id: "11111111-1111-4111-8111-111111111111", createdAt: "2026-11-16T12:00:00.123900Z" };
+    state.feedPage = {
+      posts: [{ ...scannedThrough, author: { handle: profile.handle }, venueId: null, venueProjected: false, photo: null }],
+      nextCursor: "server-continuation", scannedThrough,
+    };
+    const response = await list(request(`/api/social/posts?lane=${lane}`));
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ posts: [], nextCursor: "server-continuation", scannedThrough });
   });
 
   it("rate-limits verified feed reads before storage", async () => {

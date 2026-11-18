@@ -131,7 +131,7 @@ for (const width of [390, 430] as const) {
           content: ".analyticsConsentPrompt { visibility: hidden !important; }",
         });
         const withoutCard = await stripPixels(page, strip!);
-        await hide.evaluate((el) => el.remove());
+        await hide.evaluate((el) => el.parentNode?.removeChild(el));
         const withCardAgain = await stripPixels(page, strip!);
 
         expect(

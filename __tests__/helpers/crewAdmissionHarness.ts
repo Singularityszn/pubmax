@@ -263,6 +263,10 @@ export const waitsOnAccountLock = (application: string) => db().sqlAsync(`select
 export const waitsOnAnyLock = (application: string) => db().sqlAsync(`select exists(select 1 from pg_stat_activity
   where application_name='${application}' and wait_event_type='Lock'
     and cardinality(pg_blocking_pids(pid)) > 0)`);
+/** True while that connection waits on a heavyweight lock that the named connection holds. */
+export const waitsOnLockHeldBy = (application: string, holder: string) => db().sqlAsync(`select exists(
+  select 1 from pg_stat_activity waiter join pg_stat_activity blocker on blocker.pid = any(pg_blocking_pids(waiter.pid))
+  where waiter.application_name='${application}' and waiter.wait_event_type='Lock' and blocker.application_name='${holder}')`);
 
 /** Boots one cluster with every migration before 0245, the session fixture and one moderator. */
 export async function bootCrewAdmissionDatabase(label: string, start: Stage) {

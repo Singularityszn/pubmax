@@ -64,6 +64,7 @@ vi.mock("@/lib/authClient", async (original) => ({
     },
   }),
   isAuthConfigured: () => true,
+  hasStoredBrowserSession: () => providerState.session !== null,
 }));
 vi.mock("@/lib/authProviderAvailability", () => ({
   guardSocialAuthProvider: authAvailability.guard,

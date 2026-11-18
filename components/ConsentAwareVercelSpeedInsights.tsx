@@ -2,6 +2,8 @@
 
 import { lazy, Suspense, useSyncExternalStore } from "react";
 
+import { isPasswordRecoveryUrl } from "@/lib/passwordRecovery";
+
 import { analyticsCollectionAllowed, subscribeAnalyticsConsent } from "@/lib/analytics";
 
 import { shouldMountVercelAnalytics } from "@/components/ConsentAwareVercelAnalytics";
@@ -19,7 +21,7 @@ export type SpeedInsightsBeforeSendEvent = {
 export function consentAwareSpeedInsightsBeforeSend(
   event: SpeedInsightsBeforeSendEvent,
 ): SpeedInsightsBeforeSendEvent | null {
-  return analyticsCollectionAllowed() ? event : null;
+  return analyticsCollectionAllowed() && !isPasswordRecoveryUrl(event.url) ? event : null;
 }
 
 /** Mount on Vercel after consent. Recheck consent before every measurement. */

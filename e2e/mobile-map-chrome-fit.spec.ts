@@ -127,11 +127,11 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
 
   await page.waitForFunction(
     () =>
-      (
+      ((
         window as typeof window & {
           __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
         }
-      ).__pubmaxPaintedMapTapPoints?.().length > 0,
+      ).__pubmaxPaintedMapTapPoints?.() ?? []).length > 0,
     undefined,
     // A wait, not a ceiling: the recorded envelope in perf/route-budgets.json
     // is 9.8-25.5s on this SwiftShader build, so a shorter wait here would
