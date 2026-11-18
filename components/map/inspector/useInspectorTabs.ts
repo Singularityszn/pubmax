@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from "react";
 
 import type { TabKey } from "@/lib/venueInspectorTabs";
 
-type TabDef = { key: TabKey; label: string; shortLabel: string };
+type TabDef = { key: TabKey; label: string };
 
 export function useInspectorTabs(
   initialTab: TabKey,

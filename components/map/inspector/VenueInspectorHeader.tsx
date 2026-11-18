@@ -9,7 +9,7 @@ import { venueAreaLabel } from "@/lib/venueDisplay";
 import VenueTonightChips from "@/components/map/VenueTonightChips";
 import VenueImage from "@/components/media/VenueImage";
 
-type TabDef = { key: TabKey; label: string; shortLabel: string };
+type TabDef = { key: TabKey; label: string };
 
 type VenueInspectorHeaderProps = {
   venue: Venue;
@@ -106,7 +106,7 @@ export default function VenueInspectorHeader({
         role="tablist"
         aria-label="Venue detail sections"
       >
-        {TABS.map(({ key, label, shortLabel }) => {
+        {TABS.map(({ key, label }) => {
           const active = tab === key;
           return (
             <button
@@ -125,10 +125,7 @@ export default function VenueInspectorHeader({
               onClick={() => selectTab(key)}
               onKeyDown={(event) => onTabKeyDown(event, key)}
             >
-              <span className="venueTabFull">{label}</span>
-              <span className="venueTabShort" aria-hidden="true">
-                {shortLabel}
-              </span>
+              {label}
             </button>
           );
         })}

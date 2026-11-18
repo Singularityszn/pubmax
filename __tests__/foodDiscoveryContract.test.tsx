@@ -183,7 +183,7 @@ describe("food discovery controls", () => {
 
   it("names the shared food and drink tab Menu without changing its route key", () => {
     expect(BASE_TABS.find((tab) => tab.key === "menu")).toEqual({
-      key: "menu", label: "Menu", shortLabel: "Menu",
+      key: "menu", label: "Menu",
     });
     expect(resolveVenueTab("menu", "pub")).toBe("menu");
     expect(tabsForVenue("pub")).toHaveLength(5);

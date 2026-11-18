@@ -58,13 +58,6 @@ describe("venueInspectorTabs", () => {
     expect(gettingHomeLabel("manchester")).toBe("Last Tram");
   });
 
-  it("never renders two tabs with the same short label", () => {
-    const shortLabels = BASE_TABS.map((t) => t.shortLabel);
-    expect(new Set(shortLabels).size, `duplicate shortLabel: ${shortLabels.join(", ")}`).toBe(
-      shortLabels.length,
-    );
-  });
-
   it("removes Pint Drop stories from non-pub venue tabs", () => {
     expect(tabsForVenue("bar").map((tab) => tab.key)).not.toContain("pints");
     expect(tabsForVenue("food").map((tab) => tab.key)).not.toContain("pints");
