@@ -135,6 +135,10 @@ describe("RankAfterVisitCard", () => {
   it.each([
     {}, { entries: null }, { entries: {} }, { entries: [null] },
     { entries: [{ ...LIST[0], band: "invented" }] },
+    { entries: [{ ...LIST[0], venueId: "" }] },
+    { entries: [{ ...LIST[0], score: "10" }] },
+    { entries: [{ ...LIST[0], listedPrice: -1 }] },
+    { entries: [LIST[0], LIST[0]] },
   ])("keeps a malformed checkpoint out of the mounted diary receipt: %j", async (body) => {
     net.get.mockResolvedValue(json({ ...body, subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } }));
     await receipt();
@@ -168,7 +172,7 @@ describe("RankAfterVisitCard", () => {
     expect(net.post).toHaveBeenCalledTimes(1);
   });
 
-  it("holds an unresolved save until a valid read allows a fresh placement", async () => {
+  it.each([false, true])("holds an unresolved save until a valid read allows a fresh placement (sharing %s)", async (sharing) => {
     let attempts = 0;
     net.post.mockImplementation(async () => {
       attempts += 1;
@@ -176,13 +180,14 @@ describe("RankAfterVisitCard", () => {
       return { response: json({}), body: { entries: [{ ...LIST[0], venueId: "seven-stars" }] } };
     });
     await receipt();
+    if (sharing) await click('.rankAfterVisit__lot input');
     net.get.mockResolvedValue(json({ subject: { venueId: "seven-stars" } }));
     await click('[data-band="not_for_me"]');
     expect(host.querySelector('[data-band]')).toBeNull();
     expect(host.querySelector('.rankAfterVisit__lot input')).toBeNull();
     net.get.mockResolvedValue(json({ entries: LIST }));
     await click('[data-testid="rank-after-visit-retry"]');
-    expect(host.querySelector('.rankAfterVisit__lot input')).not.toBeNull();
+    expect(host.querySelector<HTMLInputElement>('.rankAfterVisit__lot input')?.checked).toBe(sharing);
     await click('[data-band="loved"]');
     expect(host.querySelector('[data-testid="rank-after-visit-new"]')).not.toBeNull();
     expect(attempts).toBe(1);
@@ -252,6 +257,42 @@ describe("RankAfterVisitCard", () => {
     expect(net.post).toHaveBeenCalledTimes(1);
   });
 
+  it.each([401, 403, 503])("retires an uncertain save when its check refuses access (%s)", async (status) => {
+    await receipt();
+    net.post.mockRejectedValue(new TypeError("Lost answer"));
+    net.get.mockResolvedValue(json({ code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: false }, status));
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-testid="rank-after-visit"]')).toBeNull();
+    expect(host.querySelector(".visitReportOk")).not.toBeNull();
+  });
+
+  it("does not restore an old account's held list into the receipt", async () => {
+    const previous = deferred<Response>();
+    net.get.mockReturnValueOnce(previous.promise);
+    await receipt();
+    await act(async () => {
+      session.userId = "next-owner";
+      setProviderIdentity("supabase", session.userId);
+      root!.render(<DiaryLogPanel venueId="seven-stars" venueName="The Seven Stars" />);
+    });
+    await act(async () => previous.resolve(json({ entries: [], subject: { venueId: "seven-stars", venueName: "Old private name", listedPrice: 5.2 } })));
+    expect(host.textContent).not.toContain("Old private name");
+    await click('[data-band="loved"]');
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).not.toBeNull();
+  });
+
+  it("permits only one save when the same band is tapped twice before repaint", async () => {
+    await receipt();
+    const answer = deferred<{ response: Response; body: unknown }>();
+    let placements = 0;
+    net.post.mockImplementation(() => { placements += 1; return answer.promise; });
+    const band = host.querySelector<HTMLElement>('[data-band="not_for_me"]')!;
+    await act(async () => { band.click(); band.click(); });
+    expect(placements).toBe(1);
+    await act(async () => answer.resolve({ response: json({}), body: { entries: [{ ...LIST[0], venueId: "seven-stars", band: "not_for_me" }] } }));
+    expect(host.textContent).toContain("is in your pubs, ranked.");
+  });
+
   it("drops a late save from the old receipt account without reading the new account", async () => {
     await receipt();
     const answer = deferred<{ response: Response; body: unknown }>();
@@ -279,6 +320,8 @@ describe("RankAfterVisitCard", () => {
       if (round === 0) await click('[data-band="loved"]');
       await click('[data-testid="rank-after-visit-new"]');
     }
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
+    await click('[data-band="loved"]');
     expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
     expect(host.textContent).toContain("is in your pubs, ranked.");
   });
