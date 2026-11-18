@@ -360,6 +360,71 @@ describe("0250 private event-bound friendship reconnection", () => {
     }
   });
 
+  it("revised retention: dismissal has only the same short terminal lifetime", () => {
+    const { a, b, crew } = matched();
+    const close = read(a, crew)!.closesAt;
+    choose(a, crew, b, "friendship", "withdraw");
+    const expiry = db().sql(`select expires_at::text from public.social_crew_see_again_pairs where crew_id='${crew}'`);
+    expect(Date.parse(expiry)).toBe(Date.parse(close));
+    expect(db().sql(`select formed_at is null from public.social_crew_see_again_pairs where crew_id='${crew}'`)).toBe("t");
+  });
+
+  it("revised retention: all own choices have identical export presence before and after a hidden mutual", () => {
+    const { a, b, crew } = night();
+    choose(a, crew, b);
+    const before = call(`export_social_crew_see_again('${a.user}',100)`);
+    choose(b, crew, a);
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual(before);
+    choose(b, crew, a, "friendship", "withdraw");
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual(before);
+    const ownExpiry = db().sql(`select coalesce(to_jsonb(choice)->>'expires_at',pair.expires_at::text)
+      from public.social_crew_see_again_choices choice join public.social_crew_see_again_pairs pair on pair.id=choice.pair_id
+      where choice.crew_id='${crew}' and choice.picker_account_id='${a.account}'`);
+    expect(Date.parse(ownExpiry)).toBe(Date.parse(read(a, crew)!.closesAt));
+  });
+
+  it("revised retention: expiry removes both directions while retaining only a visible connection", () => {
+    const { a, b, crew } = matched();
+    starts(crew, "-85 hours");
+    db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=now()-interval '1 hour',
+      formed_at=now()-interval '2 days',expires_at=now()+interval '26 days' where crew_id='${crew}';
+      update public.social_crew_see_again_choices set expires_at=now()-interval '1 hour',chosen_at=now()-interval '49 hours' where crew_id='${crew}'`);
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual([]);
+    expect(call(`export_social_crew_see_again('${b.user}',100)`)).toEqual([]);
+    expect(item(a, crew, b)).toMatchObject({ choice: "none", mutual: true });
+    call("purge_expired_social_crew_see_again(1000)");
+    expect(db().sql(`select count(*) from public.social_crew_see_again_choices where crew_id='${crew}'`)).toBe("0");
+    expect(rows(crew)).toBe("1");
+    expect(item(a, crew, b)?.mutual).toBe(true);
+    choose(b, crew, a, "friendship", "withdraw");
+    expect(rows(crew)).toBe("0");
+    expect(read(a, crew)).toBeNull();
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual([]);
+  });
+
+  it.each(["unmatched", "withdrawn", "dismissed"])("revised retention: %s has no export or outcome after close while cleanup lags", state => {
+    const { a, b, crew } = night();
+    choose(a, crew, b);
+    if (state === "dismissed") choose(b, crew, a);
+    if (state !== "unmatched") choose(b, crew, a, "friendship", "withdraw");
+    starts(crew, "-85 hours");
+    db().sql(`update public.social_crew_see_again_pairs set choice_expires_at=now()-interval '1 hour',expires_at=now()-interval '1 hour' where crew_id='${crew}';
+      update public.social_crew_see_again_choices set expires_at=now()-interval '1 hour' where crew_id='${crew}'`);
+    expect(call(`export_social_crew_see_again('${a.user}',100)`)).toEqual([]);
+    expect(call(`export_social_crew_see_again('${b.user}',100)`)).toEqual([]);
+    expect(read(a, crew)).toBeNull();
+    expect(choose(a, crew, b)).toEqual(neutral);
+    call("purge_expired_social_crew_see_again(1000)");
+    expect(rows(crew)).toBe("0");
+  });
+
+  it("keeps the existing Crew access boundary when the host blocks a participant", () => {
+    const { host, a, b, crew } = matched();
+    call(blockCall(host, a));
+    expect(read(a, crew)).toBeNull();
+    expect(item(b, crew, a)).toBeUndefined();
+  });
+
   it("rolls back under the migration role and reapplies", async () => {
     const retained = db().sql("select count(*) from public.social_crew_see_again_pairs");
     expect(Number(retained)).toBeGreaterThan(0);
