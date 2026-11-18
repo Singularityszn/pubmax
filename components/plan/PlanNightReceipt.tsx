@@ -202,8 +202,9 @@ function OwnerReceipt({ planId, userId, accessToken }: { planId: string; userId:
   const receipt = state.phase === "ready" || state.phase === "reading" ? state.receipt : null;
   const busy = state.phase === "reading";
   useLayoutEffect(() => {
-    if (busy || state.phase === "unavailable" || !retryRequested.current) return;
+    if (busy || !retryRequested.current) return;
     retryRequested.current = false;
+    if (state.phase === "unavailable") return;
     const active = document.activeElement;
     if (active && active !== document.body && active.isConnected) return;
     const target = headingRef.current ?? document.querySelector<HTMLElement>("main h1");
