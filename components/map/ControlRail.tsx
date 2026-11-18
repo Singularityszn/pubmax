@@ -368,12 +368,10 @@ export default function ControlRail({
             </button>
           ) : null}
         </div>
-        <label
-          aria-label={SAVED_ONLY_ARIA_LABEL}
-          style={{ minHeight: "var(--control-height, 44px)" }}
-        >
+        <label style={{ minHeight: "var(--control-height, 44px)" }}>
           <input
             type="checkbox"
+            aria-label={SAVED_ONLY_ARIA_LABEL}
             checked={savedOnly}
             onChange={(event) => onSavedOnlyChange(event.target.checked)}
           />
