@@ -196,6 +196,7 @@ async function readAllowlist(root) {
   }
   const parsed = JSON.parse(raw);
   const rows = Array.isArray(parsed.allowed) ? parsed.allowed : [];
+  const seen = new Set();
   for (const row of rows) {
     if (!row.file || !KINDS.has(row.kind) || !Number.isInteger(row.count) || row.count < 1) {
       console.error(
@@ -203,6 +204,14 @@ async function readAllowlist(root) {
       );
       process.exit(1);
     }
+    // One row per file and kind: duplicates would sum into the allowance but
+    // be checked stale row by row, leaving a reusable count behind.
+    const key = `${row.file}|${row.kind}`;
+    if (seen.has(key)) {
+      console.error(`waits allowlist repeats ${key}: merge the rows into one count`);
+      process.exit(1);
+    }
+    seen.add(key);
     // A runner retry is argued like a conditional skip: the row names the
     // reason it exists and what ends it, so it cannot outlive its excuse.
     if (row.kind === "configRetries" && (!row.reason || !row.ends)) {

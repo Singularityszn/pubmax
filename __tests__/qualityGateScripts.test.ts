@@ -766,4 +766,19 @@ describe("assert-e2e-waits", () => {
     expect(unargued.status).toBe(1);
     expect(unargued.stderr).toContain("must state reason and ends");
   });
+
+  it("refuses duplicate file/kind rows that would leave reusable allowance", () => {
+    const { e2eDir } = e2eFixture({
+      "counted.spec.ts": 'import { test } from "@playwright/test";\ntest("x", async ({ page }) => {\n  await page.waitForTimeout(500);\n});\n',
+    });
+    allowlist(e2eDir, [
+      { file: "e2e/counted.spec.ts", kind: "waitForTimeout", count: 1 },
+      { file: "e2e/counted.spec.ts", kind: "waitForTimeout", count: 1 },
+    ]);
+
+    const result = run("assert-e2e-waits.mjs", [e2eDir]);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain("repeats e2e/counted.spec.ts|waitForTimeout");
+  });
 });
