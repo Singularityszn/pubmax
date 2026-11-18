@@ -5248,6 +5248,51 @@ export type Database = {
           },
         ];
       };
+      social_crew_block_cases: {
+        Row: {
+          id: string;
+          crew_id: string;
+          blocker_account_id: string;
+          blocked_account_id: string;
+          opened_at: string;
+          expires_at: string;
+          decision: string | null;
+          removed_member_id: string | null;
+          reason: string | null;
+          staff_role_id: string | null;
+          staff_display_name: string | null;
+          decided_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          crew_id: string;
+          blocker_account_id: string;
+          blocked_account_id: string;
+          opened_at?: string;
+          expires_at: string;
+          decision?: string | null;
+          removed_member_id?: string | null;
+          reason?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string | null;
+          decided_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          crew_id?: string;
+          blocker_account_id?: string;
+          blocked_account_id?: string;
+          opened_at?: string;
+          expires_at?: string;
+          decision?: string | null;
+          removed_member_id?: string | null;
+          reason?: string | null;
+          staff_role_id?: string | null;
+          staff_display_name?: string | null;
+          decided_at?: string | null;
+        };
+        Relationships: [];
+      };
       social_crew_invitations: {
         Row: {
           id: string;
@@ -7859,6 +7904,13 @@ export type Database = {
         };
         Returns: undefined;
       };
+      _open_social_crew_block_cases_for: {
+        Args: {
+          p_blocker_profile: string | null;
+          p_blocked_profile: string | null;
+        };
+        Returns: undefined;
+      };
       _reconcile_plan_account_join: {
         Args: {
           p_plan_id: string | null;
@@ -7965,6 +8017,31 @@ export type Database = {
           p_digest: string | null;
         };
         Returns: Json;
+      };
+      _social_crew_block_case_blockers: {
+        Args: {
+          p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
+        };
+        Returns: string[];
+      };
+      _social_crew_block_case_live: {
+        Args: {
+          p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
+        };
+        Returns: boolean;
+      };
+      _social_crew_block_case_moderator_conflicted: {
+        Args: {
+          p_staff_profile: string | null;
+          p_crew: string | null;
+          p_first: string | null;
+          p_second: string | null;
+        };
+        Returns: boolean;
       };
       _social_crew_fail_write: {
         Args: {
@@ -8761,6 +8838,17 @@ export type Database = {
         };
         Returns: string;
       };
+      decide_social_crew_block_case_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_case_id: string | null;
+          p_seen_blockers: string[] | null;
+          p_decision: string | null;
+          p_member_id: string | null;
+          p_reason: string | null;
+        };
+        Returns: Json;
+      };
       decide_social_crew_join_request_atomic: {
         Args: {
           p_actor_account_id: string | null;
@@ -9266,6 +9354,12 @@ export type Database = {
         };
         Returns: Json;
       };
+      purge_expired_social_crew_block_cases: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: Json;
+      };
       qualify_referral_from_contribution: {
         Args: {
           p_invitee_user_id: string | null;
@@ -9396,6 +9490,13 @@ export type Database = {
         Returns: Json;
       };
       read_social_crew_attendance_reports_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_block_cases_admin: {
         Args: {
           p_staff_role_id: string | null;
           p_limit: number | null;
