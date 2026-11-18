@@ -4,6 +4,7 @@ import { appendFile, mkdir, readFile, rename, writeFile } from "node:fs/promises
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HARVEST_SOURCES, harvestRedirectLanding, isRefusedOnPermission } from "../lib/harvest/sourcePolicy.ts";
+import { fetchFollowingPermittedRedirects } from "../lib/harvest/redirectChain.ts";
 import { createRobotsChecker } from "../lib/harvest/robots.ts";
 import { cityVenueIdForPub } from "../lib/cityVenueId.mjs";
 import { DISCOVERY_CITIES, POPULATION_SOURCES } from "./lib/parallelDiscoveryCities.mjs";
@@ -285,9 +286,24 @@ const pageFile = (url) => path.join(RAW, "pages", `${createHash("sha256").update
 // The page's own status, asked once a Tavily read fails without a cause.
 async function probePage(url) {
   try {
-    const response = await fetch(url, { headers: { "user-agent": "PUBMAXX-harvest/1", accept: "text/html" }, redirect: "follow", signal: AbortSignal.timeout(20_000) });
-    response.body?.cancel().catch(() => {});
-    return { status: response.status, landed: harvestRedirectLanding(url, response.url).outcome === "refused" || !allowedEvidenceUrl(response.url) ? "refused" : "permitted", checkedAt: new Date().toISOString() };
+    // Redirects are followed by hand so each hop passes the evidence fence
+    // BEFORE it is requested; `redirect: "follow"` would send it first.
+    const followed = await fetchFollowingPermittedRedirects(
+      url,
+      { headers: { "user-agent": "PUBMAXX-harvest/1", accept: "text/html" }, signal: AbortSignal.timeout(20_000) },
+      {
+        permitHop: async (next, from) => {
+          if (harvestRedirectLanding(from, next).outcome === "refused" || !allowedEvidenceUrl(next)) {
+            return { allowed: false, reason: "redirect-refused" };
+          }
+          const gate = await robotsGate(next);
+          return gate.outcome === "allowed" ? { allowed: true } : { allowed: false, reason: gate.reason ?? "robots-refused" };
+        },
+      },
+    );
+    if (followed.refusal) return { status: null, landed: "refused", checkedAt: new Date().toISOString() };
+    await followed.response.body?.cancel().catch(() => {});
+    return { status: followed.response.status, landed: harvestRedirectLanding(url, followed.url).outcome === "refused" || !allowedEvidenceUrl(followed.url) ? "refused" : "permitted", checkedAt: new Date().toISOString() };
   } catch {
     return null;
   }
