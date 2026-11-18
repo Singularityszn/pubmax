@@ -27,7 +27,7 @@ The Greater London bbox already includes Barnet (`LAT` 51.26–51.72, `LON` −0
 | Barnet canonical pubs | 4 |
 | Havering / Hillingdon / Redbridge leaderboard | 0 (large **embedded** scrape blobs exist — anomaly; do not blindly promote) |
 
-Pipeline: `refresh_pint_price_observations.mjs` (re-collect) → `build_app_dataset.py` → `export_app_dataset_json.py` → `build_slim_index.mjs` → `validate-data`. The retired `extract_pint_prices.py` fetched outside the harvest fence and must not be revived; see `data/README.md`.
+Pipeline: `refresh_pint_price_observations.mjs` (re-collect) updates the app JSON and CSV in place, then `export_app_dataset_json.py --collected-at <ISO> --stamp-only` (the command the refresh prints), `build_slim_index.mjs`, `validate-data`. `build_app_dataset.py` rebuilds the CSVs from the committed raw extracts, so running it after a refresh would discard the freshly collected prices; raw-file replay is a separate procedure. The retired `extract_pint_prices.py` fetched outside the harvest fence and must not be revived; see `data/README.md`.
 
 ## Success metrics
 
