@@ -24,7 +24,7 @@ import {
 } from "@/lib/socialCrewStore";
 import type { SocialCrewShareCardSource } from "@/lib/socialCrew";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
-import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import { venueAreaClaim } from "@/lib/venueTruth";
@@ -54,7 +54,7 @@ type Dependencies = {
 };
 
 async function listedPint(venueId: string): Promise<VenueListedPint | null> {
-  const lookup = await lookupVenueDetail(venueId);
+  const lookup = await lookupPricedVenue(venueId);
   if (lookup.status !== "found") return null;
   return venueListedPint(lookup.venue);
 }

@@ -35,7 +35,7 @@ const venuePrice = (venueId: string) => ({
 
 const store = vi.hoisted(() => ({ readShareCard: vi.fn() }));
 const resolveMeeting = vi.hoisted(() => ({ resolveOpenMeetingPoint: vi.fn() }));
-const venues = vi.hoisted(() => ({ lookupVenueDetail: vi.fn() }));
+const venues = vi.hoisted(() => ({ lookupPricedVenue: vi.fn() }));
 
 vi.mock("@/lib/socialCrewStore", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/socialCrewStore")>()),
@@ -43,7 +43,7 @@ vi.mock("@/lib/socialCrewStore", async (importOriginal) => ({
 }));
 
 vi.mock("@/lib/openSocialCrew.server", () => resolveMeeting);
-vi.mock("@/lib/venueDetailIndex", () => venues);
+vi.mock("@/lib/venueDetailArtifact.server", () => venues);
 
 import { SocialCrewStoreError } from "@/lib/socialCrewStore";
 import { loadOpenCrawlShareCard, stillTrueCountReader } from "@/lib/openCrawlShareCard.server";
@@ -58,7 +58,7 @@ beforeEach(() => {
   vi.spyOn(stillTrueCountReader, "read").mockResolvedValue(null);
   vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
   store.readShareCard.mockResolvedValue(shareSource);
-  venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
+  venues.lookupPricedVenue.mockImplementation(async (venueId: string) => ({
     status: "found",
     venue: venuePrice(venueId),
   }));
@@ -129,7 +129,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
   });
 
   it("keeps the oldest day when the cheapest stop has the newest price", async () => {
-    venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
+    venues.lookupPricedVenue.mockImplementation(async (venueId: string) => ({
       status: "found",
       venue: {
         ...venuePrice(venueId),
@@ -146,7 +146,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
   });
 
   it.each(["scraped_at_values", "pub_url"] as const)("omits the band when a stop lacks %s", async (field) => {
-    venues.lookupVenueDetail.mockImplementation(async (venueId: string) => ({
+    venues.lookupPricedVenue.mockImplementation(async (venueId: string) => ({
       status: "found",
       venue: {
         ...venuePrice(venueId),
@@ -189,7 +189,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(response.status).toBe(200);
     expect(body.placesLeft).toBeNull();
     expect(body.spendBand).toBeNull();
-    expect(venues.lookupVenueDetail).not.toHaveBeenCalled();
+    expect(venues.lookupPricedVenue).not.toHaveBeenCalled();
     expect(body.stillTrue).toBeNull();
     expect(stillTrueCountReader.read).not.toHaveBeenCalled();
   });
@@ -218,7 +218,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(serialized).not.toContain("https://");
     expect(serialized).not.toContain("hidden-good-mixer");
     expect(stillTrueCountReader.read).toHaveBeenCalledWith(CREW_ID);
-    expect(venues.lookupVenueDetail.mock.calls).toEqual([["venue-london-camden-arms"]]);
+    expect(venues.lookupPricedVenue.mock.calls).toEqual([["venue-london-camden-arms"]]);
   });
 
   it("loads a one-pub link card without reading attendance", async () => {
@@ -237,7 +237,7 @@ describe("GET /api/social/crews/:crewId/public", () => {
       stillTrue: null,
     });
     expect(stillTrueCountReader.read).not.toHaveBeenCalled();
-    expect(venues.lookupVenueDetail.mock.calls).toEqual([["venue-london-camden-arms"]]);
+    expect(venues.lookupPricedVenue.mock.calls).toEqual([["venue-london-camden-arms"]]);
   });
 
   it("does not expose a row when Stop 1 is no longer listed", async () => {
