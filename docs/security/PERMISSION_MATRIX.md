@@ -356,21 +356,13 @@ owns redirect permission checks and the final response check.
 ## Password paths, for the leaked-password setting
 
 F07's other half is a Supabase dashboard toggle the captain owns
-(https://supabase.com/docs/guides/auth/password-security). Three password paths
-exist in the product and there is no fourth:
+(https://supabase.com/docs/guides/auth/password-security).
+The [password route contract](../rules/app-auth-and-account-routes.md#a-password-is-created-behind-a-session-and-only-ever-spent-without-one)
+owns creation, changes, sign-in and recovery.
 
-| Path | Where | What sets the password |
-| --- | --- | --- |
-| create | `components/auth/SetAccountPassword.tsx`, mounted in `PubmaxxAccountHub` | `supabase.auth.updateUser({ password })` from a signed-in browser |
-| sign in | `POST /api/auth/handle-password` | GoTrue's password grant; sets nothing |
-| change | `POST /api/auth/change-password/verify`, then the browser's own `updateUser` | GoTrue's password grant proves the old one; `updateUser` sets the new one |
-
-There is **no password reset path and no password signup**: sign-up is the
-email link (`lib/passwordlessAuth.ts`), and nothing in the tree calls
-`resetPasswordForEmail` or `signUp` with a password. So every password this
-product ever stores is written by `auth.updateUser`, which is exactly where
-Supabase's HIBP check runs. Turning leaked-password protection on therefore
-covers both writing paths and costs the sign-in path nothing: an existing
+Every password this product stores is written by `auth.updateUser`, which is
+where Supabase's HIBP check runs. Turning leaked-password protection on therefore
+covers all password-writing paths and costs the sign-in path nothing: an existing
 password is not re-checked at sign-in, so nobody is locked out by the change.
 
 ## Live check, isolated project
