@@ -1,13 +1,4 @@
-// Pure builder for the pre-acceptance plan privacy preview (Wayfinder 4.2).
-//
-// Contract: this function MUST NOT include any stop venue ids or venue names
-// in its output. It redacts the route entirely and exposes only the five safe
-// signals: host display name, broad area, time window, vibe (if any), and an
-// accessibility expectations summary.
-//
-// Why pure: the caller is always a client component that already holds
-// PlanState from the server render. A pure function keeps the redaction logic
-// in one testable place rather than scattered across component render paths.
+// Pure builder shared by the pre-acceptance Plan view and invite link previews.
 
 import type { PlanState } from "@/lib/plan";
 import { NIGHT_AREAS } from "@/lib/nightAreas";
@@ -55,6 +46,8 @@ function buildAccessibilitySummary(requirements: readonly string[]): string | nu
  *
  * The returned object carries NO venueId or venueName values; the caller
  * must not expose `state.stops` to the uninvited viewer.
+ * Link previews use only areaName, startLabel and stopCount. The hostName
+ * field is for the pre-acceptance Plan view and must not reach link previews.
  */
 export function buildInvitePrivacyPreview(
   state: PlanState,

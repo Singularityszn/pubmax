@@ -71,9 +71,8 @@ type InviteStop = {
   address: string | null;
 };
 
-// The card may be opened days before the event, so it needs a date on it, not
-// just a time — unlike lib/invitePrivacyPreview.ts's pre-acceptance viewer,
-// which already has date context from the surface it sits inside.
+// The visible invite needs a date because the link may be opened days before
+// the event.
 function formatStartLabel(startTime: string): string {
   const parsed = Date.parse(startTime);
   if (!Number.isFinite(parsed)) return "Time to be confirmed";
@@ -142,12 +141,9 @@ function inviteSpendBand(stops: readonly InviteStop[]): PlanInviteSpendBand | nu
   return planInviteSpendBandFromListedPrices(stops.map((stop) => stop.listedPint?.priceGbp));
 }
 
-// AN INVITE IS ONE CREW'S NIGHT, SO IT IS NOT A SEARCH RESULT. The page renders
-// the title, host, start time, every stop and the RSVP list, and the bearer
-// token is the URL, so every branch below carries the same noindex the Plan
-// page does (app/plan/[id]/page.tsx). A meta tag rather than a robots.txt
-// disallow, so a crawler can still read it. Follow stays true and `og:` is
-// untouched: an unfurler ignores robots, and the WhatsApp card IS the invite.
+// A bearer invite identifies one crew's night, so every branch stays noindex.
+// Crawlers can still read the page. Redact link metadata separately because
+// unfurlers can ignore robots.
 const INVITE_ROBOTS = {
   index: false,
   follow: true,
