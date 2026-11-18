@@ -120,7 +120,7 @@ beforeEach(() => {
   );
   net.post.mockImplementation(async (_url: string, init: RequestInit) => ({
     response: json({}),
-    body: { entries: LIST, shared: JSON.parse(String(init.body)).shareToLot === true },
+    body: { entries: [...LIST, { ...LIST[0], venueId: "seven-stars", band: JSON.parse(String(init.body)).band }], shared: JSON.parse(String(init.body)).shareToLot === true },
   }));
 });
 
@@ -206,6 +206,81 @@ describe("RankAfterVisitCard", () => {
     await act(async () => nextRead.resolve(json({ entries: [], subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } })));
     expect(host.querySelector('[data-band]')).not.toBeNull();
     expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
+  });
+
+  it.each([401, 403, 503])("removes private controls after a definite refusal (%s)", async (status) => {
+    await receipt();
+    net.post.mockResolvedValue({ response: json({}, status), body: { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: false } });
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-testid="rank-after-visit"]')).toBeNull();
+    expect(host.querySelector(".visitReportOk")).not.toBeNull();
+  });
+
+  it.each([
+    [503, { code: "SOCIAL_FROZEN", error: "Social is paused." }],
+    [503, { code: "SOCIAL_ACCESS_UNAVAILABLE", retryable: true, error: "Social is unavailable." }],
+    [503, { code: "VENUE_LOOKUP_UNAVAILABLE", error: "Venue lookup is unavailable." }],
+    [429, { code: "RATE_LIMITED", error: "Too many changes." }],
+  ])("preserves a definite pre-write rejection (%s, %j)", async (status, body) => {
+    await receipt();
+    net.post.mockResolvedValue({ response: json({}, status), body });
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-band]')).not.toBeNull();
+    expect(host.textContent).toContain(body.error);
+    expect(host.textContent).not.toContain("is in your pubs, ranked.");
+  });
+
+  it.each([null, { entries: [] }, { entries: LIST }, { entries: [null] }])("checks an invalid save acknowledgement before reopening (%j)", async (body) => {
+    await receipt();
+    net.post.mockResolvedValue({ response: json({}), body });
+    net.get.mockResolvedValue(json({ entries: [{ ...LIST[0], venueId: "seven-stars", band: "not_for_me" }] }));
+    await click('[data-band="not_for_me"]');
+    expect(host.textContent).toContain("is in your pubs, ranked.");
+    expect(host.querySelector('[data-band]')).toBeNull();
+  });
+
+  it("checks a possibly committed server outage and keeps a failed check locked", async () => {
+    await receipt();
+    net.post.mockResolvedValue({ response: json({}, 503), body: { code: "RANKING_UNAVAILABLE", retryable: true } });
+    net.get.mockResolvedValue(json({ error: "Temporarily unavailable" }, 503));
+    await click('[data-band="not_for_me"]');
+    expect(host.querySelector('[data-band]')).toBeNull();
+    expect(host.querySelector('[data-testid="rank-after-visit-retry"]')).not.toBeNull();
+    net.get.mockResolvedValue(json({ entries: [{ ...LIST[0], venueId: "seven-stars", band: "not_for_me" }] }));
+    await click('[data-testid="rank-after-visit-retry"]');
+    expect(host.textContent).toContain("is in your pubs, ranked.");
+    expect(net.post).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a late save from the old receipt account without reading the new account", async () => {
+    await receipt();
+    const answer = deferred<{ response: Response; body: unknown }>();
+    net.post.mockReturnValue(answer.promise);
+    await click('[data-band="not_for_me"]');
+    const nextRead = deferred<Response>();
+    net.get.mockReturnValue(nextRead.promise);
+    await act(async () => {
+      session.userId = "next-owner";
+      setProviderIdentity("supabase", session.userId);
+      root!.render(<DiaryLogPanel venueId="seven-stars" venueName="The Seven Stars" />);
+      answer.resolve({ response: json({}), body: null });
+    });
+    expect(host.querySelector('[data-band]')).toBeNull();
+    expect(host.textContent).not.toContain("did not save");
+    expect(net.get).toHaveBeenCalledTimes(2);
+    await act(async () => nextRead.resolve(json({ entries: [], subject: { venueId: "seven-stars", venueName: "The Seven Stars", listedPrice: 5.2 } })));
+    expect(host.querySelector('[data-band]')).not.toBeNull();
+  });
+
+  it("never asks a fourth question when a stale checkpoint needs another placement", async () => {
+    await receipt();
+    net.post.mockResolvedValueOnce({ response: json({}, 409), body: { code: "STALE_RANKING" } });
+    for (let round = 0; round < 3; round += 1) {
+      if (round === 0) await click('[data-band="loved"]');
+      await click('[data-testid="rank-after-visit-new"]');
+    }
+    expect(host.querySelector('[data-testid="rank-after-visit-new"]')).toBeNull();
+    expect(host.textContent).toContain("is in your pubs, ranked.");
   });
 
   it("renders nothing for a signed-out viewer and never asks the list", async () => {
