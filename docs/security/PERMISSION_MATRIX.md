@@ -179,6 +179,10 @@ no side effect, as above.
 | Report an attendance mark (`POST .../attendance/report`) | denied | denied | own current unexpired mark while still active | denied | own current unexpired mark | denied | own current mark only, if one exists |
 | `social_crew_attendance`, `social_crew_attendance_reports` at the table | denied | denied | denied | denied | denied | denied | denied, including direct service-role access |
 | Attendance RPCs called directly by a browser role | denied | denied | denied | denied | denied | denied | denied |
+| Private see-again (`GET .../see-again`) | 401 | 404, same as unknown Crew | neutral, no outcome | 404 | own choices and same-context mutual only, with active adult accounts and current host attendance | 404 | 404, no host reader |
+| Private friendship choice (`POST .../see-again`) | 401 | neutral acknowledgement, no write | same neutral acknowledgement | same | explicit friendship consent, guarded window and pair transaction | same neutral acknowledgement | same neutral acknowledgement, no host choice |
+| See-again tables (`social_crew_see_again_pairs`, `social_crew_see_again_choices`) | denied | denied | denied | denied | denied | denied | denied, including direct service-role access |
+| See-again RPCs called directly | denied | denied | denied | denied | denied | denied | denied. Only the service role calls the guarded read/write, own export and bounded expiry functions. No moderator choice reader exists. |
 | Cancel one Crew occurrence (`cancel_social_crew_occurrence_admin`) and read its audit | denied | denied | denied | denied | denied | denied | Service-only RPC with an active independent moderator, reviewed revision/status and reason. Service role may read the audit but cannot insert, update or delete it directly. No app route exists. |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
@@ -407,3 +411,17 @@ It stores no pasted text or creator descriptions.
 The service role writes after the API checks the account and resolves the pub IDs again.
 Account deletion cascades to these drafts. The account export includes the owner's drafts.
 Migration 0195 and its rollback leave existing plans and pub records unchanged.
+
+Private see-again uses the existing verified adult Social route gate. SQL checks both
+accounts again under the Crew, auth, participant-account and stable unordered pair
+locks. The participant roster is alphabetical. Reads recheck current membership,
+attendance revision, adult evidence, blocks, mutes, account access and expiry.
+Writes never return mutual results. Only the two eligible people can read a mutual
+outcome. Hosts and moderators have no choice reader. Social freeze denies new
+choices while authorised reads, withdrawal, reporting and deletion remain open.
+The own-data export includes only the caller's unexpired directional records,
+with one common choice deadline and no outcome-derived fields. A separate
+authorised projection exports only currently visible connections. Only visible
+mutual connections can outlive that deadline. Dismissal removes the connection
+and keeps a short terminal marker only until choices close. Deletion
+removes pair access and records synchronously, without waiting for the expiry job.

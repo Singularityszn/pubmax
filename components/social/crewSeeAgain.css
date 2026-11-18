@@ -1,0 +1,33 @@
+.crewSeeAgain {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+}
+
+.crews__member.crewSeeAgainConsent {
+  grid-template-columns: auto minmax(0, 1fr);
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.crewSeeAgainConsent input {
+  inline-size: 1.25rem;
+  min-inline-size: 1.25rem;
+  block-size: 1.25rem;
+  accent-color: var(--ink);
+}
+
+.crews__member.crewSeeAgainItem {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.crewSeeAgainItem p {
+  margin: 0;
+}
+
+.crewSeeAgainItem .uiButton {
+  justify-self: start;
+  max-inline-size: 100%;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
