@@ -599,7 +599,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-a",
+      "/api/messages/conversation-a?",
       true,
     );
     expect(host.textContent).toContain("Newest A");
@@ -618,7 +618,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-b",
+      "/api/messages/conversation-b?",
     );
     await releaseFetch(
       Response.json({
@@ -634,7 +634,7 @@ describe("message sign-in doors", () => {
           },
         ],
       }),
-      "conversation-a",
+      "/api/messages/conversation-a?",
     );
 
     expect(host.textContent).toContain("Newest A");
