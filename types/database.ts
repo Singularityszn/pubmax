@@ -5512,6 +5512,123 @@ export type Database = {
           },
         ];
       };
+      social_crew_see_again_choices: {
+        Row: {
+          pair_id: string;
+          crew_id: string;
+          context: string;
+          picker_account_id: string;
+          picked_member_id: string;
+          picked_account_id: string;
+          picker_user_id: string;
+          choice: string;
+          chosen_at: string;
+          withdrawn_at: string | null;
+        };
+        Insert: {
+          pair_id: string;
+          crew_id: string;
+          context: string;
+          picker_account_id: string;
+          picked_member_id: string;
+          picked_account_id: string;
+          picker_user_id: string;
+          choice: string;
+          chosen_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Update: {
+          pair_id?: string;
+          crew_id?: string;
+          context?: string;
+          picker_account_id?: string;
+          picked_member_id?: string;
+          picked_account_id?: string;
+          picker_user_id?: string;
+          choice?: string;
+          chosen_at?: string;
+          withdrawn_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_see_again_choices_pair_id_fkey";
+            columns: ["pair_id"];
+            isOneToOne: false;
+            referencedRelation: "social_crew_see_again_pairs";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
+      social_crew_see_again_pairs: {
+        Row: {
+          id: string;
+          crew_id: string;
+          context: string;
+          low_account_id: string;
+          high_account_id: string;
+          low_user_id: string;
+          high_user_id: string;
+          low_attendance_revision: number;
+          high_attendance_revision: number;
+          state: string;
+          revision: number;
+          formed_at: string | null;
+          expires_at: string;
+        };
+        Insert: {
+          id?: string;
+          crew_id: string;
+          context: string;
+          low_account_id: string;
+          high_account_id: string;
+          low_user_id: string;
+          high_user_id: string;
+          low_attendance_revision: number;
+          high_attendance_revision: number;
+          state: string;
+          revision?: number;
+          formed_at?: string | null;
+          expires_at: string;
+        };
+        Update: {
+          id?: string;
+          crew_id?: string;
+          context?: string;
+          low_account_id?: string;
+          high_account_id?: string;
+          low_user_id?: string;
+          high_user_id?: string;
+          low_attendance_revision?: number;
+          high_attendance_revision?: number;
+          state?: string;
+          revision?: number;
+          formed_at?: string | null;
+          expires_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_see_again_pairs_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: false;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_crew_see_again_pairs_high_user_id_fkey";
+            columns: ["high_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "social_crew_see_again_pairs_low_user_id_fkey";
+            columns: ["low_user_id"];
+            isOneToOne: false;
+            referencedRelation: "users";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_crews: {
         Row: {
           id: string;
@@ -7893,6 +8010,55 @@ export type Database = {
         };
         Returns: number;
       };
+      _see_again_adult: {
+        Args: {
+          p_account: string | null;
+        };
+        Returns: boolean;
+      };
+      _see_again_allowed: {
+        Args: {
+          p_crew: string | null;
+          p_a: string | null;
+          p_b: string | null;
+        };
+        Returns: boolean;
+      };
+      _see_again_invalidate: {
+        Args: {
+          p_subject: string | null;
+          p_crew?: string | null;
+          p_other?: string | null;
+        };
+        Returns: undefined;
+      };
+      _see_again_lock_roster: {
+        Args: {
+          p_crew: string | null;
+        };
+        Returns: undefined;
+      };
+      _see_again_next: {
+        Args: {
+          p_state: string | null;
+          p_event: string | null;
+        };
+        Returns: string;
+      };
+      _see_again_pair_lock: {
+        Args: {
+          p_a: string | null;
+          p_b: string | null;
+        };
+        Returns: undefined;
+      };
+      _see_again_participant: {
+        Args: {
+          p_crew: string | null;
+          p_account: string | null;
+        };
+        Returns: boolean;
+      };
       _social_crew_admission_ineligible: {
         Args: {
           p_crew: string | null;
@@ -8899,6 +9065,13 @@ export type Database = {
         };
         Returns: Json;
       };
+      export_social_crew_see_again: {
+        Args: {
+          p_user: string | null;
+          p_limit: number | null;
+        };
+        Returns: Json;
+      };
       finalize_social_post_media_cleanup: {
         Args: {
           p_media_id: string | null;
@@ -9312,6 +9485,12 @@ export type Database = {
         };
         Returns: Json;
       };
+      purge_expired_social_crew_see_again: {
+        Args: {
+          p_limit?: number | null;
+        };
+        Returns: Json;
+      };
       qualify_referral_from_contribution: {
         Args: {
           p_invitee_user_id: string | null;
@@ -9482,6 +9661,14 @@ export type Database = {
       read_social_crew_public_preview: {
         Args: {
           p_crew_id: string | null;
+        };
+        Returns: Json;
+      };
+      read_social_crew_see_again: {
+        Args: {
+          p_actor: string | null;
+          p_profile: string | null;
+          p_crew: string | null;
         };
         Returns: Json;
       };
@@ -10420,6 +10607,18 @@ export type Database = {
           p_member_request_hash: string | null;
           p_joined_at: string | null;
           p_rsvp_ceiling: number | null;
+        };
+        Returns: Json;
+      };
+      write_social_crew_see_again: {
+        Args: {
+          p_actor: string | null;
+          p_profile: string | null;
+          p_crew: string | null;
+          p_member: string | null;
+          p_context: string | null;
+          p_action: string | null;
+          p_consent: boolean | null;
         };
         Returns: Json;
       };

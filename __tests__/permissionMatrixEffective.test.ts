@@ -3503,6 +3503,39 @@ describe("private Crew attendance (0247)", () => {
 
 });
 
+describe("private Crew see-again (0250)", () => {
+  it("denies direct access to private choices and limits RPC execution to the service role", () => {
+    for (const table of ["social_crew_see_again_pairs", "social_crew_see_again_choices"]) {
+      expect(truth(`select relrowsecurity::text from pg_class where oid='public.${table}'::regclass`)).toBe("true");
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        expect(truth(`select has_table_privilege('${role}','public.${table}','select,insert,update,delete,truncate')::text`)).toBe("false");
+      }
+    }
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select bool_and(not has_function_privilege('${role}',p.oid,'execute'))::text
+        from pg_proc p join pg_namespace n on n.oid=p.pronamespace
+        where n.nspname='public' and left(p.proname,11)='_see_again_'`)).toBe("true");
+    }
+    for (const fn of ["write_social_crew_see_again(uuid,uuid,uuid,uuid,text,text,boolean)", "read_social_crew_see_again(uuid,uuid,uuid)",
+      "export_social_crew_see_again(uuid,integer)", "purge_expired_social_crew_see_again(integer)"]) {
+      for (const role of ["anon", "authenticated"]) expect(truth(`select has_function_privilege('${role}','public.${fn}','execute')::text`)).toBe("false");
+      expect(truth(`select has_function_privilege('service_role','public.${fn}','execute')::text`)).toBe("true");
+    }
+  });
+  it("keeps unknown and unauthorised Crew reads indistinguishable through the real route", async () => {
+    const route = await import("@/app/api/social/crews/[crewId]/see-again/route");
+    const before = truth("select count(*) from public.social_crew_see_again_choices");
+    const anonymous = await route.GET(request(`/api/social/crews/${crew.id}/see-again`), context({ crewId: crew.id }));
+    expect(anonymous.status).toBe(401);
+    const denied = await route.GET(request(`/api/social/crews/${crew.id}/see-again`, { bearer: BEARER_DAVE }), context({ crewId: crew.id }));
+    const missing = await route.GET(request(`/api/social/crews/${UNKNOWN_ID}/see-again`, { bearer: BEARER_DAVE }), context({ crewId: UNKNOWN_ID }));
+    expect(denied.status).toBe(404);
+    expect(missing.status).toBe(404);
+    expect(await denied.json()).toEqual(await missing.json());
+    expect(truth("select count(*) from public.social_crew_see_again_choices")).toBe(before);
+  });
+});
+
 describe("private Crew block cases (0248)", () => {
   it("no browser role and not the service role reads the cases, and only the service role runs the moderator calls", () => {
     expect(truth(`select relrowsecurity::text from pg_class where oid='public.social_crew_block_cases'::regclass`)).toBe("true");

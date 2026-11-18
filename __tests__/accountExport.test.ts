@@ -394,6 +394,7 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
     }),
     crewRemovalCorrections: async () => ({ status: "ready" as const, corrections: [] }),
     crewAttendance: async () => ({ status: "ready" as const, records: [] }),
+    crewSeeAgain: async () => ({ status: "ready" as const, records: [] }),
     pubListNightDrafts: async () => [],
     leagues: async () => [],
     nearbyVisits: async () => [],
@@ -414,6 +415,17 @@ function fakeDeps(overrides: Partial<AccountExportDeps> = {}): AccountExportDeps
 }
 
 describe("buildAccountExport", () => {
+  it("exports only the owner's see-again fields and refuses a failed private export lane", async () => {
+    const own = { crewId: "a2500000-0000-4000-8000-000000000001", pickedMemberId: "a2500000-0000-4000-8000-000000000002",
+      context: "friendship" as const, choice: "chosen" as const, chosenAt: NOW.toISOString(), withdrawnAt: null,
+      expiresAt: "2026-12-05T18:30:00Z", otherPrivateChoice: "chosen" };
+    const document = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "ready", records: [own] }) }), NOW);
+    expect(document.crewSeeAgain.items).toEqual([{ crewId: own.crewId, pickedMemberId: own.pickedMemberId, context: "friendship", choice: "chosen",
+      chosenAt: own.chosenAt, withdrawnAt: null, expiresAt: own.expiresAt }]);
+    const degraded = await buildAccountExport(USER, fakeDeps({ crewSeeAgain: async () => ({ status: "degraded", records: [] }) }), NOW);
+    expect(degraded.crewSeeAgain.status).toBe("unavailable");
+  });
+
   it("carries every lane the promise names, with the caller's own rows", async () => {
     const document = await buildAccountExport(USER, fakeDeps(), NOW);
 
@@ -427,7 +439,7 @@ describe("buildAccountExport", () => {
       "pintDrops", "visitReports", "crowdReports", "socialPosts", "wallPhotos", "coverPhotos",
       "checkIns", "follows", "savedPubs", "wanted", "diary", "pubRankings", "venueSubmissions",
       "venueCorrections", "regularNightReports", "kitchenReports", "tableRequests",
-      "crewRemovalCorrections", "crewAttendance", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
+      "crewRemovalCorrections", "crewAttendance", "crewSeeAgain", "pubListNightDrafts", "leagues", "nearbyVisits", "socialLinks", "nightProfile", "messages",
     ].sort());
     for (const lane of ACCOUNT_EXPORT_LANES) expect(document[lane].status).toBe("complete");
 
@@ -764,6 +776,7 @@ describe("buildAccountExport", () => {
       crowdReports: { crowdReports: async () => ({ degraded: true, reports: [] }) },
       tableRequests: { tableRequests: async () => ({ status: "degraded" as const, requests: [] }) },
       crewRemovalCorrections: { crewRemovalCorrections: async () => ({ status: "degraded" as const, corrections: [] }) },
+      crewSeeAgain: { crewSeeAgain: async () => ({ status: "degraded" as const, records: [] }) },
       crewAttendance: { crewAttendance: async () => ({ status: "degraded" as const, records: [] }) },
       leagues: { leagues: async () => { throw new Error("leagues unreadable"); } },
       nearbyVisits: { nearbyVisits: async () => { throw new Error("nearby visits unreadable"); } },

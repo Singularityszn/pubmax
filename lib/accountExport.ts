@@ -1,3 +1,4 @@
+import type { SeeAgainOwnRecord } from "@/lib/crewSeeAgain";
 import type { NearbyVisit } from "@/lib/nearbyVisit";
 // What an account's own export IS, in ONE place.
 //
@@ -331,6 +332,7 @@ export type AccountExport = {
   tableRequests: AccountExportLane<TableRequestOwnerFields>;
   crewRemovalCorrections: AccountExportLane<AccountExportCrewRemovalCorrection>;
   crewAttendance: AccountExportLane<AccountExportCrewAttendance>;
+  crewSeeAgain: AccountExportLane<SeeAgainOwnRecord>;
   pubListNightDrafts: AccountExportLane<PubListNightDraft>;
   leagues: AccountExportLane<LeagueExportRecord>;
   nearbyVisits: AccountExportLane<NearbyVisit>;
@@ -365,6 +367,7 @@ export const ACCOUNT_EXPORT_LANES = [
   "tableRequests",
   "crewRemovalCorrections",
   "crewAttendance",
+  "crewSeeAgain",
   "pubListNightDrafts",
   "leagues",
   "nearbyVisits",

@@ -630,6 +630,29 @@ export default function PrivacyPage() {
           without who recorded them or why.
         </p>
         <p className="legalBody">
+          Private see-again lets active adults who the host marked as attending
+          choose to reconnect as friends after the same night. Both people must
+          still hold an accepted place. A choice does not follow anyone or change
+          who can message you. Only a mutual choice appears to those two people,
+          on their next authorised read. Hosts cannot read choices or outcomes.
+          There is no moderator choice reader. We do not infer dating interests.
+          Your export includes your own choices, without the other person&rsquo;s
+          choice or a private mutual outcome.
+        </p>
+        <p className="legalBody">
+          Choices open when host marking closes, 12 hours after the night starts,
+          and close 72 hours later. An unmatched choice or withdrawn choice expires
+          at that close. Withdrawing before a mutual choice prevents another offer
+          for that pair on that night. Withdrawing after a mutual choice hides it
+          from both people. A mutual choice and its directional records expire
+          30 days after it forms. Blocks, mutes, suspension, removal and attendance
+          corrections prevent access and invalidate affected outcomes. Account or
+          Crew deletion removes these private records in the same transaction.
+          Expired records stop appearing immediately. Physical cleanup can be
+          delayed. A 24-hour deletion target applies only after the scheduled
+          cleanup is running and verified.
+        </p>
+        <p className="legalBody">
           If one person blocks another while both hold a place on the same
           Crew night, a private safety case opens for a moderator. The night
           goes on, and nobody on it is told about the case. The case names the

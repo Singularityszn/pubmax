@@ -8,6 +8,7 @@ import {
   deleteAccount, hold, key, memberId, outcome, person, rpc, stopCrewAdmissionDatabase,
   suspendCall, waitsOnAnyLock,
 } from "./helpers/crewAdmissionHarness";
+import { nextSeeAgainPair, seeAgainWindow, SEE_AGAIN_MUTUAL_MS, type SeeAgainPairState, type SeeAgainPairEvent } from "@/lib/crewSeeAgain";
 import { OPEN_CRAWL_ARRIVAL_CLOSE_MS } from "@/lib/nightWindows";
 
 const migration = "20261118100000_0250_crew_see_again.sql";
@@ -30,7 +31,7 @@ const choose = (a: Person, crew: string, b: Person, context?: string, action?: s
   call(chooseCall(a, crew, b, context, action, consent));
 const readCall = (a: Person, crew: string) => `read_social_crew_see_again('${a.account}','${a.profile}','${crew}')`;
 type View = { open: boolean; closesAt: string; items: { memberId: string; handle: string; choice: string; mutual: boolean }[] };
-const read = (a: Person, crew: string): View | null => JSON.parse(db().sql(asServiceRole(rpc(readCall(a, crew)))));
+const read = (a: Person, crew: string): View | null => JSON.parse(db().sql(asServiceRole(rpc(readCall(a, crew)))) || "null");
 const item = (a: Person, crew: string, b: Person) => read(a, crew)?.items.find(x => x.memberId === memberId(crew, b));
 const starts = (crew: string, interval: string) => db().sql(`update public.plans set start_time=now()+interval '${interval}' where id=(select plan_id from public.social_crews where id='${crew}')`);
 function adult() {
@@ -39,10 +40,11 @@ function adult() {
   return p;
 }
 function night(guests?: Person[]) {
-  const host = adult(), a = guests?.[0] ?? adult(), b = guests?.[1] ?? adult();
-  const crew = crewWith(host, [a, b]);
+  const host = adult(), participants = guests ?? [adult(), adult()];
+  const a = participants[0]!, b = participants[1]!;
+  const crew = crewWith(host, participants);
   starts(crew, "-1 hour");
-  for (const p of [a, b]) expect(call(`attest_social_crew_attendance_atomic('${host.account}','${crew}','${memberId(crew, p)}','attended',0,'${key()}','${DIGEST}')`)).toMatchObject({ ok: true });
+  for (const p of participants) expect(call(`attest_social_crew_attendance_atomic('${host.account}','${crew}','${memberId(crew, p)}','attended',0,'${key()}','${DIGEST}')`)).toMatchObject({ ok: true });
   starts(crew, "-13 hours");
   return { host, a, b, crew };
 }
@@ -93,6 +95,25 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(item(b, crew, a)?.choice).toBe("none");
   });
 
+  it("never combines choices from different occurrences", () => {
+    const a = adult(), b = adult(), first = night([a, b]), second = night([a, b]);
+    choose(a, first.crew, b); choose(b, second.crew, a);
+    expect(item(a, first.crew, b)?.mutual).toBe(false);
+    expect(item(b, second.crew, a)?.mutual).toBe(false);
+  });
+
+  it("sorts the eligible roster alphabetically without exposing incoming choices", () => {
+    const people = [adult(), adult(), adult(), adult()];
+    const { crew } = night(people);
+    for (const [index, handle] of ["viewer", "zulu", "ada", "bea"].entries()) {
+      db().sql(`update public.profiles set handle='${handle}' where id='${people[index]!.profile}'`);
+    }
+    choose(people[1]!, crew, people[0]!);
+    expect(read(people[0]!, crew)?.items.map(row => [row.handle,row.choice,row.mutual])).toEqual([
+      ["ada","none",false],["bea","none",false],["zulu","none",false],
+    ]);
+  });
+
   it("uses the database attendance close and the 72-hour window, with no price or purchase", () => {
     const { a, b, crew } = night();
     starts(crew, "-11 hours");
@@ -101,6 +122,8 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(rows(crew)).toBe("0");
     starts(crew, "-12 hours");
     expect(read(a, crew)?.open).toBe(true);
+    const start = Date.parse(db().sql(`select start_time::text from public.plans where id=(select plan_id from public.social_crews where id='${crew}')`));
+    expect(Date.parse(read(a, crew)!.closesAt)).toBe(seeAgainWindow(start).closesAt);
     const delta = Number(db().sql(`select extract(epoch from (closes_at-(select start_time from public.plans where id=(select plan_id from public.social_crews where id='${crew}'))))*1000 from public._social_crew_attendance_window('${crew}')`));
     expect(delta).toBe(OPEN_CRAWL_ARRIVAL_CLOSE_MS);
     choose(a, crew, b);
@@ -127,6 +150,32 @@ describe("0250 private event-bound friendship reconnection", () => {
     expect(item(a, crew, b)?.choice).toBe("chosen");
   });
 
+  it("fails closed on non-finite adult evidence, as accountIsAdult does", () => {
+    const { a, b, crew } = night();
+    db().sql(`update public.adult_self_assertions set asserted_at='infinity' where user_id='${b.user}'`);
+    expect(read(b, crew)).toBeNull();
+    expect(read(a, crew)?.items).toEqual([]);
+    db().sql(`insert into public.private_account_identities(user_id,date_of_birth) values ('${b.user}','-infinity')`);
+    expect(read(b, crew)).toBeNull();
+  });
+
+  it("rechecks current adult evidence after waiting for the participant locks", async () => {
+    const { a, b, crew } = night();
+    const readStatement = rpc(readCall(a, crew));
+    const held = await hold(`select public._lock_social_participant_accounts(array['${b.account}'::uuid])`, "postgres");
+    const pending = outcome("w6-age-after-wait", readStatement, "postgres");
+    try {
+      await expect.poll(() => waitsOnAnyLock("w6-age-after-wait")).toBe("t");
+      db().sql(`insert into public.private_account_identities(user_id,full_name,date_of_birth)
+        values ('${b.user}','Private name',current_date-interval '16 years')`);
+    } finally { await held.finish(); }
+    const result = await pending;
+    expect(result.ok, result.said).toBe(true);
+    expect((JSON.parse(result.said) as View).items).toEqual([]);
+    choose(a, crew, b);
+    expect(rows(crew)).toBe("0");
+  });
+
   it("withdrawal before the second pick is terminal and exposes no hint to the other participant", () => {
     const { a, b, crew } = night();
     choose(a, crew, b);
@@ -134,7 +183,9 @@ describe("0250 private event-bound friendship reconnection", () => {
     choose(b, crew, a);
     choose(a, crew, b);
     expect(item(a, crew, b)).toMatchObject({ choice: "withdrawn", mutual: false });
-    expect(item(b, crew, a)?.mutual).toBe(false);
+    expect(item(b, crew, a)).toMatchObject({ choice: "chosen", mutual: false });
+    choose(b, crew, a, "friendship", "withdraw");
+    expect(item(b, crew, a)).toMatchObject({ choice: "withdrawn", mutual: false });
   });
 
   it("withdrawal after formation hides the outcome for both and keeps its original expiry", () => {
@@ -171,7 +222,7 @@ describe("0250 private event-bound friendship reconnection", () => {
       : kind === "correction" ? rpc(correctCall(crew, b)) : kind === "removal" ? rpc(removeCall(host, crew, b))
       : kind === "account-delete" ? deleteAccount(b) : `delete from public.social_crews where id='${crew}'`;
     const said = await serial(invalidation, rpc(readCall(a, crew)), `w6-${kind}`, kind.endsWith("delete") ? "postgres" : "service_role");
-    const view = JSON.parse(said) as View | null;
+    const view = JSON.parse(said || "null") as View | null;
     expect(view?.items.some(x => x.mutual) ?? false).toBe(false);
     if (kind === "block") {
       call(`set_social_block('${a.profile}','${b.profile}',false)`);
@@ -232,7 +283,51 @@ describe("0250 private event-bound friendship reconnection", () => {
     }
   });
 
+  it("keeps the SQL state machine equal to the policy leaf, including every terminal refusal", () => {
+    for (const state of ["open", "mutual", "withdrawn", "dismissed", "invalidated"] as SeeAgainPairState[]) {
+      for (const event of ["form", "withdraw", "invalidate"] as SeeAgainPairEvent[]) {
+        expect(db().sql(`select public._see_again_next('${state}','${event}')`)).toBe(nextSeeAgainPair(state, event));
+      }
+    }
+    expect(SEE_AGAIN_MUTUAL_MS).toBe(30 * 86400_000);
+  });
+
+  it.each(["block", "suspension", "correction", "removal", "account-delete", "crew-delete"])("serialises second pick against %s in both transaction orders", async kind => {
+    for (const order of ["pick-first", "invalidation-first"]) {
+      const { host, a, b, crew } = night();
+      choose(a, crew, b);
+      const pick = rpc(chooseCall(b, crew, a));
+      const invalidation = kind === "block" ? rpc(blockCall(a, b)) : kind === "suspension" ? rpc(suspendCall(b))
+        : kind === "correction" ? rpc(correctCall(crew, b)) : kind === "removal" ? rpc(removeCall(host, crew, b))
+        : kind === "account-delete" ? deleteAccount(b) : `delete from public.social_crews where id='${crew}'`;
+      await serial(order === "pick-first" ? pick : invalidation, order === "pick-first" ? invalidation : pick,
+        `w6-pick-${kind}-${order}`, order === "invalidation-first" && kind.endsWith("delete") ? "postgres" : "service_role");
+      expect(read(a, crew)?.items.some(x => x.mutual) ?? false).toBe(false);
+    }
+  });
+
+  it("bounds a batch including cascade-deleted directions and leaves unexpired choices intact", () => {
+    const { a, b, crew } = matched();
+    db().sql(`insert into public.social_crew_see_again_pairs(crew_id,context,low_account_id,high_account_id,low_user_id,high_user_id,
+      low_attendance_revision,high_attendance_revision,state,expires_at)
+      select '${crew}','friendship','${a.account}',('ff250000-0000-4000-8000-'||lpad(n::text,12,'0'))::uuid,'${a.user}','${b.user}',1,1,'open',now()-interval '1 second'
+      from generate_series(1,335) n;
+      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice)
+      select p.id,p.crew_id,p.context,p.low_account_id,p.high_account_id,'${memberId(crew, b)}','${a.user}','chosen'
+      from public.social_crew_see_again_pairs p where p.crew_id='${crew}' and p.state='open';
+      insert into public.social_crew_see_again_choices(pair_id,crew_id,context,picker_account_id,picked_account_id,picked_member_id,picker_user_id,choice)
+      select p.id,p.crew_id,p.context,p.high_account_id,p.low_account_id,'${memberId(crew, a)}','${b.user}','chosen'
+      from public.social_crew_see_again_pairs p where p.crew_id='${crew}' and p.state='open'`);
+    expect(call("purge_expired_social_crew_see_again(100000)")).toEqual({ ok: true, deleted: 999 });
+    expect(call("purge_expired_social_crew_see_again(100000)")).toEqual({ ok: true, deleted: 6 });
+    expect(item(a, crew, b)?.mutual).toBe(true);
+  });
+
   it("rolls back under the migration role and reapplies", () => {
+    const retained = db().sql("select count(*) from public.social_crew_see_again_pairs");
+    expect(Number(retained)).toBeGreaterThan(0);
+    expect(() => apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`)).toThrow();
+    expect(db().sql("select count(*) from public.social_crew_see_again_pairs")).toBe(retained);
     db().sql("delete from public.social_crew_see_again_pairs");
     apply(`rollback/${migration.replace('.sql', '_rollback.sql')}`);
     expect(db().sql("select to_regclass('public.social_crew_see_again_pairs') is null")).toBe("t");
