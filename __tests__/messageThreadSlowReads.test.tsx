@@ -6,12 +6,12 @@
 // answer ever landed and a cold load sat on the loading line for as long as the
 // outage lasted. A COLD FAILURE IS READ FROM THE TOP: the page used to be pinned
 // to its foot before any thread was drawn, which pushed the retry panel above a
-// phone's fold. The oracle here is what a reader sees, never the component's
-// internals: the retry panel, the bubble, and where the page was scrolled.
+// phone's fold. The oracle is the message layout contract: the list scrolls,
+// the page stays still, and a read preserves the reader's chosen position.
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, onTestFinished, vi } from "vitest";
 
 const viewer = vi.hoisted(() => ({
   current: { user: { id: "account-a" } as { id: string } | null, handle: "alice" as string | null, accountRevision: 1 },
@@ -556,42 +556,47 @@ it("keeps mounted history independently of detached cache eviction", async () =>
   expect(host.querySelector(".composerInput")).not.toBeNull();
 });
 
-it.each(["unchanged", "appended"])("preserves older history through an %s background read", async change => {
+async function readHistoryAt(body: string, newest: boolean): Promise<HTMLUListElement> {
+  const height = vi.spyOn(HTMLUListElement.prototype, "scrollHeight", "get").mockReturnValue(976);
+  const viewport = vi.spyOn(HTMLUListElement.prototype, "clientHeight", "get").mockReturnValue(400);
+  onTestFinished(() => { height.mockRestore(); viewport.mockRestore(); });
   await render();
-  await answer(thread("Older history"));
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
-  await act(async () => window.dispatchEvent(new Event("scroll")));
+  await answer(thread(body));
+  const list = host.querySelector<HTMLUListElement>(".threadMessages")!;
+  await act(async () => {
+    list.scrollTop = newest ? 576 : 100;
+    list.dispatchEvent(new Event("scroll"));
+  });
   scrollTo.mockClear();
+  return list;
+}
+
+it.each(["unchanged", "appended"])("preserves older history through an %s background read", async change => {
+  const list = await readHistoryAt("Older history", false);
   await poll();
   const next = await thread("Older history").json();
   if (change === "appended") next.messages.push((await thread("New incoming history").json()).messages[0]);
   await answer(Response.json(next));
+  expect(list.scrollTop).toBe(100);
   expect(scrollTo).not.toHaveBeenCalled();
   expect(host.textContent).toContain(change === "appended" ? "New incoming history" : "Older history");
 });
 
 it("follows incoming history when the reader stays at the newest position", async () => {
-  await render();
-  await answer(thread("Earlier history"));
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 132 });
-  await act(async () => window.dispatchEvent(new Event("scroll")));
-  scrollTo.mockClear();
+  const list = await readHistoryAt("Earlier history", true);
   await poll();
   await answer(thread("Latest history"));
-  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+  expect(list.scrollTop).toBe(976);
+  expect(scrollTo).not.toHaveBeenCalled();
 });
 
 it.each([true, false])("keeps the reading position when recovery appears (newest=%s)", async newest => {
-  await render();
-  await answer(thread("Retained history"));
-  Object.defineProperty(window, "scrollY", { configurable: true, value: newest ? 132 : 0 });
-  await act(async () => window.dispatchEvent(new Event("scroll")));
-  scrollTo.mockClear();
+  const list = await readHistoryAt("Retained history", newest);
   await poll();
   await answer(outage());
   expect(host.querySelector(".threadReadRecovery")).not.toBeNull();
-  if (newest) expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
-  else expect(scrollTo).not.toHaveBeenCalled();
+  expect(list.scrollTop).toBe(newest ? 976 : 100);
+  expect(scrollTo).not.toHaveBeenCalled();
 });
 
 it("coalesces repeated manual recovery while its read is pending", async () => {
@@ -637,11 +642,7 @@ it.each(["conversation", "reader"])("does not let the previous %s retry unlock a
 });
 
 it("lands an intentional send at the newest position after reading older history", async () => {
-  await render();
-  await answer(thread("Earlier history"));
-  Object.defineProperty(window, "scrollY", { configurable: true, value: 0 });
-  await act(async () => window.dispatchEvent(new Event("scroll")));
-  scrollTo.mockClear();
+  const list = await readHistoryAt("Earlier history", false);
   const input = host.querySelector<HTMLTextAreaElement>(".composerInput")!;
   await act(async () => {
     Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value")!.set!.call(input, "An intentional send");
@@ -649,5 +650,6 @@ it("lands an intentional send at the newest position after reading older history
   });
   await click(".composerSend");
   expect(host.textContent).toContain("An intentional send");
-  expect(scrollTo).toHaveBeenLastCalledWith({ top: 976 });
+  expect(list.scrollTop).toBe(976);
+  expect(scrollTo).not.toHaveBeenCalled();
 });

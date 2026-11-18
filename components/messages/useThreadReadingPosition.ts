@@ -5,7 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, type RefObject } from 
 type ReadingPosition = { scope: string | null; newest: boolean; outbox: Set<string>; viewportTop: number };
 
 export function useThreadReadingPosition({
-  listRef, scope, ready, current, history, outbox, keyboardOpen, recovery,
+  listRef, scope, ready, current, history, outbox, keyboardOpen, revealedId, recovery,
 }: {
   listRef: RefObject<HTMLUListElement | null>;
   scope: string | null;
@@ -14,6 +14,7 @@ export function useThreadReadingPosition({
   history: readonly unknown[];
   outbox: readonly { id: string }[];
   keyboardOpen: boolean;
+  revealedId: string | null;
   recovery: boolean;
 }) {
   const enabled = ready && current;
@@ -21,11 +22,7 @@ export function useThreadReadingPosition({
   const scrollToNewest = useCallback(() => {
     const list = listRef.current;
     if (!list || !position.current?.newest) return;
-    if (getComputedStyle(list).overflowY === "auto") {
-      list.scrollTop = list.scrollHeight;
-    } else if (document.documentElement.scrollHeight > window.innerHeight) {
-      window.scrollTo({ top: document.documentElement.scrollHeight });
-    }
+    list.scrollTop = list.scrollHeight;
   }, [listRef]);
 
   useLayoutEffect(() => {
@@ -36,7 +33,7 @@ export function useThreadReadingPosition({
     const previous = position.current?.scope === scope ? position.current : null;
     const sent = outbox.some(row => !previous?.outbox.has(row.id));
     const viewportTop = listRef.current.getBoundingClientRect().top;
-    if (previous && !previous.newest && !sent && getComputedStyle(listRef.current).overflowY === "auto") {
+    if (previous && !previous.newest && !sent) {
       listRef.current.scrollTop += viewportTop - previous.viewportTop;
     }
     position.current = {
@@ -46,7 +43,7 @@ export function useThreadReadingPosition({
       viewportTop,
     };
     scrollToNewest();
-  }, [enabled, scope, history, outbox, keyboardOpen, recovery, listRef, scrollToNewest]);
+  }, [enabled, scope, history, outbox, keyboardOpen, revealedId, recovery, listRef, scrollToNewest]);
 
   useEffect(() => {
     const list = listRef.current;
@@ -55,9 +52,7 @@ export function useThreadReadingPosition({
     let height = list.clientHeight;
     const onScroll = () => {
       if (!position.current || list.clientHeight !== height) return;
-      const remaining = getComputedStyle(list).overflowY === "auto"
-        ? list.scrollHeight - list.clientHeight - list.scrollTop
-        : document.documentElement.scrollHeight - window.innerHeight - window.scrollY;
+      const remaining = list.scrollHeight - list.clientHeight - list.scrollTop;
       position.current.newest = remaining <= 24;
     };
     const onResize = () => {
@@ -70,14 +65,12 @@ export function useThreadReadingPosition({
     });
     observer?.observe(list);
     list.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("scroll", onScroll, { passive: true });
     window.addEventListener("resize", onResize);
     window.visualViewport?.addEventListener("resize", onResize);
     return () => {
       window.cancelAnimationFrame(frame);
       observer?.disconnect();
       list.removeEventListener("scroll", onScroll);
-      window.removeEventListener("scroll", onScroll);
       window.removeEventListener("resize", onResize);
       window.visualViewport?.removeEventListener("resize", onResize);
     };

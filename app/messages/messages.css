@@ -424,10 +424,11 @@ a.threadWith:active {
 }
 
 .threadHeaderGroup {
+  flex-shrink: 0;
   position: sticky;
   top: 0;
   z-index: 2;
-  margin-inline: calc(var(--messages-gutter, 20px) * -1);
+  margin-inline: 0;
   background: var(--messages-surface, var(--paper));
 }
 
@@ -999,7 +1000,7 @@ html[data-theme="dark"] .messageBubblePhoto {
   gap: var(--composer-field-gap);
 }
 
-.composerDockLoading {
+.messageThreadShell .composerDock.composerDockLoading {
   margin-top: auto;
 }
 
@@ -1542,7 +1543,6 @@ html[data-theme="dark"] .messageBubblePhoto {
     max-height: none;
     margin: 0;
     padding: var(--composer-dock-padding) 0.75rem;
-
   }
 
   .messagesThreadPane > .conversationPreview,
@@ -1580,7 +1580,6 @@ html[data-theme="dark"] .messageBubblePhoto {
 @media (max-width: 640px) {
   .messageThreadShell {
     --thread-tabbar-clearance: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
-
   }
 
   .composerPhotoDesktop {

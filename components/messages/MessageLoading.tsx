@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { RefCallback } from "react";
 import { ChevronLeft } from "lucide-react";
 
 import SampleSkeleton from "@/components/ui/sample-skeleton";
@@ -35,9 +36,10 @@ export function ThreadLoading() {
   </>;
 }
 
-export function ThreadLoadingShell() {
+export function ThreadLoadingShell({ attachViewport }: { attachViewport: RefCallback<HTMLDivElement> }) {
   return <div className="messageThread">
-    <div className="messageThreadShell">
+    <div ref={attachViewport} className="messageThreadShell">
+      <div className="threadHeaderGroup">
       <div className="threadHeader">
         <Link data-pressable href="/messages" className="threadBackLink" aria-label="Back to inbox">
           <ChevronLeft size={24} aria-hidden="true" />
@@ -46,6 +48,7 @@ export function ThreadLoadingShell() {
           <span className="messageAvatar" style={{ width: 36, height: 36 }} data-sample-block="" />
           <span className="threadWithHandle">Conversation</span>
         </SampleSkeleton>
+      </div>
       </div>
       <ThreadLoading />
       <div className="composerDock composerDockLoading">

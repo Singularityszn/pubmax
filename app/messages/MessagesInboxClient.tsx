@@ -127,7 +127,6 @@ export default function MessagesInboxClient({
     </button>
   );
 
-
   // One clock for the whole list per render, so every row's time is measured
   // from the same instant.
   const now = new Date();

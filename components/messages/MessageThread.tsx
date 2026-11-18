@@ -612,7 +612,7 @@ export default function MessageThread({
   useThreadReadingPosition({
     listRef, scope: snapshotKey,
     ready: state === "ready", current: sameThreadReadKey(viewRevision, conversationId, accountRevision),
-    history: messages, outbox, keyboardOpen,
+    history: messages, outbox, keyboardOpen, revealedId,
     recovery: sameThreadReadKey(failedRead, conversationId, accountRevision),
   });
 
@@ -787,7 +787,7 @@ export default function MessageThread({
   );
 
   if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
-    return <ThreadLoadingShell />;
+    return <ThreadLoadingShell attachViewport={attachViewport} />;
   }
 
   if (state === "signedout" && viewerSession.signedOut) {
@@ -799,7 +799,7 @@ export default function MessageThread({
     );
   }
   if (state === "signedout") {
-    return <ThreadLoadingShell />;
+    return <ThreadLoadingShell attachViewport={attachViewport} />;
   }
   if (state === "left") {
     return (
