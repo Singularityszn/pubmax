@@ -14,6 +14,7 @@ import { useRefreshAt } from "@/lib/useRefreshAt";
 import "@/components/social/crewSeeAgain.css";
 
 type Props = { crewId: string; identityKey: string };
+type FocusRequest = { origin: Element | null; memberId: string; goal: "item" | "mate" };
 export default function CrewSeeAgain(props: Props & { visibility: SocialCrewVisibility; viewerRole: SocialCrewRole }) {
   if (props.visibility !== "open" || props.viewerRole !== "member") return null;
   const scope = `${props.crewId}|${props.identityKey}`;
@@ -25,7 +26,8 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
   const [view, dispatch] = useReducer(nextSeeAgainView, { phase: "loading", scope });
   const [consent, setConsent] = useState(false);
   const section = useRef<HTMLElement>(null);
-  const [focusRequest, setFocusRequest] = useState<{ origin: Element | null; memberId: string; goal: "item" | "mate" } | null>(null);
+  const [focusRequest, setFocusRequest] = useState<FocusRequest | null>(null);
+  const handledFocus = useRef<FocusRequest | null>(null);
   const [adding, setAdding] = useState<string | null>(null);
   const [accountSignal] = useState(readProviderAccountSignal);
   const active = useRef(true), generation = useRef(0), busy = useRef(false);
@@ -71,8 +73,8 @@ function PrivateReconnection({ crewId, scope }: Props & { scope: string }) {
   useRefreshAt({ refreshAt }, true, reload);
 
   useLayoutEffect(() => {
-    if (!focusRequest || view.phase === "loading" || view.phase === "refreshing" || view.phase === "saving") return;
-    setFocusRequest(null);
+    if (!focusRequest || handledFocus.current === focusRequest || view.phase === "loading" || view.phase === "refreshing" || view.phase === "saving") return;
+    handledFocus.current = focusRequest;
     if (!active.current || accountSignal.aborted || !section.current) return;
     const focused = document.activeElement;
     if (focused !== focusRequest.origin && focused !== document.body && focused?.isConnected) return;
