@@ -328,9 +328,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   "app/borough/[slug]/page.tsx": [
     {"owner": "BoroughPubRow", "count": 1, "reason": "Preserves ordinary venue row display and explicit non-pint labels."},
   ],
-  "app/invite/[token]/opengraph-image.tsx": [
-    {"owner": "loadStops", "count": 4, "reason": "Displays the explicitly shared plan stops."},
-  ],
   "app/ledger/[id]/page.tsx": [
     {"owner": "LedgerPage", "count": 1, "reason": "Passes the requested venue price lane to its ledger."},
   ],

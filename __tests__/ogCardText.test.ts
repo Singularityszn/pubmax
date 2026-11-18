@@ -18,7 +18,6 @@ const OG_TEXT_SURFACES = [
   "app/borough/[slug]/opengraph-image.tsx",
   "app/drink/[slug]/opengraph-image.tsx",
   "app/historic/[slug]/opengraph-image.tsx",
-  "app/invite/[token]/opengraph-image.tsx",
   "app/map/[city]/opengraph-image.tsx",
   "app/u/[handle]/opengraph-image.tsx",
   "lib/recapCard.ts",
