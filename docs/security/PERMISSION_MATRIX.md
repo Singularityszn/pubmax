@@ -179,6 +179,7 @@ no side effect, as above.
 | Report an attendance mark (`POST .../attendance/report`) | denied | denied | own current unexpired mark while still active | denied | own current unexpired mark | denied | own current mark only, if one exists |
 | `social_crew_attendance`, `social_crew_attendance_reports` at the table | denied | denied | denied | denied | denied | denied | denied, including direct service-role access |
 | Attendance RPCs called directly by a browser role | denied | denied | denied | denied | denied | denied | denied |
+| Cancel one Crew occurrence (`cancel_social_crew_occurrence_admin`) and read its audit | denied | denied | denied | denied | denied | denied | Service-only RPC with an active independent moderator, reviewed revision/status and reason. Service role may read the audit but cannot insert, update or delete it directly. No app route exists. |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
 | Message alert preferences (`/api/message-notifications`) | 401 | own preferences only | own preferences only | n/a | own preferences only | n/a | A thread mute requires current membership. An asserted user id never selects the owner. |
