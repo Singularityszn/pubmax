@@ -473,7 +473,7 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   Choose **Photos** for one or several images, **Camera** for a new photo, or **Document** for an image file. Photos keep their full frame without a crop step. During preparation, a counter shows completed photos and the batch total. **Cancel** stops preparation. Review the previews, add optional text, and choose **Send**. Each photo sends as a separate message in selection order. Only the first photo carries your text.
 
-  On a short screen or with large text, scroll within the composer to reach its controls.
+  Attachment forms scroll within their own area above the message field. On a short screen or with large text, the composer can also scroll.
 
   If a photo send fails, the remaining photos return to the composer. Check the restored draft and choose **Retry send**. Photos already sent stay in the thread.
 

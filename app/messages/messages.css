@@ -984,7 +984,7 @@ html[data-theme="dark"] .messageBubblePhoto {
 .composerInput {
   flex: 1 1 auto;
   width: 100%;
-  /* The height is set by the field's own content (see MessageThread), so a
+  /* useMessageInputSize sets the height from the field's content, so a
      drag handle would fight it. */
   resize: none;
   overflow-y: auto;
