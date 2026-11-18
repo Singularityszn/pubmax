@@ -618,6 +618,29 @@ export default function PrivacyPage() {
           Deleting your account removes its correction records.
         </p>
         <p className="legalBody">
+          On an open Crew night, the host or a co-host can mark you Here or Not
+          here. It&rsquo;s their word, not a check, and it earns no points. The
+          record names the Crew, you, who marked you, the mark, its time and
+          each change. It holds no location and nothing you bought. In the app,
+          only you and the Crew&rsquo;s hosts see it. Moderators who handle
+          reports and corrections, and the operators who run PubMaxxing, can
+          also see it. After the night closes, only a moderator who has never
+          been in that Crew can change it, with a reason. If a mark is wrong,
+          report it from the Crew page. Your data export includes your marks,
+          without who recorded them or why.
+        </p>
+        <p className="legalBody">
+          If one person blocks another while both hold a place on the same
+          Crew night, a private safety case opens for a moderator. The night
+          goes on, and nobody on it is told about the case. The case names the
+          Crew, who blocked whom, and any moderator decision with its reason.
+          Moderators who own that Crew or have ever held a place on it cannot
+          read the case. A pending request or invitation to the Crew also
+          prevents access. So does a block with either person. The operators
+          who run PubMaxxing can also read it. Guests and co-hosts can still
+          leave the Crew themselves. Your data export does not include the case.
+        </p>
+        <p className="legalBody">
           After account deletion, we free your guest places and cancel the
           Crew nights you own during cleanup. Cleanup can be delayed. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
@@ -1058,7 +1081,20 @@ export default function PrivacyPage() {
             out, unless a legal or security hold applies. Crew removal correction
             records are deleted with the affected account. Your data export includes
             the correction outcome and date, without private review notes or
-            staff identities.
+            staff identities. Crew attendance marks and their corrections
+            expire 30 days after the night closes. If you report your mark,
+            only a moderator who was not in that crew reads the report, and your
+            export says when you reported it. From expiry the app stops
+            showing them and leaves them out of your export, and an operator
+            cleanup deletes them with your reports in batches. Deleting your
+            account deletes them, your reports and the write receipts that name
+            you, at once. Crew safety cases receive a fixed expiry when they
+            open, set to 30 days after the night&apos;s planned close. From then
+            no moderator can see them.
+            Deleting either account deletes them at once. Deleting the Crew
+            deletes them, except that a block made while the Crew is being
+            deleted can leave one that no moderator can see. Expired and
+            left-over cases are deleted when an operator runs a manual cleanup.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

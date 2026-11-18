@@ -2152,6 +2152,7 @@ describe("Social Crew: at the table", () => {
       "social_crew_join_requests",
       "private_social_crew_write_receipts",
       "private_social_accounts",
+      "social_crew_block_cases",
     ]) {
       expect(visibleRows("anon", null, `select count(*) from public.${table}`)).toBe(0);
       for (const sub of [ALICE, BOB, CAROL, DAVE]) {
@@ -2166,6 +2167,9 @@ describe("Social Crew: at the table", () => {
       `select public.read_social_crew_snapshot('${BOB_ACCOUNT}'::uuid, '${BOB_PROFILE}'::uuid, '${crew.id}'::uuid)`,
       `select public.remove_social_crew_member_atomic('${BOB_ACCOUNT}'::uuid, '${crew.id}'::uuid, '${crew.bobMemberId}'::uuid, 'pm-matrix-key-000000', repeat('a', 64))`,
       `select public.social_relationship_between_profiles('${ALICE_PROFILE}'::uuid, '${BOB_PROFILE}'::uuid)`,
+      `select public.read_social_crew_block_cases_admin('${UNKNOWN_ID}'::uuid, 1)`,
+      `select public.decide_social_crew_block_case_admin('${UNKNOWN_ID}'::uuid, '${UNKNOWN_ID}'::uuid, array[]::uuid[], 'kept', null, 'pm-matrix reason')`,
+      `select public.purge_expired_social_crew_block_cases(1)`,
     ]) {
       const attempted = attemptAsRole("authenticated", BOB, call);
       expect(attempted.ok, call).toBe(false);
@@ -3447,6 +3451,79 @@ describe("Open crawl: Open it up (0208)", () => {
       attemptAsRole(role, sub, `update public.social_crews set capacity = 20 where plan_id = '${OPEN_PLAN_ID}'`);
     }
     expect(truth(`select capacity from public.social_crews where plan_id = '${OPEN_PLAN_ID}'`)).toBe("6");
+  });
+});
+
+describe("private Crew correction and release (0245, 0246)", () => {
+  it("only the service role corrects a removal and appends to its ledger", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select (has_function_privilege('${role}','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+        or has_table_privilege('${role}','public.social_crew_removal_corrections','select,insert,update,delete'))::text`)).toBe("false");
+    }
+    expect(truth(`select (has_function_privilege('service_role','public.correct_social_crew_removal_admin(uuid,uuid,uuid,text)','execute')
+      and has_table_privilege('service_role','public.social_crew_removal_corrections','select,insert')
+      and not has_table_privilege('service_role','public.social_crew_removal_corrections','update,delete'))::text`)).toBe("true");
+  });
+
+  it("only the service role runs the sweep and no API role calls its internal step", () => {
+    for (const role of ["anon", "authenticated"]) {
+      expect(truth(`select has_function_privilege('${role}','public.release_departed_social_crew_places(integer)','execute')::text`), role).toBe("false");
+    }
+    expect(truth("select has_function_privilege('service_role','public.release_departed_social_crew_places(integer)','execute')::text")).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_function_privilege('${role}','public._release_departed_crew_places(uuid)','execute')::text`), role).toBe("false");
+    }
+  });
+});
+
+describe("private Crew attendance (0247)", () => {
+  it("only the service role calls the entry points, and no browser role reads the tables", () => {
+    const entries = [
+      "public.attest_social_crew_attendance_atomic(uuid,uuid,uuid,text,integer,text,text)",
+      "public.correct_social_crew_attendance_admin(uuid,uuid,uuid,text,integer,text)",
+      "public.read_social_crew_attendance(uuid,uuid,uuid)",
+      "public.report_social_crew_attendance(uuid,uuid,uuid,integer)",
+      "public.read_social_crew_attendance_reports_admin(uuid,integer)",
+      "public.export_social_crew_attendance(uuid,integer)",
+      "public.purge_expired_social_crew_attendance(integer)",
+    ];
+    for (const entry of entries) {
+      for (const role of ["anon", "authenticated"]) {
+        expect(truth(`select has_function_privilege('${role}','${entry}','execute')::text`), `${role} ${entry}`).toBe("false");
+      }
+      expect(truth(`select has_function_privilege('service_role','${entry}','execute')::text`), entry).toBe("true");
+    }
+    for (const table of ["public.social_crew_attendance", "public.social_crew_attendance_reports"]) {
+      for (const role of ["anon", "authenticated", "service_role"]) {
+        expect(truth(`select has_table_privilege('${role}','${table}','select,insert,update,delete')::text`), `${role} ${table}`).toBe("false");
+      }
+      expect(truth(`select relrowsecurity::text from pg_class where oid='${table}'::regclass`)).toBe("true");
+    }
+  });
+
+});
+
+describe("private Crew block cases (0248)", () => {
+  it("no browser role and not the service role reads the cases, and only the service role runs the moderator calls", () => {
+    expect(truth(`select relrowsecurity::text from pg_class where oid='public.social_crew_block_cases'::regclass`)).toBe("true");
+    for (const role of ["anon", "authenticated", "service_role"]) {
+      expect(truth(`select has_table_privilege('${role}','public.social_crew_block_cases','select,insert,update,delete,truncate,references,trigger')::text`)).toBe("false");
+    }
+    const callable = ["public.read_social_crew_block_cases_admin(uuid,integer)",
+      "public.decide_social_crew_block_case_admin(uuid,uuid,uuid[],text,uuid,text)",
+      "public.purge_expired_social_crew_block_cases(integer)"];
+    const internal = ["public._open_social_crew_block_cases()", "public._open_social_crew_block_cases_for(uuid,uuid)", "public._delete_social_crew_block_cases_on_unbind()",
+      "public._delete_social_crew_block_cases_with_crew()", "public._social_crew_block_case_moderator_conflicted(uuid,uuid,uuid,uuid)",
+      "public._social_crew_block_case_live(uuid,uuid,uuid)", "public._social_crew_block_case_blockers(uuid,uuid,uuid)"];
+    for (const fn of [...callable, ...internal]) {
+      for (const role of ["public", "anon", "authenticated"]) {
+        const grantee = role === "public" ? "PUBLIC" : role;
+        expect(truth(`select exists(select 1 from pg_proc p, aclexplode(coalesce(p.proacl, acldefault('f', p.proowner))) acl
+          where p.oid='${fn}'::regprocedure and acl.privilege_type='EXECUTE'
+            and acl.grantee=${grantee === "PUBLIC" ? 0 : `'${grantee}'::regrole`})::text`)).toBe("false");
+      }
+      expect(truth(`select has_function_privilege('service_role','${fn}','execute')::text`)).toBe(String(callable.includes(fn)));
+    }
   });
 });
 
