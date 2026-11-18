@@ -11,6 +11,7 @@ import { providerOwnsSession, readProviderAccountSignal } from "@/lib/authProvid
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   INITIAL_PLAN_ACCOUNT_CLAIM,
+  planAccountClaimDelay,
   planAccountClaimOutcome,
   transitionPlanAccountClaim,
   type PlanAccountClaimEvent,
@@ -118,7 +119,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
           watch(next.lifetime);
           retryTimer = setTimeout(
             () => step({ type: "waited", lifetime: next.lifetime, attempt: next.attempt }),
-            next.delayMs,
+            planAccountClaimDelay(next.attempt),
           );
           return;
         case "exhausted":

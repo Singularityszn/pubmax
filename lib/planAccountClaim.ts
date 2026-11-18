@@ -7,7 +7,7 @@ export type PlanAccountClaimOutcome = "claimed" | "refused" | "transient";
 
 export type PlanAccountClaimState =
   | { phase: "sending"; lifetime: number; attempt: number }
-  | { phase: "waiting"; lifetime: number; attempt: number; delayMs: number }
+  | { phase: "waiting"; lifetime: number; attempt: number }
   | { phase: "exhausted"; lifetime: number }
   | { phase: "claimed" }
   | { phase: "refused" }
@@ -27,10 +27,14 @@ export function planAccountClaimOutcome(response: { ok: boolean; status: number 
   return response.ok ? "claimed" : "refused";
 }
 
+export function planAccountClaimDelay(attempt: number): number | undefined {
+  return PLAN_ACCOUNT_CLAIM_DELAYS_MS[attempt];
+}
+
 function retry(lifetime: number, attempt: number): PlanAccountClaimState {
   const next = attempt + 1;
   const delayMs = PLAN_ACCOUNT_CLAIM_DELAYS_MS[next];
-  return delayMs === undefined ? { phase: "exhausted", lifetime } : { phase: "waiting", lifetime, attempt: next, delayMs };
+  return delayMs === undefined ? { phase: "exhausted", lifetime } : { phase: "waiting", lifetime, attempt: next };
 }
 
 export function transitionPlanAccountClaim(
