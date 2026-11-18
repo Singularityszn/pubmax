@@ -5308,6 +5308,44 @@ export type Database = {
           },
         ];
       };
+      social_crew_occurrence_cancellations: {
+        Row: {
+          crew_id: string;
+          prior_authority_revision: number;
+          prior_status: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          cancelled_at: string;
+        };
+        Insert: {
+          crew_id: string;
+          prior_authority_revision: number;
+          prior_status: string;
+          reason: string;
+          staff_role_id: string;
+          staff_display_name: string;
+          cancelled_at?: string;
+        };
+        Update: {
+          crew_id?: string;
+          prior_authority_revision?: number;
+          prior_status?: string;
+          reason?: string;
+          staff_role_id?: string;
+          staff_display_name?: string;
+          cancelled_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "social_crew_occurrence_cancellations_crew_id_fkey";
+            columns: ["crew_id"];
+            isOneToOne: true;
+            referencedRelation: "social_crews";
+            referencedColumns: ["id"];
+          },
+        ];
+      };
       social_crew_removal_corrections: {
         Row: {
           id: string;
@@ -7948,6 +7986,16 @@ export type Database = {
           post_id: string;
           review_state: string;
         }[];
+      };
+      cancel_social_crew_occurrence_admin: {
+        Args: {
+          p_staff_role_id: string | null;
+          p_crew_id: string | null;
+          p_expected_revision: number | null;
+          p_expected_status: string | null;
+          p_reason: string | null;
+        };
+        Returns: Json;
       };
       charge_round_price_line: {
         Args: {

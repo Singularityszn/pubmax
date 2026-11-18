@@ -160,6 +160,7 @@ no side effect, as above.
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
+| Cancel one Crew occurrence (`cancel_social_crew_occurrence_admin`) and read its audit | denied | denied | denied | denied | denied | denied | Service-only RPC with an active independent moderator, reviewed revision/status and reason. Service role may read the audit but cannot insert, update or delete it directly. No app route exists. |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
 | Message alert preferences (`/api/message-notifications`) | 401 | own preferences only | own preferences only | n/a | own preferences only | n/a | A thread mute requires current membership. An asserted user id never selects the owner. |
