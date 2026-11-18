@@ -46,14 +46,14 @@ vi.mock("@/lib/venueIndex", async (importOriginal) => {
   };
 });
 
-// The pub's public detail, as `GET /api/venue/[id]` reads it. A summon reads it
-// again on the server and never takes a price from the request. A real pub with
-// no injected detail reads the real artifact.
-vi.mock("@/lib/venueDetailIndex", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/venueDetailIndex")>();
+// The price rows the pub's public detail serves. A summon reads them again on
+// the server and never takes a price from the request. A real pub with no
+// injected rows reads the real artifact.
+vi.mock("@/lib/venueDetailArtifact.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueDetailArtifact.server")>();
   return {
     ...actual,
-    lookupVenueDetail: async (id: string) => routeState.detail ? routeState.detail() : actual.lookupVenueDetail(id),
+    lookupPricedVenue: async (id: string) => routeState.detail ? routeState.detail() : actual.lookupPricedVenue(id),
   };
 });
 

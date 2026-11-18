@@ -1,7 +1,7 @@
 // EVERY REQUEST-TIME DATA-PACK READER MUST SHIP THE FILES IT OPENS.
 //
 // lib/venueIndex.ts builds each city pack path from config at request time, and
-// lib/venueDetailIndex.ts builds the detail manifest, rows and raw dataset paths
+// lib/venueDetailArtifact.server.ts builds the detail manifest, rows and raw dataset paths
 // the same way, so Next cannot discover those files from the reader bundle. A
 // build may still contain them through incidental route grouping, but that is
 // not a contract.

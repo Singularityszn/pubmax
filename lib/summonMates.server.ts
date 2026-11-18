@@ -10,10 +10,10 @@ import "server-only";
 // minute ago, or a hand-made request, cannot reach somebody the check refuses.
 //
 // The message may carry one dated price. It comes from a fresh read of the
-// pub's public detail at send time (lib/summonPrice.ts), never from the
-// request. A failed, slow or incomplete read sends the invite without a price.
-// The detail reader takes no signal, so a read past the bound is not cancelled:
-// its answer is ignored. The mutual list and every consent check run again
+// price rows the pub's public detail serves (lib/venueDetailArtifact.server.ts)
+// at send time, judged by lib/summonPrice.ts, never from the request. A failed,
+// slow or incomplete read sends the invite without a price. The reader takes no
+// signal, so a read past the bound is not cancelled: its answer is ignored. The mutual list and every consent check run again
 // after the read, so the wait cannot carry a stale answer into delivery. The
 // final check and each write are still separate store calls, not one atomic step.
 
@@ -26,7 +26,7 @@ import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { eitherMutes, isUnmutedMate, type MateViewer } from "@/lib/socialMutual.server";
 import { SUMMON_MAX_MATES, summonText } from "@/lib/summonMates";
 import { selectSummonPrice, type SummonPriceEvidence } from "@/lib/summonPrice";
-import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 
@@ -77,9 +77,9 @@ async function boundedPrice(read: Promise<SummonPriceEvidence | null>): Promise<
 
 async function lookupPrice(venueId: string): Promise<SummonPriceEvidence | null> {
   try {
-    const detail = await lookupVenueDetail(venueId);
-    if (detail.status !== "found" || detail.venue.id !== venueId) return null;
-    return selectSummonPrice(detail.venue, Date.now());
+    const priced = await lookupPricedVenue(venueId);
+    if (priced.status !== "found" || priced.venue.id !== venueId) return null;
+    return selectSummonPrice(priced.venue, Date.now());
   } catch {
     return null;
   }
