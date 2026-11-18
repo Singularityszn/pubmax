@@ -104,6 +104,7 @@ let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 
 beforeEach(() => {
+  window.history.replaceState(null, "", "/login");
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
   harness.localAttemptOwned = false;
   harness.hasCallback = true;

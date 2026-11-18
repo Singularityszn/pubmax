@@ -11,7 +11,7 @@
 // the person chose.
 //
 // IT CHANGES NOTHING ELSE. A request is never read by what ranks, colours,
-// bands or orders a venue (__tests__/tableRequestFence.test.ts).
+// bands or orders a venue.
 //
 // Delivery outcomes and retries are documented in
 // docs/rules/lib-shared-seams-stores-http-freshness-brand.md
@@ -22,11 +22,9 @@ import { londonCalendarDate } from "@/lib/privateIdentity";
 import { cleanText } from "@/lib/textClean";
 import { parsePhoneNumber } from "@/lib/venueTruth";
 import { escapeHtml } from "@/lib/escapeHtml";
+import { parseTableRequestPartySize, TABLE_REQUEST_MIN_PARTY, TABLE_REQUEST_MAX_PARTY } from "@/lib/tableRequestPartySize";
+export { parseTableRequestPartySize, TABLE_REQUEST_MIN_PARTY, TABLE_REQUEST_MAX_PARTY } from "@/lib/tableRequestPartySize";
 
-/** A crew of six or more: below that, a pub does not need asking. */
-export const TABLE_REQUEST_MIN_PARTY = 6;
-/** A pub crawl crew, not a function room. Bigger than this is a private hire. */
-export const TABLE_REQUEST_MAX_PARTY = 20;
 /** How far ahead a request may ask, in days. A pub does not plan a table further out from an app. */
 export const TABLE_REQUEST_MAX_DAYS_AHEAD = 120;
 
@@ -222,13 +220,6 @@ function parseRequestTime(raw: unknown): string | null {
   if (typeof raw !== "string") return null;
   const match = /^([01]\d|2[0-3]):([0-5]\d)$/.exec(raw.trim());
   return match ? `${match[1]}:${match[2]}` : null;
-}
-
-/** A party size the form offers, or null. */
-export function parseTableRequestPartySize(raw: unknown): number | null {
-  const value = typeof raw === "string" && raw.trim() ? Number(raw) : raw;
-  if (typeof value !== "number" || !Number.isInteger(value)) return null;
-  return value >= TABLE_REQUEST_MIN_PARTY && value <= TABLE_REQUEST_MAX_PARTY ? value : null;
 }
 
 /** The contact the pub replies to, normalised, or null when it is not one of its kind. */
