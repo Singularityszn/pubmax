@@ -229,7 +229,7 @@ Revoke staff roles as standalone statements while case decisions can run.
 
 Use your own active moderator staff role ID in every call. The calls check that the role is an active moderator role. They cannot check which person runs the service-role session, because the service credentials are shared. A decision records the role you give and its display name, so a borrowed role ID records the wrong moderator.
 
-The queue read writes no audit record. The pilot spec says that moderation access needs a case, an authorised staff role and an audit event, in its rules for see-again (W6) mutual outcomes. Whether that rule also covers these block-case reads is an open policy question for the captain. 0248 does not add a read audit.
+The queue read writes no audit record. Decisions record the staff role, display name, reason and time on the case. The pilot spec's see-again moderation-access clause concerns W6 data. W6 provides no moderator choice reader. 0248 does not add a read audit.
 
 1. Read the open cases that you may decide. The list leaves out every case of a crew that you own, have any member row in (in any role or state), or have a pending request or invitation for. It also leaves out every case where you and either person are blocked either way. It leaves out a case after either person leaves or is removed, after every block between the two is lifted, after the night closes or is cancelled, and after expiry. Each entry names `caseId`, `crewId`, `nightStartsAt`, `expiresAt` and `people`: the two people, earlier accepted first. Each person has `memberId`, `handle`, `role`, `joinedAt` and `blocksOther`. `blocksOther` says whether that person blocks the other one now. The list does not say who opened the case.
 

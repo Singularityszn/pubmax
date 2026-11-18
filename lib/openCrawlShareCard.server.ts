@@ -24,7 +24,7 @@ import {
 } from "@/lib/socialCrewStore";
 import type { SocialCrewShareCardSource } from "@/lib/socialCrew";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
-import { lookupVenueDetail } from "@/lib/venueDetailIndex";
+import { lookupPricedVenue } from "@/lib/venueDetailArtifact.server";
 import { requireDynamicSupabaseAdmin } from "@/lib/supabase";
 import { venueListedPint, type VenueListedPint } from "@/lib/venueListedPint";
 import { venueAreaClaim } from "@/lib/venueTruth";
@@ -40,6 +40,9 @@ export type OpenCrawlShareCardResult =
       card: OpenCrawlShareCard;
       meetingPoint: OutOpenPlanMeetingPoint;
       stillTrue: StillTruePublicFacts | null;
+      /** Server-only stored ids from the same snapshot. Never sent to a client. */
+      meetingVenueId: string;
+      singleStopVenueId: string | null;
     }
   | { ok: false; reason: "missing" | "unavailable" };
 
@@ -51,7 +54,7 @@ type Dependencies = {
 };
 
 async function listedPint(venueId: string): Promise<VenueListedPint | null> {
-  const lookup = await lookupVenueDetail(venueId);
+  const lookup = await lookupPricedVenue(venueId);
   if (lookup.status !== "found") return null;
   return venueListedPint(lookup.venue);
 }
@@ -164,8 +167,15 @@ export async function loadOpenCrawlShareCard(
   return loadOpenCrawl(crewId, dependencies, false);
 }
 
-export async function loadOpenCrawlPublicPreview(crewId: string): Promise<OpenCrawlShareCardResult> {
-  return loadOpenCrawl(crewId, DEFAULTS, true);
+export async function loadOpenCrawlPublicPreview(
+  crewId: string,
+  options: { includeOptionalFacts?: boolean } = {},
+): Promise<OpenCrawlShareCardResult> {
+  const includeOptionalFacts = options.includeOptionalFacts !== false;
+  const dependencies = !includeOptionalFacts
+    ? { ...DEFAULTS, listedPint: async () => null }
+    : DEFAULTS;
+  return loadOpenCrawl(crewId, dependencies, includeOptionalFacts);
 }
 
 async function loadOpenCrawl(
@@ -210,5 +220,7 @@ async function loadOpenCrawl(
       spendBand: shareSpendBand(prices),
     },
     stillTrue: includeStillTrue ? await stillTrueFacts(source, prices[0] ?? null) : null,
+    meetingVenueId: source.meetingVenueId,
+    singleStopVenueId: stillTrueVenueId(source.stopVenueIds),
   };
 }

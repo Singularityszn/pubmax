@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
+import { loadFeaturedOpenTable } from "@/lib/featuredOpenTable.server";
+import { FEATURED_OPEN_TABLE_SELECTION } from "@/lib/featuredOpenTableSelection";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
 import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV, socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
@@ -80,9 +82,13 @@ export default async function SocialPage({
     friendsLaunchEnabled && state.tab === "discover"
       ? await Promise.all([buildCityRivalrySnapshot(), loadHeritageCrawls()])
       : [[], []];
-  const publicAlternatives = friendsLaunchEnabled && state.tab === "posts"
-    ? await loadSocialAlternatives()
-    : undefined;
+  const posts = friendsLaunchEnabled && state.tab === "posts";
+  const [publicAlternatives, featuredOpenTable] = posts
+    ? await Promise.all([
+      loadSocialAlternatives(),
+      FEATURED_OPEN_TABLE_SELECTION ? loadFeaturedOpenTable(FEATURED_OPEN_TABLE_SELECTION) : undefined,
+    ])
+    : [undefined, undefined];
 
   return (
     <SocialPageClient
@@ -92,6 +98,7 @@ export default async function SocialPage({
       friendsLaunchEnabled={friendsLaunchEnabled}
       londonLaneOpen={londonLaneOpen}
       publicAlternatives={publicAlternatives}
+      featuredOpenTable={featuredOpenTable}
     />
   );
 }
