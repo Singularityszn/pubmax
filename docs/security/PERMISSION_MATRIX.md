@@ -3,12 +3,14 @@
 What each actor may do with a private Plan, a Social Crew, a private
 conversation and its attachment, a private Moment and its upload object, a
 photo tag, a save, a private league, a price observation and its confirmation,
-moderator actions, account deletion and the data export. The executable owner is
+moderator actions, account deletion and the data export. The core permission suite is
 `__tests__/permissionMatrixEffective.test.ts` (run by `npm run test:rls`): it
 boots PostgreSQL 16 plus PostgREST, applies every migration in production
-order, and asserts every cell below at the API route and, where a browser JWT
-could reach the table, at the table. Change a policy and change this file in
-the same commit.
+order, and checks API access and table access where a browser JWT could reach
+the table. Message-alert checks live in `__tests__/messageNotificationRoute.test.ts`,
+`__tests__/messageNotifications.test.ts` and
+`__tests__/messageNotificationsMigrationEffective.test.ts`.
+Change a policy and change this file in the same commit.
 
 **Why the route door carries the weight.** Astra's delta audit (6 September
 2026, F07) read the Supabase advisor and reported `rls_enabled_no_policy` on a
@@ -158,8 +160,13 @@ no side effect, as above.
 | Spend an invitation (`PATCH .../invitations/[id]`) | denied | denied, invitation stays pending | denied | allowed, once | n/a | spent invitation is not a way back | n/a |
 | Change a Crew's visibility, remove a member | denied | denied | denied | denied | denied | denied | allowed |
 | Crew tables and Crew RPCs at the table | denied | denied | denied | denied | denied | denied | denied |
+| Cancel one Crew occurrence (`cancel_social_crew_occurrence_admin`) and read its audit | denied | denied | denied | denied | denied | denied | Service-only RPC with an active independent moderator, reviewed revision/status and reason. Service role may read the audit but cannot insert, update or delete it directly. No app route exists. |
 | Read a conversation (`GET /api/messages/[id]`) | 401 | own empty thread; naming a participant is refused | same as unrelated | n/a | n/a | n/a | allowed to both participants |
 | Send into a conversation | denied | denied, thread does not grow | denied | n/a | n/a | n/a | allowed |
+| Message alert preferences (`/api/message-notifications`) | 401 | own preferences only | own preferences only | n/a | own preferences only | n/a | A thread mute requires current membership. An asserted user id never selects the owner. |
+| Release a message device (`DELETE /api/message-notifications`) | denied without the complete subscription secret and binding session id | same | same | device secret and binding session id only | same | same | Possession releases only the exact stored token and session binding. It returns no account data. |
+| Resolve a notification preview (`PUT /api/message-notifications`) | no preview | live verified device session and exact subscription secret | same | current device binding only | same | same | The auth.sessions row, device session, recipient and delivery claim must match. Current consent, membership, message state, blocks and mutes are checked again. Transport payloads contain no private preview text. |
+| `message_notification_preferences`, `message_push_subscriptions`, `message_notification_mutes`, `message_notification_claims` at the table | denied | denied | denied | n/a | denied | denied | Service role only. Consent starts disabled. Account deletion removes subscriptions, preferences, mutes and claims. |
 | `conversations`, `messages` at the table | denied | no rows | no rows | n/a | n/a | n/a | Participant rows, SELECT only. Browser reads exclude unsent message rows (0230). |
 | Unsend a message (`action: "unsend"`) | denied | denied, message unchanged | denied | n/a | sender only | denied | Sender only. Other participants are refused. |
 | Delete a chat for yourself (`action: "delete"`) | denied | denied, no mark written | denied | n/a | own inbox only | denied | allowed, for the caller's own inbox only |
@@ -350,21 +357,13 @@ owns redirect permission checks and the final response check.
 ## Password paths, for the leaked-password setting
 
 F07's other half is a Supabase dashboard toggle the captain owns
-(https://supabase.com/docs/guides/auth/password-security). Three password paths
-exist in the product and there is no fourth:
+(https://supabase.com/docs/guides/auth/password-security).
+The [password route contract](../rules/app-auth-and-account-routes.md#a-password-is-created-behind-a-session-and-only-ever-spent-without-one)
+owns creation, changes, sign-in and recovery.
 
-| Path | Where | What sets the password |
-| --- | --- | --- |
-| create | `components/auth/SetAccountPassword.tsx`, mounted in `PubmaxxAccountHub` | `supabase.auth.updateUser({ password })` from a signed-in browser |
-| sign in | `POST /api/auth/handle-password` | GoTrue's password grant; sets nothing |
-| change | `POST /api/auth/change-password/verify`, then the browser's own `updateUser` | GoTrue's password grant proves the old one; `updateUser` sets the new one |
-
-There is **no password reset path and no password signup**: sign-up is the
-email link (`lib/passwordlessAuth.ts`), and nothing in the tree calls
-`resetPasswordForEmail` or `signUp` with a password. So every password this
-product ever stores is written by `auth.updateUser`, which is exactly where
-Supabase's HIBP check runs. Turning leaked-password protection on therefore
-covers both writing paths and costs the sign-in path nothing: an existing
+Every password this product stores is written by `auth.updateUser`, which is
+where Supabase's HIBP check runs. Turning leaked-password protection on therefore
+covers all password-writing paths and costs the sign-in path nothing: an existing
 password is not re-checked at sign-in, so nobody is locked out by the change.
 
 ## Live check, isolated project

@@ -1,4 +1,4 @@
-// Curated crawl hydration for map mount seed — split from @/lib/pubMap so the
+// Curated crawl hydration is split from @/lib/pubMap so the
 // eager map shell does not static-import the crawl catalog on a plain /map open.
 
 import type { Filters } from "@/lib/venues";
@@ -35,10 +35,6 @@ export async function resolveSeededCuratedCrawl(
   return matchBuiltIds(crawls, builtIds);
 }
 
-/**
- * Full mount seed including curated crawl hydration. Used by tests and by the
- * async PubMap layout effect — not the eager map shell chunk.
- */
 export async function buildMapSeedWithCuratedCrawl(
   search: string,
   cityId: CityId = DEFAULT_CITY_ID,

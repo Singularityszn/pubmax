@@ -8,6 +8,7 @@ import { useActivePlanPalNextStop } from "@/components/map/pubmap/useActivePlanR
 import { ACTIVE_PLAN_KEY, writeActivePlan } from "@/lib/activePlan";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { Venue } from "@/lib/venues";
+import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -30,11 +31,12 @@ const tonight = [lamb, crown, bell];
 
 type Seen = ReturnType<typeof useActivePlanPalNextStop>;
 
-function Probe({ builtIds, routeMapped, seen }: { builtIds: string[]; routeMapped: boolean; seen: Seen[] }) {
+function Probe({ builtIds, routeMapped, seen, activeCrawl }: { builtIds: string[]; routeMapped: boolean; seen: Seen[]; activeCrawl?: CuratedCrawl }) {
   const { routeMappedActive } = useMapPlanPresentation({
     mode: "build",
     builtIds,
     routeMapped,
+    activeCrawl,
     suggestedRoute: [],
     activePlanRoute: tonight,
     venueById,
@@ -70,15 +72,29 @@ describe("the map Pal's next stop", () => {
   it("waits at the stop after the cursor when tonight's plan owns the map", async () => {
     expect(await render([], false)).toEqual({
       routeIsActivePlan: true,
+      activePlanHref: "/plan/dddddddd-dddd-4ddd-8ddd-dddddddddddd",
       palNextStop: { venueId: "Crown", name: "The Crown" },
     });
   });
 
   it("does not wait on a mapped crawl the reader built, even with tonight's pubs in tonight's order", async () => {
-    expect(await render(["Lamb", "Crown", "Bell"], true)).toEqual({ routeIsActivePlan: false, palNextStop: null });
+    expect(await render(["Lamb", "Crown", "Bell"], true)).toEqual({ routeIsActivePlan: false, activePlanHref: null, palNextStop: null });
   });
 
   it("goes back to tonight's plan when the built crawl is only drafted, not mapped", async () => {
     expect((await render(["Lamb", "Crown", "Bell"], false)).routeIsActivePlan).toBe(true);
+  });
+
+  it("targets tonight's plan only after the Christmas walk gives up the map", async () => {
+    const seen: Seen[] = [];
+    const activeCrawl = curatedCrawls.find((crawl) => crawl.id === "london-christmas-walk")!;
+    root = createRoot(document.createElement("div"));
+    const props = { builtIds: [], activeCrawl, seen };
+    await act(async () => root!.render(createElement(Probe, { ...props, routeMapped: true })));
+    expect(seen.at(-1)!.activePlanHref).toBeNull();
+    await act(async () => root!.render(createElement(Probe, { ...props, routeMapped: false })));
+    expect(seen.at(-1)!.activePlanHref).toBe("/plan/dddddddd-dddd-4ddd-8ddd-dddddddddddd");
+    await act(async () => root!.render(createElement(Probe, { ...props, routeMapped: true })));
+    expect(seen.at(-1)!.activePlanHref).toBeNull();
   });
 });

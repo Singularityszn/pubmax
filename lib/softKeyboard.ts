@@ -16,11 +16,8 @@
 // pair together is the honest signal, which is why this module reports the
 // pair rather than either half.
 //
-// The bar is hidden by TRANSFORM alone (components/nav/mobileNav.css, the same
-// idiom the night-mode rule already uses). Nothing here touches the body's
-// bottom padding: that clearance is reserved for the bar's own height, and
-// dropping it while the keyboard is open would reflow the page underneath the
-// caret - the layout jump this fix exists to avoid.
+// See components/nav/mobileNav.css for the shared tab-bar clearance invariant.
+// Thread-specific geometry follows docs/rules/components-venue-plan-and-message-surfaces.md.
 
 import { nativePlatform } from "@/lib/nativePlatform";
 
@@ -118,20 +115,25 @@ function readOpen(): boolean {
   // unobscured, so that reading is the baseline, and a focused field keeps
   // it. A width change (a rotation or a resized window) with the keyboard up
   // leaves no baseline for the new shape, so the answer holds until the field
-  // blurs or the height rises by a keyboard at the new width.
+  // blurs or the visual viewport height rises by a keyboard at the new width.
   const { innerWidth: width, innerHeight: height } = window;
-  lowestLayoutHeight = width === lowestLayoutWidth ? Math.min(lowestLayoutHeight, height) : height;
-  lowestLayoutWidth = width;
+  const viewportHeight = visual?.height ?? height;
+  lowestViewportHeight = width === lowestViewportWidth ? Math.min(lowestViewportHeight, viewportHeight) : viewportHeight;
+  lowestViewportWidth = width;
   const keyboardClosed =
-    height - lowestLayoutHeight >= Math.max(height, baselineLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
+    viewportHeight - lowestViewportHeight >= Math.max(viewportHeight, baselineLayoutHeight) * SOFT_KEYBOARD_MIN_SHRINK_RATIO;
   if (!focused || (width !== baselineLayoutWidth && (!open || keyboardClosed))) {
     baselineLayoutHeight = height;
     baselineLayoutWidth = width;
-    lowestLayoutHeight = height;
+    lowestViewportHeight = viewportHeight;
   }
   if (width !== baselineLayoutWidth) return open;
   baselineLayoutHeight = Math.max(baselineLayoutHeight, height);
-  return softKeyboardOpen({ ...evidence, layoutViewportHeight: baselineLayoutHeight });
+  return softKeyboardOpen(evidence) || softKeyboardOpen({
+    textEntryFocused: focused,
+    visualViewportHeight: height,
+    layoutViewportHeight: baselineLayoutHeight,
+  });
 }
 
 // useSyncExternalStore requires a cached snapshot: recomputing from the DOM on
@@ -140,8 +142,8 @@ function readOpen(): boolean {
 let open = false;
 let baselineLayoutHeight = 0;
 let baselineLayoutWidth = 0;
-let lowestLayoutHeight = 0;
-let lowestLayoutWidth = 0;
+let lowestViewportHeight = 0;
+let lowestViewportWidth = 0;
 const listeners = new Set<() => void>();
 
 function refresh(): void {
@@ -213,7 +215,7 @@ export function subscribeSoftKeyboard(onStoreChange: () => void): () => void {
     open = false;
     baselineLayoutHeight = 0;
     baselineLayoutWidth = 0;
-    lowestLayoutHeight = 0;
-    lowestLayoutWidth = 0;
+    lowestViewportHeight = 0;
+    lowestViewportWidth = 0;
   };
 }

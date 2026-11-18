@@ -33,6 +33,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `DELETE app/api/auth/session`
 - `DELETE app/api/check-ins`
 - `DELETE app/api/crawls/[slug]`
+- `DELETE app/api/message-notifications`
 - `DELETE app/api/night-stories/[id]/contributors`
 - `DELETE app/api/plans/[id]/group-prefs`
 - `DELETE app/api/plans/[id]/beacon`
@@ -92,6 +93,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/auth/session`
 - `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
+- `POST app/api/auth/password-recovery`
 - `POST app/api/ask`
 - `POST app/api/board-reads`
 - `POST app/api/cheap-pint-ping`
@@ -110,6 +112,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/invite/[token]/reactions`
 - `POST app/api/invite/[token]/rsvp`
 - `POST app/api/me/pending-plan-recaps`
+- `POST app/api/message-notifications`
 - `POST app/api/messages`
 - `POST app/api/messages/[id]`
 - `POST app/api/night-memories`
@@ -202,6 +205,7 @@ local helpers each handler calls. Protection in a sibling method cannot certify 
 - `POST app/api/wanted`
 - `POST app/api/wanted/resolve`
 - `POST app/api/weather-recommendations`
+- `PUT app/api/message-notifications`
 - `PUT app/api/me/night-profile`
 - `PUT app/api/me/pending-plan-recaps`
 - `PUT app/api/plans/[id]/session`
@@ -284,6 +288,9 @@ bodies.
   receives a write capability merely because the HTTP verb is POST.
 
 ## Route additions since the Wave 0 inventory
+
+The [message notification permission matrix](security/PERMISSION_MATRIX.md)
+owns the access rules for `POST`, `PUT`, and `DELETE /api/message-notifications`.
 
 ### `app/api/social/posts` - verified Social post creation (route 76)
 
@@ -368,7 +375,7 @@ bodies.
 
 - **Route / methods:** `GET`, `PUT`, `POST`, and `DELETE` share one reviewed
   route. GET reads bounded interaction pages. PUT and DELETE set Cheers,
-  private saves, reposts, comment policy and blocks to explicit desired state.
+  private saves, reposts, comment policy, blocks and mutes to explicit desired state.
   POST creates held comments and quotes, queues reports, changes owned
   notification state, appends feature-request history, or performs named staff
   moderation.
@@ -401,7 +408,9 @@ bodies.
   feature metadata. Changing it back restores the latest update from history.
 - **Failure and rollback:** the Social freeze runs before identity, limiter or
   storage work for ordinary writes. Reporting and moderation safety floors stay
-  open. Deployed production selects the durable store and fails closed when
+  open. Private block and mute controls also stay open. Setting and removing
+  these choices retain authentication, target checks and rate limits.
+  Deployed production selects the durable store and fails closed when
   migration 0073 is unavailable. Rollback removes only Task 4 tables and RPCs,
   leaving Social posts, profiles and follows intact.
 
@@ -1494,6 +1503,11 @@ commit.
 - **Rollback / kill:** remove the route and make the password form use the
   create flow only. Existing password creation remains signed-in and
   owner-bound.
+
+### `app/api/auth/password-recovery` - recovery email request
+
+The [password recovery contract](rules/app-auth-and-account-routes.md#password-recovery) owns this route's authority and abuse boundaries.
+`__tests__/passwordRecoveryRoute.test.ts` covers its request refusals and account-independent responses.
 
 ### `app/api/auth/session` - durable sign-in resume cookie
 

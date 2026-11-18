@@ -191,8 +191,17 @@ test("a delayed location result cannot overwrite the area after Continue", async
               latitude: 51.527,
               longitude: -0.08,
               speed: null,
+              toJSON() {
+                return { accuracy: 10, altitude: null, altitudeAccuracy: null, heading: null, latitude: 51.527, longitude: -0.08, speed: null };
+              },
             },
             timestamp: Date.now(),
+            toJSON() {
+              return {
+                coords: { accuracy: 10, altitude: null, altitudeAccuracy: null, heading: null, latitude: 51.527, longitude: -0.08, speed: null },
+                timestamp: Date.now(),
+              };
+            },
           });
         },
       },

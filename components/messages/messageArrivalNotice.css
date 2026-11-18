@@ -1,0 +1,11 @@
+.messageArrival { position: fixed; top: var(--message-notice-top, calc(var(--topbar-inset) + var(--site-nav-floating-height, 4rem) + 12px)); inset-inline: 16px; margin-inline: auto; z-index: 60; display: flex; align-items: center; width: min(360px, calc(100vw - 32px)); border: 1px solid var(--hairline); border-radius: var(--radius-lg); color: var(--ink); background: var(--paper); box-shadow: var(--shadow-sm); opacity: 1; transform: translateY(0); transition: opacity 180ms var(--ease-out), transform 180ms var(--ease-out); }
+@starting-style { .messageArrival { opacity: 0; transform: translateY(-8px); } }
+.messageArrival a { flex: 1; min-width: 0; padding: 12px 16px; color: inherit; text-decoration: none; touch-action: manipulation; }
+.messageArrival span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink-soft); font-size: var(--text-sm); line-height: 1.5; }
+.messageArrival button { width: var(--control-height); height: var(--control-height); margin-right: 4px; display: grid; place-items: center; border: 0; background: transparent; color: inherit; touch-action: manipulation; }
+@media (prefers-reduced-transparency: reduce) { .messageArrival { background: var(--paper); backdrop-filter: none; } }
+@media (prefers-reduced-motion: reduce) { .messageArrival { transition: opacity 180ms ease-out; transform: none; } .messageArrival a, .messageArrival button { transition: opacity 160ms ease-out; } .messageArrival a:active:not(:focus-visible), .messageArrival button:active:not(:focus-visible) { transform: none; opacity: .7; } @starting-style { .messageArrival { transform: none; } } }
+
+.messageArrival--inbox { top: auto; bottom: calc(var(--chrome-bottom-clearance) + 16px); }
+
+@media (prefers-reduced-motion: no-preference) { @starting-style { .messageArrival--inbox { transform: translateY(8px); } } }

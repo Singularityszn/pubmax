@@ -151,6 +151,8 @@ async function openFilters(page: Page) {
     if (!(await sheet.isVisible())) await control.tap();
     await expect(sheet).toBeVisible({ timeout: 1_000 });
   }).toPass({ timeout: 30_000 });
+  const refinements = sheet.locator(".mobileFilterDisclosure");
+  if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
   return sheet;
 }
 

@@ -27,7 +27,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "15 November 2026";
+const LAST_UPDATED = "17 November 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -611,7 +611,15 @@ export default function PrivacyPage() {
           safe retries and audit only. These write receipts are never public.
         </p>
         <p className="legalBody">
-          Crew and roster records stay with the Crew-bound Plan. A left or
+          A moderator can correct a mistaken Crew removal. The private
+          correction record names the Crew, membership, account, reason,
+          moderator and date. Your data export includes your correction outcome
+          and date, but excludes private review notes and staff identities.
+          Deleting your account removes its correction records.
+        </p>
+        <p className="legalBody">
+          After account deletion, we free your guest places and cancel the
+          Crew nights you own during cleanup. Cleanup can be delayed. Crew and roster records stay with the Crew-bound Plan. A left or
           removed member keeps a terminal membership row as history rather than
           disappearing. Invitations and Join Requests keep their final states
           until the Crew-bound Plan is deleted. Pending rows become expired
@@ -922,18 +930,38 @@ export default function PrivacyPage() {
               email uses the recipient&rsquo;s account email address, the handle
               of the person who acted, the crawl title and a link to the crawl.
               We only send these emails when email delivery is set up. There is no
-              marketing list or email digest. If you turn notifications on,
+              marketing list or email digest. If you turn public notifications on,
               PUBMAXX stores your browser&rsquo;s push subscription, the endpoint
               plus its keys, so it can send you the notification; the
               subscription itself belongs to your own browser&rsquo;s push service.
               We keep that stored row until the push service reports it dead or
               you ask us to remove it.
+              Message alerts are separate and off by default. If you enable
+              them, we link your browser subscription to your account and
+              sign-in session. We store your alert and preview preferences,
+              muted chats, the chat open on that device and when it was last
+              seen, and message IDs used to prevent duplicate alerts.
+              Your browser also keeps the device binding and pending requests
+              to detach it. Previews are off by default. You can choose to show
+              the sender and a short preview while PubMaxxing is open in the
+              background. Closed-app alerts show no message text. An already
+              displayed preview can remain after a message is unsent.
+              In the inbox, open Message notifications and choose Turn off
+              alerts on all devices to stop message alerts for your account.
+              When you sign out or switch accounts, we try to detach the device
+              and close its message notifications. Failed detach requests wait
+              for another connection. A generic alert already on its way can
+              still appear. Public alerts keep their browser subscription.
+              We remove invalid message subscriptions when delivery reports
+              them, and revoked session bindings when delivery targets are read.
+              Deleting your account removes its message subscriptions,
+              preferences, chat mutes and delivery records.
               The separate weekly nudge is off by default. If you turn it on,
               we store that preference against your account, bind it to the
               same web push subscription, and may send at most one push a week
               about a pub on your list to try near your night patch, an open
-              plan for tonight, or a sourced deal. Turning it off withdraws the
-              preference and removes the bound subscription.
+              plan for tonight, or a sourced deal. Turning it off stops weekly
+              alerts. Other alerts can still use the browser subscription.
             </dd>
           </div>
           <div className="legalRow">
@@ -1024,9 +1052,13 @@ export default function PrivacyPage() {
           <li>
             <strong>Social Crews:</strong>{" "}the Crew, membership history,
             invitations and Join Requests stay with the Crew-bound Plan until
-            that Plan is deleted. Private write receipts stay for safe retries
+            that Plan is deleted. After account deletion, we free your guest
+            places and cancel the Crew nights you own during cleanup. Cleanup can be delayed. Private write receipts stay for safe retries
             and audit until the actor&rsquo;s account deletion request is carried
-            out, unless a legal or security hold applies.
+            out, unless a legal or security hold applies. Crew removal correction
+            records are deleted with the affected account. Your data export includes
+            the correction outcome and date, without private review notes or
+            staff identities.
           </li>
           <li>
             <strong>Crowd occupancy reports:</strong>{" "}linked to your account

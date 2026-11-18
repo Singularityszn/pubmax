@@ -53,7 +53,7 @@ export default function OfflineReady() {
       if (!version) return;
       navigator.serviceWorker
         .register(
-          `/sw.js?v=${encodeURIComponent(version)}&cache-policy=plan-preview-safe-v2`,
+          `/sw.js?v=${encodeURIComponent(version)}&cache-policy=plan-preview-safe-v2&message-previews=1`,
         )
         .then((registration) => {
           registration.addEventListener("updatefound", () => {

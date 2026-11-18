@@ -13,7 +13,7 @@ function webPushAbortReason(signal: AbortSignal): unknown {
 
 /** Race browser work against a signal, so a promise that never settles (a service
  * worker that never becomes ready) cannot hold a prompt open for ever. */
-function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
+export function waitForWebPushWork<T>(work: PromiseLike<T>, signal?: AbortSignal): Promise<T> {
   if (!signal) return Promise.resolve(work);
   if (signal.aborted) return Promise.reject(webPushAbortReason(signal));
   return new Promise<T>((resolve, reject) => {
@@ -75,14 +75,16 @@ export function webPushSupport(): WebPushSupport {
   return Notification.permission === "denied" ? "blocked" : "supported";
 }
 
-/** Request permission, create/reuse a browser subscription and register it on
- * the identity-free push-token route. Returns the encoded token on success, or
- * null on unsupported, denied, unconfigured, cancelled or failed paths.
+/** Request permission, create/reuse a browser subscription and register it through
+ * saveToken when supplied, otherwise the public push-token route. Returns the
+ * encoded token on success, or null on unsupported, denied, unconfigured,
+ * cancelled or failed paths.
  * onSlowSubscription lets the caller explain an ongoing native subscription.
  * Waiting and cancellation rules: docs/WEB_PUSH.md#browser-setup. */
 export async function registerWebPush(
   signal?: AbortSignal,
   onSlowSubscription?: () => void,
+  saveToken?: (token: string, signal: AbortSignal) => Promise<boolean>,
 ): Promise<string | null> {
   if (typeof window === "undefined" || !("serviceWorker" in navigator)) return null;
   if (!("PushManager" in window) || !("Notification" in window)) return null;
@@ -145,6 +147,7 @@ export async function registerWebPush(
     if (!token) return null;
 
     const request = step();
+    if (saveToken) return await waitForWebPushWork(saveToken(token, request), request) ? token : null;
     const response = await waitForWebPushWork(
       fetch("/api/push-tokens", {
         method: "POST",

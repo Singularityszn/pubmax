@@ -137,17 +137,20 @@ describe("pint receipts on venue pages", () => {
   it.each([
     { venueId: "bar-american-bar-savoy", venueName: "American Bar at The Savoy", price: null },
     { venueId: "venue-16pnwmm", venueName: "Prospect of Whitby", price: "£5.00" },
-  ])("uses only a pint price in the invite and its metadata: $venueName", async ({ venueId, venueName, price }) => {
+  ])("keeps pint receipts on the invite and prices out of metadata: $venueName", async ({ venueId, venueName, price }) => {
     plan.stops = [{ venueId, venueName, position: 0 }];
     const props = { params: Promise.resolve({ token: "pint-receipt" }) };
     const root = document.createElement("div");
     root.innerHTML = renderToStaticMarkup(await InvitePage(props));
     const metadata = await inviteMetadata(props);
     expect(root.textContent).toContain(venueName);
+    expect(JSON.stringify(metadata)).not.toContain("£");
+    expect(JSON.stringify(metadata)).not.toContain(venueName);
+    expect(JSON.stringify(metadata)).not.toContain(venueId);
+    expect(metadata.description).toContain("Join the crew to see the route");
     if (price) {
       expect(root.textContent).toContain(`${price} per pint`);
       expect(root.textContent).toContain(`Listed by Pint Prices, collected ${bundledReadDay("app_price_002417").words}.`);
-      expect(metadata.description).toContain(`${price} per pint`);
     } else {
       expect(root.textContent).not.toContain("£25.00");
       expect(root.textContent).not.toContain("per pint");

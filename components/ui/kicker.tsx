@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 
-import "./primitives.css";
 
 /**
  * The small line above a heading.

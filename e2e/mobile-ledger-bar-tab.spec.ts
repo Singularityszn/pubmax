@@ -114,6 +114,7 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
     "logbook entries or empty state",
   ).toBeVisible();
 
+  await page.locator(".ledgerSecondaryActions summary").click();
   const headActions = page.locator(".ledgerHeadActions");
   await expectTappable(headActions.getByRole("link", { name: "Open on the map" }), "map link");
   await expectTappable(headActions.getByRole("link", { name: "See the bar tab" }), "bar-tab link");
@@ -121,10 +122,16 @@ test("mobile Ledger for a known venue is usable with tappable actions and no hor
     headActions.getByRole("button", { name: "Share this ledger" }),
     "share ledger button",
   );
-  await expectTappable(
-    page.locator(".ledgerFamilyHead").getByRole("button", { name: "Share with family" }),
-    "family-table share button",
-  );
+  const community = page.locator(".ledgerCommunity");
+  const familyShare = community.getByRole("button", { name: "Share with family" });
+  await expect(async () => {
+    const summary = community.locator("summary");
+    if (await summary.isVisible() && !(await community.evaluate((node) => (node as HTMLDetailsElement).open))) {
+      await summary.click();
+    }
+    await expect(familyShare).toBeVisible();
+  }).toPass();
+  await expectTappable(familyShare, "family-table share button");
 
   await expectNoHorizontalOverflow(page);
   expect(errors).toEqual([]);

@@ -30,8 +30,8 @@ test("landing / serves, shows hero + Demo honesty label + a direct map CTA", asy
   page,
 }) => {
   const errors = watchPageErrors(page);
+  // The launch-day feed excludes demos. Exercise the ordinary seeded feed.
   await holdLondonAfternoon(page);
-
   const response = await page.goto("/");
   expect(response?.status()).toBe(200);
 
@@ -481,5 +481,5 @@ test("theme toggle flips html[data-theme], persists to localStorage, survives re
   // The chosen theme is re-applied to <html data-theme> after reload — the
   // ThemeToggle mount effect re-asserts it (React 19 hydration can drop the
   // attribute the no-flash script set). Guards that fix.
-  await expect(html).toHaveAttribute("data-theme", after);
+  await expect(html).toHaveAttribute("data-theme", after ?? "");
 });

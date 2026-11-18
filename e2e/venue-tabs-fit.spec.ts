@@ -181,7 +181,7 @@ for (const viewport of [
         clientWidth: element.clientWidth,
       };
     });
-    expect(box.height).toBeCloseTo(112, 0);
+    expect(box.height).toBeCloseTo(viewport.width === 390 ? 48 : 112, 0);
     expect(Math.abs(box.width - box.columnWidth)).toBeLessThanOrEqual(2);
     expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
 

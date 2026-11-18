@@ -180,6 +180,20 @@ describe("registerWebPush", () => {
     expect(vi.getTimerCount()).toBe(0);
   });
 
+  it("ends registration when a private token save ignores its deadline", async () => {
+    vi.useFakeTimers();
+    vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));
+    browserHarness();
+    let settled = false;
+    const registration = registerWebPush(undefined, undefined, () => new Promise(() => {}));
+    void registration.then(() => { settled = true; });
+    await flushRegistrationMicrotasks();
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(settled).toBe(true);
+    await expect(registration).resolves.toBeNull();
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
   it("lets the caller cancel a pending service-worker wait", async () => {
     vi.useFakeTimers();
     vi.stubEnv("NEXT_PUBLIC_VAPID_PUBLIC_KEY", "A".repeat(87));

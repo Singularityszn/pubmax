@@ -5,6 +5,7 @@
 // no read follows it: the POST's own answer is the stored row. It used to be a
 // POST and then a full GET, with the bubble waiting on the second.
 
+import { clearSurfaceCache } from "@/lib/surfaceDataCache";
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -108,6 +109,7 @@ vi.mock("@/lib/authedFetch", async (importOriginal) => {
   return {
     ...actual,
     authedActionFetch: (input: string, init: RequestInit, options: import("@/lib/authedFetch").AuthActionOptions) => {
+      if (String(input).startsWith("/api/message-notifications")) return Promise.resolve(Response.json({ enabled: false, preview: false, muted: false, registered: false }));
       const method = init?.method ?? "GET";
       if (method === "POST" && fetchLog.useRealWrites) return actual.authedActionFetch(input, init, options);
       fetchLog.calls.push({
@@ -202,6 +204,7 @@ function composerValue(): string {
 
 beforeEach(() => {
   discardMessagePhotoRecovery("user-ken:1:c1");
+  clearSurfaceCache();
   authState.current = { user: { id: "user-ken" }, handle: "ken", accountRevision: 1 };
   selection.value = "first";
   selection.label = "First label";

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import sharp from "sharp";
 import { DEFAULT_PAL_DRAFT } from "../../lib/pubPal";
-import { ACCOUNTS, accessJwt, installAuthDoubles, readDeviceIdentity, readDeviceAccounts, seedSignedIn } from "./authDoubles";
+import { ACCOUNTS, accessJwt, installAuthDoubles, readDeviceIdentity, expectBothAccountsRemembered, seedSignedIn } from "./authDoubles";
 
 export const ROBIN = { species: "robin", id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb", ownerId: ACCOUNTS.A.id, name: "Robin", sha: "c69915c4a4df2bd44e52a91d9d4f301182d0d45e612215ad88a726e2ba87f327", file: "circuit-robin-c69915c4a4df.glb" } as const;
 export const FOX = { species: "fox", id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc", ownerId: ACCOUNTS.B.id, name: "Fox", sha: "80d07a250094238a5bae7a0b5d7ccaa5cc31e06203dc9518a0e9d341d64771ba", file: "circuit-fox-80d07a250094.glb" } as const;
@@ -37,7 +37,7 @@ export async function fixture(page: Page, baseURL: string, twoOwners = false) {
     await auth.signedInAs("B");
     await page.goto("/social");
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.B.handle);
-    await expect.poll(async () => (await readDeviceAccounts(page)).length).toBe(2);
+    await expectBothAccountsRemembered(page);
     await auth.signedInAs("A");
     await page.goto("/social");
     await expect.poll(async () => (await readDeviceIdentity(page)).handle).toBe(ACCOUNTS.A.handle);

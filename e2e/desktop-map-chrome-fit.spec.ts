@@ -461,9 +461,9 @@ test("1440px planner hands ownership to venue and Back restores composed state",
 
   // Capture a planner exit frame when available. The pub stays in the list column.
   let caughtMidExchange = false;
-  let plannerMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let venueMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
-  let toolbarMid: Awaited<ReturnType<typeof renderedBox>> | null = null;
+  let plannerMid = null as Awaited<ReturnType<typeof renderedBox>> | null;
+  let venueMid = null as Awaited<ReturnType<typeof renderedBox>> | null;
+  let toolbarMid = null as Awaited<ReturnType<typeof renderedBox>> | null;
   try {
     await expect
       .poll(

@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
+import { buildLastCrewShareText } from "@/lib/lastCrew";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 import { shareNightObject } from "@/lib/shareSheet";
+import { shareViaNativeSheet } from "@/lib/nativeShare";
 import { defined } from "@/__tests__/helpers/defined";
 
 // The one native-sheet-first / wa.me-fallback flow every night-object share
@@ -14,6 +16,34 @@ const input = {
 };
 
 describe("shareNightObject", () => {
+  it.each((["native", "web", "whatsapp"] as const).flatMap((path) =>
+    (["priced invite", "plan crew"] as const).map((artifact) => ({ path, artifact })),
+  ))("shares an embedded destination once for $artifact through $path", async ({ path, artifact }) => {
+    const source = "https://publisher.example/listing";
+    const priced = { ...input, text: artifact === "plan crew"
+      ? buildLastCrewShareText({ names: ["Alice", "Bob"], planUrl: input.url })
+      : `Come here. Map: ${input.url} Listed at £4.80. Source: ${source}` };
+    let delivered = "";
+    const capture = async (data: { text?: string; url?: string }) => {
+      delivered = [data.text, data.url].filter(Boolean).join(" ");
+    };
+    const outcome = await shareNightObject(priced, {
+      shareNatively: path === "native"
+        ? (data) => shareViaNativeSheet(data, { isNative: () => true, loadPlugin: async () => ({ share: capture }) })
+        : async () => "unavailable",
+      nav: path === "web" ? { share: capture } : {},
+      openWindow: (href) => { delivered = new URL(href).searchParams.get("text")!; return true; },
+    });
+    expect(outcome).toBe(path === "whatsapp" ? "whatsapp" : "shared");
+    expect(delivered.split(input.url)).toHaveLength(2);
+    if (artifact === "priced invite") {
+      expect(delivered.indexOf(input.url)).toBeLessThan(delivered.indexOf(source));
+      expect(delivered).toContain("Listed at £4.80.");
+    } else {
+      expect(delivered).toContain("Alice, Bob");
+    }
+  });
+
   it("uses the native share sheet first when available", async () => {
     const share = vi.fn().mockResolvedValue(undefined);
     const openWindow = vi.fn();

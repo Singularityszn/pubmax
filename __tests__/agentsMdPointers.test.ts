@@ -173,6 +173,9 @@ const NOT_REPO_PATHS = new Set([
   ".lpButtonPrimary",
   ".messageBubble",
   ".messageLine",
+  ".composerPickerRegion",
+  ".messageThreadShell",
+  ".threadMessages",
   ".mobileTabBar",
   ".mobileTabBarClearance",
   // An OSM tag VALUE, not a path.
@@ -185,6 +188,9 @@ const NOT_REPO_PATHS = new Set([
   "Logged.",
   // Member and property names, not repository paths.
   "auth.refreshSession",
+  "visualViewport.height",
+  "visualViewport.offsetTop",
+  "window.innerHeight",
   // Browser API on the global navigator, not a repository path.
   "navigator.share",
   "auth.users.encrypted_password",

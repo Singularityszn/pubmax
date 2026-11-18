@@ -3,9 +3,8 @@
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactElement } from "react";
 
-import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
@@ -18,6 +17,8 @@ import PeopleDirectory from "@/components/social/PeopleDirectory";
 import ReelsPending from "@/components/social/ReelsPending";
 import SharedSocialPostCard from "@/components/social/SocialPostCard";
 import SocialMomentLink from "@/components/social/SocialMomentLink";
+import SocialFeedLoading from "@/components/social/SocialFeedLoading";
+import PubRankingPlaceholder from "@/components/social/PubRankingPlaceholder";
 import StarterPacks from "@/components/social/StarterPacks";
 import {
   SOCIAL_SIGN_IN_HREF,
@@ -27,6 +28,7 @@ import {
 import EmptyState from "@/components/ui/empty-state";
 import Screen from "@/components/ui/screen";
 import SampleSkeleton from "@/components/ui/sample-skeleton";
+import { Button } from "@/components/ui/button";
 import { ADULT_SELF_ASSERTION_ACTION } from "@/lib/adultGate";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { subscribeDeviceIdentity } from "@/lib/deviceAccountIdentity";
@@ -53,8 +55,11 @@ import {
   type SocialShellState,
 } from "@/lib/socialShell";
 import type { SocialPostDTO } from "@/lib/socialPosts";
+import { matchesSocialPostFeedSelection } from "@/lib/socialPostFeedMembership";
 import type { SocialPostLane } from "@/lib/socialPostReason";
 import type { SocialAlternatives } from "@/lib/socialAlternatives";
+import { forgetSurfaceSnapshot, forgetSurfaceSnapshots, readSurfaceSnapshot, writeSurfaceSnapshot } from "@/lib/surfaceDataCache";
+import { chronological, mergeSocialPostHead, readSocialPostHead, readSocialPostWindow, SOCIAL_REFRESH_PAGE_CAP, type SocialPostPage, type SocialPostWindow } from "@/lib/socialPostWindow";
 
 import { useLogInPublicDay } from "@/lib/useLogInPublicDay";
 
@@ -67,7 +72,7 @@ import { socialLazy } from "./SocialLazy";
 import { SocialPostEditor } from "./SocialPostEditor";
 
 // The Product Hunt log in public day (lib/logInPublicDay.ts): that day's real
-// Pint Drops, above the posts. Its chunk loads only on the day.
+// Pint Drops, after the Social layout. Its chunk loads only on the day.
 const LogInPublicDay = dynamic(() => import("@/components/pintdrop/LogInPublicDay"), {
   ssr: false,
   loading: () => null,
@@ -81,9 +86,6 @@ const CrewsPanel = socialLazy(() => import("@/components/social/CrewsPanel"), "Y
 const PubRankingPanel = socialLazy(() => import("@/components/social/PubRankingPanel"), "Your pub ranking", <p role="status">Loading your pub ranking…</p>);
 const SocialTagInbox = socialLazy(() => import("./SocialTagInbox"), "Tags", <p role="status" className="sr-only">Loading tags…</p>);
 const SocialOutbox = socialLazy(() => import("./SocialOutbox"), "Your posts", <p role="status" className="sr-only">Loading your posts…</p>);
-// A signed-in reader on the posts tab gets these tools once access answers.
-// Their code downloads during that check, so they draw at once afterwards.
-const VERIFIED_POSTS_TOOLS = [SocialComposer, SocialPostEditor, CrewsPanel, PubRankingPanel, SocialTagInbox, SocialOutbox];
 const ReelsViewer = socialLazy(
   () => import("@/components/social/ReelsViewer"),
   "Video",
@@ -100,6 +102,9 @@ const ACCESS_STATES = new Set<SocialAccessState>([
   "verified",
   "suspended",
 ]);
+const DiscoverBody = dynamic(() => import("@/app/discover/DiscoverPageClient").then(module => module.DiscoverBody), {
+  loading: () => <p role="status">Loading pubs and pints…</p>,
+});
 
 type AccessLoadState = "checking" | SocialAccessState | "unavailable";
 type FeedLoadState = "idle" | "loading" | "ready" | "error";
@@ -126,10 +131,7 @@ type SocialPageClientProps = {
   publicAlternatives?: SocialAlternatives;
 };
 
-type SocialPostPage = {
-  posts: SocialPostDTO[];
-  nextCursor: string | null;
-};
+class SocialFeedDenied extends Error {}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
@@ -175,8 +177,11 @@ function parsePostPage(value: unknown): SocialPostPage | null {
     posts.push(candidate as SocialPostDTO);
   }
   const nextCursor = value.nextCursor;
-  if (nextCursor !== null && typeof nextCursor !== "string") return null;
-  return { posts, nextCursor: nextCursor as string | null };
+  if (nextCursor === null) return { posts, nextCursor, scannedThrough: null };
+  const boundary = value.scannedThrough;
+  if (typeof nextCursor !== "string" || !isRecord(boundary) || typeof boundary.id !== "string" || !boundary.id ||
+    typeof boundary.createdAt !== "string" || !Number.isFinite(Date.parse(boundary.createdAt))) return null;
+  return { posts, nextCursor, scannedThrough: { id: boundary.id, createdAt: boundary.createdAt } };
 }
 
 const ACTIVITY_KINDS = new Set<SocialActivityItem["kind"]>([
@@ -211,11 +216,19 @@ function parseActivityPage(value: unknown): SocialActivityItem[] | null {
   return items;
 }
 
-function chronological(posts: SocialPostDTO[]): SocialPostDTO[] {
-  return [...posts].sort((left, right) => {
-    const time = Date.parse(right.createdAt) - Date.parse(left.createdAt);
-    return time || right.id.localeCompare(left.id);
-  });
+async function readPostPage(href: string, signal: AbortSignal): Promise<SocialPostPage> {
+  const response = await authedActionFetch(href, {
+    cache: "no-store", credentials: "same-origin", signal,
+  }, { requiresIdentity: true });
+  if (!response.ok) {
+    discardBody(response);
+    throw [401, 403].includes(response.status)
+      ? new SocialFeedDenied()
+      : new Error("Social feed unavailable");
+  }
+  const page = parsePostPage(await response.json());
+  if (!page) throw new Error("Social feed malformed");
+  return page;
 }
 
 export function SocialAccessBoundary({
@@ -414,7 +427,7 @@ function SocialPageAccountState({
   publicAlternatives,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { accountRevision, identityResolved, identityUnavailable, retryIdentity } = useAuth();
+  const { accountRevision, user, identityResolved, identityUnavailable, retryIdentity } = useAuth();
   const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
     viewerSession.unresolved
@@ -444,19 +457,64 @@ function SocialPageAccountState({
     useState<ActivityLoadState>("idle");
   const [activityItems, setActivityItems] = useState<SocialActivityItem[]>([]);
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
+  const postsRef = useRef(posts);
+  useLayoutEffect(() => { postsRef.current = posts; }, [posts]);
   const [reelStart, setReelStart] = useState<{ postId: string; opener: HTMLButtonElement } | null>(null);
   const openReel = (postId: string, opener: HTMLButtonElement) => setReelStart({ postId, opener });
   const reelPosts = useMemo(() => posts.filter((post) => post.video), [posts]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [moreFailed, setMoreFailed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [quietFeedFailure, setQuietFeedFailure] = useState(false);
+  const [newPostsWaiting, setNewPostsWaiting] = useState(false);
+  const backgroundController = useRef<AbortController | null>(null);
+  const [loadedPages, setLoadedPages] = useState(0);
+  const feedPending = useRef(false);
+  const feedData = useRef<{ key: string; page: SocialPostWindow } | null>(null);
   const [activityRevision, setActivityRevision] = useState(accountRevision);
   const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
+  const explicitFeedRefreshKey = useRef<string | null>(null);
   const feedHref = useMemo(
     () => socialFeedRequestHref(initialState),
     [initialState],
   );
+  const feedSnapshotPrefix = user ? `social-posts:${user.id}:` : null;
+  const feedSnapshotKey = feedSnapshotPrefix && feedHref
+    ? `${feedSnapshotPrefix}${accountRevision}:${feedHref}` : null;
+  const committedFeed = useRef<{
+    actor: string | null;
+    revision: number;
+    prefix: string | null;
+    key: string | null;
+    selection: SocialShellState;
+    editable: boolean;
+  } | null>(null);
+  useLayoutEffect(() => {
+    committedFeed.current = {
+      actor: user?.id ?? null, revision: accountRevision,
+      prefix: feedSnapshotPrefix, key: feedSnapshotKey, selection: initialState,
+      editable: access === "verified" && identityResolved,
+    };
+    return () => { committedFeed.current = null; };
+  }, [user?.id, accountRevision, feedSnapshotPrefix, feedSnapshotKey, initialState, access, identityResolved]);
+  const requestExplicitFeedRefresh = useCallback(() => {
+    if (!feedSnapshotKey || feedPending.current || moreController.current) return;
+    feedPending.current = true;
+    explicitFeedRefreshKey.current = feedSnapshotKey;
+    setRefreshing(true);
+    setFeedAttempt(value => value + 1);
+  }, [feedSnapshotKey]);
+  const denyFeed = useCallback(() => {
+    if (feedSnapshotKey) forgetSurfaceSnapshot(feedSnapshotKey);
+    feedData.current = null;
+    setPosts([]);
+    setNextCursor(null);
+    answeredRevision.current = null;
+    setAccess("unavailable");
+  }, [feedSnapshotKey]);
 
   useEffect(() => {
     if (initialState.tab === "discover") return;
@@ -572,55 +630,162 @@ function SocialPageAccountState({
   }, []);
 
   useEffect(() => {
+    backgroundController.current?.abort();
+    backgroundController.current = null;
     moreController.current?.abort();
     const requestId = ++feedRequestId.current;
-    if (access !== "verified" || !feedHref) {
+    const replaceDeepWindow = explicitFeedRefreshKey.current === feedSnapshotKey;
+    explicitFeedRefreshKey.current = null;
+    if (access !== "verified" || !feedHref || !feedSnapshotKey) {
+      if (["preview", "sign_in_required", "age_verification_required", "suspended"].includes(access) && feedData.current) {
+        forgetSurfaceSnapshot(feedData.current.key);
+      }
+      feedData.current = null;
       void Promise.resolve().then(() => {
         if (feedRequestId.current !== requestId) return;
         setPosts([]);
         setNextCursor(null);
         setFeedStatus("idle");
         setLoadingMore(false);
+        setRefreshing(false);
+        setLoadedPages(0);
       });
       return;
     }
 
+    const previous = feedData.current?.key === feedSnapshotKey
+      ? feedData.current.page : readSurfaceSnapshot<SocialPostWindow>(feedSnapshotKey);
+    const keepDeepWindow = (previous?.pages ?? 0) > SOCIAL_REFRESH_PAGE_CAP && !replaceDeepWindow;
     const controller = new AbortController();
+    feedPending.current = !keepDeepWindow;
+    const cancel = () => {
+      controller.abort();
+      feedPending.current = false;
+      moreController.current?.abort();
+      moreController.current = null;
+    };
     void Promise.resolve().then(() => {
       if (feedRequestId.current !== requestId) return;
-      setPosts([]);
-      setNextCursor(null);
-      setFeedStatus("loading");
+      const sameWindow = feedData.current?.key === feedSnapshotKey;
+      if (feedData.current?.key !== feedSnapshotKey) {
+        feedData.current = previous ? { key: feedSnapshotKey, page: previous } : null;
+      }
+      const held = feedData.current?.page;
+      setPosts(held?.posts ?? []);
+      setNextCursor(held?.nextCursor ?? null);
+      setLoadedPages(held?.pages ?? 0);
+      setFeedStatus(current => (sameWindow || replaceDeepWindow) && current === "error" ? "error" : held ? "ready" : "loading");
       setLoadingMore(false);
+      setRefreshing(!keepDeepWindow);
+      if (!sameWindow) setQuietFeedFailure(false);
+      if (!sameWindow) setNewPostsWaiting(false);
+      if (!sameWindow) setMoreFailed(false);
     });
-    authedActionFetch(feedHref, {
-      cache: "no-store",
-      credentials: "same-origin",
-      signal: controller.signal,
-    }, { requiresIdentity: true })
-      .then(async (response) => {
-        if (!response.ok) throw new Error("Social feed unavailable");
-        const page = parsePostPage(await response.json());
-        if (!page) throw new Error("Social feed malformed");
-        return page;
-      })
+    if (keepDeepWindow) return cancel;
+    readSocialPostWindow(async cursor => {
+      const href = cursor ? socialFeedRequestHref(initialState, cursor) : feedHref;
+      if (!href) throw new Error("Social feed unavailable");
+      return readPostPage(href, controller.signal);
+    }, previous?.pages ?? 1)
       .then((page) => {
-        if (feedRequestId.current !== requestId) return;
-        setPosts(chronological(page.posts));
+        if (controller.signal.aborted || feedRequestId.current !== requestId) return;
+        feedData.current = { key: feedSnapshotKey, page };
+        writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false });
+        setPosts(page.posts);
         setNextCursor(page.nextCursor);
+        setLoadedPages(page.pages);
+        if (!page.nextCursor || previous?.nextCursor !== page.nextCursor) setMoreFailed(false);
         setFeedStatus("ready");
+        setQuietFeedFailure(false);
+        setNewPostsWaiting(false);
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
-        if (feedRequestId.current === requestId) setFeedStatus("error");
+        if (!controller.signal.aborted && feedRequestId.current === requestId) {
+          if (error instanceof SocialFeedDenied) denyFeed();
+          else if (previous?.posts.length === 0) {
+            setQuietFeedFailure(true);
+            setFeedStatus("ready");
+          } else setFeedStatus("error");
+        }
+      })
+      .finally(() => {
+        if (feedRequestId.current === requestId) {
+          feedPending.current = false;
+          setRefreshing(false);
+        }
       });
-    return () => {
-      controller.abort();
-      moreController.current?.abort();
-      moreController.current = null;
+    return cancel;
+  }, [access, feedAttempt, feedHref, feedSnapshotKey, initialState, denyFeed]);
+
+  useEffect(() => {
+    if (access !== "verified" || !feedHref || !feedSnapshotKey) return;
+    let failures = 0;
+    let retryAfter = 0;
+    const refresh = async () => {
+      const held = feedData.current;
+      if (newPostsWaiting || document.visibilityState === "hidden" || Date.now() < retryAfter ||
+        held?.key !== feedSnapshotKey || held.page.pages > SOCIAL_REFRESH_PAGE_CAP ||
+        feedPending.current || moreController.current || backgroundController.current) return;
+      const controller = new AbortController();
+      backgroundController.current = controller;
+      const requestId = feedRequestId.current;
+      const stillCurrent = () => !controller.signal.aborted &&
+        backgroundController.current === controller && feedRequestId.current === requestId &&
+        committedFeed.current?.key === feedSnapshotKey && committedFeed.current.editable &&
+        feedData.current?.key === feedSnapshotKey;
+      try {
+        const result = await readSocialPostHead(cursor => {
+          const href = cursor ? socialFeedRequestHref(initialState, cursor) : feedHref;
+          if (!href) throw new Error("Social feed unavailable");
+          return readPostPage(href, controller.signal);
+        }, held.page);
+        if (!stillCurrent()) return;
+        failures = 0;
+        retryAfter = 0;
+        if (!result.contiguous) {
+          setNewPostsWaiting(true);
+          setQuietFeedFailure(false);
+          setFeedStatus("ready");
+          return;
+        }
+        const page = mergeSocialPostHead(feedData.current!.page, result.head);
+        feedData.current = { key: feedSnapshotKey, page };
+        writeSurfaceSnapshot(feedSnapshotKey, page, Date.now(), { persist: false, preserveAge: true });
+        setPosts(page.posts);
+        setNextCursor(page.nextCursor);
+        setLoadedPages(page.pages);
+        setFeedStatus("ready");
+        setQuietFeedFailure(false);
+        setNewPostsWaiting(false);
+      } catch (error) {
+        if (!stillCurrent()) return;
+        if (error instanceof SocialFeedDenied) denyFeed();
+        else {
+          failures += 1;
+          retryAfter = Date.now() + Math.min(120_000, 15_000 * 2 ** failures);
+          setQuietFeedFailure(true);
+          setFeedStatus(held.page.posts.length ? "error" : "ready");
+        }
+      } finally {
+        if (backgroundController.current === controller) backgroundController.current = null;
+      }
     };
-  }, [access, feedAttempt, feedHref]);
+    const onRefresh = () => void refresh();
+    const timer = window.setInterval(onRefresh, 15_000);
+    window.addEventListener("focus", onRefresh);
+    window.addEventListener("online", onRefresh);
+    document.addEventListener("visibilitychange", onRefresh);
+    return () => {
+      window.clearInterval(timer);
+      backgroundController.current?.abort();
+      backgroundController.current = null;
+      window.removeEventListener("focus", onRefresh);
+      window.removeEventListener("online", onRefresh);
+      document.removeEventListener("visibilitychange", onRefresh);
+    };
+  }, [access, feedHref, feedSnapshotKey, initialState, newPostsWaiting, denyFeed]);
 
   useEffect(() => {
     const requestId = ++activityRequestId.current;
@@ -666,37 +831,67 @@ function SocialPageAccountState({
     return () => controller.abort();
   }, [accountRevision, access, initialState.tab]);
 
+  const refreshAfterSave = useCallback(() => {
+    feedRequestId.current += 1;
+    setFeedAttempt(value => value + 1);
+  }, []);
+
+  const acceptPostEdit = useCallback((updated?: SocialPostDTO) => {
+    const current = committedFeed.current;
+    if (!current?.editable || current.actor !== user?.id || current.revision !== accountRevision) return;
+    if (updated) {
+      setSubmittedPost(updated);
+      const active = feedData.current?.key === current.key ? feedData.current : null;
+      if (current.prefix) forgetSurfaceSnapshots(current.prefix, active?.key ?? null);
+      feedData.current = active;
+      const selection = current.selection;
+      if (active && selection.tab === "posts") {
+        const next = chronological(postsRef.current.flatMap(item => {
+          if (item.id !== updated.id) return [item];
+          const edited = { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos };
+          return matchesSocialPostFeedSelection(edited, selection.feed, selection.area, selection.tag)
+            ? [edited] : [];
+        }));
+        postsRef.current = next;
+        setPosts(next);
+        const page = { ...active.page, posts: next };
+        feedData.current = { key: active.key, page };
+        writeSurfaceSnapshot(active.key, page, Date.now(), { persist: false, preserveAge: true });
+      }
+    }
+    refreshAfterSave();
+  }, [user?.id, accountRevision, refreshAfterSave]);
+
   const loadMore = useCallback(async () => {
-    if (access !== "verified" || !nextCursor || loadingMore) return;
+    if (access !== "verified" || !nextCursor || loadingMore || feedPending.current || moreController.current) return;
     const href = socialFeedRequestHref(initialState, nextCursor);
     if (!href) return;
+    backgroundController.current?.abort();
+    backgroundController.current = null;
     const requestId = feedRequestId.current;
     const controller = new AbortController();
-    moreController.current?.abort();
     moreController.current = controller;
     setLoadingMore(true);
     try {
-      const response = await authedActionFetch(href, {
-        cache: "no-store",
-        credentials: "same-origin",
-        signal: controller.signal,
-      }, { requiresIdentity: true });
-      if (!response.ok) {
-        discardBody(response);
-        throw new Error("Social feed unavailable");
+      const page = await readPostPage(href, controller.signal);
+      if (controller.signal.aborted || feedRequestId.current !== requestId) return;
+      const byId = new Map(postsRef.current.map((post) => [post.id, post]));
+      for (const post of page.posts) byId.set(post.id, post);
+      const merged = { posts: chronological([...byId.values()]), nextCursor: page.nextCursor, pages: (feedData.current?.page.pages ?? 1) + 1 };
+      if (feedSnapshotKey) {
+        feedData.current = { key: feedSnapshotKey, page: merged };
+        writeSurfaceSnapshot(feedSnapshotKey, merged, Date.now(), { persist: false, preserveAge: true });
       }
-      const page = parsePostPage(await response.json());
-      if (!page) throw new Error("Social feed malformed");
-      if (feedRequestId.current !== requestId) return;
-      setPosts((current) => {
-        const byId = new Map(current.map((post) => [post.id, post]));
-        for (const post of page.posts) byId.set(post.id, post);
-        return chronological([...byId.values()]);
-      });
+      setPosts(merged.posts);
       setNextCursor(page.nextCursor);
+      setLoadedPages(merged.pages);
+      setMoreFailed(false);
     } catch (error) {
       if (!(error instanceof DOMException && error.name === "AbortError")) {
-        if (feedRequestId.current === requestId) setFeedStatus("error");
+        if (feedRequestId.current === requestId) {
+          if (error instanceof SocialFeedDenied) denyFeed();
+          else setMoreFailed(true);
+        }
       }
     } finally {
       if (moreController.current === controller) {
@@ -704,7 +899,7 @@ function SocialPageAccountState({
         setLoadingMore(false);
       }
     }
-  }, [access, initialState, loadingMore, nextCursor]);
+  }, [access, initialState, loadingMore, nextCursor, feedSnapshotKey, denyFeed]);
 
   const isPosts = initialState.tab === "posts";
   const logInPublicDay = useLogInPublicDay();
@@ -723,12 +918,10 @@ function SocialPageAccountState({
     friendsLaunchEnabled &&
     isPosts &&
     viewerPhase === "resolved" &&
-    access === "verified";
+    access === "verified" &&
+    (!feedHref || feedStatus === "ready" || feedStatus === "error");
   const checkingPosts = friendsLaunchEnabled && isPosts && viewerPhase === "resolved" && access === "checking";
-  useEffect(() => {
-    if (!checkingPosts) return;
-    for (const tool of VERIFIED_POSTS_TOOLS) void tool.preload();
-  }, [checkingPosts]);
+  const checkingTools = checkingPosts || (showPostsControls && !showViewerCards);
   // A signed-out reader meets the door in the body, so the packs go beside it
   // there rather than in the narrow rail, where they left the column empty.
   const packsBesideTheDoor =
@@ -746,7 +939,7 @@ function SocialPageAccountState({
       triggerLabel="Post"
       onSaved={(saved) => {
         if (saved) setSubmittedPost(saved);
-        setFeedAttempt((value) => value + 1);
+        refreshAfterSave();
       }}
     />
   ) : viewerPhase === "signed-out" ? (
@@ -849,7 +1042,6 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {logInPublicSection}
             {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {londonLane ? (
               <SocialLondonLane />
@@ -909,17 +1101,13 @@ function SocialPageAccountState({
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
-            {logInPublicSection}
             {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
               <SampleSkeleton label="Loading post lanes"><PostsControls state={initialState} /></SampleSkeleton>
             ) : null}
             {showViewerCards && viewerHandle ? <PintDropRecovery handle={viewerHandle} /> : null}
-            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={(updated) => {
-              if (updated) setSubmittedPost(updated);
-              setFeedAttempt((value) => value + 1);
-            }} /> : null}
+            {showViewerCards ? <SocialOutbox draftScope={draftScope} submittedPost={submittedPost} onPostChanged={acceptPostEdit} /> : null}
 
           {!friendsLaunchEnabled ? (
             <SocialAccessBoundary
@@ -985,12 +1173,16 @@ function SocialPageAccountState({
                 <Link prefetch={false} href="/social?feed=discover" aria-label={`Clear the #${activeTag} filter`}>Clear</Link>
               </p>
             ) : null}
-            {!(feedStatus === "ready" && posts.length === 0 && !nextCursor) ? <section
+            {!(feedStatus === "ready" && posts.length === 0 && !nextCursor && !quietFeedFailure) ? <section
               className="socialFeed"
               aria-label={`${surfaceName} posts`}
-              aria-busy={feedStatus === "loading" || loadingMore}
+              aria-busy={feedStatus === "loading" || loadingMore || refreshing}
             >
               {feedHeading}
+              {loadedPages > 0 ? <div className="socialFeedControls">
+                {newPostsWaiting ? <p className="socialFeedNewPosts" role="status">New posts are waiting. Refresh to see them.</p> : null}
+                <Button type="button" variant="ghost" disabled={refreshing || loadingMore} onClick={requestExplicitFeedRefresh}>Refresh posts</Button>
+              </div> : null}
               <p
                 className="srOnly"
                 role="status"
@@ -1001,31 +1193,35 @@ function SocialPageAccountState({
                   ? `Loading ${surfaceName} posts…`
                   : loadingMore
                     ? `Loading more ${surfaceName} posts…`
-                    : feedStatus === "error"
-                      ? `${surfaceName} posts are unavailable right now.`
+                    : quietFeedFailure || feedStatus === "error"
+                      ? ""
                       : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
-              {feedStatus === "loading" ? (
-                <div className="socialSkeletons" aria-hidden="true">
-                  <span />
-                  <span />
-                  <span />
-                </div>
-              ) : feedStatus === "error" ? (
+              {quietFeedFailure || (feedStatus === "error" && posts.length > 0) ? (
+                <p className="socialFeedInlineError" role="status">
+                  Couldn&rsquo;t refresh these posts. They show what loaded last.
+                  <Button type="button" variant="secondary" aria-disabled={refreshing || loadingMore} aria-busy={refreshing} onClick={requestExplicitFeedRefresh}>Retry</Button>
+                </p>
+              ) : null}
+              {feedStatus === "loading" && posts.length === 0 ? (
+                <SocialFeedLoading />
+              ) : feedStatus === "error" && posts.length === 0 ? (
                 <div className="socialFeedError" role="alert">
                   <EmptyState
                     title={`${surfaceName} posts are unavailable right now.`}
                     action={
                       <button
                         type="button"
-                        onClick={() => setFeedAttempt((value) => value + 1)}
+                        aria-disabled={refreshing || loadingMore}
+                        aria-busy={refreshing}
+                        onClick={requestExplicitFeedRefresh}
                       >
                         Retry
                       </button>
                     }
                   />
                 </div>
-              ) : posts.length === 0 ? (
+              ) : posts.length === 0 && !quietFeedFailure ? (
                 <div className="socialFeedEmpty" role="status">
                   {emptyFeedState}
                   {/* The search-and-invite surface is the rail's, once. */}
@@ -1041,24 +1237,22 @@ function SocialPageAccountState({
                   {posts.map((post) => (
                     <SocialPostCard key={post.id} post={post} lane={initialState.feed ?? undefined} canEdit={post.ownedByViewer} draftScope={draftScope} interactive
                       onOpenVideo={openReel}
-                      onEdited={(updated) => updated
-                        ? setPosts((current) => chronological(current.map((item) => item.id === updated.id
-                          ? { ...updated, review: updated.review ?? item.review, video: updated.video ?? item.video, extraPhotos: updated.extraPhotos ?? item.extraPhotos }
-                          : item)))
-                        : setFeedAttempt((value) => value + 1)} />
+                      onEdited={acceptPostEdit} />
                   ))}
                   {reelStart ? <ReelsViewer posts={reelPosts} startPostId={reelStart.postId} opener={reelStart.opener} onClose={() => setReelStart(null)} /> : null}
                 </div>
               )}
-              {feedStatus === "ready" && nextCursor ? (
-                <button
+              {moreFailed ? <p className="socialFeedInlineError" role="alert">Couldn&rsquo;t load more posts.</p> : null}
+              {(feedStatus === "ready" || posts.length > 0) && nextCursor ? (
+                <Button
                   type="button"
-                  className="socialButton socialLoadMore"
-                  disabled={loadingMore}
+                  variant="secondary"
+                  className="socialLoadMore"
+                  disabled={loadingMore || refreshing}
                   onClick={() => void loadMore()}
                 >
-                  {loadingMore ? "Loading…" : "Load more"}
-                </button>
+                  {loadingMore ? "Loading…" : moreFailed ? "Try again" : "Load more"}
+                </Button>
               ) : null}
             </section> : null}
             {initialState.feed === "following" ? <MatesActivity /> : null}
@@ -1067,9 +1261,9 @@ function SocialPageAccountState({
 
           </div>
           <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
-            {checkingPosts ? (
+            {checkingTools ? (
               <SampleSkeleton className="socialViewerCards" label="Loading your Social tools">
-                <PubRankingPanel />
+                <PubRankingPlaceholder />
                 {/* A static shape, not the lazy panel: the wait reserves the
                     crews card without its download or data read. */}
                 <CrewsPanelPlaceholder />
@@ -1114,6 +1308,7 @@ function SocialPageAccountState({
         </div>
         </>
         )}
+        {logInPublicSection}
         </Screen>
       </main>
     </>

@@ -449,6 +449,10 @@ describe("painted target and real click routing parity", () => {
     { name: "first cafe hit within one layer", hits: [cafe, { ...cafe, id: "venue-osm-n6" }], winner: cafe, kind: "venue", pubs: [], places: [cafe] },
     { name: "first restaurant hit within one layer", hits: [restaurant, { ...restaurant, id: "venue-osm-n7" }], winner: restaurant, kind: "venue", pubs: [], places: [restaurant] },
     { name: "pub before cluster", hits: [cluster, pub], winner: pub, kind: "venue", pubs: [pub], places: [] },
+    ...["pubs-point", "pubs-price-pill", "pubs-point-selected", "pubs-price-pill-selected"].map(layer => ({
+      name: `numbered route disc above ${layer}`,
+      hits: [{ ...pub, layer }, route], winner: route, kind: "route", pubs: [], places: [],
+    })),
     { name: "route before cluster and cafe", hits: [cafe, cluster, route], winner: route, kind: "route", pubs: [], places: [] },
     { name: "cluster before cafe and UK and restaurant", hits: [restaurant, base, cafe, cluster], winner: cluster, kind: "cluster", pubs: [cluster], places: [] },
     { name: "UK before tonight and landmark and POI", hits: [poi, landmark, tonight, base], winner: base, kind: "base", pubs: [base], places: [] },

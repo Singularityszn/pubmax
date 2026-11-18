@@ -194,12 +194,14 @@ describe("Social post store visibility and feeds", () => {
     const discover = await store.feed(bob, { lane: "discover", limit: 1 });
     expect(discover.posts.map((post) => post.body)).toEqual(["newest public"]);
     expect(discover.nextCursor).toEqual(expect.any(String));
+    expect(discover.scannedThrough).toEqual({ id: discover.posts[0]!.id, createdAt: discover.posts[0]!.createdAt });
     const cursorParts = discover.nextCursor!.split(".");
     expect(cursorParts).toHaveLength(2);
     expect(JSON.parse(Buffer.from(defined(cursorParts[0]), "base64url").toString("utf8")))
       .not.toHaveProperty("viewer");
     const page2 = await store.feed(bob, { lane: "discover", limit: 1, cursor: discover.nextCursor });
     expect(page2.posts.map((post) => post.body)).toEqual(["older public"]);
+    expect(page2.scannedThrough).toEqual({ id: page2.posts[0]!.id, createdAt: page2.posts[0]!.createdAt });
     await expect(store.feed(carol, { lane: "discover", limit: 1, cursor: discover.nextCursor }))
       .rejects.toMatchObject({ code: "INVALID_CURSOR" });
 

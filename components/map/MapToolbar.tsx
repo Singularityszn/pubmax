@@ -182,6 +182,12 @@ function trayChipChange(next: Filters, pintsPicked: boolean): Filters {
 
 // Compact map chrome: search + Plan on the first row; drink lens / chips stay
 // behind an optional expand so phones keep map mid-field free.
+function planningControlLabel(open: boolean, walk: boolean, compact: boolean) {
+  if (walk) return open ? "Close walk" : "View walk";
+  if (compact) return open ? "Close" : "Plan";
+  return open ? "Close plan" : "Plan an outing";
+}
+
 type MapToolbarProps = {
   restaurantLayerAvailable?: boolean;
   query: string;
@@ -215,6 +221,7 @@ type MapToolbarProps = {
   /** The DrinkCategory that fits tonight, for the persona fits-tonight sort. */
   personaTonightCategory: DrinkCategory | null;
   planningOpen: boolean;
+  walkActive?: boolean;
   detailOpen: boolean;
   desktopLaneActive: boolean;
   /**
@@ -285,6 +292,7 @@ export default function MapToolbar({
   onPersonaSelect,
   personaTonightCategory,
   planningOpen,
+  walkActive = false,
   detailOpen,
   desktopLaneActive,
   storyOpen = false,
@@ -522,19 +530,13 @@ export default function MapToolbar({
           className={planningOpen ? "planBtn active" : "planBtn"}
           onClick={onTogglePlanning}
           aria-pressed={planningOpen}
-          aria-label={planningOpen ? "Close plan" : "Plan an outing"}
+          aria-label={planningControlLabel(planningOpen, walkActive, false)}
         >
           <Route size={16} aria-hidden="true" />
           {/* One label only — the old CSS-hidden sibling span still leaked into
               textContent/AT trees as the "Plan an outingPlan" dual label. */}
           <span className={isMobile === true ? "planBtnShort" : "planBtnFull"}>
-            {isMobile === true
-              ? planningOpen
-                ? "Close"
-                : "Plan"
-              : planningOpen
-                ? "Close plan"
-                : "Plan an outing"}
+            {planningControlLabel(planningOpen, walkActive, isMobile === true)}
           </span>
         </button>
 

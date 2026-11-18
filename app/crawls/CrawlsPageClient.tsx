@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Check, Copy, MapPin } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { decodeCrawlStory, totalGbp, type CrawlStory } from "@/lib/crawlStory";
-import { curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { curatedCrawls, curatedCrawlMapHref, type CuratedCrawl } from "@/lib/curatedCrawls";
 import { landmarks } from "@/lib/landmarks";
 import { namedRoutePathForCrawl } from "@/lib/namedRoutes";
 import { getRoutePack, routePacks } from "@/lib/routePacks";
@@ -17,6 +17,7 @@ import { loadSlimVenuesForCityResult, type SlimVenue } from "@/lib/venuesSlim";
 import SiteNav from "@/components/nav/SiteNav";
 import RoundStarter from "@/components/round/RoundStarter";
 import HostOnDate from "@/components/crawls/HostOnDate";
+import CuratedWalkCard from "@/components/crawls/CuratedWalkCard";
 import type { CityCrawlGroup } from "@/lib/cityCrawlDirectory";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
@@ -112,7 +113,8 @@ function crawlMapHref(story: CrawlStory): Route {
   return `/map?${params.toString()}`;
 }
 
-export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [] }: {
+export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = null, cityCrawlGroups = [], curatedCrawlIds }: {
+  curatedCrawlIds?: string[];
   cityCrawlGroups?: CityCrawlGroup[];
   pack?: string;
   encodedStory?: string | null;
@@ -127,7 +129,9 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   // hides the directory from a reader whose JavaScript cannot run.
   const activePackId = pack;
   const activePack = activePackId ? getRoutePack(activePackId) : undefined;
-  const visibleCrawls = visibleCuratedCrawls(activePackId);
+  const visibleCrawls = useMemo(() => curatedCrawlIds
+    ? curatedCrawlIds.flatMap((id) => curatedCrawls.find((crawl) => crawl.id === id) ?? [])
+    : visibleCuratedCrawls(activePackId), [activePackId, curatedCrawlIds]);
 
   // The server supplies ?s= again on navigation. Invalid values fall through
   // to the directory because decodeCrawlStory never throws.
@@ -170,6 +174,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
   // reachable (featured + every group row), nothing is dropped, no repeated
   // full-card layout.
   const featuredCrawl = visibleCrawls[0];
+  const starterCrawl = visibleCrawls.find((crawl) => !crawl.walk);
   const compactGroups = groupCompactCrawls(visibleCrawls.slice(1));
 
   const [copied, setCopied] = useState(false);
@@ -199,10 +204,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
       {story ? (
         <CrawlPoster story={story} copied={copied} copyError={copyError} onCopy={copyShareLink} />
       ) : (
-        // docs/design/LAUNCH_SCREENS.md: the one primary starts the featured
-        // crawl on the map; the quiet way onward is the bare map, where the
-        // reader builds their own. With nothing featured the primary falls
-        // back to the map rather than promising a route the page cannot name.
+        // The primary starts a pub crawl. Seasonal walks have their own map link.
         <Screen
           as="section"
           className="crawlEmpty"
@@ -213,7 +215,7 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
           primary={
             <Link
               prefetch={false}
-              href={featuredCrawl ? curatedCrawlMapHref(featuredCrawl) : "/map"}
+              href={starterCrawl ? curatedCrawlMapHref(starterCrawl) : "/map"}
             >
               Start a crawl
             </Link>
@@ -262,7 +264,9 @@ export default function CrawlsPageClient({ pack, encodedStory, featuredPhoto = n
               ) : null}
             </nav>
 
-            {featuredCrawl ? (
+            {featuredCrawl?.walk ? (
+              <CuratedWalkCard crawl={featuredCrawl} walk={featuredCrawl.walk} />
+            ) : featuredCrawl ? (
               <FeaturedCrawlCard crawl={featuredCrawl} slimById={slimById} photo={featuredPhoto} priceStatus={venueIndexStatus} />
             ) : null}
 

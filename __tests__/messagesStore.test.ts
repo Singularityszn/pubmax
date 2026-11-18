@@ -70,18 +70,20 @@ describe("listConversations — inbox with preview + per-viewer unread", () => {
     const s = memoryMessagesStore;
     const id = (await s.openConversation("ken", "sam"))!;
     await s.send(id, "ken", "hello sam");
-    await s.send(id, "ken", "you there?");
+    const latest = (await s.send(id, "ken", "you there?"))!.message;
 
     const samInbox = (await s.listConversations("sam")).conversations;
     expect(samInbox).toHaveLength(1);
     expect(defined(samInbox[0]).otherHandle).toBe("ken");
     expect(defined(samInbox[0]).lastBody).toBe("you there?");
     expect(defined(samInbox[0]).lastFromMe).toBe(false);
+    expect(defined(samInbox[0]).lastMessageId).toBe(latest.id);
     expect(defined(samInbox[0]).unread).toBe(2); // two unread from ken
 
     const kenInbox = (await s.listConversations("ken")).conversations;
     expect(defined(kenInbox[0]).unread).toBe(0); // his own messages are never unread
     expect(defined(kenInbox[0]).lastFromMe).toBe(true);
+    expect(defined(kenInbox[0]).lastMessageId).toBe(latest.id);
   });
 
   it("is empty for a handle with no conversations / a blank handle", async () => {

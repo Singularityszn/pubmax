@@ -119,6 +119,12 @@ globalThis.fetch = async (input, options) => {
   calls.push({ kind: "fetch", url });
   const page = config.pages[url];
   if (!page) return blocked("fetch " + url);
+  // A fixture url that differs from the request is a redirect: the runner
+  // follows hops by hand now, so the mock answers 302 and the landing's own
+  // page entry serves the body, exactly like a real server.
+  if (page.url && page.url !== url) {
+    return new Response(null, { status: 302, headers: { location: page.url } });
+  }
   const response = new Response(page.body, { headers: { "content-type": page.type ?? "text/html" } });
   Object.defineProperty(response, "url", { value: page.url ?? url });
   return response;
@@ -240,7 +246,8 @@ export function pagesWithLinkedLanding(landing = LANDING, rules = "Allow: /"): R
     "https://first.example/robots.txt": { body: "User-agent: *\nAllow: /", type: "text/plain" },
     "https://landing.example/robots.txt": { body: `User-agent: *\n${rules}`, type: "text/plain" },
     [HOME]: { body: `<p>${WELCOME}</p><a href="/sports">Sport</a>` },
-    [EXTRA]: { body: `<p>${SPORTS_QUOTE}</p>`, url: landing },
+    [EXTRA]: { body: "", url: landing },
+    [landing]: { body: `<p>${SPORTS_QUOTE}</p>` },
   };
 }
 

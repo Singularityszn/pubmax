@@ -565,6 +565,7 @@ An empty diff and every event other than a pull request read `ui`. The [browser 
 | CI / CI check (required) | runs | runs | runs |
 | CI / Data validation | runs | runs | runs |
 | Browser tests / law pins | green, steps skipped | green, steps skipped | runs |
+| Browser tests / law-pin failure evidence | skipped | skipped | uploads the JSON report, traces and error contexts only after failure, retained for 14 days |
 | Browser tests / Change scope | runs (Linux, classifier only) | runs | runs |
 | Browser tests / layout pins (1-3/3) | skipped, no Mac place | skipped, no Mac place | follows the [layout-job schedule](#the-required-checks-and-the-merge-queue) and layout scope above |
 | Browser tests / full suite | not run on pull requests (nightly and dispatch only) | same | same |

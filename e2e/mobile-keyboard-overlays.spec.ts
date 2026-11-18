@@ -59,15 +59,18 @@ for (const width of [320, 412, 430]) {
       await expect(portal).toBeVisible({ timeout: 1_000 });
     }).toPass();
     await expectDockOwnsBottom(page);
+    const refinements = portal.locator(".mobileFilterDisclosure");
+    if (await refinements.getAttribute("open") === null) await refinements.locator(":scope > summary").click();
+    await portal.locator(".mapExperienceLensHead small").scrollIntoViewIfNeeded();
     await expect(portal.locator(".mapExperienceLensHead small")).toBeInViewport({ ratio: 1 });
     const overflow = await portal.locator(".mobileMapFilters").evaluate((element) => element.scrollWidth - element.clientWidth);
     expect(overflow).toBeLessThanOrEqual(1);
     await expect(portal.locator('.mobileMapSavedOnly input')).toHaveCSS("width", "24px");
     await portal.locator(".mobileSharedSheetDetent").click();
-    const lastDrink = portal.getByRole("button", { name: "Soft drinks", exact: true });
-    await lastDrink.scrollIntoViewIfNeeded();
-    await expect(lastDrink).toBeInViewport();
-    const fits = await lastDrink.evaluate((element) => {
+    const savedOnly = portal.locator(".mobileMapSavedOnly");
+    await savedOnly.scrollIntoViewIfNeeded();
+    await expect(savedOnly).toBeInViewport();
+    const fits = await savedOnly.evaluate((element) => {
       const box = element.getBoundingClientRect();
       const body = element.closest(".mobileSharedSheetBody")!.getBoundingClientRect();
       return box.top >= body.top && box.bottom <= body.bottom + 1;
