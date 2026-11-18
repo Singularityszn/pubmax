@@ -83,6 +83,7 @@ for (const viewport of VIEWPORTS) {
       return route.fulfill({ response });
     });
     await page.goto("/map?city=london#search");
+    await expect(page).toHaveURL(/\/map#search$/);
     const url = page.url();
     await expect(page.locator("canvas.maplibregl-canvas").first()).toBeVisible();
     if (viewport.name === "phone") {

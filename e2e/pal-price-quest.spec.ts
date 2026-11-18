@@ -175,7 +175,7 @@ test("two open /near tabs: the second stops asking once the first stamps the day
   await otherSlot.getByRole("textbox").fill("4.40");
   await attachBill(otherSlot);
   await otherSlot.getByRole("button", { name: "Log it" }).last().click();
-  await expect(otherSlot.getByRole("status")).toBeVisible({ timeout: 30_000 });
+  await expect(otherSlot.getByRole("status").filter({ hasText: "Another independent check is still needed." })).toBeVisible({ timeout: 30_000 });
   await expect(second.getByTestId("pal-quest")).toHaveCount(0);
   const stamps = await second.evaluate(() => window.localStorage.getItem("pubmax:pal-quest-stamps:v1"));
   expect(JSON.parse(stamps!)).toHaveLength(1);

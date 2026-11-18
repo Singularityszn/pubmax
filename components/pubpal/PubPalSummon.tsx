@@ -19,7 +19,7 @@ import { subscribePalMoments, type PalMoment } from "@/lib/palMoments";
 import { PubPalAvatar } from "./PubPalAvatar";
 import { palGenomeFor } from "@/lib/palGenome";
 import { parseCityId } from "@/lib/cities";
-import { readPalVoiceHost, requestPalVoiceStart, subscribePalVoiceHost } from "@/lib/palVoiceHost";
+import { readPalVoiceHost, requestPalVoiceStart, resumePalVoiceStart, subscribePalVoiceHost } from "@/lib/palVoiceHost";
 import { usePalVoiceAvailability } from "./usePalVoiceAvailability";
 import { usePalVoiceEligibility } from "./usePalVoiceEligibility";
 import { playPalVoiceSound } from "./palVoiceSounds";
@@ -150,6 +150,11 @@ function MapPalTalk({ ownerId, pal, genome, cheer, line }: {
   const eligibility = usePalVoiceEligibility(ownerId);
   // Until the voice bar draws, the chip says the tap was taken, or that it failed.
   const tap = useSyncExternalStore(subscribePalVoiceHost, readVoiceTap, noVoiceTap);
+  useEffect(() => {
+    if (eligibility === "eligible" && availability === "available") {
+      resumePalVoiceStart(ownerId, { palName: pal.name, appearance: pal.appearance, genome });
+    }
+  }, [eligibility, availability, ownerId, pal.name, pal.appearance, genome]);
   if (eligibility !== "eligible") return null;
   const said = tap === "failed" ? PAL_SUMMON_LOAD_FAILED_LINE : tap === ownerId ? PAL_SUMMON_WARMING_LINE : line;
   const face = <PubPalAvatar appearance={pal.appearance} name={pal.name} compact genome={genome}/>;

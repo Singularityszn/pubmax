@@ -1,6 +1,6 @@
 "use client";
 
-import { Component, lazy, Suspense, useLayoutEffect, useRef, useSyncExternalStore, type ComponentType, type ReactNode, type RefObject } from "react";
+import { Component, lazy, Suspense, useLayoutEffect, useMemo, useRef, useSyncExternalStore, type ComponentType, type ReactNode, type RefObject } from "react";
 
 function SocialToolFocus({ children, label, transfer }: { children: ReactNode; label: string; transfer: RefObject<boolean> }) {
   const start = useRef<HTMLSpanElement>(null);
@@ -81,7 +81,7 @@ export function socialLazy<P extends object>(
   function SocialLazyTool(props: P) {
     const attempt = useSyncExternalStore(subscribe, readGeneration, readGeneration);
     const transfer = useRef(false);
-    const Tool = loaded ?? Current;
+    const Tool = useMemo(() => loaded ?? Current, [attempt]);
     const place = (state: ReactNode) => (frame ? frame(state, props) : state);
     return (
       <SocialLoadBoundary

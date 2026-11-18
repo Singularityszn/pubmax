@@ -46,6 +46,7 @@ let state: PalVoiceHostState = {
   loadFailed: false,
 };
 const listeners = new Set<() => void>();
+const RELOAD_START_KEY = "pubmax:pal-voice-reload-start";
 
 function update(next: Partial<PalVoiceHostState>): void {
   state = { ...state, ...next };
@@ -78,7 +79,32 @@ export function revokePalVoiceCall(): void {
 /** Start a call where the person is, for this account, with its Pal's name and look. */
 export function requestPalVoiceStart(ownerId: string, props: PalVoicePanelProps, stopStartChime?: () => void): void {
   state.stopStartChime?.();
+  if (state.loadFailed) {
+    stopStartChime?.();
+    try {
+      sessionStorage.setItem(RELOAD_START_KEY, `${Date.now()}:${ownerId}:${location.href}`);
+    } catch {}
+    location.reload();
+    return;
+  }
   update({ props, startPending: true, startRequest: state.startRequest + 1, startOwner: ownerId, loadFailed: false, stopStartChime });
+}
+
+/** Only the explicit retry survives a reload, for its original account and URL. */
+export function resumePalVoiceStart(ownerId: string, props: PalVoicePanelProps): void {
+  let pending: string | null = null;
+  try {
+    pending = sessionStorage.getItem(RELOAD_START_KEY);
+    sessionStorage.removeItem(RELOAD_START_KEY);
+  } catch {}
+  if (!pending || document.visibilityState === "hidden") return;
+  const split = pending.indexOf(":");
+  const age = Date.now() - Number(pending.slice(0, split));
+  const navigation = performance.getEntriesByType("navigation")[0];
+  if (!(navigation instanceof PerformanceNavigationTiming) || navigation.type !== "reload") return;
+  if (age >= 0 && age < 30_000 && pending.slice(split + 1) === `${ownerId}:${location.href}`) {
+    requestPalVoiceStart(ownerId, props);
+  }
 }
 
 export function takePalVoiceStartChime(): PalVoiceStartChime {
@@ -95,7 +121,7 @@ export function palVoiceLoadFailed(): void {
 
 /** The /pal panel asks for the call's code again. */
 export function retryPalVoiceLoad(): void {
-  if (state.loadFailed) update({ loadFailed: false });
+  if (state.loadFailed) location.reload();
 }
 
 /**

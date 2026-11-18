@@ -1,0 +1,64 @@
+// @vitest-environment jsdom
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+
+class NavigationTiming implements PerformanceEntry {
+  name = "https://pubmaxxing.com/map";
+  entryType = "navigation";
+  startTime = 0;
+  duration = 0;
+  type = "reload";
+  toJSON() { return {}; }
+}
+
+const navigation = new NavigationTiming();
+const reload = vi.fn();
+let voice: typeof import("@/lib/palVoiceHost");
+
+beforeEach(async () => {
+  vi.resetModules();
+  sessionStorage.clear();
+  reload.mockClear();
+  navigation.type = "reload";
+  vi.stubGlobal("location", { href: navigation.name, reload });
+  vi.stubGlobal("PerformanceNavigationTiming", NavigationTiming);
+  vi.spyOn(performance, "getEntriesByType").mockReturnValue([navigation]);
+  voice = await import("@/lib/palVoiceHost");
+});
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+async function retryAndReload() {
+  voice.requestPalVoiceStart("account-a", { palName: "Robin" });
+  voice.palVoiceLoadFailed();
+  voice.requestPalVoiceStart("account-a", { palName: "Robin" });
+  expect(reload).toHaveBeenCalledOnce();
+  vi.resetModules();
+  voice = await import("@/lib/palVoiceHost");
+}
+
+it("resumes one explicit voice retry after its account reloads the same page", async () => {
+  await retryAndReload();
+  voice.resumePalVoiceStart("account-a", { palName: "Robin" });
+  expect(voice.readPalVoiceHost()).toMatchObject({ startPending: true, startOwner: "account-a" });
+  voice.setPalVoiceEngaged(true);
+  voice.resumePalVoiceStart("account-a", { palName: "Robin" });
+  expect(voice.readPalVoiceHost().startPending).toBe(false);
+});
+
+it.each(["another account", "another page", "later visit", "navigation", "hidden page"])(
+  "does not reopen the microphone for %s",
+  async (change) => {
+    const now = Date.now();
+    await retryAndReload();
+    if (change === "another page") location.href = "https://pubmaxxing.com/map?city=bristol";
+    if (change === "later visit") vi.spyOn(Date, "now").mockReturnValue(now + 60_000);
+    if (change === "navigation") navigation.type = "navigate";
+    if (change === "hidden page") vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+    voice.resumePalVoiceStart(change === "another account" ? "account-b" : "account-a", {});
+    expect(voice.readPalVoiceHost().startPending).toBe(false);
+    expect(sessionStorage.length).toBe(0);
+  },
+);
