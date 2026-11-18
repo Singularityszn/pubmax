@@ -341,11 +341,23 @@ export default function VenuePriceSubmit({
   // The venue's price on record leads the chips - one tap on the likeliest
   // answer beats typing, and a correction is usually a few pence away from it.
   // Three fit one row at 390px; a fourth wraps and the block stops reading as
-  // a single row of shortcuts.
+  // a single row of shortcuts. The chips are TAP-FILLS for the drinker's own
+  // figure, never a claim about the price here: the row says so in words, and
+  // only the chip carrying the recorded figure is tagged "on record" (the
+  // same honesty the Pint Drop composer's "last" tag keeps, one door over).
   const quickPrices = useMemo(
     () => mergePriceChips(QUICK_ADD_PRICES_GBP, baselinePriceGbp).slice(0, 3),
     [baselinePriceGbp],
   );
+  // mergePriceChips normalises the leading figure through formatPriceGbp, so
+  // the record chip is found by the same rounding, never by raw equality.
+  const recordChipGbp = useMemo(() => {
+    const value = baselinePriceGbp;
+    if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+      return null;
+    }
+    return Number(formatPriceGbp(value));
+  }, [baselinePriceGbp]);
   // Left to the React Compiler rather than a manual useMemo: `category` is
   // derived per render by `effectiveSubmitCategory`, which the compiler cannot
   // accept as a hand-written dependency.
@@ -818,19 +830,29 @@ export default function VenuePriceSubmit({
       </div>
 
       {missionLocksCategory ? null : (
-        <div className="vpsubQuick" aria-label="Common prices">
-          {quickPrices.map((value) => (
-            <button
-              key={value}
-              type="button"
-              className="vpsubQuickChip"
-              onClick={() => {
-                enterPrice(formatPriceGbp(value));
-              }}
-            >
-              {formatPrice(value)}
-            </button>
-          ))}
+        <div className="vpsubQuickBlock">
+          <p className="vpsubQuickLabel">Tap what you paid</p>
+          <div className="vpsubQuick" role="group" aria-label="Quick-add price">
+            {quickPrices.map((value) => {
+              const isRecord = recordChipGbp !== null && value === recordChipGbp;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  className="vpsubQuickChip"
+                  title={isRecord ? "The price on record here" : undefined}
+                  onClick={() => {
+                    enterPrice(formatPriceGbp(value));
+                  }}
+                >
+                  {formatPrice(value)}
+                  {isRecord ? (
+                    <span className="vpsubQuickTag">on record</span>
+                  ) : null}
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
