@@ -105,15 +105,13 @@ export function classifyPulledEnv(contents) {
 /**
  * The flags that carry a forwarded value onto the deploy. Each goes to BOTH
  * environments: `-b` is read while Next inlines NEXT_PUBLIC_* into the client
- * bundle, `-e` is read by the running function.
+ * bundle, `-e` is read by the running function. Only the NAME rides on the
+ * command line: a `NAME=value` argument is world-readable in `ps` output and
+ * lands in shell history, so the value travels in the deploy child's
+ * environment and the CLI's own "read from your env" path resolves it.
  */
 export function deployEnvFlags(forwarded) {
-  return forwarded.flatMap(([name, value]) => [
-    "--build-env",
-    `${name}=${value}`,
-    "--env",
-    `${name}=${value}`,
-  ]);
+  return forwarded.flatMap(([name]) => ["--build-env", name, "--env", name]);
 }
 
 /** The refusal for a forbidden flag, or null when the arguments are allowed. */

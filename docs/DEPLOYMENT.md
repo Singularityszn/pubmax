@@ -445,9 +445,10 @@ What the command does, in order:
 
 1. `vercel pull --yes --environment=production` into `.vercel/.env.production.local`.
 2. Sorts what came back into three groups (`scripts/lib/previewProdEnv.mjs`).
-3. Runs `npm run deploy:preview` with each carried value as `--build-env` and
-   `--env`, so a `NEXT_PUBLIC_*` value reaches the client bundle and the running
-   function alike, and the commit stamp rides along as before.
+3. Runs `npm run deploy:preview` with each carried name as a `--build-env` and
+   `--env` flag and its value in the child's environment, so a value never sits
+   on a command line. A `NEXT_PUBLIC_*` value reaches the client bundle and the
+   running function alike, and the commit stamp rides along as before.
 4. Prints the names it carried and the names it could not.
    Verify the running commit with the [build identity procedure](#which-commit-is-this-deploy-serving).
 

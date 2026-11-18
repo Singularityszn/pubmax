@@ -21,6 +21,7 @@ import {
   refusedFlagReason,
 } from "@/scripts/lib/previewProdEnv.mjs";
 import { VERCEL_CLI_VERSION, vercelCommand } from "@/scripts/lib/vercelCli.mjs";
+import { runDeployPreviewProdEnv } from "@/scripts/deploy-preview-prod-env.mjs";
 
 const ROOT = path.resolve(__dirname, "..");
 const read = (relative: string) => readFileSync(path.join(ROOT, relative), "utf8");
@@ -118,13 +119,16 @@ describe("what a production-environment preview may carry", () => {
     expect(isPlatformOwnedName("SUPABASE_URL")).toBe(false);
   });
 
-  it("carries each forwarded value to BOTH environments", () => {
+  it("carries each forwarded NAME to BOTH environments, never the value", () => {
+    // A `NAME=value` argument sits in `ps` output and shell history; the CLI
+    // resolves a bare `--env NAME` from the child's environment instead.
     expect(deployEnvFlags([["NEXT_PUBLIC_POSTHOG_HOST", "https://eu.i.posthog.com"]])).toEqual([
       "--build-env",
-      "NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com",
+      "NEXT_PUBLIC_POSTHOG_HOST",
       "--env",
-      "NEXT_PUBLIC_POSTHOG_HOST=https://eu.i.posthog.com",
+      "NEXT_PUBLIC_POSTHOG_HOST",
     ]);
+    expect(deployEnvFlags([["A", "secret-value"]]).join(" ")).not.toContain("secret-value");
   });
 });
 
@@ -183,16 +187,93 @@ describe("the command that makes the preview", () => {
     expect(source).not.toContain("--prebuilt\"");
   });
 
-  it("prints names, never values", () => {
+  it("prints names, never values, and never puts a value on a command line", () => {
     const source = read("scripts/deploy-preview-prod-env.mjs");
     expect(source).toContain("forwarded.map(([name]) => name).join");
     expect(source).not.toMatch(/console\.log\([^)]*forwarded\[0\]\[1\]/);
+    // The deploy child's argv carries names only; values ride in `env`.
+    // Proven behaviourally in "the deploy child's arguments" below.
+    expect(source).not.toContain("${name}=${value}");
   });
 
   it("is documented with the exact command", () => {
     const runbook = read("docs/DEPLOYMENT.md");
     expect(runbook).toContain("npm run deploy:preview:prod-env");
     expect(runbook).toContain("[SENSITIVE]");
+  });
+});
+
+describe("the deploy child's arguments and environment", () => {
+  const PULLED = [
+    "# Created by Vercel CLI",
+    'NEXT_PUBLIC_SUPABASE_URL="[SENSITIVE]"',
+    'NEXT_PUBLIC_POSTHOG_HOST="https://eu.i.posthog.com"',
+    'SUPABASE_SERVICE_ROLE_KEY="[SENSITIVE]"',
+    'SUPABASE_PUBLISHABLE_KEY="sb_publishable_live"',
+    'VERCEL_ENV="production"',
+    "",
+  ].join("\n");
+
+  function run(argv: string[] = []) {
+    const spawns: { command: string; args: readonly string[]; options: Record<string, unknown> }[] =
+      [];
+    const code = runDeployPreviewProdEnv({
+      argv,
+      env: { NODE_ENV: "test", PUBMAX_VERCEL_BIN: "/opt/vercel", PATH: "/usr/bin" },
+      spawn: (command, args, options) => {
+        spawns.push({ command, args, options: options as Record<string, unknown> });
+        return { status: 0 };
+      },
+      readFile: () => PULLED,
+      execFile: () => "949e0592b9ac6b8ee2b6b375fd5c686171791a30\n",
+      log: () => {},
+      error: () => {},
+      pulledEnvPath: "/tmp/pulled.env",
+      root: "/tmp/root",
+    });
+    return { code, spawns };
+  }
+
+  it("hands each forwarded value to the deploy child through env, never argv", () => {
+    const { code, spawns } = run();
+    expect(code).toBe(0);
+    // One spawn reads production, the second is the deploy itself.
+    expect(spawns).toHaveLength(2);
+    expect(spawns[0]?.command).toBe("/opt/vercel");
+    expect(spawns[0]?.args).toEqual(["pull", "--yes", "--environment=production"]);
+
+    const deploy = spawns[1];
+    expect(deploy?.command).toBe(process.execPath);
+    expect(deploy?.args[0]).toBe(path.join("/tmp/root", "scripts", "deploy-vercel.mjs"));
+    const argvText = deploy?.args.join(" ") ?? "";
+    // Names ride on the command line so `ps` shows what, never what-for.
+    expect(argvText).toContain("--build-env NEXT_PUBLIC_POSTHOG_HOST");
+    expect(argvText).toContain("--env SUPABASE_PUBLISHABLE_KEY");
+    // No value of any kind appears in argv.
+    for (const value of [
+      "https://eu.i.posthog.com",
+      "sb_publishable_live",
+      "[SENSITIVE]",
+      "production",
+    ]) {
+      expect(argvText).not.toContain(value);
+    }
+
+    const childEnv = deploy?.options.env as NodeJS.ProcessEnv | undefined;
+    expect(childEnv?.NEXT_PUBLIC_POSTHOG_HOST).toBe("https://eu.i.posthog.com");
+    expect(childEnv?.SUPABASE_PUBLISHABLE_KEY).toBe("sb_publishable_live");
+    // A [SENSITIVE] placeholder and a platform-owned name never reach the child.
+    expect(childEnv?.NEXT_PUBLIC_SUPABASE_URL).toBeUndefined();
+    expect(childEnv?.SUPABASE_SERVICE_ROLE_KEY).toBeUndefined();
+    expect(childEnv?.VERCEL_ENV).toBeUndefined();
+    // The operator's own environment still rides along.
+    expect(childEnv?.PUBMAX_VERCEL_BIN).toBe("/opt/vercel");
+  });
+
+  it("exits before any spawn when the arguments are refused", () => {
+    const { code, spawns } = run(["--prod"]);
+    expect(code).toBe(1);
+    expect(spawns).toHaveLength(0);
   });
 });
 
