@@ -110,7 +110,7 @@ it.each([null, "fixture-account"].flatMap((ownerId) =>
   try {
     await act(async () => root.render(createElement(Result, {
       typedName: "Alex", onName: () => {}, last, venues: [], start: last.start,
-      busy: false, error: "", priceReader: fairPence, mobile: false, cityId: "london",
+      busy: false, error: "", mobile: false, cityId: "london",
       onLineReady: () => {}, onEditStart: () => {}, onStart: () => {}, onBack: () => {},
       onClose: () => { closed = true; root.render(null); }, returnFocus: () => null,
     })));

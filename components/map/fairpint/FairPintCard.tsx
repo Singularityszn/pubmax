@@ -18,12 +18,14 @@ export default function FairPintCard({
   onDraw,
   onClose,
   drawUnavailable = false,
+  loadFailed = false,
   error = "",
   pending = false,
   focusOnMount = false,
 }: {
   focusOnMount?: boolean;
   drawUnavailable?: boolean;
+  loadFailed?: boolean;
   error?: string;
   pending?: boolean;
   start: number;
@@ -103,7 +105,7 @@ export default function FairPintCard({
       countLine={line}
       announcement={announcement}
       reason={reason}
-      failed={count.phase === "failed" || draw.phase === "failed"}
+      failed={loadFailed || count.phase === "failed" || draw.phase === "failed"}
       locationOff={locationOff}
       error={error}
       pending={pending}

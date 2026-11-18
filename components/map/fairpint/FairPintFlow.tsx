@@ -1,5 +1,5 @@
 "use client";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { useFairPintPlan } from "./useFairPintPlan";
 import type { FairPintGenerated } from "@/lib/fairPint";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
@@ -15,7 +15,6 @@ import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from 
 const selectionHaptic = () => {
   void import("@/lib/nativeHaptics").then(({ haptic }) => haptic("selection-kept")).catch(() => {});
 };
-const FairPintPlanner = lazy(() => import("./FairPintPlanner"));
 const mapSearchControl = () => [...document.querySelectorAll<HTMLElement>('[aria-label="Search the map"], .mapToolbar input')]
   .find((element) => element.getClientRects().length > 0) ?? null;
 const resultReturnFocus = () => document.querySelector<HTMLElement>(".fairPintCard:not([data-fair-prelude]) input.fairPintRange") ?? mapSearchControl();
@@ -63,7 +62,18 @@ export default function FairPintFlow({
   const [attempt, setAttempt] = useState(0);
   const [returnToCard, setReturnToCard] = useState(false);
   const [typedName, setTypedName] = useState<string | null>(null);
+  const [Planner, setPlanner] = useState<typeof import("./FairPintPlanner").default | null>(null);
+  const [plannerFailed, setPlannerFailed] = useState(false);
+  const [plannerAttempt, setPlannerAttempt] = useState(0);
   const [firstDraw, setFirstDraw] = useState<{ pence: number; area: string } | null>(null);
+  useEffect(() => {
+    if (!firstDraw || Planner) return;
+    let cancelled = false;
+    void import("./FairPintPlanner")
+      .then((loaded) => { if (!cancelled) setPlanner(() => loaded.default); })
+      .catch(() => { if (!cancelled) setPlannerFailed(true); });
+    return () => { cancelled = true; };
+  }, [firstDraw, Planner, plannerAttempt]);
   const [data, setData] = useState<{
     rows: SlimVenue[];
     count: "loading" | "failed" | "ready";
@@ -179,9 +189,10 @@ export default function FairPintFlow({
         located={position !== null}
         locationOff={locationOff}
         offline={offline}
-        drawUnavailable={plan?.retrying ?? false}
-        pending={firstDraw !== null && (!plan || plan.state.phase === "drawing")}
-        error={plan?.state.error ?? ""}
+        drawUnavailable={plannerFailed || (plan?.retrying ?? false)}
+        loadFailed={plannerFailed}
+        pending={!plannerFailed && firstDraw !== null && (!plan || plan.state.phase === "drawing")}
+        error={plannerFailed ? "Could not load your night. Try again." : plan?.state.error ?? ""}
         onInput={(pence) => setFairPintSession(true, pence)}
         onCommit={(pence) => {
           setCommitted(pence);
@@ -207,7 +218,12 @@ export default function FairPintFlow({
             },
           );
         }}
-        onRetry={() => setAttempt((held) => held + 1)}
+        onRetry={() => {
+          if (plannerFailed) {
+            setPlannerFailed(false);
+            setPlannerAttempt((held) => held + 1);
+          } else setAttempt((held) => held + 1);
+        }}
         onClose={close}
         onDraw={(pence) => {
           if (plan?.retrying) return;
@@ -222,16 +238,14 @@ export default function FairPintFlow({
     </>
   );
   };
-  return firstDraw === null ? render() : (
-    <Suspense fallback={render()}>
-      <FairPintPlanner
+  return firstDraw === null || !Planner ? render() : (
+      <Planner
         cityId={cityId} area={area.slug} initialArea={firstDraw.area} pence={firstDraw.pence} onGenerated={activateRoute}
         resultProps={{ typedName, onName: setTypedName, mobile, venues: data.rows, returnFocus: resultReturnFocus,
           onClose: () => { setFairPintSession(false); dismissMapFirstVisitArrival(undefined, Date.now(), true); },
           onBack: () => setReturnToCard(true) }}
       >
         {render}
-      </FairPintPlanner>
-    </Suspense>
+      </Planner>
   );
 }

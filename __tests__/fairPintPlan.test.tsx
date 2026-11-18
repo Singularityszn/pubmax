@@ -191,3 +191,68 @@ it("activates the fallback route only after its result surface mounts", async ()
     expect(fairPintDrawPending()).toBe(false);
   } finally { act(() => root.unmount()); container.remove(); }
 });
+
+it("recovers a failed planner download through local Retry", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+  vi.setSystemTime(new Date("2026-11-17T12:00:00Z"));
+  localStorage.clear();
+  vi.doMock("@/components/map/fairpint/FairPintPlanner", () => {
+    throw new Error("Planner download failed");
+  });
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const rows = [1, 2, 3].map((id) => ({
+    id: `soho-${id}`, name: `Listed pub ${id}`, cheapestPrice: 5,
+    borough: "Westminster", lat: 51.514, lng: -0.13,
+  }));
+  const factory = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
+    ...loader, inBounds: async () => rows, coverageComplete: () => true,
+  });
+  const fetcher = vi.fn().mockResolvedValue(Response.json(generated("retried-operation")));
+  vi.stubGlobal("fetch", fetcher);
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const host = document.createElement("div"), root = createRoot(host);
+  document.body.append(host);
+  const button = (name: string) => [...host.querySelectorAll("button")].find((node) => node.textContent === name)!;
+  try {
+    await act(async () => root.render(createElement(Flow, {
+      priceReader: () => 500, mobile: false, cityId: "london", center: [-0.13, 51.514],
+      bounds: { west: -0.135, east: -0.125, south: 51.51, north: 51.518 },
+      onCommit: () => {}, onRoute: () => {},
+    })));
+    const slider = host.querySelector<HTMLInputElement>("input[type=range]")!;
+    act(() => {
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!.call(slider, "700");
+      slider.dispatchEvent(new Event("input", { bubbles: true }));
+      slider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await act(async () => {
+      [...host.querySelectorAll("button")].find((node) => node.textContent?.startsWith("Draw my night"))!.click();
+      await vi.dynamicImportSettled();
+    });
+    expect(host.querySelector('[role="alert"]')?.textContent).toBe("Could not load your night. Try again.");
+    expect(host.querySelector<HTMLInputElement>("input[type=range]")).toBe(slider);
+    expect(slider.value).toBe("700");
+    expect(host.querySelector('[aria-label="Close"]')).not.toBeNull();
+    expect(fetcher).not.toHaveBeenCalled();
+    vi.doUnmock("@/components/map/fairpint/FairPintPlanner");
+    await act(async () => {
+      button("Retry").click();
+      await vi.dynamicImportSettled();
+    });
+    await act(async () => { await vi.dynamicImportSettled(); });
+    expect(host.textContent).toContain("Your name");
+    expect(host.querySelector("#fair-pint-lock-form")).not.toBeNull();
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(fetcher.mock.calls[0]![1].body)).toMatchObject({
+      cityId: "london", query: "maximum £7.00 per pint", context: { nightArea: "piccadilly-soho", stopCount: 3 },
+    });
+    expect(localStorage.getItem("pubmax:fair-pint:v1")).toBe('{"pence":700}');
+  } finally {
+    act(() => root.unmount());
+    host.remove();
+    factory.mockRestore();
+    vi.doUnmock("@/components/map/fairpint/FairPintPlanner");
+    localStorage.clear();
+  }
+});

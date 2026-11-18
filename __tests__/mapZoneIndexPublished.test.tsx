@@ -1,6 +1,7 @@
-import { createElement, isValidElement, type ReactElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+// @vitest-environment jsdom
+import { act, createElement, isValidElement, type ReactElement } from "react";
+import { createRoot } from "react-dom/client";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // F08 of the public QA pass: the map's Filters sheet rolled the fare-zone
 // medians up from the pubs the map had LOADED so far, so a phone read Zone 2
@@ -11,8 +12,9 @@ import { describe, expect, it, vi } from "vitest";
 const seen = vi.hoisted(() => ({ props: [] as Array<Record<string, unknown>> }));
 
 vi.mock("server-only", () => ({}));
-vi.mock("next/dynamic", () => ({
-  default: () => (props: Record<string, unknown>) => {
+vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("@/components/map/fairpint/FairPintMap", () => ({
+  default: (props: Record<string, unknown>) => {
     seen.props.push(props);
     return null;
   },
@@ -24,6 +26,9 @@ import MapPage from "@/app/map/page";
 import PubMaxingShell from "@/components/PubMaxingShell";
 import { computeZonePintIndex, MIN_PRICED_VENUES, publishedOrLoadedZoneIndex } from "@/lib/zones";
 import { loadZonePintIndex } from "@/lib/zonePintIndex.server";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+afterEach(() => vi.unstubAllGlobals());
 
 function shellProps(page: ReactElement): Record<string, unknown> {
   const children = (page.props as { children?: unknown }).children;
@@ -53,10 +58,22 @@ describe("the map's fare-zone medians are the published ones", () => {
   it("the shell passes it on to the map untouched", async () => {
     const published = await loadZonePintIndex();
     seen.props.length = 0;
-    renderToStaticMarkup(
-      createElement(PubMaxingShell, { cityId: "london", zonePintIndex: published }),
-    );
-    expect(seen.props[0]?.zonePintIndex).toBe(published);
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      queueMicrotask(() => callback(performance.now()));
+      return 1;
+    });
+    vi.stubGlobal("cancelAnimationFrame", vi.fn());
+    const root = createRoot(document.createElement("div"));
+    try {
+      await act(async () => {
+        root.render(createElement(PubMaxingShell, { cityId: "london", zonePintIndex: published }));
+      });
+      await act(async () => { await vi.dynamicImportSettled(); });
+      expect(seen.props).toHaveLength(1);
+      expect(seen.props[0]?.zonePintIndex).toBe(published);
+    } finally {
+      act(() => root.unmount());
+    }
   });
 
   it("the map prints the published index, and rolls up its loaded venues only without one", () => {

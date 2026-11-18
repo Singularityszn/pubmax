@@ -15,8 +15,8 @@ export default function FairPintMapLoader({ loading, ...props }: Omit<ComponentP
       void (async () => {
         await waitForFairPintRelease();
         if (cancelled) return;
-        const module = await import("./FairPintMap");
-        if (!cancelled) setMap(() => module.default);
+        const loaded = await import("./FairPintMap");
+        if (!cancelled) setMap(() => loaded.default);
       })()
         .catch(() => { if (!cancelled) setFailed(true); });
     });
