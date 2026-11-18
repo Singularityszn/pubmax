@@ -11,7 +11,7 @@
 // the person chose.
 //
 // IT CHANGES NOTHING ELSE. A request is never read by what ranks, colours,
-// bands or orders a venue (__tests__/tableRequestFence.test.ts).
+// bands or orders a venue.
 //
 // Delivery outcomes and retries are documented in
 // docs/rules/lib-shared-seams-stores-http-freshness-brand.md
