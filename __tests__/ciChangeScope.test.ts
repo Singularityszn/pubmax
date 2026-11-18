@@ -68,7 +68,7 @@ function step(where: string, name: string): Step {
   return defined(job(where).steps.find((entry) => entry.name === name), `${where} / ${name}`);
 }
 
-function scopeCondition(condition: Step["if"], scope: string, shard = 1): boolean {
+function scopeCondition(condition: Step["if"], scope: string, shard = 1, failed = false): boolean {
   const expression = String(condition ?? true)
     .trim()
     .replace(/^\$\{\{([\s\S]*)\}\}$/, "$1")
@@ -82,8 +82,8 @@ function scopeCondition(condition: Step["if"], scope: string, shard = 1): boolea
     },
     matrix: { shard },
     github: { event_name: "pull_request", ref: "refs/pull/1/merge" },
-    success: () => true,
-    failure: () => false,
+    success: () => !failed,
+    failure: () => failed,
     cancelled: () => false,
     always: () => true,
   }, { timeout: 1000 }));
@@ -259,6 +259,11 @@ describe("what each scope runs", () => {
         expect(where.startsWith("e2e.yml") ? browserJobCondition(gated.if) : scopeCondition(gated.if, scope, shard), `${where} job / ${scope} / ${shard}`).toBe(true);
         const classifierIndex = gated.steps.findIndex((entry) => entry.name === CLASSIFY);
         for (const [index, entry] of gated.steps.entries()) {
+          if (where === "e2e.yml / law-pins" && entry.uses?.startsWith("actions/upload-artifact@")) {
+            expect(scopeCondition(entry.if, scope, shard), `${where} / evidence after success / ${scope}`).toBe(false);
+            expect(scopeCondition(entry.if, scope, shard, true), `${where} / evidence after failure / ${scope}`).toBe(heavy);
+            continue;
+          }
           let expected = heavy;
           if (where === SCOPE_JOB || index <= classifierIndex) {
             expected = true;
