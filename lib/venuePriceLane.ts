@@ -11,6 +11,8 @@
 
 import type { PintPriceSplit } from "@/lib/pintDropAgreement";
 import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
+import { DAY_MS } from "@/lib/dayMs";
+import { LISTED_MAX_AGE_DAYS } from "@/lib/priceTier";
 import { answerEvidenceFor, type AnswerPublisher } from "@/lib/landingHero";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { EstimatedPriceInput, ListedPriceInput, PriceStanding } from "@/lib/priceTier";
@@ -163,6 +165,16 @@ export type VenuePriceLane =
       publisher: AnswerPublisher | null;
       /** ISO day the publisher's row was last read at its source. Null when no row records a read. */
       observedOn: string | null;
+      /**
+       * The slim index's own stamp for this figure - the publisher label and
+       * read day `build_slim_index` wrote from the same rows the detail fetch
+       * later returns. Present only while `prices` holds no matching row, so a
+       * pin's sheet words the evidence the list already printed instead of
+       * claiming "publisher not recorded" until the detail lands. It carries
+       * no URL because the slim row never had one; the note prints the label
+       * without a link rather than invent one.
+       */
+      listedIndex?: { label: string; observedOn: string } | null;
     }
   | {
       lane: "aged";
@@ -195,7 +207,8 @@ export function venuePriceFallbackPending(
  * way, through `venueSourcedPrice`.
  */
 export function venuePriceLane(
-  venue: Pick<Venue, "cheapestPrice"> & Partial<Pick<Venue, "kind" | "anchorLabel" | "prices">>,
+  venue: Pick<Venue, "cheapestPrice"> &
+    Partial<Pick<Venue, "kind" | "anchorLabel" | "prices" | "priceSource" | "priceObservedAt">>,
   latestContributorPrice: number | null | undefined,
   sourcedPrice: PricedVenue["sourcedPrice"],
   bundle: VenueBundlePrices = {},
@@ -254,7 +267,19 @@ export function venuePriceLane(
       { priceGbp: cheapestPrice, prices: venue.prices ?? [] },
       now,
     );
-    return { lane: "baseline", cheapestPrice, standing, publisher, observedOn };
+    // The stamp may only speak for the figure the index itself holds: once
+    // price rows exist, a `cheapestPrice` no row carries is somebody else's
+    // figure (a merged observation), and the stamp would misattribute it.
+    const listedIndex =
+      publisher || (venue.prices?.length ?? 0) > 0 ? null : indexListedStamp(venue, now);
+    return {
+      lane: "baseline",
+      cheapestPrice,
+      standing,
+      publisher,
+      observedOn: observedOn ?? listedIndex?.observedOn ?? null,
+      ...(listedIndex ? { listedIndex } : {}),
+    };
   }
   // AN AGED REPORT SITS BELOW THE BASELINE AND ABOVE THE MODEL. Below, because
   // a report past the window is no longer about tonight and the baseline at
@@ -276,6 +301,27 @@ export function venuePriceLane(
   // "est." coming off it on the way to the screen.
   if (bundle.estimate) return { lane: "estimate", estimate: bundle.estimate };
   return null;
+}
+
+/**
+ * The index stamp as listing evidence, or null. `priceSource` and
+ * `priceObservedAt` are written by the same `legacyCheapestPriceEvidence`
+ * reading the detail rows get, so they assert a named publisher and a read day
+ * - never a URL, which the slim row does not carry. The listed window is the
+ * standing module's own, so an expired stamp cannot keep claiming a listing.
+ */
+function indexListedStamp(
+  venue: { priceSource?: string; priceObservedAt?: string },
+  now: number,
+): { label: string; observedOn: string } | null {
+  const label = venue.priceSource?.trim();
+  const observedOn = venue.priceObservedAt?.trim();
+  if (!label || !observedOn || !/^\d{4}-\d{2}-\d{2}$/.test(observedOn)) return null;
+  const ms = Date.parse(`${observedOn}T00:00:00.000Z`);
+  if (!Number.isFinite(ms)) return null;
+  const ageDays = (now - ms) / DAY_MS;
+  if (ageDays < 0 || ageDays > LISTED_MAX_AGE_DAYS) return null;
+  return { label, observedOn };
 }
 
 /** The modelled figure a surface shows: the decided lane's own, else the bundle's. */
@@ -348,11 +394,15 @@ export function baselineTrustCaption(lane: {
   standing: PriceStanding;
   publisher: AnswerPublisher | null;
   observedOn: string | null;
+  listedIndex?: { label: string; observedOn: string } | null;
 }): string {
-  if (lane.standing !== "listed" || !lane.publisher || !lane.observedOn) {
-    return BASELINE_NO_PUBLISHER_CAPTION;
+  if (lane.standing === "listed" && lane.publisher && lane.observedOn) {
+    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.observedOn}T12:00:00.000Z`))}`;
   }
-  return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.observedOn}T12:00:00.000Z`))}`;
+  if (lane.listedIndex) {
+    return `${trustPillLabel("listed")} · collected ${formatTrustDay(Date.parse(`${lane.listedIndex.observedOn}T12:00:00.000Z`))}`;
+  }
+  return BASELINE_NO_PUBLISHER_CAPTION;
 }
 
 export function venuePriceLaneObservedGbp(lane: VenuePriceLane): number | null {
