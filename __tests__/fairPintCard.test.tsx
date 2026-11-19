@@ -62,24 +62,37 @@ async function locatedFlow() {
     { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
     { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
   ];
-  // Requests in order: the view, the draw area, then the first near read.
+  // Every distinct box asked for, in order. A view and the draw area always
+  // load. The rest are near reads: the margin round a view, or a tapped circle.
   const requested: string[] = [];
-  const control = { marginFails: false, holdMargin: null as Promise<void> | null };
+  const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  const views = new Set([JSON.stringify(bounds)]);
+  let drawKey: string | undefined;
+  const nearRead = (key: string) => !views.has(key) && key !== drawKey;
+  // `uncovered` names what the near files have not brought in: everything
+  // round the dot, or only the far edge of the margin.
+  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null };
   const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
     ...loader,
     inBounds: async (box) => {
       const key = JSON.stringify(box);
       if (!requested.includes(key)) requested.push(key);
-      if (requested.indexOf(key) === 2 && control.holdMargin) await control.holdMargin;
+      await Promise.resolve();
+      if (nearRead(key) && control.holdMargin) await control.holdMargin;
       return rows;
     },
-    coverageComplete: (box) => !(control.marginFails && requested.indexOf(JSON.stringify(box)) === 2),
+    coverageComplete: (box) => {
+      // The draw area is the last box of the first pass of reads.
+      if (requested.length > 0) drawKey ??= requested[requested.length - 1];
+      const key = JSON.stringify(box);
+      if (!nearRead(key) || control.uncovered === "none") return true;
+      return control.uncovered === "edge" && !requested.includes(key);
+    },
   });
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
   const asked = vi.fn();
   Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: asked } });
   const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
-  const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
   const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
   const host = document.createElement("div"), mounted = createRoot(host);
   document.body.append(host);
@@ -87,6 +100,10 @@ async function locatedFlow() {
     asked, control, host, reader, requested,
     render: (readerPosition: typeof reader | null) => act(async () => {
       mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+    }),
+    pan: (view: typeof bounds, readerPosition: typeof reader | null) => act(async () => {
+      views.add(JSON.stringify(view));
+      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
     }),
     choice: () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!,
     spoken: () => host.querySelector('[aria-live="polite"]')?.textContent,
@@ -185,7 +202,7 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
   const { control, host, reader, render, choice, spoken, done } = await locatedFlow();
   let release!: () => void;
   control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
-  control.marginFails = true;
+  control.uncovered = "near";
 
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
@@ -205,10 +222,36 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
   // Back to the near count, which still failed. A retry that works is spoken.
   await act(async () => choice().click());
   expect(spoken()).toContain("Could not load prices");
-  control.marginFails = false;
+  control.uncovered = "none";
   await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   expect(spoken()).toContain("1 pub within 800 m lists a pint");
+  await done();
+});
+
+it("keeps a near count through a pan and a failed file at the far edge, and speaks a retry after a first load that failed", async () => {
+  const { control, host, reader, render, spoken, done, pan } = await locatedFlow();
+  // The dot is on screen from the first render, and its files fail.
+  control.uncovered = "near";
+  await render(reader);
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  expect(spoken()).toBe("");
+  control.uncovered = "none";
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(spoken()).toContain("1 pub within 800 m lists a pint");
+
+  // A pan keeps the dot on screen. Its 800 m are already in, so the count
+  // holds while the new margin loads, and holds when its far edge fails.
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  control.uncovered = "edge";
+  await pan({ west: -0.102, east: -0.082, south: 51.52, north: 51.545 }, reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(host.textContent).not.toContain("Could not load prices");
   await done();
 });
 

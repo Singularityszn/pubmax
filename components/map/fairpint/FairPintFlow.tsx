@@ -63,6 +63,7 @@ function usePriceRead(
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
         ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
       }));
+      // The view's own read, for every reader. A near count can answer later.
       if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
     });
     return () => {
@@ -171,6 +172,14 @@ export default function FairPintFlow({
   usePriceRead(loader, "margin", marginKey, attempt, setData);
   usePriceRead(loader, "circle", circleKey, attempt, setData);
   usePriceRead(loader, "draw", drawKey, attempt, setData);
+  // The near count answers as soon as the price files round the position
+  // itself are in, whichever read brought them. A pan, or a file that failed
+  // at the far edge of the margin, says nothing about those 800 m.
+  const nearPhase = (at: { lat: number; lng: number }): LoadPhase => {
+    if (loader.coverageComplete(circleBounds(at.lat, at.lng, 0.8))) return "ready";
+    const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
+    return answered ? "failed" : "loading";
+  };
   const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
   const counts = (pence: number, draw = false): FairPintCounts => {
     const phase = draw
@@ -178,7 +187,7 @@ export default function FairPintFlow({
         ? data.draw
         : "loading"
       : position
-        ? data[`${nearRead}Key`] === (nearRead === "margin" ? marginKey : circleKey) ? data[nearRead] : "loading"
+        ? nearPhase(position)
         : data.countKey === countKey ? data.count : "loading";
     if (phase !== "ready") return { phase };
     return {

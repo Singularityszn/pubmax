@@ -105,9 +105,8 @@ export default function FairPintCard({
     if (count.phase === "loading") return;
     const changed = spoken.current.located !== located;
     const recovered = spoken.current.failed && count.phase === "ready";
-    if (!changed && !recovered) return;
     spoken.current = { located, failed: count.phase === "failed" };
-    setAnnouncement(line);
+    if (changed || recovered) setAnnouncement(line);
   }, [located, count.phase, line]);
   return (
     <FairPintFrame
