@@ -69,9 +69,8 @@ async function locatedFlow() {
   const views = new Set([JSON.stringify(bounds)]);
   let drawKey: string | undefined;
   const nearRead = (key: string) => !views.has(key) && key !== drawKey;
-  // `uncovered` names what the near files have not brought in: everything
-  // round the dot, or only the far edge of the margin.
-  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null };
+  // `uncovered` fails the near reads that finish while it is set.
+  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null, drawFails: false };
   const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
     ...loader,
     inBounds: async (box) => {
@@ -85,8 +84,8 @@ async function locatedFlow() {
       // The draw area is the last box of the first pass of reads.
       if (requested.length > 0) drawKey ??= requested[requested.length - 1];
       const key = JSON.stringify(box);
-      if (!nearRead(key) || control.uncovered === "none") return true;
-      return control.uncovered === "edge" && !requested.includes(key);
+      if (key === drawKey) return !control.drawFails;
+      return !nearRead(key) || control.uncovered === "none";
     },
   });
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
@@ -187,6 +186,35 @@ it("keeps the view's count for a dot inside the view's bounds that the pitched c
   await done();
 });
 
+it("does not count round the dot before the read that brings those rows has finished", async () => {
+  // The loader says every box is covered from the start, as it does when one
+  // file of a read lands before the read hands over its rows.
+  const { control, host, reader, render, spoken, done } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  await render(edge);
+  expect(host.textContent).toContain("Loading prices");
+  expect(host.textContent).not.toContain("within 800 m");
+  expect(spoken()).toBe("");
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
+  await done();
+});
+
+it("speaks the count a retry brings back when only the draw area had failed", async () => {
+  const { control, host, render, spoken, done } = await locatedFlow();
+  control.drawFails = true;
+  await render(null);
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  control.drawFails = false;
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(spoken()).toContain("2 pubs in view list a pint");
+  await done();
+});
+
 it("offers a fix the map holds off screen on a tap, and no later fix moves its request", async () => {
   const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
   const away = { ...reader, lat: 51.56 };
@@ -228,7 +256,9 @@ it("offers a fix the map holds off screen on a tap, and no later fix moves its r
 });
 
 it("publishes the in-view count when a file outside the view fails, and speaks a near count only once it has an answer", async () => {
+  // The dot stands by the west edge, where the draw area's own read does not reach round it.
   const { control, host, reader, render, choice, spoken, done } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
   let release!: () => void;
   control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
   control.uncovered = "near";
@@ -236,7 +266,7 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
 
-  await render(reader);
+  await render(edge);
   expect(host.textContent).toContain("Loading prices");
   expect(spoken()).toBe("");
 
@@ -253,33 +283,36 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
   expect(spoken()).toContain("Could not load prices");
   control.uncovered = "none";
   await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
-  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
-  expect(spoken()).toContain("1 pub within 800 m lists a pint");
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
   await done();
 });
 
 it("keeps a near count through a pan and a failed file at the far edge, and speaks a retry after a first load that failed", async () => {
+  // The dot stands by the west edge, where the draw area's own read does not reach round it.
   const { control, host, reader, render, spoken, done, pan } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
   // The dot is on screen from the first render, and its files fail.
   control.uncovered = "near";
-  await render(reader);
+  await render(edge);
   expect(host.textContent).toContain("Could not load prices. Try again.");
-  expect(spoken()).toBe("");
+  // A card that opens with the dot already on screen speaks its first answer.
+  expect(spoken()).toContain("Could not load prices");
   control.uncovered = "none";
   await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
-  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
-  expect(spoken()).toContain("1 pub within 800 m lists a pint");
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
 
   // A pan keeps the dot on screen. Its 800 m are already in, so the count
   // holds while the new margin loads, and holds when its far edge fails.
   let release!: () => void;
   control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
   control.uncovered = "edge";
-  await pan({ west: -0.102, east: -0.082, south: 51.52, north: 51.545 }, reader);
-  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  await pan({ west: -0.102, east: -0.082, south: 51.52, north: 51.545 }, edge);
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
   expect(host.textContent).not.toContain("Loading prices");
   await act(async () => { release(); });
-  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
   expect(host.textContent).not.toContain("Could not load prices");
   await done();
 });

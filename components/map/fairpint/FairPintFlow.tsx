@@ -9,7 +9,7 @@ import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
-import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView, mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
+import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView, mapReaderPositionMeasures, type MapReaderPosition } from "@/lib/mapReaderPosition";
 import { mapReaderOnCanvas, subscribeMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
@@ -43,7 +43,14 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
-type PriceReads = { rows: SlimVenue[] } & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
+type PriceReads = {
+  rows: SlimVenue[];
+  /** The boxes whose rows are all in `rows`. Written with those rows, so a count never runs ahead of them. */
+  covered: MapBounds[];
+} & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
+const COVERED_BOXES_HELD = 8;
+const contains = (outer: MapBounds, inner: MapBounds) =>
+  outer.west <= inner.west && outer.east >= inner.east && outer.south <= inner.south && outer.north >= inner.north;
 
 /** One price read for one box. A null key reads nothing; a new key drops the old answer. */
 function usePriceRead(
@@ -62,6 +69,7 @@ function usePriceRead(
       setData((held) => ({
         ...held,
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
+        covered: ready ? [box, ...held.covered].slice(0, COVERED_BOXES_HELD) : held.covered,
         ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
       }));
       // The view's own read, for every reader. A near count can answer later.
@@ -84,7 +92,7 @@ export default function FairPintFlow({
   readerPosition = null,
 }: {
   priceReader: typeof fairPence;
-  readerPosition?: { lat: number; lng: number } | null;
+  readerPosition?: MapReaderPosition | null;
   mobile: boolean;
   cityId: CityId;
   bounds: MapBounds;
@@ -116,7 +124,7 @@ export default function FairPintFlow({
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
   }, [firstDraw, Planner, plannerAttempt]);
-  const [data, setData] = useState<PriceReads>({ rows: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
+  const [data, setData] = useState<PriceReads>({ rows: [], covered: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -179,11 +187,12 @@ export default function FairPintFlow({
   usePriceRead(loader, "margin", marginKey, attempt, setData);
   usePriceRead(loader, "circle", circleKey, attempt, setData);
   usePriceRead(loader, "draw", drawKey, attempt, setData);
-  // The near count answers as soon as the price files round the position
-  // itself are in, whichever read brought them. A pan, or a file that failed
-  // at the far edge of the margin, says nothing about those 800 m.
+  // The near count answers once a finished read holds every row round the
+  // position, whichever read that was. A pan keeps the answer the last margin
+  // gave, and a later read that failed says nothing about those 800 m.
   const nearPhase = (at: { lat: number; lng: number }): LoadPhase => {
-    if (loader.coverageComplete(circleBounds(at.lat, at.lng, 0.8))) return "ready";
+    const circle = circleBounds(at.lat, at.lng, 0.8);
+    if (data.covered.some((box) => contains(box, circle))) return "ready";
     const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
     return answered ? "failed" : "loading";
   };

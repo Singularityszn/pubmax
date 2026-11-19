@@ -14,6 +14,7 @@ import {
 import type { MapReaderPosition } from "@/lib/mapReaderPosition";
 import { attachMapReaderPositionWatch } from "@/lib/mapReaderPositionWatch";
 import { syncReaderPositionOnMap } from "@/components/map/canvas/readerPositionProbe";
+import { readerOnCanvas } from "@/components/map/canvas/useReaderOnCanvas";
 
 
 describe("mapReaderPositionGeoJSON", () => {
@@ -276,6 +277,24 @@ describe("mapReaderPositionInView", () => {
     expect(mapReaderPositionInView({ lat: 53.8, lng: -1.55 }, view)).toBeNull();
     expect(mapReaderPositionInView(null, view)).toBeNull();
     expect(mapReaderPositionInView({ lat: 51.5257, lng: -0.0875 }, null)).toBeNull();
+  });
+});
+
+describe("readerOnCanvas", () => {
+  const map = (x: number, y: number) => ({
+    project: () => ({ x, y }),
+    getContainer: () => ({ clientWidth: 390, clientHeight: 844 }),
+  }) as unknown as Parameters<typeof readerOnCanvas>[0];
+  it("holds a point that projects inside the rendered container, edges included", () => {
+    expect(readerOnCanvas(map(195, 400), 51.5, -0.1)).toBe(true);
+    expect(readerOnCanvas(map(0, 0), 51.5, -0.1)).toBe(true);
+    expect(readerOnCanvas(map(390, 844), 51.5, -0.1)).toBe(true);
+  });
+  it("refuses a point past any edge, as a pitched view's corner is", () => {
+    expect(readerOnCanvas(map(-1, 400), 51.5, -0.1)).toBe(false);
+    expect(readerOnCanvas(map(391, 400), 51.5, -0.1)).toBe(false);
+    expect(readerOnCanvas(map(195, -1), 51.5, -0.1)).toBe(false);
+    expect(readerOnCanvas(map(195, 845), 51.5, -0.1)).toBe(false);
   });
 });
 
