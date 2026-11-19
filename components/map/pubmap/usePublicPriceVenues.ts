@@ -2,15 +2,16 @@
 
 import type { CityId } from "@/lib/cities";
 import type { CommunityPrice } from "@/lib/communityPrice";
+import type { PintDrop } from "@/lib/pintDropShared";
 import { useMemo } from "react";
 import { usePublicPricePresence } from "@/components/usePublicPricePresence";
-import { mergeVenueDrops, type Venue } from "@/lib/venues";
+import { mergeVenueDrops, type SummaryDrop, type Venue } from "@/lib/venues";
 import { mergePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
 import { venueUpdateKey } from "@/lib/pubMap";
 
 export function usePublicPriceVenues(
   baseVenues: Venue[],
-  drops: Parameters<typeof mergeVenueDrops>[1],
+  drops: Map<string, (SummaryDrop & Pick<PintDrop, "id" | "status" | "visibility">)[]>,
   priceUpdates: PriceUpdate[],
   cityId: CityId,
   communityPrices: ReadonlyMap<string, readonly CommunityPrice[]>,
@@ -22,15 +23,17 @@ export function usePublicPriceVenues(
     for (const venue of venues) {
       const recorded = venue.cheapestPrice !== null || venue.hasRecordedPrice === true;
       const communityRows = communityPrices.get(venue.id);
-      const evidence = communityRows?.length
-        ? JSON.stringify([recorded, communityRows])
-        : recorded ? "recorded" : "no-local-price";
+      const pricedDrops = (drops.get(venue.id) ?? [])
+        .filter((drop) => drop.provenance !== "demo" && drop.priceGbp !== null)
+        .map((drop) => JSON.stringify([drop.id, drop.priceGbp, drop.createdAt, drop.status, drop.visibility ?? "public", Boolean(drop.optimistic)]))
+        .sort();
+      const evidence = JSON.stringify([recorded, communityRows ?? [], pricedDrops]);
       evidenceByVenue.set(venue.id, evidence);
       const bundle = venue as Venue & { bundlePrices?: { estimate?: unknown } };
       if (!recorded && (venue.zone != null || bundle.bundlePrices?.estimate)) ids.push(venue.id);
     }
     return { ids, evidenceByVenue };
-  }, [venues, communityPrices]);
+  }, [venues, communityPrices, drops]);
   const presence = usePublicPricePresence(ids, evidenceByVenue, evidenceByVenue);
   return useMemo(() => venues.map((venue) => ({ ...venue, publicPricePresence: communityPrices.get(venue.id)?.length
     ? "present" as const : presence.get(venue.id) ?? "unknown" })), [venues, presence, communityPrices]);

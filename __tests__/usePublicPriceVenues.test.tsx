@@ -3,6 +3,8 @@
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import type { PintDrop } from "@/lib/pintDropShared";
+import { venueBundlePrices } from "@/lib/venuePriceLane";
 import type { Venue } from "@/lib/venues";
 
 let root: Root;
@@ -11,9 +13,11 @@ let readVenues: typeof import("@/components/map/pubmap/usePublicPriceVenues").us
 const drops = new Map();
 const updates: [] = [];
 const community = new Map();
+let latestVenues: Venue[];
 
-function MapPrices({ venues }: { venues: Venue[] }) {
-  const result = readVenues(venues, drops, updates, "london", community);
+function MapPrices({ venues, venueDrops = drops }: { venues: Venue[]; venueDrops?: Parameters<typeof readVenues>[1] }) {
+  const result = readVenues(venues, venueDrops, updates, "london", community);
+  latestVenues = result;
   return createElement("output", null, result.map((venue) => venue.publicPricePresence).join(","));
 }
 
@@ -24,8 +28,23 @@ function venues(count: number, offset = 0): Venue[] {
   } as unknown as Venue));
 }
 
-async function show(rows: Venue[]) {
-  await act(async () => root.render(createElement(MapPrices, { venues: rows })));
+async function show(rows: Venue[], venueDrops?: Parameters<typeof readVenues>[1]) {
+  await act(async () => root.render(createElement(MapPrices, { venues: rows, venueDrops })));
+}
+
+function halfPint(): PintDrop {
+  return {
+    id: "half-pint", venueId: "venue-0", drink: "Lager", measure: "half", priceGbp: 3,
+    handle: "drinker", passedDownNote: "", era: "", provenance: "contributor",
+    status: "visible", visibility: "public", createdAt: "2026-11-19T12:00:00Z",
+  };
+}
+
+function estimatedVenues(count = 1): Venue[] {
+  return venues(count).map((venue) => ({
+    ...venue,
+    bundlePrices: { estimate: { priceGbp: 6, computedAt: "2026-11-19", basis: "regional_baseline:camden", sampleSize: 8 } },
+  }));
 }
 
 beforeEach(async () => {
@@ -133,6 +152,109 @@ it("rechecks expired absence before returning an estimate", async () => {
 
   expect(host.textContent).toBe("present");
   expect(fetch).toHaveBeenCalledTimes(2);
+});
+
+it.each(["public", "anonymous", undefined] as const)("rechecks a %s half-pint price and its rollback without refetching an unchanged pub", async (visibility) => {
+  const rows = estimatedVenues(2);
+  const added = Promise.withResolvers<Response>();
+  const removed = Promise.withResolvers<Response>();
+  const requested: string[][] = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    requested.push(new URL(String(input), "http://localhost").searchParams.getAll("venueId"));
+    if (requested.length === 2) return added.promise;
+    if (requested.length === 3) return removed.promise;
+    return Response.json({ presence: { "venue-0": "absent", "venue-1": "absent" } });
+  }));
+
+  await show(rows);
+  expect(venueBundlePrices(latestVenues[0]!).estimate?.priceGbp).toBe(6);
+  const drop = { ...halfPint(), visibility };
+  await show(rows, new Map([["venue-0", [drop]]]));
+  expect(latestVenues[0]!.cheapestPrice).toBeNull();
+  expect(latestVenues[0]!.publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+
+  await act(async () => root.render(null));
+  await show(rows, new Map([["venue-0", [{ ...drop }]]]));
+  expect(requested).toEqual([["venue-0", "venue-1"], ["venue-0"]]);
+  await act(async () => added.resolve(Response.json({ presence: { "venue-0": "present" } })));
+  expect(host.textContent).toBe("present,absent");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+
+  await show(rows);
+  expect(latestVenues[0]!.publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+  expect(requested).toEqual([["venue-0", "venue-1"], ["venue-0"], ["venue-0"]]);
+  await act(async () => removed.resolve(Response.json({ presence: { "venue-0": "absent" } })));
+  expect(host.textContent).toBe("absent,absent");
+  expect(venueBundlePrices(latestVenues[0]!).estimate?.priceGbp).toBe(6);
+});
+
+it("retires pending absence when a half-pint price arrives and rolls back", async () => {
+  const rows = estimatedVenues(2);
+  const pending: Array<{ answer: ReturnType<typeof Promise.withResolvers<Response>>; signal: AbortSignal | null | undefined }> = [];
+  vi.stubGlobal("fetch", vi.fn((_input, options?: RequestInit) => {
+    const answer = Promise.withResolvers<Response>();
+    pending.push({ answer, signal: options?.signal });
+    return answer.promise;
+  }));
+
+  await show(rows);
+  await show(rows, new Map([["venue-0", [halfPint()]]]));
+  expect(pending[0]!.signal?.aborted).toBe(false);
+  expect(latestVenues[0]!.publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+  await show(rows);
+  expect(pending[1]!.signal?.aborted).toBe(true);
+  await act(async () => {
+    pending[0]!.answer.resolve(Response.json({ presence: { "venue-0": "absent", "venue-1": "absent" } }));
+    pending[1]!.answer.resolve(Response.json({ presence: { "venue-0": "absent" } }));
+  });
+  expect(latestVenues[0]!.publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+  await act(async () => pending[2]!.answer.resolve(Response.json({ presence: { "venue-0": "absent" } })));
+  expect(host.textContent).toBe("absent,absent");
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(venueBundlePrices(latestVenues[0]!).estimate?.priceGbp).toBe(6);
+});
+
+it.each([
+  { visibility: "friends" }, { visibility: "legacy" }, { status: "hidden" }, { provenance: "demo" }, { priceGbp: null },
+] as const)("keeps the server authoritative for excluded drop evidence: %o", async (excluded) => {
+  const rows = estimatedVenues();
+  vi.stubGlobal("fetch", vi.fn(async () => Response.json({ presence: { "venue-0": "absent" } })));
+  await show(rows);
+  await show(rows, new Map([["venue-0", [{ ...halfPint(), ...excluded }]]]));
+  expect(latestVenues[0]!.cheapestPrice).toBeNull();
+  expect(latestVenues[0]!.publicPricePresence).toBe("absent");
+  expect(venueBundlePrices(latestVenues[0]!).estimate?.priceGbp).toBe(6);
+});
+
+it("shares a half-pint read during upload progress and rechecks the saved drop", async () => {
+  const rows = estimatedVenues();
+  const uploading = Promise.withResolvers<Response>();
+  const saved = Promise.withResolvers<Response>();
+  vi.stubGlobal("fetch", vi.fn()
+    .mockResolvedValueOnce(Response.json({ presence: { "venue-0": "absent" } }))
+    .mockReturnValueOnce(uploading.promise)
+    .mockReturnValueOnce(saved.promise));
+  const drop = halfPint();
+  const optimistic = {
+    state: "uploading" as const, message: "Uploading", uploadProgress: 10,
+    canRetry: false, clientRequestId: "half-pint-request",
+  };
+
+  await show(rows);
+  await show(rows, new Map([["venue-0", [{ ...drop, optimistic }]]]));
+  await show(rows, new Map([["venue-0", [{ ...drop, optimistic: { ...optimistic, uploadProgress: 50 } }]]]));
+  expect(fetch).toHaveBeenCalledTimes(2);
+  await act(async () => uploading.resolve(Response.json({ presence: { "venue-0": "absent" } })));
+  await show(rows, new Map([["venue-0", [drop]]]));
+  expect(fetch).toHaveBeenCalledTimes(3);
+  expect(latestVenues[0]!.publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
+  await act(async () => saved.resolve(Response.json({ presence: { "venue-0": "present" } })));
+  expect(venueBundlePrices(latestVenues[0]!).estimate).toBeNull();
 });
 
 it.each(["refused", "offline", "degraded", "unknown", "missing"])("retries a %s map read without treating it as absence", async (failure) => {
