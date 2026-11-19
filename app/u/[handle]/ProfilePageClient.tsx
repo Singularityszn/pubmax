@@ -1315,9 +1315,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <EmptyState
             title="Your profile could not load"
             action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
-          >
+          />
+          <Button asChild variant="ghost">
             <Link prefetch={false} href="/pal">Meet your Pub Pal</Link>
-          </EmptyState>
+          </Button>
         </section>
       );
     }

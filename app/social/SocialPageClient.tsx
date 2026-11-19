@@ -1018,7 +1018,7 @@ function SocialPageAccountState({
   // meet a stranger's lane on the way to their own feed.
   const londonLane = doorMode && londonLaneOpen && viewerPhase === "signed-out";
   const identityRecovery = identityUnavailable ? (
-    <section className="socialBoundary" role="alert">
+    <section className="socialDoorSlot" role="alert">
       <EmptyState
         title="We couldn't check your account."
         action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
