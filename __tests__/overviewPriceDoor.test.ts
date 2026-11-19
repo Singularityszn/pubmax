@@ -447,7 +447,7 @@ describe("renewed venue price reads", () => {
     let cancel: () => void = noop;
     await act(async () => { cancel = drops.refreshVenueDrops(VENUE_ID); });
     const canceled = takeRead("/api/pint-drops");
-    cancel();
+    await act(async () => { cancel(); });
     await act(async () => {
       drops.refreshVenueDrops(otherId);
       drops.refreshVenueDrops(VENUE_ID);
