@@ -270,9 +270,10 @@ export function useWhatsOnTonight(
     }
     const controller = new AbortController();
     const near = nearLat != null && nearLng != null ? { lat: nearLat, lng: nearLng } : null;
+    const reuseWindowMs = near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS;
     const load: LoadTonightOpts = {
       signal: controller.signal,
-      maxAgeMs: currentOnly ? PUBLIC_TONIGHT_FRESH_MS : TONIGHT_SNAPSHOT_MAX_AGE_MS,
+      maxAgeMs: currentOnly ? reuseWindowMs : TONIGHT_SNAPSHOT_MAX_AGE_MS,
       pubOnly,
       fresh: retryAttempt !== lastRetryAttempt.current,
     };
