@@ -32,11 +32,11 @@ export function useReaderOnCanvas(
     }
     const read = () => publishMapReaderOnCanvas(readerOnCanvas(map, lat, lng));
     read();
-    map.on("moveend", read);
-    map.on("resize", read);
+    // A touch tilt or turn can end with no moveend.
+    const settled = ["moveend", "pitchend", "rotateend", "resize"] as const;
+    for (const event of settled) map.on(event, read);
     return () => {
-      map.off("moveend", read);
-      map.off("resize", read);
+      for (const event of settled) map.off(event, read);
     };
   }, [mapRef, mapReady, lat, lng]);
   useEffect(() => () => publishMapReaderOnCanvas(null), []);

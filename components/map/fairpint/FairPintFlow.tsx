@@ -45,7 +45,11 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
-type PriceReads = { rows: SlimVenue[] } & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
+type PriceReads = {
+  rows: SlimVenue[];
+  /** The loader's hand-over count this card has stored rows up to. */
+  seen: number;
+} & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
 
 /** One price read for one box. A null key reads nothing; a new key drops the old answer. */
 function usePriceRead(
@@ -61,8 +65,10 @@ function usePriceRead(
     const box: MapBounds = JSON.parse(key);
     void loader.inBounds(box).then((rows) => {
       const ready = loader.coverageComplete(box);
+      const seen = loader.deliveryCount();
       setData((held) => ({
         ...held,
+        seen: Math.max(held.seen, seen),
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
         ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
       }));
@@ -118,7 +124,7 @@ export default function FairPintFlow({
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
   }, [firstDraw, Planner, plannerAttempt]);
-  const [data, setData] = useState<PriceReads>({ rows: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
+  const [data, setData] = useState<PriceReads>({ rows: [], seen: 0, count: "loading", margin: "loading", circle: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -157,7 +163,8 @@ export default function FairPintFlow({
     void early?.location?.then((fix) => {
       if (!mounted) return;
       const position = fix ? mapReaderPositionFromGeolocation(fix) : null;
-      setPosition(position);
+      // A coarse answer shows its ring on the map and counts nothing.
+      setPosition(mapReaderPositionMeasures(position) ? position : null);
       setLocationOff(!position);
       if (position) latchMapReaderLocationWatch();
     });
@@ -188,7 +195,10 @@ export default function FairPintFlow({
   // rows. A pan keeps the answer, and a file that failed anywhere else says
   // nothing about those 800 m.
   const nearPhase = (at: { lat: number; lng: number }): LoadPhase => {
-    if (loader.rowsDelivered(circleBounds(at.lat, at.lng, 0.8))) return "ready";
+    // The loader hands rows over one step before this card stores them. Until
+    // the card has stored every hand-over, the count waits.
+    const delivered = loader.rowsDelivered(circleBounds(at.lat, at.lng, 0.8));
+    if (delivered) return data.seen === loader.deliveryCount() ? "ready" : "loading";
     const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
     return answered ? "failed" : "loading";
   };
@@ -268,7 +278,8 @@ export default function FairPintFlow({
           navigator.geolocation.getCurrentPosition(
             (value) => {
               const position = mapReaderPositionFromGeolocation(value);
-              setPosition(position);
+              // A coarse answer shows its ring on the map and counts nothing.
+              setPosition(mapReaderPositionMeasures(position) ? position : null);
               setLocationOff(!position);
               if (position) latchMapReaderLocationWatch();
             },

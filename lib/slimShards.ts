@@ -318,6 +318,8 @@ export type SlimShardLoader = {
    * that asked for it finishes. A figure counted from held rows waits for this.
    */
   rowsDelivered(bounds: MapBounds): boolean;
+  /** How many reads have handed rows over. A caller that stores this with the rows knows when it holds them all. */
+  deliveryCount(): number;
 };
 
 export type SlimShardViewportLoadKind = "target" | "refresh";
@@ -539,10 +541,12 @@ export function createSlimShardLoader(
     return digest ? `${requestPath}#${digest}` : requestPath;
   }
 
+  let deliveries = 0;
   function deliverRows(
     shards: Pick<ShardEntry, "url">[],
     results: SlimShardLoadResult[],
   ): SlimVenue[] {
+    deliveries += 1;
     return results.flatMap((result, index) => {
       const shard = shards[index];
       if (shard && result.status === "ready") deliveredShardKeys.add(shardKey(shard.url));
@@ -955,6 +959,8 @@ export function createSlimShardLoader(
       if (!settledManifest) return false;
       return boundsCoveredByLoadedShards(settledManifest, loadedUrls, bounds);
     },
+
+    deliveryCount: () => deliveries,
 
     rowsDelivered(bounds: MapBounds): boolean {
       if (wholeIndexLoaded) return true;

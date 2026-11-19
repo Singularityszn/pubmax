@@ -71,7 +71,8 @@ async function locatedFlow() {
   let drawKey: string | undefined;
   const nearRead = (key: string) => !views.has(key) && key !== drawKey;
   // `uncovered` fails the near reads that finish while it is set.
-  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null, drawFails: false };
+  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null, drawFails: false, unstored: 0 };
+  let handed = 0;
   const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
     ...loader,
     inBounds: async (box) => {
@@ -82,8 +83,10 @@ async function locatedFlow() {
       // Rows are handed over here. A near read set to fail hands over nothing
       // round the dot; one set to fail at its far edge still does.
       if (!(nearRead(key) && control.uncovered === "near")) delivered.push(box);
+      handed += 1;
       return rows;
     },
+    deliveryCount: () => handed + control.unstored,
     rowsDelivered: (box) => delivered.some((held) =>
       held.west <= box.west && held.east >= box.east && held.south <= box.south && held.north >= box.north),
     coverageComplete: (box) => {
@@ -171,12 +174,33 @@ it("keeps the view's count for a coarse fix on screen until the reader asks", as
   expect(choice().textContent).toBe("Use my location");
   expect(requested).toHaveLength(2);
 
-  // A tap asks the browser once for a better fix, and counts from the answer.
-  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 15 } } as GeolocationPosition));
+  // A tap asks the browser once. A second coarse answer still counts nothing.
+  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 2500 } } as GeolocationPosition));
   await act(async () => choice().click());
   expect(asked).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+
+  // A fine answer counts.
+  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 15 } } as GeolocationPosition));
+  await act(async () => choice().click());
+  expect(asked).toHaveBeenCalledTimes(2);
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   expect(choice().textContent).toBe("Count pubs in view");
+  await done();
+});
+
+it("waits while the loader has handed over rows the card has not stored yet", async () => {
+  const { control, host, reader, render, done } = await locatedFlow();
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  // A hand-over lands in the loader a step before the card stores it.
+  control.unstored = 1;
+  await render({ ...reader, lat: 51.52571 });
+  expect(host.querySelector(".fairPintCount")?.textContent).toBe("Loading prices…");
+  control.unstored = 0;
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   await done();
 });
 
