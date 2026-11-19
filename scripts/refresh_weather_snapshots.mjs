@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { conditionForCode } from "../lib/weatherCondition.mjs";
 import { isPullRequestPermissionError } from "./lib/pullRequestPermission.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,17 +20,6 @@ const AREAS = {
   hammersmith: [51.492, -0.224], balham: [51.443, -0.152], marylebone: [51.522, -0.163],
   richmond: [51.461, -0.303], putney: [51.461, -0.216],
 };
-
-export function conditionForCode(code) {
-  if ([0].includes(code)) return "Clear";
-  if ([1, 2, 3].includes(code)) return "Cloudy";
-  if ([45, 48].includes(code)) return "Fog";
-  if ([51, 53, 55, 56, 57].includes(code)) return "Drizzle";
-  if ([61, 63, 65, 66, 67, 80, 81, 82].includes(code)) return "Rain";
-  if ([71, 73, 75, 77, 85, 86].includes(code)) return "Snow";
-  if ([95, 96, 99].includes(code)) return "Thunderstorm";
-  return `Weather code ${code}`;
-}
 
 /**
  * Review publication policy: docs/CI_RUNBOOK.md#scheduled-work-split.
