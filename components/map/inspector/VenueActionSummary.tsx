@@ -22,7 +22,7 @@ export default function VenueActionSummary({
   /** The row's accessible name, the sheet labels' own summary line. */
   label: string;
   price: ReactNode;
-  /** Whole minutes on foot, "far" from a shown position over an hour away, or null with no location. */
+  /** Whole minutes on foot; "far" or "rough" for a shown position that gives no figure; null with no location. */
   walkMinutes: VenueActionCardWalk;
   planDoor: ReactNode;
 }) {
@@ -38,7 +38,7 @@ export default function VenueActionSummary({
           >
             {typeof walkMinutes === "number" ? `${walkMinutes} min` : walkMinutes === "far" ? "Over an hour" : "Near me"}
           </strong>
-          <small>{walkMinutes !== null ? "walk" : "Turn on location for walk times"}</small>
+          <small>{walkMinutes === "rough" ? "Location too rough for walk times" : walkMinutes !== null ? "walk" : "Turn on location for walk times"}</small>
         </span>
         {planDoor}
       </div>

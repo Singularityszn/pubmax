@@ -21,6 +21,7 @@
 //      twice").
 
 import { haversineKm } from "@/lib/haversine";
+import { mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import type { VenuePriceLane } from "@/lib/venuePriceLane";
 import { formatFreshness, formatObservedAt, type Venue } from "@/lib/venues";
@@ -78,23 +79,28 @@ export function venueActionCardWalkMinutes(
   return Number.isFinite(km) ? Math.max(1, Math.ceil(km * WALK_MINUTES_PER_KM)) : null;
 }
 
-/** Whole minutes, "far" for a shown position over an hour away, or null with no position at all. */
-export type VenueActionCardWalk = number | "far" | null;
+/**
+ * Whole minutes; "far" for a shown position over an hour away; "rough" for a
+ * shown position too coarse to measure from; null with no position at all.
+ */
+export type VenueActionCardWalk = number | "far" | "rough" | null;
 
 /**
  * The walk the card prints. `from` is the location the reader offered. `shown`
  * is the position the map already paints for a reader who granted location
- * earlier: it answers when `from` is absent, and past an hour it answers
- * "far", because a reader looking across the city did not ask for a long
- * walk, and the card must not then say their location is off. Worked out on
- * the device.
+ * earlier: it answers when `from` is absent. Past an hour it answers "far",
+ * because a reader looking across the city did not ask for a long walk. A
+ * coarse fix answers "rough", because minutes from it would claim a precision
+ * nobody measured. Neither may read as location being off. Worked out on the
+ * device.
  */
 export function venueActionCardWalk(
   from: { lat: number; lng: number } | null | undefined,
   to: { latitude: number; longitude: number },
-  shown: { lat: number; lng: number } | null | undefined,
+  shown: { lat: number; lng: number; accuracyMeters?: number } | null | undefined,
 ): VenueActionCardWalk {
   if (from) return venueActionCardWalkMinutes(from, to);
+  if (shown && !mapReaderPositionMeasures(shown)) return "rough";
   const minutes = venueActionCardWalkMinutes(shown, to);
   return minutes !== null && minutes > SHOWN_POSITION_WALK_CEILING_MINUTES ? "far" : minutes;
 }

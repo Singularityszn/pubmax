@@ -31,6 +31,21 @@ export function mapReaderPositionInView<T extends { lat: number; lng: number }>(
   return inView ? position : null;
 }
 
+/** The coarsest fix a surface may count or measure from without the reader asking. */
+const MAP_READER_MEASURE_ACCURACY_METERS = 800;
+
+/**
+ * Whether a fix is fine enough to count or measure from on its own. The dot
+ * draws its accuracy ring, so the map is honest about a coarse fix. A figure
+ * such as "within 800 m" or a walk in minutes would claim a precision nobody
+ * measured. A fix that states no accuracy (0) is taken as given.
+ */
+export function mapReaderPositionMeasures(
+  position: { lat: number; lng: number; accuracyMeters?: number } | null | undefined,
+): boolean {
+  return !!position && (position.accuracyMeters ?? 0) <= MAP_READER_MEASURE_ACCURACY_METERS;
+}
+
 export const MAP_READER_LOCATION_LATCH_EVENT = "pubmax:map-reader-location-latch";
 
 /** Signal that the reader granted location through an existing map ask. */

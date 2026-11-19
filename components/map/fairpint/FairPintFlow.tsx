@@ -9,7 +9,7 @@ import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
-import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView } from "@/lib/mapReaderPosition";
+import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView, mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
 
@@ -123,7 +123,8 @@ export default function FairPintFlow({
       generated.stops.map((stop) => stop.venueId),
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     );
-  const readerInView = mapReaderPositionInView(readerPosition, bounds);
+  // A coarse fix draws its ring on the map and counts only if the reader asks.
+  const readerInView = mapReaderPositionMeasures(readerPosition) ? mapReaderPositionInView(readerPosition, bounds) : null;
   // The dot counts while it is on screen. Off screen, only the fix the reader
   // gave with a tap counts, so a later fix of the watch never moves a request.
   const position = viewOnly ? null : (readerInView ?? chosenPosition);

@@ -574,6 +574,20 @@ describe("the walk's origin", () => {
   });
 });
 
+describe("a coarse shown position", () => {
+  const pub = { latitude: 51.5257, longitude: -0.0905 };
+  it("gives no minutes, and still does not say location is off", () => {
+    expect(venueActionCardWalk(null, pub, { lat: 51.5257, lng: -0.0875, accuracyMeters: 801 })).toBe("rough");
+    expect(venueActionCardWalk(null, pub, { lat: 51.5257, lng: -0.0875, accuracyMeters: 800 })).toBe(3);
+    expect(venueActionCardWalk(null, pub, { lat: 51.5257, lng: -0.0875, accuracyMeters: 0 })).toBe(3);
+    const host = document.createElement("div"), root = createRoot(host);
+    act(() => root.render(createElement(VenueActionSummary, { label: "Summary", price: null, planDoor: null, walkMinutes: "rough" })));
+    expect(host.textContent).toContain("Location too rough for walk times");
+    expect(host.textContent).not.toContain("Turn on location");
+    act(() => root.unmount());
+  });
+});
+
 describe("one coral action", () => {
   it("with a fresh drinker price, the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {

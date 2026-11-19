@@ -158,6 +158,21 @@ it("counts around a reader position the map already shows, from the same price f
   await done();
 });
 
+it("keeps the view's count for a coarse fix on screen until the reader asks", async () => {
+  const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
+  const coarse = { ...reader, accuracyMeters: 2000 };
+  await render(coarse);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  expect(requested).toHaveLength(2);
+
+  await act(async () => choice().click());
+  expect(asked).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(choice().textContent).toBe("Count pubs in view");
+  await done();
+});
+
 it("offers a fix the map holds off screen on a tap, and no later fix moves its request", async () => {
   const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
   const away = { ...reader, lat: 51.56 };
