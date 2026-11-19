@@ -96,6 +96,28 @@ it("requests only newly added pubs when the map data changes", async () => {
   expect(host.textContent).toBe("absent,absent,absent");
 });
 
+it("rechecks a pub after its recorded price rolls back and reuses the other pub's answer", async () => {
+  const rows = venues(2);
+  const fresh = Promise.withResolvers<Response>();
+  const requested: string[][] = [];
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL) => {
+    const ids = new URL(String(input), "http://localhost").searchParams.getAll("venueId");
+    requested.push(ids);
+    if (requested.length > 1) return fresh.promise;
+    return Response.json({ presence: { "venue-0": "absent", "venue-1": "absent" } });
+  }));
+
+  await show(rows);
+  expect(host.textContent).toBe("absent,absent");
+  await show([{ ...rows[0]!, cheapestPrice: 4 }, rows[1]!]);
+  expect(host.textContent).toBe("unknown,absent");
+  await show(rows);
+  expect(host.textContent?.split(",")[0]).toBe("unknown");
+  expect(requested).toEqual([["venue-0", "venue-1"], ["venue-0"]]);
+  await act(async () => fresh.resolve(Response.json({ presence: { "venue-0": "present" } })));
+  expect(host.textContent).toBe("present,absent");
+});
+
 it("rechecks expired absence before returning an estimate", async () => {
   const now = vi.spyOn(Date, "now").mockReturnValue(1_000_000);
   vi.stubGlobal("fetch", vi.fn(async () => Response.json({ presence: { "venue-0": "absent" } })));

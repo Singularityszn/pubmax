@@ -16,10 +16,22 @@ export function usePublicPriceVenues(
   communityPrices: ReadonlyMap<string, readonly CommunityPrice[]>,
 ): Venue[] {
   const venues = useMemo(() => mergePriceUpdates(mergeVenueDrops(baseVenues, drops), cityId === "london" ? priceUpdates : [], venueUpdateKey), [baseVenues, drops, priceUpdates, cityId]);
-  const ids = useMemo(() => venues.filter((venue) => venue.cheapestPrice === null && venue.hasRecordedPrice !== true
-    && (venue.zone != null || (venue as Venue & { bundlePrices?: { estimate?: unknown } }).bundlePrices?.estimate)).map((venue) => venue.id), [venues]);
-  const refreshKey = useMemo(() => [venues, communityPrices], [venues, communityPrices]);
-  const presence = usePublicPricePresence(ids, refreshKey, true);
+  const { ids, evidenceByVenue } = useMemo(() => {
+    const ids: string[] = [];
+    const evidenceByVenue = new Map<string, string>();
+    for (const venue of venues) {
+      const recorded = venue.cheapestPrice !== null || venue.hasRecordedPrice === true;
+      const communityRows = communityPrices.get(venue.id);
+      const evidence = communityRows?.length
+        ? JSON.stringify([recorded, communityRows])
+        : recorded ? "recorded" : "no-local-price";
+      evidenceByVenue.set(venue.id, evidence);
+      const bundle = venue as Venue & { bundlePrices?: { estimate?: unknown } };
+      if (!recorded && (venue.zone != null || bundle.bundlePrices?.estimate)) ids.push(venue.id);
+    }
+    return { ids, evidenceByVenue };
+  }, [venues, communityPrices]);
+  const presence = usePublicPricePresence(ids, evidenceByVenue, evidenceByVenue);
   return useMemo(() => venues.map((venue) => ({ ...venue, publicPricePresence: communityPrices.get(venue.id)?.length
     ? "present" as const : presence.get(venue.id) ?? "unknown" })), [venues, presence, communityPrices]);
 }

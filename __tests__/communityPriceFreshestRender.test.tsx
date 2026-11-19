@@ -5,6 +5,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
+import { usePublicPriceVenues } from "@/components/map/pubmap/usePublicPriceVenues";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type { PintDrop } from "@/lib/pintDrops";
 import type { PriceUpdate } from "@/lib/priceUpdates";
@@ -23,7 +24,6 @@ import type { Venue } from "@/lib/venues";
 type CommunityPrices = ReturnType<typeof useCommunityPrices>;
 
 let root: Root;
-let usePublicPriceVenues: typeof import("@/components/map/pubmap/usePublicPriceVenues").usePublicPriceVenues;
 // Called once per run of the host's render, with what the hook answered.
 const onRender = vi.fn<(state: CommunityPrices) => void>();
 const latest = (): CommunityPrices => onRender.mock.calls.at(-1)![0];
@@ -34,8 +34,6 @@ function Probe() {
 }
 
 beforeEach(async () => {
-  vi.resetModules();
-  ({ usePublicPriceVenues } = await import("@/components/map/pubmap/usePublicPriceVenues"));
   onRender.mockClear();
   onVenues.mockClear();
   vi.stubGlobal("fetch", vi.fn(async () => new Response(
@@ -100,12 +98,12 @@ function absenceResponse() {
 const latestVenue = () => onVenues.mock.calls.at(-1)![0][0]!;
 
 it("suppresses a pint estimate when the wine index discovers a public row", async () => {
+  const refresh = Promise.withResolvers<Response>();
   let presenceReads = 0;
   vi.mocked(fetch).mockImplementation(async (input) => {
     const params = new URL(String(input), "http://localhost").searchParams;
     if (params.has("drinkCategory")) return new Response(JSON.stringify({ prices: [winePrice] }));
-    presenceReads++;
-    return absenceResponse();
+    return ++presenceReads === 1 ? absenceResponse() : refresh.promise;
   });
   await act(async () => root.render(createElement(CommunityPricePresenceProbe)));
   expect(venueBundlePrices(latestVenue()).estimate?.priceGbp).toBe(6);
@@ -114,10 +112,13 @@ it("suppresses a pint estimate when the wine index discovers a public row", asyn
   expect(latest().freshestByVenueId.size).toBe(0);
   expect(latestVenue().publicPricePresence).toBe("present");
   expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
-  expect(presenceReads).toBe(1);
+  expect(presenceReads).toBe(2);
+  await act(async () => refresh.resolve(absenceResponse()));
+  expect(latestVenue().publicPricePresence).toBe("present");
+  expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
 });
 
-it("shares an unfinished absence read without overriding a known community row", async () => {
+it("discards old absence reads when community rows change or roll back", async () => {
   const pending: Array<{ answer: ReturnType<typeof Promise.withResolvers<Response>>; signal: AbortSignal | null | undefined }> = [];
   vi.mocked(fetch).mockImplementation((_input, options) => {
     const answer = Promise.withResolvers<Response>();
@@ -127,16 +128,18 @@ it("shares an unfinished absence read without overriding a known community row",
   await act(async () => root.render(createElement(PublicPriceProbe, { prices: noCommunityPrices })));
   expect(latestVenue().publicPricePresence).toBe("unknown");
   await act(async () => root.render(createElement(PublicPriceProbe, { prices: new Map([["venue-empty", [winePrice]]]) })));
-  expect(pending).toHaveLength(1);
-  expect(pending[0]!.signal?.aborted).toBe(false);
+  expect(pending[0]!.signal?.aborted).toBe(true);
   expect(latestVenue().publicPricePresence).toBe("present");
-  expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
-  await act(async () => pending[0]!.answer.resolve(absenceResponse()));
-  expect(latestVenue().publicPricePresence).toBe("present");
-  expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
-
   await act(async () => root.render(createElement(PublicPriceProbe, { prices: noCommunityPrices })));
-  expect(pending).toHaveLength(1);
+  expect(pending[1]!.signal?.aborted).toBe(true);
+  expect(latestVenue().publicPricePresence).toBe("unknown");
+  await act(async () => {
+    pending[0]!.answer.resolve(absenceResponse());
+    pending[1]!.answer.resolve(absenceResponse());
+  });
+  expect(latestVenue().publicPricePresence).toBe("unknown");
+  expect(venueBundlePrices(latestVenue()).estimate).toBeNull();
+  await act(async () => pending[2]!.answer.resolve(absenceResponse()));
   expect(latestVenue().publicPricePresence).toBe("absent");
   expect(venueBundlePrices(latestVenue()).estimate?.priceGbp).toBe(6);
 });
