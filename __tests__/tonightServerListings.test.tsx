@@ -170,6 +170,66 @@ describe("Tonight's server listing composition", () => {
     expect(loadOutVenueMatchIndex).not.toHaveBeenCalled();
   });
 
+  it.each([
+    { label: "expired nearby", nearby: true, ageMs: 10_000, unavailable: true },
+    { label: "recent nearby", nearby: true, ageMs: 2_000, unavailable: false },
+    { label: "recent citywide", nearby: false, ageMs: 10_000, unavailable: false },
+  ])("reports the $label read honestly when Tonight reopens during an outage", async ({ nearby, ageMs, unavailable }) => {
+    vi.useFakeTimers({ now: NOW });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    let refused = false;
+    const requests: URL[] = [];
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json({
+        status: "ready", events: [], observedAt: {}, venueMatch: "ready",
+      });
+      if (url.pathname !== "/api/whats-on") return new Response(null, { status: 404 });
+      requests.push(url);
+      return refused ? new Response(null, { status: 429 }) : Response.json(whatsOn);
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    if (nearby) writeRememberedArea({ kind: "patch", id: "central" });
+    const container = document.createElement("div");
+    document.body.append(container);
+    const element = createElement(TonightClient, {
+      initialListings: { whatsOn, out, renderedAt: NOW },
+      mapSelectableVenueIds: [independent.venueId],
+    });
+    let root = createRoot(container);
+    try {
+      await act(async () => { root.render(element); });
+      expect(container.textContent).toContain(independent.title);
+      expect(requests.some((url) => url.searchParams.get("near") === "51.513,-0.13")).toBe(nearby);
+      await act(async () => root.unmount());
+      await act(async () => { await vi.advanceTimersByTimeAsync(ageMs); });
+      refused = true;
+      requests.length = 0;
+      root = createRoot(container);
+      await act(async () => { root.render(element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain(independent.title);
+      if (unavailable) {
+        expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+        expect(card?.textContent).toContain("Cached listing");
+        expect(requests.some((url) => url.searchParams.get("near") === "51.513,-0.13")).toBe(true);
+      } else {
+        expect(card?.textContent).not.toContain("Tonight's listings are unavailable right now.");
+        expect(card?.textContent).not.toContain("Cached listing");
+        expect(requests).toHaveLength(0);
+      }
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      clearRememberedArea();
+      clearSurfaceCache();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("selects a nearby quiz beyond the default 60 groups after a patch is chosen", async () => {
     const nearby = {
       ...independent, id: "nearby-quiz", venueId: "nearby-pub",
