@@ -17,6 +17,11 @@ export const FAIR_PINT_KEY = "pubmax:fair-pint:v1";
 export function validFairPint(value: unknown): value is number {
   return typeof value === "number" && Number.isInteger(value) && value >= 300 && value <= 800 && value % 10 === 0;
 }
+export function fairPintValueText(pence: number): string {
+  const pounds = Math.floor(pence / 100);
+  const remainder = pence % 100;
+  return remainder === 0 ? `${pounds} pounds` : `${pounds} pounds and ${remainder} pence`;
+}
 export function readFairPint(storage = safeLocalStorage()): number {
   try {
     const value: unknown = JSON.parse(storage?.getItem(FAIR_PINT_KEY) ?? "null");
@@ -150,6 +155,7 @@ export function bootFairPintCard(
   },
   valid: (value: unknown) => value is number,
   suppresses: (search: string, keys: readonly string[]) => boolean,
+  valueText: (pence: number) => string,
 ) {
   // The server serialises this body. Client bundles retain only the empty export.
   if (!process.env.NEXT_RUNTIME) return;
@@ -177,7 +183,7 @@ export function bootFairPintCard(
       range.value = String(early.pence);
       const amount = `£${(early.pence / 100).toFixed(2)}`;
       output.textContent = amount;
-      range.setAttribute("aria-valuetext", `${amount}, loading prices`);
+      range.setAttribute("aria-valuetext", `${valueText(early.pence)}, loading prices`);
     };
     const release = () => {
       early.dragging = false;

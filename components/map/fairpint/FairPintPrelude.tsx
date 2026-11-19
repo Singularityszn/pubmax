@@ -11,7 +11,7 @@ export default function FairPintPrelude({ area, nonce }: { area: string; nonce?:
   const script = bootstrap ? use(bootstrap) : "";
   return (
     <>
-      <FairPintFrame prelude area={area} figure="£5.50" reason={`Checking prices in ${area}…`} />
+      <FairPintFrame prelude area={area} pence={550} reason={`Checking prices in ${area}…`} />
       <script nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: script }} />
     </>
   );

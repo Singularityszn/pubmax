@@ -3,6 +3,8 @@
 import { useId, type ComponentProps } from "react";
 import { X } from "lucide-react";
 import { buttonVariants } from "@/components/ui/buttonVariants";
+import { fairPintValueText } from "@/lib/fairPint";
+import { formatPence } from "@/lib/formatGbp";
 import "@/components/ui/primitives.css";
 import "./fairPint.css";
 
@@ -11,7 +13,8 @@ export const FAIR_PINT_LOADING_LINE = "Loading prices…";
 export default function FairPintFrame({
   prelude = false,
   area,
-  figure,
+  pence,
+  priceStatus = "loading prices",
   countLine = FAIR_PINT_LOADING_LINE,
   slider,
   announcement = "",
@@ -28,7 +31,8 @@ export default function FairPintFrame({
 }: {
   prelude?: boolean;
   area: string;
-  figure: string;
+  pence: number;
+  priceStatus?: string;
   countLine?: string;
   slider?: ComponentProps<"input">;
   announcement?: string;
@@ -54,19 +58,19 @@ export default function FairPintFrame({
     >
       <h2>What&apos;s a fair pint to you?</h2>
       <output className="fairPintFigure" aria-live="off" suppressHydrationWarning={prelude}>
-        {figure}
+        {formatPence(pence)}
       </output>
       <input
         suppressHydrationWarning={prelude}
         className="fairPintRange"
         type="range"
         aria-label="Fair pint price"
-        aria-valuetext={`${figure}, loading prices`}
         min={300}
         max={800}
         step={10}
-        defaultValue={prelude ? 550 : undefined}
+        defaultValue={prelude ? pence : undefined}
         {...slider}
+        aria-valuetext={`${fairPintValueText(pence)}, ${priceStatus}`}
       />
       <p className="fairPintCount">{countLine}</p>
       <span className="sr-only" aria-live="polite">{announcement}</span>
