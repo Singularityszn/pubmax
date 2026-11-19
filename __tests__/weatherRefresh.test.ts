@@ -9,6 +9,8 @@ import { defined } from "@/__tests__/helpers/defined";
 
 // @ts-expect-error Dependency-free Node refresh helper has no declaration file.
 import { WEATHER_REVIEW_BRANCH, conditionForCode, publishWeatherReview } from "@/scripts/refresh_weather_snapshots.mjs";
+// @ts-expect-error Dependency-free Node refresh helper has no declaration file.
+import { fetchObservations } from "@/scripts/refresh_weather_snapshots.mjs";
 
 describe("scheduled weather refresh", () => {
   it("maps route-relevant WMO conditions without calling the provider", () => {
@@ -19,6 +21,68 @@ describe("scheduled weather refresh", () => {
 
   it("publishes every run to one stable review branch, never a dated one", () => {
     expect(WEATHER_REVIEW_BRANCH).toBe("weather-cache/latest");
+  });
+});
+
+describe("weather provider reads", () => {
+  const AREAS = { clapham: [51.462, -0.138], chiswick: [51.493, -0.255], camden: [51.539, -0.143] };
+  const forecast = () =>
+    new Response(
+      JSON.stringify({
+        current: { time: "2026-11-18T21:45", apparent_temperature: 6.1, weather_code: 61, wind_speed_10m: 12 },
+        hourly: { precipitation_probability: [70] },
+      }),
+    );
+
+  function provider(failures: Record<string, Array<() => Response>>) {
+    let inFlight = 0;
+    let peak = 0;
+    const fetchImpl = async (url: URL) => {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await Promise.resolve();
+      inFlight -= 1;
+      const area = Object.entries(AREAS).find(([, [lat]]) => url.searchParams.get("latitude") === String(lat))?.[0] ?? "";
+      const failure = failures[area]?.shift();
+      if (failure) return failure();
+      return forecast();
+    };
+    return { fetchImpl, peak: () => peak };
+  }
+
+  it("asks for one area at a time and retries a rate-limited area", async () => {
+    const waits: number[] = [];
+    const { fetchImpl, peak } = provider({
+      chiswick: [() => new Response("", { status: 429, headers: { "retry-after": "3" } })],
+    });
+    const observations = await fetchObservations({ areas: AREAS, fetchImpl, wait: async (ms: number) => void waits.push(ms) });
+    expect(observations.map((o: { nightArea: string }) => o.nightArea)).toEqual(["clapham", "chiswick", "camden"]);
+    expect(peak()).toBe(1);
+    expect(waits).toEqual([3000]);
+  });
+
+  it("retries a connect failure and gives up after three attempts", async () => {
+    const offline = () => {
+      throw new TypeError("fetch failed");
+    };
+    const recovered = provider({ clapham: [offline, offline] });
+    await expect(
+      fetchObservations({ areas: AREAS, fetchImpl: recovered.fetchImpl, wait: async () => {} }),
+    ).resolves.toHaveLength(3);
+
+    const down = provider({ clapham: [offline, offline, offline] });
+    await expect(fetchObservations({ areas: AREAS, fetchImpl: down.fetchImpl, wait: async () => {} })).rejects.toThrow(
+      "fetch failed",
+    );
+  });
+
+  it("does not retry a refused request", async () => {
+    const waits: number[] = [];
+    const { fetchImpl } = provider({ camden: [() => new Response("", { status: 400 })] });
+    await expect(
+      fetchObservations({ areas: AREAS, fetchImpl, wait: async (ms: number) => void waits.push(ms) }),
+    ).rejects.toThrow("camden: Open-Meteo returned 400");
+    expect(waits).toEqual([]);
   });
 });
 
