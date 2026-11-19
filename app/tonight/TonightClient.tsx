@@ -410,14 +410,8 @@ export default function TonightClient({
     () => ({ body: outBody, failed: outFailed, pending: outPending, sourceEvidence: outSourceEvidence }),
     [outBody, outFailed, outPending, outSourceEvidence],
   );
-  // One instant answers both questions. Reading the clock twice lets the merge
-  // drop the night's last row while the status still calls the page ready, and
-  // a ready page over no rows shows neither cards nor the quiet-night sentence.
-  // A retry puts the spine back to `idle`, which empties the merge of BOTH
-  // lanes, so the paint reads the answer already on screen and only the state
-  // below says a read is running. Counted across both lanes on purpose: the
-  // retry control is offered when the SPINE reported, and a spine that reported
-  // holds no rows, so the list under that button is the Out lane's.
+  // Retained rows from either lane stay visible during retries. The live read
+  // status still controls availability notices when a server answer supplies rows.
   const paintStatus = tonightPaintStatus(paintLaneStatus, tonightHeldRowCount(rows, outAnswer));
   const { listingRows, secondaryChainListingCount, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only

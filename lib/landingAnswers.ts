@@ -13,9 +13,9 @@ import { londonServiceDayBounds, musicLaneRows, type WhatsOnRow } from "@/lib/wh
 export type LandingAnswer = {
   /** The answer the card prints. */
   line: string;
-  /** The London day the answer speaks for, such as "Saturday 19 July". */
+  /** The answer's London day, or an empty string before a listing read. */
   stamp: string;
-  /** False when the lane could not be read, so the card prints no count. */
+  /** False for a link-only answer, a failed read, or stale weather. */
   measured: boolean;
 };
 
@@ -50,9 +50,9 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
 
 /** What the listing lanes gave us, reduced to what the card can say. */
 export type TonightListingFacts = {
-  /** True when neither the What's-On lane nor the Out lane could be read. */
+  /** Availability follows tonightLiveReadUnavailable, including partial failures. */
   unread: boolean;
-  /** How many dated pub events the merged lanes hold for tonight. */
+  /** Dated event count after Tonight's grouping and eligibility rules. */
   count: number;
   /** How many of those dated events are quizzes. */
   quizCount?: number;
