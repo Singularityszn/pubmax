@@ -385,6 +385,45 @@ describe("Tonight's completed server document", () => {
     }
   });
 
+  it("shows a healthy Out quiz after a primary failure with an empty server snapshot", async () => {
+    vi.useFakeTimers({ now: NOW });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json({
+        status: "ready", listingsStatus: "ready", venueMatch: "ready",
+        events: [independent], observedAt: {},
+      });
+      return new Response(null, { status: url.pathname === "/api/whats-on" ? 429 : 404 });
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    const container = document.createElement("div");
+    document.body.append(container);
+    const element = createElement(TonightClient, {
+      initialListings: { whatsOn: { ...whatsOn, rows: [] }, out, renderedAt: NOW },
+      mapSelectableVenueIds: [independent.venueId],
+    });
+    container.innerHTML = renderToString(element);
+    let root: Root | undefined;
+    try {
+      await act(async () => { root = hydrateRoot(container, element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+      expect(card?.textContent).toContain(independent.title);
+      expect(card?.textContent).not.toContain("Cached listing");
+      expect(card?.textContent).not.toContain("No confirmed listings for tonight yet.");
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      clearSurfaceCache();
+      clearRememberedArea();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("keeps chain deals and ticket platforms out of the primary listing region", () => {
     const html = documentFor({
       ...whatsOn,
