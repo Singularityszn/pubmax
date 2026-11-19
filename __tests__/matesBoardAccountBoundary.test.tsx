@@ -16,10 +16,18 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/authContext", () => ({
   useAuth: () => session,
 }));
-vi.mock("@/lib/authedFetch", () => ({ authedActionFetch: session.request }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: session.request,
+  authedActionJson: async (...args: unknown[]) => {
+    const response = (await session.request(...args)) as Response;
+    return { response, body: await response.json().catch(() => null) };
+  },
+}));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: () => {} }) }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import MatesBoardClient from "@/app/social/leaderboard/MatesBoardClient";
+import LeaguesClient from "@/app/social/leagues/LeaguesClient";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -63,20 +71,25 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-it.each(["unresolved", "unavailable"])("waits for a live session answer after %s", async (phase) => {
+const privateBoards = [["mates' board", MatesBoardClient], ["leagues", LeaguesClient]] as const;
+const sessionWaits = privateBoards.flatMap(([name, Client]) =>
+  (["unresolved", "unavailable"] as const).map((phase) => [name, phase, Client] as const));
+
+it.each(sessionWaits)("%s waits for a live session answer after %s, and asks nothing of a signed-out reader", async (_name, phase, Client) => {
   session.user = null;
   session.providerAuthState = phase;
   session.request.mockResolvedValue(json({}, 401));
-  await act(async () => root.render(createElement(MatesBoardClient)));
+  await act(async () => root.render(createElement(Client)));
 
   expect(host.querySelector('a[href^="/login"]')).toBeNull();
-  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
+  expect(host.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("true");
   expect(session.request).not.toHaveBeenCalled();
 
   session.providerAuthState = "signed-out";
-  await act(async () => root.render(createElement(MatesBoardClient)));
+  await act(async () => root.render(createElement(Client)));
   expect(host.querySelector('a[href^="/login"]')).not.toBeNull();
-  expect(host.querySelector("section[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
+  expect(host.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
+  expect(session.request).not.toHaveBeenCalled();
 });
 
 it.each(outcomes)("hides the previous reader's %s outcome in the first account-change commit", async (_name, response) => {
