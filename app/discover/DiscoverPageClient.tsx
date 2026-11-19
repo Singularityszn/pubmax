@@ -301,7 +301,8 @@ export function DiscoverBody({
         signal: controller.signal,
         setStatus,
         loadDataset: async () => {
-          const res = await fetch(DISCOVER_BOARD_PATH, {
+          // Older clients still read the same file without price evidence.
+          const res = await fetch(`${DISCOVER_BOARD_PATH}?v=2`, {
             signal: controller.signal,
           });
           if (!res.ok) {

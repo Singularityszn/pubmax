@@ -12,7 +12,7 @@ import { loadLondonPintRanking } from "@/lib/londonPintRanking.server";
 import { TONIGHT_CHEAP_PINTS_LIMIT } from "@/lib/tonightCheapPints";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
-import shipped from "../public/data/discover/rankings.json";
+import shipped from "../public/data/discover/board.json";
 
 // The fence over the Discover board: the shipped artifact must be exactly what
 // `npm run build:discover-board` cuts from the bundled dataset today. Discover
@@ -81,7 +81,7 @@ describe("the shipped Discover board", () => {
   });
 
   it("is served from the path the page reads", () => {
-    expect(DISCOVER_BOARD_PATH).toBe("/data/discover/rankings.json");
+    expect(DISCOVER_BOARD_PATH).toBe("/data/discover/board.json");
   });
 });
 

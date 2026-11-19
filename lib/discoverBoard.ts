@@ -8,7 +8,7 @@ import { displayVenueName } from "@/lib/venueDisplay";
 // together so the browser never downloads the full pint dataset.
 
 /** Where the built board is served from. */
-export const DISCOVER_BOARD_PATH = "/data/discover/rankings.json";
+export const DISCOVER_BOARD_PATH = "/data/discover/board.json";
 
 /** How many rows the leaderboard publishes. */
 export const DISCOVER_BOARD_LIMIT = 10;
