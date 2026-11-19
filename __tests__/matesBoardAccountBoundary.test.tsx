@@ -28,6 +28,7 @@ vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 
 import MatesBoardClient from "@/app/social/leaderboard/MatesBoardClient";
 import LeaguesClient from "@/app/social/leagues/LeaguesClient";
+import LeagueClient from "@/app/social/leagues/[id]/LeagueClient";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -71,11 +72,12 @@ afterEach(async () => {
   vi.unstubAllGlobals();
 });
 
-const privateBoards = [["mates' board", MatesBoardClient], ["leagues", LeaguesClient]] as const;
+const LeagueDetail = () => createElement(LeagueClient, { id: "league-1" });
+const privateBoards = [["mates' board", MatesBoardClient], ["leagues", LeaguesClient], ["league detail", LeagueDetail]] as const;
 const sessionWaits = privateBoards.flatMap(([name, Client]) =>
   (["unresolved", "unavailable"] as const).map((phase) => [name, phase, Client] as const));
 
-it.each(sessionWaits)("%s waits for a live session answer after %s, and asks nothing of a signed-out reader", async (_name, phase, Client) => {
+it.each(sessionWaits)("%s waits for a live session answer after %s, asks nothing of a signed-out reader, and reads again on sign-in", async (_name, phase, Client) => {
   session.user = null;
   session.providerAuthState = phase;
   session.request.mockResolvedValue(json({}, 401));
@@ -90,6 +92,14 @@ it.each(sessionWaits)("%s waits for a live session answer after %s, and asks not
   expect(host.querySelector('a[href^="/login"]')).not.toBeNull();
   expect(host.querySelector("[aria-busy]")?.getAttribute("aria-busy")).toBe("false");
   expect(session.request).not.toHaveBeenCalled();
+
+  session.request.mockResolvedValue(json({}, 503));
+  session.user = { id: "account-2" };
+  session.providerAuthState = "authenticated";
+  session.revision = 2;
+  await act(async () => root.render(createElement(Client)));
+  expect(session.request).toHaveBeenCalledTimes(1);
+  expect(host.querySelector('a[href^="/login"]')).toBeNull();
 });
 
 it.each(outcomes)("hides the previous reader's %s outcome in the first account-change commit", async (_name, response) => {

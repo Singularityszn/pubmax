@@ -193,16 +193,18 @@ function Board({ board, onCode, onGone }: { board: LeagueBoard; onCode: (code: s
 export default function LeagueClient({ id }: { id: string }): React.JSX.Element {
   const router = useRouter();
   const { accountRevision } = useAuth();
-  const { unresolved } = useViewerSession();
+  const { signedOut, unresolved } = useViewerSession();
   const [result, setResult] = useState<{ revision: number; value: State }>({
     revision: accountRevision,
     value: { status: "loading" },
   });
-  const state: State = !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
+  const state: State = signedOut
+    ? { status: "signed-out" }
+    : !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
-    if (unresolved) return;
+    if (unresolved || signedOut) return;
     const controller = new AbortController();
     const update = (value: State) => {
       if (!controller.signal.aborted) setResult({ revision: accountRevision, value });
@@ -225,7 +227,7 @@ export default function LeagueClient({ id }: { id: string }): React.JSX.Element 
       })
       .catch(() => undefined);
     return () => controller.abort();
-  }, [accountRevision, attempt, id, unresolved]);
+  }, [accountRevision, attempt, id, signedOut, unresolved]);
 
   const onCode = (code: string) =>
     setResult((current) =>
