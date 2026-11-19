@@ -53,7 +53,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
-it("counts around a reader position the map already shows, from the same price files, and lets the reader switch back to the view", async () => {
+async function locatedFlow() {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");
   const loader = shards.createSlimShardLoader("london");
@@ -62,8 +62,19 @@ it("counts around a reader position the map already shows, from the same price f
     { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
     { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
   ];
+  // Requests in order: the view, the draw area, then the margin round the view.
   const requested: string[] = [];
-  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: async (box) => { requested.push(JSON.stringify(box)); return rows; }, coverageComplete: () => true });
+  const control = { marginFails: false, holdMargin: null as Promise<void> | null };
+  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
+    ...loader,
+    inBounds: async (box) => {
+      const key = JSON.stringify(box);
+      if (!requested.includes(key)) requested.push(key);
+      if (requested.indexOf(key) === 2 && control.holdMargin) await control.holdMargin;
+      return rows;
+    },
+    coverageComplete: (box) => !(control.marginFails && requested.indexOf(JSON.stringify(box)) === 2),
+  });
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
   const asked = vi.fn();
   Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: asked } });
@@ -72,16 +83,28 @@ it("counts around a reader position the map already shows, from the same price f
   const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
   const host = document.createElement("div"), mounted = createRoot(host);
   document.body.append(host);
-  const render = (readerPosition: typeof reader | null) => act(async () => {
-    mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
-  });
-  const choice = () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!;
-  const spoken = () => host.querySelector('[aria-live="polite"]')?.textContent;
+  return {
+    asked, control, host, reader, requested,
+    render: (readerPosition: typeof reader | null) => act(async () => {
+      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+    }),
+    choice: () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!,
+    spoken: () => host.querySelector('[aria-live="polite"]')?.textContent,
+    done: async () => {
+      await vi.dynamicImportSettled();
+      act(() => { mounted.unmount(); }); host.remove(); Reflect.deleteProperty(navigator, "geolocation"); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
+    },
+  };
+}
+
+it("counts around a reader position the map already shows, from the same price files, and lets the reader switch back to the view", async () => {
+  const { asked, host, reader, requested, render, choice, spoken, done } = await locatedFlow();
 
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(choice().textContent).toBe("Use my location");
   const before = [...requested];
+  expect(before).toHaveLength(3);
 
   // The dot arrives while the reader's focus is on the location choice.
   const held = choice();
@@ -112,9 +135,51 @@ it("counts around a reader position the map already shows, from the same price f
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(choice().textContent).toBe("Use my location");
   expect(requested).toEqual(before);
+  await done();
+});
 
-  await vi.dynamicImportSettled();
-  act(() => { mounted.unmount(); }); host.remove(); Reflect.deleteProperty(navigator, "geolocation"); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
+it("offers a fix the map holds off screen on a tap, and no later fix moves its request", async () => {
+  const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
+  const away = { ...reader, lat: 51.56 };
+  await render(away);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+
+  await act(async () => choice().click());
+  expect(asked).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(choice().textContent).toBe("Count pubs in view");
+  const afterTap = [...requested];
+  expect(afterTap).toHaveLength(4);
+
+  await render({ ...away, lat: 51.5603 });
+  await render({ ...away, lat: 51.57 });
+  expect(requested).toEqual(afterTap);
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+  await done();
+});
+
+it("publishes the in-view count when a file outside the view fails, and speaks a near count only once it has an answer", async () => {
+  const { control, host, reader, render, choice, spoken, done } = await locatedFlow();
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  control.marginFails = true;
+
+  await render(null);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+
+  await render(reader);
+  expect(host.textContent).toContain("Loading prices");
+  expect(spoken()).toBe("");
+
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  expect(spoken()).toContain("Could not load prices");
+
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(spoken()).toContain("2 pubs in view list a pint");
+  await done();
 });
 
 it("starts the deferred planner on Draw and permits retry after refusal", async () => {

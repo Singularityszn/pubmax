@@ -98,12 +98,13 @@ export default function FairPintCard({
     if (early) early.hidden = true;
   }, []);
   useLayoutEffect(() => { if (focusOnMount) slider.current?.focus({ preventScroll: true }); }, [focusOnMount]);
-  const announcedLocated = useRef(located);
+  // A change of geography is spoken once its count has an answer.
+  const spokenLocated = useRef(located);
   useEffect(() => {
-    if (announcedLocated.current === located) return;
-    announcedLocated.current = located;
+    if (spokenLocated.current === located || count.phase === "loading") return;
+    spokenLocated.current = located;
     setAnnouncement(line);
-  }, [located, line]);
+  }, [located, count.phase, line]);
   return (
     <FairPintFrame
       area={area}

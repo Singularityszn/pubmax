@@ -71,6 +71,7 @@ import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import {
   ACTION_CARD_CORAL_CLASS,
   venueActionCardPriceDate,
+  venueActionCardWalk,
   venueActionCardWalkMinutes,
 } from "@/lib/venueActionCard";
 import {
@@ -554,17 +555,22 @@ describe("the card prints the sheet's own price and date", () => {
 describe("the walk's origin", () => {
   const pub = { latitude: 51.5257, longitude: -0.0905 };
   const dot = { lat: 51.5257, lng: -0.0875 };
+  const leeds = { lat: 53.8008, lng: -1.5491 };
   it("reads the position the map already shows when the reader offered none", () => {
-    expect(venueActionCardWalkMinutes(null, pub)).toBeNull();
-    expect(venueActionCardWalkMinutes(null, pub, dot)).toBe(3);
+    expect(venueActionCardWalk(null, pub, null)).toBeNull();
+    expect(venueActionCardWalk(null, pub, dot)).toBe(3);
   });
-  it("keeps the position the reader offered ahead of the shown one", () => {
-    expect(venueActionCardWalkMinutes({ lat: 51.5357, lng: -0.0905 }, pub, dot)).toBe(14);
+  it("keeps the position the reader offered ahead of the shown one, at any distance", () => {
+    expect(venueActionCardWalk({ lat: 51.5357, lng: -0.0905 }, pub, dot)).toBe(14);
+    expect(venueActionCardWalk(leeds, pub, dot)).toBeGreaterThan(60);
   });
-  it("says nothing from a shown position more than an hour's walk away, and still answers an offered one", () => {
-    const leeds = { lat: 53.8008, lng: -1.5491 };
-    expect(venueActionCardWalkMinutes(null, pub, leeds)).toBeNull();
-    expect(venueActionCardWalkMinutes(leeds, pub)).toBeGreaterThan(60);
+  it("calls a shown position over an hour away far, and never says location is off", () => {
+    expect(venueActionCardWalk(null, pub, leeds)).toBe("far");
+    const host = document.createElement("div"), root = createRoot(host);
+    act(() => root.render(createElement(VenueActionSummary, { label: "Summary", price: null, planDoor: null, walkMinutes: "far" })));
+    expect(host.textContent).toContain("Over an hour");
+    expect(host.textContent).not.toContain("Turn on location");
+    act(() => root.unmount());
   });
 });
 

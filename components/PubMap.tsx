@@ -731,7 +731,7 @@ import {
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { venueActionDoors } from "@/components/map/inspector/venueActionDoors";
 import VenueActionSummary from "@/components/map/inspector/VenueActionSummary";
-import { venueActionCardPriceDate, venueActionCardWalkMinutes } from "@/lib/venueActionCard";
+import { venueActionCardPriceDate, venueActionCardWalk } from "@/lib/venueActionCard";
 import { useLastOrdersVenueIds } from "@/components/map/pubmap/useLastOrdersVenueIds";
 import { lastOrdersMapRequested } from "@/lib/lastOrdersList";
 
@@ -5551,7 +5551,7 @@ export default function PubMap({
     const actionSummary = (
       <VenueActionSummary
         label={selectedVenueLabels.summaryLabel}
-        walkMinutes={venueActionCardWalkMinutes(userLocation, selectedVenue, readerPosition)}
+        walkMinutes={venueActionCardWalk(userLocation, selectedVenue, readerPosition)}
         price={
           activeLensPrices !== null ? (
             <span>

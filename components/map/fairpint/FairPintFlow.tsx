@@ -86,10 +86,12 @@ export default function FairPintFlow({
   const [data, setData] = useState<{
     rows: SlimVenue[];
     count: "loading" | "failed" | "ready";
+    near: "loading" | "failed" | "ready";
     draw: "loading" | "failed" | "ready";
     countKey?: string;
+    nearKey?: string;
     drawKey?: string;
-  }>({ rows: [], count: "loading", draw: "loading" });
+  }>({ rows: [], count: "loading", near: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -98,14 +100,19 @@ export default function FairPintFlow({
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     );
   const readerInView = mapReaderPositionInView(readerPosition, bounds);
-  const position = viewOnly ? null : chosenPosition === null ? readerInView : (readerPosition ?? chosenPosition);
-  // The view decides which price files load. A position on screen only
-  // filters them, so the reader's own fix never picks a request.
-  const countBounds = position && !mapReaderPositionInView(position, bounds)
+  // The dot counts while it is on screen. Off screen, only the fix the reader
+  // gave with a tap counts, so a later fix of the watch never moves a request.
+  const position = viewOnly ? null : (readerInView ?? chosenPosition);
+  // The view decides which price files load, and the in-view count waits for
+  // those alone. The near count also needs a fixed margin round the view. A
+  // position on screen only filters what loaded.
+  const countBounds = bounds;
+  const nearBounds = position && !readerInView
     ? circleBounds(position.lat, position.lng, 0.8)
     : marginBounds(bounds, 0.8);
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
   const countKey = JSON.stringify(countBounds),
+    nearKey = JSON.stringify(nearBounds),
     drawKey = JSON.stringify(drawBounds);
   useEffect(() => {
     let mounted = true;
@@ -140,36 +147,36 @@ export default function FairPintFlow({
   }, [start, early]);
   useEffect(() => {
     let cancelled = false;
-    const countBox: MapBounds = JSON.parse(countKey),
-      drawBox: MapBounds = JSON.parse(drawKey);
-    const load = async (box: MapBounds, kind: "count" | "draw") => {
+    const keys = { count: countKey, near: nearKey, draw: drawKey };
+    const load = async (kind: keyof typeof keys) => {
+      const box: MapBounds = JSON.parse(keys[kind]);
       const rows = await loader.inBounds(box);
       const ready = loader.coverageComplete(box);
       setData((held) => ({
         ...held,
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
         ...(!cancelled ? {
-          [kind + "Key"]: kind === "count" ? countKey : drawKey,
+          [kind + "Key"]: keys[kind],
           [kind]: ready ? "ready" : "failed",
         } : {}),
       }));
       if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
     };
-    void load(countBox, "count");
-    void load(drawBox, "draw");
+    void load("count").then(() => load("near"));
+    void load("draw");
     return () => {
       cancelled = true;
     };
-  }, [loader, countKey, drawKey, attempt]);
+  }, [loader, countKey, nearKey, drawKey, attempt]);
   const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
   const counts = (pence: number, draw = false): FairPintCounts => {
     const phase = draw
       ? data.drawKey === drawKey
         ? data.draw
         : "loading"
-      : data.countKey === countKey
-        ? data.count
-        : "loading";
+      : position
+        ? data.nearKey === nearKey ? data.near : "loading"
+        : data.countKey === countKey ? data.count : "loading";
     if (phase !== "ready") return { phase };
     return {
       phase,
@@ -201,7 +208,7 @@ export default function FairPintFlow({
         counts={(pence) => counts(pence)}
         drawCounts={(pence) => counts(pence, true)}
         located={position !== null}
-        locationOff={locationOff}
+        locationOff={locationOff && !readerPosition && !chosenPosition}
         offline={offline}
         drawUnavailable={plannerFailed || (plan?.retrying ?? false)}
         loadFailed={plannerFailed}
@@ -221,6 +228,12 @@ export default function FairPintFlow({
           }
           setViewOnly(false);
           if (readerInView || chosenPosition) return;
+          // The map already holds a fix. The tap offers it, with no second ask.
+          if (readerPosition) {
+            setPosition(readerPosition);
+            setLocationOff(false);
+            return;
+          }
           if (!navigator.geolocation) {
             setLocationOff(true);
             return;
