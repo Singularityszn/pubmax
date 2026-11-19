@@ -235,6 +235,7 @@
 
 .leaderboardName {
   text-align: left;
+  overflow-wrap: anywhere;
 }
 
 .leaderboardPub {
@@ -272,7 +273,6 @@
 
 .leaderboardPriceHead {
   text-align: right;
-  white-space: nowrap;
 }
 
 .leaderboard:not(.cityRivalry) thead .leaderboardPriceHead {
