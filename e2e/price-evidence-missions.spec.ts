@@ -214,7 +214,7 @@ test("signed-in /near shows one mission, submits, and prints the write-back rece
   await attachBill(slot);
   await slot.getByRole("button", { name: "Log it" }).last().click();
 
-  await expect(slot.getByRole("status")).toContainText(
+  await expect(slot.getByRole("status").filter({ hasText: "Another independent check is still needed." })).toContainText(
     "Another independent check is still needed.",
   );
   expect(page.url()).toContain("/near");

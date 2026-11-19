@@ -509,6 +509,13 @@ Before the session consumes a map-chip tap, leaving `/pal` and `/map` routes,
 changing accounts, hiding the page, or `pagehide` cancels the pending request.
 Returning requires another tap. `lib/palVoiceHost.ts` owns this pending state.
 
+If the voice module fails to download, **Try again** on `/pal` reloads the page.
+On the map, another talk-chip tap reloads the page and records that explicit retry in session storage.
+The retry resumes once on a visible reload within 30 seconds, for the same eligible account and URL with voice available.
+Without session storage, the page still reloads, but you must tap again to start voice.
+Other navigation, a hidden page, an account change or a later visit cannot resume that retry.
+Regression coverage is in `__tests__/palVoiceReload.test.ts`.
+
 A connected call ends when you navigate outside these routes, reload or close
 the page, lock the screen, hide the browser tab, or background the native app.
 Muting or deleting the Pal, signing out, or switching accounts also ends the call.

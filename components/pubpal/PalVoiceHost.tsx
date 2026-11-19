@@ -20,7 +20,8 @@ import { loadPalVoiceSession, type PalVoiceSessionComponent } from "@/components
 export default function PalVoiceHost() {
   const host = useSyncExternalStore(subscribePalVoiceHost, readPalVoiceHost, readPalVoiceHost);
   const pathname = usePathname() ?? "";
-  const ownerId = useAuth().user?.id ?? null;
+  const { user, loading } = useAuth();
+  const ownerId = loading ? undefined : user?.id ?? null;
   // A tap on the map chip is for this page, this account, and while the page
   // is in view: a phone locked or a tab put away drops a tap not yet taken.
   useEffect(() => cancelPalVoiceStart(pathname, ownerId), [pathname, ownerId]);

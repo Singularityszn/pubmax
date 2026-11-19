@@ -22,7 +22,7 @@ import { useWildMode } from "@/lib/useWildMode";
 
 import "./mobileMapShell.css";
 
-import { lazyPanel } from "@/components/map/lazyPanel";
+import { lazyPanel, SEARCH_CHUNK_RELOAD_KEY } from "@/components/map/lazyPanel";
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 
 const MapSearchSuggest = lazyPanel(
@@ -366,7 +366,15 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   sheetsEnabled?: boolean;
 }) {
   const chromeRef = useRef<HTMLDivElement>(null);
+  const restoredSearch = useRef(false);
   const wild = useWildMode();
+  useLayoutEffect(() => {
+    if (!sheetsEnabled || restoredSearch.current) return;
+    restoredSearch.current = true;
+    try {
+      if (sessionStorage.getItem(SEARCH_CHUNK_RELOAD_KEY) === location.href) onOverlayChange("search");
+    } catch { /* The map still works without session storage. */ }
+  }, [onOverlayChange, sheetsEnabled]);
   useLayoutEffect(() => {
     const chrome = chromeRef.current;
     const shell = chrome?.closest<HTMLElement>(".appShell");

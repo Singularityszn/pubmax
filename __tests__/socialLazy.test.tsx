@@ -1,11 +1,32 @@
 // @vitest-environment jsdom
-import { act, createElement } from "react";
+import { act, createElement, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, expect, it, vi } from "vitest";
 
 import { socialLazy } from "@/app/social/SocialLazy";
 
 afterEach(() => { vi.restoreAllMocks(); });
+
+it("preserves an open tool when its parent refreshes after loading", async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  function Draft() {
+    const [open, setOpen] = useState(false);
+    return <button onClick={() => setOpen(true)}>{open ? "Draft stays open" : "Open draft"}</button>;
+  }
+  const Tool = socialLazy(async () => ({ default: Draft }), "Post controls", <p>Loading post controls</p>);
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  try {
+    await act(async () => { root.render(<Tool />); });
+    await act(async () => { host.querySelector("button")!.click(); });
+    expect(host.textContent).toContain("Draft stays open");
+    await act(async () => { root.render(<Tool />); });
+    expect(host.textContent).toContain("Draft stays open");
+  } finally {
+    await act(async () => root.unmount());
+    host.remove();
+  }
+});
 
 it("keeps Social usable while a tool loads and retries a rejected import", async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

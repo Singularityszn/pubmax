@@ -96,24 +96,31 @@ test.describe("mobile Crawls surfaces", () => {
     );
     await expectNoHorizontalOverflow(page);
 
-    await expect(featuredPlanButton).toHaveAttribute("href", /\/map\?mode=build&pubs=/);
+    await expect(featuredPlanButton).toHaveAttribute("href", /\/map\?mode=build&(?:pubs|crawl)=/);
+    const featuredHref = await featuredPlanButton.getAttribute("href");
     await featuredPlanButton.click();
-    await expect(page).toHaveURL(/\/map\?mode=build&pubs=/, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/map\?mode=build&(?:pubs|crawl)=/, { timeout: 30_000 });
 
     await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     const planner = page.locator('.mobileSheetPortal[data-sheet-kind="planner"]');
     if ((await planner.count()) === 0) await page.locator(".mobilePlanActivation").click();
     await expect(planner).toBeVisible({ timeout: 20_000 });
     await expect(page.locator(".mobileSheetPortal:visible")).toHaveCount(1);
-    await expect(planner.getByRole("heading", { name: "Plan an outing" })).toBeVisible();
+    if (featuredHref?.includes("crawl=london-christmas-walk")) {
+      await expect(planner.getByRole("heading", { name: "London Christmas walk", exact: true })).toBeVisible();
+      await expect(planner.getByRole("list", { name: "Walking stops in order" }).getByRole("listitem")).toHaveCount(13);
+      await expectTappable(planner.getByRole("button", { name: "Copy walk link", exact: true }), "walk share action");
+    } else {
+      await expect(planner.getByRole("heading", { name: "Plan an outing" })).toBeVisible();
 
-    const routePanel = planner.locator(".routePanel");
-    const stops = routePanel.locator("ol.routeList > li");
-    await expect.poll(() => stops.count(), { timeout: 20_000 }).toBeGreaterThan(0);
-    await expectTappable(
-      routePanel.getByRole("button", { name: /Copy a shareable link/i }),
-      "crawl share action",
-    );
+      const routePanel = planner.locator(".routePanel");
+      const stops = routePanel.locator("ol.routeList > li");
+      await expect.poll(() => stops.count(), { timeout: 20_000 }).toBeGreaterThan(0);
+      await expectTappable(
+        routePanel.getByRole("button", { name: /Copy a shareable link/i }),
+        "crawl share action",
+      );
+    }
     await expectNoHorizontalOverflow(page);
 
     expect(errors).toEqual([]);

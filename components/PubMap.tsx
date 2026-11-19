@@ -137,11 +137,10 @@ function loadPubMapCanvas() {
     ),
   });
 }
-// A rejected lazy component stays rejected: React caches the settled promise,
-// so remounting the same one throws again without re-asking the network. Retry
-// after a blocked chunk therefore needs a FRESH one. Attempt 0 is built once
-// and cached, so the ordinary render path is a stable component type and the
-// import stays dynamic, which is what keeps MapLibre out of this shell chunk.
+// A readiness retry needs a fresh component and boundary. A module failure
+// instead needs a document reload to clear the bundler's rejected import.
+// Cache each attempt's component type to keep ordinary renders stable and
+// retain the dynamic import that keeps MapLibre out of this shell chunk.
 const pubMapCanvasByAttempt = new Map<number, ReturnType<typeof loadPubMapCanvas>>();
 function pubMapCanvasForAttempt(attempt: number) {
   const held = pubMapCanvasByAttempt.get(attempt);
@@ -1449,9 +1448,7 @@ export default function PubMap({
   // there, so the shell's ceiling stops (lib/mapCanvasAvailability.ts).
   const [mapCanvasWatchingAttempt, setMapCanvasWatchingAttempt] =
     useState<number | null>(null);
-  // Bumped by the shell's own Retry. It keys a fresh lazy component AND a fresh
-  // boundary, so a blocked chunk is genuinely re-requested rather than replayed
-  // out of React's cache.
+  // A fresh component and boundary re-arm the readiness ceiling.
   const [mapCanvasAttempt, setMapCanvasAttempt] = useState(0);
   // Issue #35 - staged load. `slimPins` are Venue-shape pins built from the
   // compact index (or its IndexedDB mirror) before any detail request. They
@@ -2398,13 +2395,14 @@ export default function PubMap({
   const handleMapCanvasModuleFailed = useCallback(() => {
     setMapCanvasModuleFailed(true);
   }, []);
-  // The shell's own Retry. A fresh attempt re-asks for the chunk, remounts a
-  // clean boundary and re-arms the ceiling, so a reader whose signal came back
-  // gets a real second go rather than the same cached rejection.
+  // The bundler caches a failed module until the document reloads.
   const retryMapCanvas = useCallback(() => {
-    setMapCanvasModuleFailed(false);
+    if (mapCanvasModuleFailed) {
+      window.location.reload();
+      return;
+    }
     setMapCanvasAttempt((attempt) => attempt + 1);
-  }, []);
+  }, [mapCanvasModuleFailed]);
   // The bounded readiness timeout. A canvas that never answers used to hold the
   // loading frame, and with it the whole phone shell, indefinitely: every other
   // watchdog is armed by the canvas itself, so a mount that never gets that far

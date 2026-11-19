@@ -212,9 +212,13 @@ test('B sign-in after an expired-session reload clears A persisted drafts before
   await page.evaluate(key => sessionStorage.setItem(key, '["old-mission"]'), MISSION);
   await auth.signedInAs(null);
   await page.goto('/today');
+  await expect(page.getByRole('link', { name: 'Sign in', exact: true }).first()).toBeVisible();
   await expect(page.getByRole('button', { name: /Account options/ })).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('pubmax_account_owner'))).toBe(ACCOUNTS.A.id);
   expect(await page.evaluate(key => sessionStorage.getItem(key), DRAFT)).not.toBeNull();
+  await page.getByRole('link', { name: 'Sign in', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/login/);
+  await page.getByRole('textbox', { name: 'Sign in with your email', exact: true }).fill(ACCOUNTS.B.email);
   await provider(page, 'B');
   await assertPrivateArtifactsGone(page);
   await auth.signedInAs('B');

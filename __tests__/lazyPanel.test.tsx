@@ -4,7 +4,7 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { lazyPanel } from "@/components/map/lazyPanel";
+import { lazyPanel, SEARCH_CHUNK_RELOAD_KEY } from "@/components/map/lazyPanel";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -40,6 +40,7 @@ afterEach(() => {
   root = null;
   host = null;
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe("lazyPanel", () => {
@@ -138,4 +139,61 @@ describe("lazyPanel", () => {
     }
     expect(load).toHaveBeenCalledTimes(3);
   });
+
+  it.each(["available", "blocked"] as const)(
+    "allows explicit recovery after a failed reload with %s storage",
+    async (storage) => {
+      vi.spyOn(console, "error").mockImplementation(() => undefined);
+      const href = "https://pubmaxxing.com/map?city=london#search";
+      const reload = vi.fn();
+      vi.stubGlobal("location", { href, reload });
+      if (storage === "blocked") {
+        const refuse = () => { throw new DOMException("Storage blocked", "SecurityError"); };
+        vi.stubGlobal("sessionStorage", { getItem: refuse, setItem: refuse, removeItem: refuse });
+      } else {
+        sessionStorage.removeItem(SEARCH_CHUNK_RELOAD_KEY);
+      }
+      let online = false;
+      const error = Object.assign(new Error("Search chunk unavailable"), { name: "ChunkLoadError" });
+      const load = () => online ? Promise.resolve({ default: Ready }) : Promise.reject(error);
+      const Panel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+      const el = mount(createElement(Panel, { word: "first" }));
+      await act(async () => {});
+      expect(el.querySelector(".lazyPanelFailed")).not.toBeNull();
+      expect(reload).not.toHaveBeenCalled();
+
+      await act(async () => {
+        el.querySelector<HTMLButtonElement>(".lazyPanelFailed button")!.click();
+      });
+      expect(reload).toHaveBeenCalledTimes(1);
+      if (storage === "available") {
+        expect(sessionStorage.getItem(SEARCH_CHUNK_RELOAD_KEY)).toBe(href);
+      }
+
+      act(() => root!.unmount());
+      host!.remove();
+      const ReloadedPanel = lazyPanel<{ word: string }>(load, "Panel did not open.");
+      const reloaded = mount(createElement(ReloadedPanel, { word: "recovered" }));
+      await act(async () => {});
+      expect(reloaded.querySelector(".lazyPanelFailed")).not.toBeNull();
+      expect(reload).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        reloaded.querySelector<HTMLButtonElement>(".lazyPanelFailed button")!.click();
+      });
+      expect(reload).toHaveBeenCalledTimes(2);
+      expect(location.href).toBe(href);
+
+      online = true;
+      await act(async () => {
+        reloaded.querySelector<HTMLButtonElement>(".lazyPanelFailed button")!.click();
+      });
+      expect(reloaded.querySelector("[data-testid=ready]")?.textContent).toBe("recovered");
+      expect(reloaded.querySelector(".lazyPanelFailed")).toBeNull();
+      expect(reload).toHaveBeenCalledTimes(2);
+      if (storage === "available") {
+        expect(sessionStorage.getItem(SEARCH_CHUNK_RELOAD_KEY)).toBeNull();
+      }
+    },
+  );
 });

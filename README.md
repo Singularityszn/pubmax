@@ -119,6 +119,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
 
   If both map styles conclusively fail before the map loads, **Map tiles unavailable** appears without waiting for the fallback timeout. **Browse all pubs** and **Retry** appear before the fallback venue rows. You do not need to scroll those rows to reach either control. The pub list and the planner remain available. A pending or uncertain fallback request keeps its eight-second timeout. A map that already loaded keeps its existing recovery notice. On desktop, you can use that notice's **Retry** button while a pub drawer is open.
 
+  If the map library fails to load, **Retry** reloads the page. If search fails to load, choose **Try again**. Another chunk failure during that retry reloads the page. On phones, search reopens at the same address when browser session storage is available. If the download still fails, you can retry again after reconnecting.
+
   The [saved map view rules](docs/MAP_URL_PARAMS.md#saved-map-views-and-location-privacy) explain which views can return and how location requests clear stored views.
 
   The map planner's toggle and desktop map button return to the previous sheet or the map root. On phones, **Map the route** does the same. A planner opened over a venue returns to that venue. **Home** returns to the map root, even after you reopen an earlier sheet.
@@ -332,6 +334,8 @@ Pick a crawl style, filter, and either accept a **Suggested Crawl** or **Build y
   On `/borough/{slug}`, each cheapest and dearest pint shows its own drink, serving, publisher and full read day. Missing facts are labelled. The average states its pub count, publisher coverage and full-read-day coverage. The visible FAQ and its structured data use identical answers. The borough share image uses the same average and cheapest pint, with their evidence captions. The [price population contract](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings) explains which prices enter the average and priced-pub count.
 
 - **Pubs near me** - `/near` compares nearby listed pints, cheapest first, under the [comparable-pint rules](docs/rules/lib-prices-trust-and-drinks.md#comparable-pint-rankings). Each priced result shows its recorded publisher status, while one shared date tells you when the Venue Dataset was collected. When the price answer names different pubs with the same name, it adds a recorded street or area when available. This applies to the summary and result rows, including names that differ only by a leading "The". Location stays on the device, and a denied or unavailable location falls back to a remembered or default area. An optional price check loads separately once the app confirms sign-in and Pint results appear. The Pint results stay available while the price check loads or if it fails. If it fails to load, choose **Try again** to retry the price check.
+
+  The first-run fair-pint answer shows each listed pub's publisher and source-read date beside its price. Missing publishers or unreadable dates are labelled.
 
   With a location, **Nearest listed pub** separately names the closest public pub in the available list, including pubs without a pint price. It shows distance and an estimated walk based on straight-line distance, without a price. On `/near`, it uses the current city's listed pubs. On the map, it uses the pubs allowed by the current filters, including **Saved only**. It does not claim the nearest pub outside that list. **View pub** opens that pub on the map.
 
