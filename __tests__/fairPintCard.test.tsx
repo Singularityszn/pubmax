@@ -62,7 +62,7 @@ async function locatedFlow() {
     { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
     { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
   ];
-  // Requests in order: the view, the draw area, then the margin round the view.
+  // Requests in order: the view, the draw area, then the first near read.
   const requested: string[] = [];
   const control = { marginFails: false, holdMargin: null as Promise<void> | null };
   const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
@@ -100,16 +100,19 @@ async function locatedFlow() {
 it("counts around a reader position the map already shows, from the same price files, and lets the reader switch back to the view", async () => {
   const { asked, host, reader, requested, render, choice, spoken, done } = await locatedFlow();
 
+  // With no position, only the view and the draw area are read.
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(choice().textContent).toBe("Use my location");
-  const before = [...requested];
-  expect(before).toHaveLength(3);
+  expect(requested).toHaveLength(2);
 
-  // The dot arrives while the reader's focus is on the location choice.
+  // The dot arrives while the reader's focus is on the location choice. The
+  // margin round the view is read once, and it does not depend on the fix.
   const held = choice();
   held.focus();
   await render(reader);
+  const before = [...requested];
+  expect(before).toHaveLength(3);
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   expect(spoken()).toContain("1 pub within 800 m lists a pint");
   expect(choice()).toBe(held);
@@ -149,13 +152,32 @@ it("offers a fix the map holds off screen on a tap, and no later fix moves its r
   expect(host.textContent).toContain("No pubs within 800 m list a pint");
   expect(choice().textContent).toBe("Count pubs in view");
   const afterTap = [...requested];
-  expect(afterTap).toHaveLength(4);
+  expect(afterTap).toHaveLength(3);
 
   await render({ ...away, lat: 51.5603 });
   await render({ ...away, lat: 51.57 });
   expect(requested).toEqual(afterTap);
   expect(host.textContent).toContain("No pubs within 800 m list a pint");
   expect(host.textContent).not.toContain("Loading prices");
+
+  // The dot walks on screen and off again. The margin is read once, the
+  // tapped circle is still held, and the count never returns to loading.
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  const withMargin = [...requested];
+  expect(withMargin).toHaveLength(4);
+  await render({ ...away, lat: 51.57 });
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+  expect(requested).toEqual(withMargin);
+
+  // A second ask re-anchors on the newest fix the map holds, still with no
+  // geolocation call.
+  await act(async () => choice().click());
+  await act(async () => choice().click());
+  expect(asked).not.toHaveBeenCalled();
+  expect(requested).toHaveLength(5);
+  expect(JSON.parse(requested[4]!).north).toBeGreaterThan(JSON.parse(afterTap[2]!).north);
   await done();
 });
 
@@ -179,6 +201,14 @@ it("publishes the in-view count when a file outside the view fails, and speaks a
   await act(async () => choice().click());
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(spoken()).toContain("2 pubs in view list a pint");
+
+  // Back to the near count, which still failed. A retry that works is spoken.
+  await act(async () => choice().click());
+  expect(spoken()).toContain("Could not load prices");
+  control.marginFails = false;
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(spoken()).toContain("1 pub within 800 m lists a pint");
   await done();
 });
 

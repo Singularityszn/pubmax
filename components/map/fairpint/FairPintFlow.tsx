@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
 import type { useFairPintPlan } from "./useFairPintPlan";
 import type { FairPintGenerated } from "@/lib/fairPint";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
@@ -40,6 +40,37 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
       Math.cos(lat * rad) * Math.cos(row.lat * rad) * Math.sin(((row.lng - lng) * rad) / 2) ** 2;
   return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)) <= km;
 }
+type LoadPhase = "loading" | "failed" | "ready";
+type PriceRead = "count" | "margin" | "circle" | "draw";
+type PriceReads = { rows: SlimVenue[] } & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
+
+/** One price read for one box. A null key reads nothing; a new key drops the old answer. */
+function usePriceRead(
+  loader: ReturnType<typeof createSlimShardLoader>,
+  kind: PriceRead,
+  key: string | null,
+  attempt: number,
+  setData: Dispatch<SetStateAction<PriceReads>>,
+) {
+  useEffect(() => {
+    if (!key) return;
+    let cancelled = false;
+    const box: MapBounds = JSON.parse(key);
+    void loader.inBounds(box).then((rows) => {
+      const ready = loader.coverageComplete(box);
+      setData((held) => ({
+        ...held,
+        rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
+        ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
+      }));
+      if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [loader, kind, key, attempt, setData]);
+}
+
 export default function FairPintFlow({
   priceReader,
   cityId,
@@ -83,15 +114,7 @@ export default function FairPintFlow({
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
   }, [firstDraw, Planner, plannerAttempt]);
-  const [data, setData] = useState<{
-    rows: SlimVenue[];
-    count: "loading" | "failed" | "ready";
-    near: "loading" | "failed" | "ready";
-    draw: "loading" | "failed" | "ready";
-    countKey?: string;
-    nearKey?: string;
-    drawKey?: string;
-  }>({ rows: [], count: "loading", near: "loading", draw: "loading" });
+  const [data, setData] = useState<PriceReads>({ rows: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -103,17 +126,16 @@ export default function FairPintFlow({
   // The dot counts while it is on screen. Off screen, only the fix the reader
   // gave with a tap counts, so a later fix of the watch never moves a request.
   const position = viewOnly ? null : (readerInView ?? chosenPosition);
-  // The view decides which price files load, and the in-view count waits for
-  // those alone. The near count also needs a fixed margin round the view. A
-  // position on screen only filters what loaded.
-  const countBounds = bounds;
-  const nearBounds = position && !readerInView
-    ? circleBounds(position.lat, position.lng, 0.8)
-    : marginBounds(bounds, 0.8);
+  // Four price reads, and no fix of the watch picks any of them. The view
+  // answers the in-view count alone. A fixed margin round the view answers the
+  // near count for a dot on screen, and is read only once a dot is there. A
+  // circle round the fix a tap gave answers the near count off screen.
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
-  const countKey = JSON.stringify(countBounds),
-    nearKey = JSON.stringify(nearBounds),
+  const countKey = JSON.stringify(bounds),
+    marginKey = readerInView && !viewOnly ? JSON.stringify(marginBounds(bounds, 0.8)) : null,
+    circleKey = chosenPosition ? JSON.stringify(circleBounds(chosenPosition.lat, chosenPosition.lng, 0.8)) : null,
     drawKey = JSON.stringify(drawBounds);
+  const nearRead = readerInView ? "margin" : "circle";
   useEffect(() => {
     let mounted = true;
     const pendingReleases = early ? early.releases - (early.handledReleases ?? 0) : 0;
@@ -145,29 +167,10 @@ export default function FairPintFlow({
     // The bootstrap handoff is consumed once for this mounted flow.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [start, early]);
-  useEffect(() => {
-    let cancelled = false;
-    const keys = { count: countKey, near: nearKey, draw: drawKey };
-    const load = async (kind: keyof typeof keys) => {
-      const box: MapBounds = JSON.parse(keys[kind]);
-      const rows = await loader.inBounds(box);
-      const ready = loader.coverageComplete(box);
-      setData((held) => ({
-        ...held,
-        rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
-        ...(!cancelled ? {
-          [kind + "Key"]: keys[kind],
-          [kind]: ready ? "ready" : "failed",
-        } : {}),
-      }));
-      if (!cancelled && kind === "count" && ready) performance.mark("fair_pint_ready");
-    };
-    void load("count").then(() => load("near"));
-    void load("draw");
-    return () => {
-      cancelled = true;
-    };
-  }, [loader, countKey, nearKey, drawKey, attempt]);
+  usePriceRead(loader, "count", countKey, attempt, setData);
+  usePriceRead(loader, "margin", marginKey, attempt, setData);
+  usePriceRead(loader, "circle", circleKey, attempt, setData);
+  usePriceRead(loader, "draw", drawKey, attempt, setData);
   const pricedRows = useMemo(() => data.rows.map((row) => ({ row, pence: priceReader(row, now) })), [data.rows, now, priceReader]);
   const counts = (pence: number, draw = false): FairPintCounts => {
     const phase = draw
@@ -175,7 +178,7 @@ export default function FairPintFlow({
         ? data.draw
         : "loading"
       : position
-        ? data.nearKey === nearKey ? data.near : "loading"
+        ? data[`${nearRead}Key`] === (nearRead === "margin" ? marginKey : circleKey) ? data[nearRead] : "loading"
         : data.countKey === countKey ? data.count : "loading";
     if (phase !== "ready") return { phase };
     return {
@@ -227,13 +230,15 @@ export default function FairPintFlow({
             return;
           }
           setViewOnly(false);
-          if (readerInView || chosenPosition) return;
-          // The map already holds a fix. The tap offers it, with no second ask.
+          if (readerInView) return;
+          // The map already holds a fix. Each tap offers the newest one, with
+          // no second ask.
           if (readerPosition) {
             setPosition(readerPosition);
             setLocationOff(false);
             return;
           }
+          if (chosenPosition) return;
           if (!navigator.geolocation) {
             setLocationOff(true);
             return;

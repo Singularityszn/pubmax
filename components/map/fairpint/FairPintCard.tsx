@@ -98,11 +98,15 @@ export default function FairPintCard({
     if (early) early.hidden = true;
   }, []);
   useLayoutEffect(() => { if (focusOnMount) slider.current?.focus({ preventScroll: true }); }, [focusOnMount]);
-  // A change of geography is spoken once its count has an answer.
-  const spokenLocated = useRef(located);
+  // A change of geography is spoken once its count has an answer, and so is
+  // the count that a retry brings back after a spoken failure.
+  const spoken = useRef({ located, failed: false });
   useEffect(() => {
-    if (spokenLocated.current === located || count.phase === "loading") return;
-    spokenLocated.current = located;
+    if (count.phase === "loading") return;
+    const changed = spoken.current.located !== located;
+    const recovered = spoken.current.failed && count.phase === "ready";
+    if (!changed && !recovered) return;
+    spoken.current = { located, failed: count.phase === "failed" };
     setAnnouncement(line);
   }, [located, count.phase, line]);
   return (
