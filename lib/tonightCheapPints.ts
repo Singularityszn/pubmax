@@ -3,7 +3,7 @@
 //
 // A night nothing is listed on used to hand the reader nine vibe chips and a
 // link to the map. Chips are an ask, not an answer, so the quiet page now
-// carries pubs: the cheapest listed pints we hold, each with its own borough,
+// carries pubs: the cheapest listed pints we hold, each with its own area,
 // its own figure and its own way onto the map.
 //
 // WHY THIS IS NOT A "QUIETER PUBS" LIST. The captain's F02 ruling (recorded in
@@ -22,15 +22,9 @@
 // demotion rule (`lib/tonightChainLanes.ts`) read for a price list: the chain
 // is shown and labelled, never allowed to fill the list.
 //
-// ONE RULE FOR "CHEAPEST IN LONDON" (design plan step 0.2b, 2 Nov 2026). The
-// rows are the pints the front door's hunt lets stand in London
-// (`loadLondonHuntPints`, lib/cheapestHunt.server.ts), in the hunt's own
-// order, so this list's first row and the landing's London row name one pub.
-// Before, this list read each pub's raw cheapest figure: Tonight said
-// "Cheapest in London, J.J. Moon's, £2.09" (Tooting) while the landing said
-// £2.43, because the £2.09 row was never on the pub's own page and the hunt
-// holds it out. A row here is listed, dated, names its pint and was seen at
-// that pub, or it is not a row.
+// Tonight and Discover read eligible London rows through
+// `loadLondonPintRanking` (lib/londonPintRanking.server.ts).
+// docs/rules/lib-prices-trust-and-drinks.md owns the ranking contract.
 
 import type { Route } from "next";
 import { comparablePint } from "@/lib/comparablePint.mjs";
