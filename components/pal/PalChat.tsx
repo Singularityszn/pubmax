@@ -309,6 +309,16 @@ function PalChatBody({ owner }: { owner: string | null }) {
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
+  const [searchDraft, setSearchDraft] = useState("");
+  useEffect(() => {
+    const draft = new URLSearchParams(window.location.search).get("draft")?.trim() ?? "";
+    if (!draft || draft.length > 500) return;
+    const timer = setTimeout(() => {
+      setSearchDraft(draft);
+      setQuery((current) => current || draft);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
   const [threadReady, setThreadReady] = useState(false);
   const browserReady = useSyncExternalStore(() => () => {}, () => true, () => false);
   const inputReady = threadReady && browserReady && owner !== null;
@@ -1141,6 +1151,10 @@ function PalChatBody({ owner }: { owner: string | null }) {
         ) : null}
       </div>
 
+      {searchDraft && viewerSession.signedOut ? <p role="status">
+        Sign in to ask Pub Pal. Your question is ready to send. {" "}
+        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(searchDraft)}`)}`}>Sign in</Link>
+      </p> : null}
       {!owner ? <p role="status">
         {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}
         {providerAuthState === "unavailable" ? <Button type="button" variant="ghost" onClick={() => window.location.reload()}>Try account check again</Button> : null}

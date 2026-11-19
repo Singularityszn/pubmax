@@ -290,3 +290,14 @@
   color: var(--color-text-muted);
   font-size: var(--text-sm);
 }
+
+.mapSearchSuggestPal {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 8px 14px;
+  color: var(--color-text);
+  font-weight: 700;
+  text-decoration: underline;
+  border-bottom: 1px solid var(--color-border-soft);
+}

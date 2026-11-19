@@ -3,6 +3,7 @@
 import MapSearchMissRecovery, { MapSearchPostcodeRecovery } from "@/components/map/MapSearchMissRecovery";
 
 import { MapPin, X } from "lucide-react";
+import Link from "next/link";
 import { useCallback, useDeferredValue, useEffect, useId, useMemo, useRef, useState } from "react";
 
 import { IconButton } from "@/components/ui/icon-button";
@@ -676,6 +677,11 @@ export default function MapSearchSuggest({
                 <X size={16} aria-hidden="true" />
               </IconButton>
             </div>
+          ) : null}
+          {(showEmptyLine || (querySettled && trimmed.split(/\s+/).length >= 4)) && trimmed.length <= 500 ? (
+            <Link prefetch={false} className="mapSearchSuggestPal" href={`/pal/chat?draft=${encodeURIComponent(trimmed)}`}>
+              Ask Pub Pal
+            </Link>
           ) : null}
           <MapSearchPostcodeRecovery query={trimmed} hasResults={hasResults} onChooseArea={() => onQueryChange("")} />
           <div id={listboxId} role="listbox" aria-label="Search suggestions" className="mapSearchSuggestScroll">

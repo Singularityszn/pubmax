@@ -327,3 +327,12 @@ it("ignores an old account's late response and retains only the new account's hi
     ],
   } });
 });
+
+it("prefills a search hand-off without sending it", async () => {
+  window.history.replaceState({}, "", "/pal/chat?draft=quiet+pub+with+a+fire+near+soho");
+  await act(async () => { root.unmount(); root = createRoot(container); });
+  await renderAccount("account-a");
+  expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
+  expect(posts).toEqual([]);
+  window.history.replaceState({}, "", "/pal/chat");
+});
