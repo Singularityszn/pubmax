@@ -275,6 +275,10 @@
   white-space: nowrap;
 }
 
+.leaderboard:not(.cityRivalry) thead .leaderboardPriceHead {
+  text-align: right;
+}
+
 /* The figure, then what it is worth. The label sits UNDER the plaque rather
    than beside it, because the column is already the narrowest on the row and a
    second inline word pushed the price out of its own cell at 320. It carries no
