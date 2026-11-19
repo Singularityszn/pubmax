@@ -381,7 +381,7 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { whatsOn: liveWhatsOn, out: liveOut } = usePublicTonightListings();
+  const { whatsOn: liveWhatsOn, out: liveOut } = usePublicTonightListings(tonightNear?.near);
   const initialAnswer = useInitialListings(initialListings, liveWhatsOn, liveOut);
   const { rows, status: paintLaneStatus, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
   const { whatsOnStatus: status, cachedWhatsOn, cachedOut, checking, renderedAt, pagePreparedAt, clearInitial } = initialAnswer;
