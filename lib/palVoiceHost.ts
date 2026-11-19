@@ -119,7 +119,7 @@ export function palVoiceLoadFailed(): void {
   update({ loadFailed: true, startPending: false, startOwner: null, stopStartChime: undefined });
 }
 
-/** The /pal panel asks for the call's code again. */
+/** Reload /pal to clear the bundler's failed voice import. */
 export function retryPalVoiceLoad(): void {
   if (state.loadFailed) location.reload();
 }

@@ -50,9 +50,8 @@ export function socialLazy<P extends object>(
   loading: ReactNode,
   frame?: (state: ReactNode, props: P) => ReactNode,
 ): SocialLazyTool<P> {
-  // Code that has arrived renders directly, so no wait is ever committed for
-  // it. React.lazy suspends on the first render of each lazy even when its
-  // download already finished.
+  // Newly mounted tools use preloaded code directly. Existing tools retain
+  // their component type until retry so a parent render cannot erase a draft.
   let loaded: ComponentType<P> | null = null;
   const remember = (module: { default: ComponentType<P> }) => {
     loaded = module.default;
@@ -81,6 +80,7 @@ export function socialLazy<P extends object>(
   function SocialLazyTool(props: P) {
     const attempt = useSyncExternalStore(subscribe, readGeneration, readGeneration);
     const transfer = useRef(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- The retry generation keys the mounted tool's identity.
     const Tool = useMemo(() => loaded ?? Current, [attempt]);
     const place = (state: ReactNode) => (frame ? frame(state, props) : state);
     return (

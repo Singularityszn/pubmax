@@ -137,11 +137,10 @@ function loadPubMapCanvas() {
     ),
   });
 }
-// A rejected lazy component stays rejected: React caches the settled promise,
-// so remounting the same one throws again without re-asking the network. Retry
-// after a blocked chunk therefore needs a FRESH one. Attempt 0 is built once
-// and cached, so the ordinary render path is a stable component type and the
-// import stays dynamic, which is what keeps MapLibre out of this shell chunk.
+// A readiness retry needs a fresh component and boundary. A module failure
+// instead needs a document reload to clear the bundler's rejected import.
+// Cache each attempt's component type to keep ordinary renders stable and
+// retain the dynamic import that keeps MapLibre out of this shell chunk.
 const pubMapCanvasByAttempt = new Map<number, ReturnType<typeof loadPubMapCanvas>>();
 function pubMapCanvasForAttempt(attempt: number) {
   const held = pubMapCanvasByAttempt.get(attempt);

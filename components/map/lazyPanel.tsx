@@ -15,15 +15,10 @@ import { Button } from "@/components/ui/button";
 
 import "./lazyPanel.css";
 
-// A map panel that loads on demand (the search field, today) and fails INSIDE
-// itself. A bare `React.lazy` caches its rejected import for the life of the
-// module, and a rejected chunk reaches the nearest error boundary, which for the
-// map is app/error.tsx: one lost request replaced the whole screen with "Spilled."
-// and the next tap on the panel could only throw again. Here the boundary is the
-// panel's own and the fallback says what is missing. Every mount shares one
-// `lazy()`, so a panel that has loaded once opens at once; a failure swaps in a
-// fresh one, so Try again or the next open asks for the import again rather than
-// reading the rejection back from the cache.
+// Keep a failed search import inside its panel so the map remains usable.
+// A fresh lazy component clears React's rejected promise. The bundler can keep
+// the failed chunk cached, so a ChunkLoadError after an explicit retry reloads
+// the document. The initial attempt never reloads, which prevents a reload loop.
 
 type Loader<P> = () => Promise<{ default: ComponentType<P> }>;
 
