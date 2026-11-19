@@ -88,11 +88,8 @@ export const metadata: Metadata = {
 // where it lands.
 export const dynamic = "force-static";
 // The shipped price dataset, the price archive and the flag env change only on
-// deploy. The two answer cards do not: they read the weather store and the
-// listing lanes, so an hour is what bounds how stale the front door's "today"
-// and "tonight" sentences can get. Each card stamps the London day it speaks
-// for, so a held copy says which day it is talking about rather than passing
-// itself off as now.
+// deploy. The weather card uses the hourly document and dates its reading.
+// The Tonight card reads listings in the browser.
 export const revalidate = 3600;
 
 /** One hunt pint as the Price Glass prints it, with the hunt's own verb. */
@@ -116,9 +113,6 @@ export default async function Home() {
     census,
   ] = await Promise.all([
     loadLandingHeroData(),
-    // What is on today and what is on tonight, read at prerender from the same
-    // lanes /today and /tonight read. Both fail soft to an honest line, so a
-    // provider that is down cannot fail the build or invent a night.
     loadLandingAnswers(),
     // The cheapest pint we can find in Britain, every map city's cheapest and
     // London's dearest (lib/cheapestHunt.ts). A read that fails renders no

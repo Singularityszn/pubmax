@@ -11,6 +11,7 @@ import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import { loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
+import { SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
 import { __resetWhatsOnLiveTopUp, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
 
 const listingStore = vi.hoisted(() => ({ readAll: vi.fn() }));
@@ -158,7 +159,7 @@ describe("Tonight's server listing composition", () => {
     expect(answer?.readStatus).toBe("ready");
   });
 
-  it("preserves Today and landing defaults without a venue-index dependency", async () => {
+  it("preserves Today's default without a venue-index dependency", async () => {
     vi.mocked(loadOutVenueMatchIndex).mockRejectedValue(new Error("Index read failed"));
 
     const answer = await loadTodayWhatsOnAnswer(NOW);
@@ -219,6 +220,45 @@ describe("Tonight's completed server document", () => {
     expect(html).toContain("data-picks-state=\"temporarily_unavailable\"");
     expect(html).not.toContain("Loading listings");
     expect(html).not.toContain("The city's having a quiet one");
+  });
+
+  it.each([
+    { case: "keeps an eligible cached quiz", now: NOW, cached: true },
+    { case: "drops yesterday's cached quiz", now: NOW + 12 * 60 * 60_000, cached: false },
+  ])("$case when both live reads are refused", async ({ now, cached }) => {
+    const container = document.createElement("div");
+    const initialListings = { whatsOn, out, renderedAt: NOW };
+    const element = createElement(TonightClient, { initialListings });
+    vi.useFakeTimers({ now });
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    const refuse = (url: string) => new Response(null, { status: /^\/api\/(out|whats-on)\?/.test(url) ? 429 : 404 });
+    vi.stubGlobal("fetch", async (url: string) => refuse(url));
+    container.innerHTML = renderToString(element);
+    document.body.append(container);
+    let root: Root | undefined;
+    try {
+      await act(async () => { root = hydrateRoot(container, element); });
+      await act(async () => { await vi.advanceTimersByTimeAsync(SURFACE_CACHE_RETRY_BACKOFF_MS); });
+      const card = container.querySelector('[data-testid="tonight-answer-on"]');
+      expect(card?.textContent).toContain("Tonight's listings are unavailable right now.");
+      if (cached) {
+        expect(card?.textContent).toContain("Cached listing");
+        expect(card?.textContent).toContain("Friday pub quiz");
+        const retry = Array.from(container.querySelectorAll("button"))
+          .find((button) => button.textContent === "Retry listings");
+        expect(retry).toBeDefined();
+        await act(async () => { retry?.click(); });
+        expect(card?.textContent).toContain("Friday pub quiz");
+      } else {
+        expect(card?.textContent).not.toContain("Friday pub quiz");
+      }
+      expect(container.textContent).not.toContain("No confirmed listings for tonight yet.");
+    } finally {
+      await act(async () => root?.unmount());
+      container.remove();
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 
   it("keeps chain deals and ticket platforms out of the primary listing region", () => {

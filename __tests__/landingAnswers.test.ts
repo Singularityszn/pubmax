@@ -73,7 +73,7 @@ describe("the front door's two answers", () => {
     });
     const unread = tonightAnswer({ unread: true, count: 0 }, STAMP);
     expect(unread).toEqual({
-      line: "We couldn't reach tonight's listings just now.",
+      line: "Tonight's listings are unavailable right now.",
       stamp: STAMP,
       measured: false,
     });

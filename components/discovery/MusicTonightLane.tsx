@@ -19,6 +19,7 @@ import {
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
 import { preferredCityMapHref } from "@/lib/cityPreference";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { TONIGHT_CACHED_LISTINGS_LINE } from "@/lib/tonightOutListings";
 
 import "./dealsTonightLane.css";
 
@@ -35,12 +36,13 @@ export type MusicTonightLaneProps = {
    *  bare `observedAt`, which for a live row can be the request instant. Absent
    *  means we cannot date it, and checkedLabel says exactly that. */
   asOf?: string | null;
+  cachedRows?: ReadonlySet<WhatsOnRow>;
 };
 
 /** Below this count we label coverage as thin rather than implying a full guide. */
 const THIN_COVERAGE_MAX = 4;
 
-export default function MusicTonightLane({ rows: providedRows, asOf: providedAsOf }: MusicTonightLaneProps = {}) {
+export default function MusicTonightLane({ rows: providedRows, asOf: providedAsOf, cachedRows }: MusicTonightLaneProps = {}) {
   const provided = providedRows !== undefined;
   const [state, setState] = useState<MusicState>({ rows: [], asOf: null });
 
@@ -106,6 +108,7 @@ export default function MusicTonightLane({ rows: providedRows, asOf: providedAsO
                 onClick={() => trackEvent("lane_card_tap")}
               >
                 <strong>{row.title}</strong>
+                {cachedRows?.has(row) ? <span className="dealsTonightDetail">{TONIGHT_CACHED_LISTINGS_LINE}</span> : null}
                 <span className="dealsTonightPlace">{row.placeName}</span>
                 {row.detail ? <span className="dealsTonightDetail">{row.detail}</span> : null}
                 <span className="dealsTonightSource">

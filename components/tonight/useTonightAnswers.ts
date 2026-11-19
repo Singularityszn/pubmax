@@ -37,6 +37,7 @@ type TonightSelectableVenueIds = Parameters<typeof tonightRowLinks>[1];
 function listingView(
   row: WhatsOnRow | null,
   selectable: TonightSelectableVenueIds,
+  cachedRows: ReadonlySet<WhatsOnRow> | undefined,
 ): TonightAnswerListing | null {
   if (!row) return null;
   const links = tonightRowLinks(row, selectable);
@@ -47,6 +48,7 @@ function listingView(
     sourceLabel: links.sourceLabel,
     href: links.primary?.href ?? null,
     external: links.primary?.external ?? false,
+    cached: cachedRows?.has(row) ?? false,
   };
 }
 
@@ -56,6 +58,7 @@ export function useTonightAnswers(input: {
   /** The ordered primary listing rows the list below paints. */
   listingRows: readonly WhatsOnRow[];
   listingsStateKind: PicksStateKind;
+  cachedRows?: ReadonlySet<WhatsOnRow>;
   selectableVenueIds: TonightSelectableVenueIds;
   cheapPints: readonly TonightCheapPint[] | undefined;
   /** The server render's instant while its answer is on screen. */
@@ -66,7 +69,7 @@ export function useTonightAnswers(input: {
   regular: TonightRegularNightsView | null;
   lastTrain: TonightLastTrainView;
 } {
-  const { origin, tonightNear, listingRows, listingsStateKind, selectableVenueIds, cheapPints, renderedAt } = input;
+  const { origin, tonightNear, listingRows, listingsStateKind, cachedRows, selectableVenueIds, cheapPints, renderedAt } = input;
   const patch =
     !origin && tonightNear?.patchLabel ? { label: tonightNear.patchLabel, near: tonightNear.near } : null;
   const nearby = useTonightNearbyVenues(origin ?? patch?.near ?? null);
@@ -77,7 +80,7 @@ export function useTonightAnswers(input: {
     : cheapest;
 
   const row = useMemo(() => tonightOnTonightListing(listingRows), [listingRows]);
-  const listing = useMemo(() => listingView(row, selectableVenueIds), [row, selectableVenueIds]);
+  const listing = useMemo(() => listingView(row, selectableVenueIds, cachedRows), [row, selectableVenueIds, cachedRows]);
 
   // Regular nights stand in only when the read holds no confirmed listing,
   // and never while a read is still running: they are not tonight's listing.

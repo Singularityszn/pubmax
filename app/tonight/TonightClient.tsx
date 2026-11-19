@@ -33,8 +33,8 @@ import { Button } from "@/components/ui/button";
 import { RowList, RowListItem } from "@/components/ui/row-list";
 import Screen from "@/components/ui/screen";
 import PreparedBriefStamp from "@/components/seo/PreparedBriefStamp";
-import { useWhatsOnTonight, type TonightFreshnessKind, type WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
-import { useOutListings } from "@/components/out/useOutListings";
+import type { TonightFreshnessKind, WhatsOnTonight } from "@/components/map/useWhatsOnTonight";
+import { usePublicTonightListings } from "@/components/out/usePublicTonightListings";
 import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
@@ -109,6 +109,7 @@ import { groupTonightListings } from "@/lib/tonightListGrouping";
 
 const LOCATION_SURFACE = "tonight-walk-and-last-train" as const;
 import {
+  TONIGHT_CACHED_LISTINGS_LINE,
   tonightAcceptedVenueId,
   tonightLedeComposition,
   tonightListingLede,
@@ -116,6 +117,7 @@ import {
   tonightEmptyLead,
   tonightHeldRowCount,
   tonightListingsNoteLine,
+  tonightLiveReadUnavailable,
   tonightMusicLaneObservedAt,
   tonightNoteOffersRetry,
   tonightPaintStatus,
@@ -130,11 +132,11 @@ import type { TonightOutAnswer } from "@/lib/tonightOutListings";
 import type { HypedPub } from "@/lib/hypedPubs";
 import type { TonightCheapPint } from "@/lib/tonightCheapPints";
 import type { TonightOperatorFact } from "@/lib/operatorFacts";
-import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
+import { tonightChainLaneOf, withoutTonightChainRows } from "@/lib/tonightChainLanes";
 import type { PicksContext } from "@/lib/picksState";
 import { parsePlanOccasionIdFromSearch } from "@/lib/planOccasion";
 import type { QuietPintModule } from "@/lib/quietPint";
-import { EMPTY_KIND_OBSERVED_AT, musicLaneRows, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import { EMPTY_KIND_OBSERVED_AT, londonServiceDayBounds, musicLaneRows, whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 import {
   checkedLabel,
   laneKindFacets,
@@ -279,18 +281,33 @@ type InitialListings = {
 function useInitialListings(
   seed: InitialListings | undefined,
   liveWhatsOn: WhatsOnTonight,
-  liveOut: ReturnType<typeof useOutListings>,
+  liveOut: TonightOutAnswer,
 ) {
   const [initial, setInitial] = useState(seed ?? null);
-  // Both browser reads replace the public server answer, including failures.
   useEffect(() => {
     if (liveWhatsOn.status === "idle" || liveOut.pending) return;
     void Promise.resolve().then(() => setInitial(null));
   }, [liveWhatsOn.status, liveOut.pending]);
   const clearInitial = useCallback(() => setInitial(null), []);
+  const holdWhatsOn = liveWhatsOn.status === "error" || (liveWhatsOn.status === "idle" && liveWhatsOn.rows.length === 0);
+  const holdOut = liveOut.failed || liveOut.pending;
+  const currentSeed = useMemo(() => {
+    if (!seed || initial || (!holdWhatsOn && !holdOut)) return null;
+    // eslint-disable-next-line react-hooks/purity -- the browser read settled on this clock
+    const now = Date.now();
+    return londonServiceDayBounds(seed.renderedAt).start === londonServiceDayBounds(now).start ? seed : null;
+  }, [seed, initial, holdWhatsOn, holdOut]);
+  const heldWhatsOn = initial?.whatsOn ?? (
+    holdWhatsOn && currentSeed?.whatsOn?.readStatus === "ready" ? currentSeed.whatsOn : null
+  );
+  const heldOut = holdOut ? currentSeed?.out : null;
   return {
-    whatsOn: initial ? initialWhatsOnView(initial.whatsOn) : liveWhatsOn,
-    out: initial?.out ?? liveOut,
+    whatsOn: initial || heldWhatsOn ? initialWhatsOnView(heldWhatsOn) : liveWhatsOn,
+    whatsOnStatus: initial ? initialWhatsOnView(initial.whatsOn).status : liveWhatsOn.status,
+    out: initial?.out ?? (heldOut ? { ...liveOut, body: heldOut.body, sourceEvidence: heldOut.sourceEvidence } : liveOut),
+    cachedWhatsOn: heldWhatsOn !== null,
+    cachedOut: initial !== null || heldOut != null,
+    checking: liveWhatsOn.status === "idle" || liveOut.pending,
     renderedAt: initial?.renderedAt,
     // A new server response updates the page date. Browser reads do not.
     pagePreparedAt: seed?.renderedAt,
@@ -364,15 +381,10 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const liveWhatsOn = useWhatsOnTonight(
-    true,
-    tonightNear?.near ?? null,
-    { pubOnly: true },
-  );
-  const liveOut = useOutListings("tonight");
+  const { whatsOn: liveWhatsOn, out: liveOut } = usePublicTonightListings();
   const initialAnswer = useInitialListings(initialListings, liveWhatsOn, liveOut);
-  const { rows, status, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
-  const { renderedAt, pagePreparedAt, clearInitial } = initialAnswer;
+  const { rows, status: paintLaneStatus, sourceFreshnessKind, kindObservedAt } = initialAnswer.whatsOn;
+  const { whatsOnStatus: status, cachedWhatsOn, cachedOut, checking, renderedAt, pagePreparedAt, clearInitial } = initialAnswer;
   const { retry } = liveWhatsOn;
   const { retry: retryOut } = liveOut;
   const {
@@ -398,7 +410,7 @@ export default function TonightClient({
   // below says a read is running. Counted across both lanes on purpose: the
   // retry control is offered when the SPINE reported, and a spine that reported
   // holds no rows, so the list under that button is the Out lane's.
-  const paintStatus = tonightPaintStatus(status, tonightHeldRowCount(rows, outAnswer));
+  const paintStatus = tonightPaintStatus(paintLaneStatus, tonightHeldRowCount(rows, outAnswer));
   const { listingRows, secondaryChainListingCount, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
@@ -406,6 +418,10 @@ export default function TonightClient({
     const now = renderedAt ?? Date.now();
     return tonightLedeComposition(rows, outAnswer, paintStatus, now, selectableVenueIds);
   }, [rows, paintStatus, outAnswer, selectableVenueIds, renderedAt]);
+  const cachedRows = useMemo(() => new Set([
+    ...(cachedWhatsOn ? rows.filter((row) => row.kind !== "deal") : []),
+    ...(cachedOut ? outBody?.events.filter((row) => row.kind !== "deal") ?? [] : []),
+  ]), [cachedWhatsOn, rows, cachedOut, outBody]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
@@ -501,6 +517,12 @@ export default function TonightClient({
     [groupedSecondaryAll],
   );
   const secondaryMusic = useMemo(() => musicLaneRows(secondaryHeroes), [secondaryHeroes]);
+  const hasOtherDatedListings = listingRows.some((row) => row.kind === "music" || (
+    row.kind !== "deal" && tonightChainLaneOf(row) !== null
+  ));
+  const listingCount = primaryListingRows.length + secondaryMusic.length;
+  const listingsUnavailable = tonightLiveReadUnavailable(liveWhatsOn.status, liveOut, listingCount) ||
+    tonightLiveReadUnavailable(status, outAnswer, listingCount);
   const creditedGroups = useMemo(() => {
     const music = new Set(secondaryMusic);
     const primary = new Set(grouped.map((group) => group.row));
@@ -646,6 +668,7 @@ export default function TonightClient({
     tonightNear,
     listingRows: groupedRows,
     listingsStateKind: listingsState.kind,
+    cachedRows,
     selectableVenueIds,
     cheapPints,
     renderedAt,
@@ -680,7 +703,7 @@ export default function TonightClient({
       <div className="tonightSecondaryLanes tonightSecondaryLanes--mobile">
         <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} now={renderedAt} />
       </div>
-      <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} />
+      <MusicTonightLane rows={secondaryHeroes} asOf={musicLaneObservedAt} cachedRows={cachedRows} />
     </>
   );
   const newsArea = areaNewsSlug(tonightNear, nightAreas);
@@ -726,7 +749,13 @@ export default function TonightClient({
           docs/rules/app-proxy-csp-caching-and-file-tracing.md. Chain blocks
           and cheap pints stay outside it so they cannot lead the answer. */}
       <div className="tonightLedeRegion" data-testid="tonight-lede">
-      <TonightAnswerCards {...answers} onShareLocation={openLocation} />
+      <TonightAnswerCards
+        {...answers}
+        listingsUnavailable={listingsUnavailable}
+        listingsChecking={checking}
+        hasOtherDatedListings={hasOtherDatedListings}
+        onShareLocation={openLocation}
+      />
       {/* Open plans lead the recommended pubs (design V2): a night out that
           already has people in it is the first thing worth joining. */}
       <TonightOpenPlans body={liveOut.body} />
@@ -846,6 +875,7 @@ export default function TonightClient({
                     ) : null}
                     <span className="tonightRowSource">via {sourceLabel}</span>
                   </div>
+                  {cachedRows.has(row) ? <p className="tonightRowListingAge">{TONIGHT_CACHED_LISTINGS_LINE}</p> : null}
                   {dealListingAge ? (
                     <p className="tonightRowListingAge">{dealListingAge}</p>
                   ) : null}
@@ -1083,6 +1113,9 @@ export default function TonightClient({
 
       {/* The chains keep their supply and lose the front row: each block
           carries the chain's own name and the day its page was read. */}
+      {listingRows.some((row) => cachedRows.has(row) && tonightChainLaneOf(row) !== null) ? (
+        <p className="tonightStatus">{TONIGHT_CACHED_LISTINGS_LINE}</p>
+      ) : null}
       <TonightChainDeals rows={listingRows} selectableVenueIds={selectableVenueIds} />
 
       {/* Vibe chips follow the list. Nine chips wrapped to four rows above it,
