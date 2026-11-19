@@ -19,7 +19,7 @@ const LEADERBOARD_HONESTY = "Not necessarily tonight's price.";
 
 export default function LeaderboardTable({
   entries,
-  caption = "Pint prices in London, cheapest first.",
+  caption = "Pint prices in London, cheapest first. Not a live feed.",
 }: LeaderboardTableProps) {
   if (entries.length === 0) {
     return (
