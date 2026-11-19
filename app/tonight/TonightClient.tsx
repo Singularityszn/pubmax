@@ -152,6 +152,12 @@ import "./tonightOnTonightSummary.css";
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
 
+function locationButtonLabel(status: LocationStatus): string {
+  if (status === "requesting") return LOCATION_FINDING_LABEL;
+  if (status === "unavailable") return LOCATION_RETRY_LABEL;
+  return LOCATION_SHARE_LABEL[LOCATION_SURFACE];
+}
+
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
 // out of the interpunct chain and gets its own sentence below it (VOICE.md rule
@@ -1294,11 +1300,7 @@ export default function TonightClient({
                   disabled={locationStatus === "requesting"}
                 >
                   <LocateFixed size={16} aria-hidden="true" />
-                  {locationStatus === "requesting"
-                    ? LOCATION_FINDING_LABEL
-                    : locationStatus === "unavailable"
-                      ? LOCATION_RETRY_LABEL
-                      : LOCATION_SHARE_LABEL[LOCATION_SURFACE]}
+                  {locationButtonLabel(locationStatus)}
                 </ReadyButton>
               )}
               <span className="tonightSrOnly" role="status" aria-live="polite">
