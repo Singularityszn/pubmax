@@ -112,7 +112,7 @@ async function mount(surface: "social" | "discover" | "you") {
     ? createElement(ProfilePageClient, { params: Promise.resolve({ handle: "you" }) })
     : createElement(SocialPageClient, {
         initialState: surface === "discover"
-          ? { valid: true, tab: "discover" }
+          ? { valid: true, tab: "discover", feed: null, area: null }
           : { valid: true, tab: "posts", feed: "following", area: null },
         rivalry: [], heritageCrawls: [],
         publicAlternatives: { crawls: [], prices: [], priceRead: "ready" },
