@@ -1,5 +1,7 @@
 import { expect, test, type Page } from "@playwright/test";
 
+import { storeThemeChoice } from "./helpers/themeClock";
+
 const MOBILE_VIEWPORTS = [
   { width: 390, height: 844 },
   { width: 430, height: 932 },
@@ -12,6 +14,52 @@ async function prepareBlankPlan(page: Page): Promise<void> {
     window.sessionStorage.removeItem("pubmax:plan-draft:v1");
   });
 }
+
+test.describe("the first Plan step with consent pending", () => {
+  test.use({
+    viewport: { width: 390, height: 844 },
+    isMobile: true,
+    hasTouch: true,
+    reducedMotion: "reduce",
+    storageState: { cookies: [], origins: [] },
+  });
+
+  test("keeps both actions clear of the phone bars on entry", async ({ page }) => {
+    await storeThemeChoice(page, "dark");
+    await page.addInitScript(() => {
+      sessionStorage.setItem("pubmax:consent-answer-moment:v1", "second-route");
+    });
+    await page.goto("/plan");
+
+    const consent = page.getByRole("complementary", { name: "Anonymous analytics choice" });
+    const tabBar = page.getByRole("navigation", { name: "Primary" });
+    await expect(consent).toBeVisible();
+    await expect(tabBar).toBeVisible();
+    await page.getByRole("button", { name: "Step by step" }).tap();
+
+    const skip = page.getByRole("button", { name: "Skip for now" });
+    const next = page.getByRole("button", { name: "Continue", exact: true });
+    await expect(skip).toBeVisible();
+    await expect(next).toBeVisible();
+    await page.evaluate(async () => { await document.fonts.ready; });
+
+    const [consentBox, tabBarBox] = await Promise.all([consent.boundingBox(), tabBar.boundingBox()]);
+    if (!consentBox || !tabBarBox) throw new Error("Phone bars must be visible");
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    for (const action of [skip, next]) {
+      const bounds = await action.boundingBox();
+      if (!bounds) throw new Error("Plan action must be visible");
+      expect(bounds.y).toBeGreaterThanOrEqual(0);
+      expect(bounds.height).toBeGreaterThanOrEqual(44);
+      expect(bounds.y + bounds.height).toBeLessThanOrEqual(Math.min(consentBox.y, tabBarBox.y));
+    }
+
+    await page.getByRole("button", { name: "Soho", exact: true }).tap();
+    await expect(next).toBeEnabled();
+    await next.tap();
+    await expect(page.getByRole("group", { name: "Choose a time window" })).toBeVisible();
+  });
+});
 
 test("a new phone plan starts with the description before pub-list import", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });

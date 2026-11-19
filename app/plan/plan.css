@@ -1227,6 +1227,17 @@ html[data-theme="dark"] .planPage {
 /* Dark ink on amber fills only — primary CTAs use coral + --color-on-accent. */
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
+@media (max-width: 640px) {
+  .planIntake__stage:has(.planIntake__areaPicker) { padding-bottom: var(--space-3); }
+  .planIntake__areaPicker { margin-top: var(--space-4); }
+  .planIntake__choices--areas { column-gap: var(--space-1); }
+  .planIntake__choices--areas button {
+    min-height: var(--control-height);
+    padding-inline: var(--space-2);
+  }
+  .planIntake:has(.planIntake__areaPicker) .planIntake__actions { padding-top: var(--space-3); }
+}
+
 @media (max-width: 900px) {
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }
