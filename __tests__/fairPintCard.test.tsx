@@ -173,6 +173,20 @@ it("keeps the view's count for a coarse fix on screen until the reader asks", as
   await done();
 });
 
+it("keeps the view's count for a dot inside the view's bounds that the pitched canvas does not show", async () => {
+  const { publishMapReaderOnCanvas } = await import("@/lib/mapReaderOnCanvas");
+  const { host, reader, render, choice, done } = await locatedFlow();
+  await act(async () => publishMapReaderOnCanvas(false));
+  await render(reader);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+
+  await act(async () => publishMapReaderOnCanvas(true));
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  await act(async () => publishMapReaderOnCanvas(null));
+  await done();
+});
+
 it("offers a fix the map holds off screen on a tap, and no later fix moves its request", async () => {
   const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
   const away = { ...reader, lat: 51.56 };

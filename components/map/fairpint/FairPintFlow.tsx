@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore, type Dispatch, type SetStateAction } from "react";
 import type { useFairPintPlan } from "./useFairPintPlan";
 import type { FairPintGenerated } from "@/lib/fairPint";
 import FairPintCard, { type FairPintCounts } from "./FairPintCard";
@@ -10,6 +10,7 @@ import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
 import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView, mapReaderPositionMeasures } from "@/lib/mapReaderPosition";
+import { mapReaderOnCanvas, subscribeMapReaderOnCanvas } from "@/lib/mapReaderOnCanvas";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
 
@@ -123,8 +124,13 @@ export default function FairPintFlow({
       generated.stops.map((stop) => stop.venueId),
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     );
-  // A coarse fix draws its ring on the map and counts only if the reader asks.
-  const readerInView = mapReaderPositionMeasures(readerPosition) ? mapReaderPositionInView(readerPosition, bounds) : null;
+  // The dot counts when the canvas shows it. A coarse fix draws its ring on
+  // the map and counts only if the reader asks. Before a map answers, the
+  // view's bounds stand in for the canvas.
+  const readerOnCanvas = useSyncExternalStore(subscribeMapReaderOnCanvas, mapReaderOnCanvas, () => null);
+  const readerInView = mapReaderPositionMeasures(readerPosition) && readerOnCanvas !== false
+    ? mapReaderPositionInView(readerPosition, bounds)
+    : null;
   // The dot counts while it is on screen. Off screen, only the fix the reader
   // gave with a tap counts, so a later fix of the watch never moves a request.
   const position = viewOnly ? null : (readerInView ?? chosenPosition);
