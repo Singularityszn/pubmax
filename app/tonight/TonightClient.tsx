@@ -298,7 +298,9 @@ function useInitialListings(
     return londonServiceDayBounds(seed.renderedAt).start === londonServiceDayBounds(now).start ? seed : null;
   }, [seed, initial, holdWhatsOn, holdOut]);
   const heldWhatsOn = initial?.whatsOn ?? (
-    holdWhatsOn && currentSeed?.whatsOn?.readStatus === "ready" ? currentSeed.whatsOn : null
+    holdWhatsOn && currentSeed?.whatsOn?.readStatus === "ready" && currentSeed.whatsOn.rows.length > 0
+      ? currentSeed.whatsOn
+      : null
   );
   const heldOut = holdOut ? currentSeed?.out : null;
   return {
