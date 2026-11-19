@@ -493,7 +493,6 @@ import {
   browserPrefersReducedMotion,
   requestLogIntentReveal,
 } from "@/lib/logIntentReveal";
-import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { useSelectedVenueDetail } from "@/components/map/pubmap/useSelectedVenueDetail";
 import SavedVenueNote from "@/components/map/SavedVenueNote";
@@ -3453,8 +3452,6 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      // Base pubs have no /api/venue record; prefetching one is a certain 404.
-      if (!isRecordlessMapSelection(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
       claimMapSurface({ type: "open-venue" });
       setVenueInitialTab(initialTab);
@@ -3547,8 +3544,7 @@ export default function PubMap({
       : "";
 
   const prefetchVenueDetail = useCallback((id: string) => {
-    prefetchVenue(id);
-    // Also populate the shared warm cache so select can skip a second fetch.
+    if (isRecordlessMapSelection(id)) return;
     void warmVenueDetail(id);
   }, []);
 
