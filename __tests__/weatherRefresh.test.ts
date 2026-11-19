@@ -8,15 +8,9 @@ import { afterEach, describe, expect, it } from "vitest";
 import { defined } from "@/__tests__/helpers/defined";
 
 // @ts-expect-error Dependency-free Node refresh helper has no declaration file.
-import { WEATHER_REVIEW_BRANCH, conditionForCode, publishWeatherReview } from "@/scripts/refresh_weather_snapshots.mjs";
+import { WEATHER_REVIEW_BRANCH, publishWeatherReview } from "@/scripts/refresh_weather_snapshots.mjs";
 
 describe("scheduled weather refresh", () => {
-  it("maps route-relevant WMO conditions without calling the provider", () => {
-    expect(conditionForCode(0)).toBe("Clear");
-    expect(conditionForCode(61)).toBe("Rain");
-    expect(conditionForCode(95)).toBe("Thunderstorm");
-  });
-
   it("publishes every run to one stable review branch, never a dated one", () => {
     expect(WEATHER_REVIEW_BRANCH).toBe("weather-cache/latest");
   });

@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-// @ts-expect-error Dependency-free Node refresh helper has no declaration file.
-import { conditionForCode as scriptConditionForCode } from "@/scripts/refresh_weather_snapshots.mjs";
-import { conditionForCode } from "@/lib/weatherProvider";
+import { conditionForCode } from "@/lib/weatherCondition.mjs";
 import {
   conditionsForWeather,
   isWeatherRecommendationCondition,
@@ -255,7 +253,6 @@ describe("the matcher against the shipped condition vocabulary", () => {
   const NEITHER_CODES = [1, 2, 3, 45, 48];
 
   function conditionsFor(code: number): string[] {
-    expect(scriptConditionForCode(code)).toBe(conditionForCode(code));
     return conditionsForWeather({
       condition: conditionForCode(code),
       feelsLikeC: 12,
