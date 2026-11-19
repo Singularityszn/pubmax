@@ -72,6 +72,7 @@ export function registerPalVoicePanel(element: HTMLElement, props: PalVoicePanel
 }
 
 export function revokePalVoiceCall(): void {
+  try { sessionStorage.removeItem(RELOAD_START_KEY); } catch {}
   state.stopStartChime?.();
   update({ panel: null, props: null, engaged: false, ready: false, startPending: false, startOwner: null, stopStartChime: undefined });
 }
@@ -128,7 +129,17 @@ export function retryPalVoiceLoad(): void {
  * Drop an ask no call has taken yet: the person left the call's pages or the
  * account changed, so returning later must not open the microphone by itself.
  */
-export function cancelPalVoiceStart(pathname: string, ownerId: string | null, hidden = false): void {
+export function cancelPalVoiceStart(pathname: string, ownerId: string | null | undefined, hidden = false): void {
+  // The old document must keep the retry through its requested reload.
+  if (!state.loadFailed) {
+    try {
+      const pending = sessionStorage.getItem(RELOAD_START_KEY);
+      const suffix = ownerId === undefined ? `:${location.href}` : `:${ownerId}:${location.href}`;
+      if (hidden || pathname !== new URL(location.href).pathname || !pending?.endsWith(suffix)) {
+        sessionStorage.removeItem(RELOAD_START_KEY);
+      }
+    } catch {}
+  }
   if (!state.startPending) return;
   if (!hidden && palVoiceCallRoute(pathname) && state.startOwner === ownerId) return;
   state.stopStartChime?.();

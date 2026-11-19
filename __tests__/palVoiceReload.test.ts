@@ -35,15 +35,41 @@ async function retryAndReload() {
   voice.palVoiceLoadFailed();
   voice.requestPalVoiceStart("account-a", { palName: "Robin" });
   expect(reload).toHaveBeenCalledOnce();
+  voice.cancelPalVoiceStart("/map", "account-a", true);
   vi.resetModules();
   voice = await import("@/lib/palVoiceHost");
 }
 
 it("resumes one explicit voice retry after its account reloads the same page", async () => {
   await retryAndReload();
+  voice.cancelPalVoiceStart("/map", undefined);
+  voice.cancelPalVoiceStart("/map", "account-a");
   voice.resumePalVoiceStart("account-a", { palName: "Robin" });
   expect(voice.readPalVoiceHost()).toMatchObject({ startPending: true, startOwner: "account-a" });
   voice.setPalVoiceEngaged(true);
+  voice.resumePalVoiceStart("account-a", { palName: "Robin" });
+  expect(voice.readPalVoiceHost().startPending).toBe(false);
+});
+
+it("does not resume a revoked retry", async () => {
+  await retryAndReload();
+  voice.revokePalVoiceCall();
+  voice.resumePalVoiceStart("account-a", { palName: "Robin" });
+  expect(voice.readPalVoiceHost().startPending).toBe(false);
+});
+
+it.each([
+  ["leaving the map", "/plan", "account-a", false],
+  ["opening Pal", "/pal", "account-a", false],
+  ["changing maps", "/map/manchester", "account-a", false],
+  ["switching accounts", "/map", "account-b", false],
+  ["signing out", "/map", null, false],
+  ["hiding the page", "/map", "account-a", true],
+] as const)("cancels a reloaded retry after %s and returning before eligibility resolves", async (_change, pathname, ownerId, hidden) => {
+  await retryAndReload();
+  voice.cancelPalVoiceStart("/map", "account-a");
+  voice.cancelPalVoiceStart(pathname, ownerId, hidden);
+  voice.cancelPalVoiceStart("/map", "account-a");
   voice.resumePalVoiceStart("account-a", { palName: "Robin" });
   expect(voice.readPalVoiceHost().startPending).toBe(false);
 });
