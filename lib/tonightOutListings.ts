@@ -515,6 +515,8 @@ export function tonightPicksState(input: {
 
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
+export const TONIGHT_LISTINGS_UNAVAILABLE_LINE = "Tonight's listings are unavailable right now.";
+export const TONIGHT_CACHED_LISTINGS_LINE = "Cached listings. Check with the pub before you travel.";
 export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";
 export const TONIGHT_VENUE_INDEX_FAILED_LINE =
   "Couldn't confirm tonight's venues right now.";
@@ -626,6 +628,19 @@ export function tonightRetryLanes(
     whatsOn: retryable("whats-on"),
     out: retryable("out") || outVenueMatchUnavailable(out),
   };
+}
+
+/** A partial read with eligible listings still needs an outage message. */
+export function tonightLiveReadUnavailable(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+  visibleCount: number,
+): boolean {
+  const retry = tonightRetryLanes(whatsOn, out);
+  return retry.whatsOn || retry.out || (
+    whatsOn !== "idle" && !out.pending && visibleCount === 0 &&
+    tonightListingsNoteLine(whatsOn, out) !== null
+  );
 }
 
 export const TONIGHT_QUIET_NIGHT_SENTENCE =
