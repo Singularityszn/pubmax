@@ -139,6 +139,8 @@ describe("account identity recovery", () => {
     await mount(surface);
 
     expect(actions.providerAuthState).toBe("unavailable");
+    expect(actions.identityResolved).toBe(false);
+    expect(actions.handle).toBeNull();
     expect(host.querySelector(surface === "you" ? 'main a[href="/pal"]' : 'main a[href="/map"]')).not.toBeNull();
     expect(host.querySelector('main a[href^="/login"]')).toBeNull();
     expect(host.querySelector('[aria-label="Loading your profile"]')).toBeNull();
@@ -146,7 +148,10 @@ describe("account identity recovery", () => {
       expect(host.querySelector('main a[href="/crawls"]')).not.toBeNull();
     }
     expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Post")).toBe(false);
-    expect(vi.mocked(fetch).mock.calls.some(([url]) => String(url).startsWith("/api/social/access"))).toBe(false);
+    expect(vi.mocked(fetch).mock.calls.some(([url, init]) =>
+      String(url).startsWith("/api/social/access") ||
+      (String(url).startsWith("/api/profiles/") && new Headers(init?.headers).has("authorization")),
+    )).toBe(false);
     expect(h.navigate).not.toHaveBeenCalled();
 
     sessionStatus = 200;

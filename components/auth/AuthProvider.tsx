@@ -362,7 +362,12 @@ export function AuthProvider({
     useState<CanonicalIdentityState>(UNKNOWN_IDENTITY);
   const [identityReadAttempt, setIdentityReadAttempt] = useState(0);
   const identityReadRevision = useRef(0);
+  const retrySessionRead = useRef<(() => void) | null>(null);
   const retryIdentity = useCallback(() => {
+    if (readProviderAuthState("supabase") === "unavailable") {
+      retrySessionRead.current?.();
+      return;
+    }
     identityReadRevision.current += 1;
     forgetCurrentIdentityRead();
     setCanonicalIdentityState(UNKNOWN_IDENTITY);
@@ -701,10 +706,12 @@ export function AuthProvider({
       bootstrapMarked = true;
       markPubmaxTiming("pubmax:auth-bootstrap-settled");
     };
+    let deferredCheckInFlight = false;
     const checkDeferredSession = (retry = false) => {
-      if (!clientWaiting) return;
+      if (!clientWaiting || deferredCheckInFlight) return;
       if (retry && readProviderAuthState("supabase") !== "unavailable") return;
       if (retry) resumeHint = null;
+      deferredCheckInFlight = true;
       void Promise.all([callbackCapture, readResumeHint()]).then(([captured, hint]) => {
         if (!active || !clientWaiting) return;
         if (captured?.attempt || hint.status === "present") {
@@ -716,7 +723,7 @@ export function AuthProvider({
         if (state === "authenticated" || state === "signed-out") return;
         setProviderAuthState("supabase", hint.status === "absent" ? "signed-out" : "unavailable");
         setSessionLoading(false);
-      }, () => {});
+      }, () => {}).finally(() => { deferredCheckInFlight = false; });
     };
     checkDeferredSession();
 
@@ -1067,8 +1074,11 @@ export function AuthProvider({
 
     const retryBootstrap = () => {
       if (!active) return;
-      checkDeferredSession(true);
       if (hasPendingAuthAttempt(browserLocalStorage())) clientTurn.releaseForSignIn();
+      if (clientWaiting) {
+        checkDeferredSession(true);
+        return;
+      }
       if (clientLoadInFlight || sessionRestoreInFlight.current) {
         bootstrapRetryPending = true;
         return;
@@ -1081,6 +1091,7 @@ export function AuthProvider({
         void loadClient();
       }
     };
+    retrySessionRead.current = retryBootstrap;
     const stopBootstrapRetry = subscribeToReconnectRecovery(retryBootstrap);
     window.addEventListener("focus", retryBootstrap);
     void loadClient();
@@ -1088,6 +1099,7 @@ export function AuthProvider({
     return () => {
       active = false;
       bootstrapRetryPending = false;
+      retrySessionRead.current = null;
       pendingClientTurn.current = null;
       clientTurn.cancel();
       window.clearTimeout(loadingTimeout);
@@ -1670,6 +1682,9 @@ export function AuthProvider({
       canonicalIdentityState.status === "resolved"
         ? canonicalIdentityState.identity
         : null;
+    const identityUnavailable = !loading && (user
+      ? canonicalIdentityState.status === "unavailable"
+      : providerAuthState === "unavailable");
     return {
       session,
       user,
@@ -1692,8 +1707,8 @@ export function AuthProvider({
         user?.id ?? null,
       ),
       identityResolved:
-        canonicalIdentityState.status === "resolved" && !loading,
-      identityUnavailable: canonicalIdentityState.status === "unavailable" && !loading,
+        canonicalIdentityState.status === "resolved" && !loading && !identityUnavailable,
+      identityUnavailable,
       retryIdentity,
       accountRevision,
       providerAuthState,
