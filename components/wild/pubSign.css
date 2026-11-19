@@ -308,7 +308,7 @@ html[data-theme="dark"] .pubSign__edge {
 }
 
 .venueImage--header .pubSign--compact .pubSign__art {
-  max-height: 80px;
+  max-height: 140px;
 }
 
 @media (prefers-reduced-motion: reduce) {

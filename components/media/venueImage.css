@@ -72,10 +72,9 @@
   box-shadow: none;
 }
 
-/* Reserve the named illustration's space before its lazy chunk loads.
-   The sheet keeps a short frame so its price remains close to the title. */
+/* Reserve the named illustration's space before its lazy chunk loads. */
 .venueImage--header.venueImage--empty.venueImage--named {
-  height: 112px;
+  height: 176px;
   padding: var(--space-1) 0;
 }
 
