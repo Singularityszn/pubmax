@@ -438,7 +438,10 @@ function SocialPageAccountState({
       : viewerSession.signedIn
         ? "resolved"
         : "signed-out";
-  const [access, setAccess] = useState<AccessLoadState>("checking");
+  const [accessRead, setAccess] = useState<AccessLoadState>("checking");
+  const access = viewerSession.signedIn && !identityResolved && friendsLaunchEnabled
+    ? "checking"
+    : accessRead;
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
   const [assertError, setAssertError] = useState<string | null>(null);
@@ -547,7 +550,7 @@ function SocialPageAccountState({
       return;
     }
     if (!identityResolved) {
-      void Promise.resolve().then(() => setAccess(identityUnavailable ? "unavailable" : "checking"));
+      void Promise.resolve().then(() => setAccess("checking"));
       return;
     }
 
@@ -574,7 +577,7 @@ function SocialPageAccountState({
         };
       })
       .then((result) => {
-        if (requestRevision !== accountRevision) return;
+        if (controller.signal.aborted) return;
         answeredRevision.current = requestRevision;
         setAccess(result.state);
         setAdultPrompt(result.adultPrompt);
@@ -582,9 +585,8 @@ function SocialPageAccountState({
         setViewerHandle(result.viewerHandle);
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError")
+        if (controller.signal.aborted || (error instanceof DOMException && error.name === "AbortError"))
           return;
-        if (requestRevision !== accountRevision) return;
         answeredRevision.current = null;
         setAccess("unavailable");
       });
@@ -594,7 +596,6 @@ function SocialPageAccountState({
     accountRevision,
     friendsLaunchEnabled,
     identityResolved,
-    identityUnavailable,
     initialState.tab,
     viewerSession.phase,
   ]);
@@ -918,10 +919,7 @@ function SocialPageAccountState({
     viewerPhase === "resolved" &&
     access === "verified";
   const showViewerCards =
-    friendsLaunchEnabled &&
-    isPosts &&
-    viewerPhase === "resolved" &&
-    access === "verified" &&
+    showPostsControls &&
     (!feedHref || feedStatus === "ready" || feedStatus === "error");
   const checkingPosts = friendsLaunchEnabled && isPosts && viewerPhase === "resolved" && access === "checking";
   const checkingTools = checkingPosts || (showPostsControls && !showViewerCards);
@@ -945,6 +943,8 @@ function SocialPageAccountState({
         refreshAfterSave();
       }}
     />
+  ) : identityUnavailable ? (
+    <Link prefetch={false} href="/map">Open the map</Link>
   ) : viewerPhase === "signed-out" ? (
     // AN EMERGENCY ROLLBACK TAKES THE VALUE WITH IT. Under
     // PUBMAX_SOCIAL_FRIENDS_LAUNCH=0 the body is the invite-only preview
@@ -1011,12 +1011,20 @@ function SocialPageAccountState({
   // still use (who is already here, the handle search, the founders wall). It
   // used to be a 260px rail holding all of that beside a body holding the one
   // line, which left most of a desktop empty (taste plan, 18 Oct 2026).
-  const doorMode = friendsLaunchEnabled && isPosts && viewerPhase !== "resolved";
+  const doorMode = friendsLaunchEnabled && isPosts && (viewerPhase !== "resolved" || identityUnavailable);
   // THE LONDON LANE takes the door's slot once the session has answered
   // nobody. Until then the slot holds its size, because a surface that routes
   // the viewer may not guess who they are, and a signed-in reader must not
   // meet a stranger's lane on the way to their own feed.
   const londonLane = doorMode && londonLaneOpen && viewerPhase === "signed-out";
+  const identityRecovery = identityUnavailable ? (
+    <section className="socialDoorSlot" role="alert">
+      <EmptyState
+        title="We couldn't check your account."
+        action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
+      />
+    </section>
+  ) : null;
   const switcher = (
     <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
       <IntentLink href="/social" aria-current={isPosts ? "page" : undefined}>
@@ -1045,10 +1053,11 @@ function SocialPageAccountState({
         {doorMode ? (
           <div className="socialDoor">
             {switcher}
-            {viewerPhase === "signed-out" && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
+            {identityRecovery}
+            {(viewerPhase === "signed-out" || identityUnavailable) && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {londonLane ? (
               <SocialLondonLane />
-            ) : (
+            ) : !identityUnavailable ? (
             /* The boundary prints its line ONCE, under the head that carries
                 the door, and says what Social holds rather than asking again.
                 The slot keeps its size while the account answers, so nothing
@@ -1083,7 +1092,7 @@ function SocialPageAccountState({
                 </div>
               ) : null}
             </section>
-            )}
+            ) : null}
             {/* The packs are public, so a stranger meeting the door sees who is
                 already here. Read-only: following is an account action, and a
                 button that answered 401 would be a second door. */}
@@ -1104,6 +1113,7 @@ function SocialPageAccountState({
         </div>
         <div className={isPosts ? "socialLayout" : "socialLayout socialLayout--discover"}>
           <div className="socialFeedColumn">
+            {identityRecovery}
             {isPosts && publicAlternatives ? <SocialLondonEmpty alternatives={publicAlternatives} openTable={featuredOpenTable} /> : null}
             {showPostsControls ? <PostsControls state={initialState} /> : null}
             {checkingPosts && initialState.tab === "posts" ? (
@@ -1146,10 +1156,7 @@ function SocialPageAccountState({
                 friendsLaunchEnabled={friendsLaunchEnabled}
                 onRetry={
                   access === "unavailable"
-                    ? () => {
-                        if (identityUnavailable) retryIdentity();
-                        setAccessAttempt((value) => value + 1);
-                      }
+                    ? () => setAccessAttempt((value) => value + 1)
                     : undefined
                 }
                 adultPrompt={adultPrompt}

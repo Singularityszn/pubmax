@@ -1315,20 +1315,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           <EmptyState
             title="Your profile could not load"
             action={<Button type="button" variant="secondary" onClick={retryIdentity}>Retry</Button>}
-          >
-            We could not confirm your profile.
-          </EmptyState>
+          />
+          <Button asChild variant="ghost">
+            <Link prefetch={false} href="/pal">Meet your Pub Pal</Link>
+          </Button>
         </section>
       );
     }
     return (
-      <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
-        <ProfileHeader
-          profile={profile}
-          stats={stats}
-          viewerState="loading"
-        />
-      </section>
+      <>
+        <section className="profileIdentityLoadingSurface" aria-label="Loading your profile">
+          <ProfileHeader
+            profile={profile}
+            stats={stats}
+            viewerState="loading"
+          />
+        </section>
+        <WantedList key="you-wanted-panel" body={false} />
+      </>
     );
   }
 
@@ -1811,13 +1815,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
       <main id="main" className="container profileMain">
         {surfaceBody()}
-        {/* The list's title paints while identity is still answering, so a
-            signed-in owner's page does not jump when it lands. A signed-out
-            reader has no list, and the invitation above already says what a
-            handle keeps, so the panel is not shown to them. */}
-        {surface === "identity-loading" ? (
-          <WantedList key="you-wanted-panel" body={false} />
-        ) : null}
         {/* Signed out, the taps stay on this device until an account can
             hold them (lib/beenHere.ts). */}
         {surface === "you-invitation" && documentComplete ? <BeenHereFirstRun /> : null}
