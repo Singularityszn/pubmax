@@ -17,6 +17,7 @@ export default function FairPintFrame({
   announcement = "",
   reason = "",
   failed = false,
+  located = false,
   locationOff = false,
   error = "",
   pending = false,
@@ -34,6 +35,7 @@ export default function FairPintFrame({
   announcement?: string;
   reason?: string;
   failed?: boolean;
+  located?: boolean;
   locationOff?: boolean;
   error?: string;
   pending?: boolean;
@@ -79,7 +81,7 @@ export default function FairPintFrame({
         data-early-location={prelude || undefined}
         onClick={onLocation}
       >
-        {locationOff ? "Location is off" : "Use my location"}
+        {located ? "Count pubs in view" : locationOff ? "Location is off" : "Use my location"}
       </button>
       {error ? <p role="alert">{error}</p> : null}
       {pending ? <p role="status">Drawing your night…</p> : null}

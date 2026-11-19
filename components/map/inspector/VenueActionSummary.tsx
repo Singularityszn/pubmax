@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import type { VenueActionCardWalk } from "@/lib/venueActionCard";
+
 /**
  * The action card's first row: the price, the walk and the ONE coral door
  * (lib/venueActionCard.ts). It was the phone peek's row at the top of the
@@ -20,8 +22,8 @@ export default function VenueActionSummary({
   /** The row's accessible name, the sheet labels' own summary line. */
   label: string;
   price: ReactNode;
-  /** Whole minutes on foot from the reader's shared location, or null. */
-  walkMinutes: number | null;
+  /** Whole minutes on foot; "far" or "rough" for a shown position that gives no figure; null with no location. */
+  walkMinutes: VenueActionCardWalk;
   planDoor: ReactNode;
 }) {
   return (
@@ -31,12 +33,12 @@ export default function VenueActionSummary({
         <span>
           <strong
             className={
-              walkMinutes !== null ? "mobileVenuePeekNearMe" : "mobileVenuePeekNearMe isPhrase"
+              typeof walkMinutes === "number" ? "mobileVenuePeekNearMe" : "mobileVenuePeekNearMe isPhrase"
             }
           >
-            {walkMinutes !== null ? `${walkMinutes} min` : "Near me"}
+            {typeof walkMinutes === "number" ? `${walkMinutes} min` : walkMinutes === "far" ? "Over an hour" : "Near me"}
           </strong>
-          <small>{walkMinutes !== null ? "walk" : "Turn on location for walk times"}</small>
+          <small>{walkMinutes === "rough" ? "Location too rough for walk times" : walkMinutes !== null ? "walk" : "Turn on location for walk times"}</small>
         </span>
         {planDoor}
       </div>

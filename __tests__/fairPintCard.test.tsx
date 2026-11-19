@@ -53,6 +53,322 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
+async function locatedFlow() {
+  localStorage.clear();
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const listed = [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] as const;
+  const rows = [
+    { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
+    { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
+  ];
+  // Every distinct box asked for, in order. A view and the draw area always
+  // load. The rest are near reads: the margin round a view, or a tapped circle.
+  const requested: string[] = [];
+  const delivered: { west: number; east: number; south: number; north: number }[] = [];
+  const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  const views = new Set([JSON.stringify(bounds)]);
+  let drawKey: string | undefined;
+  const nearRead = (key: string) => !views.has(key) && key !== drawKey;
+  // `uncovered` fails the near reads that finish while it is set.
+  const control = { uncovered: "none" as "none" | "near" | "edge", holdMargin: null as Promise<void> | null, drawFails: false, unstored: 0 };
+  let handed = 0;
+  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({
+    ...loader,
+    inBounds: async (box) => {
+      const key = JSON.stringify(box);
+      if (!requested.includes(key)) requested.push(key);
+      await Promise.resolve();
+      if (nearRead(key) && control.holdMargin) await control.holdMargin;
+      // Rows are handed over here. A near read set to fail hands over nothing
+      // round the dot; one set to fail at its far edge still does.
+      if (!(nearRead(key) && control.uncovered === "near")) delivered.push(box);
+      handed += 1;
+      return rows;
+    },
+    deliveryCount: () => handed + control.unstored,
+    rowsDelivered: (box) => delivered.some((held) =>
+      held.west <= box.west && held.east >= box.east && held.south <= box.south && held.north >= box.north),
+    coverageComplete: (box) => {
+      // The draw area is the last box of the first pass of reads.
+      if (requested.length > 0) drawKey ??= requested[requested.length - 1];
+      const key = JSON.stringify(box);
+      if (key === drawKey) return !control.drawFails;
+      return !nearRead(key) || control.uncovered === "none";
+    },
+  });
+  const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const asked = vi.fn();
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: asked } });
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
+  const host = document.createElement("div"), mounted = createRoot(host);
+  document.body.append(host);
+  return {
+    asked, control, host, reader, requested,
+    render: (readerPosition: typeof reader | null) => act(async () => {
+      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+    }),
+    pan: (view: typeof bounds, readerPosition: typeof reader | null) => act(async () => {
+      views.add(JSON.stringify(view));
+      mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds: view, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+    }),
+    choice: () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!,
+    spoken: () => host.querySelector('[aria-live="polite"]')?.textContent,
+    done: async () => {
+      await vi.dynamicImportSettled();
+      act(() => { mounted.unmount(); }); host.remove(); Reflect.deleteProperty(navigator, "geolocation"); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
+    },
+  };
+}
+
+it("counts around a reader position the map already shows, from the same price files, and lets the reader switch back to the view", async () => {
+  const { asked, host, reader, requested, render, choice, spoken, done } = await locatedFlow();
+
+  // With no position, only the view and the draw area are read.
+  await render(null);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  expect(requested).toHaveLength(2);
+
+  // The dot arrives while the reader's focus is on the location choice. The
+  // margin round the view is read once, and it does not depend on the fix.
+  const held = choice();
+  held.focus();
+  await render(reader);
+  const before = [...requested];
+  expect(before).toHaveLength(3);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(spoken()).toContain("1 pub within 800 m lists a pint");
+  expect(choice()).toBe(held);
+  expect(document.activeElement).toBe(held);
+  expect(held.textContent).toBe("Count pubs in view");
+
+  // A second fix a few metres on asks for no other price file.
+  await render({ ...reader, lat: 51.5259 });
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(requested).toEqual(before);
+
+  // The reader can go back to the view, and forward again without a new ask.
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(asked).not.toHaveBeenCalled();
+  expect(requested).toEqual(before);
+
+  // A dot off the map leaves the view's own answer and the ask.
+  await render({ ...reader, lat: 53.8 });
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  expect(requested).toEqual(before);
+  await done();
+});
+
+it("keeps the view's count for a coarse fix on screen until the reader asks", async () => {
+  const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
+  const coarse = { ...reader, accuracyMeters: 2000 };
+  await render(coarse);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  expect(requested).toHaveLength(2);
+
+  // A tap asks the browser once. A second coarse answer still counts nothing.
+  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 2500 } } as GeolocationPosition));
+  await act(async () => choice().click());
+  expect(asked).toHaveBeenCalledTimes(1);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+
+  // A fine answer counts.
+  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 15 } } as GeolocationPosition));
+  await act(async () => choice().click());
+  expect(asked).toHaveBeenCalledTimes(2);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(choice().textContent).toBe("Count pubs in view");
+  await done();
+});
+
+it("waits while the loader has handed over rows the card has not stored yet", async () => {
+  const { control, host, reader, render, done } = await locatedFlow();
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  // A hand-over lands in the loader a step before the card stores it.
+  control.unstored = 1;
+  await render({ ...reader, lat: 51.52571 });
+  expect(host.querySelector(".fairPintCount")?.textContent).toBe("Loading prices…");
+  control.unstored = 0;
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  await done();
+});
+
+it("keeps the view's count for a dot inside the view's bounds that the pitched canvas does not show", async () => {
+  const { publishMapReaderOnCanvas } = await import("@/lib/mapReaderOnCanvas");
+  const { host, reader, render, choice, done } = await locatedFlow();
+  await act(async () => publishMapReaderOnCanvas(false));
+  await render(reader);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+
+  await act(async () => publishMapReaderOnCanvas(true));
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  await act(async () => publishMapReaderOnCanvas(null));
+  await done();
+});
+
+it("does not count round the dot before the read that brings those rows has finished", async () => {
+  // The loader says every box is covered from the start, as it does when one
+  // file of a read lands before the read hands over its rows.
+  const { control, host, reader, render, spoken, done } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  await render(edge);
+  expect(host.textContent).toContain("Loading prices");
+  expect(host.textContent).not.toContain("within 800 m");
+  expect(spoken()).toBe("");
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
+  await done();
+});
+
+it("speaks the count a retry brings back when only the draw area had failed", async () => {
+  const { control, host, render, spoken, done } = await locatedFlow();
+  control.drawFails = true;
+  await render(null);
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  control.drawFails = false;
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(spoken()).toContain("2 pubs in view list a pint");
+  await done();
+});
+
+it("keeps a tapped count through many pans, and counts round a dot at the view's northern corner", async () => {
+  const { host, reader, render, choice, pan, done } = await locatedFlow();
+  const away = { ...reader, lat: 51.56 };
+  await render(away);
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  for (let step = 1; step <= 10; step++) {
+    await pan({ west: -0.1 - step * 0.001, east: -0.08 - step * 0.001, south: 51.52, north: 51.545 }, away);
+    expect(host.textContent).toContain("No pubs within 800 m list a pint");
+    expect(host.textContent).not.toContain("Could not load prices");
+  }
+
+  // The dot comes on screen at the north-east corner of a new view.
+  const view = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  await pan(view, { ...reader, lat: 51.5449, lng: -0.08001 });
+  expect(host.textContent).toContain("within 800 m");
+  expect(host.textContent).not.toContain("Could not load prices");
+  await done();
+});
+
+it("offers a fix the map holds off screen on a tap, and no later fix moves its request", async () => {
+  const { asked, host, reader, requested, render, choice, done } = await locatedFlow();
+  const away = { ...reader, lat: 51.56 };
+  await render(away);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+
+  await act(async () => choice().click());
+  expect(asked).not.toHaveBeenCalled();
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(choice().textContent).toBe("Count pubs in view");
+  const afterTap = [...requested];
+  expect(afterTap).toHaveLength(3);
+
+  await render({ ...away, lat: 51.5603 });
+  await render({ ...away, lat: 51.57 });
+  expect(requested).toEqual(afterTap);
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+
+  // The dot walks on screen and off again. The margin is read once, the
+  // tapped circle is still held, and the count never returns to loading.
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  const withMargin = [...requested];
+  expect(withMargin).toHaveLength(4);
+  await render({ ...away, lat: 51.57 });
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+  expect(requested).toEqual(withMargin);
+
+  // A second ask re-anchors on the newest fix the map holds, still with no
+  // geolocation call.
+  await act(async () => choice().click());
+  await act(async () => choice().click());
+  expect(asked).not.toHaveBeenCalled();
+  expect(requested).toHaveLength(5);
+  expect(JSON.parse(requested[4]!).north).toBeGreaterThan(JSON.parse(afterTap[2]!).north);
+  await done();
+});
+
+it("publishes the in-view count when a file outside the view fails, and speaks a near count only once it has an answer", async () => {
+  // The dot stands by the west edge, where the draw area's own read does not reach round it.
+  const { control, host, reader, render, choice, spoken, done } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  control.uncovered = "near";
+
+  await render(null);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+
+  await render(edge);
+  expect(host.textContent).toContain("Loading prices");
+  expect(spoken()).toBe("");
+
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  expect(spoken()).toContain("Could not load prices");
+
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(spoken()).toContain("2 pubs in view list a pint");
+
+  // Back to the near count, which still failed. A retry that works is spoken.
+  await act(async () => choice().click());
+  expect(spoken()).toContain("Could not load prices");
+  control.uncovered = "none";
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
+  await done();
+});
+
+it("keeps a near count through a pan and a failed file at the far edge, and speaks a retry after a first load that failed", async () => {
+  // The dot stands by the west edge, where the draw area's own read does not reach round it.
+  const { control, host, reader, render, spoken, done, pan } = await locatedFlow();
+  const edge = { ...reader, lng: -0.0995 };
+  // The dot is on screen from the first render, and its files fail.
+  control.uncovered = "near";
+  await render(edge);
+  expect(host.textContent).toContain("Could not load prices. Try again.");
+  // A card that opens with the dot already on screen speaks its first answer.
+  expect(spoken()).toContain("Could not load prices");
+  control.uncovered = "none";
+  await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(spoken()).toContain("No pubs within 800 m list a pint");
+
+  // A pan keeps the dot on screen. Its 800 m are already in, so the count
+  // holds while the new margin loads, and holds when its far edge fails.
+  let release!: () => void;
+  control.holdMargin = new Promise<void>((resolve) => { release = resolve; });
+  control.uncovered = "edge";
+  await pan({ west: -0.102, east: -0.082, south: 51.52, north: 51.545 }, edge);
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Loading prices");
+  await act(async () => { release(); });
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  expect(host.textContent).not.toContain("Could not load prices");
+  await done();
+});
+
 it("starts the deferred planner on Draw and permits retry after refusal", async () => {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");

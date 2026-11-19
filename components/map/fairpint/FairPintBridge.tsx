@@ -4,12 +4,13 @@ import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useRef 
 import type { MapBounds } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { NightAreaSlug } from "@/lib/nightAreas";
+import type { MapReaderPosition } from "@/lib/mapReaderPosition";
 import { MAP_FIRST_VISIT_ARRIVAL_CHANGE_EVENT } from "@/lib/mapFirstVisitArrivalGate";
 
 export type Bridge = {
   bounds: MapBounds;
   center: [number, number];
-  position?: { lat: number; lng: number } | null;
+  position?: MapReaderPosition | null;
   onCommit: (pounds: number) => void;
   onRoute: (area: NightAreaSlug | null, ids: string[], rows: SlimVenue[]) => void;
 };

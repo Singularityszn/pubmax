@@ -177,6 +177,7 @@ import {
   installMapReaderPositionProbe,
   syncReaderPositionOnMap,
 } from "@/components/map/canvas/readerPositionProbe";
+import { useReaderOnCanvas } from "@/components/map/canvas/useReaderOnCanvas";
 import { installPaintedPinProbe } from "@/components/map/canvas/paintedPinProbe";
 import { installPalPicks } from "@/components/map/canvas/palPicks";
 import {
@@ -4726,6 +4727,7 @@ export default function PubMapCanvas(props: PubMapCanvasProps) {
     if (!mapReady || !map) return;
     syncReaderPositionOnMap(map, readerPositionGeoJSON);
   }, [mapReady, readerPositionGeoJSON]);
+  useReaderOnCanvas(mapRef, mapReady, readerPosition);
 
   useRouteCameraFraming({
     mapReady, routeKey: route.map((venue) => venue.id).join(">"),

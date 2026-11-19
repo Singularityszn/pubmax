@@ -305,9 +305,14 @@ describe("createSlimShardLoader (London)", () => {
     expect(loader.coverageComplete(core)).toBe(false);
 
     installFetch();
+    expect(loader.rowsDelivered(core)).toBe(false);
     await expect(loader.inBounds(core)).resolves.toEqual(BODIES["/data/venues_slim.core.json"]);
     expect(loader.coverageComplete(core)).toBe(true);
+    // Rows count as delivered only once a read has handed them over.
+    expect(loader.rowsDelivered(core)).toBe(true);
+    expect(loader.rowsDelivered(outer)).toBe(false);
     await expect(loader.inBounds(outer)).resolves.toEqual(BODIES["/data/venues_slim.greenwich.json"]);
+    expect(loader.rowsDelivered(outer)).toBe(true);
     await expect(loader.inBounds(core)).resolves.toEqual([]);
     expect(loader.coverageComplete(core)).toBe(true);
     expect(loader.coverageComplete(outer)).toBe(true);
