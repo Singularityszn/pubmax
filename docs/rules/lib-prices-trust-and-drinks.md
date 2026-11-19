@@ -45,9 +45,11 @@ The slim builder uses the runtime bundle parser to exclude quarantined rows from
 
 `readPublicPricePresence` in `lib/publicPricePresence.server.ts` answers `present`, `absent` or `unknown` across listed prices, the UK bundle, community prices and public Pint Drops. Its durable store reads use stable ID pagination and exact counts. They include old venue IDs and exclude private, hidden, withdrawn and demo drops. A known public price establishes `present` even when another source fails. Without positive evidence, a failed source or incomplete page leaves the result `unknown`.
 
-Map pins, map lists, phone peeks, venue sheets, Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. A new venue list or refresh clears the previous absence result before the next request.
+Map pins, map lists, phone peeks, venue sheets, Plan, Ledger and Pal require `absent` before showing an estimate. The browser reads the shared result through the existing price-submit route. Outside the map, a new venue list or refresh clears the previous absence result before the next request.
 
-The map also clears previous absence results when community rows change. A known public community row immediately suppresses the estimate, including a non-beer row. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
+The map shares pending reads and reuses known answers for up to 60 seconds across remounts. Changes to recorded-price presence, community rows or priced Pint Drop evidence invalidate that pub's cached result. This includes priced drops without pint authority, such as half pints. Failures and unknown answers are not retained for reuse. `__tests__/usePublicPriceVenues.test.tsx` covers reuse and invalidation.
+
+A known public community row immediately suppresses the estimate, including a non-beer row. Plan uses one filtered price projection for stop cards and route subtotals, including restored drafts.
 
 A maximum pint price keeps a pub with no recorded comparable pint on the map, because nothing says it is over the cap. Each cap control separates recorded-price matches from pubs with no recorded comparable pint. Counts use the map's loaded, filtered pubs after drink-lens and venue-kind choices, not just the current viewport. A modelled figure never establishes a match.
 

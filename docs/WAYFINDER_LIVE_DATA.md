@@ -190,10 +190,10 @@ contract the validation tests rely on still holds.)
 
 ### `GET /api/freshness`
 Read-only route returning the registry resolved against live stamps + a status
-summary, with edge cache headers (`s-maxage=300, stale-while-revalidate=1800`,
-the house pattern; no `jsonCached` helper exists on main yet). Never 500s — a
-missing artifact is that dataset's own `unknown` status, not a route failure. The
-site can render honest freshness anywhere from this one endpoint, feeding the
+summary, with edge caching. The [freshness route](../app/api/freshness/route.ts)
+owns its cache windows. A missing artifact is that dataset's own `unknown`
+status, not a route failure. The site can render honest freshness anywhere
+from this one endpoint, feeding the
 `lib/dataFreshness.ts` label idioms uniformly. The response also carries a
 `communityPrices` block (the corroborated community-price stock) — that metric
 is owned by [`docs/METRICS_FUNNEL.md`](METRICS_FUNNEL.md) §5.

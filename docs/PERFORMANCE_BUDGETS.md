@@ -192,10 +192,14 @@ disqualify it.
 flags, so it fails the bar as written. It is allowed because the answer is the
 same for every caller and changes only when someone edits the Supabase
 dashboard. The shared copy is fresh for five minutes (`s-maxage=300`, plus a
-60-second `stale-while-revalidate`), so a dashboard toggle can take that long
-to show or hide a button. Before OAuth starts, the client rechecks with
-`?fresh=1`, which is never cached. The exception covers this route alone. It
-does not loosen the bar for any other remote read.
+60-second `stale-while-revalidate`). The browser can reuse a response for
+60 seconds (`max-age=60`). Provider buttons can show earlier dashboard settings
+within these cache windows.
+
+Concurrent social and phone availability reads share one pending request.
+Before OAuth starts, the client rechecks with
+`?fresh=1`, which bypasses that pending request and is never cached.
+The exception covers this route alone. It does not loosen the bar for any other remote read.
 
 `/api/pint-drops/census` is the other named exception, by the captain's ruling of
 2026-11-11. It returns only the
@@ -211,7 +215,8 @@ This exception permits no other mutable community read.
 | class | contract | verdict |
 | --- | --- | --- |
 | Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
-| Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller; `?fresh=1` is the pre-OAuth recheck | Cached five minutes; `?fresh=1` no-store |
+| Social sign-in providers (`/api/auth/providers`) | Supabase dashboard flags, the same for every caller | Cached under the named exception above |
+| Area news (`/api/area-news`) | Committed facts filtered by the current UTC date | Private browser cache for at most 60 seconds, bounded by the next UTC midnight, with `must-revalidate`. Unavailable reads are no-store. |
 | Pint price census | Public aggregate only | Cached under the named exception above |
 | Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
 | What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |

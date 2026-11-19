@@ -15,8 +15,8 @@ export function jsonNoStore(body: unknown, init: ResponseInit = {}): Response {
  *
  * Vercel purges the edge on deploy. Mutable exceptions need explicit cache
  * windows because their data can change without a deploy. The browser
- * revalidates by default while the CDN may serve its shared copy. Query-string variants
- * cache independently because the CDN keys on the full URL.
+ * revalidates by default while the CDN may serve its shared copy.
+ * Query-string variants cache independently because the CDN keys on the full URL.
  */
 export function jsonCached(
   body: unknown,

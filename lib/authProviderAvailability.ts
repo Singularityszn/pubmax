@@ -69,8 +69,8 @@ function availabilityFromApiPayload(
 /**
  * Read a refusal to the end, or cancel it. Chromium keeps a response whose
  * body is never read in flight, so the page would never reach network idle.
- * withAuthFetchTimeout stops its clock once the headers arrive, so this read
- * keeps its own deadline: a stalled body must not hold sign-in pending.
+ * This read keeps a cancellation deadline so a stalled refusal body cannot
+ * hold sign-in pending.
  */
 async function discardRefusalBody(response: Response): Promise<void> {
   const reader = response.body?.getReader();
