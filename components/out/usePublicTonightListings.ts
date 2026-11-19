@@ -2,10 +2,10 @@
 
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
+import type { LatLngPoint } from "@/lib/geo";
 
-export function usePublicTonightListings() {
-  // Personalise the order after the read so both surfaces use the same capped set.
-  const whatsOn = useWhatsOnTonight(true, null, { pubOnly: true, currentOnly: true });
+export function usePublicTonightListings(near: LatLngPoint | null = null) {
+  const whatsOn = useWhatsOnTonight(true, near, { pubOnly: true, currentOnly: true });
   const out = useOutListings("tonight", undefined, { shareCurrentNight: true });
   return { whatsOn, out };
 }

@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, createElement } from "react";
-import { hydrateRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -10,9 +10,10 @@ import TonightClient from "@/app/tonight/TonightClient";
 import { fetchThingsToDo } from "@/lib/citymcp/client";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
+import { clearRememberedArea, writeRememberedArea } from "@/lib/nightPatches";
 import { loadTodayWhatsOnAnswer } from "@/lib/todayListings.server";
-import { SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
-import { __resetWhatsOnLiveTopUp, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
+import { clearSurfaceCache, SURFACE_CACHE_RETRY_BACKOFF_MS } from "@/lib/surfaceDataCache";
+import { __resetWhatsOnLiveTopUp, loadWhatsOn, type LoadWhatsOnResult } from "@/lib/whatsOnStore";
 
 const listingStore = vi.hoisted(() => ({ readAll: vi.fn() }));
 vi.mock("@/lib/whatsOnListingStore", () => ({
@@ -167,6 +168,69 @@ describe("Tonight's server listing composition", () => {
     expect(answer?.rows).toEqual(expect.arrayContaining([independent, nonPub]));
     expect(answer?.readStatus).toBe("ready");
     expect(loadOutVenueMatchIndex).not.toHaveBeenCalled();
+  });
+
+  it("selects a nearby quiz beyond the default 60 groups after a patch is chosen", async () => {
+    const nearby = {
+      ...independent, id: "nearby-quiz", venueId: "nearby-pub",
+      title: "Nearby pub quiz", lat: 51.513, lng: -0.13,
+      startsAt: "2026-10-16T19:00:00Z",
+    };
+    const inventory = [
+      ...Array.from({ length: 60 }, (_, index) => ({
+        ...independent, id: `far-quiz-${index}`, venueId: `far-pub-${index}`,
+        title: `Earlier quiz ${index}`, lat: 51.6, lng: -0.3,
+      })),
+      nearby,
+    ];
+    const venueMatchIndex = buildOutVenueMatchIndex(inventory.map((row) => ({
+      id: row.venueId, name: row.placeName, borough: "Camden", lat: row.lat, lng: row.lng,
+    })));
+    const requests: URL[] = [];
+    const answers: LoadWhatsOnResult[] = [];
+    vi.spyOn(Date, "now").mockReturnValue(NOW);
+    vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+    vi.stubGlobal("fetch", async (input: RequestInfo | URL) => {
+      const url = new URL(String(input), "https://pubmaxxing.com");
+      if (url.pathname === "/api/out") return Response.json(out.body);
+      if (url.pathname !== "/api/whats-on") return new Response(null, { status: 404 });
+      requests.push(url);
+      const [lat, lng] = url.searchParams.get("near")?.split(",").map(Number) ?? [];
+      const answer = await loadWhatsOn({
+        window: "tonight", limit: Number(url.searchParams.get("limit")),
+        pubOnly: url.searchParams.get("pubOnly") === "1", venueMatchIndex,
+        ...(lat !== undefined && lng !== undefined ? { near: { lat, lng } } : {}),
+      }, { now: NOW, loadBaseline: () => inventory, fetchLive: async () => [] });
+      answers.push(answer);
+      return Response.json(answer);
+    });
+    clearSurfaceCache();
+    clearRememberedArea();
+    const container = document.createElement("div");
+    document.body.append(container);
+    let root = createRoot(container);
+    try {
+      await act(async () => { root.render(createElement(TonightClient)); });
+      expect(requests.map((url) => url.searchParams.get("near"))).toEqual([null]);
+      expect(answers[0]?.rows).toHaveLength(60);
+      expect(answers[0]?.rows.some((row) => row.id === nearby.id)).toBe(false);
+      expect(container.textContent).toContain("Earlier quiz");
+      expect(container.textContent).not.toContain(nearby.title);
+      await act(async () => root.unmount());
+      writeRememberedArea({ kind: "patch", id: "central" });
+      root = createRoot(container);
+      await act(async () => { root.render(createElement(TonightClient)); });
+      expect(requests.map((url) => url.searchParams.get("near"))).toEqual([null, "51.513,-0.13"]);
+      expect(answers[1]?.rows).toHaveLength(60);
+      expect(answers[1]?.rows[0]?.id).toBe(nearby.id);
+      expect(container.querySelector('[data-testid="tonight-answer-on"]')?.textContent).toContain(nearby.title);
+    } finally {
+      await act(async () => root.unmount());
+      container.remove();
+      clearRememberedArea();
+      clearSurfaceCache();
+      vi.unstubAllGlobals();
+    }
   });
 });
 
