@@ -65,6 +65,7 @@ async function locatedFlow() {
   // Every distinct box asked for, in order. A view and the draw area always
   // load. The rest are near reads: the margin round a view, or a tapped circle.
   const requested: string[] = [];
+  const delivered: { west: number; east: number; south: number; north: number }[] = [];
   const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
   const views = new Set([JSON.stringify(bounds)]);
   let drawKey: string | undefined;
@@ -78,8 +79,13 @@ async function locatedFlow() {
       if (!requested.includes(key)) requested.push(key);
       await Promise.resolve();
       if (nearRead(key) && control.holdMargin) await control.holdMargin;
+      // Rows are handed over here. A near read set to fail hands over nothing
+      // round the dot; one set to fail at its far edge still does.
+      if (!(nearRead(key) && control.uncovered === "near")) delivered.push(box);
       return rows;
     },
+    rowsDelivered: (box) => delivered.some((held) =>
+      held.west <= box.west && held.east >= box.east && held.south <= box.south && held.north >= box.north),
     coverageComplete: (box) => {
       // The draw area is the last box of the first pass of reads.
       if (requested.length > 0) drawKey ??= requested[requested.length - 1];
@@ -165,8 +171,10 @@ it("keeps the view's count for a coarse fix on screen until the reader asks", as
   expect(choice().textContent).toBe("Use my location");
   expect(requested).toHaveLength(2);
 
+  // A tap asks the browser once for a better fix, and counts from the answer.
+  asked.mockImplementation((resolve: PositionCallback) => resolve({ coords: { latitude: reader.lat, longitude: reader.lng, accuracy: 15 } } as GeolocationPosition));
   await act(async () => choice().click());
-  expect(asked).not.toHaveBeenCalled();
+  expect(asked).toHaveBeenCalledTimes(1);
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
   expect(choice().textContent).toBe("Count pubs in view");
   await done();
@@ -212,6 +220,26 @@ it("speaks the count a retry brings back when only the draw area had failed", as
   await act(async () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Retry")!.click());
   expect(host.textContent).toContain("2 pubs in view list a pint");
   expect(spoken()).toContain("2 pubs in view list a pint");
+  await done();
+});
+
+it("keeps a tapped count through many pans, and counts round a dot at the view's northern corner", async () => {
+  const { host, reader, render, choice, pan, done } = await locatedFlow();
+  const away = { ...reader, lat: 51.56 };
+  await render(away);
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("No pubs within 800 m list a pint");
+  for (let step = 1; step <= 10; step++) {
+    await pan({ west: -0.1 - step * 0.001, east: -0.08 - step * 0.001, south: 51.52, north: 51.545 }, away);
+    expect(host.textContent).toContain("No pubs within 800 m list a pint");
+    expect(host.textContent).not.toContain("Could not load prices");
+  }
+
+  // The dot comes on screen at the north-east corner of a new view.
+  const view = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  await pan(view, { ...reader, lat: 51.5449, lng: -0.08001 });
+  expect(host.textContent).toContain("within 800 m");
+  expect(host.textContent).not.toContain("Could not load prices");
   await done();
 });
 

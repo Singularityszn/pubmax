@@ -31,7 +31,9 @@ function circleBounds(lat: number, lng: number, radiusKm: number): MapBounds {
 }
 function marginBounds(box: MapBounds, marginKm: number): MapBounds {
   const dy = marginKm / 110.574,
-    dx = marginKm / (111.32 * Math.cos((((box.south + box.north) / 2) * Math.PI) / 180));
+    // The edge nearest a pole, where a kilometre spans the most longitude, so
+    // the margin holds the 800 m round a dot anywhere in the view.
+    dx = marginKm / (111.32 * Math.cos((Math.max(Math.abs(box.south), Math.abs(box.north)) * Math.PI) / 180));
   return { west: box.west - dx, east: box.east + dx, south: box.south - dy, north: box.north + dy };
 }
 function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
@@ -43,14 +45,7 @@ function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
 }
 type LoadPhase = "loading" | "failed" | "ready";
 type PriceRead = "count" | "margin" | "circle" | "draw";
-type PriceReads = {
-  rows: SlimVenue[];
-  /** The boxes whose rows are all in `rows`. Written with those rows, so a count never runs ahead of them. */
-  covered: MapBounds[];
-} & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
-const COVERED_BOXES_HELD = 8;
-const contains = (outer: MapBounds, inner: MapBounds) =>
-  outer.west <= inner.west && outer.east >= inner.east && outer.south <= inner.south && outer.north >= inner.north;
+type PriceReads = { rows: SlimVenue[] } & Record<PriceRead, LoadPhase> & Partial<Record<`${PriceRead}Key`, string>>;
 
 /** One price read for one box. A null key reads nothing; a new key drops the old answer. */
 function usePriceRead(
@@ -69,7 +64,6 @@ function usePriceRead(
       setData((held) => ({
         ...held,
         rows: [...new Map([...held.rows, ...rows].map((row) => [row.id, row])).values()],
-        covered: ready ? [box, ...held.covered].slice(0, COVERED_BOXES_HELD) : held.covered,
         ...(!cancelled ? { [`${kind}Key`]: key, [kind]: ready ? "ready" : "failed" } : {}),
       }));
       // The view's own read, for every reader. A near count can answer later.
@@ -124,7 +118,7 @@ export default function FairPintFlow({
       .catch(() => { if (!cancelled) setPlannerFailed(true); });
     return () => { cancelled = true; };
   }, [firstDraw, Planner, plannerAttempt]);
-  const [data, setData] = useState<PriceReads>({ rows: [], covered: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
+  const [data, setData] = useState<PriceReads>({ rows: [], count: "loading", margin: "loading", circle: "loading", draw: "loading" });
   const area = nearestNightAreaForViewport(cityId, center);
   const activateRoute = (generated: FairPintGenerated) =>
     onRoute(
@@ -149,7 +143,7 @@ export default function FairPintFlow({
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
   const countKey = JSON.stringify(bounds),
     marginKey = readerInView && !viewOnly ? JSON.stringify(marginBounds(bounds, 0.8)) : null,
-    circleKey = chosenPosition ? JSON.stringify(circleBounds(chosenPosition.lat, chosenPosition.lng, 0.8)) : null,
+    circleKey = chosenPosition && !readerInView && !viewOnly ? JSON.stringify(circleBounds(chosenPosition.lat, chosenPosition.lng, 0.8)) : null,
     drawKey = JSON.stringify(drawBounds);
   const nearRead = readerInView ? "margin" : "circle";
   useEffect(() => {
@@ -187,12 +181,14 @@ export default function FairPintFlow({
   usePriceRead(loader, "margin", marginKey, attempt, setData);
   usePriceRead(loader, "circle", circleKey, attempt, setData);
   usePriceRead(loader, "draw", drawKey, attempt, setData);
-  // The near count answers once a finished read holds every row round the
-  // position, whichever read that was. A pan keeps the answer the last margin
-  // gave, and a later read that failed says nothing about those 800 m.
+  // The near count answers once a read has handed over the rows of every
+  // price file round the position, whichever read that was. The loader marks
+  // a file delivered in the step that returns its rows, and that read's state
+  // update is queued before any render, so the count never runs ahead of its
+  // rows. A pan keeps the answer, and a file that failed anywhere else says
+  // nothing about those 800 m.
   const nearPhase = (at: { lat: number; lng: number }): LoadPhase => {
-    const circle = circleBounds(at.lat, at.lng, 0.8);
-    if (data.covered.some((box) => contains(box, circle))) return "ready";
+    if (loader.rowsDelivered(circleBounds(at.lat, at.lng, 0.8))) return "ready";
     const answered = nearRead === "margin" ? data.marginKey === marginKey : data.circleKey === circleKey;
     return answered ? "failed" : "loading";
   };
@@ -256,9 +252,10 @@ export default function FairPintFlow({
           }
           setViewOnly(false);
           if (readerInView) return;
-          // The map already holds a fix. Each tap offers the newest one, with
-          // no second ask.
-          if (readerPosition) {
+          // The map already holds a fix fine enough to count from. Each tap
+          // offers the newest one, with no second ask. A coarse fix is asked
+          // for again, so the card and the venue sheet judge one fix alike.
+          if (readerPosition && mapReaderPositionMeasures(readerPosition)) {
             setPosition(readerPosition);
             setLocationOff(false);
             return;

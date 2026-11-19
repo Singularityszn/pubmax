@@ -311,6 +311,13 @@ export type SlimShardLoader = {
    * is not "incomplete" and neither is it a figure anybody may print.
    */
   coverageComplete(bounds: MapBounds): boolean | null;
+  /**
+   * Has a read already handed over the rows of every shard that could hold a
+   * venue inside `bounds`? Stricter than `coverageComplete`: a shard is loaded
+   * the moment its file lands, but its rows reach a caller only when the read
+   * that asked for it finishes. A figure counted from held rows waits for this.
+   */
+  rowsDelivered(bounds: MapBounds): boolean;
 };
 
 export type SlimShardViewportLoadKind = "target" | "refresh";
@@ -947,6 +954,14 @@ export function createSlimShardLoader(
       if (!manifestAnswered) return null;
       if (!settledManifest) return false;
       return boundsCoveredByLoadedShards(settledManifest, loadedUrls, bounds);
+    },
+
+    rowsDelivered(bounds: MapBounds): boolean {
+      if (wholeIndexLoaded) return true;
+      if (!settledManifest) return false;
+      return settledManifest.shards
+        .filter((shard) => bboxIntersects(shard.bbox, bounds))
+        .every((shard) => deliveredShardKeys.has(shardKey(shard.url)));
     },
   };
 }
