@@ -15,6 +15,7 @@ import { profilePath } from "@/lib/appLink";
 import {
   districtsLed,
   formatInviteCode,
+  isLeagueId,
   LEAGUE_HUES,
   leagueInvitePath,
   LEAGUES_COPY,
@@ -199,7 +200,7 @@ export default function LeagueClient({ id }: { id: string }): React.JSX.Element 
     value: { status: "loading" },
   });
   const state: State = signedOut
-    ? { status: "signed-out" }
+    ? { status: isLeagueId(id) ? "signed-out" : "not-found" }
     : !unresolved && result.revision === accountRevision ? result.value : { status: "loading" };
   const [attempt, setAttempt] = useState(0);
 
