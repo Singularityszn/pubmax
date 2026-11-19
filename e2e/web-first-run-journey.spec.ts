@@ -115,6 +115,36 @@ async function openJourneyFromTheApp(page: Page): Promise<void> {
   }).toPass({ timeout: 30_000 });
 }
 
+test.describe("with analytics undecided", () => {
+  test.use({ storageState: { cookies: [], origins: [] }, serviceWorkers: "block" });
+
+  test("keeps the Soho price readable at 390x844 with consent open", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await openJourneyFromTheApp(page);
+    const consent = page.getByLabel("Anonymous analytics choice");
+    await expect(consent).toBeVisible();
+    await page.getByRole("button", { name: "Use London" }).click();
+    await page.getByRole("button", { name: "£5 or less" }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Pick a London patch instead" }).click();
+    await page.getByRole("button", { name: "Soho", exact: true }).click();
+
+    const result = page.getByRole("heading", { name: /^£\d+\.\d{2} at .+/ });
+    await expect(result).toBeInViewport({ ratio: 1 });
+    await expect(page.locator(".firstRunPanelInner > .firstRunPermissionNote").first())
+      .toBeInViewport({ ratio: 1 });
+    const keepPub = page.getByRole("button", { name: "Keep this pub" });
+    await expect(keepPub).toBeInViewport({ ratio: 1 });
+    await keepPub.click({ trial: true });
+    await expect(consent).toBeInViewport({ ratio: 1 });
+    const artwork = page.locator(".firstRunFigureHero");
+    await expect(artwork).toBeHidden();
+
+    await consent.getByRole("button", { name: "No thanks" }).click();
+    await expect(artwork).toBeInViewport({ ratio: 1 });
+  });
+});
+
 for (const size of SIZES) {
   test(`the web journey asks why, answers from a patch and lands on the plan at ${size.name}`, async ({ page }) => {
     test.setTimeout(120_000);
