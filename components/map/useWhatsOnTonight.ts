@@ -22,6 +22,7 @@ import {
   loadSurfaceJson,
   SURFACE_JUST_READ_MS,
 } from "@/lib/surfaceDataCache";
+import { londonServiceDayRollover, PUBLIC_TONIGHT_FRESH_MS } from "@/lib/tonightListingCache";
 import {
   EMPTY_KIND_OBSERVED_AT,
   isValidWhatsOnRow,
@@ -82,8 +83,6 @@ const FETCH_TIMEOUT_MS = 8_000;
  * Service-night validation also rejects snapshots across London's 04:00 rollover.
  */
 const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
-/** Bound public re-entry downloads without redating source observations. */
-const PUBLIC_TONIGHT_FRESH_MS = 60_000;
 
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
 function whatsOnTonightRequestUrl(
@@ -96,16 +95,6 @@ function whatsOnTonightRequestUrl(
       : null;
   const suffix = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
   return `/api/whats-on?window=tonight&limit=60${suffix}${pubOnly ? "&pubOnly=1" : ""}`;
-}
-
-function tonightRollover(): number {
-  const now = Date.now();
-  const { start } = londonServiceDayBounds(now);
-  // The current window starts at 16:00. An instant one day before that start
-  // is inside the previous service date, even on a clock-change day. Resolve
-  // that date's 04:00 end independently rather than assuming a 24-hour day.
-  const previousWindow = londonServiceDayBounds(Date.parse(start) - 24 * 60 * 60_000);
-  return Date.parse(previousWindow.end);
 }
 
 export type LoadTonightResult = {
@@ -196,7 +185,7 @@ export async function loadWhatsOnTonight(
     {
       signal: opts.signal,
       maxAgeMs: opts.fresh ? -1 : opts.maxAgeMs,
-      requestNotBefore: tonightRollover(),
+      requestNotBefore: londonServiceDayRollover(Date.now()),
       fresh: opts.fresh,
       freshForMs: opts.near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS,
       init: { headers: { accept: "application/json" } },
@@ -247,7 +236,7 @@ const EMPTY_SUMMARY = new Map<string, VenueWhatsOnSummary>();
 export function useWhatsOnTonight(
   enabled: boolean,
   near: { lat: number; lng: number } | null = null,
-  options: { pubOnly?: boolean } = {},
+  options: { pubOnly?: boolean; currentOnly?: boolean } = {},
 ): WhatsOnTonight {
   const [rows, setRows] = useState<WhatsOnRow[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
@@ -266,6 +255,7 @@ export function useWhatsOnTonight(
   const nearLat = near?.lat ?? null;
   const nearLng = near?.lng ?? null;
   const pubOnly = options.pubOnly === true;
+  const currentOnly = options.currentOnly === true;
 
   useEffect(() => {
     if (!enabled) {
@@ -280,9 +270,10 @@ export function useWhatsOnTonight(
     }
     const controller = new AbortController();
     const near = nearLat != null && nearLng != null ? { lat: nearLat, lng: nearLng } : null;
+    const reuseWindowMs = near ? SURFACE_JUST_READ_MS : PUBLIC_TONIGHT_FRESH_MS;
     const load: LoadTonightOpts = {
       signal: controller.signal,
-      maxAgeMs: TONIGHT_SNAPSHOT_MAX_AGE_MS,
+      maxAgeMs: currentOnly ? reuseWindowMs : TONIGHT_SNAPSHOT_MAX_AGE_MS,
       pubOnly,
       fresh: retryAttempt !== lastRetryAttempt.current,
     };
@@ -309,7 +300,7 @@ export function useWhatsOnTonight(
       setStatus(result.status);
     });
     return () => controller.abort();
-  }, [enabled, retryAttempt, nearLat, nearLng, pubOnly]);
+  }, [enabled, retryAttempt, nearLat, nearLng, pubOnly, currentOnly]);
 
   const summary = useMemo(
     () => (rows.length === 0 ? EMPTY_SUMMARY : summariseWhatsOnByVenue(rows)),

@@ -25,6 +25,7 @@ import {
   type TonightCheapestAnswer,
 } from "@/lib/tonightAnswers";
 import type { GetHomeSummary } from "@/lib/tonightGetHome";
+import { TONIGHT_CACHED_LISTINGS_LINE, TONIGHT_LISTINGS_UNAVAILABLE_LINE } from "@/lib/tonightOutListings";
 
 import "./tonightAnswers.css";
 
@@ -36,6 +37,7 @@ export type TonightAnswerListing = {
   sourceLabel: string;
   href: string | null;
   external: boolean;
+  cached?: boolean;
 };
 
 export type TonightRegularNightsView =
@@ -236,16 +238,26 @@ function RegularNightsContent({ view }: { view: TonightRegularNightsView }) {
 function OnTonightCard({
   listing,
   regular,
+  listingsUnavailable,
+  listingsChecking,
+  hasOtherDatedListings,
 }: {
   listing: TonightAnswerListing | null;
   regular: TonightRegularNightsView | null;
+  listingsUnavailable: boolean;
+  listingsChecking: boolean;
+  hasOtherDatedListings: boolean;
 }) {
-  if (!listing && !regular) return null;
+  if (!listing && !regular && !listingsUnavailable && !hasOtherDatedListings) return null;
   return (
     <li className="tonightAnswer" data-testid="tonight-answer-on" data-answer={listing ? "listing" : "regular"}>
       <h2 className="tonightAnswerTitle">On tonight</h2>
+      {listingsUnavailable ? (
+        <p className="tonightAnswerMeta" role="status">{TONIGHT_LISTINGS_UNAVAILABLE_LINE}</p>
+      ) : null}
       {listing ? (
         <>
+          {listing.cached ? <p className="tonightAnswerMeta">{TONIGHT_CACHED_LISTINGS_LINE}</p> : null}
           <p className="tonightAnswerLead">
             {listing.href ? (
               listing.external ? (
@@ -281,7 +293,13 @@ function OnTonightCard({
         </>
       ) : (
         <>
-          <p className="tonightAnswerMeta">{TONIGHT_NO_CONFIRMED_LISTING_LINE}</p>
+          {!listingsUnavailable ? (
+            <p className="tonightAnswerMeta">
+              {listingsChecking ? "Checking tonight's listings." : hasOtherDatedListings
+                ? "See dated listings below."
+                : TONIGHT_NO_CONFIRMED_LISTING_LINE}
+            </p>
+          ) : null}
           {regular ? <TonightRegularNights view={regular} /> : null}
         </>
       )}
@@ -332,6 +350,9 @@ export default function TonightAnswerCards({
   listing,
   regular,
   lastTrain,
+  listingsUnavailable = false,
+  listingsChecking = false,
+  hasOtherDatedListings = false,
   onShareLocation,
 }: {
   cheapest: TonightCheapestAnswer | null;
@@ -340,12 +361,21 @@ export default function TonightAnswerCards({
   /** The regular nights, shown only when there is no confirmed listing. */
   regular: TonightRegularNightsView | null;
   lastTrain: TonightLastTrainView;
+  listingsUnavailable?: boolean;
+  listingsChecking?: boolean;
+  hasOtherDatedListings?: boolean;
   onShareLocation: () => void;
 }) {
   return (
     <ul className="tonightAnswers" aria-label="Tonight in three answers" data-testid="tonight-answers">
       <CheapestCard cheapest={cheapest} />
-      <OnTonightCard listing={listing} regular={listing ? null : regular} />
+      <OnTonightCard
+        listing={listing}
+        regular={listing ? null : regular}
+        listingsUnavailable={listingsUnavailable}
+        listingsChecking={listingsChecking}
+        hasOtherDatedListings={hasOtherDatedListings}
+      />
       <LastTrainCard view={lastTrain} onShareLocation={onShareLocation} />
     </ul>
   );

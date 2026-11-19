@@ -1,24 +1,28 @@
-// The homepage answers keep events, recommendations and recurring deals separate.
-//
-// Captain 7 Sep 2026: "Let's say: What is happening today? What is happening
-// tonight?" The copy lives here, in a pure leaf, so it can
-// be tested without a weather store or a listings provider, and so the client
-// landing component can take the result as props without pulling a
-// `server-only` module into its own graph. lib/landingAnswers.server.ts does
-// the reading and hands the figures in.
+import { londonDayLabel } from "@/lib/londonHour";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
+import { withoutTonightChainRows } from "@/lib/tonightChainLanes";
+import {
+  TONIGHT_LISTINGS_UNAVAILABLE_LINE,
+  tonightLedeComposition,
+  tonightLiveReadUnavailable,
+  type TonightOutAnswer,
+  type TonightWhatsOnStatus,
+} from "@/lib/tonightOutListings";
+import { londonServiceDayBounds, musicLaneRows, type WhatsOnRow } from "@/lib/whatsOn";
 
 export type LandingAnswer = {
   /** The answer the card prints. */
   line: string;
-  /** The London day the answer speaks for, such as "Saturday 19 July". */
+  /** The answer's London day, or an empty string before a listing read. */
   stamp: string;
-  /** False when the lane could not be read, so the card prints no count. */
+  /** False for a link-only answer, a failed read, or stale weather. */
   measured: boolean;
 };
 
 export type LandingAnswers = {
   today: LandingAnswer;
   tonight: LandingAnswer;
+  hypedCount?: number;
 };
 
 /** What the weather read gave us, reduced to what the card uses. */
@@ -46,9 +50,9 @@ export function todayAnswer(weather: TodayWeatherFacts | null, stamp: string): L
 
 /** What the listing lanes gave us, reduced to what the card can say. */
 export type TonightListingFacts = {
-  /** True when neither the What's-On lane nor the Out lane could be read. */
+  /** Availability follows tonightLiveReadUnavailable, including partial failures. */
   unread: boolean;
-  /** How many dated pub events the merged lanes hold for tonight. */
+  /** Dated event count after Tonight's grouping and eligibility rules. */
   count: number;
   /** How many of those dated events are quizzes. */
   quizCount?: number;
@@ -66,7 +70,7 @@ export type TonightListingFacts = {
  */
 export function tonightAnswer(listings: TonightListingFacts, stamp: string): LandingAnswer {
   if (listings.unread) {
-    return { line: "We couldn't reach tonight's listings just now.", stamp, measured: false };
+    return { line: TONIGHT_LISTINGS_UNAVAILABLE_LINE, stamp, measured: false };
   }
   const dealNote = listings.hasDeals ? " See recurring deals." : "";
   if (listings.count >= 1) {
@@ -85,4 +89,34 @@ export function tonightAnswer(listings: TonightListingFacts, stamp: string): Lan
     stamp,
     measured: true,
   };
+}
+
+export const LANDING_TONIGHT_LINK: LandingAnswer = {
+  line: "See London pub listings and regular nights.",
+  stamp: "",
+  measured: false,
+};
+
+/** Count the same grouped, dated cards Tonight can show. */
+export function landingTonightAnswer(
+  rows: readonly WhatsOnRow[],
+  status: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+  now: number,
+  hypedCount?: number,
+): LandingAnswer {
+  const { primaryListingRows, listingRows } = tonightLedeComposition(rows, out, status, now);
+  const music = musicLaneRows(withoutTonightChainRows(groupTonightListings(listingRows, null).map(({ row }) => row)));
+  const primary = groupTonightListings(primaryListingRows, null).map(({ row }) => row);
+  const events = new Map([...primary, ...music]
+    .filter((row) => row.kind !== "deal" && (row.confidence === "confirmed" || row.confidence === "listed"))
+    .map((row) => [row.id, row.kind]));
+  const stamp = londonDayLabel(Date.parse(londonServiceDayBounds(now).start));
+  return tonightAnswer({
+    unread: tonightLiveReadUnavailable(status, out, primary.length + music.length),
+    count: events.size,
+    quizCount: [...events.values()].filter((kind) => kind === "quiz").length,
+    hasDeals: listingRows.some((row) => row.kind === "deal"),
+    hypedCount,
+  }, stamp);
 }

@@ -1,32 +1,16 @@
-import type { LoadWhatsOnResult } from "@/lib/whatsOnStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-const whatsOnRows: WhatsOnRow[] = [];
 const snapshotBox: { value: unknown } = { value: null };
 
 vi.mock("@/lib/weatherFreshness.server", () => ({
   loadFreshWeatherSnapshot: async () => snapshotBox.value,
 }));
 
-vi.mock("@/lib/hypedPubs.server", () => ({
-  loadHypedPubs: async () => ({ generatedAt: null, rows: [] }),
-}));
-
-vi.mock("@/lib/todayListings.server", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/lib/todayListings.server")>();
-  return {
-    ...actual,
-    loadTodayWhatsOnAnswer: async () => whatsOnRows.length > 0
-      ? { rows: whatsOnRows, readStatus: "ready" } as LoadWhatsOnResult
-      : null,
-    loadTodayOutAnswer: async () => ({ body: null, failed: true, pending: false }),
-  };
-});
-
+import { landingTonightAnswer } from "@/lib/landingAnswers";
 import { loadLandingAnswers } from "@/lib/landingAnswers.server";
 
 // The front door is held for an hour (app/page.tsx revalidate), so its weather
@@ -94,15 +78,25 @@ describe("loadLandingAnswers weather tile", () => {
     ["2026-10-25T00:00:00+01:00", "Sunday 25 October"],
     ["2026-10-25T01:30:00+01:00", "Sunday 25 October"],
     ["2026-10-25T01:30:00+00:00", "Sunday 25 October"],
-  ])("dates both completed answers with London's day at %s", async (instant, stamp) => {
+  ])("dates the cached weather answer with London's day at %s", async (instant, stamp) => {
     const answer = await loadLandingAnswers(new Date(instant));
     expect(answer.today.stamp).toBe(stamp);
-    expect(answer.tonight.stamp).toBe(stamp);
+  });
+
+  it("keeps a link without a dated listings claim in the hourly document", async () => {
+    expect((await loadLandingAnswers(NOW)).tonight).toMatchObject({ measured: false, stamp: "" });
   });
 });
 
-describe("loadLandingAnswers Tonight tile", () => {
-  const now = new Date("2026-11-05T18:00:00.000Z");
+describe("the live landing Tonight tile", () => {
+  const whatsOnRows: WhatsOnRow[] = [];
+  const now = Date.parse("2026-11-05T18:00:00.000Z");
+  const out = {
+    body: { status: "ready" as const, events: [], observedAt: {} },
+    failed: false,
+    pending: false,
+  };
+  const answer = () => landingTonightAnswer(whatsOnRows, "ready", out, now);
   const gig: WhatsOnRow = {
     id: "gig", venueId: "venue-example", placeName: "The Example",
     kind: "music", title: "Live music", confidence: "listed",
@@ -117,34 +111,40 @@ describe("loadLandingAnswers Tonight tile", () => {
 
   beforeEach(() => { whatsOnRows.length = 0; });
 
-  it("includes a sourced pub gig from Tonight's secondary music list", async () => {
+  it("includes a sourced pub gig from Tonight's secondary music list", () => {
     whatsOnRows.push(gig);
-    expect((await loadLandingAnswers(now)).tonight.line).toBe("1 pub event listed in London tonight.");
+    expect(answer().line).toBe("1 pub event listed in London tonight.");
   });
 
-  it("names the events as pub quizzes only when every dated event is a quiz", async () => {
+  it("counts grouped quizzes at each pub and excludes recurring deals", () => {
     const quiz: WhatsOnRow = {
       ...gig, id: "quiz", kind: "quiz", title: "Pub quiz",
       source: { label: "Question One", url: "https://questionone.com/venues/example/" },
     };
     whatsOnRows.push(quiz);
-    expect((await loadLandingAnswers(now)).tonight.line).toBe("1 pub quiz listed in London tonight.");
+    expect(answer().line).toBe("1 pub quiz listed in London tonight.");
+    whatsOnRows.push({ ...quiz, id: "quiz-duplicate" });
     whatsOnRows.push({ ...quiz, id: "quiz-2", venueId: "venue-other", placeName: "The Other" }, deal);
-    expect((await loadLandingAnswers(now)).tonight.line)
+    expect(answer().line)
       .toBe("2 pub quizzes listed in London tonight. See recurring deals.");
     whatsOnRows.push(gig);
-    expect((await loadLandingAnswers(now)).tonight.line).toBe("3 pub events listed in London tonight. See recurring deals.");
+    expect(answer().line).toBe("3 pub events listed in London tonight. See recurring deals.");
   });
 
-  it("mentions a recurring deal separately from dated events", async () => {
+  it("mentions a recurring deal separately from dated events", () => {
     whatsOnRows.push(deal);
-    expect((await loadLandingAnswers(now)).tonight.line)
+    expect(answer().line)
       .toBe("No pub events listed for tonight. See recurring deals.");
   });
 
-  it("omits expired deals and stale event checks", async () => {
+  it("omits expired deals and stale event checks", () => {
     whatsOnRows.push({ ...deal, endsAt: "2026-11-05T17:00:00.000Z" });
     whatsOnRows.push({ ...gig, observedAt: "2026-11-03T09:00:00.000Z" });
-    expect((await loadLandingAnswers(now)).tonight.line).toBe("No pub events listed for tonight.");
+    expect(answer().line).toBe("No pub events listed for tonight.");
+  });
+
+  it("withdraws the count when the live read fails despite held rows", () => {
+    expect(landingTonightAnswer([gig], "ready", { ...out, body: null, failed: true }, now))
+      .toMatchObject({ measured: false, line: "Tonight's listings are unavailable right now." });
   });
 });
