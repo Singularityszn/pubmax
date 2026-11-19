@@ -8,12 +8,39 @@
  */
 export const PUBLIC_UPDATES = [
   {
+    id: "2026-11-19-price-sources-signed-out",
+    date: "2026-11-19",
+    title: "Who listed each price, for everyone",
+    changes: [
+      "Listed prices name who listed them and the day we read the source, with or without an account.",
+    ],
+  },
+  {
+    id: "2026-11-18-fair-pint-and-password-reset",
+    date: "2026-11-18",
+    title: "A fair pint on the map, and a way back in",
+    changes: [
+      "Set a fair pint price on the London map and see how many pubs list a pint at that price or less.",
+      "Forgotten your password? Ask for a reset link by email.",
+      "Social shows the latest listed pint prices we hold when it has no posts to show.",
+    ],
+  },
+  {
+    id: "2026-11-16-log-a-price-nearby",
+    date: "2026-11-16",
+    title: "Log a price where you are",
+    changes: [
+      "Log what you paid offers the pubs nearest to you first, with your last drink filled in.",
+    ],
+  },
+  {
     id: "2026-11-14-map-estimates-and-phone-targets",
     date: "2026-11-14",
     title: "Steadier map prices and phone controls",
     changes: [
       "Map pins show an estimated price after a pub's own price reads settle, if no recorded price is available.",
       "About links have larger tap targets on phones.",
+      "Pub Pal is the main way in on the home page. Prices stay open without an account.",
     ],
   },
   {
