@@ -15,8 +15,7 @@ type LeaderboardTableProps = {
   caption?: string;
 };
 
-const LEADERBOARD_HONESTY =
-  "Prices may have changed since the dates shown.";
+const LEADERBOARD_HONESTY = "Not necessarily tonight's price.";
 
 export default function LeaderboardTable({
   entries,
