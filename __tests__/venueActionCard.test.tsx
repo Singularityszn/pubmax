@@ -551,6 +551,23 @@ describe("the card prints the sheet's own price and date", () => {
   });
 });
 
+describe("the walk's origin", () => {
+  const pub = { latitude: 51.5257, longitude: -0.0905 };
+  const dot = { lat: 51.5257, lng: -0.0875 };
+  it("reads the position the map already shows when the reader offered none", () => {
+    expect(venueActionCardWalkMinutes(null, pub)).toBeNull();
+    expect(venueActionCardWalkMinutes(null, pub, dot)).toBe(3);
+  });
+  it("keeps the position the reader offered ahead of the shown one", () => {
+    expect(venueActionCardWalkMinutes({ lat: 51.5357, lng: -0.0905 }, pub, dot)).toBe(14);
+  });
+  it("says nothing from a shown position more than an hour's walk away, and still answers an offered one", () => {
+    const leeds = { lat: 53.8008, lng: -1.5491 };
+    expect(venueActionCardWalkMinutes(null, pub, leeds)).toBeNull();
+    expect(venueActionCardWalkMinutes(leeds, pub)).toBeGreaterThan(60);
+  });
+});
+
 describe("one coral action", () => {
   it("with a fresh drinker price, the card holds exactly one painted door, and it is the plan door", () => {
     for (const [mode, builtIds] of [["suggest", []], ["build", ["venue-other"]]] as const) {

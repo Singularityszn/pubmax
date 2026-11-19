@@ -53,7 +53,7 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
-it("counts around a reader position the map already shows, and asks for location only when it holds none", async () => {
+it("counts around a reader position the map already shows, from the same price files, and lets the reader switch back to the view", async () => {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");
   const loader = shards.createSlimShardLoader("london");
@@ -62,31 +62,59 @@ it("counts around a reader position the map already shows, and asks for location
     { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
     { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
   ];
-  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: async () => rows, coverageComplete: () => true });
+  const requested: string[] = [];
+  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: async (box) => { requested.push(JSON.stringify(box)); return rows; }, coverageComplete: () => true });
   const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const asked = vi.fn();
+  Object.defineProperty(navigator, "geolocation", { configurable: true, value: { getCurrentPosition: asked } });
   const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
   const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
   const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
   const host = document.createElement("div"), mounted = createRoot(host);
+  document.body.append(host);
   const render = (readerPosition: typeof reader | null) => act(async () => {
     mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
   });
-  const locationAsk = () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Use my location");
+  const choice = () => [...host.querySelectorAll("button")].find((button) => /location|in view/i.test(button.textContent ?? ""))!;
+  const spoken = () => host.querySelector('[aria-live="polite"]')?.textContent;
 
   await render(null);
   expect(host.textContent).toContain("2 pubs in view list a pint");
-  expect(locationAsk()).toBeDefined();
+  expect(choice().textContent).toBe("Use my location");
+  const before = [...requested];
 
+  // The dot arrives while the reader's focus is on the location choice.
+  const held = choice();
+  held.focus();
   await render(reader);
   expect(host.textContent).toContain("1 pub within 800 m lists a pint");
-  expect(locationAsk()).toBeUndefined();
+  expect(spoken()).toContain("1 pub within 800 m lists a pint");
+  expect(choice()).toBe(held);
+  expect(document.activeElement).toBe(held);
+  expect(held.textContent).toBe("Count pubs in view");
 
+  // A second fix a few metres on asks for no other price file.
+  await render({ ...reader, lat: 51.5259 });
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(requested).toEqual(before);
+
+  // The reader can go back to the view, and forward again without a new ask.
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(choice().textContent).toBe("Use my location");
+  await act(async () => choice().click());
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(asked).not.toHaveBeenCalled();
+  expect(requested).toEqual(before);
+
+  // A dot off the map leaves the view's own answer and the ask.
   await render({ ...reader, lat: 53.8 });
   expect(host.textContent).toContain("2 pubs in view list a pint");
-  expect(locationAsk()).toBeDefined();
+  expect(choice().textContent).toBe("Use my location");
+  expect(requested).toEqual(before);
 
   await vi.dynamicImportSettled();
-  act(() => { mounted.unmount(); }); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
+  act(() => { mounted.unmount(); }); host.remove(); Reflect.deleteProperty(navigator, "geolocation"); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
 });
 
 it("starts the deferred planner on Draw and permits retry after refusal", async () => {

@@ -60,17 +60,29 @@ export function venueActionCardPriceDate(
 /** Minutes a kilometre takes on foot, at the pace the phone peek always used. */
 const WALK_MINUTES_PER_KM = 12.5;
 
+/** Past this walk a position the reader never offered says nothing useful about a pub. */
+const SHOWN_POSITION_WALK_CEILING_MINUTES = 60;
+
 /**
  * The walk from where the reader stands to the pub, in whole minutes and never
  * less than one, or null when the reader has not shared a location. A
  * straight-line estimate, as the peek always printed it, so the card says
  * "walk" beside it and never a route.
+ *
+ * `shown` is the position the map already paints for a reader who granted
+ * location earlier. It answers only when `from` is absent and the pub is
+ * within an hour's walk, so a reader browsing another city is not handed a
+ * walk they never asked about. The figure is worked out on the device.
  */
 export function venueActionCardWalkMinutes(
   from: { lat: number; lng: number } | null | undefined,
   to: { latitude: number; longitude: number },
+  shown?: { lat: number; lng: number } | null,
 ): number | null {
-  if (!from) return null;
-  const km = haversineKm([from.lng, from.lat], [to.longitude, to.latitude]);
-  return Number.isFinite(km) ? Math.max(1, Math.ceil(km * WALK_MINUTES_PER_KM)) : null;
+  const origin = from ?? shown;
+  if (!origin) return null;
+  const km = haversineKm([origin.lng, origin.lat], [to.longitude, to.latitude]);
+  if (!Number.isFinite(km)) return null;
+  const minutes = Math.max(1, Math.ceil(km * WALK_MINUTES_PER_KM));
+  return !from && minutes > SHOWN_POSITION_WALK_CEILING_MINUTES ? null : minutes;
 }

@@ -28,6 +28,11 @@ function circleBounds(lat: number, lng: number, radiusKm: number): MapBounds {
     dx = radiusKm / (111.32 * Math.cos((lat * Math.PI) / 180));
   return { west: lng - dx, east: lng + dx, south: lat - dy, north: lat + dy };
 }
+function marginBounds(box: MapBounds, marginKm: number): MapBounds {
+  const dy = marginKm / 110.574,
+    dx = marginKm / (111.32 * Math.cos((((box.south + box.north) / 2) * Math.PI) / 180));
+  return { west: box.west - dx, east: box.east + dx, south: box.south - dy, north: box.north + dy };
+}
 function inCircle(row: SlimVenue, lat: number, lng: number, km: number) {
   const rad = Math.PI / 180,
     a =
@@ -61,6 +66,7 @@ export default function FairPintFlow({
   const loader = useMemo(() => createSlimShardLoader(cityId), [cityId]);
   const [chosenPosition, setPosition] = useState<{ lat: number; lng: number } | null>(null);
   const [locationOff, setLocationOff] = useState(false);
+  const [viewOnly, setViewOnly] = useState(false);
   const [offline, setOffline] = useState(false);
   const [attempt, setAttempt] = useState(0);
   const [returnToCard, setReturnToCard] = useState(false);
@@ -91,8 +97,13 @@ export default function FairPintFlow({
       generated.stops.map((stop) => stop.venueId),
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     );
-  const position = chosenPosition === null ? mapReaderPositionInView(readerPosition, bounds) : (readerPosition ?? chosenPosition);
-  const countBounds = position ? circleBounds(position.lat, position.lng, 0.8) : bounds;
+  const readerInView = mapReaderPositionInView(readerPosition, bounds);
+  const position = viewOnly ? null : chosenPosition === null ? readerInView : (readerPosition ?? chosenPosition);
+  // The view decides which price files load. A position on screen only
+  // filters them, so the reader's own fix never picks a request.
+  const countBounds = position && !mapReaderPositionInView(position, bounds)
+    ? circleBounds(position.lat, position.lng, 0.8)
+    : marginBounds(bounds, 0.8);
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
   const countKey = JSON.stringify(countBounds),
     drawKey = JSON.stringify(drawBounds);
@@ -204,6 +215,12 @@ export default function FairPintFlow({
           selectionHaptic();
         }}
         onLocation={() => {
+          if (position) {
+            setViewOnly(true);
+            return;
+          }
+          setViewOnly(false);
+          if (readerInView || chosenPosition) return;
           if (!navigator.geolocation) {
             setLocationOff(true);
             return;

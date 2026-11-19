@@ -513,7 +513,7 @@ import {
   resolveMapOpeningView,
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
-import { latchMapReaderLocationWatch, mapReaderPositionInView } from "@/lib/mapReaderPosition";
+import { latchMapReaderLocationWatch } from "@/lib/mapReaderPosition";
 import { FairPintMapBridge } from "@/components/map/fairpint/FairPintBridge";
 import { supportsFairPint } from "@/lib/fairPint";
 import { useMapArrivalCard } from "@/components/map/useMapArrivalCard";
@@ -5551,7 +5551,7 @@ export default function PubMap({
     const actionSummary = (
       <VenueActionSummary
         label={selectedVenueLabels.summaryLabel}
-        walkMinutes={venueActionCardWalkMinutes(userLocation ?? mapReaderPositionInView(readerPosition, mapBounds), selectedVenue)}
+        walkMinutes={venueActionCardWalkMinutes(userLocation, selectedVenue, readerPosition)}
         price={
           activeLensPrices !== null ? (
             <span>

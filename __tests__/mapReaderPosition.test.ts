@@ -8,6 +8,7 @@ import {
   MAP_READER_LOCATION_LATCH_EVENT,
   mapReaderPositionFromGeolocation,
   mapReaderPositionGeoJSON,
+  mapReaderPositionInView,
   USER_LOCATION_ACCURACY_RADIUS_PX,
 } from "@/lib/mapReaderPosition";
 import type { MapReaderPosition } from "@/lib/mapReaderPosition";
@@ -261,6 +262,20 @@ describe("mapReaderPositionFromGeolocation", () => {
         timestamp: 0,
       } as GeolocationPosition),
     ).toBeNull();
+  });
+});
+
+describe("mapReaderPositionInView", () => {
+  const view = { west: -0.1, east: -0.08, south: 51.52, north: 51.53 };
+  it("keeps a position on the map in front of the reader, edges included", () => {
+    const inside = { lat: 51.5257, lng: -0.0875 };
+    expect(mapReaderPositionInView(inside, view)).toBe(inside);
+    expect(mapReaderPositionInView({ lat: 51.52, lng: -0.1 }, view)).not.toBeNull();
+  });
+  it("answers null off the map, with no position, or before the map has bounds", () => {
+    expect(mapReaderPositionInView({ lat: 53.8, lng: -1.55 }, view)).toBeNull();
+    expect(mapReaderPositionInView(null, view)).toBeNull();
+    expect(mapReaderPositionInView({ lat: 51.5257, lng: -0.0875 }, null)).toBeNull();
   });
 });
 

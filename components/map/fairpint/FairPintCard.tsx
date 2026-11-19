@@ -98,6 +98,12 @@ export default function FairPintCard({
     if (early) early.hidden = true;
   }, []);
   useLayoutEffect(() => { if (focusOnMount) slider.current?.focus({ preventScroll: true }); }, [focusOnMount]);
+  const announcedLocated = useRef(located);
+  useEffect(() => {
+    if (announcedLocated.current === located) return;
+    announcedLocated.current = located;
+    setAnnouncement(line);
+  }, [located, line]);
   return (
     <FairPintFrame
       area={area}
