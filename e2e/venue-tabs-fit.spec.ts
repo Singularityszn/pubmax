@@ -107,11 +107,8 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
       stripRight: strip.right,
       tabs: [...el.querySelectorAll<HTMLElement>(".venueTab")].map((tab) => {
         const r = tab.getBoundingClientRect();
-        const label = [...tab.children].find(
-          (child) => getComputedStyle(child).display !== "none",
-        );
         const range = document.createRange();
-        if (label) range.selectNodeContents(label);
+        range.selectNodeContents(tab);
         const text = range.getBoundingClientRect();
         return {
           label: tab.getAttribute("aria-label"),
