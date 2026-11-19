@@ -17,6 +17,7 @@ export default function FairPintFrame({
   announcement = "",
   reason = "",
   failed = false,
+  located = false,
   locationOff = false,
   error = "",
   pending = false,
@@ -34,6 +35,7 @@ export default function FairPintFrame({
   announcement?: string;
   reason?: string;
   failed?: boolean;
+  located?: boolean;
   locationOff?: boolean;
   error?: string;
   pending?: boolean;
@@ -73,14 +75,16 @@ export default function FairPintFrame({
       {failed ? (
         <button type="button" className={buttonVariants({ variant: "ghost" })} onClick={onRetry}>Retry</button>
       ) : null}
-      <button
-        type="button"
-        className={buttonVariants({ variant: "ghost" })}
-        data-early-location={prelude || undefined}
-        onClick={onLocation}
-      >
-        {locationOff ? "Location is off" : "Use my location"}
-      </button>
+      {located ? null : (
+        <button
+          type="button"
+          className={buttonVariants({ variant: "ghost" })}
+          data-early-location={prelude || undefined}
+          onClick={onLocation}
+        >
+          {locationOff ? "Location is off" : "Use my location"}
+        </button>
+      )}
       {error ? <p role="alert">{error}</p> : null}
       {pending ? <p role="status">Drawing your night…</p> : null}
       <button

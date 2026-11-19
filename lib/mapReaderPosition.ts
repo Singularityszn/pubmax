@@ -15,6 +15,22 @@ export type MapReaderPosition = {
   accuracyMeters: number;
 };
 
+/**
+ * The reader's position when the map in front of them shows it, else null. A
+ * surface may count or measure from the dot without a second ask only while
+ * the dot is on screen; a reader browsing a city they are not in keeps the
+ * view's own answer.
+ */
+export function mapReaderPositionInView<T extends { lat: number; lng: number }>(
+  position: T | null | undefined,
+  bounds: { west: number; south: number; east: number; north: number } | null | undefined,
+): T | null {
+  if (!position || !bounds) return null;
+  const inView = position.lng >= bounds.west && position.lng <= bounds.east &&
+    position.lat >= bounds.south && position.lat <= bounds.north;
+  return inView ? position : null;
+}
+
 export const MAP_READER_LOCATION_LATCH_EVENT = "pubmax:map-reader-location-latch";
 
 /** Signal that the reader granted location through an existing map ask. */

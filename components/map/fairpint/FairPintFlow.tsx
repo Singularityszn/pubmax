@@ -9,7 +9,7 @@ import type { CityId } from "@/lib/cities";
 import { nearestNightAreaForViewport } from "@/lib/nightAreas";
 import type { fairPence } from "@/lib/fairPintPricing";
 import { readFairPint, setFairPintSession, writeFairPint, takeEarlyFairPint } from "@/lib/fairPint";
-import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation } from "@/lib/mapReaderPosition";
+import { latchMapReaderLocationWatch, mapReaderPositionFromGeolocation, mapReaderPositionInView } from "@/lib/mapReaderPosition";
 import { dismissMapFirstVisitArrival, setMapFirstVisitArrivalCardVisible } from "@/lib/mapFirstVisitArrival";
 import { retryablePlannerImport } from "./retryablePlannerImport";
 
@@ -91,7 +91,7 @@ export default function FairPintFlow({
       generated.stops.map((stop) => stop.venueId),
       data.rows.filter((row) => generated.stops.some((stop) => stop.venueId === row.id)),
     );
-  const position = chosenPosition === null ? null : (readerPosition ?? chosenPosition);
+  const position = chosenPosition === null ? mapReaderPositionInView(readerPosition, bounds) : (readerPosition ?? chosenPosition);
   const countBounds = position ? circleBounds(position.lat, position.lng, 0.8) : bounds;
   const drawBounds = area ? circleBounds(area.centre.lat, area.centre.lng, area.radiusKm) : bounds;
   const countKey = JSON.stringify(countBounds),

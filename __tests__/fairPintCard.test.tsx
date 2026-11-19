@@ -53,6 +53,42 @@ it("publishes the view count while draw-area cells are still pending", async () 
   act(() => { mounted.unmount(); }); mark.mockRestore(); shards.mockRestore();
 });
 
+it("counts around a reader position the map already shows, and asks for location only when it holds none", async () => {
+  localStorage.clear();
+  const shards = await import("@/lib/slimShards");
+  const loader = shards.createSlimShardLoader("london");
+  const listed = [500, "https://www.pint-prices.com/pub/listed", new Date(Date.now() - 86400000).toISOString()] as const;
+  const rows = [
+    { id: "near", name: "Near pub", cheapestPrice: 5, borough: "Islington", lat: 51.5258, lng: -0.0876, fairPint: listed },
+    { id: "far", name: "Far pub", cheapestPrice: 5, borough: "Islington", lat: 51.5398, lng: -0.0876, fairPint: listed },
+  ];
+  const spy = vi.spyOn(shards, "createSlimShardLoader").mockReturnValue({ ...loader, inBounds: async () => rows, coverageComplete: () => true });
+  const mark = vi.spyOn(performance, "mark").mockImplementation(() => ({} as PerformanceMark));
+  const { default: Flow } = await import("@/components/map/fairpint/FairPintFlow");
+  const bounds = { west: -0.1, east: -0.08, south: 51.52, north: 51.545 };
+  const reader = { lat: 51.5257, lng: -0.0875, accuracyMeters: 20 };
+  const host = document.createElement("div"), mounted = createRoot(host);
+  const render = (readerPosition: typeof reader | null) => act(async () => {
+    mounted.render(createElement(Flow, { priceReader: fairPence, mobile: true, cityId: "london", bounds, center: [-0.0875, 51.5257], readerPosition, onCommit: () => {}, onRoute: () => {} }));
+  });
+  const locationAsk = () => [...host.querySelectorAll("button")].find((button) => button.textContent === "Use my location");
+
+  await render(null);
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(locationAsk()).toBeDefined();
+
+  await render(reader);
+  expect(host.textContent).toContain("1 pub within 800 m lists a pint");
+  expect(locationAsk()).toBeUndefined();
+
+  await render({ ...reader, lat: 53.8 });
+  expect(host.textContent).toContain("2 pubs in view list a pint");
+  expect(locationAsk()).toBeDefined();
+
+  await vi.dynamicImportSettled();
+  act(() => { mounted.unmount(); }); mark.mockRestore(); spy.mockRestore(); localStorage.clear();
+});
+
 it("starts the deferred planner on Draw and permits retry after refusal", async () => {
   localStorage.clear();
   const shards = await import("@/lib/slimShards");

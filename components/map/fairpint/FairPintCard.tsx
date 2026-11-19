@@ -106,6 +106,7 @@ export default function FairPintCard({
       announcement={announcement}
       reason={reason}
       failed={loadFailed || count.phase === "failed" || draw.phase === "failed"}
+      located={located}
       locationOff={locationOff}
       error={error}
       pending={pending}
