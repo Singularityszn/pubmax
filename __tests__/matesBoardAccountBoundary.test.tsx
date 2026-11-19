@@ -29,6 +29,7 @@ vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 import MatesBoardClient from "@/app/social/leaderboard/MatesBoardClient";
 import LeaguesClient from "@/app/social/leagues/LeaguesClient";
 import LeagueClient from "@/app/social/leagues/[id]/LeagueClient";
+import { LEAGUES_COPY } from "@/lib/leagues";
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -132,6 +133,7 @@ it("tells a signed-out reader a malformed league link is not a league, without a
   expect(session.request).not.toHaveBeenCalled();
   expect(door()).toBeNull();
   expect(busy()).toBe("false");
+  expect(host.textContent).toContain(LEAGUES_COPY.notFound);
 });
 
 it.each(outcomes)("hides the previous reader's %s outcome in the first account-change commit", async (_name, response) => {
