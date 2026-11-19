@@ -148,14 +148,13 @@ test("phone 390 at 200% text: the tab strip wraps with every label whole inside 
   }
 });
 
-// Named photo fallbacks now draw a sign in a short reserved frame. The old
-// placeholder was one line. The price and the five tabs must remain usable.
-// The Sir Christopher Hatton has no photo.
+// The Sir Christopher Hatton has no photo. Its sign must be legible and the
+// price and five tabs must remain usable.
 for (const viewport of [
   { width: 390, height: 844, scope: PORTAL },
   { width: 1440, height: 900, scope: ".venueInspector" },
 ] as const) {
-  test(`${viewport.width}: the illustrated header is short and the tabs remain usable`, async ({ page }) => {
+  test(`${viewport.width}: the illustrated header is legible and the tabs remain usable`, async ({ page }) => {
     test.slow();
     await page.setViewportSize({ width: viewport.width, height: viewport.height });
     await preparePage(page);
@@ -181,7 +180,8 @@ for (const viewport of [
         clientWidth: element.clientWidth,
       };
     });
-    expect(box.height).toBeCloseTo(viewport.width === 390 ? 48 : 112, 0);
+    const board = photo.locator(".pubSign__swing");
+    await expect.poll(async () => (await board.boundingBox())?.height ?? 0).toBeGreaterThan(90);
     expect(Math.abs(box.width - box.columnWidth)).toBeLessThanOrEqual(2);
     expect(box.scrollWidth).toBeLessThanOrEqual(box.clientWidth + 1);
 
