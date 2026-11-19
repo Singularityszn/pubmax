@@ -16,6 +16,7 @@ import { clientIp, hashIp } from "@/lib/supabase";
 // Dashboard flags change without a deploy, so this is minutes, not the
 // static-data hour. Vercel drops the edge copy on the next deploy anyway.
 const PROVIDER_EDGE_MAX_AGE_SECONDS = 300;
+const PROVIDER_BROWSER_MAX_AGE_SECONDS = 60;
 const PROVIDER_STALE_WHILE_REVALIDATE_SECONDS = 60;
 
 // `?fresh=1` skips the edge and goes to Supabase every time, so that lane alone
@@ -48,6 +49,7 @@ export async function GET(request: Request): Promise<Response> {
   const availability = { ...settings.social, phone: settings.phone };
   if (fresh) return jsonNoStore(availability);
   return jsonCached(availability, {
+    maxAge: PROVIDER_BROWSER_MAX_AGE_SECONDS,
     sMaxAge: PROVIDER_EDGE_MAX_AGE_SECONDS,
     staleWhileRevalidate: PROVIDER_STALE_WHILE_REVALIDATE_SECONDS,
   });
