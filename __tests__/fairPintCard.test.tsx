@@ -8,6 +8,29 @@ import { FAIR_PINT_KEY, readFairPint, writeFairPint } from "@/lib/fairPint";
 import { appliedPintPriceCap, pintPriceCapsFor } from "@/lib/pintPriceCaps";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+it("updates the slider's spoken price after a keyboard change", () => {
+  const host = document.createElement("div");
+  const root = createRoot(host);
+  const counts = () => ({ phase: "ready" as const, count: 4 });
+  const onCommit = vi.fn();
+  try {
+    act(() => root.render(
+      <FairPintCard start={600} area="Soho" counts={counts} drawCounts={counts}
+        located={false} locationOff={false} offline={false} onInput={() => {}}
+        onCommit={onCommit} onLocation={() => {}} onRetry={() => {}} onDraw={() => {}} onClose={() => {}} />,
+    ));
+    const slider = host.querySelector('input[type="range"]')!;
+    act(() => {
+      slider.dispatchEvent(new KeyboardEvent("keydown", { key: "PageDown", bubbles: true, cancelable: true }));
+      slider.dispatchEvent(new KeyboardEvent("keyup", { key: "PageDown", bubbles: true }));
+    });
+    expect(onCommit).toHaveBeenCalledWith(550);
+    expect(slider.getAttribute("aria-valuetext")).toBe("5 pounds and 50 pence, 4 pubs in view");
+  } finally {
+    act(() => root.unmount());
+  }
+});
+
 it("keeps a drag local, commits exact pence once on release, and abandons cancelled input", () => {
   localStorage.clear();
   const host = document.createElement("div"), root = createRoot(host);
@@ -494,7 +517,7 @@ it("dismisses for this session when persistent storage rejects the close", async
 });
 it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-chat", "/map?max=5.3"])("keeps an early HTML gesture until the live flow takes ownership (%s)", async (path) => {
   vi.stubEnv("NEXT_RUNTIME", "nodejs");
-  const { bootFairPintCard, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN } = await import("@/lib/fairPint");
+  const { bootFairPintCard, fairPintValueText, takeEarlyFairPint, validFairPint, FAIR_PINT_INTENT_PARAMS, FAIR_PINT_PATH_PATTERN } = await import("@/lib/fairPint");
   const { searchHasArrivalParam } = await import("@/lib/mapArrivalParams");
   const { BUDGET_CHOICES, BUDGET_KEY, budgetCeiling, writeBudgetChoice } = await import("@/lib/onboardingFlow");
   const { MAP_FIRST_VISIT_ARRIVAL_KEY } = await import("@/lib/mapFirstVisitArrival");
@@ -503,11 +526,13 @@ it.each(["/map", "/map?utm_source=group-chat", "/map/london?utm_source=group-cha
   host.innerHTML = '<output></output><input type="range" min="300" max="800" step="10"><button aria-label="Close"></button>';
   document.body.append(host);
   bootFairPintCard({ priceKey: FAIR_PINT_KEY, budgetKey: BUDGET_KEY, dismissalKey: MAP_FIRST_VISIT_ARRIVAL_KEY, changeEvent: "pubmax:map-first-visit-arrival",
-    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam);
+    pathPattern: FAIR_PINT_PATH_PATTERN, intentKeys: FAIR_PINT_INTENT_PARAMS, budgets: Object.fromEntries(BUDGET_CHOICES.map(({ id }) => [id, Math.round((budgetCeiling(id) ?? 8) * 100)])) }, validFairPint, searchHasArrivalParam, fairPintValueText);
   const slider = host.querySelector("input")!;
   expect(host.hidden).toBe(false); expect(slider.value).toBe("700");
+  expect(slider.getAttribute("aria-valuetext")).toBe("7 pounds, loading prices");
   slider.value = "530"; slider.dispatchEvent(new Event("input"));
   expect(host.querySelector("output")?.textContent).toBe("£5.30");
+  expect(slider.getAttribute("aria-valuetext")).toBe("5 pounds and 30 pence, loading prices");
   expect(takeEarlyFairPint()).toBeNull();
   expect(localStorage.getItem(FAIR_PINT_KEY)).toBeNull();
   slider.dispatchEvent(new Event("change"));

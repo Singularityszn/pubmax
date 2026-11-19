@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { formatPence } from "@/lib/formatGbp";
 import FairPintFrame, { FAIR_PINT_LOADING_LINE } from "./FairPintFrame";
 
 export type FairPintCounts = { phase: "loading" } | { phase: "failed" } | { phase: "ready"; count: number };
@@ -57,7 +58,7 @@ export default function FairPintCard({
   const dirty = useRef(false);
   const count = counts(pence),
     draw = drawCounts(pence);
-  const figure = `£${(pence / 100).toFixed(2)}`;
+  const figure = formatPence(pence);
   const geography = located ? "within 800 m" : "in view";
   const describeCount = (current: FairPintCounts, amount: string) =>
     offline
@@ -88,7 +89,7 @@ export default function FairPintCard({
     dirty.current = false;
     held.current = value;
     onCommit(value);
-    setAnnouncement(describeCount(counts(value), `£${(value / 100).toFixed(2)}`));
+    setAnnouncement(describeCount(counts(value), formatPence(value)));
   };
   useLayoutEffect(() => {
     nativeRelease.current = release;
@@ -113,7 +114,8 @@ export default function FairPintCard({
   return (
     <FairPintFrame
       area={area}
-      figure={figure}
+      pence={pence}
+      priceStatus={offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}
       countLine={line}
       announcement={announcement}
       reason={reason}
@@ -130,7 +132,6 @@ export default function FairPintCard({
       slider={{
         ref: slider,
         value: pence,
-        "aria-valuetext": `${figure}, ${offline ? "you are offline" : count.phase === "failed" || draw.phase === "failed" ? "could not load prices" : count.phase === "ready" ? `${count.count} ${count.count === 1 ? "pub" : "pubs"} ${located ? "within 800 metres" : "in view"}` : "loading prices"}`,
         onPointerDown: (event) => event.currentTarget.setPointerCapture(event.pointerId),
         onInput: (event) => input(event.currentTarget.valueAsNumber),
         onPointerUp: release,
