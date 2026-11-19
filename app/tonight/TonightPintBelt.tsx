@@ -270,7 +270,8 @@ export default function TonightPintBelt({ rows }: { rows: readonly TonightCheapP
             <span className="pintBeltMatName">{row.name}</span>
             <PintPriceBadge priceGbp={row.priceGbp} venueId={row.venueId} />
             <span className="pintBeltMatMeta">
-              {row.chain ? tonightCheapPintChainLabel(row.chain) : row.borough}
+              {row.borough}
+              {row.chain ? <><br />{tonightCheapPintChainLabel(row.chain)}</> : null}
             </span>
           </Link>
         ))}

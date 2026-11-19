@@ -1,40 +1,27 @@
-import { cheapestPints, type LeaderboardRowView } from "@/lib/leaderboard";
-import { PRICE_STANDINGS, type PriceStanding } from "@/lib/priceTier";
+import type { HuntStanding } from "@/lib/cheapestHunt";
+import { isHttpUrl } from "@/lib/httpUrl.mjs";
+import type { TonightCheapPint } from "@/lib/tonightCheapPints";
 import type { Venue } from "@/lib/venues";
 import { displayVenueName } from "@/lib/venueDisplay";
 
-// The Discover board, cut from the bundled pint dataset at BUILD time.
-//
-// Discover prints ten rows and a handful of "Then vs Now" comparisons. It used
-// to fetch `public/data/pint_prices_app_dataset.json` in the BROWSER to get
-// them: 6,868 KB decoded and parsed on a phone, the largest single response the
-// product serves anybody, for ten rows. Nothing in that download is a live
-// number, every figure being a build artifact, so the answer is cut once by
-// `npm run build:discover-board` and shipped as this file.
-//
-// TWO lanes, because they are two questions:
-//   `cheapest`  is the finished leaderboard, ranked here so the producer and
-//               the reader cannot disagree about what "cheapest" means.
-//   `baselines` is the "then" half of Then vs Now, which cannot be precomputed
-//               because the "now" half is a live community drop read at
-//               request time. It carries the three fields `computeThenVsNow`
-//               reads and nothing else.
-//
-// Pure: no fetch, no React, no filesystem. The script writes it, the page
-// parses it, `__tests__/discoverBoard.test.ts` recomputes it from the dataset
-// and fails when the shipped file drifts.
+// The build ships the shared London ranking and compact historical baselines
+// together so the browser never downloads the full pint dataset.
 
 /** Where the built board is served from. */
-export const DISCOVER_BOARD_PATH = "/data/discover/board.json";
+export const DISCOVER_BOARD_PATH = "/data/discover/rankings.json";
 
 /** How many rows the leaderboard publishes. */
 export const DISCOVER_BOARD_LIMIT = 10;
 
-/**
- * One ranked row. It IS `LeaderboardRowView`, so the built file and the table
- * that prints it are one shape rather than two that can drift.
- */
-export type DiscoverBoardRow = LeaderboardRowView;
+export type DiscoverBoardRow = {
+  rank: number;
+  area: string;
+  mapHref: string;
+  publisher: { label: string; url: string };
+  observedAt: string;
+  standing: HuntStanding;
+  venue: Pick<Venue, "id" | "name" | "cheapestPint"> & { cheapestPrice: number };
+};
 
 /** One venue's "then" price: the three fields `computeThenVsNow` reads. */
 type DiscoverBoardBaseline = {
@@ -55,26 +42,29 @@ export type DiscoverBoard = {
   baselines: DiscoverBoardBaseline[];
 };
 
-/**
- * Cut the board from the grouped dataset. The producer's whole rule, so the
- * build script holds no ranking logic of its own.
- */
 export function discoverBoardFromVenues(
   venues: Venue[],
   observedAt: string,
-  limit = DISCOVER_BOARD_LIMIT,
+  ranking: readonly TonightCheapPint[],
 ): DiscoverBoard {
-  const cheapest = cheapestPints(venues, limit).map((entry) => ({
-    rank: entry.rank,
-    area: entry.area,
-    standing: entry.standing,
-    venue: {
-      id: entry.venue.id,
-      name: entry.venue.name,
-      cheapestPint: entry.venue.cheapestPint,
-      cheapestPrice: entry.venue.cheapestPrice,
-    },
-  }));
+  const cheapest: DiscoverBoardRow[] = [];
+  for (const entry of ranking) {
+    if (!entry.publisher || !entry.observedAt || !entry.standing || !entry.mapHref) continue;
+    cheapest.push({
+      rank: cheapest.length + 1,
+      area: entry.borough,
+      publisher: entry.publisher,
+      observedAt: entry.observedAt,
+      standing: entry.standing,
+      mapHref: entry.mapHref,
+      venue: {
+        id: entry.venueId,
+        name: entry.name,
+        cheapestPint: entry.drinkLabel ?? "",
+        cheapestPrice: entry.priceGbp,
+      },
+    });
+  }
 
   const baselines: DiscoverBoardBaseline[] = [];
   for (const venue of venues) {
@@ -90,8 +80,10 @@ function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-function isPriceStanding(value: unknown): value is PriceStanding {
-  return typeof value === "string" && (PRICE_STANDINGS as readonly string[]).includes(value);
+function parsePublisher(raw: unknown): DiscoverBoardRow["publisher"] | null {
+  if (!raw || typeof raw !== "object") return null;
+  const { label, url } = raw as Record<string, unknown>;
+  return typeof label === "string" && label.trim() && isHttpUrl(url) ? { label, url } : null;
 }
 
 function parseRow(raw: unknown): DiscoverBoardRow | null {
@@ -104,13 +96,18 @@ function parseRow(raw: unknown): DiscoverBoardRow | null {
   if (typeof v.name !== "string") return null;
   if (!isFiniteNumber(v.cheapestPrice)) return null;
   if (!isFiniteNumber(row.rank)) return null;
-  // A row without a standing is DROPPED rather than defaulted: a default here
-  // would print a trust word nobody decided, which is the unlabelled board this
-  // field was added to end.
-  if (!isPriceStanding(row.standing)) return null;
+  if (row.standing !== "listed" && row.standing !== "confirmed") return null;
+  if (typeof row.area !== "string" || !row.area.trim()) return null;
+  if (typeof row.mapHref !== "string" || !row.mapHref.startsWith("/map?sel=")) return null;
+  if (typeof row.observedAt !== "string" || !Number.isFinite(Date.parse(row.observedAt))) return null;
+  const publisher = parsePublisher(row.publisher);
+  if (!publisher) return null;
   return {
     rank: row.rank,
-    area: typeof row.area === "string" ? row.area : "",
+    area: row.area,
+    mapHref: row.mapHref,
+    publisher,
+    observedAt: row.observedAt,
     standing: row.standing,
     venue: {
       id: v.id,

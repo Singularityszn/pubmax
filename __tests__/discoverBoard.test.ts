@@ -8,9 +8,11 @@ import {
 } from "@/lib/discoverBoard";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
+import { loadLondonPintRanking } from "@/lib/londonPintRanking.server";
+import { TONIGHT_CHEAP_PINTS_LIMIT } from "@/lib/tonightCheapPints";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
-import shipped from "../public/data/discover/board.json";
+import shipped from "../public/data/discover/rankings.json";
 
 // The fence over the Discover board: the shipped artifact must be exactly what
 // `npm run build:discover-board` cuts from the bundled dataset today. Discover
@@ -19,6 +21,12 @@ import shipped from "../public/data/discover/board.json";
 // behind "the browser recomputes it anyway" now that the browser does not.
 
 const venues = groupVenuePrices(dataset as VenuePrice[]);
+
+const evidence = {
+  mapHref: "/map?sel=a",
+  observedAt: "2026-01-01T12:00:00.000Z",
+  publisher: { label: "Pub menu", url: "https://pub.example/menu" },
+};
 
 describe("the shipped Discover board", () => {
   it("publishes the same cheapest London pint as the hunt used by Tonight", async () => {
@@ -30,10 +38,25 @@ describe("the shipped Discover board", () => {
     });
   });
 
-  it("is byte-for-byte what the dataset yields today", () => {
+  it("keeps Tonight's order, excludes the uncorroborated branch and retains its baseline", async () => {
+    const tonight = await loadLondonPintRanking(TONIGHT_CHEAP_PINTS_LIMIT);
+    expect(shipped.cheapest.slice(0, TONIGHT_CHEAP_PINTS_LIMIT).map((row) => ({
+      id: row.venue.id, area: row.area, price: row.venue.cheapestPrice,
+    }))).toEqual(tonight.map((row) => ({
+      id: row.venueId, area: row.borough, price: row.priceGbp,
+    })));
+    expect(shipped.cheapest.filter((row) => row.venue.name === "J.J. Moon's")).toHaveLength(1);
+    expect(shipped.cheapest.some((row) => row.venue.id === "venue-o98nz5")).toBe(false);
+    expect(shipped.baselines).toContainEqual(expect.objectContaining({
+      id: "venue-o98nz5", cheapestPrice: 2.09,
+    }));
+  });
+
+  it("is byte-for-byte what the bundled inputs yield today", async () => {
     const rebuilt = discoverBoardFromVenues(
       venues,
       PINT_DATASET_OBSERVED_AT.toISOString(),
+      await loadLondonPintRanking(DISCOVER_BOARD_LIMIT),
     );
     expect(shipped).toEqual(rebuilt);
   });
@@ -58,7 +81,7 @@ describe("the shipped Discover board", () => {
   });
 
   it("is served from the path the page reads", () => {
-    expect(DISCOVER_BOARD_PATH).toBe("/data/discover/board.json");
+    expect(DISCOVER_BOARD_PATH).toBe("/data/discover/rankings.json");
   });
 });
 
@@ -81,6 +104,7 @@ describe("parseDiscoverBoard", () => {
       observedAt: "2026-01-01T00:00:00.000Z",
       cheapest: [
         {
+          ...evidence,
           rank: 1,
           area: "Southwark",
           standing: "listed",
@@ -105,7 +129,7 @@ describe("parseDiscoverBoard", () => {
       cheapest: [
         { rank: 1, area: "Southwark", venue: { id: "a", name: "A", cheapestPrice: 4 } },
         { rank: 2, area: "Camden", standing: "cheap", venue: { id: "b", name: "B", cheapestPrice: 5 } },
-        { rank: 3, area: "Hackney", standing: "listed", venue: { id: "c", name: "C", cheapestPrice: 6 } },
+        { ...evidence, mapHref: "/map?sel=c", rank: 3, area: "Hackney", standing: "listed", venue: { id: "c", name: "C", cheapestPrice: 6 } },
       ],
       baselines: [],
     });

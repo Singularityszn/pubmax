@@ -47,7 +47,7 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
     {"owner": "answerFromBody", "count": 1, "reason": "Decodes the server response without choosing winners."},
   ],
   "lib/discoverBoard.ts": [
-    {"owner": "discoverBoardFromVenues", "count": 2, "reason": "Publishes qualified leaderboard winners and separate historical baselines."},
+    {"owner": "discoverBoardFromVenues", "count": 1, "reason": "Carries historical baselines without ranking them."},
     {"owner": "parseRow", "count": 2, "reason": "Validates persisted board output."},
     {"owner": "parseBaseline", "count": 2, "reason": "Validates historical baseline output without ranking."},
   ],
@@ -76,13 +76,6 @@ export const PRICE_READ_ALLOWANCES: Record<string, readonly PriceReadAllowance[]
   ],
   "lib/lastTrain.server.ts": [
     {"owner": "nearestPubsToStation", "count": 1, "reason": "Chooses pubs by distance and carries their ordinary display prices."},
-  ],
-  "lib/leaderboard.ts": [
-    {"owner": "hasPrice", "count": 1, "reason": "Narrows an ordinary display type and grants no ranking authority."},
-    {"owner": "leaderboardStandingFor", "count": 1, "reason": "Builds the selected price receipt."},
-    {"owner": "sharedPriceListKey", "count": 1, "reason": "Builds a cache key without choosing winners."},
-    {"owner": "cheapestPints", "count": 2, "reason": "Filters with the comparable policy before sorting."},
-    {"owner": "cheapestByArea", "count": 6, "reason": "Filters with the comparable policy before selecting area winners."},
   ],
   "lib/listedDrinkCoverage.ts": [
     {"owner": "listedDrinkCoverage", "count": 1, "reason": "Counts listed drink coverage without ranking prices."},

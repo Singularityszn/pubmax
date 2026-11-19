@@ -105,11 +105,11 @@ describe("build scripts", () => {
   });
 
   it("cuts the Discover board, because the browser no longer cuts it", () => {
-    // /social?tab=discover reads public/data/discover/board.json rather than
+    // /social?tab=discover reads public/data/discover/rankings.json rather than
     // the 6.87 MB dataset. A build that skipped this step would serve the last
     // committed board over a dataset that had moved on.
     expect(packageJson.scripts?.["build:discover-board"]).toBe(
-      "tsx scripts/build_discover_board.mjs",
+      "node --conditions=react-server --import tsx scripts/build_discover_board.mjs",
     );
   });
 
