@@ -19,7 +19,7 @@ export function usePublicPriceVenues(
   const ids = useMemo(() => venues.filter((venue) => venue.cheapestPrice === null && venue.hasRecordedPrice !== true
     && (venue.zone != null || (venue as Venue & { bundlePrices?: { estimate?: unknown } }).bundlePrices?.estimate)).map((venue) => venue.id), [venues]);
   const refreshKey = useMemo(() => [venues, communityPrices], [venues, communityPrices]);
-  const presence = usePublicPricePresence(ids, refreshKey);
+  const presence = usePublicPricePresence(ids, refreshKey, true);
   return useMemo(() => venues.map((venue) => ({ ...venue, publicPricePresence: communityPrices.get(venue.id)?.length
     ? "present" as const : presence.get(venue.id) ?? "unknown" })), [venues, presence, communityPrices]);
 }
