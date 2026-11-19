@@ -33,10 +33,12 @@ Moved from [`lib/AGENTS.md`](../../lib/AGENTS.md). Authoritative policy detail l
   After SDK loading starts, recovery retries client loading or session restoration. An event during client loading or session restoration sets one pending retry. After the attempt settles, that retry runs only if auth remains `unavailable`. Cleanup removes the recovery listeners and discards the pending retry. Regression coverage: `__tests__/authProviderMapDeferral.test.tsx` and `__tests__/nativeAuthProvider.test.tsx`. The [user guide](../../README.md) describes recovery after an offline start.
 
   `AuthProvider` distinguishes pending, unavailable and resolved canonical identity reads.
-  A failed read or an eight-second timeout sets `identityUnavailable` without setting `identityResolved`.
+  After loading settles, an unavailable session check or failed canonical identity read sets `identityUnavailable` while `identityResolved` remains false.
+  Canonical identity reads also fail after an eight-second timeout.
   `resolveCanonicalIdentity` accepts only an explicit `handle: null` as a confirmed missing handle.
   Apart from explicit `null`, missing, non-string or empty normalised handles are failed reads.
-  `retryIdentity` clears the shared read and starts a new attempt for the current account.
+  `retryIdentity` retries session bootstrap when Supabase auth is `unavailable`.
+  Otherwise, it clears the shared canonical identity read and starts a new attempt for the current account.
   Late read results from an expired attempt or a previous account cannot replace the current identity.
 
   Regression coverage: `__tests__/accountIdentityRecovery.test.tsx` and `e2e/account-identity-recovery.spec.ts`.
