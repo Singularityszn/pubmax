@@ -20,9 +20,6 @@ import { AGENT_TOOLING_PATHS } from "@/lib/agentToolingPaths.mjs";
 const VENDORED = new Set(
   AGENT_TOOLING_PATHS.map((pattern) => pattern.split("/")[0]),
 );
-// `artifacts` is the gitignored scratch directory other tests write to and
-// delete from while this walk runs (pubPalPrivacyDeleteOnly's per-case dirs),
-// so walking it raced them: an entry listed by readdir was gone by the stat.
 const BUILD_OUTPUT = new Set([
   ".git",
   "node_modules",
@@ -42,11 +39,24 @@ function skipped(name: string): boolean {
 export function agentsMdFiles(root: string): string[] {
   const found: string[] = [];
 
+  // Other tests make and delete temp dirs in the checkout while this walk
+  // runs, so an entry readdir listed can be gone before it is read.
+  function entries(directory: string): string[] {
+    try {
+      return readdirSync(directory);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === "ENOENT") return [];
+      throw error;
+    }
+  }
+
   function walk(directory: string): void {
-    for (const entry of readdirSync(directory)) {
+    for (const entry of entries(directory)) {
       if (skipped(entry)) continue;
       const path = join(directory, entry);
-      if (statSync(path).isDirectory()) {
+      const stats = statSync(path, { throwIfNoEntry: false });
+      if (!stats) continue;
+      if (stats.isDirectory()) {
         walk(path);
         continue;
       }

@@ -1,4 +1,5 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 
 import { describe, expect, it } from "vitest";
@@ -74,5 +75,21 @@ describe("the AGENTS.md tree", () => {
       .map((file) => ({ file, bytes: statSync(join(ROOT, file)).size }))
       .filter(({ bytes }) => bytes > AREA_MAX_BYTES);
     expect(oversized, "move long rules into docs/rules/").toEqual([]);
+  });
+});
+
+describe("the AGENTS.md walk", () => {
+  it("passes over an entry that is gone before it is read", () => {
+    const root = mkdtempSync(join(tmpdir(), "agents-walk-"));
+    try {
+      mkdirSync(join(root, "area"));
+      writeFileSync(join(root, "AGENTS.md"), "root");
+      writeFileSync(join(root, "area", "AGENTS.md"), "area");
+      // Listed by readdir, gone at stat: what another test's deleted temp dir looks like.
+      symlinkSync(join(root, "deleted-temp-dir"), join(root, ".vanished"));
+      expect(agentsMdFiles(root)).toEqual(["AGENTS.md", "area/AGENTS.md"]);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
   });
 });
