@@ -7,6 +7,7 @@ import {
   parseDiscoverBoard,
 } from "@/lib/discoverBoard";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
+import { loadLondonHuntPints } from "@/lib/cheapestHunt.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import dataset from "../public/data/pint_prices_app_dataset.json";
 import shipped from "../public/data/discover/board.json";
@@ -20,6 +21,15 @@ import shipped from "../public/data/discover/board.json";
 const venues = groupVenuePrices(dataset as VenuePrice[]);
 
 describe("the shipped Discover board", () => {
+  it("publishes the same cheapest London pint as the hunt used by Tonight", async () => {
+    const [winner] = await loadLondonHuntPints();
+    expect(winner).toBeDefined();
+    expect(shipped.cheapest[0]?.venue).toMatchObject({
+      id: winner?.venueId,
+      cheapestPrice: winner?.priceGbp,
+    });
+  });
+
   it("is byte-for-byte what the dataset yields today", () => {
     const rebuilt = discoverBoardFromVenues(
       venues,
