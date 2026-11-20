@@ -692,6 +692,37 @@ test.describe("message bubbles on touch", () => {
     });
   }
 
+  test("chat options stay above the composer when the keyboard collapses the list", async ({ page }) => {
+    await page.setViewportSize(PHONE);
+    await page.addInitScript(() => {
+      Object.defineProperty(window.visualViewport!, "height", {
+        configurable: true, writable: true, value: 844,
+      });
+    });
+    await installThread(page, fixture());
+    await page.goto("/messages/c1");
+    const input = page.getByRole("textbox", { name: "Message", exact: true });
+    await input.fill(Array.from({ length: 8 }, (_, index) => `Line ${index + 1}`).join("\n"));
+    await page.evaluate(() => {
+      Object.defineProperty(window.visualViewport!, "height", { configurable: true, value: 200 });
+      window.visualViewport!.dispatchEvent(new Event("resize"));
+    });
+    await expect(page.locator(".messageThreadShell")).toHaveAttribute("data-keyboard-open", "");
+    const toggle = page.getByRole("button", { name: "Chat options", exact: true });
+    await expect(async () => {
+      if ((await toggle.getAttribute("aria-expanded")) !== "true") await toggle.click();
+      await expect(page.getByRole("menu", { name: "Chat options", exact: true })).toBeVisible();
+    }).toPass();
+    const item = page.getByRole("menuitem", { name: "Delete chat", exact: true });
+    const hit = await item.evaluate((element) => {
+      const bounds = element.getBoundingClientRect();
+      return element.contains(document.elementFromPoint(bounds.left + bounds.width / 2, bounds.top + bounds.height / 2));
+    });
+    expect(hit).toBe(true);
+    await item.click();
+    await expect(page.getByRole("alertdialog")).toBeVisible();
+  });
+
   for (const width of [390, 768, 1440]) {
     for (const rootFontPx of [16, 32]) {
       test(`short bubbles keep their natural width at ${width}px with ${rootFontPx}px text`, async ({ page }, testInfo) => {
