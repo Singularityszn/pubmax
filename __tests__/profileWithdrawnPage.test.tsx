@@ -199,6 +199,17 @@ describe("a withdrawn account's public profile page", () => {
     const previousFetch = globalThis.fetch;
     vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), "http://localhost");
+      const profileHandle = /^\/api\/profiles\/([^/]+)$/.exec(url.pathname)?.[1];
+      if (profileHandle === from || profileHandle === to) {
+        return json({
+          profile: { ...LIVE_PROFILE, handle: profileHandle, displayName: profileHandle },
+          projection: "full",
+          socialLinks: [],
+          counts: { followers: 0, following: 0 },
+          viewerFollowing: false,
+          followsViewer: false,
+        });
+      }
       if (url.pathname === "/api/crawls") {
         const author = url.searchParams.get("author");
         if (author === to && failed) return json({}, 429);
