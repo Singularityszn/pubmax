@@ -1,6 +1,7 @@
 import "server-only";
 import { randomUUID } from "node:crypto";
-import { admin, selectStore } from "@/lib/storeBackend";
+import { selectStore } from "@/lib/storeBackend";
+import { requireSupabaseAdmin as admin } from "@/lib/supabase";
 
 const CONFIRMATION_LIFETIME_MS = 48 * 60 * 60 * 1000;
 export type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };

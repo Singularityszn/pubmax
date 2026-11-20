@@ -2002,6 +2002,72 @@ export type Database = {
         };
         Relationships: [];
       };
+      payday_pint_pending: {
+        Row: {
+          confirmation_hash: string;
+          email: string;
+          station: string;
+          consent_text: string;
+          consent_at: string;
+          expires_at: string;
+          unsubscribe_token: string;
+        };
+        Insert: {
+          confirmation_hash: string;
+          email: string;
+          station: string;
+          consent_text: string;
+          consent_at: string;
+          expires_at: string;
+          unsubscribe_token: string;
+        };
+        Update: {
+          confirmation_hash?: string;
+          email?: string;
+          station?: string;
+          consent_text?: string;
+          consent_at?: string;
+          expires_at?: string;
+          unsubscribe_token?: string;
+        };
+        Relationships: [];
+      };
+      payday_pint_subscribers: {
+        Row: {
+          id: string;
+          email: string;
+          station: string;
+          consent_text: string;
+          consent_at: string;
+          confirmed_at: string;
+          unsubscribe_token: string;
+          unsubscribed_at: string | null;
+          last_claimed_week: string | null;
+        };
+        Insert: {
+          id?: string;
+          email: string;
+          station: string;
+          consent_text: string;
+          consent_at: string;
+          confirmed_at: string;
+          unsubscribe_token: string;
+          unsubscribed_at?: string | null;
+          last_claimed_week?: string | null;
+        };
+        Update: {
+          id?: string;
+          email?: string;
+          station?: string;
+          consent_text?: string;
+          consent_at?: string;
+          confirmed_at?: string;
+          unsubscribe_token?: string;
+          unsubscribed_at?: string | null;
+          last_claimed_week?: string | null;
+        };
+        Relationships: [];
+      };
       pending_plan_recaps: {
         Row: {
           owner_id: string;
@@ -8754,6 +8820,13 @@ export type Database = {
           p_story_id: string | null;
           p_requested_by: string | null;
           p_token_hash: string | null;
+        };
+        Returns: boolean;
+      };
+      confirm_payday_pint: {
+        Args: {
+          p_hash: string | null;
+          p_now: string | null;
         };
         Returns: boolean;
       };
