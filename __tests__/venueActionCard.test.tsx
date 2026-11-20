@@ -560,12 +560,20 @@ describe("the walk's origin", () => {
     expect(venueActionCardWalk(null, pub, null)).toBeNull();
     expect(venueActionCardWalk(null, pub, dot)).toBe(3);
   });
-  it("keeps the position the reader offered ahead of the shown one, at any distance", () => {
-    expect(venueActionCardWalk({ lat: 51.5357, lng: -0.0905 }, pub, dot)).toBe(14);
-    expect(venueActionCardWalk(leeds, pub, dot)).toBeGreaterThan(60);
+  it("updates the walk as the shown position moves away from an old Near me fix", () => {
+    const oldFix = { lat: 51.5357, lng: -0.0905 };
+    expect(venueActionCardWalk(oldFix, pub, oldFix)).toBe(14);
+    expect(venueActionCardWalk(oldFix, pub, dot)).toBe(3);
+    expect(venueActionCardWalk(leeds, pub, dot)).toBe(3);
+  });
+  it("falls back to the offered position when no usable shown position exists", () => {
+    expect(venueActionCardWalk(leeds, pub, null)).toBeGreaterThan(60);
+    expect(venueActionCardWalk(leeds, pub, { ...dot, accuracyMeters: 801 })).toBeGreaterThan(60);
+    expect(venueActionCardWalk(leeds, pub, { ...dot, lat: NaN })).toBeGreaterThan(60);
   });
   it("calls a shown position over an hour away far, and never says location is off", () => {
     expect(venueActionCardWalk(null, pub, leeds)).toBe("far");
+    expect(venueActionCardWalk(dot, pub, leeds)).toBe("far");
     const host = document.createElement("div"), root = createRoot(host);
     act(() => root.render(createElement(VenueActionSummary, { label: "Summary", price: null, planDoor: null, walkMinutes: "far" })));
     expect(host.textContent).toContain("Over an hour");

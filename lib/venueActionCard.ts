@@ -87,20 +87,22 @@ export type VenueActionCardWalk = number | "far" | "rough" | null;
 
 /**
  * The walk the card prints. `from` is the location the reader offered. `shown`
- * is the position the map already paints for a reader who granted location
- * earlier: it answers when `from` is absent. Past an hour it answers "far",
- * because a reader looking across the city did not ask for a long walk. A
- * coarse fix answers "rough", because minutes from it would claim a precision
- * nobody measured. Neither may read as location being off. Worked out on the
- * device.
+ * is the current position the map paints for a reader who granted location
+ * earlier. A measurable shown position takes priority. Past an hour it answers
+ * "far", because a reader looking across the city did not ask for a long walk.
+ * A coarse fix without an offered position answers "rough", because minutes
+ * from it would claim a precision nobody measured. Neither may read as location
+ * being off. Worked out on the device.
  */
 export function venueActionCardWalk(
   from: { lat: number; lng: number } | null | undefined,
   to: { latitude: number; longitude: number },
   shown: { lat: number; lng: number; accuracyMeters?: number } | null | undefined,
 ): VenueActionCardWalk {
+  if (shown && mapReaderPositionMeasures(shown)) {
+    const minutes = venueActionCardWalkMinutes(shown, to);
+    if (minutes !== null) return minutes > SHOWN_POSITION_WALK_CEILING_MINUTES ? "far" : minutes;
+  }
   if (from) return venueActionCardWalkMinutes(from, to);
-  if (shown && !mapReaderPositionMeasures(shown)) return "rough";
-  const minutes = venueActionCardWalkMinutes(shown, to);
-  return minutes !== null && minutes > SHOWN_POSITION_WALK_CEILING_MINUTES ? "far" : minutes;
+  return shown && !mapReaderPositionMeasures(shown) ? "rough" : null;
 }
