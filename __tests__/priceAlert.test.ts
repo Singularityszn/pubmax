@@ -16,6 +16,10 @@ describe("price alerts", () => {
     expect(matchesPriceAlert({ ...alert, enabled: false }, price)).toBe(false);
   });
 
+  it("excludes a report outside an estimated ten minute walk from the area centre", () => {
+    expect(matchesPriceAlert(alert, { ...price, lat: 51.552 })).toBe(false);
+  });
+
   it("fails closed for invalid areas, prices and locations", () => {
     expect(matchesPriceAlert({ ...alert, area: "unknown" }, price)).toBe(false);
     expect(matchesPriceAlert(alert, { ...price, pricePence: 0 })).toBe(false);
