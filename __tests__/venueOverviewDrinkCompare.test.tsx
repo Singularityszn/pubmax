@@ -149,7 +149,7 @@ describe("VenueOverviewTab drink comparison", () => {
         drinkLensCategory: "wine",
       })));
       expect(container.querySelector(".venueDrinkPrices")?.textContent)
-        .toContain("No wine price logged here yet.");
+        .toContain("No regular wine price logged here yet.");
       expect(container.querySelector(".venueAreaPriceCompare")).toBeNull();
       expect(container.textContent).not.toContain(pintComparison);
       expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");

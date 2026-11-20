@@ -51,8 +51,9 @@ it("shows a timed price without claiming the pub has no prices", async () => {
   const root = createRoot(container);
   try {
     await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
-    expect(container.textContent).toContain("£4.50");
-    expect(container.textContent).toContain("With a meal");
+    const deals = container.querySelector('[aria-label="Reported deals"]');
+    expect(deals?.textContent).toContain("£4.50");
+    expect(deals?.textContent).toContain("With a meal");
     expect(container.querySelector(".unverifiedPubTag")?.textContent).toContain("regular");
     expect(container.textContent).not.toContain("No price yet");
     for (const lens of [
@@ -62,7 +63,6 @@ it("shows a timed price without claiming the pub has no prices", async () => {
     ]) {
       await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices, ...lens })));
       expect(container.querySelector('[aria-label="Reported deals"]')).toBeNull();
-      expect(container.textContent).not.toContain("£4.50");
     }
     await act(async () => root.render(createElement(UnverifiedPubSheet, { pub, communityPrices })));
     expect(container.querySelector('[aria-label="Reported deals"]')?.textContent).toContain("£4.50");

@@ -60,6 +60,10 @@ vi.mock("@/components/visits/VisitReportPanel", () => ({
   default: () => createElement("div", { "data-testid": "visit-report-peek" }),
 }));
 
+vi.mock("@/components/map/useDealPrices", () => ({
+  useDealPrices: (venueId: string) => ({ status: "ready", deals: [], venueId }),
+}));
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const NOW = Date.parse("2026-09-05T20:00:00.000Z");
 const VENUE_ID = "venue-1vle947";
