@@ -1,37 +1,12 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import type { ReactNode } from "react";
 
 import { EmptyGlassArt } from "@/components/brand/DotGlassArt";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
-import { normalizeHandle } from "@/lib/handleNormalize";
-import { isPubmaxxHandleImpersonationBlock } from "@/lib/pubmaxxIdentity";
-
-export default function UnclaimedProfile({ fallback }: { fallback: ReactNode }) {
-  const pathname = usePathname();
-  return <UnclaimedProfileContent pathname={pathname} fallback={fallback} />;
-}
-
-export function UnclaimedProfileContent({
-  pathname,
-  fallback,
-}: {
-  pathname: string | null;
-  fallback: ReactNode;
-}) {
-  const match = /^\/u\/([^/]+)\/?$/.exec(pathname ?? "");
-  let handle = "";
-  try {
-    handle = normalizeHandle(decodeURIComponent(match?.[1] ?? ""));
-  } catch {
-    return fallback;
-  }
-  if (!handle || handle === "you" || isPubmaxxHandleImpersonationBlock(handle)) return fallback;
-
+export default function UnclaimedProfile({ handle }: { handle: string }) {
   return (
-    <main id="main" style={{
+    <section style={{
       minHeight: "100svh",
       display: "grid",
       placeItems: "center",
@@ -68,6 +43,6 @@ export function UnclaimedProfileContent({
           Claim a handle
         </Link>
       </div>
-    </main>
+    </section>
   );
 }

@@ -89,6 +89,8 @@ import { resolveSavedVenueNames } from "@/lib/savedVenueNames";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { currentMode, modeEnablesLegacy } from "@/lib/viewMode";
 
+import UnclaimedProfile from "../UnclaimedProfile";
+
 import "./profile.css";
 
 // Account settings, crews and the timeline are not the identity-loading
@@ -1805,6 +1807,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     if (surface === "identity-loading") return identityLoadingSurface();
     if (surface === "gone") return goneSurface();
+    if (!isYouRoute) {
+      if (!identityReadyForSurface || !followStateReady || publicRead === "asking") {
+        return <p role="status">Loading profile…</p>;
+      }
+      if (canAdoptHandle) return <UnclaimedProfile handle={routeHandle} />;
+    }
     if (surface === "error") return errorSurface();
     return readySurface();
   }

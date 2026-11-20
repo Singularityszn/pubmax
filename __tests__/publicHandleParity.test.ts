@@ -295,10 +295,21 @@ describe("public handle parity", () => {
 });
 
 describe("public profile page parity", () => {
-  it.each(subjects)("$kind handle returns the same not-found response as an unknown handle", async ({ handle }) => {
+  it.each(subjects)("$kind handle reaches the same viewer-aware shell as an unknown handle", async ({ handle }) => {
     await expect(
       ProfileHandleLayout({ params: Promise.resolve({ handle }), children: "profile" }),
-    ).rejects.toMatchObject({ digest: "NEXT_HTTP_ERROR_FALLBACK;404" });
+    ).resolves.toBe("profile");
+  });
+
+  it("lets a suspended owner reach their authenticated profile read", async () => {
+    authState.userId = "user-suspended";
+    for (const handle of ["you", "suspendedbob"]) {
+      await expect(ProfileHandleLayout({
+        params: Promise.resolve({ handle }), children: "profile",
+      })).resolves.toBe("profile");
+    }
+    const body = await (await profile("suspendedbob")).json();
+    expect(body.profile?.handle).toBe("suspendedbob");
   });
 
   it.each(subjects)("$kind handle publishes the same metadata as an unknown handle", async ({ handle }) => {

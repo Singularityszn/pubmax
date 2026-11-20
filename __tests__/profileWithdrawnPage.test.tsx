@@ -41,10 +41,10 @@ vi.mock("next/link", () => ({
   },
 }));
 
-const session = vi.hoisted(() => ({ user: null as { id: string } | null, handle: "" }));
+const session = vi.hoisted(() => ({ user: null as { id: string } | null, handle: "", revision: 0 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
-    accountRevision: 0,
+    accountRevision: session.revision,
     user: session.user,
     handle: session.handle || null,
     configured: true,
@@ -89,9 +89,14 @@ const LIVE_PROFILE = {
   updatedAt: "2026-08-10T09:00:00.000Z",
 };
 
-function profileAnswer(handle: string): Response {
+function profileAnswer(handle: string, headers: Headers): Response {
+  const ownerProfile = handle === "suspendedbob" &&
+    session.user?.id === "user-suspended" &&
+    headers.get("authorization") === "Bearer token"
+    ? { ...LIVE_PROFILE, handle: "suspendedbob", displayName: "Bob" }
+    : null;
   return json({
-    profile: handle === "alice_pints" ? LIVE_PROFILE : null,
+    profile: handle === "alice_pints" ? LIVE_PROFILE : ownerProfile,
     projection: "full",
     socialLinks: [],
     counts: { followers: 0, following: 0 },
@@ -102,6 +107,7 @@ function profileAnswer(handle: string): Response {
 
 let host: HTMLElement;
 let root: Root;
+let profileReadFails = false;
 
 async function visit(handle: string): Promise<string> {
   let threw: unknown;
@@ -118,11 +124,6 @@ async function visit(handle: string): Promise<string> {
       threw = error;
     }
   });
-  for (let i = 0; i < 5; i += 1) {
-    await act(async () => {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    });
-  }
   if (threw) throw threw;
   return host.textContent ?? "";
 }
@@ -131,13 +132,18 @@ beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   session.user = null;
   session.handle = "";
+  session.revision = 0;
+  profileReadFails = false;
   clearSurfaceCache();
   vi.stubGlobal(
     "fetch",
-    vi.fn(async (input: RequestInfo | URL) => {
+    vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = new URL(String(input), "http://localhost");
       const profileMatch = /^\/api\/profiles\/([^/]+)$/.exec(url.pathname);
-      if (profileMatch) return profileAnswer(decodeURIComponent(defined(profileMatch[1])));
+      if (profileMatch) {
+        if (profileReadFails) return json({ error: "Unavailable" }, 503);
+        return profileAnswer(decodeURIComponent(defined(profileMatch[1])), new Headers(init?.headers));
+      }
       if (url.pathname === "/api/identity/handle/resolve") {
         return json({ error: { code: "NOT_FOUND", message: "Profile not found." } }, 404);
       }
@@ -165,9 +171,44 @@ describe("a withdrawn account's public profile page", () => {
     expect(text).toContain("Sign in to message");
   });
 
-  it("shows a stranger no follow or message shell on a free handle only", async () => {
-    const empty = await visit("never_existed_qa9");
-    expect(empty).toContain("Claim this handle");
+  it.each([
+    { handle: "nobody-here-xyz", expected: "nobodyherexyz" },
+    { handle: "suspendedbob", expected: "suspendedbob" },
+    { handle: "bannedbob", expected: "bannedbob" },
+  ])("shows the claim screen for $handle to a stranger", async ({ handle, expected }) => {
+    const empty = await visit(handle);
+    expect(host.querySelector("h1")?.textContent).toBe(`Nobody has claimed @${expected}`);
+    expect(empty).not.toContain("Pints logged");
+    expect(host.querySelector('a[href="/u/you"]')?.textContent).toBe("Claim a handle");
+  });
+
+  it("shows a suspended owner their profile instead of the claim screen", async () => {
+    session.user = { id: "user-suspended" };
+    session.handle = "suspendedbob";
+    const text = await visit("suspendedbob");
+    expect(text).toContain("Bob");
+    expect(text).toContain("Edit profile");
+    expect(text).not.toContain("Nobody has claimed");
+  });
+
+  it("returns to the claim screen when a suspended owner signs out", async () => {
+    session.user = { id: "user-suspended" };
+    session.handle = "suspendedbob";
+    expect(await visit("suspendedbob")).toContain("Bob");
+
+    session.user = null;
+    session.handle = "";
+    session.revision += 1;
+    const text = await visit("suspendedbob");
+    expect(text).toContain("Nobody has claimed @suspendedbob");
+    expect(text).not.toContain("Edit profile");
+  });
+
+  it("does not offer a claim when the profile read fails", async () => {
+    profileReadFails = true;
+    const text = await visit("nobody-here-xyz");
+    expect(text).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
   });
 
   it("calls notFound for a policy-blocked handle", async () => {
