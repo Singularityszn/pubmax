@@ -190,6 +190,30 @@ afterEach(async () => {
 });
 
 describe("a withdrawn account's public profile page", () => {
+  it("does not present empty pint statistics when the read fails, and retries", async () => {
+    let failed = true;
+    const previousFetch = globalThis.fetch;
+    vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = new URL(String(input), "http://localhost");
+      if (url.pathname === "/api/pint-drops") return failed ? json({}, 429) : json({ drops: [], passportAreas: [] });
+      return previousFetch(input, init);
+    }));
+
+    await visit("alice_pints");
+    await vi.waitFor(() => expect(host.textContent).toContain("Couldn't load pints right now."));
+    const stats = defined(host.querySelector('[aria-label="Profile statistics"]'));
+    expect(stats.textContent).not.toContain("None yet");
+    expect(stats.textContent).toContain("Couldn't check");
+
+    failed = false;
+    const retry = Array.from(host.querySelectorAll("button")).find((button) => button.textContent === "Retry");
+    await act(async () => defined(retry).click());
+    await act(async () => {
+      await vi.waitFor(() => expect(host.textContent).not.toContain("Couldn't load pints right now."));
+    });
+    expect(host.textContent).toContain("None yet");
+  });
+
   it("still offers a live account's follow and message controls to a stranger", async () => {
     const text = await visit("alice_pints");
 

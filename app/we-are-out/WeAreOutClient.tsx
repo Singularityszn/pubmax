@@ -39,7 +39,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
   const handle = useViewerHandle() ?? "";
   // An account's handle is unknown until its identity resolves, which is not the
   // same as having none: the claim door waits for the answer.
-  const { identityResolved, retryIdentity } = useAuth();
+  const { identityResolved, identityUnavailable, retryIdentity } = useAuth();
   const [areaSlug, setAreaSlug] = useState<string>("");
   const [note, setNote] = useState("");
   const [state, setState] = useState<PostState>("idle");
@@ -116,6 +116,13 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
                 </Link>
               )}
             </div>
+          </section>
+        ) : identityUnavailable ? (
+          <section className="weAreOutForm weAreOutDoor" role="status">
+            <p className="weAreOutDoneTitle">We couldn&apos;t check your account.</p>
+            <button type="button" className="weAreOutSubmit weAreOutDoorAction" onClick={retryIdentity}>
+              Try again
+            </button>
           </section>
         ) : viewerSession.signedOut ? (
           <section className="weAreOutForm weAreOutDoor" aria-labelledby="we-are-out-door-title">

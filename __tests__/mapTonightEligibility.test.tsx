@@ -51,6 +51,18 @@ afterEach(() => {
 });
 
 describe("map Tonight pub eligibility", () => {
+  it.each([0, 7])("offers a retry for failed listings with %i overlay pins", (pins) => {
+    const retry = vi.fn();
+    render([], pins, true, { status: "error", onRetry: retry });
+    expect(container.textContent).toContain("Couldn’t load tonight’s list.");
+    expect(container.textContent).not.toContain("Nothing listed");
+    const button = Array.from(container.querySelectorAll("button")).find((item) => item.textContent === "Try again");
+    expect(button).toBeDefined();
+    act(() => button!.click());
+    expect(retry).toHaveBeenCalledOnce();
+    if (pins) expect(container.textContent).toContain("Pins");
+  });
+
   it("hides 39 raw rows when no pub listing is eligible", () => {
     const rows = rawRows();
     expect(rows).toHaveLength(39);

@@ -50,6 +50,7 @@ type TonightLaneProps = {
   asOf: string | null;
   /** Spine load status — "error" renders an honest "unavailable" pill. */
   status?: "idle" | "ready" | "empty" | "error";
+  onRetry?: () => void;
   onSelectVenue: (venueId: string) => void;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
@@ -78,6 +79,7 @@ export default function TonightLane({
   rows: sourceRows,
   asOf,
   status = "idle",
+  onRetry,
   onSelectVenue,
   open,
   onOpenChange,
@@ -139,8 +141,8 @@ export default function TonightLane({
 
   // Honest outage state: the PRIMARY spine failed — say so quietly instead of
   // pretending it's a quiet night. Badges are simply absent in this state.
-  if (status === "error" && !toggleOverlay) {
-    return <TonightErrorState inSheet={inSheet} />;
+  if (status === "error") {
+    return <TonightErrorState inSheet={inSheet} onRetry={onRetry} toggleOverlay={toggleOverlay} overlayCount={overlayCount} overlayActive={overlayActive} onDismissOverlay={onDismissOverlay} />;
   }
 
   if (rows.length === 0 && !toggleOverlay && (!isOpen || activeKind === null)) {
@@ -187,7 +189,14 @@ export default function TonightLane({
   );
 }
 
-function TonightErrorState({ inSheet }: { inSheet: boolean }) {
+function TonightErrorState({ inSheet, onRetry, toggleOverlay, overlayCount, overlayActive, onDismissOverlay }: {
+  inSheet: boolean;
+  onRetry?: () => void;
+  toggleOverlay?: () => void;
+  overlayCount: number;
+  overlayActive: boolean;
+  onDismissOverlay?: () => void;
+}) {
   return (
     <section
       className={`tonightLane tonightLane--error${inSheet ? " tonightLane--sheet" : ""}`}
@@ -200,6 +209,9 @@ function TonightErrorState({ inSheet }: { inSheet: boolean }) {
             Couldn&rsquo;t load tonight&rsquo;s list.
           </span>
         </div>
+        {onRetry ? <button type="button" onClick={onRetry}>Try again</button> : null}
+        {toggleOverlay ? <TonightOverlayToggle count={overlayCount} active={overlayActive} onToggle={toggleOverlay} /> : null}
+        {toggleOverlay && overlayActive && onDismissOverlay ? <TonightOverlayDismiss onDismiss={onDismissOverlay} /> : null}
       </div>
     </section>
   );

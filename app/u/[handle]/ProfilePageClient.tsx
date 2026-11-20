@@ -1360,6 +1360,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         <ProfileHeader
           profile={profile}
           stats={stats}
+          pintStatsUnavailable
           socialLinks={visibleSocialData.socialLinks}
           crawls={storyCount}
           memories={stats.memoriesPosted}
