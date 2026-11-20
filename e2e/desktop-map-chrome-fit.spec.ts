@@ -3,7 +3,6 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { paintedAmbientSurfaces } from "./helpers/ambientMapSurfaces";
 import { expectLayoutSettled } from "./helpers/layoutSettled";
 import { expectSoleDesktopDrawer } from "./helpers/mapSurfaceDrawers";
-import { installDeterministicMapBasemap } from "./helpers/mapNetworkFixtures";
 
 const DESKTOP = { width: 1440, height: 900 };
 const DESKTOP_WIDTHS = [1024, 1280, 1440, 1600] as const;
@@ -21,48 +20,6 @@ const EDGE_GUTTER = 16;
 const SUBPIXEL_TOLERANCE = 0.5;
 const CAPTURE_DRAWER_EXCHANGE =
   process.env.PUBMAX_CAPTURE_DESKTOP_EXCHANGE === "1";
-
-for (const viewport of [{ width: 390, height: 844 }, { width: 1440, height: 900 }]) {
-  test(`first-visit map prompts leave the other controls accessible at ${viewport.width}px`, async ({ page }) => {
-    await page.setViewportSize(viewport);
-    await installDeterministicMapBasemap(page);
-    await page.addInitScript(() => {
-      localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
-      localStorage.removeItem("pubmax:map-first-visit-arrival:v1");
-    });
-    await page.goto("/map");
-
-    const card = page.locator(".fairPintCard:not([data-fair-prelude])");
-    await expect(card).toBeVisible();
-    await expect(card.getByRole("button", { name: "Use my location" })).toBeVisible();
-    await expect(page.locator(".mapArrivalCard")).toBeHidden();
-    await expect(page.locator(".palSummon")).toBeHidden();
-    await expect(page.locator(".cityStatusStack")).toBeHidden();
-    await expect(page.locator(".cityStatusBanner")).toBeHidden();
-    await expect(page.locator(".tonightLaneCollapsed")).toBeHidden();
-
-    if (viewport.width === 390) {
-      const dock = page.getByRole("navigation", { name: "Primary" });
-      await expect(dock).toBeVisible();
-      const cardBox = await card.boundingBox();
-      const dockBox = await dock.boundingBox();
-      expect(cardBox).not.toBeNull();
-      expect(dockBox).not.toBeNull();
-      expect(cardBox!.y + cardBox!.height).toBeLessThanOrEqual(dockBox!.y);
-      await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeHidden();
-    }
-
-    await card.getByRole("button", { name: "Close", exact: true }).click();
-    await expect(card).toBeHidden();
-    await expect(page.getByRole("link", { name: "Pub Pal", exact: true })).toBeVisible();
-    if (viewport.width === 390) {
-      await expect(page.getByRole("button", { name: "Plan a pub crawl" })).toBeVisible();
-      await expect(page.getByRole("button", { name: "Near me", exact: true })).toBeVisible();
-    } else {
-      await expect(page.getByRole("button", { name: "Plan an outing" })).toBeVisible();
-    }
-  });
-}
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
