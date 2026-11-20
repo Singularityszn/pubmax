@@ -104,7 +104,7 @@ own observation times and bundled files remain the fallback.
 | Job | Provider | Env key(s) | Behaviour without the key |
 |---|---|---|---|
 | **Weather** | Open-Meteo | **none** (keyless) | Always runs. No skip branch. |
-| What's-On — bounded lanes | Question One plus existing first-party definitions and bundled venue inputs | **none** | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
+| What's-On — bounded lanes | Question One, OpenFootball, existing first-party definitions and bundled venue inputs | Keyless baseline. Optional sport keys are in [`.env.example`](../.env.example). | Cron refreshes quiz, music, and sport into `whats_on_listings`. It clears stored deal rows because it reads no deal source. A failed lane leaves its prior rows unchanged. Broader Exa / Firecrawl harvest remains a separate recovery path. |
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Cron persists live rows to `whats_on_listings`. Without an official provider key, that event lane is skipped while bounded lanes can still refresh. Skiddle also needs **written commercial approval** (email dev@skiddle.com) and `SKIDDLE_BRAND_ASSET_PRESENT`. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
 | **Social text moderation** | OpenAI | `OPENAI_API_KEY` | See [failure posture](#failure-posture-never-fake-success) for missing-key responses, held content and production diagnostics. |
@@ -193,8 +193,23 @@ The **full** generic What's-On ingest still cannot run inside a serverless cron:
   [`questionOneDirectory.mjs`](../scripts/whatson/questionOneDirectory.mjs),
   which owns pagination and the page limit. A failed or over-limit read keeps
   the stored quiz rows. Music uses first-party definitions and bundled venue
-  inputs. Sport reads live fixtures and bundled venue attributes. The
-  [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
+  inputs. Sport joins live fixtures to bundled venue attributes.
+  [`openFootballFixtures.ts`](../lib/sport/openFootballFixtures.ts) supplies
+  keyless Premier League fixtures through the registered GitHub API source.
+  [`liveFixtures.ts`](../lib/sport/liveFixtures.ts) supplies licensed football
+  and rugby fixtures when the optional [keys](../.env.example) are set.
+  Overlapping matches are deduplicated before pub expansion, with licensed
+  fixture attribution retained first.
+
+  OpenFootball reads the latest file-change commit and fetches that exact revision.
+  Unverifiable, future-dated or expired source updates produce no fixtures.
+  Its rows retain the source-update date rather than the cron time.
+  [`OPEN_FOOTBALL_SOURCE_MAX_AGE_MS`](../lib/whatsOn.ts) controls source expiry
+  during loading and serving. Completed and Saturday blackout matches are excluded.
+  The sport grace period keeps eligible ongoing matches in the refresh window.
+  If a fixture loader fails and the combined result is empty, stored sport rows remain unchanged.
+  If both loaders succeed with no fixtures, the refresh clears stored sport rows.
+  The [bounded-lane contract](#which-keys-enable-each-job) owns deal handling.
 - The GitHub events-refresh workflow writes the same committed file. Keep it
   in the tree so it can resume when Actions billing returns. It is not the
   live path; Vercel Cron is the reliable refresh path.
