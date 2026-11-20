@@ -622,11 +622,10 @@ and `404` are valid. An omitted field defaults to `200`. Any other explicit
 value fails before navigation. The helper checks the actual navigation response
 status before it waits for `readySelector`.
 
-The `/area/clapham/drink/guinness` row retains its four ceilings and requires
-HTTP 404 with `main#main` readiness. Its figures measure the 404 page and do not
-prove live area-brand price coverage. Its former `main.drinkBrandAreaLanding`
-boundary measured a different page. Measurements across these boundaries are
-not comparable. Declared redirects retain the separate measurement method above.
+Each row in [`perf/route-budgets.json`](../perf/route-budgets.json) owns its
+expected status, readiness selector and four ceilings. Measurements of a live
+landing and a 404 page are not comparable, even when the ceilings are unchanged.
+Declared redirects retain the separate measurement method above.
 
 Implementation: `e2e/helpers/perfMeasurement.ts`. Regression coverage:
 `__tests__/perfMeasurement.test.ts`, "route navigation status".
