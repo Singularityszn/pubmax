@@ -8,6 +8,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 import SocialLondonEmpty from "@/app/social/SocialLondonEmpty";
+import type { FeaturedOpenTableResult } from "@/lib/featuredOpenTable.server";
 import { buildSocialAlternatives } from "@/lib/socialAlternatives";
 import { parseUkPriceBundleRows } from "@/lib/ukPriceBundle";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -45,6 +46,40 @@ describe("Social first view dated pints", () => {
       expect(host.querySelector('a[href="/crawls"]')).not.toBeNull();
       await act(async () => finish(Response.json({ status: "ready", crawls: [] })));
       expect(host.querySelector('a[href="/crawls"]')).toBeNull();
+    } finally {
+      await act(async () => root.unmount());
+      host.remove();
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it.each<{ label: string; openTable?: FeaturedOpenTableResult }>([
+    { label: "no featured night" },
+    { label: "an unavailable featured night", openTable: { status: "unavailable" } },
+    {
+      label: "a prefetched featured night",
+      openTable: {
+        status: "upcoming",
+        table: {
+          crewId: "crew-1", hostHandle: "alice", meetingPubName: "The Fox",
+          startsAt: "2026-11-21T18:00:00Z", placesLine: null, price: null,
+        },
+      },
+    },
+  ])("hides crawl invitations after rollback with $label", async ({ openTable }) => {
+    (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+    const host = document.createElement("div");
+    document.body.append(host);
+    const root = createRoot(host);
+    let finish!: (response: Response) => void;
+    vi.stubGlobal("fetch", vi.fn(() => new Promise<Response>((resolve) => { finish = resolve; })));
+    try {
+      await act(async () => { root.render(createElement(SocialLondonEmpty, { openTable })); });
+      expect(host.querySelector(".socialOpenTableAction")).not.toBeNull();
+      await act(async () => finish(Response.json({ status: "preview", crawls: [] })));
+      expect(host.querySelector(".socialOpenTable")).toBeNull();
+      expect(host.querySelector(".socialOpenTableAction")).toBeNull();
+      expect(host.querySelector("section[aria-labelledby='social-empty-prices']")).not.toBeNull();
     } finally {
       await act(async () => root.unmount());
       host.remove();

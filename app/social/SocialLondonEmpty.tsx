@@ -18,13 +18,17 @@ export default function SocialLondonEmpty({
   alternatives?: SocialAlternatives;
   openTable?: FeaturedOpenTableResult;
 }) {
-  const [crawlRead, setCrawlRead] = useState<"loading" | "available" | "empty" | "unavailable">("loading");
+  const [crawlRead, setCrawlRead] = useState<"loading" | "available" | "empty" | "preview" | "unavailable">("loading");
   useEffect(() => {
     const controller = new AbortController();
     void fetch("/api/open-crawls", { signal: controller.signal })
       .then(async (response) => response.ok ? await response.json() as { status?: string; crawls?: unknown } : null)
       .then((body) => {
         if (controller.signal.aborted) return;
+        if (body?.status === "preview") {
+          setCrawlRead("preview");
+          return;
+        }
         if (body?.status !== "ready" || !Array.isArray(body.crawls)) {
           setCrawlRead("unavailable");
           return;
@@ -40,7 +44,7 @@ export default function SocialLondonEmpty({
   }, []);
   return (
     <div className="socialLondonEmpty">
-      {openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : crawlRead !== "empty" ? (
+      {crawlRead === "preview" ? null : openTable?.status === "upcoming" ? <OpenTableCard table={openTable.table} /> : crawlRead !== "empty" ? (
         <section className="socialOpenTable" aria-labelledby="social-open-table">
           <p className="socialOpenTableKicker">Open Table</p>
           <h2 id="social-open-table">Find a crawl to join</h2>
