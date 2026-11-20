@@ -156,7 +156,11 @@ it.each(["overlay", "toolbar"] as const)("offers Pal after matching venues in %s
       placeholder: "Search the map", onSelectVenue: vi.fn(), onFlyToArea: vi.fn(),
     }));
   });
-  act(() => container.querySelector<HTMLInputElement>('[role="combobox"]')!.click());
+  act(() => {
+    const input = container.querySelector<HTMLInputElement>('[role="combobox"]')!;
+    input.focus();
+    input.click();
+  });
   await settle();
   const venue = container.querySelector('[data-venue-id="venue-match"]');
   expect(venue).not.toBeNull();

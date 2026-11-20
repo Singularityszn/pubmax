@@ -369,7 +369,7 @@ it("preserves an edited search question in the signed-out sign-in return", async
   await act(async () => { releasePolicy(); await policyLoaded; await rejection; });
   await vi.waitFor(() => expect(container.querySelector('[role="alert"] a')).not.toBeNull());
   expect(posts).toHaveLength(1);
-  expect(posts[0].body.query).toBe("quiet pub with a fire near soho");
+  expect(posts[0]!.body.query).toBe("quiet pub with a fire near soho");
   expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub with a fire near soho");
   const signInLinks = [...container.querySelectorAll<HTMLAnchorElement>(".palChatSignInNotice a, [role='alert'] a")];
   expect(signInLinks).toHaveLength(2);
