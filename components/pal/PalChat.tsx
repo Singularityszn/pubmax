@@ -1153,7 +1153,7 @@ function PalChatBody({ owner }: { owner: string | null }) {
 
       {searchDraft && viewerSession.signedOut ? <p role="status">
         Sign in to ask Pub Pal. Your question is ready to send. {" "}
-        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(searchDraft)}`)}`}>Sign in</Link>
+        <Link href={`/login?mode=signin&from=${encodeURIComponent(`/pal/chat?draft=${encodeURIComponent(query)}`)}`}>Sign in</Link>
       </p> : null}
       {!owner ? <p role="status">
         {providerAuthState !== "unavailable" ? "Checking your account before you type." : "Your account could not be checked. Try again before you type."}

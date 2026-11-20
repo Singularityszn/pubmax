@@ -336,3 +336,24 @@ it("prefills a search hand-off without sending it", async () => {
   expect(posts).toEqual([]);
   window.history.replaceState({}, "", "/pal/chat");
 });
+
+it("preserves an edited search question in the signed-out sign-in return", async () => {
+  window.history.replaceState({}, "", "/pal/chat?draft=quiet+pub+near+soho");
+  await act(async () => {
+    root.unmount();
+    root = createRoot(container);
+    setProviderIdentity("supabase", null);
+    setProviderAuthState("supabase", "signed-out");
+    publishAuthActionState({ status: "signed-out", identityResolved: true });
+    root.render(createElement(AuthContext.Provider, { value: { ...defaults, user: null, session: null, providerAuthState: "signed-out", identityResolved: true } }, createElement(PalChat)));
+  });
+  await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>(".palChatInput")!.value).toBe("quiet pub near soho"));
+  await typeQuery("quiet pub with a fire near soho");
+  const link = [...container.querySelectorAll("a")].find((item) => item.textContent === "Sign in")!;
+  const login = new URL(link.href);
+  const destination = new URL(login.searchParams.get("from")!, login.origin);
+  expect(destination.pathname).toBe("/pal/chat");
+  expect(destination.searchParams.get("draft")).toBe("quiet pub with a fire near soho");
+  expect(posts).toEqual([]);
+  window.history.replaceState({}, "", "/pal/chat");
+});
