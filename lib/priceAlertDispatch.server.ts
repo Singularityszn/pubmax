@@ -14,7 +14,7 @@ export type PriceAlertEvent = PriceAlertObservation & {
   status: string;
   measure: string;
 };
-export type PriceAlertPayload = { title: string; body: string; url: string };
+type PriceAlertPayload = { title: string; body: string; url: string };
 export type PriceAlertDelivery = {
   claim: (userId: string, eventId: string, recipient: PriceAlertRecipient, recordedAt: string) => Promise<boolean>;
   send: (token: string, payload: PriceAlertPayload, userId: string) => Promise<unknown>;

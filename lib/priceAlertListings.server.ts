@@ -27,7 +27,7 @@ export function fingerprintedListedPriceRows(rows: readonly UkPriceBundleRow[]):
   });
 }
 
-export function eligibleListedPriceRows(rows: readonly UkPriceBundleRow[], now: number = Date.now()): UkPriceBundleRow[] {
+function eligibleListedPriceRows(rows: readonly UkPriceBundleRow[], now: number = Date.now()): UkPriceBundleRow[] {
   return fingerprintedListedPriceRows(rows).filter((row) => comparablePint({ cheapestPrice: row.priceGbp, priceSource: row.publisher || row.sourceUrl, priceObservedAt: row.observedAt, cheapestPint: row.drinkLabel, measure: "pint" }, now) !== null);
 }
 
