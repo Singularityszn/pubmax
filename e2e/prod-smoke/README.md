@@ -14,7 +14,7 @@ and the main browser suite ignores this folder.
 | `public.spec.ts` | The venue sheet shows Google Places hours and address. | None |
 | `public.spec.ts` | The coffee lens shows a Shoreditch cafe's listed prices. | None |
 | `signed-in.spec.ts` | The smoke account signs in with handle and password. | A session |
-| `signed-in.spec.ts` | Pub Pal answers a text request with a plan and venue cards. | One Pub Pal turn |
+| `signed-in.spec.ts` | Pub Pal returns a plan and venue cards for a crawl request that includes a start time. | One Pub Pal turn |
 | `signed-in.spec.ts` | Pub Pal answers a message typed into "Message your Pub Pal" on `/pal`. On the first run it walks the five-step Pub Pal setup a new account meets. | One Pub Pal turn, and a Pal on the first run |
 | `signed-in.spec.ts` | A Plan is created and locked in. | One Plan, then abandoned |
 | `signed-in.spec.ts` | A venue is saved to "Want to Visit", and the list's own page shows it. | One save |
