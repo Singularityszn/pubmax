@@ -91,7 +91,7 @@ describe("the band a figure wears", () => {
     expect(priceBandBasisFor(null).basis).toBe("all");
     expect(priceBandBasisFor({ city: null }).basis).toBe("all");
     expect(priceBandBasisFor({ city: "atlantis" }).basis).toBe("all");
-    // A city pack with no priced pubs has no terciles of its own.
+    // A city pack below the sample floor has no terciles of its own.
     expect(priceBandBasisFor({ city: "manchester" }).basis).toBe("all");
     expect(priceBandBasisFor(LONDON).basis).toBe("city");
     expect(priceBandBasisFor({ city: " London " }).basis).toBe("city");
@@ -130,8 +130,8 @@ describe("the band a figure wears", () => {
 describe("whose terciles a figure was cut against (F-21)", () => {
   // `basis` was returned and read by nothing, so a Manchester or Bristol figure
   // was coloured against London's £5.15/£6.15 and the note called them the
-  // reader's own. Every city outside London ships `sampleSize: 0` today, so
-  // this is not a rare path: it is all of them, plus the national base layer.
+  // reader's own. Every city outside London remains below the sample floor,
+  // so this path covers all of them, plus the national base layer.
   const MANCHESTER_ID = "venue-mcr-abc12";
   const BASE_ID = "venue-uk-n251829660";
   const LONDON_ID = "venue-xjf3n0";
@@ -167,7 +167,7 @@ describe("whose terciles a figure was cut against (F-21)", () => {
   it("still paints a band, because the dataset is the honest fallback", () => {
     // Removing the colour from every non-London pub would be a bigger claim
     // than the finding supports: the thresholds are real prices somebody pays,
-    // and today every one of them is a London price, which the note now says.
+    // and the note names the whole dataset as the comparison.
     expect(priceBand(4, priceBandAreaForVenue(MANCHESTER_ID))).toBe("cheap");
     expect(priceBand(9, priceBandAreaForVenue(BASE_ID))).toBe("expensive");
   });
@@ -191,7 +191,7 @@ describe("the shipped thresholds table", () => {
     // A city earning its own terciles is good news, and the copy that says
     // "prices compared across London" has to be revisited in the same commit.
     expect(Object.keys(thresholdsTable.cities)).toEqual(["london"]);
-    expect(thresholdsTable.all).toEqual(thresholdsTable.cities.london);
+    expect(thresholdsTable.all.sampleSize).toBeGreaterThan(thresholdsTable.cities.london.sampleSize);
     expect(thresholdsTable.minSample).toBe(MIN_PRICE_BAND_SAMPLE);
     expect(thresholdsTable.all.sampleSize).toBeGreaterThanOrEqual(MIN_PRICE_BAND_SAMPLE);
   });

@@ -102,7 +102,7 @@ describe("Llandudno curated pack", () => {
     );
   });
 
-  it("ships real coastal pubs with city-salted ids, in bounds, and no price", async () => {
+  it("ships real coastal pubs with city-salted ids and in-bounds coordinates", async () => {
     expect(SLIM.length).toBeGreaterThanOrEqual(20);
     const ids = new Set<string>();
     for (const row of SLIM) {
@@ -111,10 +111,23 @@ describe("Llandudno curated pack", () => {
       ids.add(row.id);
       expect(row.name.trim().length).toBeGreaterThan(0);
       expect(pointInCityBounds(row.lat, row.lng, CITIES.llandudno)).toBe(true);
-      // OSM is not a price source, and no price has been harvested here.
-      expect(row.cheapestPrice).toBeNull();
       expect(row.filterHints?.searchText?.length ?? 0).toBeGreaterThan(0);
     }
+  });
+
+  it("ships the listed Queen Victoria pint and leaves other pubs unpriced", () => {
+    // The recorded Guinndex observation is £5.85 on 11 April 2026.
+    expect(SLIM.filter((row) => row.cheapestPrice !== null)).toEqual([
+      expect.objectContaining({
+        id: "venue-lla-cvur9c",
+        name: "The Queen Victoria",
+        cheapestPrice: 5.85,
+        cheapestPint: "Guinness",
+        measure: "pint",
+        priceSource: "Guinndex",
+        priceObservedAt: "2026-04-11",
+      }),
+    ]);
   });
 
   it("ships estate coverage with honest price and source states", async () => {
