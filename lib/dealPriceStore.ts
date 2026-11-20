@@ -3,14 +3,18 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 import { validateDealPrice, type DealPrice, type DealPriceInput } from "@/lib/dealPrice";
 import { dealIsVisible } from "@/lib/dealSchedule";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { loadVenueAliasResolver } from "@/lib/venueAliases";
 import { admin, selectStore } from "@/lib/storeBackend";
 
-type Write = DealPriceInput & { actor: string };
+type Write = DealPriceInput & { accountId: string };
+type AttributedWrite = DealPriceInput & { actor: string };
+export type OwnedDealPrice = DealPrice & { hidden: boolean };
 type Stored = DealPrice & { actor: string; hidden: boolean; reviewedAt: string | null; revision: string };
 type Store = {
   submit(input: Write): Promise<{ deal: DealPrice; hidden: boolean }>;
   read(venueId: string): Promise<DealPrice[]>;
+  listForAccount(accountId: string, limit: number): Promise<OwnedDealPrice[]>;
   report(id: string, actor: string): Promise<boolean>;
   review(): Promise<Array<DealPrice & { hidden: boolean; revision: string }>>;
   moderate(id: string, hidden: boolean, expectedRevision: string): Promise<boolean>;
@@ -25,17 +29,44 @@ function publicDeal(row: Stored): DealPrice {
   return { id: row.id, venueId: row.venueId, drinkCategory: row.drinkCategory, drink: row.drink, measure: row.measure, measureLabel: row.measureLabel, priceGbp: row.priceGbp, schedule: row.schedule, endDate: row.endDate, conditions: row.conditions, reportedAt: row.reportedAt };
 }
 
-function keyOf(input: Write): string {
+function keyOf(input: AttributedWrite): string {
   return JSON.stringify([input.venueId, input.drinkCategory, input.drink, input.measure, input.measureLabel, input.actor]);
+}
+
+async function submissionKeys(input: Write): Promise<[AttributedWrite, ...AttributedWrite[]]> {
+  const aliases = await loadVenueAliasResolver();
+  if (aliases.status !== "ready") throw new Error("Could not resolve the deal venue.");
+  const { accountId, ...deal } = input;
+  const keys = aliases.storedIds(input.venueId).map((venueId) => {
+    const actor = pintDropAuthorityKey(venueId, accountId);
+    if (!actor) throw new Error("Could not identify the deal owner.");
+    return { ...deal, venueId, actor };
+  });
+  const first = keys[0];
+  if (!first) throw new Error("Could not resolve the deal venue.");
+  return [first, ...keys.slice(1)];
+}
+
+function ownedBy(venueId: string, actor: unknown, accountId: string): boolean {
+  const authority = pintDropAuthorityKey(venueId, accountId);
+  return Boolean(authority && authority === actor);
 }
 
 const memoryDealPriceStore: Store = {
   async submit(input) {
-    const key = keyOf(input);
+    const keys = await submissionKeys(input);
+    const target = keys.find((candidate) => memoryRows.has(keyOf(candidate))) ?? keys[0];
+    const key = keyOf(target);
     const old = memoryRows.get(key);
-    const row: Stored = { ...input, id: old?.id ?? randomUUID(), reportedAt: new Date().toISOString(), hidden: old?.hidden ?? false, reviewedAt: old?.reviewedAt ?? null, revision: randomUUID() };
+    const row: Stored = { ...target, id: old?.id ?? randomUUID(), reportedAt: new Date().toISOString(), hidden: old?.hidden ?? false, reviewedAt: old?.reviewedAt ?? null, revision: randomUUID() };
     memoryRows.set(key, row);
-    return { deal: publicDeal(row), hidden: row.hidden };
+    return { deal: { ...publicDeal(row), venueId: keys[0].venueId }, hidden: row.hidden };
+  },
+  async listForAccount(accountId, limit) {
+    return [...memoryRows.values()]
+      .filter((row) => ownedBy(row.venueId, row.actor, accountId))
+      .sort((a, b) => b.reportedAt.localeCompare(a.reportedAt) || b.id.localeCompare(a.id))
+      .slice(0, limit).map((row) => ({ ...publicDeal(row), hidden: row.hidden }));
   },
   async read(venueId) {
     const aliases = await loadVenueAliasResolver();
@@ -78,14 +109,42 @@ function fromRow(row: Record<string, unknown>): DealPrice {
 
 const durableDealPriceStore: Store = {
   async submit(input) {
+    const keys = await submissionKeys(input);
+    const { data: existing, error: readError } = await admin().from("deal_prices")
+      .select("venue_id,actor")
+      .in("venue_id", keys.map((key) => key.venueId))
+      .in("actor", keys.map((key) => key.actor))
+      .eq("drink_category", input.drinkCategory).eq("drink", input.drink)
+      .eq("measure", input.measure).eq("measure_label", input.measureLabel);
+    if (readError || !existing) throw new Error("Could not find the previous deal.");
+    const target = keys.find((key) => existing.some((row) => row.venue_id === key.venueId && row.actor === key.actor)) ?? keys[0];
     const { data, error } = await admin().from("deal_prices").upsert({
-      venue_id: input.venueId, drink_category: input.drinkCategory, drink: input.drink,
+      venue_id: target.venueId, drink_category: input.drinkCategory, drink: input.drink,
       measure: input.measure, measure_label: input.measureLabel, price_pennies: Math.round(input.priceGbp * 100),
       days: input.schedule.days, starts_at: input.schedule.start, ends_at: input.schedule.end,
-      end_date: input.endDate, conditions: input.conditions, actor: input.actor, submitted_at: new Date().toISOString(), revision: randomUUID(),
+      end_date: input.endDate, conditions: input.conditions, actor: target.actor, submitted_at: new Date().toISOString(), revision: randomUUID(),
     }, { onConflict: "venue_id,drink_category,drink,measure,measure_label,actor" }).select().single();
     if (error || !data) throw new Error("Could not save the deal.");
-    return { deal: fromRow(data), hidden: data.hidden === true };
+    return { deal: { ...fromRow(data), venueId: keys[0].venueId }, hidden: data.hidden === true };
+  },
+  async listForAccount(accountId, limit) {
+    const owned: OwnedDealPrice[] = [];
+    let afterId: string | null = null;
+    for (;;) {
+      const query = admin().from("deal_prices").select("*").order("id", { ascending: true }).limit(PAGE_SIZE);
+      if (afterId) query.gt("id", afterId);
+      const { data, error } = await query;
+      if (error || !data) throw new Error("Could not export deals.");
+      for (const row of data) {
+        if (typeof row.venue_id !== "string" || typeof row.actor !== "string") throw new Error("Invalid deal owner.");
+        if (ownedBy(row.venue_id, row.actor, accountId)) owned.push({ ...fromRow(row), hidden: row.hidden === true });
+        if (owned.length >= limit) return owned;
+      }
+      if (data.length < PAGE_SIZE) return owned;
+      const nextId = data.at(-1)?.id;
+      if (typeof nextId !== "string" || (afterId && nextId <= afterId)) throw new Error("Deal export did not advance.");
+      afterId = nextId;
+    }
   },
   async read(venueId) {
     const rows: DealPrice[] = [];

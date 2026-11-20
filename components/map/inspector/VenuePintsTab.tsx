@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import DealPriceComposer from "@/components/map/DealPriceComposer";
 import { PlusCircle, Quote } from "lucide-react";
@@ -30,8 +29,7 @@ export default function VenuePintsTab({
   lastTrainDecision: LastPintDecision | null;
   onTabSelect?: (key: TabKey) => void;
 }) {
-  const { composerOpen, setComposerOpen, dropMsg, reportDrop } = pintDrops;
-  const [dealOpen, setDealOpen] = useState(false);
+  const { composerOpen, setComposerOpen, dealComposerOpen, setDealComposerOpen, dropMsg, reportDrop } = pintDrops;
   const hasDemoDrops = drops.some((drop) => drop.provenance === "demo");
   return (
     <div
@@ -48,9 +46,9 @@ export default function VenuePintsTab({
           before. An open composer stacks at every width (--composing). */}
       <div className={composerOpen ? "venuePintsCols venuePintsCols--composing" : "venuePintsCols"}>
         {composerOpen ? (
-          dealOpen ? <DealPriceComposer venueId={venue.id} onClose={() => setDealOpen(false)} /> : (
+          dealComposerOpen ? <DealPriceComposer venueId={venue.id} onClose={() => setDealComposerOpen(false)} /> : (
             <div>
-              <Button type="button" variant="secondary" onClick={() => setDealOpen(true)}>Log a timed deal</Button>
+              <Button type="button" variant="secondary" onClick={() => setDealComposerOpen(true)}>Log a timed deal</Button>
               <PintDropComposer venueId={venue.id} state={pintDrops} venueName={venue.name} lastTrainDecision={lastTrainDecision} />
             </div>
           )

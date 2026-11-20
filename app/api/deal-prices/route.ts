@@ -7,7 +7,6 @@ import { validateDealPrice } from "@/lib/dealPrice";
 import { dealPriceStore } from "@/lib/dealPriceStore";
 import { dealIsVisible } from "@/lib/dealSchedule";
 import { isLimited } from "@/lib/pintDrops";
-import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 export async function GET(request: Request): Promise<Response> {
@@ -48,10 +47,8 @@ export async function POST(request: Request): Promise<Response> {
   if (!venue.ok) return publicApiErrorFromStatus(venue.error, venue.status);
   const key = `deal-write:${contributor.actor}`;
   if (await isLimited(key, key, 30, 3_600_000)) return publicApiError("Too many logs, slow down.", "RATE_LIMITED", 429, { retryable: true });
-  const authority = pintDropAuthorityKey(venue.venueId, contributor.accountId);
-  if (!authority) return publicApiError("Could not save the deal right now.", "UNAVAILABLE", 503, { retryable: true });
   try {
-    const saved = await dealPriceStore().submit({ ...parsed.value, venueId: venue.venueId, actor: authority });
+    const saved = await dealPriceStore().submit({ ...parsed.value, venueId: venue.venueId, accountId: contributor.accountId });
     return jsonNoStore({ deal: saved.deal, visible: !saved.hidden }, { status: 201 });
   } catch {
     return publicApiError("Could not save the deal right now.", "UNAVAILABLE", 503, { retryable: true });

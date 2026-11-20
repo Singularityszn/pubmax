@@ -189,6 +189,23 @@ it.each([false, true])("disposes the abandoned account's pending price after a r
   root = createRoot(container);
 });
 
+it("opens the normal composer when a normal log action follows a timed deal", async () => {
+  await act(async () => { drops.setComposerOpen(true); });
+  await act(async () => { drops.setDealComposerOpen(true); });
+  expect(drops.dealComposerOpen).toBe(true);
+  await act(async () => {
+    drops.seedComposerPrice("5.00");
+    drops.setComposerOpen(true);
+  });
+  expect(drops.composerOpen).toBe(true);
+  expect(drops.dealComposerOpen).toBe(false);
+  expect(drops.priceSeed).toBe("5.00");
+  await act(async () => { drops.setDealComposerOpen(true); });
+  await act(async () => { drops.setComposerOpen(false); });
+  expect(drops.composerOpen).toBe(false);
+  expect(drops.dealComposerOpen).toBe(false);
+});
+
 it("removes a pending price with no photo after the account changes", async () => {
   const { pending, optimistic } = await startPrice(false, false);
   expect(optimistic.optimistic?.state).toBe("pending");

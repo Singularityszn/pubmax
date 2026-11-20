@@ -5,6 +5,7 @@ import { crewRemovalCorrectionStore, type CrewRemovalCorrectionRead } from "@/li
 import { nearbyVisitStore } from "@/lib/nearbyVisitStore";
 import type { NearbyVisit } from "@/lib/nearbyVisit";
 import "server-only";
+import { dealPriceStore, type OwnedDealPrice } from "@/lib/dealPriceStore";
 import { leagueStore } from "@/lib/leagueStore";
 import type { LeagueExportRecord } from "@/lib/leagues";
 
@@ -222,6 +223,7 @@ export type AccountExportDeps = {
     actor: string,
     limit: number,
   ): Promise<{ observations: CommunityPriceObservation[]; degraded: boolean }>;
+  deals(userId: string, limit: number): Promise<OwnedDealPrice[]>;
   pintDrops(handle: string): Promise<PintDropDTO[]>;
   conversations(handle: string): Promise<InboxRead>;
   /** Null when the caller is not a participant, which for their own inbox row is a read that failed. */
@@ -356,6 +358,7 @@ function storeDeps(): AccountExportDeps {
     },
     nightProfile: (userId) => nightProfileStore().get(userId),
     prices: (actor, limit) => listCommunityPriceObservationsForActor(actor, limit),
+    deals: (userId, limit) => dealPriceStore().listForAccount(userId, limit),
     pintDrops: (handle) =>
       pintDropsStore().listVisible(undefined, { handle }, handle, null),
     conversations: (handle) => messagesStore().listConversations(handle),
@@ -605,6 +608,11 @@ export async function buildAccountExport(
       return unavailableLane<AccountExportPrice>();
     }
   })();
+
+  const deals = await lane<OwnedDealPrice>(async () => ({
+    degraded: false,
+    items: await deps.deals(userId, ACCOUNT_EXPORT_LANE_CAP + 1),
+  }));
 
   const pintDrops = await lane<AccountExportPintDrop>(async () => {
     const read = await readUnderEveryHandle(
@@ -936,6 +944,7 @@ export async function buildAccountExport(
     identity,
     memories,
     prices,
+    deals,
     pintDrops,
     visitReports,
     crowdReports,

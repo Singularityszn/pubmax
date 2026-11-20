@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // F15 of the signed-in QA pass, end to end over the REAL keyless stores rather
 // than fakes: an account that filled in its profile, wrote a post and gave a
@@ -13,12 +13,34 @@ import { __resetMemoryOccupancyReports, occupancyStore } from "@/lib/occupancySt
 import { profileStore } from "@/lib/profileStore";
 import { socialPostStore } from "@/lib/socialPostStore";
 import { validateSocialPostCreate } from "@/lib/socialPosts";
+import { dealPriceStore } from "@/lib/dealPriceStore";
 import { leagueStore } from "@/lib/leagueStore";
 
 const USER = "11111111-2222-4333-8444-555555555555";
 const HANDLE = "export_probe";
 
 describe("account export over the real keyless stores", () => {
+  afterEach(() => { vi.useRealTimers(); });
+
+  it("exports only the account's deals, including hidden and expired reports", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-01-01T12:00:00Z"));
+    const store = dealPriceStore();
+    const input = { venueId: "venue-export-deal", drinkCategory: "beer" as const, drink: "Export lager", measure: "pint" as const, measureLabel: "", priceGbp: 4.5, schedule: { days: [5], start: "16:00", end: "19:00" }, endDate: "2026-01-02", conditions: "With a meal", accountId: "deal-export-owner" };
+    const saved = await store.submit(input);
+    await store.submit({ ...input, accountId: "deal-export-stranger", priceGbp: 6 });
+    await store.report(saved.deal.id, "reporter");
+    const review = (await store.review()).find((row) => row.id === saved.deal.id)!;
+    await store.moderate(saved.deal.id, true, review.revision);
+    vi.setSystemTime(new Date("2026-02-01T12:00:00Z"));
+    expect(await store.read(input.venueId)).toEqual([]);
+    const file = await buildAccountExport(input.accountId);
+    expect(file.deals).toEqual({ status: "complete", truncated: false, items: [{ ...saved.deal, hidden: true }] });
+    expect(file.deals.items[0]).not.toHaveProperty("actor");
+    expect(file.deals.items[0]).not.toHaveProperty("accountId");
+    expect((await buildAccountExport("deal-export-empty")).deals.items).toEqual([]);
+  });
+
   it("exports owned leagues and joined memberships without other members or invite codes", async () => {
     const owner = await profileStore().createOwned("export_league_owner", "league-export-owner");
     const member = await profileStore().createOwned("export_league_member", "league-export-member");
