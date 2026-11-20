@@ -938,10 +938,6 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         ? await getAccessToken().catch(() => null)
         : null;
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
-      if (viewerHandle && !bearer) {
-        setPublicRead("failed");
-        return;
-      }
       const outcome = await loadSurfaceJson<{
         profile?: PublicProfile | null;
         projection?: string;
@@ -993,6 +989,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       if (profileFound || outcome === "failed") {
         setPublicRead(outcome === "failed" ? "failed" : "answered");
+        return;
+      }
+      if (viewerHandle && !bearer) {
+        setPublicRead("failed");
         return;
       }
       const alias = await aliasRequest;

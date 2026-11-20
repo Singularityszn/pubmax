@@ -215,6 +215,32 @@ describe("a withdrawn account's public profile page", () => {
   });
 
   it.each([
+    { rejects: false, cached: false },
+    { rejects: true, cached: false },
+    { rejects: false, cached: true },
+    { rejects: true, cached: true },
+  ])("shows a public profile without viewer credentials (rejects: $rejects, cached: $cached)", async ({ rejects, cached }) => {
+    session.user = { id: "viewer-bob" };
+    session.handle = "bob_bitter";
+    if (rejects) accessToken.mockRejectedValue(new Error("Session unavailable"));
+    else accessToken.mockResolvedValue(null);
+    let finish: ((response: Response) => void) | undefined;
+    if (cached) {
+      writeSurfaceSnapshot("/api/profiles/alice_pints?viewer=bob_bitter", await profileAnswer("alice_pints", new Headers()).json());
+      profileResponse = new Promise((resolve) => { finish = resolve; });
+    }
+
+    const text = await visit("alice_pints");
+
+    expect(host.querySelector("h1")?.textContent).toBe("Alice");
+    expect(text).not.toContain("This profile could not load");
+    expect(text).not.toContain("Nobody has claimed");
+    expect(host.querySelector('a[href="/u/you"]')).toBeNull();
+
+    if (finish) await act(async () => { defined(finish)(profileAnswer("alice_pints", new Headers())); });
+  });
+
+  it.each([
     { viewer: "suspendedbob", rejects: false },
     { viewer: "suspendedbob", rejects: true },
     { viewer: "alice_pints", rejects: false },
