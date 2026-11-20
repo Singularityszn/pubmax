@@ -70,6 +70,7 @@ silently stale.
 | openCrawlArrivalStore | not dual-backend | Supabase Plan-seat reads and mark-Here writes for open crawls. |
 | operatorFactsStore | factory-ready | What a moderator's acceptance of an operator proposal publishes: one fact per proposal, withdrawn by a later decline, read by the venue sheet and Tonight. |
 | operatorProposalsStore | factory-ready | Operator proposal state has one backend selector. |
+| paydayPintStore | factory-eligible, policy-heavy | Shared backend selection for confirmation requests, consent withdrawal, active subscribers, and weekly delivery claims. |
 | pendingPlanRecapStore | factory-ready | Small pending-plan recap store. |
 | pintDropsStore | legacy-exception | Inline Supabase configuration branch around Pint Drop and Storage work. |
 | pintDropWithTagsStore | legacy-exception | "With" handle tags on a Pint Drop: proposal, consent, withdrawal and block refusal. Inline Supabase configuration checks around the drop read and the block check. |
@@ -133,7 +134,7 @@ The following stores intentionally stay outside the factory-ready path:
   memory-or-Supabase. Owner: not applicable for this factory.
 - **policy-heavy:** `commentsStore`, `communityPriceStore`,
   `planBeaconStore`, `planPresentationStore`, `planLiveLocationStore`,
-  `identityHandleStore`, `messageNotificationStore`, `messagesStore`, `occupancyStore`,
+  `identityHandleStore`, `messageNotificationStore`, `messagesStore`, `occupancyStore`, `paydayPintStore`,
   `priceAlertStore`, `priceTrustEventStore`, `profileCoverPhotoStore`, `referralStore`,
   `roundsStore`, `socialInteractionStore`, `socialPostExtraPhotoStore`,
   `socialPostReviewStore`,
@@ -216,6 +217,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/openCrawlInvite.server.ts",
     "lib/operatorAccountAddress.server.ts",
     "lib/operatorProposalsStore.ts",
+    "lib/paydayPintStore.ts",
     "lib/pendingPlanRecapStore.ts",
     "lib/peopleYouMayKnow.server.ts",
     "lib/pintDropLookup.ts",

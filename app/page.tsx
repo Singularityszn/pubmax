@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { loadMapOpeningPreview } from "@/lib/mapOpeningPreview.server";
+import { paydayDeliveryReady } from "@/lib/paydayPintFlags.server";
 
 import DutyCensusCard from "@/components/census/DutyCensusCard";
 import LandingHuntCard from "@/components/landing/LandingHuntCard";
@@ -153,6 +154,7 @@ export default async function Home() {
         answers={answers}
         discoveryDrinks={discoveryDrinks}
         socialFriendsLaunchEnabled={socialFriendsLaunchEnabled}
+        paydayPintEnabled={paydayDeliveryReady()}
         ukCoverage={loadUkDirectoryCoverage()}
         // Server components handed in as finished elements, so the hunt costs
         // the landing no client JavaScript (perf/route-budgets.json).

@@ -279,13 +279,7 @@ function buildSubject(
 
 // ── Recipient resolution + opt-in gating (pure) ──────────────────────────────
 //
-// PRIVACY-FIRST STANCE (owner decision documented in docs/EMAIL_DIGEST.md):
-// there is NO user-preferences store in the repo today (profiles has no email;
-// emails live only in Supabase Auth). So at this stage the digest gates on
-// EXPLICIT OPT-IN — a user is mailed only if they positively opted in AND have
-// not opted out. Opt-out ALWAYS wins over opt-in. When a durable
-// `user_email_prefs` table lands (see docs), swap the source of these flags;
-// this predicate does not change.
+// docs/EMAIL_DIGEST.md owns this digest's recipient consent and source contract.
 
 export type DigestAudienceMember = {
   id: string;

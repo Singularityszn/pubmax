@@ -3674,3 +3674,16 @@ describe("the whole public schema: row level security is never off", () => {
     ).toBeGreaterThan(50);
   });
 });
+
+describe("payday pint consent records", () => {
+  it("denies browser roles access to records and confirmation", () => {
+    for (const [role, sub] of [["anon", null], ["authenticated", ALICE], ["authenticated", BOB]] as const) {
+      for (const table of ["payday_pint_pending", "payday_pint_subscribers"]) {
+        expect(attemptAsRole(role, sub, `select * from public.${table}`).ok).toBe(false);
+        expect(attemptAsRole(role, sub, `delete from public.${table}`).ok).toBe(false);
+      }
+      expect(attemptAsRole(role, sub, "select public.confirm_payday_pint('invalid', now())").ok).toBe(false);
+      expect(attemptAsRole(role, sub, "select public.unsubscribe_payday_pint('invalid', now())").ok).toBe(false);
+    }
+  });
+});

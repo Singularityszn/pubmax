@@ -1,0 +1,99 @@
+import "server-only";
+import { randomUUID } from "node:crypto";
+import { selectStore } from "@/lib/storeBackend";
+import { requireSupabaseAdmin as admin } from "@/lib/supabase";
+import { PAYDAY_CONFIRMATION_LIFETIME_MS, transitionPaydayConsent, type PaydayConsentState } from "@/lib/paydayPintConsent";
+
+type PaydayRequest = { email: string; station: string; consentText: string; confirmationHash: string; unsubscribeToken: string; createdAt: string };
+type PaydaySubscriber = { id: string; email: string; station: string; consentAt: string; confirmedAt: string; unsubscribeToken: string; unsubscribedAt: string | null; lastClaimedWeek: string | null };
+export type PaydayStore = {
+  request(input: PaydayRequest): Promise<void>;
+  confirm(hash: string, now: string): Promise<boolean>;
+  unsubscribe(token: string, now: string): Promise<void>;
+  active(): Promise<PaydaySubscriber[]>;
+  claim(id: string, week: string): Promise<boolean>;
+  isActive(id: string, token: string, consentAt: string): Promise<boolean>;
+};
+
+export function createMemoryPaydayStore(): PaydayStore {
+  const pending = new Map<string, PaydayRequest>();
+  type Subscriber = Omit<PaydaySubscriber, "consentAt" | "confirmedAt" | "unsubscribedAt"> & { consent: Exclude<PaydayConsentState, { phase: "pending" }> };
+  const subscribers = new Map<string, Subscriber>();
+  return {
+    async request(input) {
+      for (const [hash, item] of pending) if (Date.parse(item.createdAt) + PAYDAY_CONFIRMATION_LIFETIME_MS < Date.parse(input.createdAt)) pending.delete(hash);
+      pending.set(input.confirmationHash, input);
+    },
+    async confirm(hash, now) {
+      const item = pending.get(hash);
+      if (!item) return false;
+      pending.delete(hash);
+      const previous = subscribers.get(item.email);
+      const current: PaydayConsentState = previous?.consent ?? { phase: "pending" };
+      const consent = transitionPaydayConsent(current, { type: "confirm", requestedAt: item.createdAt, now });
+      if (consent === current || consent.phase !== "confirmed") return false;
+      subscribers.set(item.email, { id: previous?.id ?? randomUUID(), email: item.email, station: item.station, consent, unsubscribeToken: previous?.unsubscribeToken ?? item.unsubscribeToken, lastClaimedWeek: previous?.lastClaimedWeek ?? null });
+      return true;
+    },
+    async unsubscribe(token, now) {
+      for (const item of subscribers.values()) if (item.unsubscribeToken === token) {
+        const consent = transitionPaydayConsent(item.consent, { type: "withdraw", now });
+        if (consent.phase === "withdrawn") item.consent = consent;
+      }
+    },
+    async active() { return [...subscribers.values()].filter((item) => item.consent.phase === "confirmed").map(({ consent, ...item }) => ({ ...item, consentAt: consent.consentAt, confirmedAt: consent.confirmedAt, unsubscribedAt: null })); },
+    async isActive(id, token, consentAt) { return [...subscribers.values()].some((item) => item.id === id && item.unsubscribeToken === token && item.consent.consentAt === consentAt && item.consent.phase === "confirmed"); },
+    async claim(id, week) {
+      const item = [...subscribers.values()].find((subscriber) => subscriber.id === id);
+      if (!item || item.consent.phase !== "confirmed" || item.lastClaimedWeek === week) return false;
+      item.lastClaimedWeek = week;
+      return true;
+    },
+  };
+}
+
+const memoryGlobal = globalThis as typeof globalThis & {
+  __pubmaxPaydayPintStore?: PaydayStore;
+};
+const memory = memoryGlobal.__pubmaxPaydayPintStore ??= createMemoryPaydayStore();
+const durable: PaydayStore = {
+  async request(input) {
+    const cleanup = await admin().from("payday_pint_pending").delete().lt("expires_at", input.createdAt);
+    if (cleanup.error) throw cleanup.error;
+    const { error } = await admin().from("payday_pint_pending").insert({ confirmation_hash: input.confirmationHash, email: input.email, station: input.station, consent_text: input.consentText, consent_at: input.createdAt, expires_at: new Date(Date.parse(input.createdAt) + PAYDAY_CONFIRMATION_LIFETIME_MS).toISOString(), unsubscribe_token: input.unsubscribeToken });
+    if (error) throw error;
+  },
+  async confirm(hash, now) {
+    const { data, error } = await admin().rpc("confirm_payday_pint", { p_hash: hash, p_now: now });
+    if (error) throw error;
+    return data === true;
+  },
+  async unsubscribe(token, now) {
+    const { error } = await admin().rpc("unsubscribe_payday_pint", { p_token: token, p_now: now });
+    if (error) throw error;
+  },
+  async active() {
+    const rows: PaydaySubscriber[] = [];
+    let lastId: string | null = null;
+    for (;;) {
+      let query = admin().from("payday_pint_subscribers").select("id,email,station,consent_at,confirmed_at,unsubscribe_token,unsubscribed_at,last_claimed_week").is("unsubscribed_at", null).order("id").limit(500);
+      if (lastId) query = query.gt("id", lastId);
+      const { data, error } = await query;
+      if (error) throw error;
+      rows.push(...(data ?? []).map((item) => ({ id: item.id, email: item.email, station: item.station, consentAt: item.consent_at, confirmedAt: item.confirmed_at, unsubscribeToken: item.unsubscribe_token, unsubscribedAt: item.unsubscribed_at, lastClaimedWeek: item.last_claimed_week })));
+      if (!data || data.length < 500) return rows;
+      lastId = data[data.length - 1]!.id;
+    }
+  },
+  async isActive(id, token, consentAt) {
+    const { data, error } = await admin().from("payday_pint_subscribers").select("id").eq("id", id).eq("unsubscribe_token", token).eq("consent_at", consentAt).is("unsubscribed_at", null).maybeSingle();
+    if (error) throw error;
+    return data !== null;
+  },
+  async claim(id, week) {
+    const { data, error } = await admin().from("payday_pint_subscribers").update({ last_claimed_week: week }).eq("id", id).is("unsubscribed_at", null).or(`last_claimed_week.is.null,last_claimed_week.neq.${week}`).select("id");
+    if (error) throw error;
+    return (data?.length ?? 0) === 1;
+  },
+};
+export function paydayPintStore(): PaydayStore { return selectStore(memory, durable); }

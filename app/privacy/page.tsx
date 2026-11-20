@@ -978,8 +978,10 @@ export default function PrivacyPage() {
               host lets them in, PUBMAXX emails the guest through Resend. Each
               email uses the recipient&rsquo;s account email address, the handle
               of the person who acted, the crawl title and a link to the crawl.
-              We only send these emails when email delivery is set up. There is no
-              marketing list or email digest. If you turn public notifications on,
+              We only send these emails when email delivery is set up. If you choose
+              the weekly payday pint email, Resend receives your email address,
+              chosen station and the message. Signup requires email confirmation,
+              and each email has an unsubscribe link. If you turn public notifications on,
               PUBMAXX stores your browser&rsquo;s push subscription, the endpoint
               plus its keys, so it can send you the notification; the
               subscription itself belongs to your own browser&rsquo;s push service.
@@ -1191,6 +1193,13 @@ export default function PrivacyPage() {
             <strong>Legacy pending digest addresses:</strong>{" "}addresses in
             legacy <code>public.email_subscribers</code> rows remain stored. We
             do not confirm or mail them. Ask us to delete yours at{" "}
+            <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
+          </li>
+          <li>
+            <strong>Payday pint email:</strong>{" "}if you request it, we store your
+            email address, station, consent text and times, confirmation state,
+            and unsubscribe token. We keep the record after you unsubscribe so
+            we can respect your choice. Ask us to delete it at{" "}
             <a href={CONTACT_MAILTO} className="legalLink">{CONTACT_EMAIL}</a>.
           </li>
           <li>
